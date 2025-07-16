@@ -36,3 +36,10 @@ yarn-error.log*
 # Misc
 .DS_Store
 *.pem
+
+# Editors and IDE
+.vscode
+/generated/prisma
+
+
+postgres_data
