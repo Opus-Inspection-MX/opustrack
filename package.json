@@ -1,5 +1,5 @@
 {
-  "name": "my-turborepo",
+  "name": "opustrack",
   "private": true,
   "scripts": {
     "build": "turbo run build",
