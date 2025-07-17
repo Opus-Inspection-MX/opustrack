@@ -14,16 +14,192 @@ datasource db {
 }
 
 model User {
-  id          String   @id @default(cuid())
-  name        String
-  email       String   @unique
-  password    String
-  usertype_id Int
-  usertype    UserType @relation(fields: [usertype_id], references: [id])
+  id                String                   @id @default(cuid())
+  name              String
+  email             String                   @unique
+  password          String
+  userTypeId        Int
+  userStatusId      Int                      @default(1)
+  vicId             String?
+  userType          UserType                 @relation(fields: [userTypeId], references: [id])
+  userStatus        UserStatus               @relation(fields: [userStatusId], references: [id])
+  userProfile       UserProfile?
+  vic               VehicleInspectionCenter? @relation(fields: [vicId], references: [id])
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
+  workOrders        WorkOrder[]
+  reportedIncidents Incident[]               @relation("IncidentReporter")
 }
 
 model UserType {
-  id   Int    @id @default(autoincrement())
-  name String @unique // e.g. "USER", "ADMIN"
-  User User[]
+  id    Int    @id @default(autoincrement())
+  name  String @unique
+  users User[]
+}
+
+model UserStatus {
+  id    Int    @id @default(autoincrement())
+  name  String @unique
+  users User[]
+}
+
+model UserProfile {
+  id                 Int      @id @default(autoincrement())
+  userId             String   @unique
+  telephone          String?
+  secondaryTelephone String?
+  emergencyContact   String?
+  jobPosition        String?
+  user               User     @relation(fields: [userId], references: [id])
+  updatedAt          DateTime @updatedAt
+}
+
+model VehicleInspectionCenter {
+  id          String     @id @default(cuid())
+  code        String     @unique
+  name        String
+  address     String?
+  rfc         String?
+  companyName String?
+  phone       String?
+  contact     String?
+  email       String?
+  lines       Int        @default(1)
+  stateId     Int
+  state       State      @relation(fields: [stateId], references: [id])
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  users       User[]
+  schedules   Schedule[]
+  incidents   Incident[]
+  Part        Part[]
+}
+
+model State {
+  id                       Int                       @id @default(autoincrement())
+  name                     String                    @unique
+  code                     String                    @unique
+  createdAt                DateTime                  @default(now())
+  updatedAt                DateTime                  @updatedAt
+  vehicleInspectionCenters VehicleInspectionCenter[]
+}
+
+model Schedule {
+  id          String                  @id @default(cuid())
+  title       String
+  description String?
+  scheduledAt DateTime
+  vicId       String
+  vic         VehicleInspectionCenter @relation(fields: [vicId], references: [id])
+  incidents   Incident[]
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
+}
+
+model IncidentType {
+  id          Int        @id @default(autoincrement())
+  name        String     @unique
+  description String?
+  incidents   Incident[]
+}
+
+model IncidentStatus {
+  id        Int        @id @default(autoincrement())
+  name      String     @unique
+  incidents Incident[]
+}
+
+model Incident {
+  id           String                  @id @default(cuid())
+  title        String
+  description  String
+  priority     String
+  sla          Int
+  typeId       Int
+  type         IncidentType            @relation(fields: [typeId], references: [id])
+  statusId     Int
+  status       IncidentStatus          @relation(fields: [statusId], references: [id])
+  reportedAt   DateTime                @default(now())
+  resolvedAt   DateTime?
+  vicId        String
+  vic          VehicleInspectionCenter @relation(fields: [vicId], references: [id])
+  reportedById String
+  reportedBy   User                    @relation("IncidentReporter", fields: [reportedById], references: [id])
+  scheduleId   String?
+  schedule     Schedule?               @relation(fields: [scheduleId], references: [id])
+  workOrders   WorkOrder[]
+  createdAt    DateTime                @default(now())
+  updatedAt    DateTime                @updatedAt
+  userId       String?
+}
+
+model WorkOrder {
+  id             String                @id @default(cuid())
+  incidentId     String
+  incident       Incident              @relation(fields: [incidentId], references: [id])
+  assignedToId   String
+  assignedTo     User                  @relation(fields: [assignedToId], references: [id])
+  status         String
+  notes          String?
+  startedAt      DateTime?
+  finishedAt     DateTime?
+  workActivities WorkActivity[]
+  attachments    WorkOrderAttachment[]
+  workParts      WorkPart[]
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+}
+
+model WorkActivity {
+  id          String     @id @default(cuid())
+  workOrderId String
+  workOrder   WorkOrder  @relation(fields: [workOrderId], references: [id])
+  description String
+  performedAt DateTime   @default(now())
+  workParts   WorkPart[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
+
+model WorkOrderAttachment {
+  id          String    @id @default(cuid())
+  workOrderId String
+  workOrder   WorkOrder @relation(fields: [workOrderId], references: [id])
+  filename    String
+  filepath    String
+  mimetype    String
+  size        Int
+  description String?
+  uploadedAt  DateTime  @default(now())
+}
+
+model Part {
+  id          String                  @id @default(cuid())
+  vicId       String
+  vic         VehicleInspectionCenter @relation(fields: [vicId], references: [id])
+  name        String
+  description String?
+  price       Float
+  stock       Int
+  workParts   WorkPart[]
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
+}
+
+model WorkPart {
+  id             String        @id @default(cuid())
+  partId         String
+  part           Part          @relation(fields: [partId], references: [id])
+  quantity       Int
+  description    String?
+  price          Float
+  workOrderId    String?
+  workOrder      WorkOrder?    @relation(fields: [workOrderId], references: [id])
+  workActivityId String?
+  workActivity   WorkActivity? @relation(fields: [workActivityId], references: [id])
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([workOrderId])
+  @@index([workActivityId])
 }
