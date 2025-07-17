@@ -1,10 +1,10 @@
 meta {
-  name: users.create
+  name: findAll
   type: http
-  seq: 1
+  seq: 2
 }
 
-post {
+get {
   url: {{local_api}}/users/
   body: none
   auth: inherit

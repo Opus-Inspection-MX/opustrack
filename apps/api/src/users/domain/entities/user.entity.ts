@@ -3,7 +3,7 @@ export class User {
     public readonly id: string,
     public readonly name: string,
     public readonly email: string,
-  ) {
-    if (!email.includes('@')) throw new Error('Invalid email');
-  }
+    public readonly password?: string,
+    public readonly usertype_id?: number,
+  ) {}
 }

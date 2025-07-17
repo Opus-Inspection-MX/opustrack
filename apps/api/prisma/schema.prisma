@@ -18,12 +18,12 @@ model User {
   name        String
   email       String   @unique
   password    String
-  usertype_id String
+  usertype_id Int
   usertype    UserType @relation(fields: [usertype_id], references: [id])
 }
 
 model UserType {
-  id   String @id @default(cuid())
+  id   Int    @id @default(autoincrement())
   name String @unique // e.g. "USER", "ADMIN"
   User User[]
 }
