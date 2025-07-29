@@ -4,6 +4,10 @@ export class User {
     public readonly name: string,
     public readonly email: string,
     public readonly password?: string,
-    public readonly usertype_id?: number,
+    public readonly roleId?: number,
+    public readonly userStatusId?: number,
+    public readonly vicId?: string,
+    public readonly active?: boolean,
+    public readonly refreshToken?: string,
   ) {}
 }

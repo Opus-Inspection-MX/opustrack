@@ -3,7 +3,8 @@ import { AppController } from './app.controller';
 import { ConfigModule } from '@nestjs/config';
 import { AppService } from './app.service';
 import { UsersModule } from './users/users.module';
-import { PrismaService } from '../prisma/prisma.service';
+import { AuthModule } from './auth/auth.module';
+import { PrismaService } from './shared/infraestructure/prisma/prisma.service';
 import * as dotenv from 'dotenv';
 dotenv.config();
 
@@ -14,6 +15,7 @@ dotenv.config();
       envFilePath: ['../../.env'],
     }),
     UsersModule,
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [AppService, PrismaService],

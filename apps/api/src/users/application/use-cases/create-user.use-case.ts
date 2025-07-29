@@ -1,9 +1,13 @@
+import { Injectable, Inject } from '@nestjs/common';
 import { UserRepository } from '../../domain/repositories/user.repository';
 import { User } from '../../domain/entities/user.entity';
-import { UserAlreadyExistsError } from 'src/users/domain/errors/user-already-exists.error';
+import { UserAlreadyExistsError } from 'src/users/domain/errors/user-existance.errors';
 
+@Injectable()
 export class CreateUserUseCase {
-  constructor(private readonly userRepo: UserRepository) {}
+  constructor(
+    @Inject('UserRepository') private readonly userRepo: UserRepository,
+  ) {}
 
   async execute(name: string, email: string, password: string): Promise<User> {
     const exists = await this.userRepo.findByEmail(email);

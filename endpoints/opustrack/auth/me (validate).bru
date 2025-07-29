@@ -1,0 +1,24 @@
+meta {
+  name: me (validate)
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{local_api}}/auth/me
+  body: json
+  auth: inherit
+}
+
+headers {
+  Authorization: {{token}}
+}
+
+body:json {
+  {
+    "email":"user_admin@opusinspection.com",
+    "password":"password123"
+  }
+  
+  
+}

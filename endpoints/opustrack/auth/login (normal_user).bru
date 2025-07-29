@@ -1,0 +1,20 @@
+meta {
+  name: login (normal_user)
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{local_api}}/auth/login
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "email":"user_admin@opusinspection.com",
+    "password":"password123"
+  }
+  
+  
+}

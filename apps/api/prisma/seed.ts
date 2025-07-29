@@ -72,17 +72,16 @@ async function main() {
     'USER_ADMIN',
   ];
 
-  const userTypeRecords: Awaited<ReturnType<typeof prisma.userType.upsert>>[] =
-    [];
+  const userTypeRecords: Awaited<ReturnType<typeof prisma.role.upsert>>[] = [];
   for (const name of userTypes) {
-    const userType = await prisma.userType.upsert({
+    const roles = await prisma.role.upsert({
       where: { name },
       update: {},
       create: { name },
     });
-    userTypeRecords.push(userType);
+    userTypeRecords.push(roles);
   }
-  console.log('✅ Seeded UserTypes');
+  console.log('✅ Seeded Roles');
 
   // Seed VehicleInspectionCenters
   for (const state of stateRecords) {
@@ -103,29 +102,48 @@ async function main() {
   }
   console.log('✅ Seeded VehicleInspectionCenters');
 
-  // Seed Users for each UserType
-  for (const userType of userTypeRecords) {
-    // Only assign a VIC to USER and USER_GUEST
+  // Seed Roles
+  const roles = [
+    'USER_GUEST',
+    'USER',
+    'USER_WORKER',
+    'USER_SYSTEM',
+    'USER_ADMIN',
+  ];
+
+  const roleRecords: Awaited<ReturnType<typeof prisma.role.upsert>>[] = [];
+  for (const name of roles) {
+    const role = await prisma.role.upsert({
+      where: { name },
+      update: {},
+      create: { name },
+    });
+    roleRecords.push(role);
+  }
+  console.log('✅ Seeded Roles');
+
+  // Seed Users for each Role
+  for (const role of roleRecords) {
     let vicId: string | undefined = undefined;
-    if (userType.name === 'USER' || userType.name === 'USER_GUEST') {
+    if (role.name === 'USER' || role.name === 'USER_GUEST') {
       const vic = await prisma.vehicleInspectionCenter.findFirst();
       vicId = vic?.id;
     }
 
     await prisma.user.upsert({
-      where: { email: `${userType.name.toLowerCase()}@opusinspection.com` },
+      where: { email: `${role.name.toLowerCase()}@opusinspection.com` },
       update: {},
       create: {
-        name: `${userType.name} User`,
-        email: `${userType.name.toLowerCase()}@opusinspection.com`,
+        name: `${role.name} User`,
+        email: `${role.name.toLowerCase()}@opusinspection.com`,
         password: await hashPassword('password123'),
-        userTypeId: userType.id,
+        roleId: role.id,
         userStatusId: userStatusRecords[0].id,
         ...(vicId ? { vicId } : {}),
       },
     });
   }
-  console.log('✅ Seeded Users for each UserType');
+  console.log('✅ Seeded Users for each Role');
 
   // Seed IncidentTypes
   const incidentTypes = [
@@ -200,6 +218,73 @@ async function main() {
     });
   }
   console.log('✅ Seeded Incidents for each VIC');
+
+  // Seed Permissions
+  const permissions = [
+    { name: 'view_incident', description: 'Ver incidentes' },
+    { name: 'create_incident', description: 'Crear incidentes' },
+    { name: 'assign_incident', description: 'Asignar incidentes a técnicos' },
+    { name: 'close_incident', description: 'Cerrar incidentes' },
+    { name: 'view_users', description: 'Ver usuarios' },
+    { name: 'edit_users', description: 'Editar usuarios' },
+  ];
+  const permissionRecords: Awaited<
+    ReturnType<typeof prisma.permission.upsert>
+  >[] = [];
+  for (const perm of permissions) {
+    const record = await prisma.permission.upsert({
+      where: { name: perm.name },
+      update: {},
+      create: perm,
+    });
+    permissionRecords.push(record);
+  }
+  console.log('✅ Seeded Permissions');
+
+  // Map permissions to roles
+  const rolePermissionMap: Record<string, string[]> = {
+    USER_GUEST: ['view_incident'],
+    USER: ['view_incident', 'create_incident'],
+    USER_WORKER: ['view_incident', 'close_incident', 'edit_incident'],
+    USER_SYSTEM: [
+      'view_incident',
+      'create_incident',
+      'edit_incident',
+      'assign_incident',
+      'close_incident',
+    ],
+    USER_ADMIN: [
+      'view_incident',
+      'create_incident',
+      'edit_incident',
+      'assign_incident',
+      'close_incident',
+      'view_users',
+      'edit_users',
+    ],
+  };
+
+  for (const role of roleRecords) {
+    const perms = rolePermissionMap[role.name] || [];
+    for (const permName of perms) {
+      const perm = permissionRecords.find((p) => p.name === permName);
+      if (!perm) continue;
+      await prisma.rolePermission.upsert({
+        where: {
+          roleId_permissionId: {
+            roleId: role.id,
+            permissionId: perm.id,
+          },
+        },
+        update: {},
+        create: {
+          roleId: role.id,
+          permissionId: perm.id,
+        },
+      });
+    }
+  }
+  console.log('✅ Mapped Permissions to Roles');
 }
 
 main()

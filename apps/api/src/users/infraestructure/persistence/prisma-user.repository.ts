@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../../../prisma/prisma.service';
+import { PrismaService } from '../../../shared/infraestructure/prisma/prisma.service';
 import { UserRepository } from '../../domain/repositories/user.repository';
 import { User } from '../../domain/entities/user.entity';
-import { handlePrismaError } from '../../../../prisma/prisma-exceptions.mapper';
+import { handlePrismaError } from '../../../shared/infraestructure/prisma/prisma-exceptions.mapper';
 
 @Injectable()
 export class PrismaUserRepository implements UserRepository {
@@ -12,10 +12,14 @@ export class PrismaUserRepository implements UserRepository {
     try {
       await this.prisma.user.create({
         data: {
+          id: user.id,
           name: user.name,
           email: user.email,
           password: user.password!,
-          usertype_id: user.usertype_id!,
+          roleId: user.roleId!,
+          userStatusId: user.userStatusId!,
+          vicId: user.vicId ?? undefined,
+          active: user.active ?? true,
         },
       });
     } catch (error) {
@@ -26,7 +30,19 @@ export class PrismaUserRepository implements UserRepository {
   async findAll(): Promise<User[]> {
     try {
       const users = await this.prisma.user.findMany();
-      return users.map((u) => new User(u.id, u.name, u.email));
+      return users.map(
+        (u) =>
+          new User(
+            u.id,
+            u.name,
+            u.email,
+            u.password ?? undefined,
+            u.roleId,
+            u.userStatusId,
+            u.vicId ?? undefined,
+            u.active,
+          ),
+      );
     } catch (error) {
       handlePrismaError(error);
     }
@@ -34,7 +50,19 @@ export class PrismaUserRepository implements UserRepository {
 
   async findById(id: string): Promise<User | null> {
     try {
-      return await this.prisma.user.findUnique({ where: { id } });
+      const u = await this.prisma.user.findUnique({ where: { id } });
+      return u
+        ? new User(
+            u.id,
+            u.name,
+            u.email,
+            u.password ?? undefined,
+            u.roleId,
+            u.userStatusId,
+            u.vicId ?? undefined,
+            u.active,
+          )
+        : null;
     } catch (error) {
       handlePrismaError(error);
     }
@@ -42,7 +70,18 @@ export class PrismaUserRepository implements UserRepository {
 
   async findByEmail(email: string): Promise<User | null> {
     const user = await this.prisma.user.findUnique({ where: { email } });
-    return user ? new User(user.id, user.name, user.email) : null;
+    return user
+      ? new User(
+          user.id,
+          user.name,
+          user.email,
+          user.password ?? undefined,
+          user.roleId,
+          user.userStatusId,
+          user.vicId ?? undefined,
+          user.active,
+        )
+      : null;
   }
 
   async delete(id: string): Promise<User | null> {
@@ -56,7 +95,16 @@ export class PrismaUserRepository implements UserRepository {
       where: { id },
     });
 
-    return new User(userToDelete.id, userToDelete.name, userToDelete.email);
+    return new User(
+      userToDelete.id,
+      userToDelete.name,
+      userToDelete.email,
+      userToDelete.password ?? undefined,
+      userToDelete.roleId,
+      userToDelete.userStatusId,
+      userToDelete.vicId ?? undefined,
+      userToDelete.active,
+    );
   }
 
   async update(user: User): Promise<User | null> {
@@ -66,10 +114,21 @@ export class PrismaUserRepository implements UserRepository {
         name: user.name,
         email: user.email,
         password: user.password,
-        usertype_id: user.usertype_id,
+        roleId: user.roleId!,
+        userStatusId: user.userStatusId!,
+        vicId: user.vicId ?? undefined,
+        active: user.active ?? true,
       },
     });
-
-    return new User(updatedUser.id, updatedUser.name, updatedUser.email);
+    return new User(
+      updatedUser.id,
+      updatedUser.name,
+      updatedUser.email,
+      updatedUser.password ?? undefined,
+      updatedUser.roleId,
+      updatedUser.userStatusId,
+      updatedUser.vicId ?? undefined,
+      updatedUser.active,
+    );
   }
 }

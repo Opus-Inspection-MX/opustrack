@@ -18,10 +18,11 @@ model User {
   name              String
   email             String                   @unique
   password          String
-  userTypeId        Int
+  refreshToken      String?
+  roleId            Int
   userStatusId      Int                      @default(1)
   vicId             String?
-  userType          UserType                 @relation(fields: [userTypeId], references: [id])
+  role              Role                     @relation(fields: [roleId], references: [id])
   userStatus        UserStatus               @relation(fields: [userStatusId], references: [id])
   userProfile       UserProfile?
   vic               VehicleInspectionCenter? @relation(fields: [vicId], references: [id])
@@ -29,18 +30,41 @@ model User {
   updatedAt         DateTime                 @updatedAt
   workOrders        WorkOrder[]
   reportedIncidents Incident[]               @relation("IncidentReporter")
+  active            Boolean                  @default(true)
 }
 
-model UserType {
-  id    Int    @id @default(autoincrement())
-  name  String @unique
-  users User[]
+model Role {
+  id             Int              @id @default(autoincrement())
+  name           String           @unique
+  users          User[]
+  rolePermission RolePermission[]
+  active         Boolean          @default(true)
+}
+
+model Permission {
+  id          Int              @id @default(autoincrement())
+  name        String           @unique
+  description String?
+  roles       RolePermission[]
+  active      Boolean          @default(true)
+}
+
+model RolePermission {
+  id           Int        @id @default(autoincrement())
+  roleId       Int
+  permissionId Int
+  role         Role       @relation(fields: [roleId], references: [id])
+  permission   Permission @relation(fields: [permissionId], references: [id])
+  active       Boolean    @default(true)
+
+  @@unique([roleId, permissionId])
 }
 
 model UserStatus {
-  id    Int    @id @default(autoincrement())
-  name  String @unique
-  users User[]
+  id     Int     @id @default(autoincrement())
+  name   String  @unique
+  users  User[]
+  active Boolean @default(true)
 }
 
 model UserProfile {
@@ -52,6 +76,7 @@ model UserProfile {
   jobPosition        String?
   user               User     @relation(fields: [userId], references: [id])
   updatedAt          DateTime @updatedAt
+  active             Boolean  @default(true)
 }
 
 model VehicleInspectionCenter {
@@ -73,6 +98,7 @@ model VehicleInspectionCenter {
   schedules   Schedule[]
   incidents   Incident[]
   Part        Part[]
+  active      Boolean    @default(true)
 }
 
 model State {
@@ -82,6 +108,7 @@ model State {
   createdAt                DateTime                  @default(now())
   updatedAt                DateTime                  @updatedAt
   vehicleInspectionCenters VehicleInspectionCenter[]
+  active                   Boolean                   @default(true)
 }
 
 model Schedule {
@@ -94,6 +121,7 @@ model Schedule {
   incidents   Incident[]
   createdAt   DateTime                @default(now())
   updatedAt   DateTime                @updatedAt
+  active      Boolean                 @default(true)
 }
 
 model IncidentType {
@@ -101,12 +129,14 @@ model IncidentType {
   name        String     @unique
   description String?
   incidents   Incident[]
+  active      Boolean    @default(true)
 }
 
 model IncidentStatus {
   id        Int        @id @default(autoincrement())
   name      String     @unique
   incidents Incident[]
+  active    Boolean    @default(true)
 }
 
 model Incident {
@@ -131,6 +161,7 @@ model Incident {
   createdAt    DateTime                @default(now())
   updatedAt    DateTime                @updatedAt
   userId       String?
+  active       Boolean                 @default(true)
 }
 
 model WorkOrder {
@@ -148,6 +179,7 @@ model WorkOrder {
   workParts      WorkPart[]
   createdAt      DateTime              @default(now())
   updatedAt      DateTime              @updatedAt
+  active         Boolean               @default(true)
 }
 
 model WorkActivity {
@@ -158,7 +190,8 @@ model WorkActivity {
   performedAt DateTime   @default(now())
   workParts   WorkPart[]
   createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  updatedAt   DateTime   @default(now())
+  active      Boolean    @default(true)
 }
 
 model WorkOrderAttachment {
@@ -171,6 +204,7 @@ model WorkOrderAttachment {
   size        Int
   description String?
   uploadedAt  DateTime  @default(now())
+  active      Boolean   @default(true)
 }
 
 model Part {
@@ -184,6 +218,7 @@ model Part {
   workParts   WorkPart[]
   createdAt   DateTime                @default(now())
   updatedAt   DateTime                @updatedAt
+  active      Boolean                 @default(true)
 }
 
 model WorkPart {
@@ -198,7 +233,8 @@ model WorkPart {
   workActivityId String?
   workActivity   WorkActivity? @relation(fields: [workActivityId], references: [id])
   createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  updatedAt      DateTime      @default(now())
+  active         Boolean       @default(true)
 
   @@index([workOrderId])
   @@index([workActivityId])
