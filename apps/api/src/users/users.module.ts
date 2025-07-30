@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { UsersController } from './presentation/users.controller';
 import { PrismaUserRepository } from './infraestructure/persistence/prisma-user.repository';
-import { PrismaService } from '../shared/infraestructure/prisma/prisma.service';
+import { PrismaService } from '../shared/infrastructure/prisma/prisma.service';
 import { CreateUserUseCase } from './application/use-cases/create-user.use-case';
 import { FindUserUseCase } from './application/use-cases/find-user.use-case';
 import { UpdateUserUseCase } from './application/use-cases/update-user.use-case';

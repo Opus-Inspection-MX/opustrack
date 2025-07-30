@@ -8,7 +8,7 @@ import { BcryptService } from './infrastructure/security/bcrypt.service';
 import { JwtStrategy } from './infrastructure/security/jwt.strategy';
 import { JwtAuthGuard } from './infrastructure/security/jwt-auth.guard';
 import { JwtTokenService } from './infrastructure/token/jwt-token.service';
-import { PrismaAuthRepository } from '../auth/infraestructure/persistence/prisma-auth.repository';
+import { PrismaAuthRepository } from './infrastructure/persistence/prisma-auth.repository';
 import { SharedModule } from '../shared/shared.module';
 
 @Module({

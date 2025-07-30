@@ -29,6 +29,8 @@ import { UpdateUserDto } from '../presentation/dtos/update-user.dto';
 export class UsersController {
   constructor(@Inject('UserRepository') private userRepo: UserRepository) {}
 
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('create_users')
   @Post()
   async create(@Body() dto: CreateUserDto) {
     const useCase = new CreateUserUseCase(this.userRepo);
@@ -55,8 +57,9 @@ export class UsersController {
       throw error;
     }
   }
+
   @UseGuards(JwtAuthGuard, OwnerOrPermissionGuard)
-  @Permissions('view_user')
+  @Permissions('view_users')
   @Get(':id')
   async findOne(@Param('id') id: string) {
     try {

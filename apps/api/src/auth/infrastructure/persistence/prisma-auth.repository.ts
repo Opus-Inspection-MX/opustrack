@@ -1,6 +1,6 @@
 // filepath: auth/infraestructure/persistence/prisma-auth.repository.ts
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../../shared/infraestructure/prisma/prisma.service';
+import { PrismaService } from '../../../shared/infrastructure/prisma/prisma.service';
 import { AuthRepository } from 'src/auth/domain/repositories/auth.repository';
 import { User } from '../../../users/domain/entities/user.entity';
 

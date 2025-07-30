@@ -5,7 +5,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { PrismaService } from 'src/shared/infraestructure/prisma/prisma.service';
+import { PrismaService } from 'src/shared/infrastructure/prisma/prisma.service';
 import { PERMISSIONS_KEY } from './permissions.decorator';
 
 @Injectable()
