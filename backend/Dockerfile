@@ -1,7 +1,11 @@
 # 1. build image
 FROM node:22-alpine AS builder
 WORKDIR /app
-COPY . .                       # bring in package.json, tsconfigs, nest-cli, src, prisma…
+COPY package*.json ./           # copy package.json and package-lock.json
+COPY tsconfig*.json ./          # copy tsconfig files
+COPY nest-cli.json ./           # copy nest-cli config if present
+COPY prisma ./prisma           # copy prisma folder
+COPY src ./src                 # copy source code
 RUN npm ci                     # installs both deps & devDeps
 RUN npm run build              # outputs to whatever outDir you’ve configured
 
