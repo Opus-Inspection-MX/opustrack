@@ -29,12 +29,10 @@ jobs:
             Dockerfile \
             captain-definition.json \
             package*.json \
-            next.config.ts \
             tsconfig.json \
             postcss.config.mjs \
             components.json \
             eslint.config.mjs \
-            next-env.d.ts \
             .gitignore \
             src \
             public
