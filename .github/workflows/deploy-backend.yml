@@ -20,27 +20,17 @@ jobs:
         with:
           node-version: 20
 
-      - name: Install dependencies
-        working-directory: backend
-        run: npm install --legacy-peer-deps
-
-      - name: Build application
-        working-directory: backend
-        run: npm run build
-
-      # - name: Generate CapRover definition
-      #   working-directory: backend
-      #   run: |
-      #     echo '{ "schemaVersion": 2, "dockerfilePath": "./Dockerfile" }' > captain-definition
-
+      # No build step here - Docker will handle the build
       - name: Package application
         working-directory: backend
         run: |
+          # Package source code for Docker to build
           tar -cf ../deploy.tar \
             Dockerfile \
             captain-definition.json \
-            package.json package-lock.json \
-            tsconfig*.json nest-cli.json \
+            package*.json \
+            tsconfig*.json \
+            nest-cli.json \
             prisma \
             src
 

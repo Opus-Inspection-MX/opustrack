@@ -1,19 +1,40 @@
 # Build stage
 FROM node:22-alpine AS builder
 WORKDIR /app
-COPY package*.json next.config.ts ./
+
+# Copy package files first for better caching
+COPY package*.json ./
+RUN npm install
+
+# Copy source code and config files
+COPY next.config.ts ./
+COPY tsconfig.json ./
+COPY tailwind.config.ts ./
+COPY postcss.config.mjs ./
+COPY components.json ./
 COPY public ./public
 COPY src ./src
-RUN npm install
+
+# Build the application
 RUN npm run build
 
 # Run stage
 FROM node:22-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
-COPY --from=builder /app/package*.json ./
-COPY --from=builder /app/node_modules ./node_modules
+
+# Copy package files and install only production dependencies
+COPY package*.json ./
+RUN npm ci --only=production && npm cache clean --force
+
+# Copy built application from builder stage
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/public ./public
+
+# Create non-root user for security
+RUN addgroup -g 1001 -S nodejs
+RUN adduser -S nextjs -u 1001
+USER nextjs
+
 EXPOSE 3000
 CMD ["npm", "start"]

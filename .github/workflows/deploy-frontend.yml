@@ -20,30 +20,22 @@ jobs:
         with:
           node-version: 20
 
-      - name: Install dependencies
-        working-directory: frontend
-        run: npm install --legacy-peer-deps
-
-      - name: Build application
-        working-directory: frontend
-        run: npm run build
-
-      # - name: Generate CapRover definition
-      #   working-directory: frontend
-      #   run: |
-      #     echo '{ "schemaVersion": 2, "dockerfilePath": "./Dockerfile" }' > captain-definition
-
+      # No build step here - Docker will handle the build
       - name: Package application
         working-directory: frontend
         run: |
-          # Exclude unnecessary files for faster deployment
-          echo "node_modules" > .tarignore
-          echo ".next" >> .tarignore
-          echo ".git" >> .tarignore
-          echo "README.md" >> .tarignore
-
-          # Package application
-          tar --exclude-from=.tarignore -cf ../deploy.tar .
+          # Package source code for Docker to build
+          tar -cf ../deploy.tar \
+            Dockerfile \
+            captain-definition.json \
+            package*.json \
+            next.config.ts \
+            tsconfig.json \
+            tailwind.config.ts \
+            postcss.config.mjs \
+            components.json \
+            src \
+            public
 
       - name: Deploy to CapRover
         uses: caprover/deploy-from-github@v1.1.2
