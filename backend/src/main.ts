@@ -5,15 +5,13 @@ import { ValidationPipe } from '@nestjs/common';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.useGlobalPipes(new ValidationPipe());
-  const devOrigin = process.env.DEV_ORIGIN || 'http://localhost:3000';
-  const prodOrigin =
-    process.env.PROD_ORIGIN || 'https://opustrack.abdielreyes.com';
-
+  //cors for * origin
   app.enableCors({
-    origin: process.env.NODE_ENV === 'production' ? prodOrigin : devOrigin, // tu front‑end
-    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
-    credentials: true, // si envías cookies / auth
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    origin: '*',
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    preflightContinue: true,
+    optionsSuccessStatus: 204,
+    allowedHeaders: 'Content-Type, Accept, Authorization',
   });
   app.setGlobalPrefix('api'); // opcional, si quieres un prefijo global
   await app.listen(8000);
