@@ -10,7 +10,7 @@ import {
   Delete,
   UseGuards,
 } from '@nestjs/common';
-import { CreateUserDto } from '../presentation/dtos/create-user.dto';
+import { CreateUserDto } from './dtos/create-user.dto';
 import { CreateUserUseCase } from '../application/use-cases/create-user.use-case';
 import { UserRepository } from '../domain/repositories/user.repository';
 import {
@@ -23,7 +23,7 @@ import { OwnerOrPermissionGuard } from 'src/auth/infrastructure/security/owner-o
 import { Permissions } from 'src/auth/infrastructure/security/permissions.decorator';
 import { DeleteUserUseCase } from '../application/use-cases/delete-user.use-case';
 import { UpdateUserUseCase } from '../application/use-cases/update-user.use-case';
-import { UpdateUserDto } from '../presentation/dtos/update-user.dto';
+import { UpdateUserDto } from './dtos/update-user.dto';
 
 @Controller('users')
 export class UsersController {

@@ -5,14 +5,12 @@ import { AppService } from './app.service';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { PrismaService } from './shared/infrastructure/prisma/prisma.service';
-import * as dotenv from 'dotenv';
-dotenv.config();
-
+console.log(process.env.NODE_ENV); // Log the current environment for debugging
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: ['../../.env'],
+      envFilePath: [`../.env.${process.env.NODE_ENV}`],
     }),
     UsersModule,
     AuthModule,

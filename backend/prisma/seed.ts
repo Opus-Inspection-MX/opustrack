@@ -240,28 +240,27 @@ async function main() {
     permissionRecords.push(record);
   }
   console.log('✅ Seeded Permissions');
-
+  const userPermissions = [
+    'view_user',
+    'create_user',
+    'edit_user',
+    'delete_user',
+  ];
+  const incidentPermissions = [
+    'view_incident',
+    'create_incident',
+    'edit_incident',
+    'delete_incident',
+    'assign_incident',
+    'close_incident',
+  ];
   // Map permissions to roles
   const rolePermissionMap: Record<string, string[]> = {
-    USER_GUEST: ['view_incident'],
+    USER_GUEST: [],
     USER: ['view_incident', 'create_incident'],
     USER_WORKER: ['view_incident', 'close_incident', 'edit_incident'],
-    USER_SYSTEM: [
-      'view_incident',
-      'create_incident',
-      'edit_incident',
-      'assign_incident',
-      'close_incident',
-    ],
-    USER_ADMIN: [
-      'view_incident',
-      'create_incident',
-      'edit_incident',
-      'assign_incident',
-      'close_incident',
-      'view_users',
-      'edit_users',
-    ],
+    USER_SYSTEM: [...incidentPermissions],
+    USER_ADMIN: [...userPermissions, ...incidentPermissions],
   };
 
   for (const role of roleRecords) {
