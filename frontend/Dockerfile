@@ -1,7 +1,7 @@
 # Build stage
 FROM node:22-alpine AS builder
 WORKDIR /app
-COPY package*.json next.config.js ./
+COPY package*.json next.config.ts ./
 COPY public ./public
 COPY src ./src
 RUN npm install
