@@ -36,7 +36,6 @@ jobs:
             eslint.config.mjs \
             .gitignore \
             src \
-            .env* \
             public
 
       - name: Deploy to CapRover

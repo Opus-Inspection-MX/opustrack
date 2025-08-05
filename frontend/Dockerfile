@@ -13,7 +13,6 @@ COPY postcss.config.mjs ./
 COPY components.json ./
 COPY public ./public
 COPY src ./src
-COPY .env* ./
 
 # Build the application
 RUN npm run build

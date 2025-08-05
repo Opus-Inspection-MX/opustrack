@@ -31,7 +31,6 @@ jobs:
             package*.json \
             tsconfig*.json \
             nest-cli.json \
-            .env* \
             prisma \
             src
 
