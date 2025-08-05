@@ -22,11 +22,11 @@ jobs:
 
       - name: Install dependencies
         working-directory: backend
-        run: yarn install --frozen-lockfile
+        run: npm install --legacy-peer-deps
 
       - name: Build application
         working-directory: backend
-        run: yarn build
+        run: npm run build
 
       # - name: Generate CapRover definition
       #   working-directory: backend
@@ -39,7 +39,7 @@ jobs:
           tar -cf ../deploy.tar \
             Dockerfile \
             captain-definition.json \
-            package.json yarn.lock \
+            package.json package-lock.json \
             tsconfig*.json nest-cli.json \
             src
 

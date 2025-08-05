@@ -22,11 +22,11 @@ jobs:
 
       - name: Install dependencies
         working-directory: frontend
-        run: yarn install --frozen-lockfile
+        run: npm install --legacy-peer-deps
 
       - name: Build application
         working-directory: frontend
-        run: yarn build
+        run: npm run build
 
       # - name: Generate CapRover definition
       #   working-directory: frontend
