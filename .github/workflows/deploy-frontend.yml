@@ -1,0 +1,52 @@
+name: Deploy Frontend
+
+on:
+  push:
+    paths:
+      - "frontend/**"
+    branches: ["main"]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: yarn install --frozen-lockfile
+
+      - name: Build application
+        working-directory: frontend
+        run: yarn build
+
+      - name: Generate CapRover definition
+        working-directory: frontend
+        run: |
+          echo '{ "schemaVersion": 2, "dockerfilePath": "./Dockerfile" }' > captain-definition
+
+      - name: Package application
+        working-directory: frontend
+        run: |
+          # Exclude unnecessary files for faster deployment
+          echo "node_modules" > .tarignore
+          echo ".next" >> .tarignore
+          echo ".git" >> .tarignore
+          echo "README.md" >> .tarignore
+
+          # Package application
+          tar --exclude-from=.tarignore -cf ../deploy.tar .
+
+      - name: Deploy to CapRover
+        uses: caprover/deploy-from-github@v1.1.2
+        with:
+          server: ${{ secrets.CAPROVER_SERVER }}
+          app: ${{ secrets.CAPROVER_FRONTEND_APP_NAME }}
+          token: ${{ secrets.CAPROVER_FRONTEND_APP_TOKEN }}
