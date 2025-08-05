@@ -1,0 +1,50 @@
+name: Deploy Backend
+
+on:
+  push:
+    paths:
+      - "backend/**"
+    branches: ["main"]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        working-directory: backend
+        run: yarn install --frozen-lockfile
+
+      - name: Build application
+        working-directory: backend
+        run: yarn build
+
+      # - name: Generate CapRover definition
+      #   working-directory: backend
+      #   run: |
+      #     echo '{ "schemaVersion": 2, "dockerfilePath": "./Dockerfile" }' > captain-definition
+
+      - name: Package application
+        working-directory: backend
+        run: |
+          tar -cf ../deploy.tar \
+            Dockerfile \
+            captain-definition.json \
+            package.json yarn.lock \
+            tsconfig*.json nest-cli.json \
+            src
+
+      - name: Deploy to CapRover
+        uses: caprover/deploy-from-github@v1.1.2
+        with:
+          server: ${{ secrets.CAPROVER_SERVER }}
+          app: ${{ secrets.CAPROVER_BACKEND_APP_NAME }}
+          token: ${{ secrets.CAPROVER_BACKEND_APP_TOKEN }}

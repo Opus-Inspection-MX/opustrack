@@ -27,10 +27,10 @@ jobs:
         working-directory: frontend
         run: yarn build
 
-      - name: Generate CapRover definition
-        working-directory: frontend
-        run: |
-          echo '{ "schemaVersion": 2, "dockerfilePath": "./Dockerfile" }' > captain-definition
+      # - name: Generate CapRover definition
+      #   working-directory: frontend
+      #   run: |
+      #     echo '{ "schemaVersion": 2, "dockerfilePath": "./Dockerfile" }' > captain-definition
 
       - name: Package application
         working-directory: frontend
