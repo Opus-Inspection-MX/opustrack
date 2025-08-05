@@ -32,6 +32,7 @@ jobs:
             tsconfig*.json \
             nest-cli.json \
             prisma \
+            .env.production \
             src
 
       - name: Deploy to CapRover
