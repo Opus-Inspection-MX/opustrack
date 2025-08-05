@@ -10,7 +10,7 @@ console.log(process.env.NODE_ENV); // Log the current environment for debugging
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: [`../.env.${process.env.NODE_ENV}`],
+      envFilePath: [`.env.${process.env.NODE_ENV}`],
     }),
     UsersModule,
     AuthModule,

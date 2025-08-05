@@ -3,7 +3,7 @@ const path = require("path");
 // 1) Opción con dotenv:
 require("dotenv").config({
   // Apunta al .env de la raíz del monorepo
-  path: path.resolve(__dirname, "../", `.env.${process.env.NODE_ENV}`),
+  path: path.resolve(__dirname, "./", `.env.${process.env.NODE_ENV}`),
   override: true, // fuerza reemplazar cualquier variable duplicada
 });
 
