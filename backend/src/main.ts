@@ -11,9 +11,9 @@ async function bootstrap() {
 
   app.enableCors({
     origin: process.env.NODE_ENV === 'production' ? prodOrigin : devOrigin, // tu front‑end
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
     credentials: true, // si envías cookies / auth
-    allowedHeaders: 'Content-Type,Authorization',
+    allowedHeaders: ['Content-Type', 'Authorization'],
   });
   app.setGlobalPrefix('api'); // opcional, si quieres un prefijo global
   await app.listen(8000);
