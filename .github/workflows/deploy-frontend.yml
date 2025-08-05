@@ -32,6 +32,7 @@ jobs:
             tsconfig.json \
             postcss.config.mjs \
             components.json \
+            next.config.ts \
             eslint.config.mjs \
             .gitignore \
             src \
