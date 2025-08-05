@@ -18,4 +18,4 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/prisma ./prisma  
 USER 1001                       
 EXPOSE 8000
-CMD ["node", "dist/main.js"]
+CMD ["node", "dist/src/main.js"]
