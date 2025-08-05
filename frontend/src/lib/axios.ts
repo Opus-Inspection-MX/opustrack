@@ -1,5 +1,6 @@
 // libs/api.ts
 import axios, { AxiosInstance, AxiosError, isAxiosError } from "axios";
+//import env var from next
 
 interface ExtendedAxiosInstance extends AxiosInstance {
   isAxiosError: typeof isAxiosError;
