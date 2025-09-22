@@ -200,14 +200,11 @@ async function main() {
   for (const vic of vicRecords) {
     const reporter = await prisma.user.findFirst({ where: { vicId: vic.id } });
     if (!reporter) continue;
-    await prisma.incident.upsert({
-      where: { id: `incident-${vic.id}` },
-      update: {},
-      create: {
-        id: `incident-${vic.id}`,
+    await prisma.incident.create({
+      data: {
         title: `Sample Incident for ${vic.name}`,
         description: 'This is a seeded incident.',
-        priority: 'HIGH',
+        priority: 5,
         sla: 24,
         typeId: incidentTypeRecords[0].id,
         statusId: incidentStatusRecords[0].id,

@@ -5,11 +5,11 @@ meta {
 }
 
 get {
-  url: {{local_api}}/auth/me
+  url: {{api}}/auth/me
   body: json
   auth: inherit
 }
 
 headers {
-  Authorization: {{token}}
+  Authorization: {{token_admin}}
 }

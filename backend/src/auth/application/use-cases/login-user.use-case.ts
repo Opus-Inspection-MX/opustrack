@@ -21,7 +21,13 @@ export class LoginUserUseCase {
     ) {
       throw new UnauthorizedException('Credenciales inválidas');
     }
-    const payload = { sub: user.id, roleId: user.roleId, email: user.email };
+    const payload = {
+      sub: user.id,
+      roleId: user.roleId,
+      email: user.email,
+      name: user.name,
+      active: user.active,
+    };
     return { accessToken: this.tokenService.sign(payload) };
   }
 }

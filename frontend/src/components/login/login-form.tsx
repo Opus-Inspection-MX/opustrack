@@ -19,6 +19,9 @@ import { AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import axios from "@/lib/axios";
 import { roleRedirect } from "@/config/roles/role_redirect";
+import { useUserStore } from "@/stores/user-store";
+import { User } from "@/shared/types";
+import { set } from "zod";
 
 export default function LoginForm() {
   const [email, setEmail] = useState("");
@@ -26,7 +29,8 @@ export default function LoginForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const router = useRouter();
-
+  const setUser = useUserStore((state) => state.setUser);
+  const setToken = useUserStore((state) => state.setToken);
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -41,18 +45,23 @@ export default function LoginForm() {
     try {
       const response = await axios.post("/auth/login", { email, password });
       const accessToken = response.data.accessToken; // Assuming the role is returned in the response
-      console.log("Access Token:", accessToken);
 
+      setToken(accessToken);
       const responseUser = await axios.get("/auth/me", {
         headers: {
           Authorization: `Bearer ${accessToken}`,
         },
       });
-      console.log("User data:", responseUser.data);
-      const userRole = responseUser.data.roleId;
-      console.log("User role:", userRole);
-      const dest = roleRedirect[userRole];
-      router.push(dest);
+
+      const user: User = {
+        id: responseUser.data.id,
+        name: responseUser.data.name,
+        email: responseUser.data.email,
+        roleId: responseUser.data.roleId,
+        active: responseUser.data.active,
+      };
+      setUser(user);
+      router.push("/");
     } catch (err) {
       if (axios.isAxiosError(err)) {
         const status = err.response?.status;

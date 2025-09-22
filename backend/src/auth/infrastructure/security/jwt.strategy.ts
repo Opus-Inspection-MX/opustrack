@@ -18,6 +18,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       userId: payload.sub,
       roleId: payload.roleId,
       email: payload.email,
+      name: payload.name,
+      active: payload.active,
+      token: ExtractJwt.fromAuthHeaderAsBearerToken(),
     };
   }
 }

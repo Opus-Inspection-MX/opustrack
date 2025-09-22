@@ -10,9 +10,7 @@ export const incidentSchema = z.object({
     .string()
     .min(1, "Description is required")
     .max(1000, "Description must be less than 1000 characters"),
-  priority: z.enum(["LOW", "MEDIUM", "HIGH", "CRITICAL"], {
-    required_error: "Priority is required",
-  }),
+  priority: z.enum(["LOW", "MEDIUM", "HIGH", "CRITICAL"]),
   sla: z
     .number()
     .min(1, "SLA must be at least 1 hour")
@@ -30,7 +28,7 @@ export const workOrderSchema = z
     incidentId: z.string().min(1, "Incident is required"),
     assignedToId: z.string().min(1, "Assignee is required"),
     status: z.enum(["PENDING", "IN_PROGRESS", "COMPLETED", "CANCELLED"], {
-      required_error: "Status is required",
+      message: "Status is required",
     }),
     notes: z
       .string()

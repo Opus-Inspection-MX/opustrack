@@ -140,33 +140,33 @@ model IncidentStatus {
 }
 
 model Incident {
-  id           String                  @id @default(cuid())
+  id           Int                      @id @default(autoincrement())
   title        String
   description  String
-  priority     String
+  priority     Int
   sla          Int
-  typeId       Int
-  type         IncidentType            @relation(fields: [typeId], references: [id])
-  statusId     Int
-  status       IncidentStatus          @relation(fields: [statusId], references: [id])
-  reportedAt   DateTime                @default(now())
+  typeId       Int?
+  type         IncidentType?            @relation(fields: [typeId], references: [id])
+  statusId     Int?
+  status       IncidentStatus?          @relation(fields: [statusId], references: [id])
+  reportedAt   DateTime                 @default(now())
   resolvedAt   DateTime?
-  vicId        String
-  vic          VehicleInspectionCenter @relation(fields: [vicId], references: [id])
-  reportedById String
-  reportedBy   User                    @relation("IncidentReporter", fields: [reportedById], references: [id])
+  vicId        String?
+  vic          VehicleInspectionCenter? @relation(fields: [vicId], references: [id])
+  reportedById String?
+  reportedBy   User?                    @relation("IncidentReporter", fields: [reportedById], references: [id])
   scheduleId   String?
-  schedule     Schedule?               @relation(fields: [scheduleId], references: [id])
+  schedule     Schedule?                @relation(fields: [scheduleId], references: [id])
   workOrders   WorkOrder[]
-  createdAt    DateTime                @default(now())
-  updatedAt    DateTime                @updatedAt
+  createdAt    DateTime                 @default(now())
+  updatedAt    DateTime                 @updatedAt
   userId       String?
-  active       Boolean                 @default(true)
+  active       Boolean                  @default(true)
 }
 
 model WorkOrder {
   id             String                @id @default(cuid())
-  incidentId     String
+  incidentId     Int
   incident       Incident              @relation(fields: [incidentId], references: [id])
   assignedToId   String
   assignedTo     User                  @relation(fields: [assignedToId], references: [id])

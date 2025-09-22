@@ -5,6 +5,7 @@ import { AppService } from './app.service';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { PrismaService } from './shared/infrastructure/prisma/prisma.service';
+import { IncidentModule } from './incidents/incident.module';
 console.log(process.env.NODE_ENV); // Log the current environment for debugging
 @Module({
   imports: [
@@ -14,6 +15,7 @@ console.log(process.env.NODE_ENV); // Log the current environment for debugging
     }),
     UsersModule,
     AuthModule,
+    IncidentModule,
   ],
   controllers: [AppController],
   providers: [AppService, PrismaService],
