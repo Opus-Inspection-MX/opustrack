@@ -202,9 +202,9 @@ export function WorkOrderFormEnhanced({ workOrder, incident, onClose }: WorkOrde
         router.push("/admin/work-orders")
       }
     } catch (error: any) {
-      if (error.errors) {
+      if (error.issues) {
         const fieldErrors: Record<string, string> = {}
-        error.errors.forEach((err: any) => {
+        error.issues.forEach((err: any) => {
           if (err.path?.[0]) {
             fieldErrors[err.path[0]] = err.message
           }

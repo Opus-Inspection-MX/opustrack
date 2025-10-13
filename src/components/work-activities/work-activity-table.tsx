@@ -114,6 +114,8 @@ export function WorkActivityTable({ data, onEdit, onDelete, onView }: WorkActivi
         totalPages={totalPages}
         itemsPerPage={itemsPerPage}
         totalItems={data.length}
+        startIndex={startIndex}
+        endIndex={endIndex}
         onPageChange={setCurrentPage}
         onItemsPerPageChange={setItemsPerPage}
       />

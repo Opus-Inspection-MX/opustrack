@@ -144,6 +144,8 @@ export function ScheduleTable({ data, onEdit, onDelete, onView }: ScheduleTableP
         totalPages={totalPages}
         itemsPerPage={itemsPerPage}
         totalItems={data.length}
+        startIndex={startIndex}
+        endIndex={endIndex}
         onPageChange={setCurrentPage}
         onItemsPerPageChange={setItemsPerPage}
       />

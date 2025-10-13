@@ -100,6 +100,8 @@ export function UserStatusTable({ data, onEdit, onDelete, onView }: UserStatusTa
         totalPages={totalPages}
         itemsPerPage={itemsPerPage}
         totalItems={data.length}
+        startIndex={startIndex}
+        endIndex={endIndex}
         onPageChange={setCurrentPage}
         onItemsPerPageChange={setItemsPerPage}
       />

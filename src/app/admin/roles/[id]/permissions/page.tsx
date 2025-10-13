@@ -1,52 +1,45 @@
-"use client"
+import { getRoleById, getAllPermissions } from "@/lib/actions/roles";
+import { PermissionSelector } from "@/components/admin/roles/permission-selector";
+import { ArrowLeft } from "lucide-react";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { notFound } from "next/navigation";
 
-import { RolePermissions } from "@/components/roles/role-permissions"
+export default async function RolePermissionsPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  const [role, allPermissions] = await Promise.all([
+    getRoleById(parseInt(id)),
+    getAllPermissions(),
+  ]);
 
-// Mock data - replace with actual API calls
-const mockRole = {
-  id: 1,
-  name: "Admin",
-}
+  if (!role) notFound();
 
-const mockPermissions = [
-  { id: 1, name: "user.create", description: "Create new users", active: true },
-  { id: 2, name: "user.read", description: "View user information", active: true },
-  { id: 3, name: "user.update", description: "Update user information", active: true },
-  { id: 4, name: "user.delete", description: "Delete users", active: true },
-  { id: 5, name: "incident.create", description: "Create new incidents", active: true },
-  { id: 6, name: "incident.read", description: "View incident information", active: true },
-  { id: 7, name: "incident.update", description: "Update incident information", active: true },
-  { id: 8, name: "incident.delete", description: "Delete incidents", active: true },
-  { id: 9, name: "workorder.create", description: "Create new work orders", active: true },
-  { id: 10, name: "workorder.read", description: "View work order information", active: true },
-  { id: 11, name: "workorder.update", description: "Update work order information", active: true },
-  { id: 12, name: "workorder.delete", description: "Delete work orders", active: true },
-  { id: 13, name: "admin.access", description: "Access admin panel", active: true },
-  { id: 14, name: "admin.settings", description: "Modify system settings", active: true },
-]
-
-const mockRolePermissions = [
-  { id: 1, roleId: 1, permissionId: 1, active: true },
-  { id: 2, roleId: 1, permissionId: 2, active: true },
-  { id: 3, roleId: 1, permissionId: 3, active: true },
-  { id: 4, roleId: 1, permissionId: 4, active: true },
-  { id: 5, roleId: 1, permissionId: 13, active: true },
-  { id: 6, roleId: 1, permissionId: 14, active: true },
-]
-
-export default function RolePermissionsPage({ params }: { params: { id: string } }) {
-  const handleSave = async (roleId: number, permissionIds: number[]) => {
-    console.log("Saving permissions for role:", roleId, "permissions:", permissionIds)
-    // Implement API call to update role permissions
-    // Example: await updateRolePermissions(roleId, permissionIds)
-  }
+  const currentPermissionIds = role.rolePermission.map((rp) => rp.permission.id);
 
   return (
-    <RolePermissions
-      role={mockRole}
-      permissions={mockPermissions}
-      rolePermissions={mockRolePermissions}
-      onSave={handleSave}
-    />
-  )
+    <div className="space-y-6">
+      <div className="flex items-center gap-4">
+        <Button variant="ghost" size="icon" asChild>
+          <Link href="/admin/roles">
+            <ArrowLeft className="h-4 w-4" />
+          </Link>
+        </Button>
+        <div>
+          <h1 className="text-3xl font-bold">Administrar Permisos</h1>
+          <p className="text-muted-foreground">Asignar permisos al rol: {role.name}</p>
+        </div>
+      </div>
+
+      <PermissionSelector
+        roleId={role.id}
+        roleName={role.name}
+        allPermissions={allPermissions}
+        currentPermissionIds={currentPermissionIds}
+      />
+    </div>
+  );
 }

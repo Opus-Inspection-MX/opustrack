@@ -1,15 +1,44 @@
-"use client"
+import { getWorkOrderById, getWorkOrderFormOptions } from "@/lib/actions/work-orders";
+import { WorkOrderForm } from "@/components/admin/work-orders/work-order-form";
+import { ArrowLeft } from "lucide-react";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { notFound } from "next/navigation";
 
-import { WorkOrderFormEnhanced } from "@/components/work-orders/work-order-form-enhanced"
+export default async function EditWorkOrderPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  const [workOrder, { incidents, users }] = await Promise.all([
+    getWorkOrderById(id),
+    getWorkOrderFormOptions(),
+  ]);
 
-const EditWorkOrderPage = ({ workOrder, onClose }) => {
+  if (!workOrder) notFound();
+
   return (
-    <div>
-      <h1>Edit Work Order</h1>
-      <WorkOrderFormEnhanced workOrder={workOrder} onClose={onClose} />
-      {/* rest of code here */}
-    </div>
-  )
-}
+    <div className="space-y-6">
+      <div className="flex items-center gap-4">
+        <Button variant="ghost" size="icon" asChild>
+          <Link href="/admin/work-orders">
+            <ArrowLeft className="h-4 w-4" />
+          </Link>
+        </Button>
+        <div>
+          <h1 className="text-3xl font-bold">Editar Orden de Trabajo</h1>
+          <p className="text-muted-foreground">
+            Actualizar orden de trabajo
+          </p>
+        </div>
+      </div>
 
-export default EditWorkOrderPage
+      <WorkOrderForm
+        workOrder={workOrder}
+        incidents={incidents}
+        users={users}
+      />
+    </div>
+  );
+}

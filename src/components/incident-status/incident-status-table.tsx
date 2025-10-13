@@ -131,6 +131,8 @@ export function IncidentStatusTable({ data, onEdit, onDelete, onView }: Incident
         totalPages={totalPages}
         itemsPerPage={itemsPerPage}
         totalItems={data.length}
+        startIndex={startIndex}
+        endIndex={endIndex}
         onPageChange={setCurrentPage}
         onItemsPerPageChange={(newItemsPerPage) => {
           setItemsPerPage(newItemsPerPage)

@@ -140,6 +140,8 @@ export function PermissionTable({ permissions, onEdit, onDelete, onView }: Permi
         totalPages={totalPages}
         itemsPerPage={itemsPerPage}
         totalItems={permissions.length}
+        startIndex={startIndex}
+        endIndex={endIndex}
         onPageChange={setCurrentPage}
         onItemsPerPageChange={(newItemsPerPage) => {
           setItemsPerPage(newItemsPerPage)

@@ -1,39 +1,40 @@
-import { VICCenterForm } from "@/components/vic-centers/vic-center-form"
+import { getVICById, getStates } from "@/lib/actions/vics";
+import { VICForm } from "@/components/admin/vics/vic-form";
+import { ArrowLeft } from "lucide-react";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { notFound } from "next/navigation";
 
-// Mock data - replace with actual API call
-const mockVICCenter = {
-  id: "1",
-  code: "VIC001",
-  name: "Centro de Verificación Norte",
-  address: "Av. Principal 123, Col. Centro",
-  rfc: "ABC123456789",
-  companyName: "Verificaciones del Norte SA",
-  phone: "+52 55 1234 5678",
-  contact: "Juan Pérez",
-  email: "norte@vic.com",
-  lines: 3,
-  stateId: 1,
-  active: true,
-}
+export default async function EditVICCenterPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  const [vic, states] = await Promise.all([
+    getVICById(id),
+    getStates(),
+  ]);
 
-interface EditVICCenterPageProps {
-  params: {
-    id: string
-  }
-}
-
-export default function EditVICCenterPage({ params }: EditVICCenterPageProps) {
-  // In a real app, fetch the VIC center data using params.id
-  const vicCenterData = mockVICCenter
+  if (!vic) notFound();
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Edit VIC Center</h1>
-        <p className="text-muted-foreground">Update VIC center information</p>
+      <div className="flex items-center gap-4">
+        <Button variant="ghost" size="icon" asChild>
+          <Link href="/admin/vic-centers">
+            <ArrowLeft className="h-4 w-4" />
+          </Link>
+        </Button>
+        <div>
+          <h1 className="text-3xl font-bold">Editar Centro de Verificación</h1>
+          <p className="text-muted-foreground">
+            Actualizar información del VIC: {vic.name}
+          </p>
+        </div>
       </div>
 
-      <VICCenterForm initialData={vicCenterData} isEditing />
+      <VICForm vic={vic} states={states} />
     </div>
-  )
+  );
 }

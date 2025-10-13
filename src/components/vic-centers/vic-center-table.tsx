@@ -43,6 +43,9 @@ export function VICCenterTable({
   onDelete,
   onView,
 }: VICCenterTableProps) {
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = Math.min(startIndex + itemsPerPage, totalCount)
+
   return (
     <div className="space-y-4">
       <div className="rounded-md border">
@@ -125,6 +128,8 @@ export function VICCenterTable({
         totalPages={Math.ceil(totalCount / itemsPerPage)}
         itemsPerPage={itemsPerPage}
         totalItems={totalCount}
+        startIndex={startIndex}
+        endIndex={endIndex}
         onPageChange={onPageChange}
         onItemsPerPageChange={onItemsPerPageChange}
       />

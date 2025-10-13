@@ -19,7 +19,7 @@ const scheduleSchema = z.object({
   description: z.string().max(1000, "Description must be less than 1000 characters").optional(),
   scheduledAt: z.string().min(1, "Scheduled date and time is required"),
   vicId: z.string().min(1, "VIC Center is required"),
-  active: z.boolean().default(true),
+  active: z.boolean(),
 })
 
 type ScheduleFormData = z.infer<typeof scheduleSchema>

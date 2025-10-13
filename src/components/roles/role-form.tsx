@@ -16,7 +16,7 @@ import { ArrowLeft } from "lucide-react"
 const roleSchema = z.object({
   name: z.string().min(1, "Role name is required").max(50, "Role name must be less than 50 characters"),
   defaultPath: z.string().min(1, "Default path is required").regex(/^\//, "Path must start with /"),
-  active: z.boolean().default(true),
+  active: z.boolean(),
 })
 
 type RoleFormData = z.infer<typeof roleSchema>

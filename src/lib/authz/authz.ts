@@ -62,9 +62,7 @@ export async function getAllRoles(): Promise<Role[]> {
         rolePermission: {
           where: { active: true },
           include: {
-            permission: {
-              where: { active: true },
-            },
+            permission: true,
           },
         },
       },
@@ -75,7 +73,9 @@ export async function getAllRoles(): Promise<Role[]> {
       name: role.name,
       description: role.description,
       defaultPath: role.defaultPath,
-      permissions: role.rolePermission.map((rp) => rp.permission),
+      permissions: role.rolePermission
+        .filter((rp) => rp.permission.active)
+        .map((rp) => rp.permission),
     }));
   });
 }
@@ -86,27 +86,27 @@ export async function getAllRoles(): Promise<Role[]> {
 export async function getRoleById(roleId: number): Promise<Role | null> {
   return getCached(`role-${roleId}`, async () => {
     const role = await prisma.role.findUnique({
-      where: { id: roleId, active: true },
+      where: { id: roleId },
       include: {
         rolePermission: {
           where: { active: true },
           include: {
-            permission: {
-              where: { active: true },
-            },
+            permission: true,
           },
         },
       },
     });
 
-    if (!role) return null;
+    if (!role || !role.active) return null;
 
     return {
       id: role.id,
       name: role.name,
       description: role.description,
       defaultPath: role.defaultPath,
-      permissions: role.rolePermission.map((rp) => rp.permission),
+      permissions: role.rolePermission
+        .filter((rp) => rp.permission.active)
+        .map((rp) => rp.permission),
     };
   });
 }
@@ -117,27 +117,27 @@ export async function getRoleById(roleId: number): Promise<Role | null> {
 export async function getRoleByName(roleName: string): Promise<Role | null> {
   return getCached(`role-name-${roleName}`, async () => {
     const role = await prisma.role.findUnique({
-      where: { name: roleName, active: true },
+      where: { name: roleName },
       include: {
         rolePermission: {
           where: { active: true },
           include: {
-            permission: {
-              where: { active: true },
-            },
+            permission: true,
           },
         },
       },
     });
 
-    if (!role) return null;
+    if (!role || !role.active) return null;
 
     return {
       id: role.id,
       name: role.name,
       description: role.description,
       defaultPath: role.defaultPath,
-      permissions: role.rolePermission.map((rp) => rp.permission),
+      permissions: role.rolePermission
+        .filter((rp) => rp.permission.active)
+        .map((rp) => rp.permission),
     };
   });
 }

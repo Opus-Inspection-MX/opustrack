@@ -69,7 +69,7 @@ export default function StatesPage() {
 
   const handleDelete = async (id: number) => {
     const state = states.find((s) => s.id === id)
-    if (state?.vicCount > 0) {
+    if (state && state.vicCount && state.vicCount > 0) {
       alert("Cannot delete state with associated VIC centers. Please reassign or delete VIC centers first.")
       return
     }

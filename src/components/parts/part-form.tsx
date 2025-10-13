@@ -20,7 +20,7 @@ const partSchema = z.object({
   price: z.number().min(0, "Price must be positive").max(999999, "Price too high"),
   stock: z.number().int().min(0, "Stock must be non-negative").max(999999, "Stock too high"),
   vicId: z.string().min(1, "VIC Center is required"),
-  active: z.boolean().default(true),
+  active: z.boolean(),
 })
 
 type PartFormData = z.infer<typeof partSchema>

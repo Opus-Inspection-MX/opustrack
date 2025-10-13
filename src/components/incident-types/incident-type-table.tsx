@@ -109,6 +109,8 @@ export function IncidentTypeTable({ data, onEdit, onDelete, onView }: IncidentTy
         totalPages={totalPages}
         itemsPerPage={itemsPerPage}
         totalItems={data.length}
+        startIndex={startIndex}
+        endIndex={endIndex}
         onPageChange={setCurrentPage}
         onItemsPerPageChange={setItemsPerPage}
       />

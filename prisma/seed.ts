@@ -85,6 +85,20 @@ async function main() {
       { name: "work-orders:update", description: "Update work orders", resource: "work-orders", action: "update" },
       { name: "work-orders:delete", description: "Delete work orders", resource: "work-orders", action: "delete" },
       { name: "work-orders:assign", description: "Assign work orders", resource: "work-orders", action: "assign" },
+      { name: "work-orders:complete", description: "Complete work orders", resource: "work-orders", action: "complete" },
+
+      // Work activity permissions
+      { name: "work-activities:read", description: "View work activities", resource: "work-activities", action: "read" },
+      { name: "work-activities:create", description: "Create work activities", resource: "work-activities", action: "create" },
+      { name: "work-activities:update", description: "Update work activities", resource: "work-activities", action: "update" },
+      { name: "work-activities:delete", description: "Delete work activities", resource: "work-activities", action: "delete" },
+      { name: "work-activities:complete", description: "Complete work activities", resource: "work-activities", action: "complete" },
+
+      // Work part permissions
+      { name: "work-parts:read", description: "View work parts", resource: "work-parts", action: "read" },
+      { name: "work-parts:create", description: "Create work parts", resource: "work-parts", action: "create" },
+      { name: "work-parts:update", description: "Update work parts", resource: "work-parts", action: "update" },
+      { name: "work-parts:delete", description: "Delete work parts", resource: "work-parts", action: "delete" },
 
       // Parts/Inventory permissions
       { name: "parts:read", description: "View parts", resource: "parts", action: "read" },
@@ -143,11 +157,14 @@ async function main() {
         defaultPath: "/fsr",
         permissions: [
           "route:fsr",
-          "incidents:read", "incidents:create", "incidents:update", "incidents:delete", "incidents:assign", "incidents:close",
-          "work-orders:read", "work-orders:create", "work-orders:update", "work-orders:delete", "work-orders:assign",
-          "parts:read", "parts:create", "parts:update",
-          "schedules:read", "schedules:create", "schedules:update",
+          "incidents:read", "incidents:update",
+          "work-orders:read", "work-orders:update", "work-orders:complete",
+          "work-activities:read", "work-activities:create", "work-activities:update", "work-activities:complete",
+          "work-parts:read", "work-parts:create", "work-parts:update",
+          "parts:read",
+          "schedules:read",
           "users:read",
+          "vics:read",
           "reports:view", "reports:export",
         ],
       },

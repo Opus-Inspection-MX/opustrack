@@ -16,7 +16,7 @@ import { Spinner } from "@/components/ui/spinner"
 const incidentTypeSchema = z.object({
   name: z.string().min(1, "Name is required").max(100, "Name must be less than 100 characters"),
   description: z.string().max(500, "Description must be less than 500 characters").optional(),
-  active: z.boolean().default(true),
+  active: z.boolean(),
 })
 
 type IncidentTypeFormData = z.infer<typeof incidentTypeSchema>

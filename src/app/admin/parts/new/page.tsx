@@ -1,27 +1,29 @@
-"use client"
+import { getVICs } from "@/lib/actions/vics";
+import { PartForm } from "@/components/admin/parts/part-form";
+import { ArrowLeft } from "lucide-react";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
 
-import { PartForm } from "@/components/parts/part-form"
-
-const mockVICs = [
-  { id: "vic_001", name: "VIC Center 1", code: "VIC001" },
-  { id: "vic_002", name: "VIC Center 2", code: "VIC002" },
-  { id: "vic_003", name: "VIC Center 3", code: "VIC003" },
-]
-
-export default function NewPartPage() {
-  const handleSubmit = async (data: any) => {
-    console.log("Creating part:", data)
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-  }
+export default async function NewPartPage() {
+  const vics = await getVICs();
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Create Part</h1>
-        <p className="text-muted-foreground">Add a new part to inventory</p>
+      <div className="flex items-center gap-4">
+        <Button variant="ghost" size="icon" asChild>
+          <Link href="/admin/parts">
+            <ArrowLeft className="h-4 w-4" />
+          </Link>
+        </Button>
+        <div>
+          <h1 className="text-3xl font-bold">Nueva Parte</h1>
+          <p className="text-muted-foreground">
+            Agregar una nueva parte al inventario
+          </p>
+        </div>
       </div>
 
-      <PartForm vics={mockVICs} onSubmit={handleSubmit} />
+      <PartForm vics={vics} />
     </div>
-  )
+  );
 }

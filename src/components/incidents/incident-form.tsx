@@ -85,7 +85,7 @@ export function IncidentForm({ incident, onClose }: IncidentFormProps) {
       incidentSchema.pick({ [field]: true } as any).parse({ [field]: value })
       setErrors((prev) => ({ ...prev, [field]: "" }))
     } catch (error: any) {
-      const fieldError = error.errors?.[0]?.message || "Invalid value"
+      const fieldError = error.issues?.[0]?.message || "Invalid value"
       setErrors((prev) => ({ ...prev, [field]: fieldError }))
     }
   }
@@ -117,9 +117,9 @@ export function IncidentForm({ incident, onClose }: IncidentFormProps) {
         router.push("/admin/incidents")
       }
     } catch (error: any) {
-      if (error.errors) {
+      if (error.issues) {
         const fieldErrors: Record<string, string> = {}
-        error.errors.forEach((err: any) => {
+        error.issues.forEach((err: any) => {
           if (err.path?.[0]) {
             fieldErrors[err.path[0]] = err.message
           }

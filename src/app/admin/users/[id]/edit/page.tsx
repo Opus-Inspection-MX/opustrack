@@ -1,51 +1,42 @@
-"use client"
+import { getUserById, getUserFormOptions } from "@/lib/actions/users";
+import { UserForm } from "@/components/admin/users/user-form";
+import { ArrowLeft } from "lucide-react";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { notFound } from "next/navigation";
 
-import { useState, useEffect } from "react"
-import { useParams } from "next/navigation"
-import { UserForm } from "@/components/users/user-form"
-import { Spinner } from "@/components/ui/spinner"
+export default async function EditUserPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  const [user, { roles, statuses, vics }] = await Promise.all([
+    getUserById(id),
+    getUserFormOptions(),
+  ]);
 
-export default function EditUserPage() {
-  const params = useParams()
-  const [isLoading, setIsLoading] = useState(true)
-  const [user, setUser] = useState<any>(null)
-
-  useEffect(() => {
-    const fetchUser = async () => {
-      setIsLoading(true)
-      try {
-        // Simulate API call
-        await new Promise((resolve) => setTimeout(resolve, 500))
-
-        // Mock data
-        const mockUser = {
-          id: params.id as string,
-          name: "John Doe",
-          email: "john.doe@example.com",
-          roleId: 1,
-          userStatusId: 1,
-          vicId: "vic_1",
-          active: true,
-        }
-
-        setUser(mockUser)
-      } catch (error) {
-        console.error("Error fetching user:", error)
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    fetchUser()
-  }, [params.id])
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Spinner size="lg" />
-      </div>
-    )
+  if (!user) {
+    notFound();
   }
 
-  return <UserForm user={user} isEditing={true} />
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-4">
+        <Button variant="ghost" size="icon" asChild>
+          <Link href="/admin/users">
+            <ArrowLeft className="h-4 w-4" />
+          </Link>
+        </Button>
+        <div>
+          <h1 className="text-3xl font-bold">Editar Usuario</h1>
+          <p className="text-muted-foreground">
+            Modificar información de {user.name}
+          </p>
+        </div>
+      </div>
+
+      <UserForm user={user} roles={roles} statuses={statuses} vics={vics} />
+    </div>
+  );
 }

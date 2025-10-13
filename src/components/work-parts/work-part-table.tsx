@@ -173,6 +173,8 @@ export function WorkPartTable({ data, onEdit, onDelete, onView }: WorkPartTableP
         totalPages={totalPages}
         itemsPerPage={itemsPerPage}
         totalItems={data.length}
+        startIndex={startIndex}
+        endIndex={endIndex}
         onPageChange={setCurrentPage}
         onItemsPerPageChange={setItemsPerPage}
       />

@@ -1,51 +1,35 @@
-"use client"
+import { getRoleById } from "@/lib/actions/roles";
+import { RoleForm } from "@/components/admin/roles/role-form";
+import { ArrowLeft } from "lucide-react";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { notFound } from "next/navigation";
 
-import { useState, useEffect } from "react"
-import { useParams } from "next/navigation"
-import { RoleForm } from "@/components/roles/role-form"
-import { Spinner } from "@/components/ui/spinner"
+export default async function EditRolePage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  const role = await getRoleById(parseInt(id));
 
-export default function EditRolePage() {
-  const params = useParams()
-  const [isLoading, setIsLoading] = useState(true)
-  const [role, setRole] = useState<any>(null)
+  if (!role) notFound();
 
-  useEffect(() => {
-    const fetchRole = async () => {
-      setIsLoading(true)
-      try {
-        await new Promise((resolve) => setTimeout(resolve, 500))
-
-        const mockRole = {
-          id: Number(params.id),
-          name: "Admin",
-          defaultPath: "/admin",
-          active: true,
-        }
-
-        setRole(mockRole)
-      } catch (error) {
-        console.error("Error fetching role:", error)
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    fetchRole()
-  }, [params.id])
-
-  const handleSubmit = async (data: any) => {
-    console.log("Updating role:", data)
-    // Implement API call to update role
-  }
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Spinner size="lg" />
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-4">
+        <Button variant="ghost" size="icon" asChild>
+          <Link href="/admin/roles">
+            <ArrowLeft className="h-4 w-4" />
+          </Link>
+        </Button>
+        <div>
+          <h1 className="text-3xl font-bold">Editar Rol</h1>
+          <p className="text-muted-foreground">Modificar {role.name}</p>
+        </div>
       </div>
-    )
-  }
 
-  return <RoleForm role={role} onSubmit={handleSubmit} />
+      <RoleForm role={role} />
+    </div>
+  );
 }

@@ -177,6 +177,8 @@ export function UserTable({ users, onDelete }: UserTableProps) {
           totalPages={totalPages}
           itemsPerPage={itemsPerPage}
           totalItems={users.length}
+          startIndex={startIndex}
+          endIndex={endIndex}
           onPageChange={setCurrentPage}
           onItemsPerPageChange={(newItemsPerPage) => {
             setItemsPerPage(newItemsPerPage)

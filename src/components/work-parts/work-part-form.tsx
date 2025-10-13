@@ -21,7 +21,7 @@ const workPartSchema = z.object({
   price: z.number().min(0, "Price must be positive").max(999999, "Price too high"),
   workOrderId: z.string().optional(),
   workActivityId: z.string().optional(),
-  active: z.boolean().default(true),
+  active: z.boolean(),
 })
 
 type WorkPartFormData = z.infer<typeof workPartSchema>
