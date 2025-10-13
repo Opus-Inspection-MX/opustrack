@@ -1,7 +1,6 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
-import { getRoleById, roleCanAccessRoute } from "@/lib/authz/authz";
 
 export async function middleware(req: NextRequest) {
   const { pathname, search } = req.nextUrl;
@@ -31,48 +30,76 @@ export async function middleware(req: NextRequest) {
   }
 
   // User is authenticated - check route access
-  try {
-    const roleId = token.roleId as number | undefined;
+  const roleName = token.roleName as string | undefined;
+  const defaultPath = token.defaultPath as string | undefined;
 
-    if (!roleId) {
-      // No role assigned - redirect to unauthorized
-      return NextResponse.redirect(new URL("/unauthorized", req.url));
-    }
-
-    // Get user's role with permissions from database
-    const role = await getRoleById(roleId);
-
-    if (!role) {
-      // Invalid role - redirect to unauthorized
-      return NextResponse.redirect(new URL("/unauthorized", req.url));
-    }
-
-    // Handle root path - redirect to user's default path
-    if (pathname === "/" || pathname === "/dashboard") {
-      return NextResponse.redirect(new URL(role.defaultPath, req.url));
-    }
-
-    // Admin has access to all routes
-    if (role.name === "ADMINISTRADOR") {
-      return NextResponse.next();
-    }
-
-    // Check if user has permission to access this route
-    const canAccess = roleCanAccessRoute(role, pathname);
-
-    if (!canAccess) {
-      // No permission - redirect to unauthorized
-      return NextResponse.redirect(new URL("/unauthorized", req.url));
-    }
-
-    return NextResponse.next();
-  } catch (error) {
-    console.error("Middleware error:", error);
-    // On error, redirect to login for safety
-    const url = req.nextUrl.clone();
-    url.pathname = "/login";
-    return NextResponse.redirect(url);
+  if (!roleName || !defaultPath) {
+    console.error("[Middleware] Missing role data in token:", { roleName, defaultPath });
+    return NextResponse.redirect(new URL("/login", req.url));
   }
+
+  // Handle root path - redirect to user's default path
+  if (pathname === "/" || pathname === "/dashboard") {
+    console.log(`[Middleware] Redirecting to defaultPath: ${defaultPath} for role: ${roleName}`);
+    return NextResponse.redirect(new URL(defaultPath, req.url));
+  }
+
+  // Admin has access to all routes
+  if (roleName === "ADMINISTRADOR") {
+    console.log(`[Middleware] Admin accessing: ${pathname}`);
+    return NextResponse.next();
+  }
+
+  // Check if user has permission to access this route based on role
+  const canAccess = checkRouteAccess(roleName, pathname);
+
+  if (!canAccess) {
+    console.warn(`[Middleware] Access denied for role ${roleName} to ${pathname}`);
+    return NextResponse.redirect(new URL("/unauthorized", req.url));
+  }
+
+  console.log(`[Middleware] Access granted for role ${roleName} to ${pathname}`);
+  return NextResponse.next();
+}
+
+/**
+ * Check if a role can access a specific route
+ * This is a simplified version that works without database calls
+ */
+function checkRouteAccess(roleName: string, pathname: string): boolean {
+  // Define route access rules per role
+  const roleRoutes: Record<string, string[]> = {
+    ADMINISTRADOR: ["/*"], // Admin can access everything
+    FSR: [
+      "/fsr",
+      "/incidents",
+      "/work-orders",
+      "/parts",
+      "/schedules",
+      "/reports",
+    ],
+    CLIENT: [
+      "/client",
+      "/incidents",
+      "/work-orders",
+      "/schedules",
+    ],
+    GUEST: [
+      "/guest",
+      "/incidents",
+      "/work-orders",
+      "/parts",
+      "/schedules",
+    ],
+  };
+
+  const allowedRoutes = roleRoutes[roleName] || [];
+
+  // Check if pathname starts with any allowed route
+  return allowedRoutes.some((route) => {
+    if (route === "/*") return true; // Wildcard for admin
+    return pathname.startsWith(route);
+  });
 }
 
 export const config = {

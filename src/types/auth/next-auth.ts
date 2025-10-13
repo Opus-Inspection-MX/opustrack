@@ -6,6 +6,7 @@ declare module "next-auth" {
     user: {
       id: string;
       roleId: number | null;
+      roleName: string | null;
       defaultPath: string | null;
     } & DefaultSession["user"];
   }
@@ -16,8 +17,7 @@ declare module "next-auth" {
     email: string;
     name?: string | null;
     roleId: number | null;
-    role: { defaultPath: string } | null;
-    // Aquí puedes agregar más campos si los tienes en tu modelo de usuario
+    role: { name: string; defaultPath: string } | null;
   }
 }
 
@@ -25,6 +25,7 @@ declare module "next-auth/jwt" {
   interface JWT {
     id?: string;
     roleId?: number | null;
+    roleName?: string | null;
     defaultPath?: string | null;
   }
 }

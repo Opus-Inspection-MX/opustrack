@@ -18,6 +18,7 @@ import {
   SidebarSeparator,
 } from "@/components/ui/sidebar"
 import { ThemeToggle } from "./theme-toggle"
+import { LogoutButton } from "@/components/auth/logout-button"
 import {
   LayoutDashboard,
   Users,
@@ -35,9 +36,7 @@ import {
   Activity,
   FileText,
   Cog,
-  LogOut,
 } from "lucide-react"
-import { Button } from "@/components/ui/button"
 
 const menuSections = [
   {
@@ -134,12 +133,7 @@ export function AdminSidebar() {
       <SidebarFooter className="border-t p-4">
         <div className="flex flex-col gap-2">
           <ThemeToggle />
-          <Button variant="outline" size="sm" asChild className="w-full bg-transparent">
-            <Link href="/">
-              <LogOut className="h-4 w-4 mr-2" />
-              Cerrar Sesión
-            </Link>
-          </Button>
+          <LogoutButton variant="outline" size="sm" className="w-full bg-transparent" />
         </div>
       </SidebarFooter>
 

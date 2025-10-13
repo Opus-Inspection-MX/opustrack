@@ -34,9 +34,15 @@ npm run db:seed      # Seed database with initial data
 The seed script (`prisma/seed.ts`) creates:
 - 1 VIC (Vehicle Inspection Center) in CDMX
 - 1 Part for testing
-- 4 roles: ADMINISTRADOR, USUARIO_SISTEMA, USUARIO_PERSONAL, USUARIO_EXTERNO
+- 4 roles: ADMINISTRADOR, FSR, CLIENT, GUEST
 - 4 test users (one per role) with email pattern: `{role}@opusinspection.com` / password: `password123`
 - Comprehensive permission system with route and resource-based permissions
+
+**Role Structure**:
+- **ADMINISTRADOR**: Full system access, not related to any VIC
+- **FSR** (Field Service Representative): System user with management capabilities, assigned to VIC
+- **CLIENT**: Raises incidents from VIC, has create permissions
+- **GUEST**: Read-only access, no create permissions
 
 ## Architecture
 

@@ -10,8 +10,8 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar"
 import { ThemeToggle } from "./theme-toggle"
-import { User, LogOut } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { LogoutButton } from "@/components/auth/logout-button"
+import { User } from "lucide-react"
 
 export function InvitadoSidebar() {
   return (
@@ -33,12 +33,7 @@ export function InvitadoSidebar() {
       <SidebarFooter className="border-t p-4">
         <div className="flex flex-col gap-2">
           <ThemeToggle />
-          <Button variant="outline" size="sm" asChild className="w-full bg-transparent">
-            <Link href="/">
-              <LogOut className="h-4 w-4 mr-2" />
-              Cerrar Sesión
-            </Link>
-          </Button>
+          <LogoutButton variant="outline" size="sm" className="w-full bg-transparent" />
         </div>
       </SidebarFooter>
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { type FormEvent, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -12,7 +12,6 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-
 import { signIn } from "next-auth/react";
 
 export default function LoginForm() {
@@ -21,10 +20,7 @@ export default function LoginForm() {
   const [password, setPassword] = useState<string>("");
   const [error, setError] = useState<string>("");
 
-  const router = useRouter();
   const searchParams = useSearchParams();
-
-  const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -32,23 +28,26 @@ export default function LoginForm() {
     setError("");
 
     try {
+      const callbackUrl = searchParams.get("callbackUrl") || "/";
+
       const result = await signIn("credentials", {
-        redirect: false, // Cambiamos a false para manejar la redirección manualmente
+        redirect: false,
         email,
         password,
-        callbackUrl, // ← importante para la redirección
+        callbackUrl,
       });
 
       if (result?.error) {
-        setError("Credenciales inválidas");
+        setError("Credenciales inválidas. Por favor, verifica tu correo y contraseña.");
+        setLoading(false);
       } else if (result?.ok) {
-        // Redirección exitosa al callbackUrl
-        router.push(callbackUrl);
-        console.log(result);
+        // Success! Use window.location for a full page reload
+        // This ensures the middleware gets the updated session
+        window.location.href = callbackUrl;
       }
     } catch (error) {
+      console.error("Login error:", error);
       setError("Algo salió mal. Por favor, inténtalo de nuevo.");
-    } finally {
       setLoading(false);
     }
   }
@@ -74,10 +73,12 @@ export default function LoginForm() {
               <Input
                 id="email"
                 type="email"
-                placeholder="Ingresa tu correo electrónico"
+                placeholder="admin@opusinspection.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+                autoComplete="email"
+                disabled={loading}
               />
             </div>
             <div className="space-y-2">
@@ -85,15 +86,29 @@ export default function LoginForm() {
               <Input
                 id="password"
                 type="password"
-                placeholder="Ingresa tu contraseña"
+                placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                autoComplete="current-password"
+                disabled={loading}
               />
             </div>
             <Button type="submit" disabled={loading} className="w-full">
               {loading ? "Iniciando Sesión..." : "Iniciar Sesión"}
             </Button>
+
+            {/* Development hint */}
+            {process.env.NODE_ENV === "development" && (
+              <div className="mt-4 p-3 text-xs bg-blue-50 border border-blue-200 rounded-md text-blue-800">
+                <p className="font-semibold mb-1">Credenciales de prueba:</p>
+                <p>Admin: admin@opusinspection.com</p>
+                <p>Sistema: system@opusinspection.com</p>
+                <p>Personal: staff@opusinspection.com</p>
+                <p>Cliente: client@opusinspection.com</p>
+                <p className="mt-1">Contraseña: password123</p>
+              </div>
+            )}
           </form>
         </CardContent>
       </Card>

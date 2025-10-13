@@ -130,7 +130,7 @@ async function main() {
     const rolesData = [
       {
         name: "ADMINISTRADOR",
-        description: "Full system access",
+        description: "Administrator with full system access (not related to VIC)",
         defaultPath: "/admin",
         permissions: [
           // All permissions (admin has full access)
@@ -138,8 +138,8 @@ async function main() {
         ],
       },
       {
-        name: "USUARIO_SISTEMA",
-        description: "System user with management capabilities",
+        name: "FSR",
+        description: "Field Service Representative - System user with management capabilities",
         defaultPath: "/fsr",
         permissions: [
           "route:fsr",
@@ -152,25 +152,25 @@ async function main() {
         ],
       },
       {
-        name: "USUARIO_PERSONAL",
-        description: "Staff user with limited access",
-        defaultPath: "/guest",
-        permissions: [
-          "route:guest",
-          "incidents:read", "incidents:create", "incidents:update",
-          "work-orders:read", "work-orders:update",
-          "parts:read",
-          "schedules:read",
-        ],
-      },
-      {
-        name: "USUARIO_EXTERNO",
-        description: "External user with minimal access",
+        name: "CLIENT",
+        description: "Client user - Raises incidents from VIC",
         defaultPath: "/client",
         permissions: [
           "route:client",
           "incidents:read", "incidents:create",
           "work-orders:read",
+          "schedules:read",
+        ],
+      },
+      {
+        name: "GUEST",
+        description: "Guest user - Read-only access (no create permissions)",
+        defaultPath: "/guest",
+        permissions: [
+          "route:guest",
+          "incidents:read",
+          "work-orders:read",
+          "parts:read",
           "schedules:read",
         ],
       },
@@ -214,25 +214,25 @@ async function main() {
         name: "Admin User",
         email: "admin@opusinspection.com",
         roleName: "ADMINISTRADOR",
-        vicId: vic.id,
+        vicId: null, // Admin is not related to a VIC
       },
       {
-        name: "System User",
-        email: "system@opusinspection.com",
-        roleName: "USUARIO_SISTEMA",
-        vicId: vic.id,
-      },
-      {
-        name: "Staff User",
-        email: "staff@opusinspection.com",
-        roleName: "USUARIO_PERSONAL",
+        name: "FSR User",
+        email: "fsr@opusinspection.com",
+        roleName: "FSR",
         vicId: vic.id,
       },
       {
         name: "Client User",
         email: "client@opusinspection.com",
-        roleName: "USUARIO_EXTERNO",
-        vicId: null, // External users may not be assigned to a VIC
+        roleName: "CLIENT",
+        vicId: vic.id, // Client raises incidents from VIC
+      },
+      {
+        name: "Guest User",
+        email: "guest@opusinspection.com",
+        roleName: "GUEST",
+        vicId: null, // Guest has read-only access, no VIC association
       },
     ];
 
@@ -358,10 +358,10 @@ async function main() {
 
   console.log("🎉 Seed completed successfully!");
   console.log("\n📋 Test Users:");
-  console.log("  Admin:  admin@opusinspection.com / password123");
-  console.log("  System: system@opusinspection.com / password123");
-  console.log("  Staff:  staff@opusinspection.com / password123");
-  console.log("  Client: client@opusinspection.com / password123");
+  console.log("  Admin:  admin@opusinspection.com / password123  (Not related to VIC)");
+  console.log("  FSR:    fsr@opusinspection.com / password123     (Field Service Representative)");
+  console.log("  Client: client@opusinspection.com / password123  (Raises incidents from VIC)");
+  console.log("  Guest:  guest@opusinspection.com / password123   (Read-only access)");
 }
 
 main()
