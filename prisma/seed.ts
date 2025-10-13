@@ -1,58 +1,12 @@
 // prisma/seed.ts
 import { prisma } from "../src/lib/database/prisma.singleton";
 import { hashPassword } from "../src/lib/security/hash";
-import { ROLE_DEFS, ROLES, PERMISSIONS } from "../src/lib/authz/authz";
 
 async function main() {
   await prisma.$transaction(async (tx) => {
-    // 1) Estados de México
-    const states = [
-      { name: "Aguascalientes", code: "AGU" },
-      { name: "Baja California", code: "BCN" },
-      { name: "Baja California Sur", code: "BCS" },
-      { name: "Campeche", code: "CAM" },
-      { name: "Chiapas", code: "CHP" },
-      { name: "Chihuahua", code: "CHH" },
-      { name: "Coahuila", code: "COA" },
-      { name: "Colima", code: "COL" },
-      { name: "Durango", code: "DUR" },
-      { name: "Guanajuato", code: "GUA" },
-      { name: "Guerrero", code: "GRO" },
-      { name: "Hidalgo", code: "HID" },
-      { name: "Jalisco", code: "JAL" },
-      { name: "Mexico", code: "MEX" },
-      { name: "Michoacán", code: "MIC" },
-      { name: "Morelos", code: "MOR" },
-      { name: "Nayarit", code: "NAY" },
-      { name: "Nuevo León", code: "NLE" },
-      { name: "Oaxaca", code: "OAX" },
-      { name: "Puebla", code: "PUE" },
-      { name: "Querétaro", code: "QUE" },
-      { name: "Quintana Roo", code: "ROO" },
-      { name: "San Luis Potosí", code: "SLP" },
-      { name: "Sinaloa", code: "SIN" },
-      { name: "Sonora", code: "SON" },
-      { name: "Tabasco", code: "TAB" },
-      { name: "Tamaulipas", code: "TAM" },
-      { name: "Tlaxcala", code: "TLA" },
-      { name: "Veracruz", code: "VER" },
-      { name: "Yucatán", code: "YUC" },
-      { name: "Zacatecas", code: "ZAC" },
-    ];
+    console.log("🌱 Starting database seed...");
 
-    const stateRecords = [];
-    for (const s of states) {
-      stateRecords.push(
-        await tx.state.upsert({
-          where: { name: s.name },
-          update: {},
-          create: { name: s.name, code: s.code },
-        })
-      );
-    }
-    console.log("✅ Seeded States");
-
-    // 2) UserStatus
+    // 1) UserStatus
     const userStatuses = ["ACTIVO", "INACTIVO", "SUSPENDIDO"];
     const userStatusRecords = [];
     for (const name of userStatuses) {
@@ -64,51 +18,260 @@ async function main() {
         })
       );
     }
-    const userStatusActivo = userStatusRecords.find(
-      (u) => u.name === "ACTIVO"
-    )!;
+    const userStatusActivo = userStatusRecords.find((u) => u.name === "ACTIVO")!;
     console.log("✅ Seeded UserStatuses");
 
-    // 3) Roles (desde ROLE_DEFS) -> guarda defaultPath
-    const roleRecords = await Promise.all(
-      (ROLES as string[]).map((name) =>
-        tx.role.upsert({
-          where: { name },
-          update: {},
-          create: {
-            name,
-            defaultPath: ROLE_DEFS[name as keyof typeof ROLE_DEFS].defaultPath,
-          },
-        })
-      )
-    );
-    const byRoleName = new Map(roleRecords.map((r) => [r.name, r]));
-    console.log("✅ Seeded Roles (con defaultPath)");
+    // 2) State - Only one for testing
+    const state = await tx.state.upsert({
+      where: { code: "CDMX" },
+      update: {},
+      create: { name: "Ciudad de México", code: "CDMX" },
+    });
+    console.log("✅ Seeded State");
 
-    // 4) VehicleInspectionCenters (uno por estado)
-    for (const st of stateRecords) {
-      await tx.vehicleInspectionCenter.upsert({
-        where: { code: `VIC${st.code}` },
+    // 3) VehicleInspectionCenter - Only one for testing
+    const vic = await tx.vehicleInspectionCenter.upsert({
+      where: { code: "VIC001" },
+      update: {},
+      create: {
+        code: "VIC001",
+        name: "Centro de Verificación CDMX Principal",
+        address: "Av. Principal 123, CDMX",
+        phone: "555-123-4567",
+        contact: "Juan Pérez",
+        rfc: "VICCDMX123456",
+        companyName: "OpusInspection CDMX",
+        stateId: state.id,
+        lines: 3,
+      },
+    });
+    console.log("✅ Seeded VehicleInspectionCenter");
+
+    // 4) Permissions - Comprehensive database-driven permissions
+    const permissionsData = [
+      // Route-based permissions
+      { name: "route:admin", description: "Access to admin dashboard", routePath: "/admin" },
+      { name: "route:fsr", description: "Access to FSR dashboard", routePath: "/fsr" },
+      { name: "route:client", description: "Access to client dashboard", routePath: "/client" },
+      { name: "route:guest", description: "Access to guest dashboard", routePath: "/guest" },
+
+      // Incident permissions
+      { name: "incidents:read", description: "View incidents", resource: "incidents", action: "read", routePath: "/incidents" },
+      { name: "incidents:create", description: "Create incidents", resource: "incidents", action: "create" },
+      { name: "incidents:update", description: "Update incidents", resource: "incidents", action: "update" },
+      { name: "incidents:delete", description: "Delete incidents", resource: "incidents", action: "delete" },
+      { name: "incidents:assign", description: "Assign incidents", resource: "incidents", action: "assign" },
+      { name: "incidents:close", description: "Close incidents", resource: "incidents", action: "close" },
+
+      // User management permissions
+      { name: "users:read", description: "View users", resource: "users", action: "read" },
+      { name: "users:create", description: "Create users", resource: "users", action: "create" },
+      { name: "users:update", description: "Update users", resource: "users", action: "update" },
+      { name: "users:delete", description: "Delete users", resource: "users", action: "delete" },
+
+      // Role management permissions
+      { name: "roles:read", description: "View roles", resource: "roles", action: "read" },
+      { name: "roles:create", description: "Create roles", resource: "roles", action: "create" },
+      { name: "roles:update", description: "Update roles", resource: "roles", action: "update" },
+      { name: "roles:delete", description: "Delete roles", resource: "roles", action: "delete" },
+
+      // Permission management
+      { name: "permissions:read", description: "View permissions", resource: "permissions", action: "read" },
+      { name: "permissions:manage", description: "Manage permissions", resource: "permissions", action: "manage" },
+
+      // Work order permissions
+      { name: "work-orders:read", description: "View work orders", resource: "work-orders", action: "read" },
+      { name: "work-orders:create", description: "Create work orders", resource: "work-orders", action: "create" },
+      { name: "work-orders:update", description: "Update work orders", resource: "work-orders", action: "update" },
+      { name: "work-orders:delete", description: "Delete work orders", resource: "work-orders", action: "delete" },
+      { name: "work-orders:assign", description: "Assign work orders", resource: "work-orders", action: "assign" },
+
+      // Parts/Inventory permissions
+      { name: "parts:read", description: "View parts", resource: "parts", action: "read" },
+      { name: "parts:create", description: "Create parts", resource: "parts", action: "create" },
+      { name: "parts:update", description: "Update parts", resource: "parts", action: "update" },
+      { name: "parts:delete", description: "Delete parts", resource: "parts", action: "delete" },
+
+      // VIC management permissions
+      { name: "vics:read", description: "View VICs", resource: "vics", action: "read" },
+      { name: "vics:create", description: "Create VICs", resource: "vics", action: "create" },
+      { name: "vics:update", description: "Update VICs", resource: "vics", action: "update" },
+      { name: "vics:delete", description: "Delete VICs", resource: "vics", action: "delete" },
+
+      // Schedule permissions
+      { name: "schedules:read", description: "View schedules", resource: "schedules", action: "read" },
+      { name: "schedules:create", description: "Create schedules", resource: "schedules", action: "create" },
+      { name: "schedules:update", description: "Update schedules", resource: "schedules", action: "update" },
+      { name: "schedules:delete", description: "Delete schedules", resource: "schedules", action: "delete" },
+
+      // Reports permissions
+      { name: "reports:view", description: "View reports", resource: "reports", action: "read" },
+      { name: "reports:export", description: "Export reports", resource: "reports", action: "export" },
+    ];
+
+    const permissionRecords = [];
+    for (const perm of permissionsData) {
+      permissionRecords.push(
+        await tx.permission.upsert({
+          where: { name: perm.name },
+          update: {
+            description: perm.description,
+            resource: perm.resource || null,
+            action: perm.action || null,
+            routePath: perm.routePath || null,
+          },
+          create: perm,
+        })
+      );
+    }
+    console.log("✅ Seeded Permissions");
+
+    // 5) Roles with permissions
+    const rolesData = [
+      {
+        name: "ADMINISTRADOR",
+        description: "Full system access",
+        defaultPath: "/admin",
+        permissions: [
+          // All permissions (admin has full access)
+          ...permissionRecords.map(p => p.name)
+        ],
+      },
+      {
+        name: "USUARIO_SISTEMA",
+        description: "System user with management capabilities",
+        defaultPath: "/fsr",
+        permissions: [
+          "route:fsr",
+          "incidents:read", "incidents:create", "incidents:update", "incidents:delete", "incidents:assign", "incidents:close",
+          "work-orders:read", "work-orders:create", "work-orders:update", "work-orders:delete", "work-orders:assign",
+          "parts:read", "parts:create", "parts:update",
+          "schedules:read", "schedules:create", "schedules:update",
+          "users:read",
+          "reports:view", "reports:export",
+        ],
+      },
+      {
+        name: "USUARIO_PERSONAL",
+        description: "Staff user with limited access",
+        defaultPath: "/guest",
+        permissions: [
+          "route:guest",
+          "incidents:read", "incidents:create", "incidents:update",
+          "work-orders:read", "work-orders:update",
+          "parts:read",
+          "schedules:read",
+        ],
+      },
+      {
+        name: "USUARIO_EXTERNO",
+        description: "External user with minimal access",
+        defaultPath: "/client",
+        permissions: [
+          "route:client",
+          "incidents:read", "incidents:create",
+          "work-orders:read",
+          "schedules:read",
+        ],
+      },
+    ];
+
+    const roleRecords = [];
+    for (const roleData of rolesData) {
+      const role = await tx.role.upsert({
+        where: { name: roleData.name },
+        update: {
+          description: roleData.description,
+          defaultPath: roleData.defaultPath,
+        },
+        create: {
+          name: roleData.name,
+          description: roleData.description,
+          defaultPath: roleData.defaultPath,
+        },
+      });
+      roleRecords.push(role);
+
+      // Assign permissions to role
+      for (const permName of roleData.permissions) {
+        const permission = permissionRecords.find(p => p.name === permName);
+        if (permission) {
+          await tx.rolePermission.upsert({
+            where: {
+              roleId_permissionId: { roleId: role.id, permissionId: permission.id },
+            },
+            update: {},
+            create: { roleId: role.id, permissionId: permission.id },
+          });
+        }
+      }
+    }
+    console.log("✅ Seeded Roles with Permissions");
+
+    // 6) Users - One per role
+    const usersData = [
+      {
+        name: "Admin User",
+        email: "admin@opusinspection.com",
+        roleName: "ADMINISTRADOR",
+        vicId: vic.id,
+      },
+      {
+        name: "System User",
+        email: "system@opusinspection.com",
+        roleName: "USUARIO_SISTEMA",
+        vicId: vic.id,
+      },
+      {
+        name: "Staff User",
+        email: "staff@opusinspection.com",
+        roleName: "USUARIO_PERSONAL",
+        vicId: vic.id,
+      },
+      {
+        name: "Client User",
+        email: "client@opusinspection.com",
+        roleName: "USUARIO_EXTERNO",
+        vicId: null, // External users may not be assigned to a VIC
+      },
+    ];
+
+    for (const userData of usersData) {
+      const role = roleRecords.find(r => r.name === userData.roleName);
+      if (!role) continue;
+
+      const user = await tx.user.upsert({
+        where: { email: userData.email },
         update: {},
         create: {
-          code: `VIC${st.code}`,
-          name: `Centro de Verificación ${st.name}`,
-          address: `Dirección de ${st.name}`,
-          phone: "555-000-0000",
-          contact: "Contacto General",
-          rfc: "RFC123456789",
-          companyName: `Empresa ${st.name}`,
-          stateId: st.id,
+          name: userData.name,
+          email: userData.email,
+          password: await hashPassword("password123"),
+          roleId: role.id,
+          userStatusId: userStatusActivo.id,
+          vicId: userData.vicId,
+        },
+      });
+
+      // Create user profile
+      await tx.userProfile.upsert({
+        where: { userId: user.id },
+        update: {},
+        create: {
+          userId: user.id,
+          telephone: "555-000-0000",
+          emergencyContact: "Emergency Contact",
+          jobPosition: userData.roleName,
         },
       });
     }
-    console.log("✅ Seeded VehicleInspectionCenters");
+    console.log("✅ Seeded Users with Profiles");
 
-    // 5) IncidentTypes
+    // 7) IncidentTypes
     const incidentTypes = [
-      { name: "REPARACION", description: "Incidente de reparacion" },
-      { name: "MANTENIMIENTO", description: "Incidente de mantenimiento" },
-      { name: "OTROS", description: "Otro tipo de incidente" },
+      { name: "REPARACION", description: "Incident requiring repair" },
+      { name: "MANTENIMIENTO", description: "Maintenance incident" },
+      { name: "OTROS", description: "Other type of incident" },
     ];
     const incidentTypeRecords = [];
     for (const it of incidentTypes) {
@@ -122,7 +285,7 @@ async function main() {
     }
     console.log("✅ Seeded IncidentTypes");
 
-    // 6) IncidentStatuses
+    // 8) IncidentStatuses
     const incidentStatuses = ["ABIERTO", "PENDIENTE", "EN_PROGRESO", "CERRADO"];
     const incidentStatusRecords = [];
     for (const name of incidentStatuses) {
@@ -134,245 +297,71 @@ async function main() {
         })
       );
     }
-    const incidentTypeDefault = incidentTypeRecords[0];
-    const incidentStatusDefault = incidentStatusRecords[0];
     console.log("✅ Seeded IncidentStatuses");
 
-    // 7) Parts por VIC (requiere @@unique([name, vicId]) en Part)
-    const vics = await tx.vehicleInspectionCenter.findMany();
-    for (const vic of vics) {
-      for (let i = 1; i <= 3; i++) {
-        const name = `Part${i}-${vic.code}`; // vic.code ya incluye "VIC"
-        await tx.part.upsert({
-          where: { name_vicId: { name, vicId: vic.id } },
-          update: {
-            description: `Part ${i} for ${vic.name}`,
-            price: 100 * i,
-            stock: 10 * i,
-          },
-          create: {
-            name,
-            description: `Part ${i} for ${vic.name}`,
-            price: 100 * i,
-            stock: 10 * i,
-            vicId: vic.id,
-          },
-        });
-      }
-    }
-    console.log("✅ Seeded Parts for each VIC");
+    // 9) Part - Only one for testing
+    await tx.part.upsert({
+      where: { name_vicId: { name: "Filtro de Aire", vicId: vic.id } },
+      update: {
+        description: "Filtro de aire para sistema de ventilación",
+        price: 150.00,
+        stock: 10,
+      },
+      create: {
+        name: "Filtro de Aire",
+        description: "Filtro de aire para sistema de ventilación",
+        price: 150.00,
+        stock: 10,
+        vicId: vic.id,
+      },
+    });
+    console.log("✅ Seeded Part");
 
-    // 8) Usuarios por rol (crea uno por cada rol)
-    const firstVic = vics[0] ?? null;
-    for (const role of roleRecords) {
-      const needsVic = role.name === "USUARIO_PERSONAL"; // ejemplo: personal asignado a un VIC
-      await tx.user.upsert({
-        where: { email: `${role.name.toLowerCase()}@opusinspection.com` },
+    // 10) Sample Schedule
+    const schedule = await tx.schedule.upsert({
+      where: { id: "schedule-sample-1" },
+      update: {},
+      create: {
+        id: "schedule-sample-1",
+        title: "Mantenimiento Semanal",
+        description: "Mantenimiento programado semanal",
+        scheduledAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        vicId: vic.id,
+      },
+    });
+    console.log("✅ Seeded Schedule");
+
+    // 11) Sample Incident
+    const adminUser = await tx.user.findUnique({
+      where: { email: "admin@opusinspection.com" },
+    });
+
+    if (adminUser) {
+      await tx.incident.upsert({
+        where: { id: 1 },
         update: {},
         create: {
-          name: `${role.name} User`,
-          email: `${role.name.toLowerCase()}@opusinspection.com`,
-          password: await hashPassword("password123"),
-          roleId: role.id,
-          userStatusId: userStatusActivo.id,
-          ...(needsVic && firstVic ? { vicId: firstVic.id } : {}),
+          title: "Falla en línea de verificación 2",
+          description: "La línea 2 presenta problemas con el sistema de medición de emisiones",
+          priority: 8,
+          sla: 24,
+          typeId: incidentTypeRecords[0].id,
+          statusId: incidentStatusRecords[0].id,
+          vicId: vic.id,
+          reportedById: adminUser.id,
+          scheduleId: schedule.id,
         },
       });
+      console.log("✅ Seeded Sample Incident");
     }
-    console.log("✅ Seeded Users per role");
-
-    // 9) Incidentes de ejemplo (uno por VIC)
-    for (const vic of vics) {
-      const reporter = await tx.user.findFirst({ where: { vicId: vic.id } });
-      if (!reporter) continue;
-
-      const exists = await tx.incident.findFirst({
-        where: { title: `Sample Incident for ${vic.name}`, vicId: vic.id },
-        select: { id: true },
-      });
-
-      if (!exists) {
-        await tx.incident.create({
-          data: {
-            title: `Sample Incident for ${vic.name}`,
-            description: "This is a seeded incident.",
-            priority: 5,
-            sla: 24,
-            typeId: incidentTypeDefault.id,
-            statusId: incidentStatusDefault.id,
-            reportedAt: new Date(),
-            vicId: vic.id,
-            reportedById: reporter.id,
-          },
-        });
-      }
-    }
-    console.log("✅ Seeded Incidents for each VIC");
-
-    // 10) Permisos únicos (derivados de ROLE_DEFS)
-    const permissionRecords = await Promise.all(
-      (PERMISSIONS as string[]).map((name) =>
-        tx.permission.upsert({
-          where: { name },
-          update: {},
-          create: { name, description: name },
-        })
-      )
-    );
-    const byPermName = new Map(permissionRecords.map((p) => [p.name, p]));
-    console.log("✅ Seeded Permissions (derivados de ROLE_DEFS)");
-
-    // 11) Mapeo permisos → roles (desde ROLE_DEFS)
-    for (const roleName of ROLES) {
-      const role = byRoleName.get(roleName);
-      if (!role) continue;
-
-      const permNames = ROLE_DEFS[roleName].permissions as readonly string[];
-      for (const permName of permNames) {
-        const perm = byPermName.get(permName);
-        if (!perm) continue;
-
-        await tx.rolePermission.upsert({
-          where: {
-            roleId_permissionId: { roleId: role.id, permissionId: perm.id },
-          },
-          update: {},
-          create: { roleId: role.id, permissionId: perm.id },
-        });
-      }
-    }
-    console.log("✅ Mapped Permissions → Roles (ROLE_DEFS)");
-
-    // 12) UserProfiles (uno por usuario; upsert por unique userId)
-    const users = await tx.user.findMany();
-    for (const user of users) {
-      await tx.userProfile.upsert({
-        where: { userId: user.id },
-        update: { jobPosition: "Empleado" },
-        create: {
-          userId: user.id,
-          telephone: "555-123-4567",
-          emergencyContact: "Contacto de emergencia",
-          jobPosition: "Empleado",
-        },
-      });
-    }
-    console.log("✅ Seeded UserProfiles");
-
-    // 13) Schedules: 2 por VIC
-    for (const vic of vics) {
-      for (let i = 1; i <= 2; i++) {
-        const scheduledAt = new Date(Date.now() + i * 24 * 60 * 60 * 1000);
-        const title = `Horario ${i} para ${vic.name}`;
-
-        const exists = await tx.schedule.findFirst({
-          where: { vicId: vic.id, title, scheduledAt },
-          select: { id: true },
-        });
-
-        if (!exists) {
-          await tx.schedule.create({
-            data: {
-              title,
-              description: `Descripción del horario ${i}`,
-              scheduledAt,
-              vicId: vic.id,
-            },
-          });
-        }
-      }
-    }
-    console.log("✅ Seeded Schedules");
-
-    // 14) WorkOrders: 1 por incidente
-    const incidents = await tx.incident.findMany({ include: { vic: true } });
-    for (const inc of incidents) {
-      const existingWO = await tx.workOrder.findFirst({
-        where: { incidentId: inc.id },
-        select: { id: true },
-      });
-      const assignee = users[0]; // puedes mejorar lógica de asignación
-      if (!existingWO && assignee) {
-        await tx.workOrder.create({
-          data: {
-            incidentId: inc.id,
-            assignedToId: assignee.id,
-            status: "PENDIENTE",
-            notes: "Orden de trabajo generada automáticamente",
-          },
-        });
-      }
-    }
-    console.log("✅ Seeded WorkOrders");
-
-    // 15) WorkActivities: 2 por WorkOrder
-    const workOrders = await tx.workOrder.findMany();
-    for (const wo of workOrders) {
-      for (let i = 1; i <= 2; i++) {
-        const description = `Actividad ${i} de la orden ${wo.id}`;
-        const exists = await tx.workActivity.findFirst({
-          where: { workOrderId: wo.id, description },
-          select: { id: true },
-        });
-
-        if (!exists) {
-          await tx.workActivity.create({
-            data: { workOrderId: wo.id, description },
-          });
-        }
-      }
-    }
-    console.log("✅ Seeded WorkActivities");
-
-    // 16) WorkOrderAttachments: 1 por WorkOrder
-    for (const wo of workOrders) {
-      const filename = "ejemplo.txt";
-      const exists = await tx.workOrderAttachment.findFirst({
-        where: { workOrderId: wo.id, filename },
-        select: { id: true },
-      });
-
-      if (!exists) {
-        await tx.workOrderAttachment.create({
-          data: {
-            workOrderId: wo.id,
-            filename,
-            filepath: "/uploads/ejemplo.txt",
-            mimetype: "text/plain",
-            size: 1234,
-            description: "Archivo de prueba",
-          },
-        });
-      }
-    }
-    console.log("✅ Seeded WorkOrderAttachments");
-
-    // 17) WorkParts: 1 por WorkOrder
-    const allParts = await tx.part.findMany();
-    for (const wo of workOrders) {
-      const existing = await tx.workPart.findFirst({
-        where: { workOrderId: wo.id },
-        select: { id: true },
-      });
-      if (existing) continue;
-
-      const part = allParts[0];
-      if (!part) continue;
-
-      await tx.workPart.create({
-        data: {
-          partId: part.id,
-          workOrderId: wo.id,
-          quantity: 2,
-          description: "Uso de refacción en orden (seed)",
-          price: part.price,
-        },
-      });
-    }
-    console.log("✅ Seeded WorkParts");
   });
 
-  console.log("🎉 Seed completado (transacción OK)");
+  console.log("🎉 Seed completed successfully!");
+  console.log("\n📋 Test Users:");
+  console.log("  Admin:  admin@opusinspection.com / password123");
+  console.log("  System: system@opusinspection.com / password123");
+  console.log("  Staff:  staff@opusinspection.com / password123");
+  console.log("  Client: client@opusinspection.com / password123");
 }
 
 main()

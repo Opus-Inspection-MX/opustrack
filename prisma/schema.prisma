@@ -33,18 +33,29 @@ model User {
 model Role {
   id             Int              @id @default(autoincrement())
   name           String           @unique
+  description    String?
   defaultPath    String
   users          User[]
   rolePermission RolePermission[]
   active         Boolean          @default(true)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @default(now()) @updatedAt
 }
 
 model Permission {
   id          Int              @id @default(autoincrement())
   name        String           @unique
   description String?
+  resource    String? // e.g., "incidents", "users", "work-orders"
+  action      String? // e.g., "read", "create", "update", "delete"
+  routePath   String? // e.g., "/admin", "/incidents", "/fsr"
   roles       RolePermission[]
   active      Boolean          @default(true)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @default(now()) @updatedAt
+
+  @@index([resource, action])
+  @@index([routePath])
 }
 
 model RolePermission {
