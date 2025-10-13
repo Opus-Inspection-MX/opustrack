@@ -1,0 +1,28 @@
+meta {
+  name: logins
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{base_url}}/api/auth/callback/credentials
+  body: formUrlEncoded
+  auth: inherit
+}
+
+headers {
+  Accept: application/json
+  Content-Type: application/x-www-form-urlencoded
+  Origin: {{base_url}}
+  Referer: {{base_url}}/login
+}
+
+body:form-urlencoded {
+  username: usuario_administrador@opusinspection.com
+  password: password123
+  csrfToken: {{csrf_token}}
+}
+
+settings {
+  encodeUrl: true
+}

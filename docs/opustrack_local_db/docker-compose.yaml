@@ -1,0 +1,13 @@
+version: "2"
+services:
+  postgres:
+    image: "postgres:latest"
+    restart: always
+    volumes:
+      - "./postgres_data:/var/lib/postgresql/data"
+    environment:
+      - POSTGRES_PASSWORD=n0m3l0
+      - POSTGRES_USER=postgres
+      - POSTGRES_DB=opustrack
+    ports:
+      - "5432:5432"

@@ -1,0 +1,15 @@
+meta {
+  name: me (validate)
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{api}}/auth/me
+  body: json
+  auth: inherit
+}
+
+headers {
+  Authorization: {{token_admin}}
+}

@@ -1,0 +1,258 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                String                   @id @default(cuid())
+  name              String
+  email             String                   @unique
+  password          String
+  roleId            Int
+  userStatusId      Int                      @default(1)
+  vicId             String?
+  role              Role                     @relation(fields: [roleId], references: [id])
+  userStatus        UserStatus               @relation(fields: [userStatusId], references: [id])
+  userProfile       UserProfile?
+  vic               VehicleInspectionCenter? @relation(fields: [vicId], references: [id])
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
+  workOrders        WorkOrder[]
+  reportedIncidents Incident[]               @relation("IncidentReporter")
+  incidents         Incident[]               @relation("IncidentUser") // relación opcional si usas userId en Incident
+  active            Boolean                  @default(true)
+}
+
+model Role {
+  id             Int              @id @default(autoincrement())
+  name           String           @unique
+  defaultPath    String
+  users          User[]
+  rolePermission RolePermission[]
+  active         Boolean          @default(true)
+}
+
+model Permission {
+  id          Int              @id @default(autoincrement())
+  name        String           @unique
+  description String?
+  roles       RolePermission[]
+  active      Boolean          @default(true)
+}
+
+model RolePermission {
+  id           Int        @id @default(autoincrement())
+  roleId       Int
+  permissionId Int
+  role         Role       @relation(fields: [roleId], references: [id])
+  permission   Permission @relation(fields: [permissionId], references: [id])
+  active       Boolean    @default(true)
+
+  @@unique([roleId, permissionId])
+}
+
+model UserStatus {
+  id     Int     @id @default(autoincrement())
+  name   String  @unique
+  users  User[]
+  active Boolean @default(true)
+}
+
+model UserProfile {
+  id                 Int      @id @default(autoincrement())
+  userId             String   @unique
+  telephone          String?
+  secondaryTelephone String?
+  emergencyContact   String?
+  jobPosition        String?
+  user               User     @relation(fields: [userId], references: [id])
+  updatedAt          DateTime @updatedAt
+  active             Boolean  @default(true)
+}
+
+model VehicleInspectionCenter {
+  id          String     @id @default(cuid())
+  code        String     @unique
+  name        String
+  address     String?
+  rfc         String?
+  companyName String?
+  phone       String?
+  contact     String?
+  email       String?
+  lines       Int        @default(1)
+  stateId     Int
+  state       State      @relation(fields: [stateId], references: [id])
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  users       User[]
+  schedules   Schedule[]
+  incidents   Incident[]
+  Part        Part[] // (conservamos el nombre para no romper tu código)
+  active      Boolean    @default(true)
+}
+
+model State {
+  id                       Int                       @id @default(autoincrement())
+  name                     String                    @unique
+  code                     String                    @unique
+  createdAt                DateTime                  @default(now())
+  updatedAt                DateTime                  @updatedAt
+  vehicleInspectionCenters VehicleInspectionCenter[]
+  active                   Boolean                   @default(true)
+}
+
+model Schedule {
+  id          String                  @id @default(cuid())
+  title       String
+  description String?
+  scheduledAt DateTime
+  vicId       String
+  vic         VehicleInspectionCenter @relation(fields: [vicId], references: [id])
+  incidents   Incident[]
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
+  active      Boolean                 @default(true)
+}
+
+model IncidentType {
+  id          Int        @id @default(autoincrement())
+  name        String     @unique
+  description String?
+  incidents   Incident[]
+  active      Boolean    @default(true)
+}
+
+model IncidentStatus {
+  id        Int        @id @default(autoincrement())
+  name      String     @unique
+  incidents Incident[]
+  active    Boolean    @default(true)
+}
+
+model Incident {
+  id           Int                      @id @default(autoincrement())
+  title        String
+  description  String
+  priority     Int
+  sla          Int
+  typeId       Int?
+  type         IncidentType?            @relation(fields: [typeId], references: [id])
+  statusId     Int?
+  status       IncidentStatus?          @relation(fields: [statusId], references: [id])
+  reportedAt   DateTime                 @default(now())
+  resolvedAt   DateTime?
+  vicId        String?
+  vic          VehicleInspectionCenter? @relation(fields: [vicId], references: [id])
+  reportedById String?
+  reportedBy   User?                    @relation("IncidentReporter", fields: [reportedById], references: [id])
+  scheduleId   String?
+  schedule     Schedule?                @relation(fields: [scheduleId], references: [id])
+
+  // userId estaba huérfano: definimos relación opcional clara
+  userId String?
+  user   User?   @relation("IncidentUser", fields: [userId], references: [id])
+
+  workOrders WorkOrder[]
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  active     Boolean     @default(true)
+
+  @@index([vicId])
+  @@index([statusId])
+  @@index([typeId])
+  @@index([reportedById])
+}
+
+model WorkOrder {
+  id             String                @id @default(cuid())
+  incidentId     Int
+  incident       Incident              @relation(fields: [incidentId], references: [id])
+  assignedToId   String
+  assignedTo     User                  @relation(fields: [assignedToId], references: [id])
+  status         String
+  notes          String?
+  startedAt      DateTime?
+  finishedAt     DateTime?
+  workActivities WorkActivity[]
+  attachments    WorkOrderAttachment[]
+  workParts      WorkPart[]
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+  active         Boolean               @default(true)
+
+  @@index([incidentId])
+  @@index([assignedToId])
+}
+
+model WorkActivity {
+  id          String     @id @default(cuid())
+  workOrderId String
+  workOrder   WorkOrder  @relation(fields: [workOrderId], references: [id])
+  description String
+  performedAt DateTime   @default(now())
+  workParts   WorkPart[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  active      Boolean    @default(true)
+
+  @@index([workOrderId])
+}
+
+model WorkOrderAttachment {
+  id          String    @id @default(cuid())
+  workOrderId String
+  workOrder   WorkOrder @relation(fields: [workOrderId], references: [id])
+  filename    String
+  filepath    String
+  mimetype    String
+  size        Int
+  description String?
+  uploadedAt  DateTime  @default(now())
+  active      Boolean   @default(true)
+
+  @@index([workOrderId])
+}
+
+model Part {
+  id          String                  @id @default(cuid())
+  vicId       String
+  vic         VehicleInspectionCenter @relation(fields: [vicId], references: [id])
+  name        String
+  description String?
+  price       Float
+  stock       Int
+  workParts   WorkPart[]
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
+  active      Boolean                 @default(true)
+
+  @@unique([name, vicId]) // ← para upsert por nombre+VIC
+  @@index([vicId])
+}
+
+model WorkPart {
+  id             String        @id @default(cuid())
+  partId         String
+  part           Part          @relation(fields: [partId], references: [id])
+  quantity       Int
+  description    String?
+  price          Float
+  workOrderId    String?
+  workOrder      WorkOrder?    @relation(fields: [workOrderId], references: [id])
+  workActivityId String?
+  workActivity   WorkActivity? @relation(fields: [workActivityId], references: [id])
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  active         Boolean       @default(true)
+
+  @@index([workOrderId])
+  @@index([workActivityId])
+}

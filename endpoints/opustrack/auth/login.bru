@@ -1,0 +1,21 @@
+meta {
+  name: login
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{base_url}}/api/auth/csrf
+  body: none
+  auth: inherit
+}
+
+script:post-response {
+  const data = await res;
+  bru.setEnvVar("csrfToken", data.csrfToken);
+  res.set
+}
+
+settings {
+  encodeUrl: true
+}

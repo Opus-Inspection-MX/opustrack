@@ -1,0 +1,15 @@
+meta {
+  name: findAll
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{api}}/users/
+  body: none
+  auth: inherit
+}
+
+headers {
+  Authorization: {{token_user}}
+}
