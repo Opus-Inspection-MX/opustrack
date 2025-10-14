@@ -11,6 +11,36 @@ export type WorkActivityFormData = {
 };
 
 /**
+ * Get all work activities (admin view)
+ */
+export async function getAllWorkActivities() {
+  await requirePermission("work-orders:read");
+
+  const activities = await prisma.workActivity.findMany({
+    where: {
+      active: true,
+    },
+    include: {
+      workOrder: {
+        include: {
+          incident: {
+            select: {
+              title: true,
+            },
+          },
+        },
+      },
+      workParts: {
+        where: { active: true },
+      },
+    },
+    orderBy: { performedAt: "desc" },
+  });
+
+  return activities;
+}
+
+/**
  * Get work activities for a work order
  */
 export async function getWorkActivities(workOrderId: string) {

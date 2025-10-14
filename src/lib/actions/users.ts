@@ -190,3 +190,105 @@ export async function getUserFormOptions() {
 
   return { roles, statuses, vics };
 }
+
+/**
+ * Get current user's profile
+ */
+export async function getMyProfile() {
+  const { requireAuth } = await import("@/lib/auth/auth");
+  const user = await requireAuth();
+
+  const profile = await prisma.user.findUnique({
+    where: { id: user.id },
+    include: {
+      role: true,
+      userStatus: true,
+      vic: true,
+      userProfile: true,
+    },
+  });
+
+  return profile;
+}
+
+/**
+ * Update current user's profile (own profile only)
+ */
+export async function updateMyProfile(data: {
+  name: string;
+  telephone?: string;
+  secondaryTelephone?: string;
+  emergencyContact?: string;
+  jobPosition?: string;
+}) {
+  const { requireAuth } = await import("@/lib/auth/auth");
+  const user = await requireAuth();
+
+  // Update user name
+  await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      name: data.name,
+    },
+  });
+
+  // Update or create user profile
+  await prisma.userProfile.upsert({
+    where: { userId: user.id },
+    create: {
+      userId: user.id,
+      telephone: data.telephone || null,
+      secondaryTelephone: data.secondaryTelephone || null,
+      emergencyContact: data.emergencyContact || null,
+      jobPosition: data.jobPosition || null,
+    },
+    update: {
+      telephone: data.telephone || null,
+      secondaryTelephone: data.secondaryTelephone || null,
+      emergencyContact: data.emergencyContact || null,
+      jobPosition: data.jobPosition || null,
+    },
+  });
+
+  revalidatePath("/profile");
+  revalidatePath("/admin/profile");
+  return { success: true };
+}
+
+/**
+ * Update current user's password
+ */
+export async function updateMyPassword(currentPassword: string, newPassword: string) {
+  const { requireAuth } = await import("@/lib/auth/auth");
+  const user = await requireAuth();
+
+  // Get user with password
+  const userWithPassword = await prisma.user.findUnique({
+    where: { id: user.id },
+    select: { password: true },
+  });
+
+  if (!userWithPassword) {
+    throw new Error("User not found");
+  }
+
+  // Verify current password
+  const bcrypt = await import("bcrypt");
+  const isValidPassword = await bcrypt.compare(
+    currentPassword,
+    userWithPassword.password
+  );
+
+  if (!isValidPassword) {
+    throw new Error("Current password is incorrect");
+  }
+
+  // Hash and update new password
+  const hashedPassword = await hashPassword(newPassword);
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { password: hashedPassword },
+  });
+
+  return { success: true };
+}

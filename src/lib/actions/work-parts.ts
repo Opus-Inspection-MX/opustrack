@@ -13,6 +13,35 @@ export type WorkPartFormData = {
 };
 
 /**
+ * Get all work parts (admin view)
+ */
+export async function getAllWorkParts() {
+  await requirePermission("work-orders:read");
+
+  const workParts = await prisma.workPart.findMany({
+    where: {
+      active: true,
+    },
+    include: {
+      part: true,
+      workOrder: {
+        include: {
+          incident: {
+            select: {
+              title: true,
+            },
+          },
+        },
+      },
+      workActivity: true,
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  return workParts;
+}
+
+/**
  * Get work parts for a work order
  */
 export async function getWorkParts(workOrderId: string) {
@@ -165,6 +194,29 @@ export async function deleteWorkPart(id: string) {
   }
 
   return { success: true };
+}
+
+/**
+ * Get work part by ID
+ */
+export async function getWorkPartById(id: string) {
+  await requirePermission("work-orders:read");
+
+  const workPart = await prisma.workPart.findUnique({
+    where: { id },
+    include: {
+      part: true,
+      workOrder: {
+        include: {
+          incident: true,
+          assignedTo: true,
+        },
+      },
+      workActivity: true,
+    },
+  });
+
+  return workPart;
 }
 
 /**

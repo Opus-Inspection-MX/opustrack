@@ -121,6 +121,30 @@ async function main() {
       // Reports permissions
       { name: "reports:view", description: "View reports", resource: "reports", action: "read" },
       { name: "reports:export", description: "Export reports", resource: "reports", action: "export" },
+
+      // State permissions (administrative data)
+      { name: "states:read", description: "View states", resource: "states", action: "read" },
+      { name: "states:create", description: "Create states", resource: "states", action: "create" },
+      { name: "states:update", description: "Update states", resource: "states", action: "update" },
+      { name: "states:delete", description: "Delete states", resource: "states", action: "delete" },
+
+      // User Status permissions (lookup data)
+      { name: "user-status:read", description: "View user statuses", resource: "user-status", action: "read" },
+      { name: "user-status:create", description: "Create user statuses", resource: "user-status", action: "create" },
+      { name: "user-status:update", description: "Update user statuses", resource: "user-status", action: "update" },
+      { name: "user-status:delete", description: "Delete user statuses", resource: "user-status", action: "delete" },
+
+      // Incident Type permissions (lookup data)
+      { name: "incident-types:read", description: "View incident types", resource: "incident-types", action: "read" },
+      { name: "incident-types:create", description: "Create incident types", resource: "incident-types", action: "create" },
+      { name: "incident-types:update", description: "Update incident types", resource: "incident-types", action: "update" },
+      { name: "incident-types:delete", description: "Delete incident types", resource: "incident-types", action: "delete" },
+
+      // Incident Status permissions (lookup data)
+      { name: "incident-status:read", description: "View incident statuses", resource: "incident-status", action: "read" },
+      { name: "incident-status:create", description: "Create incident statuses", resource: "incident-status", action: "create" },
+      { name: "incident-status:update", description: "Update incident statuses", resource: "incident-status", action: "update" },
+      { name: "incident-status:delete", description: "Delete incident statuses", resource: "incident-status", action: "delete" },
     ];
 
     const permissionRecords = [];

@@ -327,3 +327,93 @@ export async function getWorkOrderFormOptions() {
 
   return { incidents, users };
 }
+
+/**
+ * Upload attachment for work order
+ */
+export async function uploadWorkOrderAttachment(
+  workOrderId: string,
+  fileData: {
+    filename: string;
+    base64Data: string;
+    mimetype: string;
+    size: number;
+    description?: string;
+  }
+) {
+  await requirePermission("work-orders:update");
+
+  const fs = await import("fs/promises");
+  const path = await import("path");
+
+  // Create uploads directory if it doesn't exist
+  const uploadsDir = path.join(process.cwd(), "public", "uploads", "work-orders");
+  await fs.mkdir(uploadsDir, { recursive: true });
+
+  // Generate unique filename
+  const timestamp = Date.now();
+  const sanitizedFilename = fileData.filename.replace(/[^a-zA-Z0-9.-]/g, "_");
+  const uniqueFilename = `${timestamp}-${sanitizedFilename}`;
+  const filepath = path.join(uploadsDir, uniqueFilename);
+
+  // Remove base64 prefix and convert to buffer
+  const base64Data = fileData.base64Data.replace(/^data:[^;]+;base64,/, "");
+  const buffer = Buffer.from(base64Data, "base64");
+
+  // Write file
+  await fs.writeFile(filepath, buffer);
+
+  // Save to database
+  const attachment = await prisma.workOrderAttachment.create({
+    data: {
+      workOrderId,
+      filename: sanitizedFilename,
+      filepath: `/uploads/work-orders/${uniqueFilename}`,
+      mimetype: fileData.mimetype,
+      size: fileData.size,
+      description: fileData.description || null,
+    },
+  });
+
+  revalidatePath(`/admin/work-orders/${workOrderId}`);
+  revalidatePath(`/fsr/work-orders/${workOrderId}`);
+
+  return { success: true, data: attachment };
+}
+
+/**
+ * Delete work order attachment
+ */
+export async function deleteWorkOrderAttachment(id: string) {
+  await requirePermission("work-orders:update");
+
+  const attachment = await prisma.workOrderAttachment.findUnique({
+    where: { id },
+  });
+
+  if (!attachment) {
+    throw new Error("Attachment not found");
+  }
+
+  // Mark as inactive
+  await prisma.workOrderAttachment.update({
+    where: { id },
+    data: { active: false },
+  });
+
+  // Optionally delete physical file
+  try {
+    const fs = await import("fs/promises");
+    const path = await import("path");
+    const filePath = path.join(process.cwd(), "public", attachment.filepath);
+    await fs.unlink(filePath);
+  } catch (error) {
+    console.error("Error deleting file:", error);
+    // Continue even if file deletion fails
+  }
+
+  revalidatePath(`/admin/work-orders/${attachment.workOrderId}`);
+  revalidatePath(`/fsr/work-orders/${attachment.workOrderId}`);
+
+  return { success: true };
+}

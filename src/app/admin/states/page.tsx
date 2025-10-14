@@ -1,102 +1,80 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { Plus } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { StateTable } from "@/components/states/state-table"
-import { Spinner } from "@/components/ui/spinner"
-
-// Mock data - replace with actual API calls
-const mockStates = [
-  {
-    id: 1,
-    name: "Ciudad de México",
-    code: "CDMX",
-    vicCount: 15,
-    active: true,
-    createdAt: "2024-01-15T10:00:00Z",
-    updatedAt: "2024-01-15T10:00:00Z",
-  },
-  {
-    id: 2,
-    name: "Estado de México",
-    code: "EDOMEX",
-    vicCount: 8,
-    active: true,
-    createdAt: "2024-01-16T10:00:00Z",
-    updatedAt: "2024-01-16T10:00:00Z",
-  },
-  {
-    id: 3,
-    name: "Jalisco",
-    code: "JAL",
-    vicCount: 12,
-    active: true,
-    createdAt: "2024-01-17T10:00:00Z",
-    updatedAt: "2024-01-17T10:00:00Z",
-  },
-  {
-    id: 4,
-    name: "Nuevo León",
-    code: "NL",
-    vicCount: 6,
-    active: true,
-    createdAt: "2024-01-18T10:00:00Z",
-    updatedAt: "2024-01-18T10:00:00Z",
-  },
-  {
-    id: 5,
-    name: "Puebla",
-    code: "PUE",
-    vicCount: 4,
-    active: false,
-    createdAt: "2024-01-19T10:00:00Z",
-    updatedAt: "2024-01-19T10:00:00Z",
-  },
-]
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { StateTable } from "@/components/states/state-table";
+import { Spinner } from "@/components/ui/spinner";
+import { getStatesAdmin, deleteState } from "@/lib/actions/lookups";
 
 export default function StatesPage() {
-  const [states, setStates] = useState(mockStates)
-  const [isLoading, setIsLoading] = useState(false)
-  const [currentPage, setCurrentPage] = useState(1)
-  const [itemsPerPage, setItemsPerPage] = useState(10)
-  const router = useRouter()
+  const [states, setStates] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const router = useRouter();
+
+  useEffect(() => {
+    const fetchStates = async () => {
+      try {
+        const data = await getStatesAdmin();
+        // Transform data to match table expectations
+        const transformed = data.map((state: any) => ({
+          id: state.id,
+          name: state.name,
+          code: state.code,
+          vicCount: state._count?.vehicleInspectionCenters || 0,
+          active: state.active,
+          createdAt: state.createdAt,
+          updatedAt: state.updatedAt,
+        }));
+        setStates(transformed);
+      } catch (error) {
+        console.error("Error fetching states:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchStates();
+  }, []);
 
   const handleEdit = (id: number) => {
-    router.push(`/admin/states/${id}/edit`)
-  }
+    router.push(`/admin/states/${id}/edit`);
+  };
 
   const handleDelete = async (id: number) => {
-    const state = states.find((s) => s.id === id)
+    const state = states.find((s) => s.id === id);
     if (state && state.vicCount && state.vicCount > 0) {
-      alert("Cannot delete state with associated VIC centers. Please reassign or delete VIC centers first.")
-      return
+      alert(
+        "Cannot delete state with associated VIC centers. Please reassign or delete VIC centers first."
+      );
+      return;
     }
 
     if (confirm("Are you sure you want to delete this state?")) {
-      setIsLoading(true)
       try {
-        // Simulate API call
-        await new Promise((resolve) => setTimeout(resolve, 500))
-        setStates((prev) => prev.filter((s) => s.id !== id))
-        console.log("Delete state:", id)
-      } finally {
-        setIsLoading(false)
+        await deleteState(id);
+        // Refresh the list
+        setStates((prev) => prev.filter((s) => s.id !== id));
+      } catch (error) {
+        console.error("Error deleting state:", error);
+        alert(error instanceof Error ? error.message : "Failed to delete state");
       }
     }
-  }
+  };
 
   const handleView = (id: number) => {
-    router.push(`/admin/states/${id}`)
-  }
+    router.push(`/admin/states/${id}`);
+  };
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <Spinner size="lg" text="Loading states..." />
       </div>
-    )
+    );
   }
 
   return (
@@ -104,7 +82,9 @@ export default function StatesPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">States</h1>
-          <p className="text-muted-foreground">Manage geographic states and regions</p>
+          <p className="text-muted-foreground">
+            Manage geographic states and regions
+          </p>
         </div>
         <Button onClick={() => router.push("/admin/states/new")}>
           <Plus className="mr-2 h-4 w-4" />
@@ -124,5 +104,5 @@ export default function StatesPage() {
         onView={handleView}
       />
     </div>
-  )
+  );
 }

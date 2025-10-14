@@ -13,7 +13,7 @@ export type StateFormData = {
 };
 
 export async function getStatesAdmin() {
-  await requirePermission("vics:read");
+  await requirePermission("states:read");
 
   const states = await prisma.state.findMany({
     where: { active: true },
@@ -29,7 +29,7 @@ export async function getStatesAdmin() {
 }
 
 export async function getStateById(id: number) {
-  await requirePermission("vics:read");
+  await requirePermission("states:read");
 
   const state = await prisma.state.findUnique({
     where: { id },
@@ -44,7 +44,7 @@ export async function getStateById(id: number) {
 }
 
 export async function createState(data: StateFormData) {
-  await requirePermission("vics:create");
+  await requirePermission("states:create");
 
   const state = await prisma.state.create({
     data: {
@@ -58,7 +58,7 @@ export async function createState(data: StateFormData) {
 }
 
 export async function updateState(id: number, data: StateFormData) {
-  await requirePermission("vics:update");
+  await requirePermission("states:update");
 
   const state = await prisma.state.update({
     where: { id },
@@ -74,7 +74,7 @@ export async function updateState(id: number, data: StateFormData) {
 }
 
 export async function deleteState(id: number) {
-  await requirePermission("vics:delete");
+  await requirePermission("states:delete");
 
   const vicCount = await prisma.vehicleInspectionCenter.count({
     where: { stateId: id, active: true },
@@ -102,7 +102,7 @@ export type UserStatusFormData = {
 };
 
 export async function getUserStatuses() {
-  await requirePermission("users:read");
+  await requirePermission("user-status:read");
 
   const statuses = await prisma.userStatus.findMany({
     where: { active: true },
@@ -118,7 +118,7 @@ export async function getUserStatuses() {
 }
 
 export async function getUserStatusById(id: number) {
-  await requirePermission("users:read");
+  await requirePermission("user-status:read");
 
   const status = await prisma.userStatus.findUnique({
     where: { id },
@@ -133,7 +133,7 @@ export async function getUserStatusById(id: number) {
 }
 
 export async function createUserStatus(data: UserStatusFormData) {
-  await requirePermission("users:create");
+  await requirePermission("user-status:create");
 
   const status = await prisma.userStatus.create({
     data: {
@@ -146,7 +146,7 @@ export async function createUserStatus(data: UserStatusFormData) {
 }
 
 export async function updateUserStatus(id: number, data: UserStatusFormData) {
-  await requirePermission("users:update");
+  await requirePermission("user-status:update");
 
   const status = await prisma.userStatus.update({
     where: { id },
@@ -161,7 +161,7 @@ export async function updateUserStatus(id: number, data: UserStatusFormData) {
 }
 
 export async function deleteUserStatus(id: number) {
-  await requirePermission("users:delete");
+  await requirePermission("user-status:delete");
 
   const userCount = await prisma.user.count({
     where: { userStatusId: id, active: true },
@@ -190,7 +190,7 @@ export type IncidentTypeFormData = {
 };
 
 export async function getIncidentTypes() {
-  await requirePermission("incidents:read");
+  await requirePermission("incident-types:read");
 
   const types = await prisma.incidentType.findMany({
     where: { active: true },
@@ -206,7 +206,7 @@ export async function getIncidentTypes() {
 }
 
 export async function getIncidentTypeById(id: number) {
-  await requirePermission("incidents:read");
+  await requirePermission("incident-types:read");
 
   const type = await prisma.incidentType.findUnique({
     where: { id },
@@ -221,7 +221,7 @@ export async function getIncidentTypeById(id: number) {
 }
 
 export async function createIncidentType(data: IncidentTypeFormData) {
-  await requirePermission("incidents:create");
+  await requirePermission("incident-types:create");
 
   const type = await prisma.incidentType.create({
     data: {
@@ -235,7 +235,7 @@ export async function createIncidentType(data: IncidentTypeFormData) {
 }
 
 export async function updateIncidentType(id: number, data: IncidentTypeFormData) {
-  await requirePermission("incidents:update");
+  await requirePermission("incident-types:update");
 
   const type = await prisma.incidentType.update({
     where: { id },
@@ -251,7 +251,7 @@ export async function updateIncidentType(id: number, data: IncidentTypeFormData)
 }
 
 export async function deleteIncidentType(id: number) {
-  await requirePermission("incidents:delete");
+  await requirePermission("incident-types:delete");
 
   const incidentCount = await prisma.incident.count({
     where: { typeId: id, active: true },
@@ -279,7 +279,7 @@ export type IncidentStatusFormData = {
 };
 
 export async function getIncidentStatuses() {
-  await requirePermission("incidents:read");
+  await requirePermission("incident-status:read");
 
   const statuses = await prisma.incidentStatus.findMany({
     where: { active: true },
@@ -295,7 +295,7 @@ export async function getIncidentStatuses() {
 }
 
 export async function getIncidentStatusById(id: number) {
-  await requirePermission("incidents:read");
+  await requirePermission("incident-status:read");
 
   const status = await prisma.incidentStatus.findUnique({
     where: { id },
@@ -310,7 +310,7 @@ export async function getIncidentStatusById(id: number) {
 }
 
 export async function createIncidentStatus(data: IncidentStatusFormData) {
-  await requirePermission("incidents:create");
+  await requirePermission("incident-status:create");
 
   const status = await prisma.incidentStatus.create({
     data: {
@@ -323,7 +323,7 @@ export async function createIncidentStatus(data: IncidentStatusFormData) {
 }
 
 export async function updateIncidentStatus(id: number, data: IncidentStatusFormData) {
-  await requirePermission("incidents:update");
+  await requirePermission("incident-status:update");
 
   const status = await prisma.incidentStatus.update({
     where: { id },
@@ -338,7 +338,7 @@ export async function updateIncidentStatus(id: number, data: IncidentStatusFormD
 }
 
 export async function deleteIncidentStatus(id: number) {
-  await requirePermission("incidents:delete");
+  await requirePermission("incident-status:delete");
 
   const incidentCount = await prisma.incident.count({
     where: { statusId: id, active: true },
