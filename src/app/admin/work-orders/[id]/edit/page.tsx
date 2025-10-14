@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Package, Activity, Paperclip, Trash2 } from "lucide-react";
+import { ArrowLeft, Package, Activity, Paperclip, Trash2, AlertTriangle, ExternalLink } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -154,6 +154,30 @@ export default function EditWorkOrderPage({
           {workOrder.status}
         </Badge>
       </div>
+
+      {/* Parent Incident Link */}
+      {workOrder.incident && (
+        <Card className="bg-muted/30">
+          <CardContent className="flex items-center justify-between py-4">
+            <div className="flex items-center gap-3">
+              <AlertTriangle className="h-5 w-5 text-primary" />
+              <div>
+                <p className="text-sm text-muted-foreground">Parent Incident</p>
+                <p className="font-medium">{workOrder.incident.title}</p>
+                <p className="text-xs text-muted-foreground">
+                  Priority: {workOrder.incident.priority}/10 • Status: {workOrder.incident.status?.name}
+                </p>
+              </div>
+            </div>
+            <Button variant="outline" size="sm" asChild>
+              <Link href={`/admin/incidents/${workOrder.incident.id}`}>
+                <ExternalLink className="mr-2 h-4 w-4" />
+                View Incident
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Work Order Info */}
       <Card>

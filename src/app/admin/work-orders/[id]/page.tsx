@@ -4,7 +4,7 @@ import { getWorkParts } from "@/lib/actions/work-parts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Calendar, User, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Calendar, User, AlertTriangle, ExternalLink } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -49,6 +49,28 @@ export default async function WorkOrderDetailPage({
           <Link href={`/admin/work-orders/${id}/edit`}>Editar</Link>
         </Button>
       </div>
+
+      {/* Parent Incident Link */}
+      <Card className="bg-muted/30">
+        <CardContent className="flex items-center justify-between py-4">
+          <div className="flex items-center gap-3">
+            <AlertTriangle className="h-5 w-5 text-primary" />
+            <div>
+              <p className="text-sm text-muted-foreground">Parent Incident</p>
+              <p className="font-medium">{workOrder.incident.title}</p>
+              <p className="text-xs text-muted-foreground">
+                Priority: {workOrder.incident.priority}/10 • Status: {workOrder.incident.status?.name}
+              </p>
+            </div>
+          </div>
+          <Button variant="outline" size="sm" asChild>
+            <Link href={`/admin/incidents/${workOrder.incident.id}`}>
+              <ExternalLink className="mr-2 h-4 w-4" />
+              View Incident
+            </Link>
+          </Button>
+        </CardContent>
+      </Card>
 
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
