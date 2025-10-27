@@ -142,10 +142,11 @@ model IncidentType {
 }
 
 model IncidentStatus {
-  id        Int        @id @default(autoincrement())
-  name      String     @unique
-  incidents Incident[]
-  active    Boolean    @default(true)
+  id         Int         @id @default(autoincrement())
+  name       String      @unique
+  incidents  Incident[]
+  workOrders WorkOrder[]
+  active     Boolean     @default(true)
 }
 
 model Incident {
@@ -188,7 +189,8 @@ model WorkOrder {
   incident       Incident              @relation(fields: [incidentId], references: [id])
   assignedToId   String
   assignedTo     User                  @relation(fields: [assignedToId], references: [id])
-  status         String
+  statusId       Int?
+  status         IncidentStatus?       @relation(fields: [statusId], references: [id])
   notes          String?
   startedAt      DateTime?
   finishedAt     DateTime?
@@ -201,6 +203,7 @@ model WorkOrder {
 
   @@index([incidentId])
   @@index([assignedToId])
+  @@index([statusId])
 }
 
 model WorkActivity {
@@ -226,6 +229,7 @@ model WorkOrderAttachment {
   mimetype    String
   size        Int
   description String?
+  provider    String    @default("vercel-blob") // "vercel-blob" or "filesystem"
   uploadedAt  DateTime  @default(now())
   active      Boolean   @default(true)
 

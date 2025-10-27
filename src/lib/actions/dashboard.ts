@@ -34,7 +34,9 @@ export async function getDashboardStats() {
     prisma.workOrder.count({
       where: {
         active: true,
-        status: { in: ["ABIERTO", "EN_PROGRESO", "PENDIENTE"] },
+        status: {
+          name: { in: ["ABIERTO", "EN_PROGRESO", "PENDIENTE"] },
+        },
       },
     }),
 
@@ -64,7 +66,9 @@ export async function getDashboardStats() {
     prisma.workOrder.findMany({
       where: {
         active: true,
-        status: { in: ["ABIERTO", "PENDIENTE"] },
+        status: {
+          name: { in: ["ABIERTO", "PENDIENTE"] },
+        },
       },
       include: {
         incident: {
@@ -75,6 +79,7 @@ export async function getDashboardStats() {
         assignedTo: {
           select: { name: true },
         },
+        status: true,
       },
       orderBy: { createdAt: "desc" },
       take: 5,

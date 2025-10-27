@@ -1,12 +1,24 @@
 "use client"
 
+import { useRouter } from "next/navigation"
 import { IncidentStatusForm } from "@/components/incident-status/incident-status-form"
+import { createIncidentStatus } from "@/lib/actions/lookups"
 
 export default function NewIncidentStatusPage() {
+  const router = useRouter()
+
   const handleSubmit = async (data: any) => {
-    // Mock API call
-    console.log("Creating incident status:", data)
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+    try {
+      await createIncidentStatus({
+        name: data.name.trim(),
+        description: data.description?.trim() || undefined,
+      })
+      router.push("/admin/incident-status")
+      router.refresh()
+    } catch (error) {
+      console.error("Error creating incident status:", error)
+      throw error
+    }
   }
 
   return (

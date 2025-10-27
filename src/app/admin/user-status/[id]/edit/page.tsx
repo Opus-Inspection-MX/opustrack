@@ -1,12 +1,12 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { useParams } from "next/navigation"
+import { use, useState, useEffect } from "react"
 import { UserStatusForm } from "@/components/user-status/user-status-form"
 import { Spinner } from "@/components/ui/spinner"
+import { getUserStatusById } from "@/lib/actions/lookups"
 
-export default function EditUserStatusPage() {
-  const params = useParams()
+export default function EditUserStatusPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params)
   const [isLoading, setIsLoading] = useState(true)
   const [userStatus, setUserStatus] = useState<any>(null)
 
@@ -14,15 +14,8 @@ export default function EditUserStatusPage() {
     const fetchUserStatus = async () => {
       setIsLoading(true)
       try {
-        await new Promise((resolve) => setTimeout(resolve, 500))
-
-        const mockUserStatus = {
-          id: Number(params.id),
-          name: "Active",
-          active: true,
-        }
-
-        setUserStatus(mockUserStatus)
+        const data = await getUserStatusById(Number(id))
+        setUserStatus(data)
       } catch (error) {
         console.error("Error fetching user status:", error)
       } finally {
@@ -31,7 +24,7 @@ export default function EditUserStatusPage() {
     }
 
     fetchUserStatus()
-  }, [params.id])
+  }, [id])
 
   if (isLoading) {
     return (

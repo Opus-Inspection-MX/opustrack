@@ -1,19 +1,19 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, Edit, Trash2 } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { getWorkActivityById, deleteWorkActivity } from "@/lib/actions/work-activities";
-import { format } from "date-fns";
 
 export default function WorkActivityDetailPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
+  const { id } = use(params);
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -22,7 +22,7 @@ export default function WorkActivityDetailPage({
   useEffect(() => {
     const fetchActivity = async () => {
       try {
-        const data = await getWorkActivityById(params.id);
+        const data = await getWorkActivityById(id);
         setActivity(data);
       } catch (error) {
         console.error("Error fetching work activity:", error);
@@ -32,7 +32,7 @@ export default function WorkActivityDetailPage({
     };
 
     fetchActivity();
-  }, [params.id]);
+  }, [id]);
 
   const handleDelete = async () => {
     if (!confirm("Are you sure you want to delete this work activity?")) {
@@ -41,7 +41,7 @@ export default function WorkActivityDetailPage({
 
     setIsDeleting(true);
     try {
-      await deleteWorkActivity(params.id);
+      await deleteWorkActivity(id);
       router.push(
         `/admin/work-orders/${activity.workOrderId}`
       );
@@ -97,7 +97,7 @@ export default function WorkActivityDetailPage({
           <Button
             variant="outline"
             onClick={() =>
-              router.push(`/admin/work-activities/${params.id}/edit`)
+              router.push(`/admin/work-activities/${id}/edit`)
             }
           >
             <Edit className="mr-2 h-4 w-4" />
@@ -133,7 +133,7 @@ export default function WorkActivityDetailPage({
                   Performed At
                 </p>
                 <p className="text-sm">
-                  {format(new Date(activity.performedAt), "PPpp")}
+                  {new Date(activity.performedAt).toLocaleString()}
                 </p>
               </div>
             </div>

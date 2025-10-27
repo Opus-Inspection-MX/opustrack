@@ -1,60 +1,35 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Plus, Search } from "lucide-react"
 import { IncidentStatusTable } from "@/components/incident-status/incident-status-table"
-
-// Mock data
-const mockIncidentStatuses = [
-  {
-    id: 1,
-    name: "Open",
-    incidentCount: 45,
-    active: true,
-    createdAt: "2024-01-01T00:00:00Z",
-    updatedAt: "2024-01-01T00:00:00Z",
-  },
-  {
-    id: 2,
-    name: "In Progress",
-    incidentCount: 23,
-    active: true,
-    createdAt: "2024-01-01T00:00:00Z",
-    updatedAt: "2024-01-01T00:00:00Z",
-  },
-  {
-    id: 3,
-    name: "Resolved",
-    incidentCount: 156,
-    active: true,
-    createdAt: "2024-01-01T00:00:00Z",
-    updatedAt: "2024-01-01T00:00:00Z",
-  },
-  {
-    id: 4,
-    name: "Closed",
-    incidentCount: 89,
-    active: true,
-    createdAt: "2024-01-01T00:00:00Z",
-    updatedAt: "2024-01-01T00:00:00Z",
-  },
-  {
-    id: 5,
-    name: "Pending Review",
-    incidentCount: 12,
-    active: true,
-    createdAt: "2024-01-01T00:00:00Z",
-    updatedAt: "2024-01-01T00:00:00Z",
-  },
-]
+import { Spinner } from "@/components/ui/spinner"
+import { getIncidentStatuses, deleteIncidentStatus } from "@/lib/actions/lookups"
 
 export default function IncidentStatusPage() {
   const router = useRouter()
   const [searchTerm, setSearchTerm] = useState("")
-  const [statuses, setStatuses] = useState(mockIncidentStatuses)
+  const [statuses, setStatuses] = useState<any[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    fetchData()
+  }, [])
+
+  const fetchData = async () => {
+    try {
+      setIsLoading(true)
+      const data = await getIncidentStatuses()
+      setStatuses(data)
+    } catch (error) {
+      console.error("Error fetching incident statuses:", error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   const filteredStatuses = statuses.filter((status) => status.name.toLowerCase().includes(searchTerm.toLowerCase()))
 
@@ -62,12 +37,28 @@ export default function IncidentStatusPage() {
     router.push(`/admin/incident-status/${id}/edit`)
   }
 
-  const handleDelete = (id: number) => {
-    setStatuses((prev) => prev.filter((status) => status.id !== id))
+  const handleDelete = async (id: number) => {
+    if (confirm("Are you sure you want to delete this incident status?")) {
+      try {
+        await deleteIncidentStatus(id)
+        await fetchData()
+      } catch (error) {
+        console.error("Error deleting incident status:", error)
+        alert("Failed to delete incident status")
+      }
+    }
   }
 
   const handleView = (id: number) => {
     router.push(`/admin/incident-status/${id}`)
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Spinner size="lg" text="Loading incident statuses..." />
+      </div>
+    )
   }
 
   return (

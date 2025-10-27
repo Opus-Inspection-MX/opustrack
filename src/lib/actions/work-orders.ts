@@ -8,7 +8,7 @@ import { redirect } from "next/navigation";
 export type WorkOrderFormData = {
   incidentId: number;
   assignedToId: string;
-  status: string;
+  statusId?: number | null;
   notes?: string;
   startedAt?: Date | null;
   finishedAt?: Date | null;
@@ -48,6 +48,7 @@ export async function getWorkOrders() {
           workParts: true,
         },
       },
+      status: true,
     },
     orderBy: { createdAt: "desc" },
   });
@@ -100,6 +101,7 @@ export async function getWorkOrderById(id: string) {
       attachments: {
         where: { active: true },
       },
+      status: true,
     },
   });
 
@@ -116,7 +118,7 @@ export async function createWorkOrder(data: WorkOrderFormData) {
     data: {
       incidentId: data.incidentId,
       assignedToId: data.assignedToId,
-      status: data.status,
+      statusId: data.statusId || null,
       notes: data.notes || null,
       startedAt: data.startedAt || null,
       finishedAt: data.finishedAt || null,
@@ -124,6 +126,7 @@ export async function createWorkOrder(data: WorkOrderFormData) {
     include: {
       incident: true,
       assignedTo: true,
+      status: true,
     },
   });
 
@@ -142,7 +145,7 @@ export async function updateWorkOrder(id: string, data: WorkOrderFormData) {
     where: { id },
     data: {
       assignedToId: data.assignedToId,
-      status: data.status,
+      statusId: data.statusId || null,
       notes: data.notes || null,
       startedAt: data.startedAt || null,
       finishedAt: data.finishedAt || null,
@@ -150,6 +153,7 @@ export async function updateWorkOrder(id: string, data: WorkOrderFormData) {
     include: {
       incident: true,
       assignedTo: true,
+      status: true,
     },
   });
 
@@ -198,6 +202,7 @@ export async function completeWorkOrder(id: string, notes?: string) {
     include: {
       incident: true,
       assignedTo: true,
+      status: true,
     },
   });
 
@@ -249,6 +254,7 @@ export async function startWorkOrder(id: string) {
     include: {
       incident: true,
       assignedTo: true,
+      status: true,
     },
   });
 
@@ -290,6 +296,7 @@ export async function getMyWorkOrders() {
           workParts: true,
         },
       },
+      status: true,
     },
     orderBy: { createdAt: "desc" },
   });
@@ -343,35 +350,27 @@ export async function uploadWorkOrderAttachment(
 ) {
   await requirePermission("work-orders:update");
 
-  const fs = await import("fs/promises");
-  const path = await import("path");
+  // Use new storage abstraction
+  const { uploadFile } = await import("@/lib/storage/file-storage");
 
-  // Create uploads directory if it doesn't exist
-  const uploadsDir = path.join(process.cwd(), "public", "uploads", "work-orders");
-  await fs.mkdir(uploadsDir, { recursive: true });
-
-  // Generate unique filename
-  const timestamp = Date.now();
-  const sanitizedFilename = fileData.filename.replace(/[^a-zA-Z0-9.-]/g, "_");
-  const uniqueFilename = `${timestamp}-${sanitizedFilename}`;
-  const filepath = path.join(uploadsDir, uniqueFilename);
-
-  // Remove base64 prefix and convert to buffer
-  const base64Data = fileData.base64Data.replace(/^data:[^;]+;base64,/, "");
-  const buffer = Buffer.from(base64Data, "base64");
-
-  // Write file
-  await fs.writeFile(filepath, buffer);
+  // Upload file using configured storage provider
+  const uploadResult = await uploadFile(
+    fileData.filename,
+    fileData.base64Data,
+    fileData.mimetype,
+    { subfolder: "work-orders" }
+  );
 
   // Save to database
   const attachment = await prisma.workOrderAttachment.create({
     data: {
       workOrderId,
-      filename: sanitizedFilename,
-      filepath: `/uploads/work-orders/${uniqueFilename}`,
-      mimetype: fileData.mimetype,
-      size: fileData.size,
+      filename: uploadResult.filename,
+      filepath: uploadResult.url,
+      mimetype: uploadResult.mimetype,
+      size: uploadResult.size,
       description: fileData.description || null,
+      provider: uploadResult.provider,
     },
   });
 
@@ -401,12 +400,13 @@ export async function deleteWorkOrderAttachment(id: string) {
     data: { active: false },
   });
 
-  // Optionally delete physical file
+  // Delete physical file using storage abstraction
   try {
-    const fs = await import("fs/promises");
-    const path = await import("path");
-    const filePath = path.join(process.cwd(), "public", attachment.filepath);
-    await fs.unlink(filePath);
+    const { deleteFile } = await import("@/lib/storage/file-storage");
+    await deleteFile(
+      attachment.filepath,
+      attachment.provider as "vercel-blob" | "filesystem"
+    );
   } catch (error) {
     console.error("Error deleting file:", error);
     // Continue even if file deletion fails

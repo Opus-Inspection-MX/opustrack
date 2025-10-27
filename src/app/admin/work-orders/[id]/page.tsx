@@ -83,6 +83,11 @@ export default async function WorkOrderDetailPage({
               <div>
                 <p className="text-sm text-muted-foreground">Incidente</p>
                 <p className="font-medium">{workOrder.incident.title}</p>
+                {workOrder.incident.type && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Tipo: {workOrder.incident.type.name}
+                  </p>
+                )}
               </div>
             </div>
 
@@ -98,9 +103,13 @@ export default async function WorkOrderDetailPage({
               <Calendar className="h-5 w-5 text-muted-foreground" />
               <div>
                 <p className="text-sm text-muted-foreground">Estado</p>
-                <Badge variant={getStatusColor(workOrder.status)}>
-                  {workOrder.status}
-                </Badge>
+                {workOrder.status ? (
+                  <Badge variant="secondary">
+                    {workOrder.status.name}
+                  </Badge>
+                ) : (
+                  <span className="text-sm text-muted-foreground">Sin estado</span>
+                )}
               </div>
             </div>
 

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, use } from "react"
 import { useRouter } from "next/navigation"
 import { ArrowLeft, Edit, Calendar, CheckCircle, XCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -33,7 +33,8 @@ const getStatusColor = (name: string) => {
   return "bg-gray-100 text-gray-800"
 }
 
-export default function ViewIncidentStatusPage({ params }: { params: { id: string } }) {
+export default function ViewIncidentStatusPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
   const router = useRouter()
   const [incidentStatus, setIncidentStatus] = useState<IncidentStatus | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -46,7 +47,7 @@ export default function ViewIncidentStatusPage({ params }: { params: { id: strin
 
       // Mock data
       setIncidentStatus({
-        id: Number.parseInt(params.id),
+        id: Number.parseInt(id),
         name: "In Progress",
         active: true,
         createdAt: new Date().toISOString(),
@@ -57,7 +58,7 @@ export default function ViewIncidentStatusPage({ params }: { params: { id: strin
     }
 
     fetchIncidentStatus()
-  }, [params.id])
+  }, [id])
 
   if (isLoading) {
     return (
@@ -92,7 +93,7 @@ export default function ViewIncidentStatusPage({ params }: { params: { id: strin
             <p className="text-muted-foreground">Incident Status Details</p>
           </div>
         </div>
-        <Button onClick={() => router.push(`/admin/incident-status/${params.id}/edit`)}>
+        <Button onClick={() => router.push(`/admin/incident-status/${id}/edit`)}>
           <Edit className="h-4 w-4 mr-2" />
           Edit
         </Button>

@@ -1,56 +1,33 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { IncidentTypeTable } from "@/components/incident-types/incident-type-table"
 import { Spinner } from "@/components/ui/spinner"
-
-// Mock data - replace with actual API calls
-const mockIncidentTypes = [
-  {
-    id: 1,
-    name: "Hardware Failure",
-    description: "Issues related to hardware components and equipment failures",
-    active: true,
-    incidentCount: 23,
-    createdAt: "2024-01-15T10:00:00Z",
-    updatedAt: "2024-01-15T10:00:00Z",
-  },
-  {
-    id: 2,
-    name: "Software Issue",
-    description: "Problems with software applications and system software",
-    active: true,
-    incidentCount: 18,
-    createdAt: "2024-01-15T10:00:00Z",
-    updatedAt: "2024-01-15T10:00:00Z",
-  },
-  {
-    id: 3,
-    name: "Network Connectivity",
-    description: "Network-related issues including connectivity and performance problems",
-    active: true,
-    incidentCount: 12,
-    createdAt: "2024-01-15T10:00:00Z",
-    updatedAt: "2024-01-15T10:00:00Z",
-  },
-  {
-    id: 4,
-    name: "Security Incident",
-    description: "Security-related incidents and breaches",
-    active: true,
-    incidentCount: 5,
-    createdAt: "2024-01-15T10:00:00Z",
-    updatedAt: "2024-01-15T10:00:00Z",
-  },
-]
+import { getIncidentTypes, deleteIncidentType } from "@/lib/actions/lookups"
 
 export default function IncidentTypesPage() {
   const router = useRouter()
-  const [isLoading, setIsLoading] = useState(false)
-  const [incidentTypes] = useState(mockIncidentTypes)
+  const [isLoading, setIsLoading] = useState(true)
+  const [incidentTypes, setIncidentTypes] = useState<any[]>([])
+
+  useEffect(() => {
+    fetchData()
+  }, [])
+
+  const fetchData = async () => {
+    try {
+      setIsLoading(true)
+      const data = await getIncidentTypes()
+      setIncidentTypes(data)
+    } catch (error) {
+      console.error("Error fetching incident types:", error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   const handleEdit = (id: number) => {
     router.push(`/admin/incident-types/${id}/edit`)
@@ -58,11 +35,13 @@ export default function IncidentTypesPage() {
 
   const handleDelete = async (id: number) => {
     if (confirm("Are you sure you want to delete this incident type?")) {
-      setIsLoading(true)
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-      setIsLoading(false)
-      alert("Incident type deleted successfully!")
+      try {
+        await deleteIncidentType(id)
+        await fetchData()
+      } catch (error) {
+        console.error("Error deleting incident type:", error)
+        alert("Failed to delete incident type")
+      }
     }
   }
 

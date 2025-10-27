@@ -77,10 +77,20 @@ export function StateForm({ initialData, isEditing = false }: StateFormProps) {
       const validatedData = stateSchema.parse(formData)
       setIsLoading(true)
 
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      const { createState, updateState } = await import("@/lib/actions/lookups")
 
-      console.log(isEditing ? "Update state:" : "Create state:", validatedData)
+      if (isEditing && initialData?.id) {
+        await updateState(initialData.id, {
+          name: validatedData.name,
+          code: validatedData.code,
+          active: validatedData.active,
+        })
+      } else {
+        await createState({
+          name: validatedData.name,
+          code: validatedData.code,
+        })
+      }
 
       router.push("/admin/states")
       router.refresh()
@@ -93,6 +103,9 @@ export function StateForm({ initialData, isEditing = false }: StateFormProps) {
           }
         })
         setErrors(fieldErrors)
+      } else {
+        console.error("Error saving state:", error)
+        setErrors({ submit: "Failed to save state. Please try again." })
       }
     } finally {
       setIsLoading(false)
@@ -109,6 +122,8 @@ export function StateForm({ initialData, isEditing = false }: StateFormProps) {
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
+          {errors.submit && <FormError message={errors.submit} />}
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="name">State Name *</Label>

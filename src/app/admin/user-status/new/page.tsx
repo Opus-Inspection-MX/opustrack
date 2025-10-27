@@ -41,13 +41,15 @@ export default function NewUserStatusPage() {
         return
       }
 
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-
-      console.log("Creating user status:", formData)
+      // Call backend API
+      const { createUserStatus } = await import("@/lib/actions/lookups")
+      await createUserStatus({
+        name: formData.name.trim(),
+      })
 
       // Redirect to user status list
       router.push("/admin/user-status")
+      router.refresh()
     } catch (error) {
       console.error("Error creating user status:", error)
       setErrors({ submit: "Failed to create user status. Please try again." })

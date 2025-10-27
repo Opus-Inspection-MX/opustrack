@@ -49,12 +49,16 @@ export default function NewIncidentTypePage() {
 
     try {
       setIsLoading(true)
-      // Mock API call
-      console.log("Creating incident type:", formData)
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      const { createIncidentType } = await import("@/lib/actions/lookups")
+      await createIncidentType({
+        name: formData.name.trim(),
+        description: formData.description?.trim() || undefined,
+      })
       router.push("/admin/incident-types")
+      router.refresh()
     } catch (error) {
       console.error("Error creating incident type:", error)
+      alert("Failed to create incident type")
     } finally {
       setIsLoading(false)
     }

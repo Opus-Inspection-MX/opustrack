@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,8 +18,9 @@ import {
 export default function EditWorkActivityPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
+  const { id } = use(params);
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -33,7 +34,7 @@ export default function EditWorkActivityPage({
   useEffect(() => {
     const fetchActivity = async () => {
       try {
-        const activity = await getWorkActivityById(params.id);
+        const activity = await getWorkActivityById(id);
         if (activity) {
           setFormData({
             description: activity.description,
@@ -50,7 +51,7 @@ export default function EditWorkActivityPage({
     };
 
     fetchActivity();
-  }, [params.id]);
+  }, [id]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -71,13 +72,13 @@ export default function EditWorkActivityPage({
         return;
       }
 
-      const result = await updateWorkActivity(params.id, {
+      const result = await updateWorkActivity(id, {
         description: formData.description,
         performedAt: new Date(formData.performedAt),
       });
 
       if (result.success) {
-        router.push(`/admin/work-activities/${params.id}`);
+        router.push(`/admin/work-activities/${id}`);
       }
     } catch (error) {
       console.error("Error updating work activity:", error);

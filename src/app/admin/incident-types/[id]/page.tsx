@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, use } from "react"
 import { useRouter } from "next/navigation"
 import { ArrowLeft, Edit, Calendar, CheckCircle, XCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -17,7 +17,8 @@ interface IncidentType {
   updatedAt: string
 }
 
-export default function ViewIncidentTypePage({ params }: { params: { id: string } }) {
+export default function ViewIncidentTypePage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
   const router = useRouter()
   const [incidentType, setIncidentType] = useState<IncidentType | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -30,7 +31,7 @@ export default function ViewIncidentTypePage({ params }: { params: { id: string 
 
       // Mock data
       setIncidentType({
-        id: Number.parseInt(params.id),
+        id: Number.parseInt(id),
         name: "Hardware Failure",
         description: "Issues related to hardware components and equipment failures",
         active: true,
@@ -42,7 +43,7 @@ export default function ViewIncidentTypePage({ params }: { params: { id: string 
     }
 
     fetchIncidentType()
-  }, [params.id])
+  }, [id])
 
   if (isLoading) {
     return (
@@ -77,7 +78,7 @@ export default function ViewIncidentTypePage({ params }: { params: { id: string 
             <p className="text-muted-foreground">Incident Type Details</p>
           </div>
         </div>
-        <Button onClick={() => router.push(`/admin/incident-types/${params.id}/edit`)}>
+        <Button onClick={() => router.push(`/admin/incident-types/${id}/edit`)}>
           <Edit className="h-4 w-4 mr-2" />
           Edit
         </Button>

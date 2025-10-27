@@ -28,6 +28,7 @@ type IncidentFormProps = {
     vicId: string | null;
     scheduleId: string | null;
     reportedById: string | null;
+    resolvedAt: Date | null;
   };
   types: Array<{ id: number; name: string }>;
   statuses: Array<{ id: number; name: string }>;
@@ -51,7 +52,14 @@ export function IncidentForm({ incident, types, statuses, vics, users, schedules
     vicId: incident?.vicId || null,
     scheduleId: incident?.scheduleId || null,
     reportedById: incident?.reportedById || null,
+    resolvedAt: incident?.resolvedAt || null,
   });
+
+  const [resolvedAtString, setResolvedAtString] = useState<string>(
+    incident?.resolvedAt
+      ? new Date(incident.resolvedAt).toISOString().slice(0, 16)
+      : ""
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,10 +67,15 @@ export function IncidentForm({ incident, types, statuses, vics, users, schedules
     setError(null);
 
     try {
+      const submitData = {
+        ...formData,
+        resolvedAt: resolvedAtString ? new Date(resolvedAtString) : null,
+      };
+
       if (incident) {
-        await updateIncident(incident.id, formData);
+        await updateIncident(incident.id, submitData);
       } else {
-        await createIncident(formData);
+        await createIncident(submitData);
       }
       router.push("/admin/incidents");
       router.refresh();
@@ -260,6 +273,16 @@ export function IncidentForm({ incident, types, statuses, vics, users, schedules
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="resolvedAt">Fecha de Resolucion</Label>
+            <Input
+              id="resolvedAt"
+              type="datetime-local"
+              value={resolvedAtString}
+              onChange={(e) => setResolvedAtString(e.target.value)}
+            />
           </div>
         </CardContent>
       </Card>

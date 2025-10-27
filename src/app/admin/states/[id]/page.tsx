@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,8 +11,9 @@ import { getStateById, deleteState } from "@/lib/actions/lookups";
 export default function StateDetailPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
+  const { id } = use(params);
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -21,7 +22,7 @@ export default function StateDetailPage({
   useEffect(() => {
     const fetchState = async () => {
       try {
-        const data = await getStateById(Number(params.id));
+        const data = await getStateById(Number(id));
         setState(data);
       } catch (error) {
         console.error("Error fetching state:", error);
@@ -31,7 +32,7 @@ export default function StateDetailPage({
     };
 
     fetchState();
-  }, [params.id]);
+  }, [id]);
 
   const handleDelete = async () => {
     if (
@@ -44,7 +45,7 @@ export default function StateDetailPage({
 
     setIsDeleting(true);
     try {
-      await deleteState(Number(params.id));
+      await deleteState(Number(id));
       router.push("/admin/states");
     } catch (error) {
       console.error("Error deleting state:", error);
@@ -91,7 +92,7 @@ export default function StateDetailPage({
         <div className="flex gap-2">
           <Button
             variant="outline"
-            onClick={() => router.push(`/admin/states/${params.id}/edit`)}
+            onClick={() => router.push(`/admin/states/${id}/edit`)}
           >
             <Edit className="mr-2 h-4 w-4" />
             Edit

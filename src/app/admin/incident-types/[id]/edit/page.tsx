@@ -13,8 +13,9 @@ import { Switch } from "@/components/ui/switch"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Spinner } from "@/components/ui/spinner"
 
-export default function EditIncidentTypePage({ params }: { params: { id: string } }) {
+export default function EditIncidentTypePage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
+  const [incidentTypeId, setIncidentTypeId] = useState<number | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [isFetching, setIsFetching] = useState(true)
   const [formData, setFormData] = useState({
@@ -25,23 +26,36 @@ export default function EditIncidentTypePage({ params }: { params: { id: string 
   const [errors, setErrors] = useState<Record<string, string>>({})
 
   useEffect(() => {
-    // Mock data fetch
-    const fetchIncidentType = async () => {
+    params.then((p) => setIncidentTypeId(parseInt(p.id)))
+  }, [params])
+
+  useEffect(() => {
+    if (incidentTypeId) {
+      fetchIncidentType()
+    }
+  }, [incidentTypeId])
+
+  const fetchIncidentType = async () => {
+    if (!incidentTypeId) return
+
+    try {
       setIsFetching(true)
-      await new Promise((resolve) => setTimeout(resolve, 500))
+      const { getIncidentTypeById } = await import("@/lib/actions/lookups")
+      const data = await getIncidentTypeById(incidentTypeId)
 
-      // Mock data
-      setFormData({
-        name: "Hardware Failure",
-        description: "Issues related to hardware components and equipment failures",
-        active: true,
-      })
-
+      if (data) {
+        setFormData({
+          name: data.name,
+          description: data.description || "",
+          active: data.active,
+        })
+      }
+    } catch (error) {
+      console.error("Error fetching incident type:", error)
+    } finally {
       setIsFetching(false)
     }
-
-    fetchIncidentType()
-  }, [params.id])
+  }
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {}
@@ -63,18 +77,23 @@ export default function EditIncidentTypePage({ params }: { params: { id: string 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!validateForm()) {
+    if (!validateForm() || !incidentTypeId) {
       return
     }
 
     try {
       setIsLoading(true)
-      // Mock API call
-      console.log("Updating incident type:", formData)
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-      router.push(`/admin/incident-types/${params.id}`)
+      const { updateIncidentType } = await import("@/lib/actions/lookups")
+      await updateIncidentType(incidentTypeId, {
+        name: formData.name.trim(),
+        description: formData.description?.trim() || undefined,
+        active: formData.active,
+      })
+      router.push(`/admin/incident-types/${incidentTypeId}`)
+      router.refresh()
     } catch (error) {
       console.error("Error updating incident type:", error)
+      alert("Failed to update incident type")
     } finally {
       setIsLoading(false)
     }
@@ -159,7 +178,7 @@ export default function EditIncidentTypePage({ params }: { params: { id: string 
                 <Save className="h-4 w-4 mr-2" />
                 {isLoading ? "Saving..." : "Save Changes"}
               </Button>
-              <Button type="button" variant="outline" onClick={() => router.push(`/admin/incident-types/${params.id}`)}>
+              <Button type="button" variant="outline" onClick={() => router.push(`/admin/incident-types/${incidentTypeId}`)}>
                 Cancel
               </Button>
             </div>

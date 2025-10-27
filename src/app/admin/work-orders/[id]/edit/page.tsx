@@ -11,7 +11,10 @@ import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import { WorkActivityForm } from "@/components/work-orders/work-activity-form";
 import { WorkPartForm } from "@/components/work-orders/work-part-form";
-import { getWorkOrderById, deleteWorkOrderAttachment } from "@/lib/actions/work-orders";
+import { WorkOrderEditForm } from "@/components/work-orders/work-order-edit-form";
+import { WorkActivityEdit } from "@/components/work-orders/work-activity-edit";
+import { WorkPartEdit } from "@/components/work-orders/work-part-edit";
+import { getWorkOrderById, deleteWorkOrderAttachment, getWorkOrderFormOptions } from "@/lib/actions/work-orders";
 import { getWorkActivities, deleteWorkActivity } from "@/lib/actions/work-activities";
 import { getWorkParts, deleteWorkPart } from "@/lib/actions/work-parts";
 import { getParts } from "@/lib/actions/parts";
@@ -28,6 +31,8 @@ export default function EditWorkOrderPage({
   const [activities, setActivities] = useState<any[]>([]);
   const [workParts, setWorkParts] = useState<any[]>([]);
   const [availableParts, setAvailableParts] = useState<any[]>([]);
+  const [availableUsers, setAvailableUsers] = useState<any[]>([]);
+  const [availableStatuses, setAvailableStatuses] = useState<any[]>([]);
   const [attachments, setAttachments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showActivityForm, setShowActivityForm] = useState(false);
@@ -48,18 +53,23 @@ export default function EditWorkOrderPage({
 
     try {
       setLoading(true);
-      const [woData, activitiesData, partsData, availablePartsData] =
+      const { getIncidentStatuses } = await import("@/lib/actions/lookups");
+      const [woData, activitiesData, partsData, availablePartsData, formOptions, statuses] =
         await Promise.all([
           getWorkOrderById(workOrderId),
           getWorkActivities(workOrderId),
           getWorkParts(workOrderId),
           getParts(),
+          getWorkOrderFormOptions(),
+          getIncidentStatuses(),
         ]);
 
       setWorkOrder(woData);
       setActivities(activitiesData);
       setWorkParts(partsData);
       setAvailableParts(availablePartsData);
+      setAvailableUsers(formOptions.users);
+      setAvailableStatuses(statuses);
       setAttachments(woData?.attachments || []);
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -165,6 +175,7 @@ export default function EditWorkOrderPage({
                 <p className="text-sm text-muted-foreground">Parent Incident</p>
                 <p className="font-medium">{workOrder.incident.title}</p>
                 <p className="text-xs text-muted-foreground">
+                  {workOrder.incident.type?.name && `Type: ${workOrder.incident.type.name} • `}
                   Priority: {workOrder.incident.priority}/10 • Status: {workOrder.incident.status?.name}
                 </p>
               </div>
@@ -179,44 +190,13 @@ export default function EditWorkOrderPage({
         </Card>
       )}
 
-      {/* Work Order Info */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Work Order Details</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <p className="text-sm text-muted-foreground">Assigned To</p>
-              <p className="font-medium">{workOrder.assignedTo?.name}</p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Status</p>
-              <p className="font-medium">{workOrder.status}</p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Created</p>
-              <p className="font-medium">
-                {new Date(workOrder.createdAt).toLocaleDateString()}
-              </p>
-            </div>
-            {workOrder.finishedAt && (
-              <div>
-                <p className="text-sm text-muted-foreground">Finished</p>
-                <p className="font-medium">
-                  {new Date(workOrder.finishedAt).toLocaleDateString()}
-                </p>
-              </div>
-            )}
-          </div>
-          {workOrder.notes && (
-            <div>
-              <p className="text-sm text-muted-foreground">Notes</p>
-              <p className="text-sm">{workOrder.notes}</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {/* Work Order Edit Form */}
+      <WorkOrderEditForm
+        workOrder={workOrder}
+        users={availableUsers}
+        statuses={availableStatuses}
+        onSuccess={fetchData}
+      />
 
       <Separator />
 
@@ -259,15 +239,7 @@ export default function EditWorkOrderPage({
         {activities.map((activity) => (
           <Card key={activity.id}>
             <CardHeader>
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <CardTitle className="text-base">
-                    {new Date(activity.performedAt).toLocaleString()}
-                  </CardTitle>
-                  <p className="text-sm text-muted-foreground mt-2">
-                    {activity.description}
-                  </p>
-                </div>
+              <div className="flex items-end justify-end gap-2">
                 <Button
                   variant="ghost"
                   size="sm"
@@ -277,6 +249,10 @@ export default function EditWorkOrderPage({
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </div>
+              <WorkActivityEdit
+                activity={activity}
+                onSuccess={fetchData}
+              />
             </CardHeader>
             {activity.workParts && activity.workParts.length > 0 && (
               <CardContent>
@@ -346,34 +322,21 @@ export default function EditWorkOrderPage({
             <CardContent className="p-0">
               <div className="divide-y">
                 {workParts.map((wp) => (
-                  <div
-                    key={wp.id}
-                    className="p-4 flex items-center justify-between hover:bg-muted/50"
-                  >
+                  <div key={wp.id} className="flex items-center">
                     <div className="flex-1">
-                      <p className="font-medium">{wp.part?.name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        Quantity: {wp.quantity} × ${wp.price.toFixed(2)}
-                      </p>
-                      {wp.description && (
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {wp.description}
-                        </p>
-                      )}
+                      <WorkPartEdit
+                        workPart={wp}
+                        onSuccess={fetchData}
+                      />
                     </div>
-                    <div className="flex items-center gap-4">
-                      <span className="font-bold">
-                        ${(wp.price * wp.quantity).toFixed(2)}
-                      </span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDeletePart(wp.id)}
-                        className="text-destructive"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDeletePart(wp.id)}
+                      className="text-destructive mr-4"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
                 ))}
               </div>

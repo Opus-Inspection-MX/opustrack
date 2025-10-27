@@ -83,16 +83,27 @@ export function WorkOrderTable({ workOrders, onDelete }: WorkOrderTableProps) {
                 <TableCell>
                   <div>
                     <div className="font-medium">{workOrder.incident.title}</div>
-                    <Badge className={priorityColors[workOrder.incident.priority]} variant="outline">
-                      {workOrder.incident.priority}
-                    </Badge>
+                    <div className="flex gap-1 mt-1">
+                      {workOrder.incident.type && (
+                        <Badge variant="secondary" className="text-xs">
+                          {workOrder.incident.type.name}
+                        </Badge>
+                      )}
+                      <Badge className={priorityColors[workOrder.incident.priority]} variant="outline">
+                        {workOrder.incident.priority}
+                      </Badge>
+                    </div>
                   </div>
                 </TableCell>
                 <TableCell>
-                  <Badge className={statusColors[workOrder.status]}>
-                    <StatusIcon className="h-3 w-3 mr-1" />
-                    {workOrder.status.replace("_", " ")}
-                  </Badge>
+                  {workOrder.status && (
+                    <Badge variant="secondary">
+                      {workOrder.status.name}
+                    </Badge>
+                  )}
+                  {!workOrder.status && (
+                    <span className="text-sm text-muted-foreground">No status</span>
+                  )}
                 </TableCell>
                 <TableCell>
                   <div>

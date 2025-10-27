@@ -15,6 +15,7 @@ export type IncidentFormData = {
   vicId?: string | null;
   scheduleId?: string | null;
   reportedById?: string | null;
+  resolvedAt?: Date | null;
 };
 
 /**
@@ -104,6 +105,7 @@ export async function createIncident(data: IncidentFormData) {
       vicId: data.vicId || null,
       scheduleId: data.scheduleId || null,
       reportedById: data.reportedById || user.id, // Use current user if not specified
+      resolvedAt: data.resolvedAt || null,
     },
     include: {
       type: true,
@@ -226,6 +228,7 @@ export async function updateIncident(id: number, data: IncidentFormData) {
       statusId: data.statusId || null,
       vicId: data.vicId || null,
       scheduleId: data.scheduleId || null,
+      resolvedAt: data.resolvedAt || null,
     },
     include: {
       type: true,

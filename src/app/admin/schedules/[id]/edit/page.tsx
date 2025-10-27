@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useEffect } from "react"
+import { use, useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -14,18 +14,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ArrowLeft, Save, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { Spinner } from "@/components/ui/spinner"
+import { FormError } from "@/components/ui/form-error"
+import { getScheduleById, updateSchedule, getVICsForSchedules } from "@/lib/actions/schedules"
 
-const mockVicCenters = [
-  { id: "vic_1", name: "VIC Center Mexico City", code: "VIC001" },
-  { id: "vic_2", name: "VIC Center Guadalajara", code: "VIC002" },
-  { id: "vic_3", name: "VIC Center Monterrey", code: "VIC003" },
-]
-
-export default function EditSchedulePage({ params }: { params: { id: string } }) {
+export default function EditSchedulePage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params)
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [vicCenters, setVicCenters] = useState<any[]>([])
 
   const [formData, setFormData] = useState({
     title: "",
@@ -36,25 +34,34 @@ export default function EditSchedulePage({ params }: { params: { id: string } })
   })
 
   useEffect(() => {
-    const fetchSchedule = async () => {
-      setLoading(true)
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+    const fetchData = async () => {
+      try {
+        setLoading(true)
+        const [schedule, vics] = await Promise.all([
+          getScheduleById(id),
+          getVICsForSchedules()
+        ])
 
-      // Mock data
-      const mockSchedule = {
-        title: "Monthly Maintenance Check",
-        description: "Regular monthly maintenance and inspection schedule",
-        scheduledAt: "2024-02-15T09:00:00",
-        vicId: "vic_1",
-        active: true,
+        if (schedule) {
+          setFormData({
+            title: schedule.title,
+            description: schedule.description || "",
+            scheduledAt: new Date(schedule.scheduledAt).toISOString().slice(0, 16),
+            vicId: schedule.vicId,
+            active: schedule.active,
+          })
+        }
+        setVicCenters(vics)
+      } catch (error) {
+        console.error("Error fetching data:", error)
+        setErrors({ submit: "Failed to load schedule data" })
+      } finally {
+        setLoading(false)
       }
-
-      setFormData(mockSchedule)
-      setLoading(false)
     }
 
-    fetchSchedule()
-  }, [params.id])
+    fetchData()
+  }, [id])
 
   const handleChange = (field: string, value: string | boolean) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
@@ -98,14 +105,18 @@ export default function EditSchedulePage({ params }: { params: { id: string } })
     setIsSubmitting(true)
 
     try {
-      console.log("Updating schedule:", formData)
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      await updateSchedule(id, {
+        title: formData.title.trim(),
+        description: formData.description?.trim() || undefined,
+        scheduledAt: new Date(formData.scheduledAt),
+        vicId: formData.vicId,
+      })
 
-      alert("Schedule updated successfully!")
-      router.push(`/admin/schedules/${params.id}`)
+      router.push(`/admin/schedules/${id}`)
+      router.refresh()
     } catch (error) {
       console.error("Error updating schedule:", error)
-      alert("Failed to update schedule")
+      setErrors({ submit: error instanceof Error ? error.message : "Failed to update schedule. Please try again." })
     } finally {
       setIsSubmitting(false)
     }
@@ -124,7 +135,7 @@ export default function EditSchedulePage({ params }: { params: { id: string } })
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center gap-4">
-        <Link href={`/admin/schedules/${params.id}`}>
+        <Link href={`/admin/schedules/${id}`}>
           <Button variant="outline" size="sm">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back
@@ -142,6 +153,8 @@ export default function EditSchedulePage({ params }: { params: { id: string } })
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
+            {errors.submit && <FormError message={errors.submit} />}
+
             <div className="space-y-2">
               <Label htmlFor="title">
                 Title <span className="text-red-500">*</span>
@@ -194,7 +207,7 @@ export default function EditSchedulePage({ params }: { params: { id: string } })
                   <SelectValue placeholder="Select VIC Center" />
                 </SelectTrigger>
                 <SelectContent>
-                  {mockVicCenters.map((vic) => (
+                  {vicCenters.map((vic) => (
                     <SelectItem key={vic.id} value={vic.id}>
                       {vic.code} - {vic.name}
                     </SelectItem>
@@ -222,7 +235,7 @@ export default function EditSchedulePage({ params }: { params: { id: string } })
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => router.push(`/admin/schedules/${params.id}`)}
+                onClick={() => router.push(`/admin/schedules/${id}`)}
                 disabled={isSubmitting}
               >
                 Cancel

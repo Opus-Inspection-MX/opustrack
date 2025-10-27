@@ -53,11 +53,24 @@ export function UserStatusForm({ initialData }: UserStatusFormProps) {
 
     setIsLoading(true)
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-      console.log("Form data:", formData)
+      const { createUserStatus, updateUserStatus } = await import("@/lib/actions/lookups")
+
+      if (initialData) {
+        await updateUserStatus(initialData.id, {
+          name: formData.name.trim(),
+          active: formData.active,
+        })
+      } else {
+        await createUserStatus({
+          name: formData.name.trim(),
+        })
+      }
+
       router.push("/admin/user-status")
+      router.refresh()
     } catch (error) {
       console.error("Error saving user status:", error)
+      setErrors({ submit: "Failed to save user status. Please try again." })
     } finally {
       setIsLoading(false)
     }
@@ -91,6 +104,8 @@ export function UserStatusForm({ initialData }: UserStatusFormProps) {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
+            {errors.submit && <FormError message={errors.submit} />}
+
             <div className="space-y-2">
               <Label htmlFor="name">Name *</Label>
               <Input

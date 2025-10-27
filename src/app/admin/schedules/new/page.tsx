@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -13,18 +13,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ArrowLeft, Save, Loader2 } from "lucide-react"
 import Link from "next/link"
-
-// Mock VIC Centers
-const mockVicCenters = [
-  { id: "vic_1", name: "VIC Center Mexico City", code: "VIC001" },
-  { id: "vic_2", name: "VIC Center Guadalajara", code: "VIC002" },
-  { id: "vic_3", name: "VIC Center Monterrey", code: "VIC003" },
-]
+import { Spinner } from "@/components/ui/spinner"
+import { FormError } from "@/components/ui/form-error"
+import { createSchedule, getVICsForSchedules } from "@/lib/actions/schedules"
 
 export default function NewSchedulePage() {
   const router = useRouter()
+  const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [vicCenters, setVicCenters] = useState<any[]>([])
 
   const [formData, setFormData] = useState({
     title: "",
@@ -33,6 +31,23 @@ export default function NewSchedulePage() {
     vicId: "",
     active: true,
   })
+
+  useEffect(() => {
+    const fetchVICs = async () => {
+      try {
+        setIsLoading(true)
+        const vics = await getVICsForSchedules()
+        setVicCenters(vics)
+      } catch (error) {
+        console.error("Error fetching VIC centers:", error)
+        setErrors({ submit: "Failed to load VIC centers" })
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchVICs()
+  }, [])
 
   const handleChange = (field: string, value: string | boolean) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
@@ -77,18 +92,31 @@ export default function NewSchedulePage() {
     setIsSubmitting(true)
 
     try {
-      // Simulate API call
-      console.log("Creating schedule:", formData)
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      await createSchedule({
+        title: formData.title.trim(),
+        description: formData.description?.trim() || undefined,
+        scheduledAt: new Date(formData.scheduledAt),
+        vicId: formData.vicId,
+      })
 
-      alert("Schedule created successfully!")
       router.push("/admin/schedules")
+      router.refresh()
     } catch (error) {
       console.error("Error creating schedule:", error)
-      alert("Failed to create schedule")
+      setErrors({ submit: error instanceof Error ? error.message : "Failed to create schedule. Please try again." })
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="container mx-auto p-6">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <Spinner size="lg" text="Loading..." />
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -112,6 +140,7 @@ export default function NewSchedulePage() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
+            {errors.submit && <FormError message={errors.submit} />}
             <div className="space-y-2">
               <Label htmlFor="title">
                 Title <span className="text-red-500">*</span>
@@ -164,7 +193,7 @@ export default function NewSchedulePage() {
                   <SelectValue placeholder="Select VIC Center" />
                 </SelectTrigger>
                 <SelectContent>
-                  {mockVicCenters.map((vic) => (
+                  {vicCenters.map((vic) => (
                     <SelectItem key={vic.id} value={vic.id}>
                       {vic.code} - {vic.name}
                     </SelectItem>

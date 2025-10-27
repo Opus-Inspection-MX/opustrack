@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, use } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -8,51 +8,46 @@ import { Badge } from "@/components/ui/badge"
 import { ArrowLeft, Edit, Calendar, Building2, Clock, AlertCircle } from "lucide-react"
 import Link from "next/link"
 import { Spinner } from "@/components/ui/spinner"
+import { getScheduleById } from "@/lib/actions/schedules"
 
 interface Schedule {
   id: string
   title: string
-  description?: string
-  scheduledAt: string
+  description?: string | null
+  scheduledAt: Date
   vicId: string
-  vicName: string
-  vicCode: string
-  incidentCount: number
+  vic: {
+    id: string
+    name: string
+    code: string
+  }
+  incidents: any[]
   active: boolean
-  createdAt: string
-  updatedAt: string
+  createdAt: Date
+  updatedAt: Date
 }
 
-export default function ViewSchedulePage({ params }: { params: { id: string } }) {
+export default function ViewSchedulePage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [schedule, setSchedule] = useState<Schedule | null>(null)
 
   useEffect(() => {
     const fetchSchedule = async () => {
-      setLoading(true)
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-
-      // Mock data
-      setSchedule({
-        id: params.id,
-        title: "Monthly Maintenance Check",
-        description: "Regular monthly maintenance and inspection schedule for all equipment",
-        scheduledAt: "2024-02-15T09:00:00Z",
-        vicId: "vic_1",
-        vicName: "VIC Center Mexico City",
-        vicCode: "VIC001",
-        incidentCount: 3,
-        active: true,
-        createdAt: "2024-01-15T10:00:00Z",
-        updatedAt: "2024-01-15T10:00:00Z",
-      })
-      setLoading(false)
+      try {
+        setLoading(true)
+        const data = await getScheduleById(id)
+        setSchedule(data as any)
+      } catch (error) {
+        console.error("Error fetching schedule:", error)
+      } finally {
+        setLoading(false)
+      }
     }
 
     fetchSchedule()
-  }, [params.id])
+  }, [id])
 
   if (loading) {
     return (
@@ -168,14 +163,14 @@ export default function ViewSchedulePage({ params }: { params: { id: string } })
               <label className="text-sm font-medium text-muted-foreground">VIC Center</label>
               <div className="flex items-center gap-2 mt-1">
                 <Building2 className="h-4 w-4 text-muted-foreground" />
-                <span className="font-medium">{schedule.vicCode}</span>
-                <span className="text-sm text-muted-foreground">- {schedule.vicName}</span>
+                <span className="font-medium">{schedule.vic.code}</span>
+                <span className="text-sm text-muted-foreground">- {schedule.vic.name}</span>
               </div>
             </div>
 
             <div>
               <label className="text-sm font-medium text-muted-foreground">Related Incidents</label>
-              <p className="text-lg font-semibold">{schedule.incidentCount}</p>
+              <p className="text-lg font-semibold">{schedule.incidents?.length || 0}</p>
             </div>
           </CardContent>
         </Card>

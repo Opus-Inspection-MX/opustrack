@@ -316,12 +316,54 @@ npm run db:migrate -- --name description_of_change
 npm run db:seed
 ```
 
+### File Storage
+
+The application supports two file storage backends:
+
+**Vercel Blob (Default)**: Cloud-based storage, recommended for production
+- Set `FILE_STORAGE_PROVIDER="vercel-blob"` in `.env`
+- Requires `BLOB_READ_WRITE_TOKEN` from Vercel Dashboard
+- Files are stored in Vercel's cloud storage
+- Automatically handles CDN distribution
+
+**Filesystem**: Local file storage, useful for development
+- Set `FILE_STORAGE_PROVIDER="filesystem"` in `.env`
+- Files stored in `public/uploads/` directory
+- No additional configuration needed
+
+**Using the storage abstraction** (`src/lib/storage/file-storage.ts`):
+
+```typescript
+import { uploadFile, deleteFile, getFileUrl } from "@/lib/storage/file-storage";
+
+// Upload a file (automatically uses configured provider)
+const result = await uploadFile(
+  filename,
+  base64Data,
+  mimetype,
+  { subfolder: "work-orders" }
+);
+// Returns: { url, filename, size, mimetype, provider }
+
+// Delete a file
+await deleteFile(url, provider);
+
+// Get file URL for display
+const displayUrl = getFileUrl(storedUrl, provider);
+```
+
+The provider is automatically determined from `FILE_STORAGE_PROVIDER` environment variable. Each attachment in the database stores which provider was used, ensuring correct deletion even if the provider changes.
+
 ## Environment Variables
 
 Required in `.env`:
 - `DATABASE_URL` - PostgreSQL connection string
 - `NEXTAUTH_SECRET` - Secret for JWT signing (generate with: `openssl rand -base64 32`)
 - `NEXTAUTH_URL` - Base URL for NextAuth (e.g., `http://localhost:3000`)
+
+Optional file storage configuration:
+- `FILE_STORAGE_PROVIDER` - Storage provider: `"vercel-blob"` (default) or `"filesystem"`
+- `BLOB_READ_WRITE_TOKEN` - Required if using Vercel Blob storage (obtain from Vercel Dashboard)
 
 ## Important Notes
 

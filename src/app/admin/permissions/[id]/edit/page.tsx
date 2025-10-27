@@ -1,12 +1,15 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { useParams } from "next/navigation"
+import { useState, useEffect, use } from "react"
 import { PermissionForm } from "@/components/permissions/permission-form"
 import { Spinner } from "@/components/ui/spinner"
 
-export default function EditPermissionPage() {
-  const params = useParams()
+export default function EditPermissionPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = use(params);
   const [isLoading, setIsLoading] = useState(true)
   const [permission, setPermission] = useState<any>(null)
 
@@ -17,7 +20,7 @@ export default function EditPermissionPage() {
         await new Promise((resolve) => setTimeout(resolve, 500))
 
         const mockPermission = {
-          id: Number(params.id),
+          id: Number(id),
           name: "user.create",
           description: "Allows users to create new user accounts",
           active: true,
@@ -32,7 +35,7 @@ export default function EditPermissionPage() {
     }
 
     fetchPermission()
-  }, [params.id])
+  }, [id])
 
   if (isLoading) {
     return (

@@ -30,8 +30,9 @@ const getStatusColor = (name: string) => {
   return "bg-gray-100 text-gray-800"
 }
 
-export default function EditIncidentStatusPage({ params }: { params: { id: string } }) {
+export default function EditIncidentStatusPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
+  const [statusId, setStatusId] = useState<number | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [isFetching, setIsFetching] = useState(true)
   const [formData, setFormData] = useState({
@@ -41,22 +42,35 @@ export default function EditIncidentStatusPage({ params }: { params: { id: strin
   const [errors, setErrors] = useState<Record<string, string>>({})
 
   useEffect(() => {
-    // Mock data fetch
-    const fetchIncidentStatus = async () => {
+    params.then((p) => setStatusId(parseInt(p.id)))
+  }, [params])
+
+  useEffect(() => {
+    if (statusId) {
+      fetchIncidentStatus()
+    }
+  }, [statusId])
+
+  const fetchIncidentStatus = async () => {
+    if (!statusId) return
+
+    try {
       setIsFetching(true)
-      await new Promise((resolve) => setTimeout(resolve, 500))
+      const { getIncidentStatusById } = await import("@/lib/actions/lookups")
+      const data = await getIncidentStatusById(statusId)
 
-      // Mock data
-      setFormData({
-        name: "In Progress",
-        active: true,
-      })
-
+      if (data) {
+        setFormData({
+          name: data.name,
+          active: data.active,
+        })
+      }
+    } catch (error) {
+      console.error("Error fetching incident status:", error)
+    } finally {
       setIsFetching(false)
     }
-
-    fetchIncidentStatus()
-  }, [params.id])
+  }
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {}
@@ -78,18 +92,22 @@ export default function EditIncidentStatusPage({ params }: { params: { id: strin
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!validateForm()) {
+    if (!validateForm() || !statusId) {
       return
     }
 
     try {
       setIsLoading(true)
-      // Mock API call
-      console.log("Updating incident status:", formData)
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-      router.push(`/admin/incident-status/${params.id}`)
+      const { updateIncidentStatus } = await import("@/lib/actions/lookups")
+      await updateIncidentStatus(statusId, {
+        name: formData.name.trim(),
+        active: formData.active,
+      })
+      router.push(`/admin/incident-status/${statusId}`)
+      router.refresh()
     } catch (error) {
       console.error("Error updating incident status:", error)
+      alert("Failed to update incident status")
     } finally {
       setIsLoading(false)
     }
@@ -170,7 +188,7 @@ export default function EditIncidentStatusPage({ params }: { params: { id: strin
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => router.push(`/admin/incident-status/${params.id}`)}
+                onClick={() => router.push(`/admin/incident-status/${statusId}`)}
               >
                 Cancel
               </Button>

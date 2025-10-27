@@ -103,10 +103,9 @@ export default function LoginForm() {
               <div className="mt-4 p-3 text-xs bg-blue-50 border border-blue-200 rounded-md text-blue-800">
                 <p className="font-semibold mb-1">Credenciales de prueba:</p>
                 <p>Admin: admin@opusinspection.com</p>
-                <p>Sistema: system@opusinspection.com</p>
-                <p>Personal: staff@opusinspection.com</p>
+                <p>FSR: fsr@opusinspection.com</p>
                 <p>Cliente: client@opusinspection.com</p>
-                <p className="mt-1">Contraseña: password123</p>
+                <p>Guest: guest@opusinspection.com</p>
               </div>
             )}
           </form>
