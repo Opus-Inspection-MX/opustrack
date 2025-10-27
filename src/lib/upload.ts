@@ -11,6 +11,36 @@ export type UploadedFile = {
 };
 
 /**
+ * Normalize MIME type based on file extension
+ * Useful for files where browsers report incorrect MIME types (e.g., HEIC on iOS)
+ */
+export function normalizeMimeType(file: File): string {
+  const fileExtension = file.name.split('.').pop()?.toLowerCase();
+
+  // Map of extensions to MIME types
+  const extensionToMime: Record<string, string> = {
+    'heic': 'image/heic',
+    'heif': 'image/heif',
+    'jpg': 'image/jpeg',
+    'jpeg': 'image/jpeg',
+    'png': 'image/png',
+    'gif': 'image/gif',
+    'webp': 'image/webp',
+    'pdf': 'application/pdf',
+    'mp4': 'video/mp4',
+    'mov': 'video/quicktime',
+  };
+
+  // If file.type is empty or generic, use extension-based MIME type
+  if (!file.type || file.type === 'application/octet-stream') {
+    return extensionToMime[fileExtension || ''] || file.type;
+  }
+
+  // Otherwise return the file's reported MIME type
+  return file.type;
+}
+
+/**
  * Convert File to Base64 for server action upload
  */
 export async function fileToBase64(file: File): Promise<string> {
@@ -35,6 +65,8 @@ export function validateFile(file: File, options?: {
     'image/png',
     'image/gif',
     'image/webp',
+    'image/heic',
+    'image/heif',
     'application/pdf',
     'video/mp4',
     'video/quicktime',
@@ -50,10 +82,18 @@ export function validateFile(file: File, options?: {
   }
 
   // Check file type
-  if (!allowedTypes.includes(file.type)) {
+  // Some browsers (especially on iOS) may not report correct MIME types for HEIC
+  // So we also check file extension as a fallback
+  const fileExtension = file.name.split('.').pop()?.toLowerCase();
+  const heicExtensions = ['heic', 'heif'];
+
+  const isValidType = allowedTypes.includes(file.type);
+  const isHeicFile = heicExtensions.includes(fileExtension || '');
+
+  if (!isValidType && !isHeicFile) {
     return {
       valid: false,
-      error: `File type ${file.type} is not allowed`,
+      error: `File type ${file.type || 'unknown'} is not allowed`,
     };
   }
 

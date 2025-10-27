@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Camera, Upload, X, FileIcon } from "lucide-react";
-import { validateFile, formatFileSize, getFileIcon } from "@/lib/upload";
+import { validateFile, formatFileSize, getFileIcon, normalizeMimeType } from "@/lib/upload";
 
 type FileUploadProps = {
   onFilesSelected: (files: File[]) => void;
@@ -23,7 +23,7 @@ export function FileUpload({
   maxFiles = 5,
   maxSizeMB = 10,
   allowedTypes,
-  accept = "image/*,video/*,application/pdf",
+  accept = "image/*,.heic,.heif,video/*,application/pdf",
   multiple = true,
   showCamera = true,
   label = "Upload Files",

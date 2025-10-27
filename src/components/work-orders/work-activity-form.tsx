@@ -9,7 +9,7 @@ import { FileUpload } from "@/components/ui/file-upload";
 import { Plus, Save } from "lucide-react";
 import { createWorkActivity } from "@/lib/actions/work-activities";
 import { uploadWorkOrderAttachment } from "@/lib/actions/work-orders";
-import { fileToBase64 } from "@/lib/upload";
+import { fileToBase64, normalizeMimeType } from "@/lib/upload";
 import { FormError } from "@/components/ui/form-error";
 
 type WorkActivityFormProps = {
@@ -56,10 +56,11 @@ export function WorkActivityForm({
       if (files.length > 0) {
         const uploadPromises = files.map(async (file) => {
           const base64Data = await fileToBase64(file);
+          const normalizedMimeType = normalizeMimeType(file);
           return uploadWorkOrderAttachment(workOrderId, {
             filename: file.name,
             base64Data,
-            mimetype: file.type,
+            mimetype: normalizedMimeType,
             size: file.size,
             description: `Attached to activity: ${description.substring(0, 50)}`,
           });
