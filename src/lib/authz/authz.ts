@@ -28,6 +28,7 @@ export type UserWithPermissions = {
   name: string;
   roleId: number;
   role: Role;
+  vicId: string | null;
 };
 
 /**

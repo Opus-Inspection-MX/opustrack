@@ -10,6 +10,7 @@ import { redirect } from "next/navigation";
 export type StateFormData = {
   name: string;
   code: string;
+  active?: boolean;
 };
 
 export async function getStatesAdmin() {
@@ -50,6 +51,7 @@ export async function createState(data: StateFormData) {
     data: {
       name: data.name,
       code: data.code,
+      ...(data.active !== undefined && { active: data.active }),
     },
   });
 
@@ -65,6 +67,7 @@ export async function updateState(id: number, data: StateFormData) {
     data: {
       name: data.name,
       code: data.code,
+      ...(data.active !== undefined && { active: data.active }),
     },
   });
 
@@ -99,6 +102,7 @@ export async function deleteState(id: number) {
 
 export type UserStatusFormData = {
   name: string;
+  active?: boolean;
 };
 
 export async function getUserStatuses() {
@@ -138,6 +142,7 @@ export async function createUserStatus(data: UserStatusFormData) {
   const status = await prisma.userStatus.create({
     data: {
       name: data.name,
+      ...(data.active !== undefined && { active: data.active }),
     },
   });
 
@@ -152,6 +157,7 @@ export async function updateUserStatus(id: number, data: UserStatusFormData) {
     where: { id },
     data: {
       name: data.name,
+      ...(data.active !== undefined && { active: data.active }),
     },
   });
 
@@ -187,6 +193,7 @@ export async function deleteUserStatus(id: number) {
 export type IncidentTypeFormData = {
   name: string;
   description?: string;
+  active?: boolean;
 };
 
 export async function getIncidentTypes() {
@@ -227,6 +234,7 @@ export async function createIncidentType(data: IncidentTypeFormData) {
     data: {
       name: data.name,
       description: data.description || null,
+      ...(data.active !== undefined && { active: data.active }),
     },
   });
 
@@ -242,6 +250,7 @@ export async function updateIncidentType(id: number, data: IncidentTypeFormData)
     data: {
       name: data.name,
       description: data.description || null,
+      ...(data.active !== undefined && { active: data.active }),
     },
   });
 
@@ -276,6 +285,7 @@ export async function deleteIncidentType(id: number) {
 
 export type IncidentStatusFormData = {
   name: string;
+  active?: boolean;
 };
 
 export async function getIncidentStatuses() {
@@ -315,6 +325,7 @@ export async function createIncidentStatus(data: IncidentStatusFormData) {
   const status = await prisma.incidentStatus.create({
     data: {
       name: data.name,
+      ...(data.active !== undefined && { active: data.active }),
     },
   });
 
@@ -329,6 +340,7 @@ export async function updateIncidentStatus(id: number, data: IncidentStatusFormD
     where: { id },
     data: {
       name: data.name,
+      ...(data.active !== undefined && { active: data.active }),
     },
   });
 

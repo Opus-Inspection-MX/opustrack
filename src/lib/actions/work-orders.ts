@@ -195,7 +195,6 @@ export async function completeWorkOrder(id: string, notes?: string) {
   const workOrder = await prisma.workOrder.update({
     where: { id },
     data: {
-      status: "COMPLETADA",
       finishedAt: new Date(),
       notes: notes || null,
     },
@@ -214,7 +213,7 @@ export async function completeWorkOrder(id: string, notes?: string) {
     },
   });
 
-  const allCompleted = incidentWorkOrders.every((wo) => wo.status === "COMPLETADA");
+  const allCompleted = incidentWorkOrders.every((wo) => wo.finishedAt !== null);
 
   if (allCompleted) {
     const closedStatus = await prisma.incidentStatus.findFirst({
@@ -248,7 +247,6 @@ export async function startWorkOrder(id: string) {
   const workOrder = await prisma.workOrder.update({
     where: { id },
     data: {
-      status: "EN_PROGRESO",
       startedAt: new Date(),
     },
     include: {

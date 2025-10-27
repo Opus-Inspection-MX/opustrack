@@ -20,7 +20,6 @@ type WorkOrderFormProps = {
     id: string;
     incidentId: number;
     assignedToId: string;
-    status: string;
     notes: string | null;
   };
   incidents: Array<{ id: number; title: string; priority: number }>;
@@ -35,7 +34,6 @@ export function WorkOrderForm({ workOrder, incidents, users }: WorkOrderFormProp
   const [formData, setFormData] = useState<WorkOrderFormData>({
     incidentId: workOrder?.incidentId || incidents[0]?.id || 0,
     assignedToId: workOrder?.assignedToId || users[0]?.id || "",
-    status: workOrder?.status || "PENDIENTE",
     notes: workOrder?.notes || "",
   });
 
@@ -92,47 +90,25 @@ export function WorkOrderForm({ workOrder, incidents, users }: WorkOrderFormProp
             </Select>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="assignedToId">Asignado A *</Label>
-              <Select
-                value={formData.assignedToId}
-                onValueChange={(value) =>
-                  setFormData({ ...formData, assignedToId: value })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar usuario" />
-                </SelectTrigger>
-                <SelectContent>
-                  {users.map((user) => (
-                    <SelectItem key={user.id} value={user.id}>
-                      {user.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="status">Estado *</Label>
-              <Select
-                value={formData.status}
-                onValueChange={(value) =>
-                  setFormData({ ...formData, status: value })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar estado" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="PENDIENTE">Pendiente</SelectItem>
-                  <SelectItem value="EN_PROGRESO">En Progreso</SelectItem>
-                  <SelectItem value="COMPLETADO">Completado</SelectItem>
-                  <SelectItem value="CANCELADO">Cancelado</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="assignedToId">Asignado A *</Label>
+            <Select
+              value={formData.assignedToId}
+              onValueChange={(value) =>
+                setFormData({ ...formData, assignedToId: value })
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Seleccionar usuario" />
+              </SelectTrigger>
+              <SelectContent>
+                {users.map((user) => (
+                  <SelectItem key={user.id} value={user.id}>
+                    {user.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2">

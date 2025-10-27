@@ -333,7 +333,6 @@ export async function assignIncidentToFSR(
     data: {
       incidentId,
       assignedToId: fsrUserId,
-      status: "PENDIENTE",
       notes: "Orden de trabajo asignada automáticamente",
     },
     include: {

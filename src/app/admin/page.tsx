@@ -133,7 +133,7 @@ export default async function AdminDashboard() {
                           Asignado a {wo.assignedTo.name}
                         </p>
                       </div>
-                      <Badge variant="outline">{wo.status}</Badge>
+                      <Badge variant="outline">{wo.status?.name || 'N/A'}</Badge>
                     </div>
                   </Link>
                 ))

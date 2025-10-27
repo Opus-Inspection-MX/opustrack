@@ -38,6 +38,7 @@ export async function getAuthenticatedUser(): Promise<UserWithPermissions | null
       email: true,
       name: true,
       roleId: true,
+      vicId: true,
     },
   });
 

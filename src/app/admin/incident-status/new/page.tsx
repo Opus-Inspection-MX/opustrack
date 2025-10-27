@@ -11,7 +11,7 @@ export default function NewIncidentStatusPage() {
     try {
       await createIncidentStatus({
         name: data.name.trim(),
-        description: data.description?.trim() || undefined,
+        active: data.active,
       })
       router.push("/admin/incident-status")
       router.refresh()

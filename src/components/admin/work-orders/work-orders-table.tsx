@@ -18,7 +18,11 @@ import { useState } from "react";
 
 type WorkOrder = {
   id: string;
-  status: string;
+  status: {
+    id: number;
+    name: string;
+    active: boolean;
+  } | null;
   notes: string | null;
   createdAt: Date;
   incident: {
@@ -99,7 +103,7 @@ export function WorkOrdersTable({ workOrders }: { workOrders: WorkOrder[] }) {
               </TableCell>
               <TableCell>{wo.assignedTo.name}</TableCell>
               <TableCell>
-                <Badge variant={getStatusColor(wo.status)}>{wo.status}</Badge>
+                <Badge variant={getStatusColor(wo.status?.name || '')}>{wo.status?.name || 'N/A'}</Badge>
               </TableCell>
               <TableCell>
                 <Badge variant="outline">{wo._count.workActivities}</Badge>
