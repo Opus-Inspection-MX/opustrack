@@ -395,6 +395,9 @@ async function main() {
       });
       console.log("✅ Seeded Sample Incident");
     }
+  }, {
+    maxWait: 20000, // Maximum time to wait for a transaction slot (20 seconds)
+    timeout: 60000, // Maximum time for transaction to complete (60 seconds)
   });
 
   console.log("🎉 Seed completed successfully!");
