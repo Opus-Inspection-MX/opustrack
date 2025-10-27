@@ -15,18 +15,28 @@ import {
 } from "@/components/ui/sidebar"
 import { ThemeToggle } from "./theme-toggle"
 import { LogoutButton } from "@/components/auth/logout-button"
-import { ClipboardList, Wrench, AlertCircle } from "lucide-react"
+import { ClipboardList, Wrench, AlertCircle, User } from "lucide-react"
 
 const menuItems = [
   {
-    title: "Mi Trabajo",
+    title: "Dashboard",
     url: "/fsr",
     icon: ClipboardList,
   },
   {
-    title: "Mis Incidentes",
+    title: "Work Orders",
+    url: "/fsr/work-orders",
+    icon: Wrench,
+  },
+  {
+    title: "Incidents",
     url: "/fsr/incidents",
     icon: AlertCircle,
+  },
+  {
+    title: "My Profile",
+    url: "/profile",
+    icon: User,
   },
 ]
 

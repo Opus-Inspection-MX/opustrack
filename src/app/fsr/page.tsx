@@ -1,234 +1,254 @@
-"use client"
+import { getMyWorkOrders } from "@/lib/actions/work-orders";
+import { requireRouteAccess } from "@/lib/auth/auth";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Wrench, Calendar, CheckCircle, Clock, AlertTriangle } from "lucide-react";
+import Link from "next/link";
 
-import { useMemo } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { AlertCircle, Wrench, Calendar } from "lucide-react"
-import { useRouter } from "next/navigation"
+export default async function FSRDashboardPage() {
+  await requireRouteAccess("/fsr");
+  const workOrders = await getMyWorkOrders();
 
-// Mock data - replace with actual API calls filtered by technician
-const mockIncidents = [
-  {
-    id: "inc_001",
-    title: "Mal Funcionamiento de Equipo - Edificio A",
-    description: "Cámara de seguridad no funciona correctamente",
-    priority: "HIGH",
-    sla: 4,
-    type: { name: "Equipo" },
-    status: { name: "En Progreso" },
-    vic: { name: "VIC Centro", code: "VIC001" },
-    reportedBy: { name: "Juan Gerente" },
-    reportedAt: new Date().toISOString(),
-    workOrders: [],
-  },
-  {
-    id: "inc_002",
-    title: "Problema de Conectividad de Red",
-    description: "Sala de servidores experimentando caídas intermitentes de red",
-    priority: "CRITICAL",
-    sla: 2,
-    type: { name: "Red" },
-    status: { name: "Abierto" },
-    vic: { name: "VIC Norte", code: "VIC002" },
-    reportedBy: { name: "Sara Admin" },
-    reportedAt: new Date().toISOString(),
-    workOrders: [],
-  },
-  {
-    id: "inc_003",
-    title: "Actualización de Sistema de Control de Acceso",
-    description: "Necesita instalar nuevo sistema de control de acceso en entrada principal",
-    priority: "MEDIUM",
-    sla: 24,
-    type: { name: "Sistema" },
-    status: { name: "Abierto" },
-    vic: { name: "VIC Sur", code: "VIC003" },
-    reportedBy: { name: "Miguel Seguridad" },
-    reportedAt: new Date().toISOString(),
-    workOrders: [],
-  },
-  {
-    id: "inc_004",
-    title: "Reparación de Cerradura de Puerta",
-    description: "Cerradura de puerta de entrada principal está atascada",
-    priority: "LOW",
-    sla: 48,
-    type: { name: "Mantenimiento" },
-    status: { name: "Abierto" },
-    vic: { name: "VIC Centro", code: "VIC001" },
-    reportedBy: { name: "Juana Pérez" },
-    reportedAt: new Date().toISOString(),
-    workOrders: [],
-  },
-  {
-    id: "inc_005",
-    title: "Revisión de Sistema de Alarma Contra Incendios",
-    description: "Se requiere inspección y prueba de rutina",
-    priority: "MEDIUM",
-    sla: 12,
-    type: { name: "Seguridad" },
-    status: { name: "Abierto" },
-    vic: { name: "VIC Este", code: "VIC004" },
-    reportedBy: { name: "Oficial de Seguridad" },
-    reportedAt: new Date().toISOString(),
-    workOrders: [],
-  },
-]
+  // Calculate stats
+  const stats = {
+    total: workOrders.length,
+    notStarted: workOrders.filter((wo) => !wo.startedAt).length,
+    inProgress: workOrders.filter((wo) => wo.startedAt && !wo.finishedAt).length,
+    completed: workOrders.filter((wo) => wo.finishedAt).length,
+  };
 
-const priorityColors: Record<string, string> = {
-  LOW: "bg-green-100 text-green-800",
-  MEDIUM: "bg-yellow-100 text-yellow-800",
-  HIGH: "bg-orange-100 text-orange-800",
-  CRITICAL: "bg-red-100 text-red-800",
-}
+  // Get urgent work orders (high priority and not completed)
+  const urgentWorkOrders = workOrders
+    .filter((wo) => !wo.finishedAt && (wo.incident?.priority || 0) >= 7)
+    .slice(0, 5);
 
-const statusColors: Record<string, string> = {
-  Abierto: "bg-blue-100 text-blue-800",
-  "En Progreso": "bg-yellow-100 text-yellow-800",
-  Resuelto: "bg-green-100 text-green-800",
-  Cerrado: "bg-gray-100 text-gray-800",
-}
-
-export default function MyWorkPage() {
-  const router = useRouter()
-
-  const todayIncidents = useMemo(() => {
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    const tomorrow = new Date(today)
-    tomorrow.setDate(tomorrow.getDate() + 1)
-
-    return mockIncidents.filter((incident) => {
-      const incidentDate = new Date(incident.reportedAt)
-      return incidentDate >= today && incidentDate < tomorrow
-    })
-  }, [])
-
-  const handleCompleteIncident = (incidentId: string) => {
-    router.push(`/fsr/incidents/${incidentId}/complete`)
-  }
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString() + " " + new Date(dateString).toLocaleTimeString()
-  }
-
-  const stats = useMemo(() => {
-    return {
-      total: todayIncidents.length,
-      open: todayIncidents.filter((i) => i.status.name === "Abierto").length,
-      inProgress: todayIncidents.filter((i) => i.status.name === "En Progreso").length,
-      highPriority: todayIncidents.filter((i) => i.priority === "HIGH" || i.priority === "CRITICAL").length,
+  const getStatusBadge = (workOrder: any) => {
+    if (workOrder.finishedAt) {
+      return <Badge variant="default" className="bg-green-600">Completed</Badge>;
     }
-  }, [todayIncidents])
+    if (workOrder.startedAt) {
+      return <Badge variant="secondary">In Progress</Badge>;
+    }
+    return <Badge variant="outline">Not Started</Badge>;
+  };
+
+  const getPriorityColor = (priority: number) => {
+    if (priority >= 8) return "text-red-600 font-bold";
+    if (priority >= 5) return "text-orange-600 font-semibold";
+    return "text-blue-600";
+  };
 
   return (
-    <div className="space-y-4 md:space-y-6 p-4 md:p-6">
+    <div className="space-y-6">
+      {/* Header */}
       <div>
-        <h1 className="text-2xl md:text-3xl font-bold">Mi Trabajo</h1>
-        <p className="text-sm md:text-base text-muted-foreground mt-1 md:mt-2">Incidentes de hoy asignados a ti</p>
+        <h1 className="text-3xl font-bold">FSR Dashboard</h1>
+        <p className="text-muted-foreground mt-2">
+          Welcome back! Here's your work overview
+        </p>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4 md:p-6">
-            <CardTitle className="text-xs md:text-sm font-medium">Total de Hoy</CardTitle>
-            <Calendar className="h-3 w-3 md:h-4 md:w-4 text-muted-foreground" />
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Work Orders</CardTitle>
+            <Wrench className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent className="p-4 pt-0 md:p-6 md:pt-0">
-            <div className="text-xl md:text-2xl font-bold">{stats.total}</div>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.total}</div>
+            <p className="text-xs text-muted-foreground">
+              Assigned to you
+            </p>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4 md:p-6">
-            <CardTitle className="text-xs md:text-sm font-medium">Abiertos</CardTitle>
-            <AlertCircle className="h-3 w-3 md:h-4 md:w-4 text-blue-500" />
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Not Started</CardTitle>
+            <Clock className="h-4 w-4 text-gray-500" />
           </CardHeader>
-          <CardContent className="p-4 pt-0 md:p-6 md:pt-0">
-            <div className="text-xl md:text-2xl font-bold">{stats.open}</div>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.notStarted}</div>
+            <p className="text-xs text-muted-foreground">
+              Waiting to begin
+            </p>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4 md:p-6">
-            <CardTitle className="text-xs md:text-sm font-medium">En Progreso</CardTitle>
-            <AlertCircle className="h-3 w-3 md:h-4 md:w-4 text-yellow-500" />
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">In Progress</CardTitle>
+            <AlertTriangle className="h-4 w-4 text-yellow-500" />
           </CardHeader>
-          <CardContent className="p-4 pt-0 md:p-6 md:pt-0">
-            <div className="text-xl md:text-2xl font-bold">{stats.inProgress}</div>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.inProgress}</div>
+            <p className="text-xs text-muted-foreground">
+              Currently working
+            </p>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4 md:p-6">
-            <CardTitle className="text-xs md:text-sm font-medium">Alta Prioridad</CardTitle>
-            <AlertCircle className="h-3 w-3 md:h-4 md:w-4 text-red-500" />
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Completed</CardTitle>
+            <CheckCircle className="h-4 w-4 text-green-500" />
           </CardHeader>
-          <CardContent className="p-4 pt-0 md:p-6 md:pt-0">
-            <div className="text-xl md:text-2xl font-bold">{stats.highPriority}</div>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.completed}</div>
+            <p className="text-xs text-muted-foreground">
+              Finished work orders
+            </p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Today's Incidents List */}
+      {/* Urgent Work Orders */}
+      {urgentWorkOrders.length > 0 && (
+        <Card className="border-red-200 bg-red-50/50">
+          <CardHeader>
+            <CardTitle className="text-red-700 flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5" />
+              Urgent Work Orders ({urgentWorkOrders.length})
+            </CardTitle>
+            <CardDescription>
+              High priority work orders requiring immediate attention
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {urgentWorkOrders.map((wo) => (
+                <div
+                  key={wo.id}
+                  className="bg-white border border-red-200 rounded-lg p-4"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 space-y-2">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {getStatusBadge(wo)}
+                        <Badge variant="outline" className={getPriorityColor(wo.incident?.priority || 0)}>
+                          Priority: {wo.incident?.priority || 0}/10
+                        </Badge>
+                      </div>
+                      <h3 className="font-semibold">
+                        {wo.incident?.title || "No incident"}
+                      </h3>
+                      <div className="text-sm text-muted-foreground">
+                        {wo.incident?.vic && (
+                          <span>VIC: {wo.incident.vic.name}</span>
+                        )}
+                      </div>
+                    </div>
+                    <Button asChild size="sm">
+                      <Link href={`/fsr/work-orders/${wo.id}`}>
+                        View
+                      </Link>
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Recent Work Orders */}
       <Card>
-        <CardHeader className="p-4 md:p-6">
-          <CardTitle className="text-lg md:text-xl">Incidentes de Hoy ({todayIncidents.length})</CardTitle>
-          <CardDescription className="text-xs md:text-sm">
-            Haz clic en un incidente para completarlo con detalles de orden de trabajo
-          </CardDescription>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>Recent Work Orders</CardTitle>
+            <CardDescription>
+              Your most recent assigned work orders
+            </CardDescription>
+          </div>
+          <Button asChild variant="outline">
+            <Link href="/fsr/work-orders">View All</Link>
+          </Button>
         </CardHeader>
-        <CardContent className="p-4 md:p-6">
-          <div className="space-y-3 md:space-y-4">
-            {todayIncidents.map((incident) => (
-              <div
-                key={incident.id}
-                className="flex flex-col md:flex-row md:items-start md:justify-between p-3 md:p-4 border rounded-lg hover:bg-accent transition-colors gap-3 md:gap-4"
-              >
-                <div className="space-y-2 flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5 md:gap-2 flex-wrap">
-                    <Badge className={`${priorityColors[incident.priority]} text-xs`}>{incident.priority}</Badge>
-                    <Badge className={`${statusColors[incident.status.name]} text-xs`}>{incident.status.name}</Badge>
-                    <Badge variant="outline" className="text-xs">
-                      {incident.type.name}
-                    </Badge>
-                    <Badge variant="outline" className="text-xs">
-                      SLA: {incident.sla}h
-                    </Badge>
-                  </div>
-                  <h3 className="font-semibold text-base md:text-lg break-words">{incident.title}</h3>
-                  <p className="text-xs md:text-sm text-muted-foreground break-words">{incident.description}</p>
-                  <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4 text-xs md:text-sm text-muted-foreground">
-                    <span className="break-words">
-                      <strong>VIC:</strong> {incident.vic.name} ({incident.vic.code})
-                    </span>
-                    <span className="break-words">
-                      <strong>Reportado por:</strong> {incident.reportedBy.name}
-                    </span>
-                    <span className="break-words">
-                      <strong>Reportado:</strong> {formatDate(incident.reportedAt)}
-                    </span>
+        <CardContent>
+          {workOrders.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              <Wrench className="mx-auto h-12 w-12 mb-4 opacity-50" />
+              <p>No work orders assigned yet</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {workOrders.slice(0, 5).map((wo) => (
+                <div
+                  key={wo.id}
+                  className="border rounded-lg p-4 hover:bg-accent/50 transition-colors"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 space-y-2">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {getStatusBadge(wo)}
+                        <Badge variant="outline" className={getPriorityColor(wo.incident?.priority || 0)}>
+                          Priority: {wo.incident?.priority || 0}/10
+                        </Badge>
+                        {wo.incident?.type && (
+                          <Badge variant="outline">{wo.incident.type.name}</Badge>
+                        )}
+                      </div>
+                      <h3 className="font-semibold">
+                        {wo.incident?.title || "No incident"}
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm text-muted-foreground">
+                        {wo.incident?.vic && (
+                          <div>
+                            <span className="font-medium">VIC:</span> {wo.incident.vic.name}
+                          </div>
+                        )}
+                        <div>
+                          <span className="font-medium">Activities:</span> {wo._count?.workActivities || 0}
+                        </div>
+                        <div>
+                          <span className="font-medium">Created:</span>{" "}
+                          {new Date(wo.createdAt).toLocaleDateString()}
+                        </div>
+                      </div>
+                    </div>
+                    <Button asChild>
+                      <Link href={`/fsr/work-orders/${wo.id}`}>
+                        {wo.finishedAt ? "View" : "Work On It"}
+                      </Link>
+                    </Button>
                   </div>
                 </div>
-                <div className="flex gap-2 w-full md:w-auto md:ml-4">
-                  <Button onClick={() => handleCompleteIncident(incident.id)} className="w-full md:w-auto text-sm">
-                    <Wrench className="h-3 w-3 md:h-4 md:w-4 mr-2" />
-                    Completar Incidente
-                  </Button>
-                </div>
-              </div>
-            ))}
-            {todayIncidents.length === 0 && (
-              <div className="text-center py-8 text-muted-foreground">
-                <AlertCircle className="mx-auto h-12 w-12 mb-4" />
-                <p className="text-sm md:text-base">No hay incidentes asignados para hoy</p>
-              </div>
-            )}
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Quick Actions */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Quick Actions</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Button asChild variant="outline" className="h-auto py-4">
+              <Link href="/fsr/work-orders" className="flex flex-col items-center gap-2">
+                <Wrench className="h-6 w-6" />
+                <span>View All Work Orders</span>
+              </Link>
+            </Button>
+            <Button asChild variant="outline" className="h-auto py-4">
+              <Link href="/fsr/incidents" className="flex flex-col items-center gap-2">
+                <AlertTriangle className="h-6 w-6" />
+                <span>View Incidents</span>
+              </Link>
+            </Button>
+            <Button asChild variant="outline" className="h-auto py-4">
+              <Link href="/profile" className="flex flex-col items-center gap-2">
+                <Calendar className="h-6 w-6" />
+                <span>My Profile</span>
+              </Link>
+            </Button>
           </div>
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

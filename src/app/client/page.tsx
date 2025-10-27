@@ -1,130 +1,226 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Plus, Search, AlertTriangle, Clock, CheckCircle } from "lucide-react"
-import Link from "next/link"
+import { getClientIncidents } from "@/lib/actions/incidents";
+import { requireRouteAccess } from "@/lib/auth/auth";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Plus, AlertTriangle, Clock, CheckCircle, Building } from "lucide-react";
+import Link from "next/link";
+import { getMyProfile } from "@/lib/actions/users";
 
-export default function IncidentsDashboard() {
+export default async function ClientDashboard() {
+  await requireRouteAccess("/client");
+  const incidents = await getClientIncidents();
+  const user = await getMyProfile();
+
+  // Calculate stats
+  const stats = {
+    open: incidents.filter((i) => i.status?.name === "ABIERTO").length,
+    inProgress: incidents.filter((i) => i.status?.name === "EN_PROGRESO" || i.status?.name === "PENDIENTE").length,
+    closed: incidents.filter((i) => i.status?.name === "CERRADO").length,
+    total: incidents.length,
+  };
+
+  const getPriorityBadge = (priority: number) => {
+    if (priority >= 8) {
+      return <Badge variant="destructive">Critical</Badge>;
+    }
+    if (priority >= 5) {
+      return <Badge variant="default" className="bg-orange-500">High</Badge>;
+    }
+    if (priority >= 3) {
+      return <Badge variant="secondary">Medium</Badge>;
+    }
+    return <Badge variant="outline">Low</Badge>;
+  };
+
+  const getStatusBadge = (statusName: string | undefined) => {
+    if (!statusName) return <Badge variant="outline">Unknown</Badge>;
+
+    if (statusName === "ABIERTO") {
+      return <Badge variant="default" className="bg-blue-600">Open</Badge>;
+    }
+    if (statusName === "EN_PROGRESO" || statusName === "PENDIENTE") {
+      return <Badge variant="secondary">In Progress</Badge>;
+    }
+    if (statusName === "CERRADO") {
+      return <Badge variant="default" className="bg-green-600">Closed</Badge>;
+    }
+    return <Badge variant="outline">{statusName}</Badge>;
+  };
+
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Mis Incidentes</h1>
-          <p className="text-muted-foreground mt-2">Rastrea y reporta incidentes</p>
+          <h1 className="text-3xl font-bold">My Incidents</h1>
+          <p className="text-muted-foreground mt-2">
+            Track and report incidents for your VIC
+          </p>
         </div>
-        <Link href="/client/new">
-          <Button>
+        <Button asChild>
+          <Link href="/client/new">
             <Plus className="h-4 w-4 mr-2" />
-            Reportar Incidente
-          </Button>
-        </Link>
+            Report Incident
+          </Link>
+        </Button>
       </div>
 
+      {/* VIC Info */}
+      {user?.vic && (
+        <Card className="bg-muted/30">
+          <CardContent className="py-4">
+            <div className="flex items-center gap-3">
+              <Building className="h-5 w-5 text-primary" />
+              <div>
+                <p className="text-sm text-muted-foreground">Your VIC</p>
+                <p className="font-medium">{user.vic.name} ({user.vic.code})</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Incidentes Abiertos</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-orange-500" />
+            <CardTitle className="text-sm font-medium">Total Incidents</CardTitle>
+            <AlertTriangle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">3</div>
-            <p className="text-xs text-muted-foreground">Esperando respuesta</p>
+            <div className="text-2xl font-bold">{stats.total}</div>
+            <p className="text-xs text-muted-foreground">All time</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">En Progreso</CardTitle>
-            <Clock className="h-4 w-4 text-blue-500" />
+            <CardTitle className="text-sm font-medium">Open</CardTitle>
+            <AlertTriangle className="h-4 w-4 text-blue-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">2</div>
-            <p className="text-xs text-muted-foreground">Siendo resueltos</p>
+            <div className="text-2xl font-bold">{stats.open}</div>
+            <p className="text-xs text-muted-foreground">Awaiting response</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Resueltos</CardTitle>
+            <CardTitle className="text-sm font-medium">In Progress</CardTitle>
+            <Clock className="h-4 w-4 text-yellow-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.inProgress}</div>
+            <p className="text-xs text-muted-foreground">Being resolved</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Resolved</CardTitle>
             <CheckCircle className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">12</div>
-            <p className="text-xs text-muted-foreground">Este mes</p>
+            <div className="text-2xl font-bold">{stats.closed}</div>
+            <p className="text-xs text-muted-foreground">Completed</p>
           </CardContent>
         </Card>
-      </div>
-
-      {/* Search */}
-      <div className="flex gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Buscar incidentes..." className="pl-10" />
-        </div>
       </div>
 
       {/* Incidents List */}
       <Card>
         <CardHeader>
-          <CardTitle>Incidentes Recientes</CardTitle>
-          <CardDescription>Tus incidentes reportados y su estado</CardDescription>
+          <CardTitle>Recent Incidents</CardTitle>
+          <CardDescription>Your reported incidents and their status</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {[
-              {
-                id: "INC-001",
-                title: "Cámara de seguridad no funciona",
-                status: "En Progreso",
-                priority: "alta",
-                date: "2024-01-10",
-                location: "Edificio A - Piso 2",
-              },
-              {
-                id: "INC-002",
-                title: "Mal funcionamiento del lector de tarjetas de acceso",
-                status: "Abierto",
-                priority: "media",
-                date: "2024-01-09",
-                location: "Entrada Principal",
-              },
-              {
-                id: "INC-003",
-                title: "Problemas de conectividad de red",
-                status: "Abierto",
-                priority: "alta",
-                date: "2024-01-08",
-                location: "Ala de Oficinas",
-              },
-            ].map((incident) => (
-              <div
-                key={incident.id}
-                className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent transition-colors"
-              >
-                <div className="space-y-1 flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono text-sm text-muted-foreground">{incident.id}</span>
-                    <Badge variant={incident.priority === "alta" ? "destructive" : "secondary"}>
-                      {incident.priority}
-                    </Badge>
-                    <Badge variant="outline">{incident.status}</Badge>
+          {incidents.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              <AlertTriangle className="mx-auto h-12 w-12 mb-4 opacity-50" />
+              <p>No incidents reported yet</p>
+              <Button asChild variant="outline" className="mt-4">
+                <Link href="/client/new">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Report Your First Incident
+                </Link>
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {incidents.map((incident) => (
+                <div
+                  key={incident.id}
+                  className="flex items-start justify-between p-4 border rounded-lg hover:bg-accent transition-colors"
+                >
+                  <div className="space-y-2 flex-1">
+                    {/* Badges */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-mono text-sm text-muted-foreground">
+                        #{incident.id}
+                      </span>
+                      {getPriorityBadge(incident.priority)}
+                      {getStatusBadge(incident.status?.name)}
+                      {incident.type && (
+                        <Badge variant="outline">{incident.type.name}</Badge>
+                      )}
+                    </div>
+
+                    {/* Title */}
+                    <h3 className="font-semibold text-lg">{incident.title}</h3>
+
+                    {/* Description */}
+                    <p className="text-sm text-muted-foreground line-clamp-2">
+                      {incident.description}
+                    </p>
+
+                    {/* Details */}
+                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                      <span>
+                        Reported: {new Date(incident.reportedAt).toLocaleDateString()}
+                      </span>
+                      <span>SLA: {incident.sla}h</span>
+                      {incident._count?.workOrders && incident._count.workOrders > 0 && (
+                        <span>Work Orders: {incident._count.workOrders}</span>
+                      )}
+                    </div>
                   </div>
-                  <h3 className="font-semibold">{incident.title}</h3>
-                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                    <span>{incident.date}</span>
-                    <span>{incident.location}</span>
-                  </div>
+
+                  {/* Action Button */}
+                  <Button variant="ghost" size="sm" asChild>
+                    <Link href={`/client/incidents/${incident.id}`}>
+                      View Details
+                    </Link>
+                  </Button>
                 </div>
-                <Button variant="ghost" size="sm">
-                  Ver Detalles
-                </Button>
-              </div>
-            ))}
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Quick Actions */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Quick Actions</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Button asChild variant="outline" className="h-auto py-4">
+              <Link href="/client/new" className="flex flex-col items-center gap-2">
+                <Plus className="h-6 w-6" />
+                <span>Report New Incident</span>
+              </Link>
+            </Button>
+            <Button asChild variant="outline" className="h-auto py-4">
+              <Link href="/profile" className="flex flex-col items-center gap-2">
+                <Building className="h-6 w-6" />
+                <span>My Profile</span>
+              </Link>
+            </Button>
           </div>
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

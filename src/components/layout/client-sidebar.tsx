@@ -15,18 +15,23 @@ import {
 } from "@/components/ui/sidebar"
 import { ThemeToggle } from "./theme-toggle"
 import { LogoutButton } from "@/components/auth/logout-button"
-import { Plus, List, AlertTriangle } from "lucide-react"
+import { Plus, List, AlertTriangle, User } from "lucide-react"
 
 const menuItems = [
   {
-    title: "Mis Incidentes",
+    title: "My Incidents",
     url: "/client",
     icon: List,
   },
   {
-    title: "Reportar Incidente",
+    title: "Report Incident",
     url: "/client/new",
     icon: Plus,
+  },
+  {
+    title: "My Profile",
+    url: "/profile",
+    icon: User,
   },
 ]
 
@@ -41,7 +46,7 @@ export function ClientSidebar() {
             <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
               <AlertTriangle className="h-5 w-5 text-primary-foreground" />
             </div>
-            <span className="font-semibold">Portal Cliente</span>
+            <span className="font-semibold">Client Portal</span>
           </Link>
           <SidebarTrigger />
         </div>

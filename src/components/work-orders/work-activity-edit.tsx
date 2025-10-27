@@ -17,12 +17,14 @@ type WorkActivityEditProps = {
   };
   onSuccess?: () => void;
   onCancel?: () => void;
+  readOnly?: boolean;
 };
 
 export function WorkActivityEdit({
   activity,
   onSuccess,
   onCancel,
+  readOnly = false,
 }: WorkActivityEditProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -89,13 +91,15 @@ export function WorkActivityEdit({
             {activity.description}
           </p>
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setIsEditing(true)}
-        >
-          <EditIcon className="h-4 w-4" />
-        </Button>
+        {!readOnly && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setIsEditing(true)}
+          >
+            <EditIcon className="h-4 w-4" />
+          </Button>
+        )}
       </div>
     );
   }

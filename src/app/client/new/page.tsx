@@ -1,96 +1,129 @@
-"use client"
+"use client";
 
-import type React from "react"
-
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { ArrowLeft, Send, Loader2, AlertTriangle } from "lucide-react"
-import Link from "next/link"
-
-const mockIncidentTypes = [
-  { id: "1", name: "Problema de Seguridad" },
-  { id: "2", name: "Mal Funcionamiento de Equipo" },
-  { id: "3", name: "Red/Conectividad" },
-  { id: "4", name: "Control de Acceso" },
-  { id: "5", name: "Preocupación de Seguridad" },
-  { id: "6", name: "Otro" },
-]
-
-const mockVICs = [
-  { id: "vic_001", name: "Centro VIC 1" },
-  { id: "vic_002", name: "Centro VIC 2" },
-  { id: "vic_003", name: "Centro VIC 3" },
-  { id: "vic_004", name: "Centro VIC 4" },
-  { id: "vic_005", name: "Centro VIC 5" },
-]
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ArrowLeft, Send, Loader2, AlertTriangle, Building } from "lucide-react";
+import Link from "next/link";
+import { createIncidentAsClient } from "@/lib/actions/incidents";
+import { getIncidentTypes } from "@/lib/actions/lookups";
+import { getMyProfile } from "@/lib/actions/users";
+import { FormError } from "@/components/ui/form-error";
 
 export default function ReportIncidentPage() {
-  const router = useRouter()
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [errors, setErrors] = useState<Record<string, string>>({})
+  const router = useRouter();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [incidentTypes, setIncidentTypes] = useState<any[]>([]);
+  const [userVic, setUserVic] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
   const [formData, setFormData] = useState({
     title: "",
     description: "",
-    priority: "MEDIUM",
+    priority: 5,
     typeId: "",
-    vicId: "vic_001", // Default VIC
-  })
+  });
 
-  const handleChange = (field: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }))
-    if (errors[field]) {
-      setErrors((prev) => ({ ...prev, [field]: "" }))
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    try {
+      const [types, profile] = await Promise.all([
+        getIncidentTypes(),
+        getMyProfile(),
+      ]);
+
+      setIncidentTypes(types);
+      setUserVic(profile?.vic || null);
+
+      if (!profile?.vic) {
+        setErrors({ general: "You must have a VIC assigned to report incidents" });
+      }
+    } catch (error) {
+      console.error("Error loading data:", error);
+      setErrors({ general: "Failed to load form data" });
+    } finally {
+      setLoading(false);
     }
-  }
+  };
+
+  const handleChange = (field: string, value: string | number) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+    if (errors[field]) {
+      setErrors((prev) => ({ ...prev, [field]: "" }));
+    }
+  };
 
   const validateForm = () => {
-    const newErrors: Record<string, string> = {}
+    const newErrors: Record<string, string> = {};
 
     if (!formData.title.trim()) {
-      newErrors.title = "El título es requerido"
+      newErrors.title = "Title is required";
     }
 
     if (!formData.description.trim()) {
-      newErrors.description = "La descripción es requerida"
+      newErrors.description = "Description is required";
     }
 
     if (!formData.typeId) {
-      newErrors.typeId = "El tipo de incidente es requerido"
+      newErrors.typeId = "Incident type is required";
     }
 
-    setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
-  }
+    if (!userVic) {
+      newErrors.general = "You must have a VIC assigned to report incidents";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
 
     if (!validateForm()) {
-      return
+      return;
     }
 
-    setIsSubmitting(true)
+    setIsSubmitting(true);
+    setErrors({});
 
     try {
-      console.log("Reporting incident:", formData)
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1500))
+      const result = await createIncidentAsClient(
+        formData.title,
+        formData.description,
+        formData.priority,
+        formData.typeId ? parseInt(formData.typeId) : undefined
+      );
 
-      alert("¡Incidente reportado exitosamente! Te responderemos pronto.")
-      router.push("/client")
+      if (result.success) {
+        router.push("/client");
+      } else {
+        throw new Error("Failed to create incident");
+      }
     } catch (error) {
-      console.error("Error reporting incident:", error)
-      alert("Error al reportar incidente. Por favor intenta de nuevo.")
+      console.error("Error reporting incident:", error);
+      setErrors({
+        general: error instanceof Error ? error.message : "Failed to report incident. Please try again.",
+      });
     } finally {
-      setIsSubmitting(false)
+      setIsSubmitting(false);
     }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
   }
 
   return (
@@ -99,7 +132,7 @@ export default function ReportIncidentPage() {
         <Link href="/client">
           <Button variant="outline" size="sm">
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Atrás
+            Back
           </Button>
         </Link>
         <div className="flex items-center gap-3">
@@ -107,17 +140,34 @@ export default function ReportIncidentPage() {
             <AlertTriangle className="h-5 w-5 text-orange-500" />
           </div>
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold">Reportar un Incidente</h1>
-            <p className="text-sm text-muted-foreground">Responderemos lo antes posible</p>
+            <h1 className="text-2xl md:text-3xl font-bold">Report an Incident</h1>
+            <p className="text-sm text-muted-foreground">We'll respond as soon as possible</p>
           </div>
         </div>
       </div>
 
+      {/* VIC Info Card */}
+      {userVic && (
+        <Card className="bg-muted/30 border-primary/20">
+          <CardContent className="py-4">
+            <div className="flex items-center gap-3">
+              <Building className="h-5 w-5 text-primary" />
+              <div>
+                <p className="text-sm text-muted-foreground">Reporting for VIC</p>
+                <p className="font-medium">{userVic.name} ({userVic.code})</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {errors.general && <FormError message={errors.general} />}
+
       <Card>
         <CardHeader>
-          <CardTitle>Detalles del Incidente</CardTitle>
+          <CardTitle>Incident Details</CardTitle>
           <CardDescription>
-            Por favor proporciona tantos detalles como sea posible para ayudarnos a resolver el problema rápidamente
+            Please provide as much detail as possible to help us resolve the issue quickly
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -126,107 +176,102 @@ export default function ReportIncidentPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2 md:col-span-2">
                 <Label htmlFor="title">
-                  Título del Incidente <span className="text-red-500">*</span>
+                  Incident Title <span className="text-red-500">*</span>
                 </Label>
                 <Input
                   id="title"
                   value={formData.title}
                   onChange={(e) => handleChange("title", e.target.value)}
-                  placeholder="Breve descripción del problema"
+                  placeholder="Brief description of the problem"
                   className={errors.title ? "border-red-500" : ""}
+                  disabled={!userVic}
                 />
-                {errors.title && <p className="text-sm text-red-500">{errors.title}</p>}
+                {errors.title && <FormError message={errors.title} />}
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="priority">
-                  Prioridad <span className="text-red-500">*</span>
+                  Priority (1-10) <span className="text-red-500">*</span>
                 </Label>
-                <Select value={formData.priority} onValueChange={(value) => handleChange("priority", value)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="LOW">Baja</SelectItem>
-                    <SelectItem value="MEDIUM">Media</SelectItem>
-                    <SelectItem value="HIGH">Alta</SelectItem>
-                    <SelectItem value="CRITICAL">Crítica</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Input
+                  id="priority"
+                  type="number"
+                  min="1"
+                  max="10"
+                  value={formData.priority}
+                  onChange={(e) => handleChange("priority", parseInt(e.target.value))}
+                  disabled={!userVic}
+                />
+                <p className="text-xs text-muted-foreground">
+                  1=Low, 5=Medium, 8+=High
+                </p>
               </div>
             </div>
 
             {/* Description */}
             <div className="space-y-2">
               <Label htmlFor="description">
-                Descripción <span className="text-red-500">*</span>
+                Description <span className="text-red-500">*</span>
               </Label>
               <Textarea
                 id="description"
                 value={formData.description}
                 onChange={(e) => handleChange("description", e.target.value)}
-                placeholder="Proporciona información detallada sobre el incidente..."
+                placeholder="Provide detailed information about the incident..."
                 rows={5}
                 className={errors.description ? "border-red-500" : ""}
+                disabled={!userVic}
               />
-              {errors.description && <p className="text-sm text-red-500">{errors.description}</p>}
+              {errors.description && <FormError message={errors.description} />}
             </div>
 
-            {/* Type and VIC */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="typeId">
-                  Tipo de Incidente <span className="text-red-500">*</span>
-                </Label>
-                <Select value={formData.typeId} onValueChange={(value) => handleChange("typeId", value)}>
-                  <SelectTrigger className={errors.typeId ? "border-red-500" : ""}>
-                    <SelectValue placeholder="Selecciona el tipo de incidente" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {mockIncidentTypes.map((type) => (
-                      <SelectItem key={type.id} value={type.id}>
-                        {type.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {errors.typeId && <p className="text-sm text-red-500">{errors.typeId}</p>}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="vicId">
-                  VIC <span className="text-red-500">*</span>
-                </Label>
-                <Select value={formData.vicId} onValueChange={(value) => handleChange("vicId", value)} disabled>
-                  <SelectTrigger className="bg-muted">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {mockVICs.map((vic) => (
-                      <SelectItem key={vic.id} value={vic.id}>
-                        {vic.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground">El VIC se asigna según tu cuenta</p>
-              </div>
+            {/* Type */}
+            <div className="space-y-2">
+              <Label htmlFor="typeId">
+                Incident Type <span className="text-red-500">*</span>
+              </Label>
+              <Select
+                value={formData.typeId}
+                onValueChange={(value) => handleChange("typeId", value)}
+                disabled={!userVic}
+              >
+                <SelectTrigger className={errors.typeId ? "border-red-500" : ""}>
+                  <SelectValue placeholder="Select incident type" />
+                </SelectTrigger>
+                <SelectContent>
+                  {incidentTypes.map((type) => (
+                    <SelectItem key={type.id} value={type.id.toString()}>
+                      {type.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.typeId && <FormError message={errors.typeId} />}
             </div>
 
             {/* Submit Buttons */}
             <div className="flex flex-col sm:flex-row gap-3 pt-4">
-              <Button type="submit" disabled={isSubmitting} className="flex-1 sm:flex-initial">
+              <Button
+                type="submit"
+                disabled={isSubmitting || !userVic}
+                className="flex-1 sm:flex-initial"
+              >
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 <Send className="mr-2 h-4 w-4" />
-                {isSubmitting ? "Enviando..." : "Enviar Reporte"}
+                {isSubmitting ? "Submitting..." : "Submit Report"}
               </Button>
-              <Button type="button" variant="outline" onClick={() => router.push("/client")} disabled={isSubmitting}>
-                Cancelar
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => router.push("/client")}
+                disabled={isSubmitting}
+              >
+                Cancel
               </Button>
             </div>
           </form>
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }
