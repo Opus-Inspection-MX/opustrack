@@ -30,9 +30,9 @@ A complete incident and work order management system for Vehicle Inspection Cent
 - **Dashboard:** `/client`
 
 ### 🟡 GUEST (Observer)
-- **Access:** View only
-- **Does:** See reports, no changes
-- **Dashboard:** `/guest`
+- **Access:** Soft-blocked (profile only)
+- **Does:** Currently limited to profile management
+- **Dashboard:** `/guest` (shows access restriction message)
 
 ---
 
@@ -57,13 +57,15 @@ CLIENT Reports Issue → ADMIN Creates Work Order → FSR Fixes It → Everyone 
 | Report incident | ✅ | ❌ | ✅ | ❌ |
 | Create work order | ✅ | ❌ | ❌ | ❌ |
 | Fix/document work | ✅ | ✅ | ❌ | ❌ |
-| Upload photos | ✅ | ✅ | ✅ | ❌ |
+| Upload photos | ✅ | ✅ | ❌ | ❌ |
 | Use parts | ✅ | ✅ | ❌ | ❌ |
-| View everything | ✅ | ✅* | ✅* | ✅ |
+| View incidents/work | ✅ | ✅* | ✅* | ⚠️ |
+| Edit own profile | ✅ | ✅ | ✅ | ✅ |
 | Manage users | ✅ | ❌ | ❌ | ❌ |
 | Configure system | ✅ | ❌ | ❌ | ❌ |
 
 *Limited to assigned/related items
+⚠️ Soft-blocked - currently restricted
 
 ---
 
@@ -111,7 +113,7 @@ GUEST:  guest@opusinspection.com / password123
 
 ### Minute 4: Tracking
 - Show CLIENT view (see progress)
-- Show GUEST view (read-only)
+- Show GUEST view (soft-blocked, profile only)
 - Demonstrate status updates
 
 ### Minute 5: ADMIN Overview
@@ -159,11 +161,13 @@ GUEST:  guest@opusinspection.com / password123
 - Get completion notifications
 
 ### For Observers (GUEST)
-- View all incidents
-- Monitor work progress
-- Access reports
-- No editing capability
-- Perfect for supervisors
+- ⚠️ Currently soft-blocked
+- Profile management only
+- Future expansion planned for:
+  - View all incidents
+  - Monitor work progress
+  - Access reports
+  - No editing capability
 
 ---
 

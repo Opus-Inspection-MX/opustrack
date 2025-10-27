@@ -217,33 +217,37 @@ sequenceDiagram
 
 **Dashboard:** `/guest`
 
-**Read-Only Access** - View information without modifications
+**⚠️ SOFT-BLOCKED ACCESS** - Limited to profile management only
 
-#### View Capabilities
-- 👁️ View all incidents (read-only)
-- 👁️ View work orders (read-only)
-- 👁️ View parts inventory
-- 👁️ View schedules
-- 👁️ Access reports
+#### Current Access (Soft-Block)
+Guest accounts are currently restricted to profile management only. This is a placeholder role for future expansion.
 
-#### Restrictions
-- ❌ Cannot create or edit anything
-- ❌ Cannot upload files
-- ❌ Cannot assign work
-- ❌ Cannot change status
+#### What GUEST Can Do
+- ✅ View and edit their own profile
+- ✅ Change their password
+- ✅ Update contact information
+
+#### What GUEST Cannot Do
+- ❌ View incidents
+- ❌ View work orders
+- ❌ Access parts inventory
+- ❌ View schedules
+- ❌ Create or modify any data
 
 #### Use Cases
-- Management oversight
-- Reporting and analytics
-- Auditing
-- Training and observation
+- Temporary account type for onboarding
+- Future expansion for:
+  - Management oversight
+  - Reporting and analytics
+  - Auditing
+  - Training and observation
 
 #### Key Pages
-- `/guest` - Overview dashboard
-- `/guest/incidents` - View incidents
-- `/guest/work-orders` - View work orders
-- `/guest/parts` - View inventory
-- `/guest/schedules` - View schedules
+- `/guest` - Soft-block dashboard (shows access restriction message)
+- `/profile` - Profile management (only accessible page)
+
+#### Future Implementation
+This role is designed for future expansion. When enabled, GUEST users will have read-only access to view incidents, work orders, parts, and schedules without the ability to create or modify data.
 
 ---
 
@@ -253,10 +257,10 @@ sequenceDiagram
 graph LR
     A[Login] --> B{User Role}
 
-    B -->|ADMINISTRADOR| C[/admin Dashboard]
-    B -->|FSR| D[/fsr Dashboard]
-    B -->|CLIENT| E[/client Dashboard]
-    B -->|GUEST| F[/guest Dashboard]
+    B -->|ADMINISTRADOR| C[Admin Dashboard]
+    B -->|FSR| D[FSR Dashboard]
+    B -->|CLIENT| E[Client Dashboard]
+    B -->|GUEST| F[Guest Dashboard]
 
     C --> C1[Incidents]
     C --> C2[Work Orders]
@@ -268,19 +272,13 @@ graph LR
     C --> C8[Configuration]
 
     D --> D1[My Work Orders]
-    D --> D2[Incidents]
-    D --> D3[Parts]
-    D --> D4[Schedules]
+    D --> D2[My Profile]
 
     E --> E1[Report Incident]
     E --> E2[My Incidents]
-    E --> E3[Work Orders]
-    E --> E4[Schedules]
+    E --> E3[My Profile]
 
-    F --> F1[View Incidents]
-    F --> F2[View Work Orders]
-    F --> F3[View Parts]
-    F --> F4[View Schedules]
+    F --> F1[My Profile ONLY]
 
     style C fill:#ff6b6b
     style D fill:#4ecdc4
@@ -295,33 +293,37 @@ graph LR
 | Feature | ADMINISTRADOR | FSR | CLIENT | GUEST |
 |---------|---------------|-----|--------|-------|
 | **Incidents** |
-| View Incidents | ✅ All | ✅ All | ✅ Own | ✅ All |
-| Create Incidents | ✅ | ❌ | ✅ | ❌ |
+| View Incidents | ✅ All | ✅ All | ✅ Own VIC | ⚠️ Soft-blocked |
+| Create Incidents | ✅ | ❌ | ✅ Own VIC | ❌ |
 | Edit Incidents | ✅ | ✅ | ❌ | ❌ |
 | Delete Incidents | ✅ | ❌ | ❌ | ❌ |
 | Assign Incidents | ✅ | ❌ | ❌ | ❌ |
 | Close Incidents | ✅ | ❌ | ❌ | ❌ |
 | **Work Orders** |
-| View Work Orders | ✅ All | ✅ Assigned | ✅ Related | ✅ All |
+| View Work Orders | ✅ All | ✅ Assigned | ✅ Related | ⚠️ Soft-blocked |
 | Create Work Orders | ✅ | ❌ | ❌ | ❌ |
 | Edit Work Orders | ✅ | ✅ Assigned | ❌ | ❌ |
 | Delete Work Orders | ✅ | ❌ | ❌ | ❌ |
 | Assign Work Orders | ✅ | ❌ | ❌ | ❌ |
 | Complete Work Orders | ✅ | ✅ | ❌ | ❌ |
 | **Work Activities** |
-| View Activities | ✅ | ✅ | ✅ Related | ✅ |
+| View Activities | ✅ | ✅ | ✅ Related | ⚠️ Soft-blocked |
 | Create Activities | ✅ | ✅ | ❌ | ❌ |
-| Edit Activities | ✅ | ✅ | ❌ | ❌ |
-| Delete Activities | ✅ | ✅ | ❌ | ❌ |
-| Upload Files | ✅ | ✅ | ✅ (incidents) | ❌ |
+| Edit Activities | ✅ | ✅ Own | ❌ | ❌ |
+| Delete Activities | ✅ | ✅ Own | ❌ | ❌ |
+| Upload Files | ✅ | ✅ | ❌ | ❌ |
 | **Parts & Inventory** |
-| View Parts | ✅ | ✅ | ❌ | ✅ |
+| View Parts | ✅ | ✅ | ❌ | ⚠️ Soft-blocked |
 | Create Parts | ✅ | ❌ | ❌ | ❌ |
 | Edit Parts | ✅ | ❌ | ❌ | ❌ |
 | Delete Parts | ✅ | ❌ | ❌ | ❌ |
 | Record Parts Used | ✅ | ✅ | ❌ | ❌ |
+| **Profile Management** |
+| View Own Profile | ✅ | ✅ | ✅ | ✅ |
+| Edit Own Profile | ✅ | ✅ | ✅ | ✅ |
+| Change Password | ✅ | ✅ | ✅ | ✅ |
 | **Users & Configuration** |
-| View Users | ✅ | ✅ | ❌ | ❌ |
+| View Users | ✅ | ❌ | ❌ | ❌ |
 | Create Users | ✅ | ❌ | ❌ | ❌ |
 | Edit Users | ✅ | ❌ | ❌ | ❌ |
 | Delete Users | ✅ | ❌ | ❌ | ❌ |
@@ -329,13 +331,15 @@ graph LR
 | Manage Permissions | ✅ | ❌ | ❌ | ❌ |
 | Manage VICs | ✅ | ❌ | ❌ | ❌ |
 | **Schedules** |
-| View Schedules | ✅ | ✅ | ✅ | ✅ |
+| View Schedules | ✅ | ❌ | ❌ | ⚠️ Soft-blocked |
 | Create Schedules | ✅ | ❌ | ❌ | ❌ |
 | Edit Schedules | ✅ | ❌ | ❌ | ❌ |
 | Delete Schedules | ✅ | ❌ | ❌ | ❌ |
 | **Reports** |
-| View Reports | ✅ | ✅ | ❌ | ✅ |
-| Export Reports | ✅ | ✅ | ❌ | ❌ |
+| View Reports | ✅ | ❌ | ❌ | ⚠️ Soft-blocked |
+| Export Reports | ✅ | ❌ | ❌ | ❌ |
+
+**Note:** ⚠️ Soft-blocked = Feature exists but GUEST role is currently restricted from accessing it. This is a placeholder for future expansion.
 
 ---
 

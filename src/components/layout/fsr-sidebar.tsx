@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/sidebar"
 import { ThemeToggle } from "./theme-toggle"
 import { LogoutButton } from "@/components/auth/logout-button"
-import { ClipboardList, Wrench, AlertCircle, User } from "lucide-react"
+import { ClipboardList, Wrench, User } from "lucide-react"
 
 const menuItems = [
   {
@@ -27,11 +27,6 @@ const menuItems = [
     title: "Work Orders",
     url: "/fsr/work-orders",
     icon: Wrench,
-  },
-  {
-    title: "Incidents",
-    url: "/fsr/incidents",
-    icon: AlertCircle,
   },
   {
     title: "My Profile",

@@ -9,6 +9,8 @@ export async function middleware(req: NextRequest) {
   const isPublic =
     pathname === "/login" ||
     pathname === "/signup" ||
+    pathname === "/logout" ||
+    pathname === "/unauthorized" ||
     pathname.startsWith("/_next") ||
     pathname.startsWith("/favicon") ||
     pathname.startsWith("/images") ||
@@ -77,12 +79,14 @@ function checkRouteAccess(roleName: string, pathname: string): boolean {
       "/parts",
       "/schedules",
       "/reports",
+      "/profile",
     ],
     CLIENT: [
       "/client",
       "/incidents",
       "/work-orders",
       "/schedules",
+      "/profile",
     ],
     GUEST: [
       "/guest",
@@ -90,6 +94,7 @@ function checkRouteAccess(roleName: string, pathname: string): boolean {
       "/work-orders",
       "/parts",
       "/schedules",
+      "/profile",
     ],
   };
 
