@@ -37,17 +37,17 @@ const mockParts = [
 const mockWorkOrders = [
   {
     id: "wo_001",
-    status: "in_progress",
+    status: { name: "In Progress" },
     incident: { title: "Brake system maintenance required" },
   },
   {
     id: "wo_002",
-    status: "pending",
+    status: { name: "Pending" },
     incident: { title: "Routine maintenance - Line 2" },
   },
   {
     id: "wo_003",
-    status: "completed",
+    status: { name: "Completed" },
     incident: { title: "Air quality improvement project" },
   },
 ]

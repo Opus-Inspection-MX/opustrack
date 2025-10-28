@@ -26,6 +26,7 @@ export async function getAllWorkParts() {
       part: true,
       workOrder: {
         include: {
+          status: true,
           incident: {
             select: {
               title: true,
@@ -208,6 +209,7 @@ export async function getWorkPartById(id: string) {
       part: true,
       workOrder: {
         include: {
+          status: true,
           incident: true,
           assignedTo: true,
         },

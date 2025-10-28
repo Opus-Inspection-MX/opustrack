@@ -74,7 +74,7 @@ export function WorkOrderTable({ workOrders, onDelete }: WorkOrderTableProps) {
         </TableHeader>
         <TableBody>
           {workOrders.map((workOrder) => {
-            const StatusIcon = statusIcons[workOrder.status]
+            const StatusIcon = workOrder.status?.name ? statusIcons[workOrder.status.name] : null
             return (
               <TableRow key={workOrder.id} className="hover:bg-muted/50">
                 <TableCell>

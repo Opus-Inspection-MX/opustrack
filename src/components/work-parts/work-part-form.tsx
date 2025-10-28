@@ -39,7 +39,9 @@ interface Part {
 
 interface WorkOrder {
   id: string
-  status: string
+  status?: {
+    name: string
+  }
   incident: {
     title: string
   }
@@ -261,7 +263,9 @@ export function WorkPartForm({ workPart, parts, workOrders, workActivities, onSu
                         <SelectItem key={workOrder.id} value={workOrder.id}>
                           <div className="flex flex-col">
                             <span>{workOrder.incident.title}</span>
-                            <span className="text-sm text-muted-foreground">Status: {workOrder.status}</span>
+                            <span className="text-sm text-muted-foreground">
+                              Status: {workOrder.status?.name || "N/A"}
+                            </span>
                           </div>
                         </SelectItem>
                       ))}

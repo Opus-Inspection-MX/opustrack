@@ -243,7 +243,7 @@ export default function WorkPartDetailPage({
                   <p className="text-sm font-medium text-muted-foreground">
                     Status
                   </p>
-                  <p className="text-sm">{workPart.workOrder.status}</p>
+                  <p className="text-sm">{workPart.workOrder.status?.name || "N/A"}</p>
                 </div>
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">

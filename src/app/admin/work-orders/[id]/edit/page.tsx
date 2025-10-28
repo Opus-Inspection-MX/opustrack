@@ -154,14 +154,14 @@ export default function EditWorkOrderPage({
         </div>
         <Badge
           variant={
-            workOrder.status === "COMPLETADO"
+            workOrder.status?.name === "COMPLETADO"
               ? "default"
-              : workOrder.status === "EN_PROGRESO"
+              : workOrder.status?.name === "EN_PROGRESO"
                 ? "secondary"
                 : "outline"
           }
         >
-          {workOrder.status}
+          {workOrder.status?.name || "Sin estado"}
         </Badge>
       </div>
 

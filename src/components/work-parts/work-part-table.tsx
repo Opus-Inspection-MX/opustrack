@@ -20,7 +20,9 @@ interface WorkPart {
   price: number
   workOrder?: {
     id: string
-    status: string
+    status?: {
+      name: string
+    }
     incident: {
       title: string
     }
@@ -56,15 +58,21 @@ export function WorkPartTable({ data, onEdit, onDelete, onView }: WorkPartTableP
     }).format(price)
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status?.toLowerCase()) {
+  const getStatusColor = (statusName?: string) => {
+    if (!statusName) return "bg-gray-100 text-gray-800"
+
+    switch (statusName.toLowerCase()) {
       case "pending":
+      case "pendiente":
         return "bg-yellow-100 text-yellow-800"
       case "in_progress":
+      case "en progreso":
         return "bg-blue-100 text-blue-800"
       case "completed":
+      case "completado":
         return "bg-green-100 text-green-800"
       case "cancelled":
+      case "cancelado":
         return "bg-red-100 text-red-800"
       default:
         return "bg-gray-100 text-gray-800"
@@ -114,9 +122,15 @@ export function WorkPartTable({ data, onEdit, onDelete, onView }: WorkPartTableP
                       <Wrench className="h-4 w-4 text-muted-foreground" />
                       <div>
                         <div className="text-sm font-medium">{workPart.workOrder.incident.title}</div>
-                        <Badge className={getStatusColor(workPart.workOrder.status)} variant="secondary">
-                          {workPart.workOrder.status.replace("_", " ")}
-                        </Badge>
+                        {workPart.workOrder.status ? (
+                          <Badge className={getStatusColor(workPart.workOrder.status.name)} variant="secondary">
+                            {workPart.workOrder.status.name}
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary" className="bg-gray-100 text-gray-800">
+                            Sin estado
+                          </Badge>
+                        )}
                       </div>
                     </div>
                   ) : (

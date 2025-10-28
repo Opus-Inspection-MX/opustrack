@@ -53,7 +53,7 @@ export default function WorkPartsPage() {
 
     if (filters.workOrderStatus) {
       filtered = filtered.filter(
-        (wp) => wp.workOrder?.status === filters.workOrderStatus
+        (wp) => wp.workOrder?.status?.name === filters.workOrderStatus
       );
     }
 

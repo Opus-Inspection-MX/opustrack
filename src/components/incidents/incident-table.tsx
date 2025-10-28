@@ -169,8 +169,8 @@ export function IncidentTable({ incidents, onDelete }: IncidentTableProps) {
                               className="flex items-center justify-between p-3 bg-background rounded-lg border"
                             >
                               <div className="flex items-center gap-4">
-                                <Badge className={workOrderStatusColors[workOrder.status]}>
-                                  {workOrder.status.replace("_", " ")}
+                                <Badge className={workOrderStatusColors[workOrder.status?.name] || "bg-gray-100 text-gray-800"}>
+                                  {workOrder.status?.name || "Sin estado"}
                                 </Badge>
                                 <div>
                                   <div className="font-medium">OT #{workOrder.id}</div>

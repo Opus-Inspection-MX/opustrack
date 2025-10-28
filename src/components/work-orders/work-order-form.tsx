@@ -56,7 +56,7 @@ export function WorkOrderForm({ workOrder, incident, onClose }: WorkOrderFormPro
       setFormData({
         incidentId: workOrder.incidentId || "",
         assignedToId: workOrder.assignedToId || "",
-        status: workOrder.status || "PENDING",
+        status: workOrder.status?.name || "PENDING",
         notes: workOrder.notes || "",
         startedAt: workOrder.startedAt ? new Date(workOrder.startedAt).toISOString().slice(0, 16) : "",
         finishedAt: workOrder.finishedAt ? new Date(workOrder.finishedAt).toISOString().slice(0, 16) : "",
