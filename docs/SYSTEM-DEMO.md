@@ -14,6 +14,9 @@ OpusTrack is a professional incident management and work order tracking system d
 - 📊 **Real-Time Tracking** - Monitor incidents and work orders in real-time
 - 📎 **File Attachments** - Upload photos, videos, and documents (HEIC support for iPhone)
 - 🔄 **Complete Workflow** - From incident creation to resolution
+- 🌓 **Dark/Light Mode** - Theme toggle for better visual experience
+- 🔍 **Search & Filters** - Quickly find incidents and work orders
+- 📋 **Smart Pagination** - Efficient navigation through large tables
 
 ---
 
@@ -104,6 +107,9 @@ sequenceDiagram
 - ✅ Assign incidents to FSR technicians
 - ✅ Update incident status and priority
 - ✅ View complete incident history
+- ✅ **Responsive table with pagination** (10/25/50/100 items per page)
+- ✅ **Advanced filters** by status, priority, type and VIC
+- ✅ **Quick search** by title or description
 
 #### Work Order Management
 - ✅ Create work orders from incidents
@@ -111,6 +117,8 @@ sequenceDiagram
 - ✅ Monitor work order progress
 - ✅ View all activities and parts used
 - ✅ Mark work orders as complete
+- ✅ **Responsive table** with condensed info on mobile
+- ✅ **View attachments** (photos, videos, documents)
 
 #### System Configuration
 - ✅ Manage users (create, edit, deactivate)
@@ -119,16 +127,19 @@ sequenceDiagram
 - ✅ Configure incident types and statuses
 - ✅ Manage parts inventory
 - ✅ Set up schedules
+- ✅ **View scheduled incidents** in schedule details
+- ✅ **Responsive roles table** with pagination
 
 #### Key Pages
 - `/admin` - Main dashboard with statistics
-- `/admin/incidents` - All incidents
+- `/admin/incidents` - All incidents (paginated, responsive table)
 - `/admin/work-orders` - All work orders
 - `/admin/users` - User management
-- `/admin/roles` - Role configuration
+- `/admin/roles` - Role configuration (with pagination)
 - `/admin/vic-centers` - VIC management
 - `/admin/parts` - Inventory management
 - `/admin/schedules` - Schedule planning
+- `/admin/schedules/[id]` - View scheduled incidents for specific date
 
 ---
 
@@ -145,12 +156,14 @@ sequenceDiagram
 - ✅ Upload evidence (photos, videos, documents)
 - ✅ Record parts used
 - ✅ Complete work orders
+- ✅ **Field-optimized interface**
 
 #### Activity Tracking
 - ✅ Document all work performed
 - ✅ Attach before/after photos
 - ✅ Record time spent on activities
 - ✅ Update work status in real-time
+- ✅ **Improved mobile view** for on-site work
 
 #### Parts Management
 - ✅ View available parts
@@ -166,15 +179,15 @@ sequenceDiagram
 #### Key Pages
 - `/fsr` - Assigned work orders dashboard
 - `/fsr/work-orders` - My work orders
-- `/fsr/work-orders/[id]/edit` - Execute work order
-- `/fsr/incidents` - View related incidents
-- `/fsr/schedules` - View schedule
+- `/fsr/work-orders/[id]` - Execute work order
+- `/profile` - Profile management
 
 #### Mobile Features
 - 📱 Take photos directly from phone camera
 - 📱 HEIC format support (iPhone native format)
 - 📱 Upload videos from field
 - 📱 Real-time updates while working
+- 📱 **Responsive design** optimized for small screens
 
 ---
 
@@ -190,13 +203,16 @@ sequenceDiagram
 - ✅ Set priority level
 - ✅ Upload photos/videos of problem
 - ✅ Associate with VIC location
+- ✅ **Select incident type** from catalog
 
 #### Tracking
-- ✅ View my reported incidents
+- ✅ **View ONLY my reported incidents** (filtered by user)
 - ✅ Track incident status
 - ✅ View assigned work orders
 - ✅ See progress updates
 - ✅ View resolution details
+- ✅ **Dashboard with personalized statistics**
+- ✅ **Summary cards** (Total, Open, In Progress, Closed)
 
 #### Work Orders
 - ✅ View work orders related to my incidents
@@ -205,11 +221,14 @@ sequenceDiagram
 - ✅ Check parts used and costs
 
 #### Key Pages
-- `/client` - My incidents dashboard
-- `/client/incidents` - Report new incident
+- `/client` - My incidents dashboard with statistics
+- `/client/new` - Report new incident
 - `/client/incidents/[id]` - View incident details
-- `/client/work-orders` - Related work orders
-- `/client/schedules` - Scheduled maintenance
+
+#### Security & Privacy
+- 🔒 **Data isolation** - Only sees their own incidents
+- 🔒 **User filtering** - Cannot see other clients' incidents
+- 🔒 **Specific permissions** - Controlled access to resources
 
 ---
 
@@ -217,15 +236,13 @@ sequenceDiagram
 
 **Dashboard:** `/guest`
 
-**⚠️ SOFT-BLOCKED ACCESS** - Limited to profile management only
+**Read-Only Access** - Limited viewing
 
-#### Current Access (Soft-Block)
-Guest accounts are currently restricted to profile management only. This is a placeholder role for future expansion.
-
-#### What GUEST Can Do
+#### Current Access
 - ✅ View and edit their own profile
 - ✅ Change their password
 - ✅ Update contact information
+- ⚠️ **Limited access** to other functionalities
 
 #### What GUEST Cannot Do
 - ❌ View incidents
@@ -243,11 +260,8 @@ Guest accounts are currently restricted to profile management only. This is a pl
   - Training and observation
 
 #### Key Pages
-- `/guest` - Soft-block dashboard (shows access restriction message)
+- `/guest` - Dashboard with access restriction message
 - `/profile` - Profile management (only accessible page)
-
-#### Future Implementation
-This role is designed for future expansion. When enabled, GUEST users will have read-only access to view incidents, work orders, parts, and schedules without the ability to create or modify data.
 
 ---
 
@@ -293,27 +307,27 @@ graph LR
 | Feature | ADMINISTRADOR | FSR | CLIENT | GUEST |
 |---------|---------------|-----|--------|-------|
 | **Incidents** |
-| View Incidents | ✅ All | ✅ All | ✅ Own VIC | ⚠️ Soft-blocked |
+| View Incidents | ✅ All | ✅ All | ✅ Own only | ❌ |
 | Create Incidents | ✅ | ❌ | ✅ Own VIC | ❌ |
 | Edit Incidents | ✅ | ✅ | ❌ | ❌ |
 | Delete Incidents | ✅ | ❌ | ❌ | ❌ |
 | Assign Incidents | ✅ | ❌ | ❌ | ❌ |
 | Close Incidents | ✅ | ❌ | ❌ | ❌ |
 | **Work Orders** |
-| View Work Orders | ✅ All | ✅ Assigned | ✅ Related | ⚠️ Soft-blocked |
+| View Work Orders | ✅ All | ✅ Assigned | ✅ Related | ❌ |
 | Create Work Orders | ✅ | ❌ | ❌ | ❌ |
 | Edit Work Orders | ✅ | ✅ Assigned | ❌ | ❌ |
 | Delete Work Orders | ✅ | ❌ | ❌ | ❌ |
 | Assign Work Orders | ✅ | ❌ | ❌ | ❌ |
 | Complete Work Orders | ✅ | ✅ | ❌ | ❌ |
 | **Work Activities** |
-| View Activities | ✅ | ✅ | ✅ Related | ⚠️ Soft-blocked |
+| View Activities | ✅ | ✅ | ✅ Related | ❌ |
 | Create Activities | ✅ | ✅ | ❌ | ❌ |
 | Edit Activities | ✅ | ✅ Own | ❌ | ❌ |
 | Delete Activities | ✅ | ✅ Own | ❌ | ❌ |
 | Upload Files | ✅ | ✅ | ❌ | ❌ |
 | **Parts & Inventory** |
-| View Parts | ✅ | ✅ | ❌ | ⚠️ Soft-blocked |
+| View Parts | ✅ | ✅ | ❌ | ❌ |
 | Create Parts | ✅ | ❌ | ❌ | ❌ |
 | Edit Parts | ✅ | ❌ | ❌ | ❌ |
 | Delete Parts | ✅ | ❌ | ❌ | ❌ |
@@ -331,15 +345,51 @@ graph LR
 | Manage Permissions | ✅ | ❌ | ❌ | ❌ |
 | Manage VICs | ✅ | ❌ | ❌ | ❌ |
 | **Schedules** |
-| View Schedules | ✅ | ❌ | ❌ | ⚠️ Soft-blocked |
+| View Schedules | ✅ | ✅ | ✅ | ❌ |
+| View Incidents in Schedule | ✅ | ❌ | ❌ | ❌ |
 | Create Schedules | ✅ | ❌ | ❌ | ❌ |
 | Edit Schedules | ✅ | ❌ | ❌ | ❌ |
 | Delete Schedules | ✅ | ❌ | ❌ | ❌ |
+| **Incident Types** |
+| View Types | ✅ | ❌ | ✅ (for creation) | ❌ |
+| Create Types | ✅ | ❌ | ❌ | ❌ |
+| Edit Types | ✅ | ❌ | ❌ | ❌ |
+| Delete Types | ✅ | ❌ | ❌ | ❌ |
 | **Reports** |
-| View Reports | ✅ | ❌ | ❌ | ⚠️ Soft-blocked |
+| View Reports | ✅ | ❌ | ❌ | ❌ |
 | Export Reports | ✅ | ❌ | ❌ | ❌ |
 
-**Note:** ⚠️ Soft-blocked = Feature exists but GUEST role is currently restricted from accessing it. This is a placeholder for future expansion.
+---
+
+## 🆕 Recently Implemented Features
+
+### Responsive Tables with Pagination
+- ✅ **Configurable pagination** - 10, 25, 50 or 100 items per page
+- ✅ **Adaptive columns** - Hide less important columns on mobile
+- ✅ **Dropdown menus** - Compact actions on small devices
+- ✅ **Text truncation** - Smart handling of long text
+- ✅ **No horizontal overflow** - Pages fit within viewport
+
+#### Pages with Improved Tables:
+- `/admin/incidents` - Responsive, paginated incidents table
+- `/admin/roles` - Roles table with pagination
+- `/admin/schedules/[id]` - Scheduled incidents table
+
+### Security & Privacy Improvements
+- ✅ **User filtering for clients** - Only see their own incidents
+- ✅ **Enhanced permission validation** - Granular access control
+- ✅ **Data isolation** - Clients cannot see other clients' data
+
+### Schedule Features
+- ✅ **Scheduled incidents view** - See all incidents for a date
+- ✅ **Responsive table in details** - Info adapted for mobile devices
+- ✅ **Direct navigation** - Links to incident details from schedule
+
+### Interface Improvements
+- ✅ **Informative badges** - Clear visual states
+- ✅ **Descriptive icons** - Better visual understanding
+- ✅ **Loading states** - Visual feedback during operations
+- ✅ **Friendly error messages** - Clear information to users
 
 ---
 
@@ -456,6 +506,8 @@ flowchart TD
 - 🎯 **Intuitive Navigation** - Role-specific dashboards
 - 📊 **Real-time Updates** - Live status indicators
 - 🎨 **Modern UI** - shadcn/ui components
+- 🔍 **Search & Filters** - Quick data access
+- 📋 **Smart Pagination** - Efficient navigation through large lists
 
 ### Dashboard Views
 - **Statistics Cards** - Quick metrics overview
@@ -463,6 +515,7 @@ flowchart TD
 - **Status Badges** - Visual status indicators
 - **Action Buttons** - Context-aware controls
 - **Search & Filters** - Quick data access
+- **Responsive Tables** - Adapt to any screen size
 
 ---
 
@@ -502,6 +555,23 @@ Access: Read-only viewing
 4. **View as GUEST** → Show read-only access
 5. **Return to ADMIN** → Show full system configuration
 
+### Demonstrating New Features
+
+1. **Responsive Tables**
+   - Go to `/admin/incidents` or `/admin/roles`
+   - Resize window to see adaptive columns
+   - Test pagination with different item counts
+
+2. **Schedule with Incidents View**
+   - Go to `/admin/schedules`
+   - Select a schedule
+   - View complete list of scheduled incidents
+
+3. **Client Data Isolation**
+   - Login as client
+   - Verify only their own incidents are shown
+   - Create new incident and verify it appears in their list
+
 ---
 
 ## 📈 System Statistics Example
@@ -524,7 +594,7 @@ Access: Read-only viewing
 - **Database:** PostgreSQL + Prisma ORM
 - **Auth:** NextAuth.js with JWT
 - **Storage:** Vercel Blob / Filesystem
-- **UI:** Tailwind CSS, shadcn/ui
+- **UI:** Tailwind CSS 4, shadcn/ui (New York style)
 - **Mobile:** Responsive PWA-ready
 
 ---
@@ -538,5 +608,31 @@ Access: Read-only viewing
 
 ---
 
-*Last Updated: October 2024*
+## 🎯 Development Commands
+
+### Running the Application
+```bash
+npm run dev          # Start development server
+npm run build        # Build for production
+npm start            # Start production server
+```
+
+### Code Quality
+```bash
+npm run lint         # Check code with Biome
+npm run format       # Format code with Biome
+```
+
+### Database Operations
+```bash
+npm run db:migrate   # Run Prisma migrations
+npm run db:studio    # Open Prisma Studio (database GUI)
+npm run db:reset     # Reset database
+npm run db:seed      # Seed database with initial data
+```
+
+---
+
+*Last Updated: January 2025*
 *System Version: MVP 1.0*
+*Database-Driven Role-Based Access Control*
