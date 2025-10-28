@@ -46,7 +46,7 @@ export function LoginForm() {
             id="email"
             name="email"
             type="email"
-            placeholder="your.email@opusinspection.com"
+            placeholder="user@email.com"
             required
             className="pl-10"
             autoComplete="email"
