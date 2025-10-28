@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Edit, Calendar, Building2, Clock, AlertCircle } from "lucide-react"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { ArrowLeft, Edit, Calendar, Building2, Clock, AlertCircle, ExternalLink, FileText } from "lucide-react"
 import Link from "next/link"
 import { Spinner } from "@/components/ui/spinner"
 import { getScheduleById } from "@/lib/actions/schedules"
@@ -89,6 +90,12 @@ export default function ViewSchedulePage({ params }: { params: Promise<{ id: str
   }
 
   const status = getScheduleStatus()
+
+  const getPriorityColor = (priority: number) => {
+    if (priority >= 8) return "destructive";
+    if (priority >= 5) return "default";
+    return "secondary";
+  };
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -191,6 +198,94 @@ export default function ViewSchedulePage({ params }: { params: Promise<{ id: str
           </CardContent>
         </Card>
       </div>
+
+      {/* Scheduled Incidents Section */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Scheduled Incidents ({schedule.incidents?.length || 0})
+            </CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {schedule.incidents && schedule.incidents.length > 0 ? (
+            <div className="border rounded-lg overflow-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Title</TableHead>
+                    <TableHead className="hidden md:table-cell">Type</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Priority</TableHead>
+                    <TableHead className="hidden lg:table-cell">Reported By</TableHead>
+                    <TableHead className="hidden sm:table-cell">Reported At</TableHead>
+                    <TableHead className="w-[70px]">Action</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {schedule.incidents.map((incident: any) => (
+                    <TableRow key={incident.id}>
+                      <TableCell className="font-medium">
+                        <div className="flex flex-col gap-1 min-w-0">
+                          <span className="truncate">{incident.title}</span>
+                          <div className="md:hidden flex flex-wrap gap-1 mt-1">
+                            {incident.type && (
+                              <Badge variant="outline" className="text-xs">{incident.type.name}</Badge>
+                            )}
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="hidden md:table-cell">
+                        {incident.type ? (
+                          <Badge variant="outline">{incident.type.name}</Badge>
+                        ) : (
+                          <span className="text-muted-foreground text-sm">Sin tipo</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {incident.status ? (
+                          <Badge variant="secondary">{incident.status.name}</Badge>
+                        ) : (
+                          <span className="text-muted-foreground text-sm">Sin estado</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={getPriorityColor(incident.priority)}>
+                          {incident.priority}/10
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="hidden lg:table-cell">
+                        {incident.reportedBy ? (
+                          <span className="text-sm">{incident.reportedBy.name}</span>
+                        ) : (
+                          <span className="text-muted-foreground text-sm">Desconocido</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="hidden sm:table-cell text-sm text-muted-foreground">
+                        {new Date(incident.reportedAt).toLocaleDateString()}
+                      </TableCell>
+                      <TableCell>
+                        <Link href={`/admin/incidents/${incident.id}`}>
+                          <Button variant="ghost" size="sm">
+                            <ExternalLink className="h-4 w-4" />
+                          </Button>
+                        </Link>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              <FileText className="h-12 w-12 mx-auto mb-3 opacity-50" />
+              <p>No incidents scheduled for this date</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   )
 }

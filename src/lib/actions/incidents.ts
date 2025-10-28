@@ -185,9 +185,11 @@ export async function getClientIncidents() {
     return [];
   }
 
+  // Client users should only see incidents they reported themselves
   const incidents = await prisma.incident.findMany({
     where: {
-      vicId: user.vicId,
+      reportedById: user.id, // Filter by the user who reported it
+      vicId: user.vicId,      // Also ensure it's from their VIC
       active: true,
     },
     include: {

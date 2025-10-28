@@ -199,6 +199,7 @@ async function main() {
         permissions: [
           "route:client",
           "incidents:read", "incidents:create",
+          "incident-types:read", // Needed to select incident type when creating
           "work-orders:read",
           "schedules:read",
         ],
