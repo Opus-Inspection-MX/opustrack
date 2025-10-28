@@ -7,7 +7,7 @@ export default function LoginPage() {
   return (
     <main className="min-h-screen grid place-items-center p-6">
       <div className="w-full max-w-sm">
-        <Suspense fallback={<div>Loading...</div>}>
+        <Suspense fallback={<div>Cargando...</div>}>
           <LoginForm />
         </Suspense>
       </div>

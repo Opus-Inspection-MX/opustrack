@@ -12,9 +12,9 @@ export default async function GuestDashboard() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold">Guest Dashboard</h1>
+        <h1 className="text-3xl font-bold">Panel de Invitado</h1>
         <p className="text-muted-foreground mt-2">
-          Limited access account
+          Cuenta con acceso limitado
         </p>
       </div>
 
@@ -27,55 +27,55 @@ export default async function GuestDashboard() {
                 <Lock className="h-8 w-8 text-orange-600" />
               </div>
             </div>
-            <CardTitle className="text-2xl">Access Restricted</CardTitle>
+            <CardTitle className="text-2xl">Acceso Restringido</CardTitle>
             <CardDescription className="text-base">
-              Your account has limited permissions
+              Tu cuenta tiene permisos limitados
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="bg-white rounded-lg p-4 border">
               <h3 className="font-semibold mb-2 flex items-center gap-2">
-                <Badge variant="outline" className="bg-yellow-50">GUEST Role</Badge>
+                <Badge variant="outline" className="bg-yellow-50">Rol INVITADO</Badge>
               </h3>
               <p className="text-sm text-muted-foreground">
-                Guest accounts are currently limited to profile management only.
-                If you need additional access to view incidents, work orders, or other resources,
-                please contact your system administrator.
+                Las cuentas de invitados actualmente están limitadas solo a la gestión de perfil.
+                Si necesitas acceso adicional para ver incidentes, órdenes de trabajo u otros recursos,
+                por favor contacta a tu administrador del sistema.
               </p>
             </div>
 
             <div className="border-t pt-4">
-              <h4 className="text-sm font-medium mb-3">What you can do:</h4>
+              <h4 className="text-sm font-medium mb-3">Lo que puedes hacer:</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
                 <li className="flex items-start gap-2">
                   <span className="text-green-500 mt-1">✓</span>
-                  <span>View and edit your profile information</span>
+                  <span>Ver y editar tu información de perfil</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-green-500 mt-1">✓</span>
-                  <span>Change your password</span>
+                  <span>Cambiar tu contraseña</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-green-500 mt-1">✓</span>
-                  <span>Update contact information</span>
+                  <span>Actualizar información de contacto</span>
                 </li>
               </ul>
             </div>
 
             <div className="border-t pt-4">
-              <h4 className="text-sm font-medium mb-3">Currently unavailable:</h4>
+              <h4 className="text-sm font-medium mb-3">Actualmente no disponible:</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
                 <li className="flex items-start gap-2">
                   <span className="text-red-500 mt-1">✗</span>
-                  <span>View or create incidents</span>
+                  <span>Ver o crear incidentes</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-red-500 mt-1">✗</span>
-                  <span>Access work orders</span>
+                  <span>Acceder a órdenes de trabajo</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-red-500 mt-1">✗</span>
-                  <span>View parts or schedules</span>
+                  <span>Ver inventario o horarios</span>
                 </li>
               </ul>
             </div>
@@ -84,13 +84,13 @@ export default async function GuestDashboard() {
               <Button asChild>
                 <Link href="/profile">
                   <User className="h-4 w-4 mr-2" />
-                  Go to My Profile
+                  Ir a Mi Perfil
                 </Link>
               </Button>
             </div>
 
             <div className="text-center text-xs text-muted-foreground border-t pt-4">
-              To request additional permissions, contact your administrator
+              Para solicitar permisos adicionales, contacta a tu administrador
             </div>
           </CardContent>
         </Card>

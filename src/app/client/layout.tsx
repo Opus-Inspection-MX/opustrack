@@ -15,7 +15,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
           <SidebarTrigger />
           <Link href="/client" className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5" />
-            <span className="font-semibold">Cliente Portal</span>
+            <span className="font-semibold">Portal Cliente</span>
           </Link>
         </header>
         <main className="flex-1 p-4 md:p-6 lg:p-8">{children}</main>

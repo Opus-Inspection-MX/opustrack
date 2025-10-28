@@ -5,7 +5,7 @@ import { Shield } from "lucide-react"
 import { redirect } from "next/navigation"
 
 export default function SignupPage() {
-  redirect("/login?message=Account+creation+is+managed+by+administrators")
+  redirect("/login?message=La+creación+de+cuentas+es+gestionada+por+administradores")
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 p-4">
       <div className="w-full max-w-md space-y-4">
@@ -14,8 +14,8 @@ export default function SignupPage() {
             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
               <Shield className="h-8 w-8 text-primary" />
             </div>
-            <CardTitle className="text-2xl">Create an Account</CardTitle>
-            <CardDescription>Enter your information to get started</CardDescription>
+            <CardTitle className="text-2xl">Crear una Cuenta</CardTitle>
+            <CardDescription>Ingresa tu información para comenzar</CardDescription>
           </CardHeader>
           <CardContent>
             <SignupForm />
@@ -25,9 +25,9 @@ export default function SignupPage() {
         <Card>
           <CardContent className="pt-6">
             <p className="text-center text-sm text-muted-foreground">
-              Already have an account?{" "}
+              ¿Ya tienes una cuenta?{" "}
               <Link href="/login" className="font-medium text-primary hover:underline">
-                Sign in
+                Iniciar sesión
               </Link>
             </p>
           </CardContent>
@@ -35,7 +35,7 @@ export default function SignupPage() {
 
         <div className="text-center">
           <Link href="/" className="text-sm text-muted-foreground hover:text-primary hover:underline">
-            Back to Home
+            Volver al Inicio
           </Link>
         </div>
       </div>

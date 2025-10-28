@@ -19,7 +19,7 @@ import { User } from "lucide-react"
 
 const menuItems = [
   {
-    title: "My Profile",
+    title: "Mi Perfil",
     url: "/profile",
     icon: User,
   },
@@ -36,7 +36,7 @@ export function InvitadoSidebar() {
             <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
               <User className="h-5 w-5 text-primary-foreground" />
             </div>
-            <span className="font-semibold">Guest Portal</span>
+            <span className="font-semibold">Portal Invitado</span>
           </Link>
           <SidebarTrigger />
         </div>

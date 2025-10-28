@@ -45,11 +45,11 @@ export default function ReportIncidentPage() {
       setUserVic(profile?.vic || null);
 
       if (!profile?.vic) {
-        setErrors({ general: "You must have a VIC assigned to report incidents" });
+        setErrors({ general: "Debes tener un CVV asignado para reportar incidentes" });
       }
     } catch (error) {
       console.error("Error loading data:", error);
-      setErrors({ general: "Failed to load form data" });
+      setErrors({ general: "Error al cargar los datos del formulario" });
     } finally {
       setLoading(false);
     }
@@ -66,19 +66,19 @@ export default function ReportIncidentPage() {
     const newErrors: Record<string, string> = {};
 
     if (!formData.title.trim()) {
-      newErrors.title = "Title is required";
+      newErrors.title = "El título es requerido";
     }
 
     if (!formData.description.trim()) {
-      newErrors.description = "Description is required";
+      newErrors.description = "La descripción es requerida";
     }
 
     if (!formData.typeId) {
-      newErrors.typeId = "Incident type is required";
+      newErrors.typeId = "El tipo de incidente es requerido";
     }
 
     if (!userVic) {
-      newErrors.general = "You must have a VIC assigned to report incidents";
+      newErrors.general = "Debes tener un CVV asignado para reportar incidentes";
     }
 
     setErrors(newErrors);
@@ -106,12 +106,12 @@ export default function ReportIncidentPage() {
       if (result.success) {
         router.push("/client");
       } else {
-        throw new Error("Failed to create incident");
+        throw new Error("Error al crear el incidente");
       }
     } catch (error) {
       console.error("Error reporting incident:", error);
       setErrors({
-        general: error instanceof Error ? error.message : "Failed to report incident. Please try again.",
+        general: error instanceof Error ? error.message : "Error al reportar el incidente. Por favor intenta de nuevo.",
       });
     } finally {
       setIsSubmitting(false);
@@ -132,7 +132,7 @@ export default function ReportIncidentPage() {
         <Link href="/client">
           <Button variant="outline" size="sm">
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Back
+            Volver
           </Button>
         </Link>
         <div className="flex items-center gap-3">
@@ -140,8 +140,8 @@ export default function ReportIncidentPage() {
             <AlertTriangle className="h-5 w-5 text-orange-500" />
           </div>
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold">Report an Incident</h1>
-            <p className="text-sm text-muted-foreground">We'll respond as soon as possible</p>
+            <h1 className="text-2xl md:text-3xl font-bold">Reportar un Incidente</h1>
+            <p className="text-sm text-muted-foreground">Responderemos lo más pronto posible</p>
           </div>
         </div>
       </div>
@@ -153,7 +153,7 @@ export default function ReportIncidentPage() {
             <div className="flex items-center gap-3">
               <Building className="h-5 w-5 text-primary" />
               <div>
-                <p className="text-sm text-muted-foreground">Reporting for VIC</p>
+                <p className="text-sm text-muted-foreground">Reportando para CVV</p>
                 <p className="font-medium">{userVic.name} ({userVic.code})</p>
               </div>
             </div>
@@ -165,9 +165,9 @@ export default function ReportIncidentPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Incident Details</CardTitle>
+          <CardTitle>Detalles del Incidente</CardTitle>
           <CardDescription>
-            Please provide as much detail as possible to help us resolve the issue quickly
+            Por favor proporciona tantos detalles como sea posible para ayudarnos a resolver el problema rápidamente
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -176,13 +176,13 @@ export default function ReportIncidentPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2 md:col-span-2">
                 <Label htmlFor="title">
-                  Incident Title <span className="text-red-500">*</span>
+                  Título del Incidente <span className="text-red-500">*</span>
                 </Label>
                 <Input
                   id="title"
                   value={formData.title}
                   onChange={(e) => handleChange("title", e.target.value)}
-                  placeholder="Brief description of the problem"
+                  placeholder="Breve descripción del problema"
                   className={errors.title ? "border-red-500" : ""}
                   disabled={!userVic}
                 />
@@ -191,7 +191,7 @@ export default function ReportIncidentPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="priority">
-                  Priority (1-10) <span className="text-red-500">*</span>
+                  Prioridad (1-10) <span className="text-red-500">*</span>
                 </Label>
                 <Input
                   id="priority"
@@ -203,7 +203,7 @@ export default function ReportIncidentPage() {
                   disabled={!userVic}
                 />
                 <p className="text-xs text-muted-foreground">
-                  1=Low, 5=Medium, 8+=High
+                  1=Baja, 5=Media, 8+=Alta
                 </p>
               </div>
             </div>
@@ -211,13 +211,13 @@ export default function ReportIncidentPage() {
             {/* Description */}
             <div className="space-y-2">
               <Label htmlFor="description">
-                Description <span className="text-red-500">*</span>
+                Descripción <span className="text-red-500">*</span>
               </Label>
               <Textarea
                 id="description"
                 value={formData.description}
                 onChange={(e) => handleChange("description", e.target.value)}
-                placeholder="Provide detailed information about the incident..."
+                placeholder="Proporciona información detallada sobre el incidente..."
                 rows={5}
                 className={errors.description ? "border-red-500" : ""}
                 disabled={!userVic}
@@ -228,7 +228,7 @@ export default function ReportIncidentPage() {
             {/* Type */}
             <div className="space-y-2">
               <Label htmlFor="typeId">
-                Incident Type <span className="text-red-500">*</span>
+                Tipo de Incidente <span className="text-red-500">*</span>
               </Label>
               <Select
                 value={formData.typeId}
@@ -236,7 +236,7 @@ export default function ReportIncidentPage() {
                 disabled={!userVic}
               >
                 <SelectTrigger className={errors.typeId ? "border-red-500" : ""}>
-                  <SelectValue placeholder="Select incident type" />
+                  <SelectValue placeholder="Selecciona el tipo de incidente" />
                 </SelectTrigger>
                 <SelectContent>
                   {incidentTypes.map((type) => (
@@ -258,7 +258,7 @@ export default function ReportIncidentPage() {
               >
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 <Send className="mr-2 h-4 w-4" />
-                {isSubmitting ? "Submitting..." : "Submit Report"}
+                {isSubmitting ? "Enviando..." : "Enviar Reporte"}
               </Button>
               <Button
                 type="button"
@@ -266,7 +266,7 @@ export default function ReportIncidentPage() {
                 onClick={() => router.push("/client")}
                 disabled={isSubmitting}
               >
-                Cancel
+                Cancelar
               </Button>
             </div>
           </form>

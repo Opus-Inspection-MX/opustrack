@@ -19,17 +19,17 @@ import { ClipboardList, Wrench, User } from "lucide-react"
 
 const menuItems = [
   {
-    title: "Dashboard",
+    title: "Panel",
     url: "/fsr",
     icon: ClipboardList,
   },
   {
-    title: "Work Orders",
+    title: "Órdenes de Trabajo",
     url: "/fsr/work-orders",
     icon: Wrench,
   },
   {
-    title: "My Profile",
+    title: "Mi Perfil",
     url: "/profile",
     icon: User,
   },

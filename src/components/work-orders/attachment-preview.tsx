@@ -92,7 +92,7 @@ export function AttachmentPreview({ attachment, onDelete, readOnly }: Attachment
               variant="ghost"
               size="sm"
               onClick={() => setShowLightbox(true)}
-              title="View full size"
+              title="Ver tamaño completo"
             >
               <ZoomIn className="h-4 w-4" />
             </Button>
@@ -101,7 +101,7 @@ export function AttachmentPreview({ attachment, onDelete, readOnly }: Attachment
             variant="ghost"
             size="sm"
             asChild
-            title="Download"
+            title="Descargar"
           >
             <a href={fileUrl} download={attachment.filename}>
               <Download className="h-4 w-4" />
@@ -113,7 +113,7 @@ export function AttachmentPreview({ attachment, onDelete, readOnly }: Attachment
               size="sm"
               onClick={handleDelete}
               className="text-destructive hover:text-destructive"
-              title="Delete"
+              title="Eliminar"
             >
               <Trash2 className="h-4 w-4" />
             </Button>
@@ -151,11 +151,11 @@ export function AttachmentPreview({ attachment, onDelete, readOnly }: Attachment
                 <Button variant="outline" size="sm" asChild>
                   <a href={fileUrl} download={attachment.filename}>
                     <Download className="h-4 w-4 mr-2" />
-                    Download
+                    Descargar
                   </a>
                 </Button>
                 <Button variant="outline" size="sm" onClick={() => setShowLightbox(false)}>
-                  Close
+                  Cerrar
                 </Button>
               </div>
             </div>

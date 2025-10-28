@@ -16,10 +16,10 @@ function SubmitButton() {
       {pending ? (
         <>
           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          Signing in...
+          Iniciando sesión...
         </>
       ) : (
-        "Sign In"
+        "Iniciar Sesión"
       )}
     </Button>
   )
@@ -39,7 +39,7 @@ export function LoginForm() {
   return (
     <form action={handleSubmit} className="space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="email">Email Address</Label>
+        <Label htmlFor="email">Correo Electrónico</Label>
         <div className="relative">
           <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -56,9 +56,9 @@ export function LoginForm() {
 
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <Label htmlFor="password">Password</Label>
+          <Label htmlFor="password">Contraseña</Label>
           <Button variant="link" size="sm" className="h-auto p-0 text-xs" type="button">
-            Forgot password?
+            ¿Olvidaste tu contraseña?
           </Button>
         </div>
         <div className="relative">
@@ -67,7 +67,7 @@ export function LoginForm() {
             id="password"
             name="password"
             type="password"
-            placeholder="Enter your password"
+            placeholder="Ingresa tu contraseña"
             required
             className="pl-10"
             autoComplete="current-password"

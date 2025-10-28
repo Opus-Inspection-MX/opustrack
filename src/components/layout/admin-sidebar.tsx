@@ -47,17 +47,9 @@ const menuSections = [
     ],
   },
   {
-    title: "Gestión de Usuarios",
-    items: [
-      { title: "Usuarios", url: "/admin/users", icon: Users },
-      { title: "Roles", url: "/admin/roles", icon: Shield },
-      { title: "Permisos", url: "/admin/permissions", icon: Settings },
-      { title: "Estado de Usuario", url: "/admin/user-status", icon: UserCheck },
-    ],
-  },
-  {
     title: "Gestión de Incidentes",
     items: [
+      { title: "Horarios", url: "/admin/schedules", icon: Calendar },
       { title: "Incidentes", url: "/admin/incidents", icon: AlertTriangle },
       { title: "Tipos de Incidente", url: "/admin/incident-types", icon: Tag },
       { title: "Estado de Incidente", url: "/admin/incident-status", icon: FileText },
@@ -74,14 +66,19 @@ const menuSections = [
   {
     title: "Organización",
     items: [
-      { title: "Centros VIC", url: "/admin/vic-centers", icon: Building2 },
+      { title: "Centros CVV", url: "/admin/vic-centers", icon: Building2 },
       { title: "Estados", url: "/admin/states", icon: MapPin },
-      { title: "Horarios", url: "/admin/schedules", icon: Calendar },
+      { title: "Inventario", url: "/admin/parts", icon: Package },
     ],
   },
   {
-    title: "Inventario",
-    items: [{ title: "Partes", url: "/admin/parts", icon: Package }],
+    title: "Gestión de Usuarios",
+    items: [
+      { title: "Usuarios", url: "/admin/users", icon: Users },
+      { title: "Roles", url: "/admin/roles", icon: Shield },
+      { title: "Permisos", url: "/admin/permissions", icon: Settings },
+      { title: "Estado de Usuario", url: "/admin/user-status", icon: UserCheck },
+    ],
   },
 ]
 

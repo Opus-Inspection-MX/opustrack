@@ -19,17 +19,17 @@ import { Plus, List, AlertTriangle, User } from "lucide-react"
 
 const menuItems = [
   {
-    title: "My Incidents",
+    title: "Mis Incidentes",
     url: "/client",
     icon: List,
   },
   {
-    title: "Report Incident",
+    title: "Reportar Incidente",
     url: "/client/new",
     icon: Plus,
   },
   {
-    title: "My Profile",
+    title: "Mi Perfil",
     url: "/profile",
     icon: User,
   },
@@ -46,7 +46,7 @@ export function ClientSidebar() {
             <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
               <AlertTriangle className="h-5 w-5 text-primary-foreground" />
             </div>
-            <span className="font-semibold">Client Portal</span>
+            <span className="font-semibold">Portal Cliente</span>
           </Link>
           <SidebarTrigger />
         </div>

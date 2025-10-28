@@ -25,12 +25,12 @@ export default async function FSRDashboardPage() {
 
   const getStatusBadge = (workOrder: any) => {
     if (workOrder.finishedAt) {
-      return <Badge variant="default" className="bg-green-600">Completed</Badge>;
+      return <Badge variant="default" className="bg-green-600">Completado</Badge>;
     }
     if (workOrder.startedAt) {
-      return <Badge variant="secondary">In Progress</Badge>;
+      return <Badge variant="secondary">En Progreso</Badge>;
     }
-    return <Badge variant="outline">Not Started</Badge>;
+    return <Badge variant="outline">No Iniciado</Badge>;
   };
 
   const getPriorityColor = (priority: number) => {
@@ -43,9 +43,9 @@ export default async function FSRDashboardPage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold">FSR Dashboard</h1>
+        <h1 className="text-3xl font-bold">Panel FSR</h1>
         <p className="text-muted-foreground mt-2">
-          Welcome back! Here's your work overview
+          ¡Bienvenido de nuevo! Aquí está tu resumen de trabajo
         </p>
       </div>
 
@@ -53,52 +53,52 @@ export default async function FSRDashboardPage() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Work Orders</CardTitle>
+            <CardTitle className="text-sm font-medium">Órdenes de Trabajo Totales</CardTitle>
             <Wrench className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.total}</div>
             <p className="text-xs text-muted-foreground">
-              Assigned to you
+              Asignadas a ti
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Not Started</CardTitle>
+            <CardTitle className="text-sm font-medium">No Iniciadas</CardTitle>
             <Clock className="h-4 w-4 text-gray-500" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.notStarted}</div>
             <p className="text-xs text-muted-foreground">
-              Waiting to begin
+              Esperando comenzar
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">In Progress</CardTitle>
+            <CardTitle className="text-sm font-medium">En Progreso</CardTitle>
             <AlertTriangle className="h-4 w-4 text-yellow-500" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.inProgress}</div>
             <p className="text-xs text-muted-foreground">
-              Currently working
+              Trabajando actualmente
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Completed</CardTitle>
+            <CardTitle className="text-sm font-medium">Completadas</CardTitle>
             <CheckCircle className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.completed}</div>
             <p className="text-xs text-muted-foreground">
-              Finished work orders
+              Órdenes terminadas
             </p>
           </CardContent>
         </Card>
@@ -110,10 +110,10 @@ export default async function FSRDashboardPage() {
           <CardHeader>
             <CardTitle className="text-red-700 dark:text-red-400 flex items-center gap-2">
               <AlertTriangle className="h-5 w-5" />
-              Urgent Work Orders ({urgentWorkOrders.length})
+              Órdenes de Trabajo Urgentes ({urgentWorkOrders.length})
             </CardTitle>
             <CardDescription className="text-red-600 dark:text-red-300">
-              High priority work orders requiring immediate attention
+              Órdenes de trabajo de alta prioridad que requieren atención inmediata
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -128,21 +128,21 @@ export default async function FSRDashboardPage() {
                       <div className="flex items-center gap-2 flex-wrap">
                         {getStatusBadge(wo)}
                         <Badge variant="outline" className={getPriorityColor(wo.incident?.priority || 0)}>
-                          Priority: {wo.incident?.priority || 0}/10
+                          Prioridad: {wo.incident?.priority || 0}/10
                         </Badge>
                       </div>
                       <h3 className="font-semibold">
-                        {wo.incident?.title || "No incident"}
+                        {wo.incident?.title || "Sin incidente"}
                       </h3>
                       <div className="text-sm text-muted-foreground">
                         {wo.incident?.vic && (
-                          <span>VIC: {wo.incident.vic.name}</span>
+                          <span>CVV: {wo.incident.vic.name}</span>
                         )}
                       </div>
                     </div>
                     <Button asChild size="sm">
                       <Link href={`/fsr/work-orders/${wo.id}`}>
-                        View
+                        Ver
                       </Link>
                     </Button>
                   </div>
@@ -157,20 +157,20 @@ export default async function FSRDashboardPage() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
-            <CardTitle>Recent Work Orders</CardTitle>
+            <CardTitle>Órdenes de Trabajo Recientes</CardTitle>
             <CardDescription>
-              Your most recent assigned work orders
+              Tus órdenes de trabajo asignadas más recientes
             </CardDescription>
           </div>
           <Button asChild variant="outline">
-            <Link href="/fsr/work-orders">View All</Link>
+            <Link href="/fsr/work-orders">Ver Todas</Link>
           </Button>
         </CardHeader>
         <CardContent>
           {workOrders.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <Wrench className="mx-auto h-12 w-12 mb-4 opacity-50" />
-              <p>No work orders assigned yet</p>
+              <p>No hay órdenes de trabajo asignadas aún</p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -184,33 +184,33 @@ export default async function FSRDashboardPage() {
                       <div className="flex items-center gap-2 flex-wrap">
                         {getStatusBadge(wo)}
                         <Badge variant="outline" className={getPriorityColor(wo.incident?.priority || 0)}>
-                          Priority: {wo.incident?.priority || 0}/10
+                          Prioridad: {wo.incident?.priority || 0}/10
                         </Badge>
                         {wo.incident?.type && (
                           <Badge variant="outline">{wo.incident.type.name}</Badge>
                         )}
                       </div>
                       <h3 className="font-semibold">
-                        {wo.incident?.title || "No incident"}
+                        {wo.incident?.title || "Sin incidente"}
                       </h3>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm text-muted-foreground">
                         {wo.incident?.vic && (
                           <div>
-                            <span className="font-medium">VIC:</span> {wo.incident.vic.name}
+                            <span className="font-medium">CVV:</span> {wo.incident.vic.name}
                           </div>
                         )}
                         <div>
-                          <span className="font-medium">Activities:</span> {wo._count?.workActivities || 0}
+                          <span className="font-medium">Actividades:</span> {wo._count?.workActivities || 0}
                         </div>
                         <div>
-                          <span className="font-medium">Created:</span>{" "}
+                          <span className="font-medium">Creada:</span>{" "}
                           {new Date(wo.createdAt).toLocaleDateString()}
                         </div>
                       </div>
                     </div>
                     <Button asChild>
                       <Link href={`/fsr/work-orders/${wo.id}`}>
-                        {wo.finishedAt ? "View" : "Work On It"}
+                        {wo.finishedAt ? "Ver" : "Trabajar en Esto"}
                       </Link>
                     </Button>
                   </div>
@@ -224,26 +224,26 @@ export default async function FSRDashboardPage() {
       {/* Quick Actions */}
       <Card>
         <CardHeader>
-          <CardTitle>Quick Actions</CardTitle>
+          <CardTitle>Acciones Rápidas</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Button asChild variant="outline" className="h-auto py-4">
               <Link href="/fsr/work-orders" className="flex flex-col items-center gap-2">
                 <Wrench className="h-6 w-6" />
-                <span>View All Work Orders</span>
+                <span>Ver Todas las Órdenes</span>
               </Link>
             </Button>
             <Button asChild variant="outline" className="h-auto py-4">
               <Link href="/fsr/incidents" className="flex flex-col items-center gap-2">
                 <AlertTriangle className="h-6 w-6" />
-                <span>View Incidents</span>
+                <span>Ver Incidentes</span>
               </Link>
             </Button>
             <Button asChild variant="outline" className="h-auto py-4">
               <Link href="/profile" className="flex flex-col items-center gap-2">
                 <Calendar className="h-6 w-6" />
-                <span>My Profile</span>
+                <span>Mi Perfil</span>
               </Link>
             </Button>
           </div>
