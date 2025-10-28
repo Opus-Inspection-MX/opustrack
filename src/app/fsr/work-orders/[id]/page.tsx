@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Package, Activity, Paperclip, Trash2, AlertTriangle, ExternalLink, Play, CheckCircle } from "lucide-react";
+import { ArrowLeft, Package, Activity, Paperclip, Trash2, AlertTriangle, Play, CheckCircle } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,10 +11,10 @@ import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import { WorkActivityForm } from "@/components/work-orders/work-activity-form";
 import { WorkActivityEdit } from "@/components/work-orders/work-activity-edit";
+import { AttachmentPreview } from "@/components/work-orders/attachment-preview";
 import { getWorkOrderById, deleteWorkOrderAttachment, startWorkOrder, completeWorkOrder } from "@/lib/actions/work-orders";
 import { getWorkActivities, deleteWorkActivity } from "@/lib/actions/work-activities";
 import { getWorkParts } from "@/lib/actions/work-parts";
-import { formatFileSize, getFileIcon } from "@/lib/upload";
 
 export default function FSRWorkOrderDetailPage({
   params,
@@ -396,53 +396,19 @@ export default function FSRWorkOrderDetailPage({
         )}
 
         {attachments.length > 0 && (
-          <Card>
-            <CardContent className="p-0">
-              <div className="divide-y">
-                {attachments.map((attachment: any) => (
-                  <div
-                    key={attachment.id}
-                    className="p-4 flex items-center justify-between hover:bg-muted/50"
-                  >
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                      <span className="text-2xl">
-                        {getFileIcon(attachment.mimetype)}
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <a
-                          href={attachment.filepath}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-sm font-medium hover:underline truncate block"
-                        >
-                          {attachment.filename}
-                        </a>
-                        <p className="text-xs text-muted-foreground">
-                          {formatFileSize(attachment.size)} •{" "}
-                          {new Date(attachment.uploadedAt).toLocaleDateString()}
-                        </p>
-                        {attachment.description && (
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {attachment.description}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                    {!isCompleted && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDeleteAttachment(attachment.id)}
-                        className="text-destructive"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+          <div className="grid grid-cols-1 gap-3">
+            {attachments.map((attachment: any) => (
+              <Card key={attachment.id}>
+                <CardContent className="p-0">
+                  <AttachmentPreview
+                    attachment={attachment}
+                    onDelete={!isCompleted ? handleDeleteAttachment : undefined}
+                    readOnly={isCompleted}
+                  />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         )}
       </div>
 

@@ -4,9 +4,10 @@ import { getWorkParts } from "@/lib/actions/work-parts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Calendar, User, AlertTriangle, ExternalLink } from "lucide-react";
+import { ArrowLeft, Calendar, User, AlertTriangle, ExternalLink, Paperclip } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { AttachmentPreview } from "@/components/work-orders/attachment-preview";
 
 export default async function WorkOrderDetailPage({
   params,
@@ -239,6 +240,33 @@ export default async function WorkOrderDetailPage({
                     .toFixed(2)}
                 </p>
               </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Attachments */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Paperclip className="h-5 w-5" />
+            Adjuntos ({workOrder.attachments?.length || 0})
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {!workOrder.attachments || workOrder.attachments.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">
+              No hay archivos adjuntos
+            </p>
+          ) : (
+            <div className="grid grid-cols-1 gap-3">
+              {workOrder.attachments.map((attachment: any) => (
+                <AttachmentPreview
+                  key={attachment.id}
+                  attachment={attachment}
+                  readOnly={true}
+                />
+              ))}
             </div>
           )}
         </CardContent>
