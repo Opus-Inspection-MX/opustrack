@@ -106,13 +106,13 @@ export default async function FSRDashboardPage() {
 
       {/* Urgent Work Orders */}
       {urgentWorkOrders.length > 0 && (
-        <Card className="border-red-200 bg-red-50/50">
+        <Card className="border-red-200 bg-red-50/50 dark:border-red-800 dark:bg-red-950/30">
           <CardHeader>
-            <CardTitle className="text-red-700 flex items-center gap-2">
+            <CardTitle className="text-red-700 dark:text-red-400 flex items-center gap-2">
               <AlertTriangle className="h-5 w-5" />
               Urgent Work Orders ({urgentWorkOrders.length})
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="text-red-600 dark:text-red-300">
               High priority work orders requiring immediate attention
             </CardDescription>
           </CardHeader>
@@ -121,7 +121,7 @@ export default async function FSRDashboardPage() {
               {urgentWorkOrders.map((wo) => (
                 <div
                   key={wo.id}
-                  className="bg-white border border-red-200 rounded-lg p-4"
+                  className="bg-white dark:bg-slate-800 border border-red-200 dark:border-red-800 rounded-lg p-4"
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 space-y-2">
