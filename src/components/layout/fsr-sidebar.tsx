@@ -30,7 +30,7 @@ const menuItems = [
   },
   {
     title: "Mi Perfil",
-    url: "/profile",
+    url: "/fsr/profile",
     icon: User,
   },
 ]

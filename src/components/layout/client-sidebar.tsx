@@ -30,7 +30,7 @@ const menuItems = [
   },
   {
     title: "Mi Perfil",
-    url: "/profile",
+    url: "/client/profile",
     icon: User,
   },
 ]

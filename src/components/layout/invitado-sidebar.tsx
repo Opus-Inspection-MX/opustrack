@@ -20,7 +20,7 @@ import { User } from "lucide-react"
 const menuItems = [
   {
     title: "Mi Perfil",
-    url: "/profile",
+    url: "/guest/profile",
     icon: User,
   },
 ]
