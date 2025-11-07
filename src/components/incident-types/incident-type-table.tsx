@@ -40,12 +40,12 @@ export function IncidentTypeTable({ data, onEdit, onDelete, onView }: IncidentTy
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Description</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Incidents</TableHead>
-              <TableHead>Created</TableHead>
-              <TableHead className="w-[70px]">Actions</TableHead>
+              <TableHead>Nombre</TableHead>
+              <TableHead>Descripción</TableHead>
+              <TableHead>Estado</TableHead>
+              <TableHead>Incidentes</TableHead>
+              <TableHead>Creado</TableHead>
+              <TableHead className="w-[70px]">Acciones</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -58,11 +58,11 @@ export function IncidentTypeTable({ data, onEdit, onDelete, onView }: IncidentTy
                       {type.description.length > 50 ? `${type.description.substring(0, 50)}...` : type.description}
                     </span>
                   ) : (
-                    <span className="text-sm text-muted-foreground italic">No description</span>
+                    <span className="text-sm text-muted-foreground italic">Sin descripción</span>
                   )}
                 </TableCell>
                 <TableCell>
-                  <Badge variant={type.active ? "default" : "secondary"}>{type.active ? "Active" : "Inactive"}</Badge>
+                  <Badge variant={type.active ? "default" : "secondary"}>{type.active ? "Activo" : "Inactivo"}</Badge>
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-1">
@@ -81,11 +81,11 @@ export function IncidentTypeTable({ data, onEdit, onDelete, onView }: IncidentTy
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem onClick={() => onView(type.id)}>
                         <Eye className="mr-2 h-4 w-4" />
-                        View
+                        Ver
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => onEdit(type.id)}>
                         <Edit className="mr-2 h-4 w-4" />
-                        Edit
+                        Editar
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         onClick={() => onDelete(type.id)}
@@ -93,7 +93,7 @@ export function IncidentTypeTable({ data, onEdit, onDelete, onView }: IncidentTy
                         className="text-red-600"
                       >
                         <Trash2 className="mr-2 h-4 w-4" />
-                        Delete
+                        Eliminar
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>

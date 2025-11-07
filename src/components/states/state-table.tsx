@@ -49,12 +49,12 @@ export function StateTable({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Code</TableHead>
-              <TableHead>VIC Centers</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Created</TableHead>
-              <TableHead className="w-[70px]">Actions</TableHead>
+              <TableHead>Nombre</TableHead>
+              <TableHead>Código</TableHead>
+              <TableHead>Centros CVV</TableHead>
+              <TableHead>Estado</TableHead>
+              <TableHead>Creado</TableHead>
+              <TableHead className="w-[70px]">Acciones</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -72,14 +72,14 @@ export function StateTable({
                   </Badge>
                 </TableCell>
                 <TableCell>
-                  <Badge variant="secondary">{state.vicCount} centers</Badge>
+                  <Badge variant="secondary">{state.vicCount} centros</Badge>
                 </TableCell>
                 <TableCell>
                   <Badge
                     variant={state.active ? "default" : "destructive"}
                     className={state.active ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}
                   >
-                    {state.active ? "Active" : "Inactive"}
+                    {state.active ? "Activo" : "Inactivo"}
                   </Badge>
                 </TableCell>
                 <TableCell className="text-sm text-muted-foreground">
@@ -95,11 +95,11 @@ export function StateTable({
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem onClick={() => onView(state.id)}>
                         <Eye className="mr-2 h-4 w-4" />
-                        View
+                        Ver
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => onEdit(state.id)}>
                         <Edit className="mr-2 h-4 w-4" />
-                        Edit
+                        Editar
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         onClick={() => onDelete(state.id)}
@@ -107,7 +107,7 @@ export function StateTable({
                         disabled={state.vicCount > 0}
                       >
                         <Trash2 className="mr-2 h-4 w-4" />
-                        Delete
+                        Eliminar
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>

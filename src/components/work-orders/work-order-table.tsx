@@ -45,8 +45,8 @@ export function WorkOrderTable({ workOrders, onDelete }: WorkOrderTableProps) {
   }
 
   const calculateDuration = (startedAt: string, finishedAt: string | null) => {
-    if (!startedAt) return "Not started"
-    if (!finishedAt) return "In progress"
+    if (!startedAt) return "No iniciado"
+    if (!finishedAt) return "En progreso"
 
     const start = new Date(startedAt)
     const end = new Date(finishedAt)
@@ -62,13 +62,13 @@ export function WorkOrderTable({ workOrders, onDelete }: WorkOrderTableProps) {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Work Order ID</TableHead>
-            <TableHead>Related Incident</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Assigned To</TableHead>
-            <TableHead>Duration</TableHead>
-            <TableHead>Activities</TableHead>
-            <TableHead>Created</TableHead>
+            <TableHead>ID Orden de Trabajo</TableHead>
+            <TableHead>Incidente Relacionado</TableHead>
+            <TableHead>Estado</TableHead>
+            <TableHead>Asignado A</TableHead>
+            <TableHead>Duración</TableHead>
+            <TableHead>Actividades</TableHead>
+            <TableHead>Creado</TableHead>
             <TableHead className="w-10"></TableHead>
           </TableRow>
         </TableHeader>
@@ -102,7 +102,7 @@ export function WorkOrderTable({ workOrders, onDelete }: WorkOrderTableProps) {
                     </Badge>
                   )}
                   {!workOrder.status && (
-                    <span className="text-sm text-muted-foreground">No status</span>
+                    <span className="text-sm text-muted-foreground">Sin estado</span>
                   )}
                 </TableCell>
                 <TableCell>
@@ -115,25 +115,25 @@ export function WorkOrderTable({ workOrders, onDelete }: WorkOrderTableProps) {
                   <div className="text-sm">{calculateDuration(workOrder.startedAt, workOrder.finishedAt)}</div>
                 </TableCell>
                 <TableCell>
-                  <Badge variant="outline">{workOrder.workActivities.length} activities</Badge>
+                  <Badge variant="outline">{workOrder.workActivities.length} actividades</Badge>
                 </TableCell>
                 <TableCell className="text-sm">{formatDate(workOrder.createdAt)}</TableCell>
                 <TableCell>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                        <span className="sr-only">Open menu</span>
+                        <span className="sr-only">Abrir menú</span>
                         <MoreHorizontal className="h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem onClick={() => handleEdit(workOrder)}>
                         <Edit className="h-4 w-4 mr-2" />
-                        Edit
+                        Editar
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => onDelete(workOrder.id)} className="text-destructive">
                         <Trash2 className="h-4 w-4 mr-2" />
-                        Delete
+                        Eliminar
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>

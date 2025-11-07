@@ -85,14 +85,14 @@ export function WorkPartTable({ data, onEdit, onDelete, onView }: WorkPartTableP
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Part</TableHead>
-              <TableHead>Quantity</TableHead>
-              <TableHead>Unit Price</TableHead>
+              <TableHead>Parte</TableHead>
+              <TableHead>Cantidad</TableHead>
+              <TableHead>Precio Unitario</TableHead>
               <TableHead>Total</TableHead>
-              <TableHead>Work Order</TableHead>
-              <TableHead>Activity</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="w-[70px]">Actions</TableHead>
+              <TableHead>Orden de Trabajo</TableHead>
+              <TableHead>Actividad</TableHead>
+              <TableHead>Estado</TableHead>
+              <TableHead className="w-[70px]">Acciones</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -110,7 +110,7 @@ export function WorkPartTable({ data, onEdit, onDelete, onView }: WorkPartTableP
                   </div>
                 </TableCell>
                 <TableCell>
-                  <Badge variant="outline">{workPart.quantity} units</Badge>
+                  <Badge variant="outline">{workPart.quantity} unidades</Badge>
                 </TableCell>
                 <TableCell className="font-mono">{formatPrice(workPart.price)}</TableCell>
                 <TableCell className="font-mono font-semibold">
@@ -150,7 +150,7 @@ export function WorkPartTable({ data, onEdit, onDelete, onView }: WorkPartTableP
                 </TableCell>
                 <TableCell>
                   <Badge variant={workPart.active ? "default" : "secondary"}>
-                    {workPart.active ? "Active" : "Inactive"}
+                    {workPart.active ? "Activo" : "Inactivo"}
                   </Badge>
                 </TableCell>
                 <TableCell>
@@ -163,15 +163,15 @@ export function WorkPartTable({ data, onEdit, onDelete, onView }: WorkPartTableP
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem onClick={() => onView(workPart.id)}>
                         <Eye className="mr-2 h-4 w-4" />
-                        View
+                        Ver
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => onEdit(workPart.id)}>
                         <Edit className="mr-2 h-4 w-4" />
-                        Edit
+                        Editar
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => onDelete(workPart.id)} className="text-red-600">
                         <Trash2 className="mr-2 h-4 w-4" />
-                        Delete
+                        Eliminar
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>

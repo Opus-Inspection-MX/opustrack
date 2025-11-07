@@ -42,12 +42,12 @@ export function WorkActivityTable({ data, onEdit, onDelete, onView }: WorkActivi
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Description</TableHead>
-              <TableHead>Work Order</TableHead>
-              <TableHead>Performed At</TableHead>
-              <TableHead>Parts Used</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="w-[70px]">Actions</TableHead>
+              <TableHead>Descripción</TableHead>
+              <TableHead>Orden de Trabajo</TableHead>
+              <TableHead>Realizado</TableHead>
+              <TableHead>Partes Usadas</TableHead>
+              <TableHead>Estado</TableHead>
+              <TableHead className="w-[70px]">Acciones</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -73,11 +73,11 @@ export function WorkActivityTable({ data, onEdit, onDelete, onView }: WorkActivi
                 </TableCell>
                 <TableCell>{new Date(activity.performedAt).toLocaleString()}</TableCell>
                 <TableCell>
-                  <Badge variant="outline">{activity.partsCount} parts</Badge>
+                  <Badge variant="outline">{activity.partsCount} partes</Badge>
                 </TableCell>
                 <TableCell>
                   <Badge variant={activity.active ? "default" : "secondary"}>
-                    {activity.active ? "Active" : "Inactive"}
+                    {activity.active ? "Activo" : "Inactivo"}
                   </Badge>
                 </TableCell>
                 <TableCell>
@@ -90,15 +90,15 @@ export function WorkActivityTable({ data, onEdit, onDelete, onView }: WorkActivi
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem onClick={() => onView(activity.id)}>
                         <Eye className="mr-2 h-4 w-4" />
-                        View
+                        Ver
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => onEdit(activity.id)}>
                         <Edit className="mr-2 h-4 w-4" />
-                        Edit
+                        Editar
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => onDelete(activity.id)} className="text-red-600">
                         <Trash2 className="mr-2 h-4 w-4" />
-                        Delete
+                        Eliminar
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>

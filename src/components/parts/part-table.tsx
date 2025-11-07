@@ -63,12 +63,12 @@ export function PartTable({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Description</TableHead>
-              <TableHead>VIC</TableHead>
-              <TableHead>Price</TableHead>
+              <TableHead>Nombre</TableHead>
+              <TableHead>Descripción</TableHead>
+              <TableHead>CVV</TableHead>
+              <TableHead>Precio</TableHead>
               <TableHead>Stock</TableHead>
-              <TableHead>Status</TableHead>
+              <TableHead>Estado</TableHead>
               <TableHead className="w-10"></TableHead>
             </TableRow>
           </TableHeader>
@@ -91,33 +91,33 @@ export function PartTable({
                 </TableCell>
                 <TableCell className="font-mono">{formatPrice(part.price)}</TableCell>
                 <TableCell>
-                  <Badge className={getStockColor(part.stock)}>{part.stock} units</Badge>
+                  <Badge className={getStockColor(part.stock)}>{part.stock} unidades</Badge>
                 </TableCell>
                 <TableCell>
                   <Badge className={part.active ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}>
-                    {part.active ? "Active" : "Inactive"}
+                    {part.active ? "Activo" : "Inactivo"}
                   </Badge>
                 </TableCell>
                 <TableCell>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="ghost" className="h-8 w-8 p-0">
-                        <span className="sr-only">Open menu</span>
+                        <span className="sr-only">Abrir menú</span>
                         <MoreHorizontal className="h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem onClick={() => onView(part.id)}>
                         <Eye className="mr-2 h-4 w-4" />
-                        View
+                        Ver
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => onEdit(part.id)}>
                         <Edit className="mr-2 h-4 w-4" />
-                        Edit
+                        Editar
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => onDelete(part.id)} className="text-destructive">
                         <Trash2 className="mr-2 h-4 w-4" />
-                        Delete
+                        Eliminar
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>

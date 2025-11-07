@@ -42,11 +42,11 @@ export function ScheduleTable({ data, onEdit, onDelete, onView }: ScheduleTableP
     const scheduleDate = new Date(scheduledAt)
 
     if (scheduleDate < now) {
-      return { label: "Past", variant: "secondary" as const }
+      return { label: "Pasado", variant: "secondary" as const }
     } else if (scheduleDate.toDateString() === now.toDateString()) {
-      return { label: "Today", variant: "default" as const }
+      return { label: "Hoy", variant: "default" as const }
     } else {
-      return { label: "Upcoming", variant: "outline" as const }
+      return { label: "Próximo", variant: "outline" as const }
     }
   }
 
@@ -56,13 +56,13 @@ export function ScheduleTable({ data, onEdit, onDelete, onView }: ScheduleTableP
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Title</TableHead>
-              <TableHead>VIC Center</TableHead>
-              <TableHead>Scheduled Date</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Incidents</TableHead>
-              <TableHead>Active</TableHead>
-              <TableHead className="w-[70px]">Actions</TableHead>
+              <TableHead>Título</TableHead>
+              <TableHead>Centro CVV</TableHead>
+              <TableHead>Fecha Programada</TableHead>
+              <TableHead>Estado</TableHead>
+              <TableHead>Incidentes</TableHead>
+              <TableHead>Activo</TableHead>
+              <TableHead className="w-[70px]">Acciones</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -102,7 +102,7 @@ export function ScheduleTable({ data, onEdit, onDelete, onView }: ScheduleTableP
                   </TableCell>
                   <TableCell>
                     <Badge variant={schedule.active ? "default" : "secondary"}>
-                      {schedule.active ? "Active" : "Inactive"}
+                      {schedule.active ? "Activo" : "Inactivo"}
                     </Badge>
                   </TableCell>
                   <TableCell>
@@ -115,11 +115,11 @@ export function ScheduleTable({ data, onEdit, onDelete, onView }: ScheduleTableP
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem onClick={() => onView(schedule.id)}>
                           <Eye className="mr-2 h-4 w-4" />
-                          View
+                          Ver
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => onEdit(schedule.id)}>
                           <Edit className="mr-2 h-4 w-4" />
-                          Edit
+                          Editar
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           onClick={() => onDelete(schedule.id)}
@@ -127,7 +127,7 @@ export function ScheduleTable({ data, onEdit, onDelete, onView }: ScheduleTableP
                           className="text-red-600"
                         >
                           <Trash2 className="mr-2 h-4 w-4" />
-                          Delete
+                          Eliminar
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>

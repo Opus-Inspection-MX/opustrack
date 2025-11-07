@@ -55,11 +55,11 @@ export function PermissionTable({ permissions, onEdit, onDelete, onView }: Permi
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Permission</TableHead>
-              <TableHead>Category</TableHead>
-              <TableHead>Description</TableHead>
+              <TableHead>Permiso</TableHead>
+              <TableHead>Categoría</TableHead>
+              <TableHead>Descripción</TableHead>
               <TableHead>Roles</TableHead>
-              <TableHead>Status</TableHead>
+              <TableHead>Estado</TableHead>
               <TableHead className="w-10"></TableHead>
             </TableRow>
           </TableHeader>
@@ -86,7 +86,7 @@ export function PermissionTable({ permissions, onEdit, onDelete, onView }: Permi
                           : permission.description}
                       </span>
                     ) : (
-                      <span className="text-sm text-muted-foreground italic">No description</span>
+                      <span className="text-sm text-muted-foreground italic">Sin descripción</span>
                     )}
                   </div>
                 </TableCell>
@@ -98,25 +98,25 @@ export function PermissionTable({ permissions, onEdit, onDelete, onView }: Permi
                 </TableCell>
                 <TableCell>
                   <Badge variant={permission.active ? "default" : "secondary"}>
-                    {permission.active ? "Active" : "Inactive"}
+                    {permission.active ? "Activo" : "Inactivo"}
                   </Badge>
                 </TableCell>
                 <TableCell>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="ghost" className="h-8 w-8 p-0">
-                        <span className="sr-only">Open menu</span>
+                        <span className="sr-only">Abrir menú</span>
                         <MoreHorizontal className="h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem onClick={() => onView(permission)}>
                         <Eye className="mr-2 h-4 w-4" />
-                        View
+                        Ver
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => onEdit(permission)}>
                         <Edit className="mr-2 h-4 w-4" />
-                        Edit
+                        Editar
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         onClick={() => onDelete(permission)}
@@ -124,7 +124,7 @@ export function PermissionTable({ permissions, onEdit, onDelete, onView }: Permi
                         disabled={permission.roleCount > 0}
                       >
                         <Trash2 className="mr-2 h-4 w-4" />
-                        Delete
+                        Eliminar
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
