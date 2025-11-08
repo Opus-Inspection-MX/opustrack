@@ -196,3 +196,33 @@ export async function updateWorkOrderFSR(workOrderId: number, fsrId: string) {
     throw new Error("Failed to update work order FSR");
   }
 }
+
+export async function updateIncidentDetails(
+  incidentId: number,
+  data: {
+    title: string;
+    description: string;
+    reportedAt: string;
+    resolvedAt?: string | null;
+    statusId: number;
+  }
+) {
+  try {
+    await prisma.incident.update({
+      where: { id: incidentId },
+      data: {
+        title: data.title,
+        description: data.description,
+        reportedAt: new Date(data.reportedAt),
+        resolvedAt: data.resolvedAt ? new Date(data.resolvedAt) : null,
+        statusId: data.statusId,
+      },
+    });
+
+    revalidatePath("/admin/tracking");
+    return { success: true };
+  } catch (error) {
+    console.error("Error updating incident:", error);
+    throw new Error("Failed to update incident");
+  }
+}

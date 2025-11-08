@@ -6,7 +6,9 @@ import { TrackingTable } from "@/components/tracking/tracking-table"
 import { getIncidentsForTracking, getFSRsByVicId } from "@/lib/actions/tracking"
 import { getVICs } from "@/lib/actions/vics"
 import { getIncidentTypes, getIncidentStatuses } from "@/lib/actions/lookups"
-import { Loader2, ClipboardList } from "lucide-react"
+import { Loader2, ClipboardList, Plus } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import Link from "next/link"
 
 export default function TrackingPage() {
   const [incidents, setIncidents] = useState<any[]>([])
@@ -28,6 +30,8 @@ export default function TrackingPage() {
 
   const loadInitialData = async () => {
     try {
+      const today = new Date().toISOString().split('T')[0]
+
       const [vicsData, typesData, statusesData] = await Promise.all([
         getVICs(),
         getIncidentTypes(),
@@ -60,8 +64,8 @@ export default function TrackingPage() {
       )
       setAllFsrs(uniqueFsrs)
 
-      // Load initial incidents
-      await loadIncidents({})
+      // Load initial incidents for today only
+      await loadIncidents({ startDate: today, endDate: today })
     } catch (error) {
       console.error("Error loading initial data:", error)
     } finally {
@@ -110,6 +114,14 @@ export default function TrackingPage() {
         incidentStatuses={incidentStatuses}
         fsrs={allFsrs}
         onFilterChange={handleFilterChange}
+        createButton={
+          <Button asChild>
+            <Link href="/admin/incidents/new">
+              <Plus className="h-4 w-4 mr-2" />
+              Crear Incidente
+            </Link>
+          </Button>
+        }
       />
 
       <div className="bg-muted/30 rounded-lg p-4">
@@ -118,7 +130,11 @@ export default function TrackingPage() {
         </div>
       </div>
 
-      <TrackingTable incidents={incidents} fsrsByVic={fsrsByVic} />
+      <TrackingTable
+        incidents={incidents}
+        fsrsByVic={fsrsByVic}
+        incidentStatuses={incidentStatuses}
+      />
     </div>
   )
 }

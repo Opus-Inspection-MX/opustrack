@@ -21,6 +21,7 @@ interface TrackingFiltersProps {
     endDate?: string
     assignedFsrId?: string
   }) => void
+  createButton?: React.ReactNode
 }
 
 export function TrackingFilters({
@@ -29,6 +30,7 @@ export function TrackingFilters({
   incidentStatuses,
   fsrs,
   onFilterChange,
+  createButton,
 }: TrackingFiltersProps) {
   const today = new Date().toISOString().split('T')[0]
   const [showFilters, setShowFilters] = useState(true)
@@ -86,6 +88,7 @@ export function TrackingFilters({
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2">
+        {createButton}
         <Button
           variant="outline"
           onClick={() => setShowFilters(!showFilters)}

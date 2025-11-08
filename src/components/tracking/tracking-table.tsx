@@ -6,10 +6,13 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { ChevronDown, ChevronRight, User, MoreHorizontal, Eye, Edit } from "lucide-react"
-import { updateWorkOrderFSR } from "@/lib/actions/tracking"
+import { ChevronDown, ChevronRight, User, MoreHorizontal, Eye, Edit, Save, X as XIcon } from "lucide-react"
+import { updateWorkOrderFSR, updateIncidentDetails } from "@/lib/actions/tracking"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { Label } from "@/components/ui/label"
 
 const statusColors: Record<string, string> = {
   Abierto: "bg-blue-100 text-blue-800",
@@ -35,12 +38,16 @@ const workOrderStatusColors: Record<string, string> = {
 interface TrackingTableProps {
   incidents: any[]
   fsrsByVic: Record<string, Array<{ id: string; name: string; email: string }>>
+  incidentStatuses: Array<{ id: number; name: string }>
 }
 
-export function TrackingTable({ incidents, fsrsByVic }: TrackingTableProps) {
+export function TrackingTable({ incidents, fsrsByVic, incidentStatuses }: TrackingTableProps) {
   const router = useRouter()
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set())
   const [assigningWorkOrder, setAssigningWorkOrder] = useState<number | null>(null)
+  const [editingIncident, setEditingIncident] = useState<number | null>(null)
+  const [editForm, setEditForm] = useState<any>({})
+  const [savingIncident, setSavingIncident] = useState(false)
 
   const toggleRowExpansion = (incidentId: number) => {
     const newExpanded = new Set(expandedRows)
@@ -64,6 +71,45 @@ export function TrackingTable({ incidents, fsrsByVic }: TrackingTableProps) {
       alert("Error al actualizar FSR")
     } finally {
       setAssigningWorkOrder(null)
+    }
+  }
+
+  const handleEditIncident = (incident: any) => {
+    setEditingIncident(incident.id)
+    const reportedDate = new Date(incident.reportedAt).toISOString().split('T')[0]
+    const resolvedDate = incident.resolvedAt ? new Date(incident.resolvedAt).toISOString().split('T')[0] : ''
+    setEditForm({
+      title: incident.title,
+      description: incident.description,
+      reportedAt: reportedDate,
+      resolvedAt: resolvedDate,
+      statusId: incident.status?.id || '',
+    })
+  }
+
+  const handleCancelEdit = () => {
+    setEditingIncident(null)
+    setEditForm({})
+  }
+
+  const handleSaveIncident = async (incidentId: number) => {
+    setSavingIncident(true)
+    try {
+      await updateIncidentDetails(incidentId, {
+        title: editForm.title,
+        description: editForm.description,
+        reportedAt: editForm.reportedAt,
+        resolvedAt: editForm.resolvedAt || null,
+        statusId: parseInt(editForm.statusId),
+      })
+      setEditingIncident(null)
+      setEditForm({})
+      router.refresh()
+    } catch (error) {
+      console.error("Error updating incident:", error)
+      alert("Error al actualizar incidente")
+    } finally {
+      setSavingIncident(false)
     }
   }
 
@@ -193,34 +239,122 @@ export function TrackingTable({ incidents, fsrsByVic }: TrackingTableProps) {
                           {/* Actions Menu */}
                           <div className="flex items-center justify-between pb-4 border-b">
                             <h4 className="font-semibold">Detalles del Incidente</h4>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="outline" size="sm" className="gap-2">
-                                  <MoreHorizontal className="h-4 w-4" />
-                                  Acciones
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem asChild>
-                                  <Link href={`/admin/incidents/${incident.id}`}>
-                                    <Eye className="h-4 w-4 mr-2" />
-                                    Ver Incidente
-                                  </Link>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem asChild>
-                                  <Link href={`/admin/incidents/${incident.id}/edit`}>
+                            <div className="flex items-center gap-2">
+                              {editingIncident === incident.id ? (
+                                <>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={handleCancelEdit}
+                                    disabled={savingIncident}
+                                  >
+                                    <XIcon className="h-4 w-4 mr-2" />
+                                    Cancelar
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleSaveIncident(incident.id)}
+                                    disabled={savingIncident}
+                                  >
+                                    <Save className="h-4 w-4 mr-2" />
+                                    {savingIncident ? "Guardando..." : "Guardar"}
+                                  </Button>
+                                </>
+                              ) : (
+                                <>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleEditIncident(incident)}
+                                  >
                                     <Edit className="h-4 w-4 mr-2" />
-                                    Editar Incidente
-                                  </Link>
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                                    Editar
+                                  </Button>
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <Button variant="outline" size="sm" className="gap-2">
+                                        <MoreHorizontal className="h-4 w-4" />
+                                        Acciones
+                                      </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                      <DropdownMenuItem asChild>
+                                        <Link href={`/admin/incidents/${incident.id}`}>
+                                          <Eye className="h-4 w-4 mr-2" />
+                                          Ver Incidente
+                                        </Link>
+                                      </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
+                                </>
+                              )}
+                            </div>
                           </div>
 
-                          <div>
-                            <h4 className="font-semibold mb-2">Observaciones Completas</h4>
-                            <p className="text-sm">{incident.description}</p>
-                          </div>
+                          {editingIncident === incident.id ? (
+                            <div className="space-y-4 p-4 bg-background rounded-lg border">
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                  <Label htmlFor="title">Nombre del Incidente</Label>
+                                  <Input
+                                    id="title"
+                                    value={editForm.title}
+                                    onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+                                  />
+                                </div>
+                                <div className="space-y-2">
+                                  <Label htmlFor="statusId">Status</Label>
+                                  <Select
+                                    value={editForm.statusId.toString()}
+                                    onValueChange={(value) => setEditForm({ ...editForm, statusId: value })}
+                                  >
+                                    <SelectTrigger id="statusId">
+                                      <SelectValue placeholder="Seleccionar status" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {incidentStatuses.map((status) => (
+                                        <SelectItem key={status.id} value={status.id.toString()}>
+                                          {status.name}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                <div className="space-y-2">
+                                  <Label htmlFor="reportedAt">Fecha Inicio</Label>
+                                  <Input
+                                    id="reportedAt"
+                                    type="date"
+                                    value={editForm.reportedAt}
+                                    onChange={(e) => setEditForm({ ...editForm, reportedAt: e.target.value })}
+                                  />
+                                </div>
+                                <div className="space-y-2">
+                                  <Label htmlFor="resolvedAt">Fecha Fin</Label>
+                                  <Input
+                                    id="resolvedAt"
+                                    type="date"
+                                    value={editForm.resolvedAt}
+                                    onChange={(e) => setEditForm({ ...editForm, resolvedAt: e.target.value })}
+                                  />
+                                </div>
+                              </div>
+                              <div className="space-y-2">
+                                <Label htmlFor="description">Observaciones</Label>
+                                <Textarea
+                                  id="description"
+                                  rows={4}
+                                  value={editForm.description}
+                                  onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                                />
+                              </div>
+                            </div>
+                          ) : (
+                            <div>
+                              <h4 className="font-semibold mb-2">Observaciones Completas</h4>
+                              <p className="text-sm">{incident.description}</p>
+                            </div>
+                          )}
 
                           {incident.workOrders && incident.workOrders.length > 0 && (
                             <div>
