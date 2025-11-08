@@ -46,7 +46,7 @@ export function WorkActivityTable({ data, onEdit, onDelete, onView }: WorkActivi
               <TableHead>Orden de Trabajo</TableHead>
               <TableHead>Realizado</TableHead>
               <TableHead>Partes Usadas</TableHead>
-              <TableHead>Estado</TableHead>
+              <TableHead>Status</TableHead>
               <TableHead className="w-[70px]">Acciones</TableHead>
             </TableRow>
           </TableHeader>

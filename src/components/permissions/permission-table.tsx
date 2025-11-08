@@ -59,7 +59,7 @@ export function PermissionTable({ permissions, onEdit, onDelete, onView }: Permi
               <TableHead>Categoría</TableHead>
               <TableHead>Descripción</TableHead>
               <TableHead>Roles</TableHead>
-              <TableHead>Estado</TableHead>
+              <TableHead>Status</TableHead>
               <TableHead className="w-10"></TableHead>
             </TableRow>
           </TableHeader>

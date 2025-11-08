@@ -57,9 +57,9 @@ export function ScheduleTable({ data, onEdit, onDelete, onView }: ScheduleTableP
           <TableHeader>
             <TableRow>
               <TableHead>Título</TableHead>
-              <TableHead>Centro CVV</TableHead>
+              <TableHead>Cliente</TableHead>
               <TableHead>Fecha Programada</TableHead>
-              <TableHead>Estado</TableHead>
+              <TableHead>Status</TableHead>
               <TableHead>Incidentes</TableHead>
               <TableHead>Activo</TableHead>
               <TableHead className="w-[70px]">Acciones</TableHead>

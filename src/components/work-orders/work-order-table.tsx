@@ -14,6 +14,13 @@ const statusColors: Record<string, string> = {
   CANCELLED: "bg-red-100 text-red-800",
 }
 
+const statusLabels: Record<string, string> = {
+  PENDING: "Pendiente",
+  IN_PROGRESS: "En Progreso",
+  COMPLETED: "Completado",
+  CANCELLED: "Cancelado",
+}
+
 const statusIcons: Record<string, any> = {
   PENDING: Clock,
   IN_PROGRESS: AlertCircle,
@@ -64,7 +71,7 @@ export function WorkOrderTable({ workOrders, onDelete }: WorkOrderTableProps) {
           <TableRow>
             <TableHead>ID Orden de Trabajo</TableHead>
             <TableHead>Incidente Relacionado</TableHead>
-            <TableHead>Estado</TableHead>
+            <TableHead>Status</TableHead>
             <TableHead>Asignado A</TableHead>
             <TableHead>Duración</TableHead>
             <TableHead>Actividades</TableHead>
@@ -98,7 +105,7 @@ export function WorkOrderTable({ workOrders, onDelete }: WorkOrderTableProps) {
                 <TableCell>
                   {workOrder.status && (
                     <Badge variant="secondary">
-                      {workOrder.status.name}
+                      {statusLabels[workOrder.status.name] || workOrder.status.name}
                     </Badge>
                   )}
                   {!workOrder.status && (

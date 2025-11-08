@@ -29,6 +29,13 @@ const workOrderStatusColors: Record<string, string> = {
   CANCELLED: "bg-red-100 text-red-800",
 }
 
+const workOrderStatusLabels: Record<string, string> = {
+  PENDING: "Pendiente",
+  IN_PROGRESS: "En Progreso",
+  COMPLETED: "Completado",
+  CANCELLED: "Cancelado",
+}
+
 interface IncidentTableProps {
   incidents: any[]
   onDelete: (id: string) => void
@@ -68,9 +75,9 @@ export function IncidentTable({ incidents, onDelete }: IncidentTableProps) {
             <TableHead className="w-10"></TableHead>
             <TableHead>Título</TableHead>
             <TableHead>Prioridad</TableHead>
-            <TableHead>Estado</TableHead>
+            <TableHead>Status</TableHead>
             <TableHead>Tipo</TableHead>
-            <TableHead>VIC</TableHead>
+            <TableHead>Cliente</TableHead>
             <TableHead>Reportado Por</TableHead>
             <TableHead>Reportado El</TableHead>
             <TableHead>SLA (hrs)</TableHead>
@@ -170,7 +177,7 @@ export function IncidentTable({ incidents, onDelete }: IncidentTableProps) {
                             >
                               <div className="flex items-center gap-4">
                                 <Badge className={workOrderStatusColors[workOrder.status?.name] || "bg-gray-100 text-gray-800"}>
-                                  {workOrder.status?.name || "Sin estado"}
+                                  {workOrder.status?.name ? (workOrderStatusLabels[workOrder.status.name] || workOrder.status.name) : "Sin estado"}
                                 </Badge>
                                 <div>
                                   <div className="font-medium">OT #{workOrder.id}</div>

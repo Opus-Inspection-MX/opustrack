@@ -217,10 +217,10 @@ export function IncidentForm({ incident, types, statuses, vics, users, schedules
                 }
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar VIC" />
+                  <SelectValue placeholder="Seleccionar Cliente" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">Sin VIC</SelectItem>
+                  <SelectItem value="none">Sin Cliente</SelectItem>
                   {vics.map((vic) => (
                     <SelectItem key={vic.id} value={vic.id}>
                       {vic.name} ({vic.code})

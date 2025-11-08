@@ -85,7 +85,7 @@ export function WorkOrdersTable({ workOrders }: { workOrders: WorkOrder[] }) {
           <TableRow>
             <TableHead>Incidente</TableHead>
             <TableHead>Asignado A</TableHead>
-            <TableHead>Estado</TableHead>
+            <TableHead>Status</TableHead>
             <TableHead>Actividades</TableHead>
             <TableHead>Partes</TableHead>
             <TableHead>Fecha Creacion</TableHead>

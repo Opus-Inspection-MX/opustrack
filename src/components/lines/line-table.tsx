@@ -1,38 +1,48 @@
 "use client"
 
 import { useState } from "react"
-import { MoreHorizontal, Edit, Trash2, FileText, Eye } from "lucide-react"
+import { MoreHorizontal, Edit, Trash2, Eye, List } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { TablePagination } from "@/components/common/table-pagination"
 
-interface IncidentType {
+interface Line {
   id: number
   name: string
-  description?: string
+  description?: string | null
+  vic: { name: string; code: string }
+  equipments: any[]
   active: boolean
-  incidentCount: number
   createdAt: string
-  updatedAt: string
 }
 
-interface IncidentTypeTableProps {
-  data: IncidentType[]
+interface LineTableProps {
+  lines: Line[]
+  totalCount: number
+  currentPage: number
+  itemsPerPage: number
+  onPageChange: (page: number) => void
+  onItemsPerPageChange: (itemsPerPage: number) => void
   onEdit: (id: number) => void
   onDelete: (id: number) => void
   onView: (id: number) => void
 }
 
-export function IncidentTypeTable({ data, onEdit, onDelete, onView }: IncidentTypeTableProps) {
-  const [currentPage, setCurrentPage] = useState(1)
-  const [itemsPerPage, setItemsPerPage] = useState(10)
-
+export function LineTable({
+  lines,
+  totalCount,
+  currentPage,
+  itemsPerPage,
+  onPageChange,
+  onItemsPerPageChange,
+  onEdit,
+  onDelete,
+  onView,
+}: LineTableProps) {
   const startIndex = (currentPage - 1) * itemsPerPage
-  const endIndex = startIndex + itemsPerPage
-  const currentData = data.slice(startIndex, endIndex)
-  const totalPages = Math.ceil(data.length / itemsPerPage)
+  const endIndex = Math.min(startIndex + itemsPerPage, totalCount)
 
   return (
     <div className="space-y-4">
@@ -42,56 +52,55 @@ export function IncidentTypeTable({ data, onEdit, onDelete, onView }: IncidentTy
             <TableRow>
               <TableHead>Nombre</TableHead>
               <TableHead>Descripción</TableHead>
+              <TableHead>Cliente</TableHead>
+              <TableHead>Equipos</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead>Incidentes</TableHead>
-              <TableHead>Creado</TableHead>
-              <TableHead className="w-[70px]">Acciones</TableHead>
+              <TableHead className="w-10"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {currentData.map((type) => (
-              <TableRow key={type.id}>
-                <TableCell className="font-medium">{type.name}</TableCell>
+            {lines.map((line) => (
+              <TableRow key={line.id}>
                 <TableCell>
-                  {type.description ? (
-                    <span className="text-sm text-muted-foreground">
-                      {type.description.length > 50 ? `${type.description.substring(0, 50)}...` : type.description}
-                    </span>
-                  ) : (
-                    <span className="text-sm text-muted-foreground italic">Sin descripción</span>
-                  )}
-                </TableCell>
-                <TableCell>
-                  <Badge variant={type.active ? "default" : "secondary"}>{type.active ? "Activo" : "Inactivo"}</Badge>
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-1">
-                    <FileText className="h-4 w-4 text-muted-foreground" />
-                    <span>{type.incidentCount}</span>
+                  <div className="flex items-center gap-2">
+                    <List className="h-4 w-4 text-muted-foreground" />
+                    <span className="font-medium">{line.name}</span>
                   </div>
                 </TableCell>
-                <TableCell>{new Date(type.createdAt).toLocaleDateString()}</TableCell>
+                <TableCell>
+                  <span className="text-sm text-muted-foreground">{line.description || "-"}</span>
+                </TableCell>
+                <TableCell>
+                  <Badge variant="outline">
+                    {line.vic.name} ({line.vic.code})
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  <Badge variant="secondary">{line.equipments.length} equipos</Badge>
+                </TableCell>
+                <TableCell>
+                  <Badge className={line.active ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}>
+                    {line.active ? "Activo" : "Inactivo"}
+                  </Badge>
+                </TableCell>
                 <TableCell>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="ghost" className="h-8 w-8 p-0">
+                        <span className="sr-only">Abrir menú</span>
                         <MoreHorizontal className="h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => onView(type.id)}>
+                      <DropdownMenuItem onClick={() => onView(line.id)}>
                         <Eye className="mr-2 h-4 w-4" />
                         Ver
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => onEdit(type.id)}>
+                      <DropdownMenuItem onClick={() => onEdit(line.id)}>
                         <Edit className="mr-2 h-4 w-4" />
                         Editar
                       </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => onDelete(type.id)}
-                        disabled={type.incidentCount > 0}
-                        className="text-red-600"
-                      >
+                      <DropdownMenuItem onClick={() => onDelete(line.id)} className="text-destructive">
                         <Trash2 className="mr-2 h-4 w-4" />
                         Eliminar
                       </DropdownMenuItem>
@@ -106,13 +115,13 @@ export function IncidentTypeTable({ data, onEdit, onDelete, onView }: IncidentTy
 
       <TablePagination
         currentPage={currentPage}
-        totalPages={totalPages}
+        totalPages={Math.ceil(totalCount / itemsPerPage)}
         itemsPerPage={itemsPerPage}
-        totalItems={data.length}
+        totalItems={totalCount}
         startIndex={startIndex}
         endIndex={endIndex}
-        onPageChange={setCurrentPage}
-        onItemsPerPageChange={setItemsPerPage}
+        onPageChange={onPageChange}
+        onItemsPerPageChange={onItemsPerPageChange}
       />
     </div>
   )

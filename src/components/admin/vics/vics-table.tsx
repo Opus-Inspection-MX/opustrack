@@ -23,7 +23,6 @@ type VIC = {
   address: string | null;
   phone: string | null;
   email: string | null;
-  lines: number;
   state: {
     name: string;
   };
@@ -69,7 +68,6 @@ export function VICsTable({ vics }: { vics: VIC[] }) {
             <TableHead>Código</TableHead>
             <TableHead>Nombre</TableHead>
             <TableHead>Estado</TableHead>
-            <TableHead>Líneas</TableHead>
             <TableHead>Contacto</TableHead>
             <TableHead>Usuarios</TableHead>
             <TableHead>Incidentes</TableHead>
@@ -84,9 +82,6 @@ export function VICsTable({ vics }: { vics: VIC[] }) {
               <TableCell>{vic.name}</TableCell>
               <TableCell>
                 <Badge variant="outline">{vic.state.name}</Badge>
-              </TableCell>
-              <TableCell>
-                <Badge variant="secondary">{vic.lines}</Badge>
               </TableCell>
               <TableCell>
                 <div className="text-sm">

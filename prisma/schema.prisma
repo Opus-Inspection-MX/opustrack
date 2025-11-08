@@ -98,7 +98,6 @@ model VehicleInspectionCenter {
   phone       String?
   contact     String?
   email       String?
-  lines       Int        @default(1)
   stateId     Int
   state       State      @relation(fields: [stateId], references: [id])
   createdAt   DateTime   @default(now())
@@ -107,6 +106,7 @@ model VehicleInspectionCenter {
   schedules   Schedule[]
   incidents   Incident[]
   Part        Part[] // (conservamos el nombre para no romper tu código)
+  lines       Line[]
   active      Boolean    @default(true)
 }
 
@@ -270,4 +270,31 @@ model WorkPart {
 
   @@index([workOrderId])
   @@index([workActivityId])
+}
+
+model Line {
+  id          Int                     @id @default(autoincrement())
+  name        String
+  description String?
+  vicId       String
+  vic         VehicleInspectionCenter @relation(fields: [vicId], references: [id])
+  equipments  Equipment[]
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
+  active      Boolean                 @default(true)
+
+  @@index([vicId])
+}
+
+model Equipment {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String?
+  lineId      Int
+  line        Line     @relation(fields: [lineId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  active      Boolean  @default(true)
+
+  @@index([lineId])
 }

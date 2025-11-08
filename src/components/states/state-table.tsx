@@ -51,8 +51,8 @@ export function StateTable({
             <TableRow>
               <TableHead>Nombre</TableHead>
               <TableHead>Código</TableHead>
-              <TableHead>Centros CVV</TableHead>
-              <TableHead>Estado</TableHead>
+              <TableHead>Clientes</TableHead>
+              <TableHead>Status</TableHead>
               <TableHead>Creado</TableHead>
               <TableHead className="w-[70px]">Acciones</TableHead>
             </TableRow>

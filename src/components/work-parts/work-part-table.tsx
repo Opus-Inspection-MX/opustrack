@@ -91,7 +91,7 @@ export function WorkPartTable({ data, onEdit, onDelete, onView }: WorkPartTableP
               <TableHead>Total</TableHead>
               <TableHead>Orden de Trabajo</TableHead>
               <TableHead>Actividad</TableHead>
-              <TableHead>Estado</TableHead>
+              <TableHead>Status</TableHead>
               <TableHead className="w-[70px]">Acciones</TableHead>
             </TableRow>
           </TableHeader>

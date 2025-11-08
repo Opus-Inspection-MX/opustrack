@@ -10,7 +10,8 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Edit, Trash2, Eye, Package } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Edit, Trash2, Eye, Package, MoreHorizontal } from "lucide-react";
 import Link from "next/link";
 import { deletePart } from "@/lib/actions/parts";
 import { useRouter } from "next/navigation";
@@ -74,9 +75,9 @@ export function PartsTable({ parts }: { parts: Part[] }) {
             <TableHead>Descripcion</TableHead>
             <TableHead>Precio</TableHead>
             <TableHead>Stock</TableHead>
-            <TableHead>CVV</TableHead>
+            <TableHead>Cliente</TableHead>
             <TableHead>Usos</TableHead>
-            <TableHead className="text-right">Acciones</TableHead>
+            <TableHead className="w-10"></TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -109,27 +110,37 @@ export function PartsTable({ parts }: { parts: Part[] }) {
               <TableCell>
                 <Badge variant="outline">{part._count.workParts}</Badge>
               </TableCell>
-              <TableCell className="text-right">
-                <div className="flex justify-end gap-2">
-                  <Button variant="ghost" size="icon" asChild>
-                    <Link href={`/admin/parts/${part.id}`}>
-                      <Eye className="h-4 w-4" />
-                    </Link>
-                  </Button>
-                  <Button variant="ghost" size="icon" asChild>
-                    <Link href={`/admin/parts/${part.id}/edit`}>
-                      <Edit className="h-4 w-4" />
-                    </Link>
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleDelete(part.id, part.name)}
-                    disabled={deleting === part.id}
-                  >
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
-                </div>
+              <TableCell>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="h-8 w-8 p-0">
+                      <span className="sr-only">Abrir menú</span>
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem asChild>
+                      <Link href={`/admin/parts/${part.id}`}>
+                        <Eye className="mr-2 h-4 w-4" />
+                        Ver
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href={`/admin/parts/${part.id}/edit`}>
+                        <Edit className="mr-2 h-4 w-4" />
+                        Editar
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => handleDelete(part.id, part.name)}
+                      disabled={deleting === part.id}
+                      className="text-destructive"
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Eliminar
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </TableCell>
             </TableRow>
           ))}

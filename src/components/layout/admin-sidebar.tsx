@@ -36,6 +36,8 @@ import {
   Activity,
   FileText,
   Cog,
+  List,
+  ClipboardList,
 } from "lucide-react"
 
 const menuSections = [
@@ -49,6 +51,7 @@ const menuSections = [
   {
     title: "Gestión de Incidentes",
     items: [
+      { title: "Seguimiento de Atención", url: "/admin/tracking", icon: ClipboardList },
       { title: "Horarios", url: "/admin/schedules", icon: Calendar },
       { title: "Incidentes", url: "/admin/incidents", icon: AlertTriangle },
       { title: "Tipos de Incidente", url: "/admin/incident-types", icon: Tag },
@@ -66,7 +69,9 @@ const menuSections = [
   {
     title: "Organización",
     items: [
-      { title: "Centros CVV", url: "/admin/vic-centers", icon: Building2 },
+      { title: "Clientes", url: "/admin/vic-centers", icon: Building2 },
+      { title: "Líneas", url: "/admin/lines", icon: List },
+      { title: "Equipos", url: "/admin/equipments", icon: Wrench },
       { title: "Estados", url: "/admin/states", icon: MapPin },
       { title: "Inventario", url: "/admin/parts", icon: Package },
     ],

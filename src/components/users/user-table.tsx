@@ -85,8 +85,8 @@ export function UserTable({ users, onDelete }: UserTableProps) {
                 <TableHead>Nombre</TableHead>
                 <TableHead>Correo</TableHead>
                 <TableHead>Rol</TableHead>
-                <TableHead>Estado</TableHead>
-                <TableHead>Centro VIC</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Cliente</TableHead>
                 <TableHead>Creado</TableHead>
                 <TableHead className="w-10"></TableHead>
               </TableRow>

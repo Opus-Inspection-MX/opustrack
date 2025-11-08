@@ -27,7 +27,6 @@ type VICFormProps = {
     phone: string | null;
     contact: string | null;
     email: string | null;
-    lines: number;
     stateId: number;
   };
   states: Array<{ id: number; name: string }>;
@@ -47,7 +46,6 @@ export function VICForm({ vic, states }: VICFormProps) {
     phone: vic?.phone || "",
     contact: vic?.contact || "",
     email: vic?.email || "",
-    lines: vic?.lines || 1,
     stateId: vic?.stateId || states[0]?.id || 0,
   });
 
@@ -154,21 +152,6 @@ export function VICForm({ vic, states }: VICFormProps) {
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="lines">Líneas de Verificación *</Label>
-              <Input
-                id="lines"
-                type="number"
-                min={1}
-                max={10}
-                value={formData.lines}
-                onChange={(e) =>
-                  setFormData({ ...formData, lines: parseInt(e.target.value) || 1 })
-                }
-                required
-              />
             </div>
           </div>
 

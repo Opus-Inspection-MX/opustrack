@@ -250,7 +250,7 @@ export default function FSRProfilePage() {
                 <div className="flex items-center gap-3">
                   <Building className="h-5 w-5 text-muted-foreground" />
                   <div>
-                    <p className="text-sm text-muted-foreground">CVV</p>
+                    <p className="text-sm text-muted-foreground">Cliente</p>
                     <p className="font-medium">
                       {user.vic ? `${user.vic.name} (${user.vic.code})` : "No asignado"}
                     </p>
@@ -519,7 +519,7 @@ export default function FSRProfilePage() {
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <p className="text-sm text-muted-foreground">Estado</p>
+                <p className="text-sm text-muted-foreground">Status</p>
                 <Badge
                   variant={
                     user.userStatus.name === "ACTIVO" ? "default" : "secondary"

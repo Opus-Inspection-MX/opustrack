@@ -14,7 +14,6 @@ export type VICFormData = {
   phone?: string;
   contact?: string;
   email?: string;
-  lines: number;
   stateId: number;
 };
 
@@ -103,7 +102,6 @@ export async function createVIC(data: VICFormData) {
       phone: data.phone || null,
       contact: data.contact || null,
       email: data.email || null,
-      lines: data.lines,
       stateId: data.stateId,
     },
     include: {
@@ -132,7 +130,6 @@ export async function updateVIC(id: string, data: VICFormData) {
       phone: data.phone || null,
       contact: data.contact || null,
       email: data.email || null,
-      lines: data.lines,
       stateId: data.stateId,
     },
     include: {
