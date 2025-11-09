@@ -42,7 +42,6 @@ async function main() {
         rfc: "VICCDMX123456",
         companyName: "OpusInspection CDMX",
         stateId: state.id,
-        lines: 3,
       },
     });
     console.log("✅ Seeded VehicleInspectionCenter");

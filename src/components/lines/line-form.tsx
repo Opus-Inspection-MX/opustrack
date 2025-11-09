@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Loader2 } from "lucide-react"
 import { FormError } from "@/components/ui/form-error"
 import { createLine, updateLine } from "@/lib/actions/lines"
-import { getVicCenters } from "@/lib/actions/vic-centers"
+import { getVICs } from "@/lib/actions/vics"
 
 interface LineFormProps {
   line?: {
@@ -42,7 +42,7 @@ export function LineForm({ line, mode }: LineFormProps) {
 
   const loadVics = async () => {
     try {
-      const data = await getVicCenters()
+      const data = await getVICs()
       setVics(data)
     } catch (error) {
       console.error("Error loading VICs:", error)

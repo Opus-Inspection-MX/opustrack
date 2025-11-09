@@ -158,7 +158,7 @@ export default async function VICDetailPage({
               <Wrench className="h-5 w-5 text-muted-foreground mt-0.5" />
               <div className="flex-1">
                 <p className="text-sm text-muted-foreground">Número de Líneas</p>
-                <p className="font-medium">{vic.lines}</p>
+                <p className="font-medium">{vic._count.lines}</p>
               </div>
             </div>
           </CardContent>

@@ -78,6 +78,7 @@ export async function getVICById(id: string) {
           incidents: true,
           Part: true,
           schedules: true,
+          lines: true,
         },
       },
     },

@@ -44,7 +44,7 @@ interface TrackingTableProps {
 export function TrackingTable({ incidents, fsrsByVic, incidentStatuses }: TrackingTableProps) {
   const router = useRouter()
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set())
-  const [assigningWorkOrder, setAssigningWorkOrder] = useState<number | null>(null)
+  const [assigningWorkOrder, setAssigningWorkOrder] = useState<string | null>(null)
   const [editingIncident, setEditingIncident] = useState<number | null>(null)
   const [editForm, setEditForm] = useState<any>({})
   const [savingIncident, setSavingIncident] = useState(false)
@@ -59,7 +59,7 @@ export function TrackingTable({ incidents, fsrsByVic, incidentStatuses }: Tracki
     setExpandedRows(newExpanded)
   }
 
-  const handleUpdateWorkOrderFSR = async (workOrderId: number, fsrId: string) => {
+  const handleUpdateWorkOrderFSR = async (workOrderId: string, fsrId: string) => {
     if (!fsrId) return
 
     setAssigningWorkOrder(workOrderId)

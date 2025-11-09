@@ -11,7 +11,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Loader2 } from "lucide-react"
 import { FormError } from "@/components/ui/form-error"
 import { createEquipment, updateEquipment } from "@/lib/actions/equipments"
-import { getLines } from "@/lib/actions/lines"
+import { getLinesByVicId } from "@/lib/actions/lines"
+import { getVICs } from "@/lib/actions/vics"
 
 interface EquipmentFormProps {
   equipment?: {
@@ -19,6 +20,9 @@ interface EquipmentFormProps {
     name: string
     description?: string | null
     lineId: number
+    line?: {
+      vicId: string
+    }
   }
   mode: "create" | "edit"
 }
@@ -27,33 +31,63 @@ export function EquipmentForm({ equipment, mode }: EquipmentFormProps) {
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [vics, setVics] = useState<any[]>([])
   const [lines, setLines] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadingLines, setLoadingLines] = useState(false)
 
   const [formData, setFormData] = useState({
     name: equipment?.name || "",
     description: equipment?.description || "",
+    vicId: equipment?.line?.vicId || "",
     lineId: equipment?.lineId?.toString() || "",
   })
 
   useEffect(() => {
-    loadLines()
+    loadVics()
   }, [])
 
-  const loadLines = async () => {
+  useEffect(() => {
+    if (formData.vicId) {
+      loadLinesByVic(formData.vicId)
+    } else {
+      setLines([])
+    }
+  }, [formData.vicId])
+
+  const loadVics = async () => {
     try {
-      const data = await getLines()
-      setLines(data)
+      const data = await getVICs()
+      setVics(data)
     } catch (error) {
-      console.error("Error loading lines:", error)
-      setErrors({ general: "Error al cargar las líneas" })
+      console.error("Error loading VICs:", error)
+      setErrors({ general: "Error al cargar los clientes" })
     } finally {
       setLoading(false)
     }
   }
 
+  const loadLinesByVic = async (vicId: string) => {
+    setLoadingLines(true)
+    try {
+      const data = await getLinesByVicId(vicId)
+      setLines(data)
+    } catch (error) {
+      console.error("Error loading lines:", error)
+      setErrors({ general: "Error al cargar las líneas" })
+    } finally {
+      setLoadingLines(false)
+    }
+  }
+
   const handleChange = (field: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }))
+    // If VIC changes, reset line selection
+    if (field === "vicId") {
+      setFormData((prev) => ({ ...prev, [field]: value, lineId: "" }))
+    } else {
+      setFormData((prev) => ({ ...prev, [field]: value }))
+    }
+
     if (errors[field]) {
       setErrors((prev) => ({ ...prev, [field]: "" }))
     }
@@ -64,6 +98,10 @@ export function EquipmentForm({ equipment, mode }: EquipmentFormProps) {
 
     if (!formData.name.trim()) {
       newErrors.name = "El nombre es requerido"
+    }
+
+    if (!formData.vicId) {
+      newErrors.vicId = "El cliente es requerido"
     }
 
     if (!formData.lineId) {
@@ -157,22 +195,51 @@ export function EquipmentForm({ equipment, mode }: EquipmentFormProps) {
           </div>
 
           <div className="space-y-2">
+            <Label htmlFor="vicId">
+              Cliente <span className="text-red-500">*</span>
+            </Label>
+            <Select
+              value={formData.vicId}
+              onValueChange={(value) => handleChange("vicId", value)}
+            >
+              <SelectTrigger className={errors.vicId ? "border-red-500" : ""}>
+                <SelectValue placeholder="Seleccionar Cliente" />
+              </SelectTrigger>
+              <SelectContent>
+                {vics.map((vic) => (
+                  <SelectItem key={vic.id} value={vic.id}>
+                    {vic.name} ({vic.code})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {errors.vicId && <FormError message={errors.vicId} />}
+          </div>
+
+          <div className="space-y-2">
             <Label htmlFor="lineId">
               Línea <span className="text-red-500">*</span>
             </Label>
             <Select
               value={formData.lineId}
               onValueChange={(value) => handleChange("lineId", value)}
+              disabled={!formData.vicId || loadingLines}
             >
               <SelectTrigger className={errors.lineId ? "border-red-500" : ""}>
-                <SelectValue placeholder="Seleccionar Línea" />
+                <SelectValue placeholder={!formData.vicId ? "Primero selecciona un cliente" : loadingLines ? "Cargando líneas..." : "Seleccionar Línea"} />
               </SelectTrigger>
               <SelectContent>
-                {lines.map((line) => (
-                  <SelectItem key={line.id} value={line.id.toString()}>
-                    {line.name} - {line.vic.name} ({line.vic.code})
-                  </SelectItem>
-                ))}
+                {lines.length === 0 && formData.vicId && !loadingLines ? (
+                  <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                    No hay líneas disponibles para este cliente
+                  </div>
+                ) : (
+                  lines.map((line) => (
+                    <SelectItem key={line.id} value={line.id.toString()}>
+                      {line.name}
+                    </SelectItem>
+                  ))
+                )}
               </SelectContent>
             </Select>
             {errors.lineId && <FormError message={errors.lineId} />}

@@ -180,7 +180,7 @@ export async function assignFSRToIncident(incidentId: number, fsrId: string) {
   }
 }
 
-export async function updateWorkOrderFSR(workOrderId: number, fsrId: string) {
+export async function updateWorkOrderFSR(workOrderId: string, fsrId: string) {
   try {
     await prisma.workOrder.update({
       where: { id: workOrderId },
