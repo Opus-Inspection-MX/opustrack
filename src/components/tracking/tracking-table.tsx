@@ -237,7 +237,7 @@ export function TrackingTable({ incidents, fsrsByVic, incidentStatuses, onDataCh
   }
 
   return (
-    <div className="border rounded-lg overflow-auto h-full">
+    <div className="border rounded-lg overflow-x-auto">
       <Table>
         <TableHeader>
           <TableRow>
@@ -263,6 +263,7 @@ export function TrackingTable({ incidents, fsrsByVic, incidentStatuses, onDataCh
               </Button>
             </TableHead>
             <TableHead>FSR Asignado</TableHead>
+            <TableHead>Folio ODT</TableHead>
             <TableHead>
               <Button
                 variant="ghost"
@@ -311,7 +312,7 @@ export function TrackingTable({ incidents, fsrsByVic, incidentStatuses, onDataCh
         <TableBody>
           {sortedIncidents.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
+              <TableCell colSpan={12} className="text-center py-8 text-muted-foreground">
                 No se encontraron incidentes
               </TableCell>
             </TableRow>
@@ -371,6 +372,21 @@ export function TrackingTable({ incidents, fsrsByVic, incidentStatuses, onDataCh
                       )}
                     </TableCell>
                     <TableCell onClick={() => toggleRowExpansion(incident.id)}>
+                      {incident.workOrders && incident.workOrders.length > 0 ? (
+                        <div className="flex flex-col gap-1">
+                          {incident.workOrders.map((wo: any) => (
+                            wo.folio ? (
+                              <Badge key={wo.id} variant="outline" className="text-xs">
+                                {wo.folio}
+                              </Badge>
+                            ) : null
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell onClick={() => toggleRowExpansion(incident.id)}>
                       <Badge variant="secondary">{incident.type?.name || "Sin tipo"}</Badge>
                     </TableCell>
                     <TableCell onClick={() => toggleRowExpansion(incident.id)}>
@@ -405,7 +421,7 @@ export function TrackingTable({ incidents, fsrsByVic, incidentStatuses, onDataCh
 
                   {isExpanded && (
                     <TableRow>
-                      <TableCell colSpan={11} className="bg-muted/30">
+                      <TableCell colSpan={12} className="bg-muted/30">
                         <div className="p-4 space-y-4">
                           {/* Actions Menu */}
                           <div className="flex items-center justify-between pb-4 border-b">
@@ -560,6 +576,24 @@ export function TrackingTable({ incidents, fsrsByVic, incidentStatuses, onDataCh
                                             Creado: {formatDate(workOrder.createdAt)} {formatTime(workOrder.createdAt)}
                                           </span>
                                         </div>
+
+                                        {workOrder.startedAt && (
+                                          <div className="flex items-center gap-2">
+                                            <label className="text-sm font-medium min-w-[100px]">Iniciado:</label>
+                                            <span className="text-sm text-muted-foreground">
+                                              {formatDate(workOrder.startedAt)} {formatTime(workOrder.startedAt)}
+                                            </span>
+                                          </div>
+                                        )}
+
+                                        {workOrder.folio && (
+                                          <div className="flex items-center gap-2">
+                                            <label className="text-sm font-medium min-w-[100px]">Folio ODT:</label>
+                                            <Badge variant="outline" className="text-sm">
+                                              {workOrder.folio}
+                                            </Badge>
+                                          </div>
+                                        )}
 
                                         <div className="flex items-center gap-2">
                                           <label className="text-sm font-medium min-w-[100px]">FSR Asignado:</label>

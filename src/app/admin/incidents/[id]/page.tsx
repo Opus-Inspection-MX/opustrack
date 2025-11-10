@@ -327,40 +327,6 @@ export default function IncidentDetailPage({
         )}
       </div>
 
-      {/* Notes Section */}
-      {incident.workOrders && incident.workOrders.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Work Order Notes</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {incident.workOrders
-                .filter((wo: any) => wo.notes)
-                .map((wo: any) => (
-                  <div
-                    key={wo.id}
-                    className="p-4 border rounded-lg bg-muted/30"
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <p className="font-medium">
-                        Work Order by {wo.assignedTo.name}
-                      </p>
-                      <Badge variant="outline">{wo.status}</Badge>
-                    </div>
-                    <p className="text-sm text-muted-foreground">{wo.notes}</p>
-                  </div>
-                ))}
-              {incident.workOrders.filter((wo: any) => wo.notes).length ===
-                0 && (
-                <p className="text-sm text-muted-foreground text-center py-4">
-                  No notes in work orders yet
-                </p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }

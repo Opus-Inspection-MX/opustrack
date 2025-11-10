@@ -12,12 +12,13 @@ import { Spinner } from "@/components/ui/spinner";
 import { WorkActivityForm } from "@/components/work-orders/work-activity-form";
 import { WorkActivityEdit } from "@/components/work-orders/work-activity-edit";
 import { AttachmentPreview } from "@/components/work-orders/attachment-preview";
-import { getWorkOrderById, deleteWorkOrderAttachment, startWorkOrder, completeWorkOrder, updateWorkOrderStatus } from "@/lib/actions/work-orders";
+import { getWorkOrderById, deleteWorkOrderAttachment, startWorkOrder, completeWorkOrder, updateWorkOrderStatus, updateWorkOrderFolio } from "@/lib/actions/work-orders";
 import { getWorkActivities, deleteWorkActivity } from "@/lib/actions/work-activities";
 import { getWorkParts } from "@/lib/actions/work-parts";
 import { getIncidentStatuses } from "@/lib/actions/lookups";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 
 export default function FSRWorkOrderDetailPage({
   params,
@@ -35,6 +36,8 @@ export default function FSRWorkOrderDetailPage({
   const [showActivityForm, setShowActivityForm] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [statusLoading, setStatusLoading] = useState(false);
+  const [folioLoading, setFolioLoading] = useState(false);
+  const [folioValue, setFolioValue] = useState("");
 
   useEffect(() => {
     params.then((p) => setWorkOrderId(p.id));
@@ -63,6 +66,7 @@ export default function FSRWorkOrderDetailPage({
       setWorkParts(partsData);
       setAttachments(woData?.attachments || []);
       setStatuses(statusesData);
+      setFolioValue(woData?.folio || "");
     } catch (error) {
       console.error("Error fetching data:", error);
     } finally {
@@ -143,6 +147,22 @@ export default function FSRWorkOrderDetailPage({
       alert("Failed to update status");
     } finally {
       setStatusLoading(false);
+    }
+  };
+
+  const handleFolioUpdate = async () => {
+    if (!workOrderId) return;
+
+    try {
+      setFolioLoading(true);
+      await updateWorkOrderFolio(workOrderId, folioValue);
+      await fetchData();
+      alert("Folio actualizado correctamente");
+    } catch (error) {
+      console.error("Error updating folio:", error);
+      alert("Failed to update folio");
+    } finally {
+      setFolioLoading(false);
     }
   };
 
@@ -266,29 +286,65 @@ export default function FSRWorkOrderDetailPage({
             </div>
           )}
 
-          {isCompleted && (
-            <div>
-              <span className="font-medium">Status:</span>{" "}
-              {workOrder.status?.name || "N/A"}
+          {/* Folio Number Input */}
+          {!isCompleted && (
+            <div className="space-y-2">
+              <Label htmlFor="folio">Número de Folio</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="folio"
+                  type="text"
+                  value={folioValue}
+                  onChange={(e) => setFolioValue(e.target.value)}
+                  placeholder="Ingrese el número de folio"
+                  disabled={folioLoading}
+                  className="flex-1"
+                />
+                <Button
+                  onClick={handleFolioUpdate}
+                  disabled={folioLoading}
+                  variant="secondary"
+                >
+                  Guardar
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Asigne un número de folio a esta orden de trabajo
+              </p>
             </div>
+          )}
+
+          {isCompleted && (
+            <>
+              <div>
+                <span className="font-medium">Status:</span>{" "}
+                {workOrder.status?.name || "N/A"}
+              </div>
+              {workOrder.folio && (
+                <div>
+                  <span className="font-medium">Folio:</span>{" "}
+                  {workOrder.folio}
+                </div>
+              )}
+            </>
           )}
 
           <div className="grid grid-cols-2 gap-4 text-sm">
 
             <div>
               <span className="font-medium">Created:</span>{" "}
-              {new Date(workOrder.createdAt).toLocaleDateString()}
+              {new Date(workOrder.createdAt).toLocaleString()}
             </div>
             {workOrder.startedAt && (
               <div>
                 <span className="font-medium">Started:</span>{" "}
-                {new Date(workOrder.startedAt).toLocaleDateString()}
+                {new Date(workOrder.startedAt).toLocaleString()}
               </div>
             )}
             {workOrder.finishedAt && (
               <div>
                 <span className="font-medium">Completed:</span>{" "}
-                {new Date(workOrder.finishedAt).toLocaleDateString()}
+                {new Date(workOrder.finishedAt).toLocaleString()}
               </div>
             )}
           </div>

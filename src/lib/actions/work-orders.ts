@@ -10,6 +10,7 @@ export type WorkOrderFormData = {
   assignedToId: string;
   statusId?: number | null;
   notes?: string;
+  folio?: string | null;
   startedAt?: Date | null;
   finishedAt?: Date | null;
 };
@@ -120,6 +121,7 @@ export async function createWorkOrder(data: WorkOrderFormData) {
       assignedToId: data.assignedToId,
       statusId: data.statusId || null,
       notes: data.notes || null,
+      folio: data.folio || null,
       startedAt: data.startedAt || null,
       finishedAt: data.finishedAt || null,
     },
@@ -147,6 +149,7 @@ export async function updateWorkOrder(id: string, data: WorkOrderFormData) {
       assignedToId: data.assignedToId,
       statusId: data.statusId || null,
       notes: data.notes || null,
+      folio: data.folio || null,
       startedAt: data.startedAt || null,
       finishedAt: data.finishedAt || null,
     },
@@ -325,6 +328,7 @@ export async function getWorkOrderFormOptions() {
         name: true,
         email: true,
         role: true,
+        vicIds: true,
       },
       orderBy: { name: "asc" },
     }),
@@ -426,6 +430,31 @@ export async function updateWorkOrderStatus(id: string, statusId: number) {
     where: { id },
     data: {
       statusId,
+    },
+    include: {
+      incident: true,
+      assignedTo: true,
+      status: true,
+    },
+  });
+
+  revalidatePath("/fsr/work-orders");
+  revalidatePath(`/fsr/work-orders/${id}`);
+  revalidatePath("/admin/work-orders");
+  revalidatePath(`/admin/work-orders/${id}`);
+  return { success: true, data: workOrder };
+}
+
+/**
+ * Update work order folio (FSR functionality)
+ */
+export async function updateWorkOrderFolio(id: string, folio: string) {
+  await requirePermission("work-orders:update");
+
+  const workOrder = await prisma.workOrder.update({
+    where: { id },
+    data: {
+      folio,
     },
     include: {
       incident: true,

@@ -193,7 +193,11 @@ export default function EditWorkOrderPage({
       {/* Work Order Edit Form */}
       <WorkOrderEditForm
         workOrder={workOrder}
-        users={availableUsers}
+        users={availableUsers.filter(user =>
+          workOrder.incident?.vicId
+            ? user.vicIds?.includes(workOrder.incident.vicId)
+            : true
+        )}
         statuses={availableStatuses}
         onSuccess={fetchData}
       />

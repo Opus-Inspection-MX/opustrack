@@ -27,6 +27,7 @@ type WorkOrderEditFormProps = {
     } | null;
     assignedToId: string;
     notes: string | null;
+    folio: string | null;
     finishedAt: Date | null;
     assignedTo: {
       id: string;
@@ -52,6 +53,7 @@ export function WorkOrderEditForm({
     assignedToId: workOrder.assignedToId,
     statusId: workOrder.statusId,
     notes: workOrder.notes || "",
+    folio: workOrder.folio || "",
     finishedAt: workOrder.finishedAt
       ? new Date(workOrder.finishedAt).toISOString().slice(0, 16)
       : "",
@@ -67,6 +69,7 @@ export function WorkOrderEditForm({
         assignedToId: formData.assignedToId,
         statusId: formData.statusId,
         notes: formData.notes,
+        folio: formData.folio,
         finishedAt: formData.finishedAt ? new Date(formData.finishedAt) : undefined,
       });
 
@@ -91,6 +94,7 @@ export function WorkOrderEditForm({
       assignedToId: workOrder.assignedToId,
       statusId: workOrder.statusId,
       notes: workOrder.notes || "",
+      folio: workOrder.folio || "",
       finishedAt: workOrder.finishedAt
         ? new Date(workOrder.finishedAt).toISOString().slice(0, 16)
         : "",
@@ -165,6 +169,18 @@ export function WorkOrderEditForm({
             </div>
 
             <div className="space-y-2">
+              <Label htmlFor="folio">Número de Folio</Label>
+              <Input
+                id="folio"
+                value={formData.folio}
+                onChange={(e) =>
+                  setFormData({ ...formData, folio: e.target.value })
+                }
+                placeholder="Ingrese el número de folio"
+              />
+            </div>
+
+            <div className="space-y-2">
               <Label htmlFor="finishedAt">Finished At</Label>
               <Input
                 id="finishedAt"
@@ -219,6 +235,10 @@ export function WorkOrderEditForm({
             <div>
               <p className="text-sm text-muted-foreground">Status</p>
               <p className="font-medium">{workOrder.status?.name || "No status"}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Número de Folio</p>
+              <p className="font-medium">{workOrder.folio || "No asignado"}</p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Finished At</p>

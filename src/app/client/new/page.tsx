@@ -172,40 +172,20 @@ export default function ReportIncidentPage() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Title and Priority */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="title">
-                  Título del Incidente <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="title"
-                  value={formData.title}
-                  onChange={(e) => handleChange("title", e.target.value)}
-                  placeholder="Breve descripción del problema"
-                  className={errors.title ? "border-red-500" : ""}
-                  disabled={!userVic}
-                />
-                {errors.title && <FormError message={errors.title} />}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="priority">
-                  Prioridad (1-10) <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="priority"
-                  type="number"
-                  min="1"
-                  max="10"
-                  value={formData.priority}
-                  onChange={(e) => handleChange("priority", parseInt(e.target.value))}
-                  disabled={!userVic}
-                />
-                <p className="text-xs text-muted-foreground">
-                  1=Baja, 5=Media, 8+=Alta
-                </p>
-              </div>
+            {/* Title */}
+            <div className="space-y-2">
+              <Label htmlFor="title">
+                Título del Incidente <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="title"
+                value={formData.title}
+                onChange={(e) => handleChange("title", e.target.value)}
+                placeholder="Breve descripción del problema"
+                className={errors.title ? "border-red-500" : ""}
+                disabled={!userVic}
+              />
+              {errors.title && <FormError message={errors.title} />}
             </div>
 
             {/* Description */}

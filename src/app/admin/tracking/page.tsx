@@ -95,8 +95,8 @@ export default function TrackingPage() {
   }
 
   return (
-    <div className="flex flex-col h-full space-y-4">
-      <div className="flex items-center gap-4 shrink-0">
+    <div className="space-y-4">
+      <div className="flex items-center gap-4">
         <div className="h-10 w-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
           <ClipboardList className="h-5 w-5 text-blue-500" />
         </div>
@@ -108,7 +108,7 @@ export default function TrackingPage() {
         </div>
       </div>
 
-      <div className="shrink-0">
+      <div>
         <TrackingFilters
           vics={vics}
           incidentTypes={incidentTypes}
@@ -126,13 +126,13 @@ export default function TrackingPage() {
         />
       </div>
 
-      <div className="bg-muted/30 rounded-lg p-4 shrink-0">
+      <div className="bg-muted/30 rounded-lg p-4">
         <div className="text-sm text-muted-foreground">
           Total de incidentes: <span className="font-semibold text-foreground">{incidents.length}</span>
         </div>
       </div>
 
-      <div className="flex-1 min-h-0">
+      <div>
         <TrackingTable
           incidents={incidents}
           fsrsByVic={fsrsByVic}

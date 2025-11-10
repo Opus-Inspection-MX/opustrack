@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -21,9 +22,10 @@ type WorkOrderFormProps = {
     incidentId: number;
     assignedToId: string;
     notes: string | null;
+    folio: string | null;
   };
-  incidents: Array<{ id: number; title: string; priority: number }>;
-  users: Array<{ id: string; name: string }>;
+  incidents: Array<{ id: number; title: string; priority: number; vicId?: string | null }>;
+  users: Array<{ id: string; name: string; vicIds?: string[] }>;
 };
 
 export function WorkOrderForm({ workOrder, incidents, users }: WorkOrderFormProps) {
@@ -35,7 +37,14 @@ export function WorkOrderForm({ workOrder, incidents, users }: WorkOrderFormProp
     incidentId: workOrder?.incidentId || incidents[0]?.id || 0,
     assignedToId: workOrder?.assignedToId || users[0]?.id || "",
     notes: workOrder?.notes || "",
+    folio: workOrder?.folio || "",
   });
+
+  // Filter FSRs based on selected incident's VIC
+  const selectedIncident = incidents.find(inc => inc.id === formData.incidentId);
+  const filteredUsers = selectedIncident?.vicId
+    ? users.filter(user => user.vicIds?.includes(selectedIncident.vicId!))
+    : users;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -102,13 +111,31 @@ export function WorkOrderForm({ workOrder, incidents, users }: WorkOrderFormProp
                 <SelectValue placeholder="Seleccionar usuario" />
               </SelectTrigger>
               <SelectContent>
-                {users.map((user) => (
+                {filteredUsers.map((user) => (
                   <SelectItem key={user.id} value={user.id}>
                     {user.name}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+            {filteredUsers.length === 0 && selectedIncident?.vicId && (
+              <p className="text-xs text-muted-foreground">
+                No FSRs assigned to this VIC
+              </p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="folio">Número de Folio</Label>
+            <Input
+              id="folio"
+              type="text"
+              value={formData.folio || ""}
+              onChange={(e) =>
+                setFormData({ ...formData, folio: e.target.value })
+              }
+              placeholder="Ingrese el número de folio"
+            />
           </div>
 
           <div className="space-y-2">

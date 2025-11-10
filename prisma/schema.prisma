@@ -194,6 +194,7 @@ model WorkOrder {
   statusId       Int?
   status         IncidentStatus?       @relation(fields: [statusId], references: [id])
   notes          String?
+  folio          String?                // Folio number (Numero de folio)
   startedAt      DateTime?
   finishedAt     DateTime?
   workActivities WorkActivity[]
