@@ -23,7 +23,7 @@ export function FileUpload({
   maxFiles = 5,
   maxSizeMB = 10,
   allowedTypes,
-  accept = "image/*,.heic,.heif,video/*,application/pdf",
+  accept = "image/*,video/*,.pdf,.heic,.heif",
   multiple = true,
   showCamera = true,
   label = "Upload Files",
@@ -123,7 +123,7 @@ export function FileUpload({
         <Input
           ref={cameraInputRef}
           type="file"
-          accept="image/*"
+          accept="image/*,video/*"
           capture="environment"
           onChange={(e) => handleFileSelection(e.target.files)}
           className="hidden"

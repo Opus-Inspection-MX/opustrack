@@ -415,3 +415,28 @@ export async function deleteWorkOrderAttachment(id: string) {
 
   return { success: true };
 }
+
+/**
+ * Update work order status (FSR functionality)
+ */
+export async function updateWorkOrderStatus(id: string, statusId: number) {
+  await requirePermission("work-orders:update");
+
+  const workOrder = await prisma.workOrder.update({
+    where: { id },
+    data: {
+      statusId,
+    },
+    include: {
+      incident: true,
+      assignedTo: true,
+      status: true,
+    },
+  });
+
+  revalidatePath("/fsr/work-orders");
+  revalidatePath(`/fsr/work-orders/${id}`);
+  revalidatePath("/admin/work-orders");
+  revalidatePath(`/admin/work-orders/${id}`);
+  return { success: true, data: workOrder };
+}

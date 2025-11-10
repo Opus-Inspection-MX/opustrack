@@ -12,28 +12,48 @@ export type UploadedFile = {
 
 /**
  * Normalize MIME type based on file extension
- * Useful for files where browsers report incorrect MIME types (e.g., HEIC on iOS)
+ * Useful for files where browsers report incorrect MIME types
+ * Supports common formats from iOS (HEIC/HEIF) and Android (various formats)
  */
 export function normalizeMimeType(file: File): string {
   const fileExtension = file.name.split('.').pop()?.toLowerCase();
 
-  // Map of extensions to MIME types
+  // Map of extensions to MIME types - includes common Android and iOS formats
   const extensionToMime: Record<string, string> = {
+    // iOS formats
     'heic': 'image/heic',
     'heif': 'image/heif',
+
+    // Common image formats (all phones)
     'jpg': 'image/jpeg',
     'jpeg': 'image/jpeg',
     'png': 'image/png',
     'gif': 'image/gif',
     'webp': 'image/webp',
-    'pdf': 'application/pdf',
+    'bmp': 'image/bmp',
+    'tiff': 'image/tiff',
+    'tif': 'image/tiff',
+    'svg': 'image/svg+xml',
+
+    // Android/Samsung specific formats
+    'jpe': 'image/jpeg',
+    'jfif': 'image/jpeg',
+
+    // Video formats
     'mp4': 'video/mp4',
     'mov': 'video/quicktime',
+    'webm': 'video/webm',
+    'avi': 'video/x-msvideo',
+    '3gp': 'video/3gpp',
+    'mkv': 'video/x-matroska',
+
+    // Documents
+    'pdf': 'application/pdf',
   };
 
   // If file.type is empty or generic, use extension-based MIME type
   if (!file.type || file.type === 'application/octet-stream') {
-    return extensionToMime[fileExtension || ''] || file.type;
+    return extensionToMime[fileExtension || ''] || 'application/octet-stream';
   }
 
   // Otherwise return the file's reported MIME type
@@ -61,15 +81,27 @@ export function validateFile(file: File, options?: {
 }): { valid: boolean; error?: string } {
   const maxSizeMB = options?.maxSizeMB || 10;
   const allowedTypes = options?.allowedTypes || [
+    // Image formats
     'image/jpeg',
     'image/png',
     'image/gif',
     'image/webp',
+    'image/bmp',
+    'image/tiff',
+    'image/svg+xml',
     'image/heic',
     'image/heif',
-    'application/pdf',
+
+    // Video formats
     'video/mp4',
     'video/quicktime',
+    'video/webm',
+    'video/x-msvideo',
+    'video/3gpp',
+    'video/x-matroska',
+
+    // Documents
+    'application/pdf',
   ];
 
   // Check file size
@@ -82,18 +114,22 @@ export function validateFile(file: File, options?: {
   }
 
   // Check file type
-  // Some browsers (especially on iOS) may not report correct MIME types for HEIC
-  // So we also check file extension as a fallback
+  // Some browsers may not report correct MIME types, so we also check file extension
   const fileExtension = file.name.split('.').pop()?.toLowerCase();
-  const heicExtensions = ['heic', 'heif'];
+  const commonImageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'tiff', 'tif', 'heic', 'heif', 'jpe', 'jfif', 'svg'];
+  const commonVideoExtensions = ['mp4', 'mov', 'webm', 'avi', '3gp', 'mkv'];
+  const commonDocExtensions = ['pdf'];
+
+  const allCommonExtensions = [...commonImageExtensions, ...commonVideoExtensions, ...commonDocExtensions];
 
   const isValidType = allowedTypes.includes(file.type);
-  const isHeicFile = heicExtensions.includes(fileExtension || '');
+  const hasValidExtension = allCommonExtensions.includes(fileExtension || '');
 
-  if (!isValidType && !isHeicFile) {
+  // Accept if either MIME type is valid OR file extension is valid
+  if (!isValidType && !hasValidExtension) {
     return {
       valid: false,
-      error: `File type ${file.type || 'unknown'} is not allowed`,
+      error: `File type ${file.type || fileExtension || 'unknown'} is not allowed`,
     };
   }
 

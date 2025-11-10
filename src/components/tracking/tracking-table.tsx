@@ -237,7 +237,7 @@ export function TrackingTable({ incidents, fsrsByVic, incidentStatuses, onDataCh
   }
 
   return (
-    <div className="border rounded-lg overflow-auto">
+    <div className="border rounded-lg overflow-auto h-full">
       <Table>
         <TableHeader>
           <TableRow>

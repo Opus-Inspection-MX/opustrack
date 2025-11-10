@@ -95,8 +95,8 @@ export default function TrackingPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-4">
+    <div className="flex flex-col h-full space-y-4">
+      <div className="flex items-center gap-4 shrink-0">
         <div className="h-10 w-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
           <ClipboardList className="h-5 w-5 text-blue-500" />
         </div>
@@ -108,34 +108,38 @@ export default function TrackingPage() {
         </div>
       </div>
 
-      <TrackingFilters
-        vics={vics}
-        incidentTypes={incidentTypes}
-        incidentStatuses={incidentStatuses}
-        fsrs={allFsrs}
-        onFilterChange={handleFilterChange}
-        createButton={
-          <Button asChild>
-            <Link href="/admin/incidents/new">
-              <Plus className="h-4 w-4 mr-2" />
-              Crear Incidente
-            </Link>
-          </Button>
-        }
-      />
+      <div className="shrink-0">
+        <TrackingFilters
+          vics={vics}
+          incidentTypes={incidentTypes}
+          incidentStatuses={incidentStatuses}
+          fsrs={allFsrs}
+          onFilterChange={handleFilterChange}
+          createButton={
+            <Button asChild>
+              <Link href="/admin/incidents/new">
+                <Plus className="h-4 w-4 mr-2" />
+                Crear Incidente
+              </Link>
+            </Button>
+          }
+        />
+      </div>
 
-      <div className="bg-muted/30 rounded-lg p-4">
+      <div className="bg-muted/30 rounded-lg p-4 shrink-0">
         <div className="text-sm text-muted-foreground">
           Total de incidentes: <span className="font-semibold text-foreground">{incidents.length}</span>
         </div>
       </div>
 
-      <TrackingTable
-        incidents={incidents}
-        fsrsByVic={fsrsByVic}
-        incidentStatuses={incidentStatuses}
-        onDataChange={() => loadIncidents(filters)}
-      />
+      <div className="flex-1 min-h-0">
+        <TrackingTable
+          incidents={incidents}
+          fsrsByVic={fsrsByVic}
+          incidentStatuses={incidentStatuses}
+          onDataChange={() => loadIncidents(filters)}
+        />
+      </div>
     </div>
   )
 }

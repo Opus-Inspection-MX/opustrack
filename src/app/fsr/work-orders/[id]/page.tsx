@@ -12,9 +12,12 @@ import { Spinner } from "@/components/ui/spinner";
 import { WorkActivityForm } from "@/components/work-orders/work-activity-form";
 import { WorkActivityEdit } from "@/components/work-orders/work-activity-edit";
 import { AttachmentPreview } from "@/components/work-orders/attachment-preview";
-import { getWorkOrderById, deleteWorkOrderAttachment, startWorkOrder, completeWorkOrder } from "@/lib/actions/work-orders";
+import { getWorkOrderById, deleteWorkOrderAttachment, startWorkOrder, completeWorkOrder, updateWorkOrderStatus } from "@/lib/actions/work-orders";
 import { getWorkActivities, deleteWorkActivity } from "@/lib/actions/work-activities";
 import { getWorkParts } from "@/lib/actions/work-parts";
+import { getIncidentStatuses } from "@/lib/actions/lookups";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 
 export default function FSRWorkOrderDetailPage({
   params,
@@ -27,9 +30,11 @@ export default function FSRWorkOrderDetailPage({
   const [activities, setActivities] = useState<any[]>([]);
   const [workParts, setWorkParts] = useState<any[]>([]);
   const [attachments, setAttachments] = useState<any[]>([]);
+  const [statuses, setStatuses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showActivityForm, setShowActivityForm] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
+  const [statusLoading, setStatusLoading] = useState(false);
 
   useEffect(() => {
     params.then((p) => setWorkOrderId(p.id));
@@ -46,16 +51,18 @@ export default function FSRWorkOrderDetailPage({
 
     try {
       setLoading(true);
-      const [woData, activitiesData, partsData] = await Promise.all([
+      const [woData, activitiesData, partsData, statusesData] = await Promise.all([
         getWorkOrderById(workOrderId),
         getWorkActivities(workOrderId),
         getWorkParts(workOrderId),
+        getIncidentStatuses(),
       ]);
 
       setWorkOrder(woData);
       setActivities(activitiesData);
       setWorkParts(partsData);
       setAttachments(woData?.attachments || []);
+      setStatuses(statusesData);
     } catch (error) {
       console.error("Error fetching data:", error);
     } finally {
@@ -121,6 +128,21 @@ export default function FSRWorkOrderDetailPage({
       alert("Failed to complete work order");
     } finally {
       setActionLoading(false);
+    }
+  };
+
+  const handleStatusChange = async (newStatusId: string) => {
+    if (!workOrderId) return;
+
+    try {
+      setStatusLoading(true);
+      await updateWorkOrderStatus(workOrderId, parseInt(newStatusId));
+      await fetchData();
+    } catch (error) {
+      console.error("Error updating status:", error);
+      alert("Failed to update status");
+    } finally {
+      setStatusLoading(false);
     }
   };
 
@@ -217,12 +239,42 @@ export default function FSRWorkOrderDetailPage({
         <CardHeader>
           <CardTitle>Work Order Details</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="grid grid-cols-2 gap-4 text-sm">
+        <CardContent className="space-y-4">
+          {/* Status Selector */}
+          {!isCompleted && (
+            <div className="space-y-2">
+              <Label htmlFor="status">Work Order Status</Label>
+              <Select
+                value={workOrder.statusId?.toString() || ""}
+                onValueChange={handleStatusChange}
+                disabled={statusLoading}
+              >
+                <SelectTrigger id="status">
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  {statuses.map((status) => (
+                    <SelectItem key={status.id} value={status.id.toString()}>
+                      {status.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Update the work order status as you progress
+              </p>
+            </div>
+          )}
+
+          {isCompleted && (
             <div>
               <span className="font-medium">Status:</span>{" "}
               {workOrder.status?.name || "N/A"}
             </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-4 text-sm">
+
             <div>
               <span className="font-medium">Created:</span>{" "}
               {new Date(workOrder.createdAt).toLocaleDateString()}
