@@ -1,25 +1,26 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, useMemo } from "react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { ChevronDown, ChevronRight, User, MoreHorizontal, Eye, Edit, Save, X as XIcon } from "lucide-react"
+import { ChevronDown, ChevronRight, User, MoreHorizontal, Eye, Edit, Save, X as XIcon, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react"
 import { updateWorkOrderFSR, updateIncidentDetails } from "@/lib/actions/tracking"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
-
-const statusColors: Record<string, string> = {
-  Abierto: "bg-blue-100 text-blue-800",
-  "En Progreso": "bg-yellow-100 text-yellow-800",
-  Resuelto: "bg-green-100 text-green-800",
-  Cerrado: "bg-gray-100 text-gray-800",
-}
+import {
+  useReactTable,
+  getCoreRowModel,
+  getSortedRowModel,
+  SortingState,
+  ColumnDef,
+  flexRender,
+} from "@tanstack/react-table"
 
 const workOrderStatusLabels: Record<string, string> = {
   PENDING: "Pendiente",
@@ -35,10 +36,18 @@ const workOrderStatusColors: Record<string, string> = {
   CANCELLED: "bg-red-100 text-red-800",
 }
 
+// Utility function to convert hex color to rgba for background
+const hexToRgba = (hex: string, opacity: number) => {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+};
+
 interface TrackingTableProps {
   incidents: any[]
   fsrsByVic: Record<string, Array<{ id: string; name: string; email: string }>>
-  incidentStatuses: Array<{ id: number; name: string }>
+  incidentStatuses: Array<{ id: number; name: string; color: string }>
   onDataChange?: () => void
 }
 
@@ -51,6 +60,74 @@ export function TrackingTable({ incidents, fsrsByVic, incidentStatuses, onDataCh
   const [editingIncident, setEditingIncident] = useState<number | null>(null)
   const [editForm, setEditForm] = useState<any>({})
   const [savingIncident, setSavingIncident] = useState(false)
+  const [sorting, setSorting] = useState<SortingState>([])
+
+  // Sort incidents based on sorting state
+  const sortedIncidents = useMemo(() => {
+    if (sorting.length === 0) return incidents
+
+    const sorted = [...incidents]
+    const { id, desc } = sorting[0]
+
+    sorted.sort((a, b) => {
+      let aValue: any
+      let bValue: any
+
+      switch (id) {
+        case "cliente":
+          aValue = a.vic?.name || ""
+          bValue = b.vic?.name || ""
+          break
+        case "incidente":
+          aValue = a.title || ""
+          bValue = b.title || ""
+          break
+        case "tipo":
+          aValue = a.type?.name || ""
+          bValue = b.type?.name || ""
+          break
+        case "fechaInicio":
+          aValue = new Date(a.reportedAt).getTime()
+          bValue = new Date(b.reportedAt).getTime()
+          break
+        case "fechaFin":
+          aValue = a.resolvedAt ? new Date(a.resolvedAt).getTime() : 0
+          bValue = b.resolvedAt ? new Date(b.resolvedAt).getTime() : 0
+          break
+        case "status":
+          aValue = a.status?.name || ""
+          bValue = b.status?.name || ""
+          break
+        default:
+          return 0
+      }
+
+      if (aValue < bValue) return desc ? 1 : -1
+      if (aValue > bValue) return desc ? -1 : 1
+      return 0
+    })
+
+    return sorted
+  }, [incidents, sorting])
+
+  const handleSort = (columnId: string) => {
+    setSorting((old) => {
+      const existing = old.find((s) => s.id === columnId)
+      if (!existing) {
+        return [{ id: columnId, desc: false }]
+      }
+      if (!existing.desc) {
+        return [{ id: columnId, desc: true }]
+      }
+      return []
+    })
+  }
+
+  const getSortIcon = (columnId: string) => {
+    const sort = sorting.find((s) => s.id === columnId)
+    if (!sort) return <ArrowUpDown className="ml-2 h-4 w-4" />
+    return sort.desc ? <ArrowDown className="ml-2 h-4 w-4" /> : <ArrowUp className="ml-2 h-4 w-4" />
+  }
 
   const toggleRowExpansion = (incidentId: number) => {
     const newExpanded = new Set(expandedRows)
@@ -165,34 +242,98 @@ export function TrackingTable({ incidents, fsrsByVic, incidentStatuses, onDataCh
         <TableHeader>
           <TableRow>
             <TableHead className="w-10"></TableHead>
-            <TableHead>Cliente</TableHead>
-            <TableHead>Incidente</TableHead>
+            <TableHead>
+              <Button
+                variant="ghost"
+                onClick={() => handleSort("cliente")}
+                className="h-auto p-0 font-semibold hover:bg-transparent"
+              >
+                Cliente
+                {getSortIcon("cliente")}
+              </Button>
+            </TableHead>
+            <TableHead>
+              <Button
+                variant="ghost"
+                onClick={() => handleSort("incidente")}
+                className="h-auto p-0 font-semibold hover:bg-transparent"
+              >
+                Incidente
+                {getSortIcon("incidente")}
+              </Button>
+            </TableHead>
             <TableHead>FSR Asignado</TableHead>
-            <TableHead>Tipo de Incidente</TableHead>
-            <TableHead>Fecha Inicio</TableHead>
+            <TableHead>
+              <Button
+                variant="ghost"
+                onClick={() => handleSort("tipo")}
+                className="h-auto p-0 font-semibold hover:bg-transparent"
+              >
+                Tipo de Incidente
+                {getSortIcon("tipo")}
+              </Button>
+            </TableHead>
+            <TableHead>
+              <Button
+                variant="ghost"
+                onClick={() => handleSort("fechaInicio")}
+                className="h-auto p-0 font-semibold hover:bg-transparent"
+              >
+                Fecha Inicio
+                {getSortIcon("fechaInicio")}
+              </Button>
+            </TableHead>
             <TableHead>Hora Inicio</TableHead>
-            <TableHead>Fecha Fin</TableHead>
+            <TableHead>
+              <Button
+                variant="ghost"
+                onClick={() => handleSort("fechaFin")}
+                className="h-auto p-0 font-semibold hover:bg-transparent"
+              >
+                Fecha Fin
+                {getSortIcon("fechaFin")}
+              </Button>
+            </TableHead>
             <TableHead>Hora Fin</TableHead>
-            <TableHead>Status</TableHead>
+            <TableHead>
+              <Button
+                variant="ghost"
+                onClick={() => handleSort("status")}
+                className="h-auto p-0 font-semibold hover:bg-transparent"
+              >
+                Status
+                {getSortIcon("status")}
+              </Button>
+            </TableHead>
             <TableHead>Observaciones</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {incidents.length === 0 ? (
+          {sortedIncidents.length === 0 ? (
             <TableRow>
               <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
                 No se encontraron incidentes
               </TableCell>
             </TableRow>
           ) : (
-            incidents.map((incident) => {
+            sortedIncidents.map((incident) => {
               const assignedFSRs = getAssignedFSRs(incident)
               const availableFSRs = incident.vic?.id ? fsrsByVic[incident.vic.id] || [] : []
               const isExpanded = expandedRows.has(incident.id)
 
+              // Get status color for row background
+              const statusColor = incident.status?.color || "#6B7280";
+              const rowStyle = {
+                backgroundColor: hexToRgba(statusColor, 0.1),
+                borderLeft: `4px solid ${statusColor}`,
+              };
+
               return (
                 <React.Fragment key={incident.id}>
-                  <TableRow className="hover:bg-muted/50 cursor-pointer">
+                  <TableRow
+                    className="hover:bg-muted/50 cursor-pointer transition-colors"
+                    style={rowStyle}
+                  >
                     <TableCell>
                       <Button
                         variant="ghost"
@@ -245,7 +386,13 @@ export function TrackingTable({ incidents, fsrsByVic, incidentStatuses, onDataCh
                       {incident.resolvedAt ? formatTime(incident.resolvedAt) : "-"}
                     </TableCell>
                     <TableCell onClick={() => toggleRowExpansion(incident.id)}>
-                      <Badge className={statusColors[incident.status?.name] || "bg-gray-100 text-gray-800"}>
+                      <Badge
+                        style={{
+                          backgroundColor: statusColor,
+                          color: "#FFFFFF",
+                          borderColor: statusColor,
+                        }}
+                      >
                         {incident.status?.name || "Sin estado"}
                       </Badge>
                     </TableCell>

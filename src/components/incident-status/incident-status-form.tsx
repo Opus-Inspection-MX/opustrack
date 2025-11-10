@@ -21,6 +21,9 @@ const incidentStatusSchema = z.object({
     .min(2, "Name must be at least 2 characters")
     .max(50, "Name must be less than 50 characters")
     .regex(/^[a-zA-Z\s]+$/, "Name can only contain letters and spaces"),
+  color: z
+    .string()
+    .regex(/^#[0-9A-Fa-f]{6}$/, "Color must be a valid hex color (e.g., #FF0000)"),
   active: z.boolean(),
 })
 
@@ -30,26 +33,10 @@ interface IncidentStatusFormProps {
   initialData?: {
     id: number
     name: string
+    color: string
     active: boolean
   }
   onSubmit: (data: IncidentStatusFormData) => Promise<void>
-}
-
-const getStatusColor = (name: string) => {
-  const lowerName = name.toLowerCase()
-  if (lowerName.includes("open") || lowerName.includes("new")) {
-    return "bg-red-100 text-red-800"
-  }
-  if (lowerName.includes("progress") || lowerName.includes("assigned")) {
-    return "bg-blue-100 text-blue-800"
-  }
-  if (lowerName.includes("resolved") || lowerName.includes("closed")) {
-    return "bg-green-100 text-green-800"
-  }
-  if (lowerName.includes("pending") || lowerName.includes("waiting")) {
-    return "bg-yellow-100 text-yellow-800"
-  }
-  return "bg-gray-100 text-gray-800"
 }
 
 export function IncidentStatusForm({ initialData, onSubmit }: IncidentStatusFormProps) {
@@ -60,6 +47,7 @@ export function IncidentStatusForm({ initialData, onSubmit }: IncidentStatusForm
 
   const [formData, setFormData] = useState<IncidentStatusFormData>({
     name: initialData?.name || "",
+    color: initialData?.color || "#6B7280",
     active: initialData?.active ?? true,
   })
 
@@ -133,12 +121,47 @@ export function IncidentStatusForm({ initialData, onSubmit }: IncidentStatusForm
               {errors.name && <FormError message={errors.name} />}
             </div>
 
+            {/* Color Field */}
+            <div className="space-y-2">
+              <Label htmlFor="color">Status Color *</Label>
+              <div className="flex gap-4 items-center">
+                <Input
+                  id="color"
+                  type="color"
+                  value={formData.color}
+                  onChange={(e) => handleInputChange("color", e.target.value)}
+                  onBlur={() => handleBlur("color")}
+                  className="h-12 w-24 cursor-pointer"
+                />
+                <Input
+                  type="text"
+                  value={formData.color}
+                  onChange={(e) => handleInputChange("color", e.target.value.toUpperCase())}
+                  onBlur={() => handleBlur("color")}
+                  placeholder="#6B7280"
+                  className={`flex-1 font-mono ${errors.color ? "border-red-500" : ""}`}
+                />
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Choose a color for this status (hex format)
+              </p>
+              {errors.color && <FormError message={errors.color} />}
+            </div>
+
             {/* Status Preview */}
             {formData.name && (
               <div className="space-y-2">
                 <Label>Status Preview</Label>
                 <div>
-                  <Badge className={getStatusColor(formData.name)}>{formData.name}</Badge>
+                  <Badge
+                    style={{
+                      backgroundColor: formData.color,
+                      color: "#FFFFFF",
+                      borderColor: formData.color,
+                    }}
+                  >
+                    {formData.name}
+                  </Badge>
                 </div>
               </div>
             )}

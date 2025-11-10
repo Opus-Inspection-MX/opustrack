@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent } from "@/components/ui/card"
-import { Filter, X } from "lucide-react"
+import { Filter, X, Search, Calendar, CalendarDays } from "lucide-react"
 
 interface TrackingFiltersProps {
   vics: Array<{ id: string; name: string; code: string }>
@@ -46,17 +46,46 @@ export function TrackingFilters({
   const handleFilterChange = (field: string, value: string) => {
     const newFilters = { ...filters, [field]: value }
     setFilters(newFilters)
+    // Note: No longer auto-triggering search here
+  }
 
+  const handleSearch = () => {
     // Convert to proper types and remove empty values
     const cleanFilters: any = {}
-    if (newFilters.vicId) cleanFilters.vicId = newFilters.vicId
-    if (newFilters.typeId) cleanFilters.typeId = parseInt(newFilters.typeId)
-    if (newFilters.statusId) cleanFilters.statusId = parseInt(newFilters.statusId)
-    if (newFilters.startDate) cleanFilters.startDate = newFilters.startDate
-    if (newFilters.endDate) cleanFilters.endDate = newFilters.endDate
-    if (newFilters.assignedFsrId) cleanFilters.assignedFsrId = newFilters.assignedFsrId
+    if (filters.vicId) cleanFilters.vicId = filters.vicId
+    if (filters.typeId) cleanFilters.typeId = parseInt(filters.typeId)
+    if (filters.statusId) cleanFilters.statusId = parseInt(filters.statusId)
+    if (filters.startDate) cleanFilters.startDate = filters.startDate
+    if (filters.endDate) cleanFilters.endDate = filters.endDate
+    if (filters.assignedFsrId) cleanFilters.assignedFsrId = filters.assignedFsrId
 
     onFilterChange(cleanFilters)
+  }
+
+  const setCurrentWeek = () => {
+    const now = new Date()
+    const dayOfWeek = now.getDay()
+    const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek // Monday as first day
+    const monday = new Date(now)
+    monday.setDate(now.getDate() + diff)
+    const sunday = new Date(monday)
+    sunday.setDate(monday.getDate() + 6)
+
+    const startDate = monday.toISOString().split('T')[0]
+    const endDate = sunday.toISOString().split('T')[0]
+
+    setFilters({ ...filters, startDate, endDate })
+  }
+
+  const setCurrentMonth = () => {
+    const now = new Date()
+    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1)
+    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+
+    const startDate = firstDay.toISOString().split('T')[0]
+    const endDate = lastDay.toISOString().split('T')[0]
+
+    setFilters({ ...filters, startDate, endDate })
   }
 
   const clearFilters = () => {
@@ -69,10 +98,7 @@ export function TrackingFilters({
       assignedFsrId: "",
     }
     setFilters(clearedFilters)
-    onFilterChange({
-      startDate: today,
-      endDate: today,
-    })
+    // Note: No longer auto-triggering search here
   }
 
   const hasActiveFilters = filters.vicId !== "" || filters.typeId !== "" || filters.statusId !== "" || filters.assignedFsrId !== ""
@@ -107,7 +133,30 @@ export function TrackingFilters({
 
       {showFilters && (
         <Card>
-          <CardContent className="pt-6">
+          <CardContent className="pt-6 space-y-4">
+            {/* Date Preset Buttons */}
+            <div className="flex flex-wrap items-center gap-2">
+              <Label className="text-sm font-medium">Rango de fechas:</Label>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={setCurrentWeek}
+                className="gap-2"
+              >
+                <Calendar className="h-4 w-4" />
+                Semana Actual
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={setCurrentMonth}
+                className="gap-2"
+              >
+                <CalendarDays className="h-4 w-4" />
+                Mes Actual
+              </Button>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {/* Cliente Filter */}
               <div className="space-y-2">
@@ -214,6 +263,18 @@ export function TrackingFilters({
                   onChange={(e) => handleFilterChange("endDate", e.target.value)}
                 />
               </div>
+            </div>
+
+            {/* Search Button */}
+            <div className="flex justify-end gap-2 pt-4 border-t">
+              <Button
+                variant="default"
+                onClick={handleSearch}
+                className="gap-2"
+              >
+                <Search className="h-4 w-4" />
+                Buscar
+              </Button>
             </div>
           </CardContent>
         </Card>

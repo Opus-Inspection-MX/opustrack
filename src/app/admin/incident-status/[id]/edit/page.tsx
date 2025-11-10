@@ -13,23 +13,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Spinner } from "@/components/ui/spinner"
 
-const getStatusColor = (name: string) => {
-  const lowerName = name.toLowerCase()
-  if (lowerName.includes("open") || lowerName.includes("new")) {
-    return "bg-red-100 text-red-800"
-  }
-  if (lowerName.includes("progress") || lowerName.includes("assigned")) {
-    return "bg-blue-100 text-blue-800"
-  }
-  if (lowerName.includes("resolved") || lowerName.includes("closed")) {
-    return "bg-green-100 text-green-800"
-  }
-  if (lowerName.includes("pending") || lowerName.includes("waiting")) {
-    return "bg-yellow-100 text-yellow-800"
-  }
-  return "bg-gray-100 text-gray-800"
-}
-
 export default function EditIncidentStatusPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
   const [statusId, setStatusId] = useState<number | null>(null)
@@ -37,6 +20,7 @@ export default function EditIncidentStatusPage({ params }: { params: Promise<{ i
   const [isFetching, setIsFetching] = useState(true)
   const [formData, setFormData] = useState({
     name: "",
+    color: "#6B7280",
     active: true,
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -62,6 +46,7 @@ export default function EditIncidentStatusPage({ params }: { params: Promise<{ i
       if (data) {
         setFormData({
           name: data.name,
+          color: data.color || "#6B7280",
           active: data.active,
         })
       }
@@ -85,6 +70,10 @@ export default function EditIncidentStatusPage({ params }: { params: Promise<{ i
       newErrors.name = "Name can only contain letters and spaces"
     }
 
+    if (!formData.color || !/^#[0-9A-Fa-f]{6}$/.test(formData.color)) {
+      newErrors.color = "Color must be a valid hex color (e.g., #FF0000)"
+    }
+
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
@@ -101,6 +90,7 @@ export default function EditIncidentStatusPage({ params }: { params: Promise<{ i
       const { updateIncidentStatus } = await import("@/lib/actions/lookups")
       await updateIncidentStatus(statusId, {
         name: formData.name.trim(),
+        color: formData.color,
         active: formData.active,
       })
       router.push(`/admin/incident-status/${statusId}`)
@@ -161,11 +151,45 @@ export default function EditIncidentStatusPage({ params }: { params: Promise<{ i
               {errors.name && <p className="text-sm text-red-500">{errors.name}</p>}
             </div>
 
+            <div className="space-y-2">
+              <Label htmlFor="color">
+                Status Color <span className="text-red-500">*</span>
+              </Label>
+              <div className="flex gap-4 items-center">
+                <Input
+                  id="color"
+                  type="color"
+                  value={formData.color}
+                  onChange={(e) => handleInputChange("color", e.target.value)}
+                  className="h-12 w-24 cursor-pointer"
+                />
+                <Input
+                  type="text"
+                  value={formData.color}
+                  onChange={(e) => handleInputChange("color", e.target.value.toUpperCase())}
+                  placeholder="#6B7280"
+                  className={`flex-1 font-mono ${errors.color ? "border-red-500" : ""}`}
+                />
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Choose a color for this status (hex format)
+              </p>
+              {errors.color && <p className="text-sm text-red-500">{errors.color}</p>}
+            </div>
+
             {formData.name && (
               <div className="space-y-2">
                 <Label>Status Preview</Label>
                 <div>
-                  <Badge className={getStatusColor(formData.name)}>{formData.name}</Badge>
+                  <Badge
+                    style={{
+                      backgroundColor: formData.color,
+                      color: "#FFFFFF",
+                      borderColor: formData.color,
+                    }}
+                  >
+                    {formData.name}
+                  </Badge>
                 </div>
               </div>
             )}

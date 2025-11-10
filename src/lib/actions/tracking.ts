@@ -58,6 +58,7 @@ export async function getIncidentsForTracking(filters?: {
           select: {
             id: true,
             name: true,
+            color: true,
           },
         },
         reportedBy: {
@@ -82,6 +83,7 @@ export async function getIncidentsForTracking(filters?: {
               select: {
                 id: true,
                 name: true,
+                color: true,
               },
             },
           },

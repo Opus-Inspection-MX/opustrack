@@ -11,26 +11,10 @@ import { Spinner } from "@/components/ui/spinner"
 interface IncidentStatus {
   id: number
   name: string
+  color: string
   active: boolean
   createdAt: string
   updatedAt: string
-}
-
-const getStatusColor = (name: string) => {
-  const lowerName = name.toLowerCase()
-  if (lowerName.includes("open") || lowerName.includes("new")) {
-    return "bg-red-100 text-red-800"
-  }
-  if (lowerName.includes("progress") || lowerName.includes("assigned")) {
-    return "bg-blue-100 text-blue-800"
-  }
-  if (lowerName.includes("resolved") || lowerName.includes("closed")) {
-    return "bg-green-100 text-green-800"
-  }
-  if (lowerName.includes("pending") || lowerName.includes("waiting")) {
-    return "bg-yellow-100 text-yellow-800"
-  }
-  return "bg-gray-100 text-gray-800"
 }
 
 export default function ViewIncidentStatusPage({ params }: { params: Promise<{ id: string }> }) {
@@ -49,6 +33,7 @@ export default function ViewIncidentStatusPage({ params }: { params: Promise<{ i
       setIncidentStatus({
         id: Number.parseInt(id),
         name: "In Progress",
+        color: "#3B82F6",
         active: true,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -107,7 +92,30 @@ export default function ViewIncidentStatusPage({ params }: { params: Promise<{ i
           <CardContent className="space-y-4">
             <div>
               <p className="text-sm text-muted-foreground mb-2">Status Name</p>
-              <Badge className={getStatusColor(incidentStatus.name)}>{incidentStatus.name}</Badge>
+              <Badge
+                style={{
+                  backgroundColor: incidentStatus.color,
+                  color: "#FFFFFF",
+                  borderColor: incidentStatus.color,
+                }}
+              >
+                {incidentStatus.name}
+              </Badge>
+            </div>
+
+            <div>
+              <p className="text-sm text-muted-foreground mb-2">Color</p>
+              <div className="flex items-center gap-3">
+                <div
+                  className="w-12 h-12 rounded-lg border-2 border-gray-300 shadow-sm"
+                  style={{ backgroundColor: incidentStatus.color }}
+                  title={incidentStatus.color}
+                />
+                <div>
+                  <p className="font-mono font-medium text-lg">{incidentStatus.color}</p>
+                  <p className="text-sm text-muted-foreground">Hex Color Code</p>
+                </div>
+              </div>
             </div>
 
             <div>

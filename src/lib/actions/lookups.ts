@@ -285,6 +285,7 @@ export async function deleteIncidentType(id: number) {
 
 export type IncidentStatusFormData = {
   name: string;
+  color?: string;
   active?: boolean;
 };
 
@@ -325,6 +326,7 @@ export async function createIncidentStatus(data: IncidentStatusFormData) {
   const status = await prisma.incidentStatus.create({
     data: {
       name: data.name,
+      color: data.color || "#6B7280",
       ...(data.active !== undefined && { active: data.active }),
     },
   });
@@ -340,6 +342,7 @@ export async function updateIncidentStatus(id: number, data: IncidentStatusFormD
     where: { id },
     data: {
       name: data.name,
+      ...(data.color && { color: data.color }),
       ...(data.active !== undefined && { active: data.active }),
     },
   });

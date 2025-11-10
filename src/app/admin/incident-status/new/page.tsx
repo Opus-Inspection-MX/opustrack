@@ -11,6 +11,7 @@ export default function NewIncidentStatusPage() {
     try {
       await createIncidentStatus({
         name: data.name.trim(),
+        color: data.color,
         active: data.active,
       })
       router.push("/admin/incident-status")

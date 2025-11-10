@@ -11,6 +11,7 @@ import { TablePagination } from "@/components/common/table-pagination"
 interface IncidentStatus {
   id: number
   name: string
+  color: string
   incidentCount: number
   active: boolean
   createdAt: string
@@ -22,23 +23,6 @@ interface IncidentStatusTableProps {
   onEdit: (id: number) => void
   onDelete: (id: number) => void
   onView: (id: number) => void
-}
-
-const getStatusColor = (name: string) => {
-  const lowerName = name.toLowerCase()
-  if (lowerName.includes("open") || lowerName.includes("new")) {
-    return "bg-red-100 text-red-800"
-  }
-  if (lowerName.includes("progress") || lowerName.includes("assigned")) {
-    return "bg-blue-100 text-blue-800"
-  }
-  if (lowerName.includes("resolved") || lowerName.includes("closed")) {
-    return "bg-green-100 text-green-800"
-  }
-  if (lowerName.includes("pending") || lowerName.includes("waiting")) {
-    return "bg-yellow-100 text-yellow-800"
-  }
-  return "bg-gray-100 text-gray-800"
 }
 
 export function IncidentStatusTable({ data, onEdit, onDelete, onView }: IncidentStatusTableProps) {
@@ -68,6 +52,7 @@ export function IncidentStatusTable({ data, onEdit, onDelete, onView }: Incident
           <TableHeader>
             <TableRow>
               <TableHead>Name</TableHead>
+              <TableHead>Color</TableHead>
               <TableHead>Status Preview</TableHead>
               <TableHead>Incidents</TableHead>
               <TableHead>Status</TableHead>
@@ -80,7 +65,25 @@ export function IncidentStatusTable({ data, onEdit, onDelete, onView }: Incident
               <TableRow key={status.id}>
                 <TableCell className="font-medium">{status.name}</TableCell>
                 <TableCell>
-                  <Badge className={getStatusColor(status.name)}>{status.name}</Badge>
+                  <div className="flex items-center gap-2">
+                    <div
+                      className="w-8 h-8 rounded border border-gray-300"
+                      style={{ backgroundColor: status.color }}
+                      title={status.color}
+                    />
+                    <span className="font-mono text-sm text-muted-foreground">{status.color}</span>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <Badge
+                    style={{
+                      backgroundColor: status.color,
+                      color: "#FFFFFF",
+                      borderColor: status.color,
+                    }}
+                  >
+                    {status.name}
+                  </Badge>
                 </TableCell>
                 <TableCell>
                   <span className="text-sm text-muted-foreground">{status.incidentCount} incidents</span>

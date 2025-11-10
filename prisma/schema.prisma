@@ -145,6 +145,7 @@ model IncidentType {
 model IncidentStatus {
   id         Int         @id @default(autoincrement())
   name       String      @unique
+  color      String      @default("#6B7280") // Hexadecimal color for status badge
   incidents  Incident[]
   workOrders WorkOrder[]
   active     Boolean     @default(true)

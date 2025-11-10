@@ -327,14 +327,19 @@ async function main() {
     console.log("✅ Seeded IncidentTypes");
 
     // 8) IncidentStatuses
-    const incidentStatuses = ["ABIERTO", "PENDIENTE", "EN_PROGRESO", "CERRADO"];
+    const incidentStatuses = [
+      { name: "ABIERTO", color: "#EF4444" },       // Red - requires immediate attention
+      { name: "PENDIENTE", color: "#F59E0B" },     // Amber - waiting/pending
+      { name: "EN_PROGRESO", color: "#3B82F6" },   // Blue - actively being worked on
+      { name: "CERRADO", color: "#10B981" },       // Green - completed
+    ];
     const incidentStatusRecords = [];
-    for (const name of incidentStatuses) {
+    for (const status of incidentStatuses) {
       incidentStatusRecords.push(
         await tx.incidentStatus.upsert({
-          where: { name },
-          update: {},
-          create: { name },
+          where: { name: status.name },
+          update: { color: status.color },
+          create: { name: status.name, color: status.color },
         })
       );
     }
