@@ -10,7 +10,15 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Edit, Trash2, Eye } from "lucide-react";
+import { MoreHorizontal, Edit, Trash2, Eye } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import Link from "next/link";
 import { deleteVIC } from "@/lib/actions/vics";
 import { useRouter } from "next/navigation";
@@ -29,8 +37,15 @@ type VIC = {
   _count: {
     users: number;
     incidents: number;
-    Part: number;
+    lines: number;
   };
+  lines?: Array<{
+    id: number;
+    _count: {
+      equipments: number;
+    };
+  }>;
+  fsrCount?: number;
 };
 
 export function VICsTable({ vics }: { vics: VIC[] }) {
@@ -60,6 +75,16 @@ export function VICsTable({ vics }: { vics: VIC[] }) {
     );
   }
 
+  // Calculate total equipments
+  const getTotalEquipments = (vic: VIC) => {
+    return vic.lines?.reduce((sum, line) => sum + line._count.equipments, 0) || 0;
+  };
+
+  // Calculate total FSRs assigned to this VIC
+  const getTotalFSRs = (vic: VIC) => {
+    return vic.fsrCount || 0;
+  };
+
   return (
     <div className="border rounded-lg overflow-x-auto">
       <Table>
@@ -69,9 +94,11 @@ export function VICsTable({ vics }: { vics: VIC[] }) {
             <TableHead>Nombre</TableHead>
             <TableHead>Estado</TableHead>
             <TableHead>Contacto</TableHead>
+            <TableHead>FSRs</TableHead>
             <TableHead>Usuarios</TableHead>
             <TableHead>Incidentes</TableHead>
-            <TableHead>Partes</TableHead>
+            <TableHead>Líneas</TableHead>
+            <TableHead>Equipos</TableHead>
             <TableHead className="text-right">Acciones</TableHead>
           </TableRow>
         </TableHeader>
@@ -95,35 +122,53 @@ export function VICsTable({ vics }: { vics: VIC[] }) {
                 </div>
               </TableCell>
               <TableCell>
+                <Badge variant="outline">{getTotalFSRs(vic)}</Badge>
+              </TableCell>
+              <TableCell>
                 <Badge variant="outline">{vic._count.users}</Badge>
               </TableCell>
               <TableCell>
                 <Badge variant="outline">{vic._count.incidents}</Badge>
               </TableCell>
               <TableCell>
-                <Badge variant="outline">{vic._count.Part}</Badge>
+                <Badge variant="outline">{vic._count.lines}</Badge>
+              </TableCell>
+              <TableCell>
+                <Badge variant="outline">{getTotalEquipments(vic)}</Badge>
               </TableCell>
               <TableCell className="text-right">
-                <div className="flex justify-end gap-2">
-                  <Button variant="ghost" size="icon" asChild>
-                    <Link href={`/admin/vic-centers/${vic.id}`}>
-                      <Eye className="h-4 w-4" />
-                    </Link>
-                  </Button>
-                  <Button variant="ghost" size="icon" asChild>
-                    <Link href={`/admin/vic-centers/${vic.id}/edit`}>
-                      <Edit className="h-4 w-4" />
-                    </Link>
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleDelete(vic.id, vic.name)}
-                    disabled={deleting === vic.id}
-                  >
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
-                </div>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon">
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuLabel>Acciones</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild>
+                      <Link href={`/admin/vic-centers/${vic.id}`} className="flex items-center cursor-pointer">
+                        <Eye className="h-4 w-4 mr-2" />
+                        Ver detalles
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href={`/admin/vic-centers/${vic.id}/edit`} className="flex items-center cursor-pointer">
+                        <Edit className="h-4 w-4 mr-2" />
+                        Editar
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => handleDelete(vic.id, vic.name)}
+                      disabled={deleting === vic.id}
+                      className="text-destructive focus:text-destructive cursor-pointer"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Eliminar
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </TableCell>
             </TableRow>
           ))}

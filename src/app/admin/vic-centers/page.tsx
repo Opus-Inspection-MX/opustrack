@@ -19,7 +19,7 @@ export default async function VICCentersPage() {
         <Button asChild>
           <Link href="/admin/vic-centers/new">
             <Plus className="mr-2 h-4 w-4" />
-            Agregar VIC
+            Agregar Cliente
           </Link>
         </Button>
       </div>

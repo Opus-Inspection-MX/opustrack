@@ -1,4 +1,4 @@
-import { getVICById, getStates } from "@/lib/actions/vics";
+import { getVICById, getStates, getFSRUsers, getClientUsers } from "@/lib/actions/vics";
 import { VICForm } from "@/components/admin/vics/vic-form";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
@@ -11,9 +11,11 @@ export default async function EditVICCenterPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [vic, states] = await Promise.all([
+  const [vic, states, fsrUsers, clientUsers] = await Promise.all([
     getVICById(id),
     getStates(),
+    getFSRUsers(),
+    getClientUsers(),
   ]);
 
   if (!vic) notFound();
@@ -34,7 +36,7 @@ export default async function EditVICCenterPage({
         </div>
       </div>
 
-      <VICForm vic={vic} states={states} />
+      <VICForm vic={vic} states={states} fsrUsers={fsrUsers} clientUsers={clientUsers} />
     </div>
   );
 }

@@ -11,11 +11,11 @@ import {
   Phone,
   Mail,
   User,
-  Package,
   AlertTriangle,
   Calendar,
   Users,
-  Wrench
+  Wrench,
+  Package
 } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -79,12 +79,12 @@ export default async function VICDetailPage({
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Inventario</CardTitle>
-            <Package className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Líneas</CardTitle>
+            <Wrench className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{vic._count.Part}</div>
-            <p className="text-xs text-muted-foreground">Partes disponibles</p>
+            <div className="text-2xl font-bold">{vic._count.lines}</div>
+            <p className="text-xs text-muted-foreground">Líneas de inspección</p>
           </CardContent>
         </Card>
 
@@ -153,14 +153,6 @@ export default async function VICDetailPage({
                 </div>
               </div>
             )}
-
-            <div className="flex items-start gap-3">
-              <Wrench className="h-5 w-5 text-muted-foreground mt-0.5" />
-              <div className="flex-1">
-                <p className="text-sm text-muted-foreground">Número de Líneas</p>
-                <p className="font-medium">{vic._count.lines}</p>
-              </div>
-            </div>
           </CardContent>
         </Card>
 
@@ -279,62 +271,86 @@ export default async function VICDetailPage({
         </CardContent>
       </Card>
 
-      {/* Assigned Parts */}
+      {/* Lines and Equipment */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Package className="h-5 w-5" />
-            Inventario Disponible ({vic.Part.length})
+            <Wrench className="h-5 w-5" />
+            Líneas y Equipos ({vic.lines.length})
           </CardTitle>
           <CardDescription>
-            Inventario de partes para este Cliente
+            Líneas de inspección y sus equipos
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {vic.Part.length === 0 ? (
+          {vic.lines.length === 0 ? (
             <p className="text-center text-muted-foreground py-8">
-              No hay partes asignadas a este Cliente
+              No hay líneas asignadas a este Cliente
             </p>
           ) : (
-            <div className="border rounded-lg overflow-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Nombre</TableHead>
-                    <TableHead>Descripción</TableHead>
-                    <TableHead>Existencias</TableHead>
-                    <TableHead>Precio</TableHead>
-                    <TableHead className="text-right">Acciones</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {vic.Part.map((part) => (
-                    <TableRow key={part.id}>
-                      <TableCell className="font-medium">{part.name}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground max-w-xs truncate">
-                        {part.description || "-"}
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={part.stock > 10 ? "default" : part.stock > 0 ? "secondary" : "destructive"}
-                        >
-                          {part.stock} unidades
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="font-medium">
-                        ${part.price.toFixed(2)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button variant="ghost" size="sm" asChild>
-                          <Link href={`/admin/parts/${part.id}/edit`}>
-                            Ver
-                          </Link>
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+            <div className="space-y-6">
+              {vic.lines.map((line) => (
+                <div key={line.id} className="border rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h3 className="font-semibold text-lg">{line.name}</h3>
+                      {line.description && (
+                        <p className="text-sm text-muted-foreground">{line.description}</p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline">
+                        {line.equipments.length} equipos
+                      </Badge>
+                      <Button variant="ghost" size="sm" asChild>
+                        <Link href={`/admin/lines/${line.id}`}>
+                          Ver Línea
+                        </Link>
+                      </Button>
+                    </div>
+                  </div>
+
+                  {line.equipments.length > 0 ? (
+                    <div className="border rounded-lg overflow-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Equipo</TableHead>
+                            <TableHead>Descripción</TableHead>
+                            <TableHead className="text-right">Acciones</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {line.equipments.map((equipment) => (
+                            <TableRow key={equipment.id}>
+                              <TableCell className="font-medium">
+                                <div className="flex items-center gap-2">
+                                  <Package className="h-4 w-4 text-muted-foreground" />
+                                  {equipment.name}
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-sm text-muted-foreground max-w-xs truncate">
+                                {equipment.description || "-"}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <Button variant="ghost" size="sm" asChild>
+                                  <Link href={`/admin/equipments/${equipment.id}/edit`}>
+                                    Ver
+                                  </Link>
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      No hay equipos en esta línea
+                    </p>
+                  )}
+                </div>
+              ))}
             </div>
           )}
         </CardContent>

@@ -39,12 +39,15 @@ interface TrackingTableProps {
   incidents: any[]
   fsrsByVic: Record<string, Array<{ id: string; name: string; email: string }>>
   incidentStatuses: Array<{ id: number; name: string }>
+  onDataChange?: () => void
 }
 
-export function TrackingTable({ incidents, fsrsByVic, incidentStatuses }: TrackingTableProps) {
+export function TrackingTable({ incidents, fsrsByVic, incidentStatuses, onDataChange }: TrackingTableProps) {
   const router = useRouter()
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set())
-  const [assigningWorkOrder, setAssigningWorkOrder] = useState<string | null>(null)
+  const [editingWorkOrder, setEditingWorkOrder] = useState<string | null>(null)
+  const [tempFSRAssignment, setTempFSRAssignment] = useState<{ [key: string]: string }>({})
+  const [savingWorkOrder, setSavingWorkOrder] = useState<string | null>(null)
   const [editingIncident, setEditingIncident] = useState<number | null>(null)
   const [editForm, setEditForm] = useState<any>({})
   const [savingIncident, setSavingIncident] = useState(false)
@@ -59,18 +62,36 @@ export function TrackingTable({ incidents, fsrsByVic, incidentStatuses }: Tracki
     setExpandedRows(newExpanded)
   }
 
-  const handleUpdateWorkOrderFSR = async (workOrderId: string, fsrId: string) => {
+  const handleEditWorkOrder = (workOrder: any) => {
+    setEditingWorkOrder(workOrder.id)
+    setTempFSRAssignment({ ...tempFSRAssignment, [workOrder.id]: workOrder.assignedTo.id })
+  }
+
+  const handleCancelWorkOrderEdit = (workOrderId: string) => {
+    setEditingWorkOrder(null)
+    const { [workOrderId]: _, ...rest } = tempFSRAssignment
+    setTempFSRAssignment(rest)
+  }
+
+  const handleSaveWorkOrderFSR = async (workOrderId: string) => {
+    const fsrId = tempFSRAssignment[workOrderId]
     if (!fsrId) return
 
-    setAssigningWorkOrder(workOrderId)
+    setSavingWorkOrder(workOrderId)
     try {
       await updateWorkOrderFSR(workOrderId, fsrId)
-      router.refresh()
+      setEditingWorkOrder(null)
+      const { [workOrderId]: _, ...rest } = tempFSRAssignment
+      setTempFSRAssignment(rest)
+      // Reload the incidents data to reflect the change
+      if (onDataChange) {
+        onDataChange()
+      }
     } catch (error) {
       console.error("Error updating FSR:", error)
       alert("Error al actualizar FSR")
     } finally {
-      setAssigningWorkOrder(null)
+      setSavingWorkOrder(null)
     }
   }
 
@@ -104,7 +125,10 @@ export function TrackingTable({ incidents, fsrsByVic, incidentStatuses }: Tracki
       })
       setEditingIncident(null)
       setEditForm({})
-      router.refresh()
+      // Reload the incidents data to reflect the change
+      if (onDataChange) {
+        onDataChange()
+      }
     } catch (error) {
       console.error("Error updating incident:", error)
       alert("Error al actualizar incidente")
@@ -268,7 +292,7 @@ export function TrackingTable({ incidents, fsrsByVic, incidentStatuses }: Tracki
                                     onClick={() => handleEditIncident(incident)}
                                   >
                                     <Edit className="h-4 w-4 mr-2" />
-                                    Editar
+                                    Edición Rápida
                                   </Button>
                                   <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
@@ -282,6 +306,12 @@ export function TrackingTable({ incidents, fsrsByVic, incidentStatuses }: Tracki
                                         <Link href={`/admin/incidents/${incident.id}`}>
                                           <Eye className="h-4 w-4 mr-2" />
                                           Ver Incidente
+                                        </Link>
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem asChild>
+                                        <Link href={`/admin/incidents/${incident.id}/edit`}>
+                                          <Edit className="h-4 w-4 mr-2" />
+                                          Edición Completa
                                         </Link>
                                       </DropdownMenuItem>
                                     </DropdownMenuContent>
@@ -386,28 +416,29 @@ export function TrackingTable({ incidents, fsrsByVic, incidentStatuses }: Tracki
 
                                         <div className="flex items-center gap-2">
                                           <label className="text-sm font-medium min-w-[100px]">FSR Asignado:</label>
-                                          {availableFSRs.length > 0 ? (
-                                            <Select
-                                              value={workOrder.assignedTo.id}
-                                              onValueChange={(value) => handleUpdateWorkOrderFSR(workOrder.id, value)}
-                                              disabled={assigningWorkOrder === workOrder.id}
-                                            >
-                                              <SelectTrigger className="w-[250px]">
-                                                <SelectValue>
-                                                  <div className="flex items-center gap-2">
-                                                    <User className="h-4 w-4" />
-                                                    <span>{workOrder.assignedTo.name}</span>
-                                                  </div>
-                                                </SelectValue>
-                                              </SelectTrigger>
-                                              <SelectContent>
-                                                {availableFSRs.map((fsr) => (
-                                                  <SelectItem key={fsr.id} value={fsr.id}>
-                                                    {fsr.name}
-                                                  </SelectItem>
-                                                ))}
-                                              </SelectContent>
-                                            </Select>
+                                          {editingWorkOrder === workOrder.id ? (
+                                            availableFSRs.length > 0 ? (
+                                              <Select
+                                                value={tempFSRAssignment[workOrder.id] || workOrder.assignedTo.id}
+                                                onValueChange={(value) => setTempFSRAssignment({ ...tempFSRAssignment, [workOrder.id]: value })}
+                                              >
+                                                <SelectTrigger className="w-[250px]">
+                                                  <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                  {availableFSRs.map((fsr) => (
+                                                    <SelectItem key={fsr.id} value={fsr.id}>
+                                                      {fsr.name}
+                                                    </SelectItem>
+                                                  ))}
+                                                </SelectContent>
+                                              </Select>
+                                            ) : (
+                                              <span className="text-sm">
+                                                <User className="h-4 w-4 inline mr-2" />
+                                                {workOrder.assignedTo.name}
+                                              </span>
+                                            )
                                           ) : (
                                             <span className="text-sm">
                                               <User className="h-4 w-4 inline mr-2" />
@@ -415,6 +446,62 @@ export function TrackingTable({ incidents, fsrsByVic, incidentStatuses }: Tracki
                                             </span>
                                           )}
                                         </div>
+                                      </div>
+
+                                      <div className="flex items-center gap-2">
+                                        {editingWorkOrder === workOrder.id ? (
+                                          <>
+                                            <Button
+                                              variant="outline"
+                                              size="sm"
+                                              onClick={() => handleCancelWorkOrderEdit(workOrder.id)}
+                                              disabled={savingWorkOrder === workOrder.id}
+                                            >
+                                              <XIcon className="h-4 w-4 mr-2" />
+                                              Cancelar
+                                            </Button>
+                                            <Button
+                                              size="sm"
+                                              onClick={() => handleSaveWorkOrderFSR(workOrder.id)}
+                                              disabled={savingWorkOrder === workOrder.id}
+                                            >
+                                              <Save className="h-4 w-4 mr-2" />
+                                              {savingWorkOrder === workOrder.id ? "Guardando..." : "Guardar"}
+                                            </Button>
+                                          </>
+                                        ) : (
+                                          <>
+                                            <Button
+                                              variant="outline"
+                                              size="sm"
+                                              onClick={() => handleEditWorkOrder(workOrder)}
+                                            >
+                                              <Edit className="h-4 w-4 mr-2" />
+                                              Edición Rápida
+                                            </Button>
+                                            <DropdownMenu>
+                                              <DropdownMenuTrigger asChild>
+                                                <Button variant="outline" size="sm">
+                                                  <MoreHorizontal className="h-4 w-4" />
+                                                </Button>
+                                              </DropdownMenuTrigger>
+                                              <DropdownMenuContent align="end">
+                                                <DropdownMenuItem asChild>
+                                                  <Link href={`/admin/work-orders/${workOrder.id}`}>
+                                                    <Eye className="h-4 w-4 mr-2" />
+                                                    Ver Orden
+                                                  </Link>
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem asChild>
+                                                  <Link href={`/admin/work-orders/${workOrder.id}/edit`}>
+                                                    <Edit className="h-4 w-4 mr-2" />
+                                                    Edición Completa
+                                                  </Link>
+                                                </DropdownMenuItem>
+                                              </DropdownMenuContent>
+                                            </DropdownMenu>
+                                          </>
+                                        )}
                                       </div>
                                     </div>
 

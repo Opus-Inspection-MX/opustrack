@@ -115,7 +115,9 @@ export async function getFSRsByVicId(vicId: string) {
   try {
     const users = await prisma.user.findMany({
       where: {
-        vicId,
+        vicIds: {
+          has: vicId, // Check if vicId is in the vicIds array
+        },
         active: true,
         role: {
           name: "FSR",
@@ -182,15 +184,24 @@ export async function assignFSRToIncident(incidentId: number, fsrId: string) {
 
 export async function updateWorkOrderFSR(workOrderId: string, fsrId: string) {
   try {
-    await prisma.workOrder.update({
+    const updatedWorkOrder = await prisma.workOrder.update({
       where: { id: workOrderId },
       data: {
         assignedToId: fsrId,
       },
+      include: {
+        assignedTo: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
     });
 
     revalidatePath("/admin/tracking");
-    return { success: true };
+    return { success: true, workOrder: updatedWorkOrder };
   } catch (error) {
     console.error("Error updating work order FSR:", error);
     throw new Error("Failed to update work order FSR");

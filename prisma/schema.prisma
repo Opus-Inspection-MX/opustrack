@@ -11,23 +11,24 @@ datasource db {
 }
 
 model User {
-  id                String                   @id @default(cuid())
+  id                String    @id @default(cuid())
   name              String
-  email             String                   @unique
+  email             String    @unique
   password          String
   roleId            Int
-  userStatusId      Int                      @default(1)
-  vicId             String?
-  role              Role                     @relation(fields: [roleId], references: [id])
-  userStatus        UserStatus               @relation(fields: [userStatusId], references: [id])
+  userStatusId      Int       @default(1)
+  vicId             String?   // Deprecated - kept for backward compatibility
+  vicIds            String[]  @default([]) // Array of VIC IDs for FSR assignments
+  role              Role      @relation(fields: [roleId], references: [id])
+  userStatus        UserStatus @relation(fields: [userStatusId], references: [id])
   userProfile       UserProfile?
   vic               VehicleInspectionCenter? @relation(fields: [vicId], references: [id])
-  createdAt         DateTime                 @default(now())
-  updatedAt         DateTime                 @updatedAt
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
   workOrders        WorkOrder[]
-  reportedIncidents Incident[]               @relation("IncidentReporter")
-  incidents         Incident[]               @relation("IncidentUser") // relación opcional si usas userId en Incident
-  active            Boolean                  @default(true)
+  reportedIncidents Incident[] @relation("IncidentReporter")
+  incidents         Incident[] @relation("IncidentUser") // relación opcional si usas userId en Incident
+  active            Boolean   @default(true)
 }
 
 model Role {

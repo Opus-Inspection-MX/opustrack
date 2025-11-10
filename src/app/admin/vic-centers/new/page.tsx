@@ -1,11 +1,15 @@
-import { getStates } from "@/lib/actions/vics";
+import { getStates, getFSRUsers, getClientUsers } from "@/lib/actions/vics";
 import { VICForm } from "@/components/admin/vics/vic-form";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
 export default async function NewVICCenterPage() {
-  const states = await getStates();
+  const [states, fsrUsers, clientUsers] = await Promise.all([
+    getStates(),
+    getFSRUsers(),
+    getClientUsers(),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -23,7 +27,7 @@ export default async function NewVICCenterPage() {
         </div>
       </div>
 
-      <VICForm states={states} />
+      <VICForm states={states} fsrUsers={fsrUsers} clientUsers={clientUsers} />
     </div>
   );
 }

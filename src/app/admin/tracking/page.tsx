@@ -134,6 +134,7 @@ export default function TrackingPage() {
         incidents={incidents}
         fsrsByVic={fsrsByVic}
         incidentStatuses={incidentStatuses}
+        onDataChange={() => loadIncidents(filters)}
       />
     </div>
   )
