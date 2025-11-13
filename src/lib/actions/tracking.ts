@@ -31,10 +31,14 @@ export async function getIncidentsForTracking(filters?: {
     if (filters?.startDate || filters?.endDate) {
       where.reportedAt = {};
       if (filters.startDate) {
+        // Set to start of day (00:00:00.000)
         where.reportedAt.gte = new Date(filters.startDate);
       }
       if (filters.endDate) {
-        where.reportedAt.lte = new Date(filters.endDate);
+        // Set to end of day (23:59:59.999) to include all incidents from that day
+        const endDate = new Date(filters.endDate);
+        endDate.setHours(23, 59, 59, 999);
+        where.reportedAt.lte = endDate;
       }
     }
 

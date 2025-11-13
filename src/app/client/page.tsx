@@ -33,19 +33,19 @@ export default async function ClientDashboard() {
     return <Badge variant="outline">Baja</Badge>;
   };
 
-  const getStatusBadge = (statusName: string | undefined) => {
-    if (!statusName) return <Badge variant="outline">Desconocido</Badge>;
+  const getStatusBadge = (status: any) => {
+    if (!status) {
+      return <Badge variant="outline">Desconocido</Badge>;
+    }
 
-    if (statusName === "ABIERTO") {
-      return <Badge variant="default" className="bg-blue-600">Abierto</Badge>;
-    }
-    if (statusName === "EN_PROGRESO" || statusName === "PENDIENTE") {
-      return <Badge variant="secondary">En Progreso</Badge>;
-    }
-    if (statusName === "CERRADO") {
-      return <Badge variant="default" className="bg-green-600">Cerrado</Badge>;
-    }
-    return <Badge variant="outline">{statusName}</Badge>;
+    return (
+      <Badge
+        className="text-white"
+        style={{ backgroundColor: status.color || "#6B7280" }}
+      >
+        {status.name}
+      </Badge>
+    );
   };
 
   return (
@@ -160,7 +160,7 @@ export default async function ClientDashboard() {
                         #{incident.id}
                       </span>
                       {getPriorityBadge(incident.priority)}
-                      {getStatusBadge(incident.status?.name)}
+                      {getStatusBadge(incident.status)}
                       {incident.type && (
                         <Badge variant="outline">{incident.type.name}</Badge>
                       )}
