@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
 export default async function NewWorkOrderPage() {
-  const { incidents, users } = await getWorkOrderFormOptions();
+  const { incidents, users, incidentStatuses } = await getWorkOrderFormOptions();
 
   return (
     <div className="space-y-6">
@@ -23,7 +23,7 @@ export default async function NewWorkOrderPage() {
         </div>
       </div>
 
-      <WorkOrderForm incidents={incidents} users={users} />
+      <WorkOrderForm incidents={incidents} users={users} incidentStatuses={incidentStatuses} />
     </div>
   );
 }

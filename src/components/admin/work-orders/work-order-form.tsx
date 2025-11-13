@@ -23,19 +23,25 @@ type WorkOrderFormProps = {
     assignedToId: string;
     notes: string | null;
     folio: string | null;
+    statusId?: number | null;
   };
   incidents: Array<{ id: number; title: string; priority: number; vicId?: string | null }>;
   users: Array<{ id: string; name: string; vicIds?: string[] }>;
+  incidentStatuses: Array<{ id: number; name: string; color: string; active: boolean }>;
 };
 
-export function WorkOrderForm({ workOrder, incidents, users }: WorkOrderFormProps) {
+export function WorkOrderForm({ workOrder, incidents, users, incidentStatuses }: WorkOrderFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Find ABIERTO status as default
+  const abiertoStatus = incidentStatuses.find(status => status.name === "ABIERTO");
+
   const [formData, setFormData] = useState<WorkOrderFormData>({
     incidentId: workOrder?.incidentId || incidents[0]?.id || 0,
     assignedToId: workOrder?.assignedToId || users[0]?.id || "",
+    statusId: workOrder?.statusId || abiertoStatus?.id || null,
     notes: workOrder?.notes || "",
     folio: workOrder?.folio || "",
   });
@@ -123,6 +129,27 @@ export function WorkOrderForm({ workOrder, incidents, users }: WorkOrderFormProp
                 No FSRs assigned to this VIC
               </p>
             )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="statusId">Estado</Label>
+            <Select
+              value={formData.statusId?.toString() || ""}
+              onValueChange={(value) =>
+                setFormData({ ...formData, statusId: value ? parseInt(value) : null })
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Seleccionar estado" />
+              </SelectTrigger>
+              <SelectContent>
+                {incidentStatuses.map((status) => (
+                  <SelectItem key={status.id} value={status.id.toString()}>
+                    {status.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2">

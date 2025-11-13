@@ -302,14 +302,14 @@ export default function FSRWorkOrderDetailPage({
           {/* Status Selector */}
           {!isCompleted && (
             <div className="space-y-2">
-              <Label htmlFor="status">Work Order Status</Label>
+              <Label htmlFor="status">Estado de esta Orden de Trabajo</Label>
               <Select
                 value={workOrder.statusId?.toString() || ""}
                 onValueChange={handleStatusChange}
                 disabled={statusLoading}
               >
                 <SelectTrigger id="status">
-                  <SelectValue placeholder="Select status" />
+                  <SelectValue placeholder="Seleccionar estado" />
                 </SelectTrigger>
                 <SelectContent>
                   {statuses.map((status) => (
@@ -320,7 +320,7 @@ export default function FSRWorkOrderDetailPage({
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">
-                Update the work order status as you progress
+                Cambia el estado de esta orden de trabajo (NO afecta el estado del incidente)
               </p>
             </div>
           )}

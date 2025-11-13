@@ -311,7 +311,7 @@ export async function getMyWorkOrders() {
 export async function getWorkOrderFormOptions() {
   await requirePermission("work-orders:read");
 
-  const [incidents, users] = await Promise.all([
+  const [incidents, users, incidentStatuses] = await Promise.all([
     prisma.incident.findMany({
       where: { active: true },
       include: {
@@ -332,9 +332,13 @@ export async function getWorkOrderFormOptions() {
       },
       orderBy: { name: "asc" },
     }),
+    prisma.incidentStatus.findMany({
+      where: { active: true },
+      orderBy: { name: "asc" },
+    }),
   ]);
 
-  return { incidents, users };
+  return { incidents, users, incidentStatuses };
 }
 
 /**
