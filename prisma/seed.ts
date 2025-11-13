@@ -189,6 +189,8 @@ async function main() {
           "users:read",
           "vics:read",
           "reports:view", "reports:export",
+          "incident-status:read",
+          "incident-types:read",
         ],
       },
       {

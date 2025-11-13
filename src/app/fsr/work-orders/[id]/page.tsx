@@ -33,6 +33,7 @@ export default function FSRWorkOrderDetailPage({
   const [attachments, setAttachments] = useState<any[]>([]);
   const [statuses, setStatuses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [showActivityForm, setShowActivityForm] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [statusLoading, setStatusLoading] = useState(false);
@@ -54,6 +55,7 @@ export default function FSRWorkOrderDetailPage({
 
     try {
       setLoading(true);
+      setError(null);
       const [woData, activitiesData, partsData, statusesData] = await Promise.all([
         getWorkOrderById(workOrderId),
         getWorkActivities(workOrderId),
@@ -69,6 +71,7 @@ export default function FSRWorkOrderDetailPage({
       setFolioValue(woData?.folio || "");
     } catch (error) {
       console.error("Error fetching data:", error);
+      setError(error instanceof Error ? error.message : "Failed to load work order");
     } finally {
       setLoading(false);
     }
@@ -166,10 +169,46 @@ export default function FSRWorkOrderDetailPage({
     }
   };
 
-  if (loading || !workOrder) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
         <Spinner size="lg" text="Loading work order..." />
+      </div>
+    );
+  }
+
+  if (error || !workOrder) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" asChild>
+            <Link href="/fsr/work-orders">
+              <ArrowLeft className="h-4 w-4" />
+            </Link>
+          </Button>
+          <h1 className="text-3xl font-bold">Work Order</h1>
+        </div>
+        <Card className="border-destructive">
+          <CardContent className="py-8">
+            <div className="flex flex-col items-center gap-4 text-center">
+              <AlertTriangle className="h-12 w-12 text-destructive" />
+              <div>
+                <h3 className="text-lg font-semibold mb-2">Failed to Load Work Order</h3>
+                <p className="text-muted-foreground">
+                  {error || "Work order not found or you don't have permission to view it."}
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <Button onClick={() => fetchData()} variant="outline">
+                  Try Again
+                </Button>
+                <Button asChild>
+                  <Link href="/fsr/work-orders">Back to Work Orders</Link>
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
