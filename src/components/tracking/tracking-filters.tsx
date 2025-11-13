@@ -20,6 +20,7 @@ interface TrackingFiltersProps {
     startDate?: string
     endDate?: string
     assignedFsrId?: string
+    folio?: string
   }) => void
   createButton?: React.ReactNode
 }
@@ -41,6 +42,7 @@ export function TrackingFilters({
     startDate: today,
     endDate: today,
     assignedFsrId: "",
+    folio: "",
   })
 
   const handleFilterChange = (field: string, value: string) => {
@@ -58,6 +60,7 @@ export function TrackingFilters({
     if (filters.startDate) cleanFilters.startDate = filters.startDate
     if (filters.endDate) cleanFilters.endDate = filters.endDate
     if (filters.assignedFsrId) cleanFilters.assignedFsrId = filters.assignedFsrId
+    if (filters.folio) cleanFilters.folio = filters.folio
 
     onFilterChange(cleanFilters)
   }
@@ -93,15 +96,20 @@ export function TrackingFilters({
       vicId: "",
       typeId: "",
       statusId: "",
-      startDate: today,
-      endDate: today,
+      startDate: filters.startDate, // Keep current date
+      endDate: filters.endDate, // Keep current date
       assignedFsrId: "",
+      folio: "",
     }
     setFilters(clearedFilters)
-    // Note: No longer auto-triggering search here
+    // Trigger search with cleared filters
+    onFilterChange({
+      startDate: filters.startDate,
+      endDate: filters.endDate,
+    })
   }
 
-  const hasActiveFilters = filters.vicId !== "" || filters.typeId !== "" || filters.statusId !== "" || filters.assignedFsrId !== ""
+  const hasActiveFilters = filters.vicId !== "" || filters.typeId !== "" || filters.statusId !== "" || filters.assignedFsrId !== "" || filters.folio !== ""
 
   // Trigger initial filter with today's date on mount
   useEffect(() => {
@@ -123,12 +131,6 @@ export function TrackingFilters({
           <Filter className="h-4 w-4" />
           {showFilters ? "Ocultar Filtros" : "Mostrar Filtros"}
         </Button>
-        {hasActiveFilters && (
-          <Button variant="ghost" onClick={clearFilters} className="gap-2">
-            <X className="h-4 w-4" />
-            Limpiar Filtros
-          </Button>
-        )}
       </div>
 
       {showFilters && (
@@ -263,10 +265,28 @@ export function TrackingFilters({
                   onChange={(e) => handleFilterChange("endDate", e.target.value)}
                 />
               </div>
+
+              {/* Folio ODT Filter */}
+              <div className="space-y-2">
+                <Label htmlFor="folio">Folio ODT</Label>
+                <Input
+                  id="folio"
+                  type="text"
+                  placeholder="Buscar por folio..."
+                  value={filters.folio}
+                  onChange={(e) => handleFilterChange("folio", e.target.value)}
+                />
+              </div>
             </div>
 
-            {/* Search Button */}
+            {/* Search and Clear Buttons */}
             <div className="flex justify-end gap-2 pt-4 border-t">
+              {hasActiveFilters && (
+                <Button variant="outline" onClick={clearFilters} className="gap-2">
+                  <X className="h-4 w-4" />
+                  Limpiar Filtros
+                </Button>
+              )}
               <Button
                 variant="default"
                 onClick={handleSearch}

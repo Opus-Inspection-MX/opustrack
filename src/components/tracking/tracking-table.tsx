@@ -7,8 +7,10 @@ import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { ChevronDown, ChevronRight, User, MoreHorizontal, Eye, Edit, Save, X as XIcon, ArrowUpDown, ArrowUp, ArrowDown, Plus } from "lucide-react"
-import { updateWorkOrderFSR, updateIncidentDetails } from "@/lib/actions/tracking"
+import { updateWorkOrderFSR, updateIncidentDetails, updateWorkOrderDetails } from "@/lib/actions/tracking"
 import { createWorkOrder } from "@/lib/actions/work-orders"
+import { getLinesByVicId } from "@/lib/actions/lines"
+import { getEquipmentsByLineId } from "@/lib/actions/equipments"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Input } from "@/components/ui/input"
@@ -56,7 +58,7 @@ export function TrackingTable({ incidents, fsrsByVic, incidentStatuses, onDataCh
   const router = useRouter()
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set())
   const [editingWorkOrder, setEditingWorkOrder] = useState<string | null>(null)
-  const [tempFSRAssignment, setTempFSRAssignment] = useState<{ [key: string]: string }>({})
+  const [workOrderEditForm, setWorkOrderEditForm] = useState<any>({})
   const [savingWorkOrder, setSavingWorkOrder] = useState<string | null>(null)
   const [editingIncident, setEditingIncident] = useState<number | null>(null)
   const [editForm, setEditForm] = useState<any>({})
@@ -65,6 +67,8 @@ export function TrackingTable({ incidents, fsrsByVic, incidentStatuses, onDataCh
   const [creatingWorkOrder, setCreatingWorkOrder] = useState<number | null>(null)
   const [newWorkOrderForm, setNewWorkOrderForm] = useState<any>({})
   const [savingNewWorkOrder, setSavingNewWorkOrder] = useState(false)
+  const [linesForEdit, setLinesForEdit] = useState<any[]>([])
+  const [equipmentsForEdit, setEquipmentsForEdit] = useState<any[]>([])
 
   // Sort incidents based on sorting state
   const sortedIncidents = useMemo(() => {
@@ -145,53 +149,110 @@ export function TrackingTable({ incidents, fsrsByVic, incidentStatuses, onDataCh
 
   const handleEditWorkOrder = (workOrder: any) => {
     setEditingWorkOrder(workOrder.id)
-    setTempFSRAssignment({ ...tempFSRAssignment, [workOrder.id]: workOrder.assignedTo.id })
+    // Format datetime for datetime-local input (YYYY-MM-DDTHH:mm)
+    const startedDateTime = workOrder.startedAt ? new Date(workOrder.startedAt).toISOString().slice(0, 16) : ''
+    const finishedDateTime = workOrder.finishedAt ? new Date(workOrder.finishedAt).toISOString().slice(0, 16) : ''
+    setWorkOrderEditForm({
+      assignedToId: workOrder.assignedTo.id,
+      statusId: workOrder.status?.id || '',
+      startedAt: startedDateTime,
+      finishedAt: finishedDateTime,
+      folio: workOrder.folio || '',
+    })
   }
 
   const handleCancelWorkOrderEdit = (workOrderId: string) => {
     setEditingWorkOrder(null)
-    const { [workOrderId]: _, ...rest } = tempFSRAssignment
-    setTempFSRAssignment(rest)
+    setWorkOrderEditForm({})
   }
 
-  const handleSaveWorkOrderFSR = async (workOrderId: string) => {
-    const fsrId = tempFSRAssignment[workOrderId]
-    if (!fsrId) return
+  const handleSaveWorkOrder = async (workOrderId: string) => {
+    if (!workOrderEditForm.assignedToId) {
+      alert("Por favor selecciona un FSR")
+      return
+    }
 
     setSavingWorkOrder(workOrderId)
     try {
-      await updateWorkOrderFSR(workOrderId, fsrId)
+      await updateWorkOrderDetails(workOrderId, {
+        assignedToId: workOrderEditForm.assignedToId,
+        statusId: workOrderEditForm.statusId ? parseInt(workOrderEditForm.statusId) : null,
+        startedAt: workOrderEditForm.startedAt || null,
+        finishedAt: workOrderEditForm.finishedAt || null,
+        folio: workOrderEditForm.folio || null,
+      })
       setEditingWorkOrder(null)
-      const { [workOrderId]: _, ...rest } = tempFSRAssignment
-      setTempFSRAssignment(rest)
+      setWorkOrderEditForm({})
       // Reload the incidents data to reflect the change
       if (onDataChange) {
         onDataChange()
       }
     } catch (error) {
-      console.error("Error updating FSR:", error)
-      alert("Error al actualizar FSR")
+      console.error("Error updating work order:", error)
+      alert("Error al actualizar orden de trabajo")
     } finally {
       setSavingWorkOrder(null)
     }
   }
 
-  const handleEditIncident = (incident: any) => {
+  const handleEditIncident = async (incident: any) => {
     setEditingIncident(incident.id)
-    const reportedDate = new Date(incident.reportedAt).toISOString().split('T')[0]
-    const resolvedDate = incident.resolvedAt ? new Date(incident.resolvedAt).toISOString().split('T')[0] : ''
+    // Format datetime for datetime-local input (YYYY-MM-DDTHH:mm)
+    const reportedDateTime = new Date(incident.reportedAt).toISOString().slice(0, 16)
+    const resolvedDateTime = incident.resolvedAt ? new Date(incident.resolvedAt).toISOString().slice(0, 16) : ''
     setEditForm({
       title: incident.title,
       description: incident.description,
-      reportedAt: reportedDate,
-      resolvedAt: resolvedDate,
+      reportedAt: reportedDateTime,
+      resolvedAt: resolvedDateTime,
       statusId: incident.status?.id || '',
+      lineId: incident.lineId || '',
+      equipmentId: incident.equipmentId || '',
     })
+
+    // Load lines for the incident's VIC
+    if (incident.vic?.id) {
+      try {
+        const lines = await getLinesByVicId(incident.vic.id)
+        setLinesForEdit(lines)
+
+        // Load equipments for the incident's line
+        if (incident.lineId) {
+          const equipments = await getEquipmentsByLineId(incident.lineId)
+          setEquipmentsForEdit(equipments)
+        } else {
+          setEquipmentsForEdit([])
+        }
+      } catch (error) {
+        console.error("Error loading lines/equipments:", error)
+        setLinesForEdit([])
+        setEquipmentsForEdit([])
+      }
+    }
   }
 
   const handleCancelEdit = () => {
     setEditingIncident(null)
     setEditForm({})
+    setLinesForEdit([])
+    setEquipmentsForEdit([])
+  }
+
+  const handleLineChange = async (lineId: string) => {
+    const actualLineId = lineId === 'none' ? '' : lineId
+    setEditForm({ ...editForm, lineId: actualLineId, equipmentId: '' })
+
+    if (actualLineId) {
+      try {
+        const equipments = await getEquipmentsByLineId(parseInt(actualLineId))
+        setEquipmentsForEdit(equipments)
+      } catch (error) {
+        console.error("Error loading equipments:", error)
+        setEquipmentsForEdit([])
+      }
+    } else {
+      setEquipmentsForEdit([])
+    }
   }
 
   const handleStartCreateWorkOrder = (incidentId: number) => {
@@ -251,9 +312,13 @@ export function TrackingTable({ incidents, fsrsByVic, incidentStatuses, onDataCh
         reportedAt: editForm.reportedAt,
         resolvedAt: editForm.resolvedAt || null,
         statusId: parseInt(editForm.statusId),
+        lineId: editForm.lineId ? parseInt(editForm.lineId) : null,
+        equipmentId: editForm.equipmentId ? parseInt(editForm.equipmentId) : null,
       })
       setEditingIncident(null)
       setEditForm({})
+      setLinesForEdit([])
+      setEquipmentsForEdit([])
       // Reload the incidents data to reflect the change
       if (onDataChange) {
         onDataChange()
@@ -314,6 +379,7 @@ export function TrackingTable({ incidents, fsrsByVic, incidentStatuses, onDataCh
                 {getSortIcon("incidente")}
               </Button>
             </TableHead>
+            <TableHead>Línea</TableHead>
             <TableHead>FSR Asignado</TableHead>
             <TableHead>Folio ODT</TableHead>
             <TableHead>
@@ -364,7 +430,7 @@ export function TrackingTable({ incidents, fsrsByVic, incidentStatuses, onDataCh
         <TableBody>
           {sortedIncidents.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={12} className="text-center py-8 text-muted-foreground">
+              <TableCell colSpan={13} className="text-center py-8 text-muted-foreground">
                 No se encontraron incidentes
               </TableCell>
             </TableRow>
@@ -408,6 +474,13 @@ export function TrackingTable({ incidents, fsrsByVic, incidentStatuses, onDataCh
                     </TableCell>
                     <TableCell onClick={() => toggleRowExpansion(incident.id)}>
                       <div className="font-medium">{incident.title}</div>
+                    </TableCell>
+                    <TableCell onClick={() => toggleRowExpansion(incident.id)}>
+                      {incident.line?.name ? (
+                        <span className="text-sm">{incident.line.name}</span>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">-</span>
+                      )}
                     </TableCell>
                     <TableCell onClick={() => toggleRowExpansion(incident.id)}>
                       {assignedFSRs.length > 0 ? (
@@ -568,19 +641,58 @@ export function TrackingTable({ incidents, fsrsByVic, incidentStatuses, onDataCh
                                     </Select>
                                   </div>
                                   <div className="space-y-2">
-                                    <Label htmlFor="reportedAt">Fecha Inicio</Label>
+                                    <Label htmlFor="lineId">Línea</Label>
+                                    <Select
+                                      value={editForm.lineId?.toString() || 'none'}
+                                      onValueChange={handleLineChange}
+                                    >
+                                      <SelectTrigger id="lineId">
+                                        <SelectValue placeholder="Seleccionar línea" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="none">Sin línea</SelectItem>
+                                        {linesForEdit.map((line) => (
+                                          <SelectItem key={line.id} value={line.id.toString()}>
+                                            {line.name}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label htmlFor="equipmentId">Equipo</Label>
+                                    <Select
+                                      value={editForm.equipmentId?.toString() || 'none'}
+                                      onValueChange={(value) => setEditForm({ ...editForm, equipmentId: value === 'none' ? '' : value })}
+                                      disabled={!editForm.lineId || equipmentsForEdit.length === 0}
+                                    >
+                                      <SelectTrigger id="equipmentId">
+                                        <SelectValue placeholder={!editForm.lineId ? "Selecciona una línea primero" : "Seleccionar equipo"} />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="none">Sin equipo</SelectItem>
+                                        {equipmentsForEdit.map((equipment) => (
+                                          <SelectItem key={equipment.id} value={equipment.id.toString()}>
+                                            {equipment.name}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label htmlFor="reportedAt">Fecha y Hora de Inicio</Label>
                                     <Input
                                       id="reportedAt"
-                                      type="date"
+                                      type="datetime-local"
                                       value={editForm.reportedAt}
                                       onChange={(e) => setEditForm({ ...editForm, reportedAt: e.target.value })}
                                     />
                                   </div>
                                   <div className="space-y-2">
-                                    <Label htmlFor="resolvedAt">Fecha Fin</Label>
+                                    <Label htmlFor="resolvedAt">Fecha y Hora de Fin</Label>
                                     <Input
                                       id="resolvedAt"
-                                      type="date"
+                                      type="datetime-local"
                                       value={editForm.resolvedAt}
                                       onChange={(e) => setEditForm({ ...editForm, resolvedAt: e.target.value })}
                                     />
@@ -682,7 +794,6 @@ export function TrackingTable({ incidents, fsrsByVic, incidentStatuses, onDataCh
                           ) : (
                             <div className="space-y-4">
                               <div>
-                                <h4 className="font-semibold mb-3">Detalles del Incidente</h4>
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
                                   <div>
                                     <span className="font-medium text-muted-foreground">Fecha Inicio:</span>
@@ -814,40 +925,46 @@ export function TrackingTable({ incidents, fsrsByVic, incidentStatuses, onDataCh
                                   >
                                     <div className="flex items-start justify-between gap-4">
                                       <div className="flex-1 space-y-2">
-                                        <div className="flex items-center gap-2 flex-wrap">
-                                          <Badge
-                                            className={
-                                              workOrderStatusColors[workOrder.status?.name] ||
-                                              "bg-gray-100 text-gray-800"
-                                            }
-                                          >
-                                            {workOrder.status?.name
-                                              ? workOrderStatusLabels[workOrder.status.name] ||
-                                                workOrder.status.name
-                                              : "Sin estado"}
-                                          </Badge>
-                                          <span className="text-sm text-muted-foreground">
-                                            Creado: {formatDate(workOrder.createdAt)} - {formatTime(workOrder.createdAt)}
-                                          </span>
-                                        </div>
+                                        {editingWorkOrder !== workOrder.id && (
+                                          <div className="flex items-center gap-2 flex-wrap">
+                                            <Badge
+                                              className={
+                                                workOrderStatusColors[workOrder.status?.name] ||
+                                                "bg-gray-100 text-gray-800"
+                                              }
+                                            >
+                                              {workOrder.status?.name
+                                                ? workOrderStatusLabels[workOrder.status.name] ||
+                                                  workOrder.status.name
+                                                : "Sin estado"}
+                                            </Badge>
+                                            <span className="text-sm text-muted-foreground">
+                                              Creado: {formatDate(workOrder.createdAt)} - {formatTime(workOrder.createdAt)}
+                                            </span>
+                                          </div>
+                                        )}
 
-                                        <div className="flex items-center gap-2">
-                                          <label className="text-sm font-medium min-w-[100px]">Fecha Inicio:</label>
-                                          <span className="text-sm text-muted-foreground">
-                                            {workOrder.startedAt
-                                              ? `${formatDate(workOrder.startedAt)} - ${formatTime(workOrder.startedAt)}`
-                                              : "-"}
-                                          </span>
-                                        </div>
+                                        {editingWorkOrder !== workOrder.id && (
+                                          <>
+                                            <div className="flex items-center gap-2">
+                                              <label className="text-sm font-medium min-w-[100px]">Fecha Inicio:</label>
+                                              <span className="text-sm text-muted-foreground">
+                                                {workOrder.startedAt
+                                                  ? `${formatDate(workOrder.startedAt)} - ${formatTime(workOrder.startedAt)}`
+                                                  : "-"}
+                                              </span>
+                                            </div>
 
-                                        <div className="flex items-center gap-2">
-                                          <label className="text-sm font-medium min-w-[100px]">Fecha Fin:</label>
-                                          <span className="text-sm text-muted-foreground">
-                                            {workOrder.finishedAt
-                                              ? `${formatDate(workOrder.finishedAt)} - ${formatTime(workOrder.finishedAt)}`
-                                              : "-"}
-                                          </span>
-                                        </div>
+                                            <div className="flex items-center gap-2">
+                                              <label className="text-sm font-medium min-w-[100px]">Fecha Fin:</label>
+                                              <span className="text-sm text-muted-foreground">
+                                                {workOrder.finishedAt
+                                                  ? `${formatDate(workOrder.finishedAt)} - ${formatTime(workOrder.finishedAt)}`
+                                                  : "-"}
+                                              </span>
+                                            </div>
+                                          </>
+                                        )}
 
                                         {workOrder.folio && (
                                           <div className="flex items-center gap-2">
@@ -858,38 +975,87 @@ export function TrackingTable({ incidents, fsrsByVic, incidentStatuses, onDataCh
                                           </div>
                                         )}
 
-                                        <div className="flex items-center gap-2">
-                                          <label className="text-sm font-medium min-w-[100px]">FSR Asignado:</label>
-                                          {editingWorkOrder === workOrder.id ? (
-                                            availableFSRs.length > 0 ? (
-                                              <Select
-                                                value={tempFSRAssignment[workOrder.id] || workOrder.assignedTo.id}
-                                                onValueChange={(value) => setTempFSRAssignment({ ...tempFSRAssignment, [workOrder.id]: value })}
-                                              >
-                                                <SelectTrigger className="w-[250px]">
-                                                  <SelectValue />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                  {availableFSRs.map((fsr) => (
-                                                    <SelectItem key={fsr.id} value={fsr.id}>
-                                                      {fsr.name}
-                                                    </SelectItem>
-                                                  ))}
-                                                </SelectContent>
-                                              </Select>
-                                            ) : (
-                                              <span className="text-sm">
-                                                <User className="h-4 w-4 inline mr-2" />
-                                                {workOrder.assignedTo.name}
-                                              </span>
-                                            )
-                                          ) : (
+                                        {editingWorkOrder !== workOrder.id && (
+                                          <div className="flex items-center gap-2">
+                                            <label className="text-sm font-medium min-w-[100px]">FSR Asignado:</label>
                                             <span className="text-sm">
                                               <User className="h-4 w-4 inline mr-2" />
                                               {workOrder.assignedTo.name}
                                             </span>
-                                          )}
-                                        </div>
+                                          </div>
+                                        )}
+
+                                        {editingWorkOrder === workOrder.id && (
+                                          <div className="space-y-3 pt-3 border-t">
+                                            <h5 className="font-semibold text-sm">Editar Orden de Trabajo</h5>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                              <div className="space-y-2">
+                                                <Label htmlFor={`wo-fsr-${workOrder.id}`}>FSR Asignado</Label>
+                                                <Select
+                                                  value={workOrderEditForm.assignedToId}
+                                                  onValueChange={(value) => setWorkOrderEditForm({ ...workOrderEditForm, assignedToId: value })}
+                                                >
+                                                  <SelectTrigger id={`wo-fsr-${workOrder.id}`}>
+                                                    <SelectValue placeholder="Seleccionar FSR" />
+                                                  </SelectTrigger>
+                                                  <SelectContent>
+                                                    {availableFSRs.map((fsr) => (
+                                                      <SelectItem key={fsr.id} value={fsr.id}>
+                                                        {fsr.name}
+                                                      </SelectItem>
+                                                    ))}
+                                                  </SelectContent>
+                                                </Select>
+                                              </div>
+                                              <div className="space-y-2">
+                                                <Label htmlFor={`wo-status-${workOrder.id}`}>Estado</Label>
+                                                <Select
+                                                  value={workOrderEditForm.statusId?.toString() || ''}
+                                                  onValueChange={(value) => setWorkOrderEditForm({ ...workOrderEditForm, statusId: value })}
+                                                >
+                                                  <SelectTrigger id={`wo-status-${workOrder.id}`}>
+                                                    <SelectValue placeholder="Seleccionar estado" />
+                                                  </SelectTrigger>
+                                                  <SelectContent>
+                                                    {incidentStatuses.map((status) => (
+                                                      <SelectItem key={status.id} value={status.id.toString()}>
+                                                        {status.name}
+                                                      </SelectItem>
+                                                    ))}
+                                                  </SelectContent>
+                                                </Select>
+                                              </div>
+                                              <div className="space-y-2">
+                                                <Label htmlFor={`wo-folio-${workOrder.id}`}>Folio ODT</Label>
+                                                <Input
+                                                  id={`wo-folio-${workOrder.id}`}
+                                                  type="text"
+                                                  placeholder="Número de folio..."
+                                                  value={workOrderEditForm.folio}
+                                                  onChange={(e) => setWorkOrderEditForm({ ...workOrderEditForm, folio: e.target.value })}
+                                                />
+                                              </div>
+                                              <div className="space-y-2">
+                                                <Label htmlFor={`wo-started-${workOrder.id}`}>Fecha y Hora de Inicio</Label>
+                                                <Input
+                                                  id={`wo-started-${workOrder.id}`}
+                                                  type="datetime-local"
+                                                  value={workOrderEditForm.startedAt}
+                                                  onChange={(e) => setWorkOrderEditForm({ ...workOrderEditForm, startedAt: e.target.value })}
+                                                />
+                                              </div>
+                                              <div className="space-y-2">
+                                                <Label htmlFor={`wo-finished-${workOrder.id}`}>Fecha y Hora de Fin</Label>
+                                                <Input
+                                                  id={`wo-finished-${workOrder.id}`}
+                                                  type="datetime-local"
+                                                  value={workOrderEditForm.finishedAt}
+                                                  onChange={(e) => setWorkOrderEditForm({ ...workOrderEditForm, finishedAt: e.target.value })}
+                                                />
+                                              </div>
+                                            </div>
+                                          </div>
+                                        )}
                                       </div>
 
                                       <div className="flex items-center gap-2">
@@ -906,7 +1072,7 @@ export function TrackingTable({ incidents, fsrsByVic, incidentStatuses, onDataCh
                                             </Button>
                                             <Button
                                               size="sm"
-                                              onClick={() => handleSaveWorkOrderFSR(workOrder.id)}
+                                              onClick={() => handleSaveWorkOrder(workOrder.id)}
                                               disabled={savingWorkOrder === workOrder.id}
                                             >
                                               <Save className="h-4 w-4 mr-2" />

@@ -10,6 +10,7 @@ export async function getIncidentsForTracking(filters?: {
   startDate?: string;
   endDate?: string;
   assignedFsrId?: string;
+  folio?: string;
 }) {
   try {
     const where: any = {
@@ -72,6 +73,12 @@ export async function getIncidentsForTracking(filters?: {
             email: true,
           },
         },
+        line: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
         workOrders: {
           where: { active: true },
           include: {
@@ -102,15 +109,25 @@ export async function getIncidentsForTracking(filters?: {
     });
 
     // Filter by assigned FSR if specified
+    let filteredIncidents = incidents;
     if (filters?.assignedFsrId) {
-      return incidents.filter((incident) =>
+      filteredIncidents = filteredIncidents.filter((incident) =>
         incident.workOrders.some(
           (wo) => wo.assignedTo.id === filters.assignedFsrId
         )
       );
     }
 
-    return incidents;
+    // Filter by folio if specified
+    if (filters?.folio) {
+      filteredIncidents = filteredIncidents.filter((incident) =>
+        incident.workOrders.some(
+          (wo) => wo.folio && wo.folio.toLowerCase().includes(filters.folio!.toLowerCase())
+        )
+      );
+    }
+
+    return filteredIncidents;
   } catch (error) {
     console.error("Error fetching incidents for tracking:", error);
     throw new Error("Failed to fetch incidents");
@@ -222,6 +239,8 @@ export async function updateIncidentDetails(
     reportedAt: string;
     resolvedAt?: string | null;
     statusId: number;
+    lineId?: number | null;
+    equipmentId?: number | null;
   }
 ) {
   try {
@@ -233,6 +252,8 @@ export async function updateIncidentDetails(
         reportedAt: new Date(data.reportedAt),
         resolvedAt: data.resolvedAt ? new Date(data.resolvedAt) : null,
         statusId: data.statusId,
+        lineId: data.lineId || null,
+        equipmentId: data.equipmentId || null,
       },
     });
 
@@ -241,5 +262,35 @@ export async function updateIncidentDetails(
   } catch (error) {
     console.error("Error updating incident:", error);
     throw new Error("Failed to update incident");
+  }
+}
+
+export async function updateWorkOrderDetails(
+  workOrderId: string,
+  data: {
+    assignedToId: string;
+    statusId?: number | null;
+    startedAt?: string | null;
+    finishedAt?: string | null;
+    folio?: string | null;
+  }
+) {
+  try {
+    await prisma.workOrder.update({
+      where: { id: workOrderId },
+      data: {
+        assignedToId: data.assignedToId,
+        statusId: data.statusId || null,
+        startedAt: data.startedAt ? new Date(data.startedAt) : null,
+        finishedAt: data.finishedAt ? new Date(data.finishedAt) : null,
+        folio: data.folio || null,
+      },
+    });
+
+    revalidatePath("/admin/tracking");
+    return { success: true };
+  } catch (error) {
+    console.error("Error updating work order:", error);
+    throw new Error("Failed to update work order");
   }
 }
