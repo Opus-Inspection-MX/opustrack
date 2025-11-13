@@ -13,6 +13,8 @@ import Link from "next/link";
 import { createIncidentAsClient } from "@/lib/actions/incidents";
 import { getIncidentTypes } from "@/lib/actions/lookups";
 import { getMyProfile } from "@/lib/actions/users";
+import { getLinesByVicId } from "@/lib/actions/lines";
+import { getEquipmentsByLineId } from "@/lib/actions/equipments";
 import { FormError } from "@/components/ui/form-error";
 
 export default function ReportIncidentPage() {
@@ -21,6 +23,8 @@ export default function ReportIncidentPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [incidentTypes, setIncidentTypes] = useState<any[]>([]);
   const [userVic, setUserVic] = useState<any>(null);
+  const [lines, setLines] = useState<any[]>([]);
+  const [equipments, setEquipments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [formData, setFormData] = useState({
@@ -28,6 +32,8 @@ export default function ReportIncidentPage() {
     description: "",
     priority: 5,
     typeId: "",
+    lineId: "",
+    equipmentId: "",
   });
 
   useEffect(() => {
@@ -46,6 +52,10 @@ export default function ReportIncidentPage() {
 
       if (!profile?.vic) {
         setErrors({ general: "Debes tener un Cliente asignado para reportar incidentes" });
+      } else {
+        // Load lines for the user's VIC
+        const vicLines = await getLinesByVicId(profile.vic.id);
+        setLines(vicLines);
       }
     } catch (error) {
       console.error("Error loading data:", error);
@@ -54,6 +64,24 @@ export default function ReportIncidentPage() {
       setLoading(false);
     }
   };
+
+  // Load equipments when line is selected
+  useEffect(() => {
+    const loadEquipments = async () => {
+      if (formData.lineId) {
+        try {
+          const lineEquipments = await getEquipmentsByLineId(parseInt(formData.lineId));
+          setEquipments(lineEquipments);
+        } catch (error) {
+          console.error("Error loading equipments:", error);
+        }
+      } else {
+        setEquipments([]);
+        setFormData((prev) => ({ ...prev, equipmentId: "" }));
+      }
+    };
+    loadEquipments();
+  }, [formData.lineId]);
 
   const handleChange = (field: string, value: string | number) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -100,7 +128,9 @@ export default function ReportIncidentPage() {
         formData.title,
         formData.description,
         formData.priority,
-        formData.typeId ? parseInt(formData.typeId) : undefined
+        formData.typeId ? parseInt(formData.typeId) : undefined,
+        formData.lineId ? parseInt(formData.lineId) : undefined,
+        formData.equipmentId ? parseInt(formData.equipmentId) : undefined
       );
 
       if (result.success) {
@@ -227,6 +257,60 @@ export default function ReportIncidentPage() {
                 </SelectContent>
               </Select>
               {errors.typeId && <FormError message={errors.typeId} />}
+            </div>
+
+            {/* Line */}
+            <div className="space-y-2">
+              <Label htmlFor="lineId">Línea (Opcional)</Label>
+              <Select
+                value={formData.lineId}
+                onValueChange={(value) => handleChange("lineId", value)}
+                disabled={!userVic || lines.length === 0}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={lines.length === 0 ? "No hay líneas disponibles" : "Selecciona una línea"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {lines.map((line) => (
+                    <SelectItem key={line.id} value={line.id.toString()}>
+                      {line.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Selecciona la línea donde ocurrió el incidente
+              </p>
+            </div>
+
+            {/* Equipment */}
+            <div className="space-y-2">
+              <Label htmlFor="equipmentId">Equipo (Opcional)</Label>
+              <Select
+                value={formData.equipmentId}
+                onValueChange={(value) => handleChange("equipmentId", value)}
+                disabled={!formData.lineId || equipments.length === 0}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={
+                    !formData.lineId
+                      ? "Primero selecciona una línea"
+                      : equipments.length === 0
+                        ? "No hay equipos disponibles"
+                        : "Selecciona un equipo"
+                  } />
+                </SelectTrigger>
+                <SelectContent>
+                  {equipments.map((equipment) => (
+                    <SelectItem key={equipment.id} value={equipment.id.toString()}>
+                      {equipment.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Selecciona el equipo específico relacionado con el incidente
+              </p>
             </div>
 
             {/* Submit Buttons */}

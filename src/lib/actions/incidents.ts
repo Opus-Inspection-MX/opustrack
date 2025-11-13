@@ -127,7 +127,9 @@ export async function createIncidentAsClient(
   title: string,
   description: string,
   priority: number,
-  typeId?: number
+  typeId?: number,
+  lineId?: number,
+  equipmentId?: number
 ) {
   const user = await requirePermission("incidents:create");
 
@@ -155,6 +157,8 @@ export async function createIncidentAsClient(
       statusId: openStatus.id,
       vicId: user.vicId,
       reportedById: user.id,
+      lineId: lineId || null,
+      equipmentId: equipmentId || null,
     },
     include: {
       type: true,

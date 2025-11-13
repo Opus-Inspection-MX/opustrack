@@ -169,6 +169,10 @@ model Incident {
   reportedBy   User?                    @relation("IncidentReporter", fields: [reportedById], references: [id])
   scheduleId   String?
   schedule     Schedule?                @relation(fields: [scheduleId], references: [id])
+  lineId       Int?
+  line         Line?                    @relation(fields: [lineId], references: [id])
+  equipmentId  Int?
+  equipment    Equipment?               @relation(fields: [equipmentId], references: [id])
 
   // userId estaba huérfano: definimos relación opcional clara
   userId String?
@@ -183,6 +187,8 @@ model Incident {
   @@index([statusId])
   @@index([typeId])
   @@index([reportedById])
+  @@index([lineId])
+  @@index([equipmentId])
 }
 
 model WorkOrder {
@@ -282,6 +288,7 @@ model Line {
   vicId       String
   vic         VehicleInspectionCenter @relation(fields: [vicId], references: [id])
   equipments  Equipment[]
+  incidents   Incident[]
   createdAt   DateTime                @default(now())
   updatedAt   DateTime                @updatedAt
   active      Boolean                 @default(true)
@@ -290,14 +297,15 @@ model Line {
 }
 
 model Equipment {
-  id          Int      @id @default(autoincrement())
+  id          Int        @id @default(autoincrement())
   name        String
   description String?
   lineId      Int
-  line        Line     @relation(fields: [lineId], references: [id])
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  active      Boolean  @default(true)
+  line        Line       @relation(fields: [lineId], references: [id])
+  incidents   Incident[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  active      Boolean    @default(true)
 
   @@index([lineId])
 }
