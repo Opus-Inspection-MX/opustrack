@@ -11,11 +11,11 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
-  SidebarTrigger,
+  useSidebar,
 } from "@/components/ui/sidebar"
 import { ThemeToggle } from "./theme-toggle"
 import { LogoutButton } from "@/components/auth/logout-button"
-import { ClipboardList, Wrench, User } from "lucide-react"
+import { ClipboardList, Wrench, User, PanelLeftClose, PanelLeftOpen } from "lucide-react"
 
 const menuItems = [
   {
@@ -37,22 +37,36 @@ const menuItems = [
 
 export function FSRSidebar() {
   const pathname = usePathname()
+  const { toggleSidebar } = useSidebar()
 
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="border-b px-6 py-4 group-data-[collapsible=icon]:px-2">
-        <div className="flex items-center justify-between">
-          <Link href="/fsr" className="flex items-center gap-2">
+        <div className="flex items-center justify-between group-data-[collapsible=icon]:justify-center">
+          <Link href="/fsr" className="flex items-center gap-2 group-data-[collapsible=icon]:hidden">
             <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
               <Wrench className="h-5 w-5 text-primary-foreground" />
             </div>
-            <span className="font-semibold group-data-[collapsible=icon]:hidden">Portal FSR</span>
+            <span className="font-semibold">Portal FSR</span>
           </Link>
-          <SidebarTrigger className="group-data-[collapsible=icon]:hidden" />
+          <button
+            onClick={toggleSidebar}
+            className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center hover:bg-primary/90 transition-colors cursor-pointer hidden group-data-[collapsible=icon]:flex"
+            aria-label="Expand Sidebar"
+          >
+            <PanelLeftOpen className="h-5 w-5 text-primary-foreground" />
+          </button>
+          <button
+            onClick={toggleSidebar}
+            className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center hover:bg-muted/80 transition-colors cursor-pointer group-data-[collapsible=icon]:hidden"
+            aria-label="Collapse Sidebar"
+          >
+            <PanelLeftClose className="h-5 w-5" />
+          </button>
         </div>
       </SidebarHeader>
 
-      <SidebarContent className="px-4 py-4">
+      <SidebarContent className="px-4 py-4 group-data-[collapsible=icon]:px-2">
         <SidebarMenu>
           {menuItems.map((item) => (
             <SidebarMenuItem key={item.url}>
@@ -70,7 +84,19 @@ export function FSRSidebar() {
       <SidebarFooter className="border-t p-4 group-data-[collapsible=icon]:p-2">
         <div className="flex flex-col gap-2 group-data-[collapsible=icon]:items-center">
           <ThemeToggle />
-          <LogoutButton variant="outline" size="sm" className="w-full bg-transparent group-data-[collapsible=icon]:w-auto group-data-[collapsible=icon]:px-2" />
+          <div className="w-full group-data-[collapsible=icon]:w-auto">
+            <LogoutButton
+              variant="outline"
+              size="sm"
+              className="w-full bg-transparent group-data-[collapsible=icon]:hidden"
+            />
+            <LogoutButton
+              variant="outline"
+              size="icon"
+              className="hidden group-data-[collapsible=icon]:flex"
+              iconOnly
+            />
+          </div>
         </div>
       </SidebarFooter>
 
