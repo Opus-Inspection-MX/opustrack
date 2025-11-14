@@ -191,14 +191,25 @@ export async function deleteWorkOrder(id: string) {
 
 /**
  * Complete work order (FSR functionality)
+ * Sets status to CERRADO and finishedAt timestamp
  */
 export async function completeWorkOrder(id: string, notes?: string) {
   await requirePermission("work-orders:complete");
+
+  // Get CERRADO status
+  const cerradoStatus = await prisma.incidentStatus.findFirst({
+    where: { name: "CERRADO" },
+  });
+
+  if (!cerradoStatus) {
+    throw new Error("CERRADO status not found in database");
+  }
 
   const workOrder = await prisma.workOrder.update({
     where: { id },
     data: {
       finishedAt: new Date(),
+      statusId: cerradoStatus.id,
       notes: notes || null,
     },
     include: {
@@ -219,19 +230,13 @@ export async function completeWorkOrder(id: string, notes?: string) {
   const allCompleted = incidentWorkOrders.every((wo) => wo.finishedAt !== null);
 
   if (allCompleted) {
-    const closedStatus = await prisma.incidentStatus.findFirst({
-      where: { name: "CERRADO" },
+    await prisma.incident.update({
+      where: { id: workOrder.incidentId },
+      data: {
+        statusId: cerradoStatus.id,
+        resolvedAt: new Date(),
+      },
     });
-
-    if (closedStatus) {
-      await prisma.incident.update({
-        where: { id: workOrder.incidentId },
-        data: {
-          statusId: closedStatus.id,
-          resolvedAt: new Date(),
-        },
-      });
-    }
   }
 
   revalidatePath("/fsr/work-orders");
@@ -243,14 +248,25 @@ export async function completeWorkOrder(id: string, notes?: string) {
 
 /**
  * Start work order (FSR functionality)
+ * Sets status to EN_PROGRESO and startedAt timestamp
  */
 export async function startWorkOrder(id: string) {
   await requirePermission("work-orders:update");
+
+  // Get EN_PROGRESO status
+  const enProgresoStatus = await prisma.incidentStatus.findFirst({
+    where: { name: "EN_PROGRESO" },
+  });
+
+  if (!enProgresoStatus) {
+    throw new Error("EN_PROGRESO status not found in database");
+  }
 
   const workOrder = await prisma.workOrder.update({
     where: { id },
     data: {
       startedAt: new Date(),
+      statusId: enProgresoStatus.id,
     },
     include: {
       incident: true,
@@ -262,6 +278,42 @@ export async function startWorkOrder(id: string) {
   revalidatePath("/fsr/work-orders");
   revalidatePath(`/fsr/work-orders/${id}`);
   revalidatePath("/admin/work-orders");
+  return { success: true, data: workOrder };
+}
+
+/**
+ * Reopen work order (FSR functionality)
+ * Sets status to PENDIENTE and clears finishedAt timestamp
+ */
+export async function reopenWorkOrder(id: string) {
+  await requirePermission("work-orders:update");
+
+  // Get PENDIENTE status
+  const pendienteStatus = await prisma.incidentStatus.findFirst({
+    where: { name: "PENDIENTE" },
+  });
+
+  if (!pendienteStatus) {
+    throw new Error("PENDIENTE status not found in database");
+  }
+
+  const workOrder = await prisma.workOrder.update({
+    where: { id },
+    data: {
+      finishedAt: null,
+      statusId: pendienteStatus.id,
+    },
+    include: {
+      incident: true,
+      assignedTo: true,
+      status: true,
+    },
+  });
+
+  revalidatePath("/fsr/work-orders");
+  revalidatePath(`/fsr/work-orders/${id}`);
+  revalidatePath("/admin/work-orders");
+  revalidatePath(`/admin/work-orders/${id}`);
   return { success: true, data: workOrder };
 }
 

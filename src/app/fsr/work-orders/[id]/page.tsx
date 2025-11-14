@@ -12,13 +12,9 @@ import { Spinner } from "@/components/ui/spinner";
 import { WorkActivityForm } from "@/components/work-orders/work-activity-form";
 import { WorkActivityEdit } from "@/components/work-orders/work-activity-edit";
 import { AttachmentPreview } from "@/components/work-orders/attachment-preview";
-import { getWorkOrderById, deleteWorkOrderAttachment, startWorkOrder, completeWorkOrder, updateWorkOrderStatus, updateWorkOrderFolio } from "@/lib/actions/work-orders";
+import { getWorkOrderById, deleteWorkOrderAttachment, startWorkOrder, completeWorkOrder, reopenWorkOrder } from "@/lib/actions/work-orders";
 import { getWorkActivities, deleteWorkActivity } from "@/lib/actions/work-activities";
 import { getWorkParts } from "@/lib/actions/work-parts";
-import { getIncidentStatuses } from "@/lib/actions/lookups";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
 
 export default function FSRWorkOrderDetailPage({
   params,
@@ -31,14 +27,10 @@ export default function FSRWorkOrderDetailPage({
   const [activities, setActivities] = useState<any[]>([]);
   const [workParts, setWorkParts] = useState<any[]>([]);
   const [attachments, setAttachments] = useState<any[]>([]);
-  const [statuses, setStatuses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showActivityForm, setShowActivityForm] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
-  const [statusLoading, setStatusLoading] = useState(false);
-  const [folioLoading, setFolioLoading] = useState(false);
-  const [folioValue, setFolioValue] = useState("");
 
   useEffect(() => {
     params.then((p) => setWorkOrderId(p.id));
@@ -56,19 +48,16 @@ export default function FSRWorkOrderDetailPage({
     try {
       setLoading(true);
       setError(null);
-      const [woData, activitiesData, partsData, statusesData] = await Promise.all([
+      const [woData, activitiesData, partsData] = await Promise.all([
         getWorkOrderById(workOrderId),
         getWorkActivities(workOrderId),
         getWorkParts(workOrderId),
-        getIncidentStatuses(),
       ]);
 
       setWorkOrder(woData);
       setActivities(activitiesData);
       setWorkParts(partsData);
       setAttachments(woData?.attachments || []);
-      setStatuses(statusesData);
-      setFolioValue(woData?.folio || "");
     } catch (error) {
       console.error("Error fetching data:", error);
       setError(error instanceof Error ? error.message : "Failed to load work order");
@@ -138,34 +127,20 @@ export default function FSRWorkOrderDetailPage({
     }
   };
 
-  const handleStatusChange = async (newStatusId: string) => {
+  const handleReopenWork = async () => {
     if (!workOrderId) return;
+    if (!confirm("Are you sure you want to reopen this work order?")) return;
 
     try {
-      setStatusLoading(true);
-      await updateWorkOrderStatus(workOrderId, parseInt(newStatusId));
+      setActionLoading(true);
+      await reopenWorkOrder(workOrderId);
       await fetchData();
+      alert("Work order reopened successfully!");
     } catch (error) {
-      console.error("Error updating status:", error);
-      alert("Failed to update status");
+      console.error("Error reopening work order:", error);
+      alert("Failed to reopen work order");
     } finally {
-      setStatusLoading(false);
-    }
-  };
-
-  const handleFolioUpdate = async () => {
-    if (!workOrderId) return;
-
-    try {
-      setFolioLoading(true);
-      await updateWorkOrderFolio(workOrderId, folioValue);
-      await fetchData();
-      alert("Folio actualizado correctamente");
-    } catch (error) {
-      console.error("Error updating folio:", error);
-      alert("Failed to update folio");
-    } finally {
-      setFolioLoading(false);
+      setActionLoading(false);
     }
   };
 
@@ -259,9 +234,18 @@ export default function FSRWorkOrderDetailPage({
             </Button>
           )}
           {isCompleted && (
-            <Badge variant="default" className="bg-green-600 text-lg py-2 px-4">
-              Completed
-            </Badge>
+            <>
+              <Badge variant="default" className="bg-green-600 text-lg py-2 px-4">
+                Completed
+              </Badge>
+              <Button
+                onClick={handleReopenWork}
+                disabled={actionLoading}
+                variant="outline"
+              >
+                Reopen
+              </Button>
+            </>
           )}
         </div>
       </div>
@@ -299,73 +283,24 @@ export default function FSRWorkOrderDetailPage({
           <CardTitle>Work Order Details</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Status Selector */}
-          {!isCompleted && (
-            <div className="space-y-2">
-              <Label htmlFor="status">Estado de esta Orden de Trabajo</Label>
-              <Select
-                value={workOrder.statusId?.toString() || ""}
-                onValueChange={handleStatusChange}
-                disabled={statusLoading}
-              >
-                <SelectTrigger id="status">
-                  <SelectValue placeholder="Seleccionar estado" />
-                </SelectTrigger>
-                <SelectContent>
-                  {statuses.map((status) => (
-                    <SelectItem key={status.id} value={status.id.toString()}>
-                      {status.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">
-                Cambia el estado de esta orden de trabajo (NO afecta el estado del incidente)
-              </p>
+          <div>
+            <span className="font-medium">Status:</span>{" "}
+            <Badge
+              variant="outline"
+              style={{
+                backgroundColor: workOrder.status?.color ? `${workOrder.status.color}20` : undefined,
+                borderColor: workOrder.status?.color || undefined,
+                color: workOrder.status?.color || undefined
+              }}
+            >
+              {workOrder.status?.name || "N/A"}
+            </Badge>
+          </div>
+          {workOrder.folio && (
+            <div>
+              <span className="font-medium">Folio:</span>{" "}
+              {workOrder.folio}
             </div>
-          )}
-
-          {/* Folio Number Input */}
-          {!isCompleted && (
-            <div className="space-y-2">
-              <Label htmlFor="folio">Número de Folio</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="folio"
-                  type="text"
-                  value={folioValue}
-                  onChange={(e) => setFolioValue(e.target.value)}
-                  placeholder="Ingrese el número de folio"
-                  disabled={folioLoading}
-                  className="flex-1"
-                />
-                <Button
-                  onClick={handleFolioUpdate}
-                  disabled={folioLoading}
-                  variant="secondary"
-                >
-                  Guardar
-                </Button>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Asigne un número de folio a esta orden de trabajo
-              </p>
-            </div>
-          )}
-
-          {isCompleted && (
-            <>
-              <div>
-                <span className="font-medium">Status:</span>{" "}
-                {workOrder.status?.name || "N/A"}
-              </div>
-              {workOrder.folio && (
-                <div>
-                  <span className="font-medium">Folio:</span>{" "}
-                  {workOrder.folio}
-                </div>
-              )}
-            </>
           )}
 
           <div className="grid grid-cols-2 gap-4 text-sm">
