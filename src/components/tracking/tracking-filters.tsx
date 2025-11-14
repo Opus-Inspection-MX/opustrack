@@ -142,6 +142,18 @@ export function TrackingFilters({
               <Button
                 variant="outline"
                 size="sm"
+                onClick={() => {
+                  const today = new Date().toISOString().split('T')[0]
+                  setFilters({ ...filters, startDate: today, endDate: today })
+                }}
+                className="gap-2"
+              >
+                <Calendar className="h-4 w-4" />
+                Hoy
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={setCurrentWeek}
                 className="gap-2"
               >
@@ -280,7 +292,7 @@ export function TrackingFilters({
             </div>
 
             {/* Search and Clear Buttons */}
-            <div className="flex justify-end gap-2 pt-4 border-t">
+            <div className="flex justify-between gap-2 pt-4 border-t">
               {hasActiveFilters && (
                 <Button variant="outline" onClick={clearFilters} className="gap-2">
                   <X className="h-4 w-4" />
@@ -290,7 +302,7 @@ export function TrackingFilters({
               <Button
                 variant="default"
                 onClick={handleSearch}
-                className="gap-2"
+                className="gap-2 ml-auto"
               >
                 <Search className="h-4 w-4" />
                 Buscar
