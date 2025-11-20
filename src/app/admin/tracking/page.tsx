@@ -42,19 +42,25 @@ export default function TrackingPage() {
       setIncidentTypes(typesData)
       setIncidentStatuses(statusesData)
 
-      // Load FSRs for each VIC
+      // Load FSRs for all VICs in parallel (performance optimization)
       const fsrsMap: Record<string, any[]> = {}
       const allFsrsArray: any[] = []
 
-      for (const vic of vicsData) {
+      const fsrPromises = vicsData.map(async (vic) => {
         try {
           const vicFsrs = await getFSRsByVicId(vic.id)
-          fsrsMap[vic.id] = vicFsrs
-          allFsrsArray.push(...vicFsrs)
+          return { vicId: vic.id, fsrs: vicFsrs }
         } catch (error) {
           console.error(`Error loading FSRs for VIC ${vic.id}:`, error)
-          fsrsMap[vic.id] = []
+          return { vicId: vic.id, fsrs: [] }
         }
+      })
+
+      const fsrResults = await Promise.all(fsrPromises)
+
+      for (const result of fsrResults) {
+        fsrsMap[result.vicId] = result.fsrs
+        allFsrsArray.push(...result.fsrs)
       }
 
       setFsrsByVic(fsrsMap)

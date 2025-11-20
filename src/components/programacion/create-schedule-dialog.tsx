@@ -1,0 +1,228 @@
+"use client"
+
+import { useState } from "react"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
+import { Label } from "@/components/ui/label"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { Calendar, Clock } from "lucide-react"
+
+interface CreateScheduleDialogProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  dateRange: {
+    start: Date
+    end: Date
+    type: "day" | "week" | "month"
+  }
+}
+
+export function CreateScheduleDialog({
+  open,
+  onOpenChange,
+  dateRange,
+}: CreateScheduleDialogProps) {
+  const [scheduleType, setScheduleType] = useState<"day" | "week" | "month">(dateRange.type)
+  const [activityType, setActivityType] = useState<"incident" | "calibration" | "maintenance">("incident")
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    // TODO: Implement schedule creation
+    console.log("Create schedule", { scheduleType, activityType })
+    onOpenChange(false)
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Nueva Programación</DialogTitle>
+          <DialogDescription>
+            Crea una nueva programación para actividades, calibraciones o mantenimientos
+          </DialogDescription>
+        </DialogHeader>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Schedule Type */}
+          <div className="space-y-2">
+            <Label>Tipo de Programación</Label>
+            <Select value={scheduleType} onValueChange={(v) => setScheduleType(v as any)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="day">Día Específico</SelectItem>
+                <SelectItem value="week">Semana</SelectItem>
+                <SelectItem value="month">Mes</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Activity Type */}
+          <div className="space-y-2">
+            <Label>Tipo de Actividad</Label>
+            <Select value={activityType} onValueChange={(v) => setActivityType(v as any)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="incident">Incidente General</SelectItem>
+                <SelectItem value="calibration">Calibración</SelectItem>
+                <SelectItem value="maintenance">Mantenimiento</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Date Range */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Fecha Inicio</Label>
+              <div className="relative">
+                <Input
+                  type="date"
+                  defaultValue={dateRange.start.toISOString().split("T")[0]}
+                  className="pl-10"
+                />
+                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Fecha Fin</Label>
+              <div className="relative">
+                <Input
+                  type="date"
+                  defaultValue={dateRange.end.toISOString().split("T")[0]}
+                  className="pl-10"
+                />
+                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              </div>
+            </div>
+          </div>
+
+          {/* Time */}
+          {scheduleType === "day" && (
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Hora Inicio</Label>
+                <div className="relative">
+                  <Input type="time" className="pl-10" defaultValue="09:00" />
+                  <Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Hora Fin</Label>
+                <div className="relative">
+                  <Input type="time" className="pl-10" defaultValue="10:00" />
+                  <Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* VIC Selection */}
+          <div className="space-y-2">
+            <Label>VIC (Centro de Verificación)</Label>
+            <Select>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecciona un VIC" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="vic-1">VIC CDMX Norte</SelectItem>
+                <SelectItem value="vic-2">VIC CDMX Sur</SelectItem>
+                <SelectItem value="vic-3">VIC Guadalajara</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* FSR Assignment */}
+          <div className="space-y-2">
+            <Label>Asignar FSR</Label>
+            <Select>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecciona un FSR" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="fsr-1">Juan Pérez</SelectItem>
+                <SelectItem value="fsr-2">María González</SelectItem>
+                <SelectItem value="fsr-3">Carlos Rodríguez</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Title */}
+          <div className="space-y-2">
+            <Label>Título</Label>
+            <Input placeholder="Ej: Calibración de equipos" />
+          </div>
+
+          {/* Description */}
+          <div className="space-y-2">
+            <Label>Descripción</Label>
+            <Textarea
+              placeholder="Describe la actividad programada..."
+              rows={4}
+            />
+          </div>
+
+          {/* Priority (for incidents) */}
+          {activityType === "incident" && (
+            <div className="space-y-2">
+              <Label>Prioridad</Label>
+              <Select defaultValue="5">
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">1 - Muy Baja</SelectItem>
+                  <SelectItem value="3">3 - Baja</SelectItem>
+                  <SelectItem value="5">5 - Media</SelectItem>
+                  <SelectItem value="7">7 - Alta</SelectItem>
+                  <SelectItem value="10">10 - Crítica</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {/* Equipment/Part (for calibrations and maintenance) */}
+          {(activityType === "calibration" || activityType === "maintenance") && (
+            <div className="space-y-2">
+              <Label>Equipo/Parte</Label>
+              <Select>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona equipo o parte" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="part-1">Analizador de Gases</SelectItem>
+                  <SelectItem value="part-2">Opacímetro</SelectItem>
+                  <SelectItem value="part-3">Sistema de Frenos</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {/* Actions */}
+          <div className="flex justify-end gap-3 pt-4">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancelar
+            </Button>
+            <Button type="submit">Crear Programación</Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}

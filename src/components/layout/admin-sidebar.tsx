@@ -54,6 +54,7 @@ const menuSections = [
     title: "Gestión de Incidentes",
     items: [
       { title: "Seguimiento de Atención", url: "/admin/tracking", icon: ClipboardList },
+      { title: "Programación", url: "/admin/programacion", icon: Calendar },
       { title: "Horarios", url: "/admin/schedules", icon: Calendar },
       { title: "Incidentes", url: "/admin/incidents", icon: AlertTriangle },
       { title: "Tipos de Incidente", url: "/admin/incident-types", icon: Tag },

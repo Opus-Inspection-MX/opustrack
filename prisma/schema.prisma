@@ -189,6 +189,8 @@ model Incident {
   @@index([reportedById])
   @@index([lineId])
   @@index([equipmentId])
+  @@index([reportedAt]) // Optimize date range queries in tracking
+  @@index([active, reportedAt]) // Compound index for active incidents ordered by date
 }
 
 model WorkOrder {
@@ -213,6 +215,9 @@ model WorkOrder {
   @@index([incidentId])
   @@index([assignedToId])
   @@index([statusId])
+  @@index([folio]) // Optimize folio search queries
+  @@index([active, assignedToId]) // Compound index for FSR filtering
+  @@index([active, createdAt]) // Compound index for active work orders ordered by date
 }
 
 model WorkActivity {

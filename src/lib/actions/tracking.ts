@@ -43,9 +43,37 @@ export async function getIncidentsForTracking(filters?: {
       }
     }
 
+    // Build work orders filter at database level for better performance
+    const workOrdersWhere: any = { active: true };
+
+    if (filters?.assignedFsrId) {
+      workOrdersWhere.assignedToId = filters.assignedFsrId;
+    }
+
+    if (filters?.folio) {
+      workOrdersWhere.folio = {
+        contains: filters.folio,
+        mode: 'insensitive',
+      };
+    }
+
+    // If filtering by FSR or folio, add to incident where clause
+    if (filters?.assignedFsrId || filters?.folio) {
+      where.workOrders = {
+        some: workOrdersWhere,
+      };
+    }
+
     const incidents = await prisma.incident.findMany({
       where,
-      include: {
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        reportedAt: true,
+        resolvedAt: true,
+        lineId: true,
+        equipmentId: true,
         vic: {
           select: {
             id: true,
@@ -80,8 +108,14 @@ export async function getIncidentsForTracking(filters?: {
           },
         },
         workOrders: {
-          where: { active: true },
-          include: {
+          where: workOrdersWhere,
+          select: {
+            id: true,
+            folio: true,
+            notes: true,
+            startedAt: true,
+            finishedAt: true,
+            createdAt: true,
             assignedTo: {
               select: {
                 id: true,
@@ -106,28 +140,11 @@ export async function getIncidentsForTracking(filters?: {
       orderBy: {
         reportedAt: "desc",
       },
+      // Add a reasonable limit to prevent loading thousands of records
+      take: 500,
     });
 
-    // Filter by assigned FSR if specified
-    let filteredIncidents = incidents;
-    if (filters?.assignedFsrId) {
-      filteredIncidents = filteredIncidents.filter((incident) =>
-        incident.workOrders.some(
-          (wo) => wo.assignedTo.id === filters.assignedFsrId
-        )
-      );
-    }
-
-    // Filter by folio if specified
-    if (filters?.folio) {
-      filteredIncidents = filteredIncidents.filter((incident) =>
-        incident.workOrders.some(
-          (wo) => wo.folio && wo.folio.toLowerCase().includes(filters.folio!.toLowerCase())
-        )
-      );
-    }
-
-    return filteredIncidents;
+    return incidents;
   } catch (error) {
     console.error("Error fetching incidents for tracking:", error);
     throw new Error("Failed to fetch incidents");
