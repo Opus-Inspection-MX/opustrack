@@ -13,6 +13,7 @@ interface Schedule {
   title: string
   description?: string
   scheduledAt: string
+  endDate?: string | null
   vicId: string
   vicName: string
   incidentCount: number
@@ -57,7 +58,7 @@ export function ScheduleTable({ data, onEdit, onDelete, onView }: ScheduleTableP
           <TableHeader>
             <TableRow>
               <TableHead>Título</TableHead>
-              <TableHead>Cliente</TableHead>
+              <TableHead>CVV</TableHead>
               <TableHead>Fecha Programada</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Incidentes</TableHead>
@@ -89,9 +90,46 @@ export function ScheduleTable({ data, onEdit, onDelete, onView }: ScheduleTableP
                     </div>
                   </TableCell>
                   <TableCell>
-                    <div className="flex items-center gap-1">
-                      <Calendar className="h-4 w-4 text-muted-foreground" />
-                      <span>{new Date(schedule.scheduledAt).toLocaleString()}</span>
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-1">
+                        <Calendar className="h-4 w-4 text-muted-foreground" />
+                        <div>
+                          <div className="text-xs font-medium text-muted-foreground">Inicio:</div>
+                          <div className="text-sm">
+                            {new Date(schedule.scheduledAt).toLocaleDateString("es-MX", {
+                              day: "2-digit",
+                              month: "short",
+                              year: "numeric"
+                            })}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {new Date(schedule.scheduledAt).toLocaleTimeString("es-MX", {
+                              hour: "2-digit",
+                              minute: "2-digit"
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                      {schedule.endDate && (
+                        <div className="flex items-center gap-1 pl-5">
+                          <div>
+                            <div className="text-xs font-medium text-muted-foreground">Fin:</div>
+                            <div className="text-sm">
+                              {new Date(schedule.endDate).toLocaleDateString("es-MX", {
+                                day: "2-digit",
+                                month: "short",
+                                year: "numeric"
+                              })}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {new Date(schedule.endDate).toLocaleTimeString("es-MX", {
+                                hour: "2-digit",
+                                minute: "2-digit"
+                              })}
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </TableCell>
                   <TableCell>

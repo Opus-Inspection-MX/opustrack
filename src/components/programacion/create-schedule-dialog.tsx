@@ -27,7 +27,7 @@ interface CreateScheduleDialogProps {
   dateRange: {
     start: Date
     end: Date
-    type: "day" | "week" | "month"
+    type: "day" | "week" | "month" | "custom"
   }
 }
 
@@ -36,8 +36,44 @@ export function CreateScheduleDialog({
   onOpenChange,
   dateRange,
 }: CreateScheduleDialogProps) {
-  const [scheduleType, setScheduleType] = useState<"day" | "week" | "month">(dateRange.type)
+  const [scheduleType, setScheduleType] = useState<"day" | "week" | "month">(
+    dateRange.type === "custom" ? "day" : dateRange.type
+  )
   const [activityType, setActivityType] = useState<"incident" | "calibration" | "maintenance">("incident")
+
+  // Ajustar fechas según el tipo de programación
+  const getAdjustedDates = () => {
+    const today = new Date()
+
+    if (scheduleType === "month") {
+      // Primer día del mes actual
+      const start = new Date(today.getFullYear(), today.getMonth(), 1)
+      const end = new Date(today.getFullYear(), today.getMonth() + 1, 0)
+      return { start, end }
+    } else if (scheduleType === "week") {
+      // Lunes de esta semana
+      const day = today.getDay() // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+      const diff = day === 0 ? -6 : 1 - day // Ajustar para que comience en lunes
+      const start = new Date(today)
+      start.setDate(today.getDate() + diff)
+      start.setHours(0, 0, 0, 0)
+
+      const end = new Date(start)
+      end.setDate(start.getDate() + 6)
+      end.setHours(23, 59, 59, 999)
+
+      return { start, end }
+    } else {
+      // Día actual
+      const start = new Date(today)
+      start.setHours(0, 0, 0, 0)
+      const end = new Date(today)
+      end.setHours(23, 59, 59, 999)
+      return { start, end }
+    }
+  }
+
+  const adjustedDates = getAdjustedDates()
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -94,22 +130,34 @@ export function CreateScheduleDialog({
               <div className="relative">
                 <Input
                   type="date"
-                  defaultValue={dateRange.start.toISOString().split("T")[0]}
+                  key={`start-${scheduleType}`}
+                  defaultValue={adjustedDates.start.toISOString().split("T")[0]}
                   className="pl-10"
                 />
                 <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               </div>
+              <p className="text-xs text-muted-foreground">
+                {scheduleType === "month" && "Primer día del mes"}
+                {scheduleType === "week" && "Lunes de la semana"}
+                {scheduleType === "day" && "Día seleccionado"}
+              </p>
             </div>
             <div className="space-y-2">
               <Label>Fecha Fin</Label>
               <div className="relative">
                 <Input
                   type="date"
-                  defaultValue={dateRange.end.toISOString().split("T")[0]}
+                  key={`end-${scheduleType}`}
+                  defaultValue={adjustedDates.end.toISOString().split("T")[0]}
                   className="pl-10"
                 />
                 <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               </div>
+              <p className="text-xs text-muted-foreground">
+                {scheduleType === "month" && "Último día del mes"}
+                {scheduleType === "week" && "Domingo de la semana"}
+                {scheduleType === "day" && "Mismo día"}
+              </p>
             </div>
           </div>
 

@@ -61,8 +61,8 @@ export function EquipmentForm({ equipment, mode }: EquipmentFormProps) {
       setVics(data)
     } catch (error) {
       console.error("Error loading VICs:", error)
-      setErrors({ general: "Error al cargar los clientes" })
-    } finally {
+      setErrors({ general: "Error al cargar los CVV" })
+    } finally{
       setLoading(false)
     }
   }
@@ -101,7 +101,7 @@ export function EquipmentForm({ equipment, mode }: EquipmentFormProps) {
     }
 
     if (!formData.vicId) {
-      newErrors.vicId = "El cliente es requerido"
+      newErrors.vicId = "El CVV es requerido"
     }
 
     if (!formData.lineId) {
@@ -196,14 +196,14 @@ export function EquipmentForm({ equipment, mode }: EquipmentFormProps) {
 
           <div className="space-y-2">
             <Label htmlFor="vicId">
-              Cliente <span className="text-red-500">*</span>
+              CVV <span className="text-red-500">*</span>
             </Label>
             <Select
               value={formData.vicId}
               onValueChange={(value) => handleChange("vicId", value)}
             >
               <SelectTrigger className={errors.vicId ? "border-red-500" : ""}>
-                <SelectValue placeholder="Seleccionar Cliente" />
+                <SelectValue placeholder="Seleccionar CVV" />
               </SelectTrigger>
               <SelectContent>
                 {vics.map((vic) => (
@@ -226,12 +226,12 @@ export function EquipmentForm({ equipment, mode }: EquipmentFormProps) {
               disabled={!formData.vicId || loadingLines}
             >
               <SelectTrigger className={errors.lineId ? "border-red-500" : ""}>
-                <SelectValue placeholder={!formData.vicId ? "Primero selecciona un cliente" : loadingLines ? "Cargando líneas..." : "Seleccionar Línea"} />
+                <SelectValue placeholder={!formData.vicId ? "Primero selecciona un CVV" : loadingLines ? "Cargando líneas..." : "Seleccionar Línea"} />
               </SelectTrigger>
               <SelectContent>
                 {lines.length === 0 && formData.vicId && !loadingLines ? (
                   <div className="px-2 py-1.5 text-sm text-muted-foreground">
-                    No hay líneas disponibles para este cliente
+                    No hay líneas disponibles para este CVV
                   </div>
                 ) : (
                   lines.map((line) => (

@@ -1,24 +1,128 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Label } from "@/components/ui/label"
+import { Input } from "@/components/ui/input"
+
+interface ScheduledIncident {
+  id: number
+  title: string
+  schedule: {
+    scheduledAt: string
+  } | null
+  priority: number
+  status: {
+    name: string
+    color: string
+  } | null
+}
+
+interface ScheduleItem {
+  id: string
+  title: string
+  scheduledAt: string
+  endDate: string | null
+  vic: {
+    name: string
+  }
+  _count: {
+    incidents: number
+  }
+}
 
 interface ScheduleCalendarProps {
   dateRange: {
     start: Date
     end: Date
-    type: "day" | "week" | "month"
+    type: "day" | "week" | "month" | "custom"
   }
-  onDateRangeChange: (range: { start: Date; end: Date; type: "day" | "week" | "month" }) => void
+  onDateRangeChange: (range: { start: Date; end: Date; type: "day" | "week" | "month" | "custom" }) => void
 }
 
 export function ScheduleCalendar({ dateRange, onDateRangeChange }: ScheduleCalendarProps) {
   const [currentDate, setCurrentDate] = useState(new Date())
-  const [viewMode, setViewMode] = useState<"day" | "week" | "month">(dateRange.type)
+  const [viewMode, setViewMode] = useState<"day" | "week" | "month" | "custom">(dateRange.type)
+  const [incidents, setIncidents] = useState<ScheduledIncident[]>([])
+  const [schedules, setSchedules] = useState<ScheduleItem[]>([])
+  const [loading, setLoading] = useState(false)
+  const [customStartDate, setCustomStartDate] = useState<Date>(new Date())
+  const [customEndDate, setCustomEndDate] = useState<Date>(new Date())
+
+  // Fetch incidents from backend
+  const fetchIncidents = async (start: Date, end: Date) => {
+    try {
+      const startStr = start.toISOString().split("T")[0]
+      const endStr = end.toISOString().split("T")[0]
+
+      const response = await fetch(`/api/schedules/incidents?start=${startStr}&end=${endStr}`)
+
+      if (!response.ok) {
+        throw new Error("Error al obtener incidentes")
+      }
+
+      const result = await response.json()
+      setIncidents(result.data || [])
+    } catch (error) {
+      console.error("Error fetching incidents:", error)
+      setIncidents([])
+    }
+  }
+
+  // Fetch schedules from backend
+  const fetchSchedules = async (start: Date, end: Date) => {
+    try {
+      const startStr = start.toISOString().split("T")[0]
+      const endStr = end.toISOString().split("T")[0]
+
+      const response = await fetch(`/api/schedules?startDate=${startStr}&endDate=${endStr}`)
+
+      if (!response.ok) {
+        throw new Error("Error al obtener programaciones")
+      }
+
+      const result = await response.json()
+      setSchedules(result.data || [])
+    } catch (error) {
+      console.error("Error fetching schedules:", error)
+      setSchedules([])
+    }
+  }
+
+  // Load incidents and schedules when date range changes
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true)
+      let start = new Date(currentDate)
+      let end = new Date(currentDate)
+
+      if (viewMode === "week") {
+        const range = getWeekRange(new Date(currentDate))
+        start = range.start
+        end = range.end
+      } else if (viewMode === "month") {
+        start = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1)
+        end = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0)
+        end.setHours(23, 59, 59, 999)
+      } else {
+        // day view
+        start.setHours(0, 0, 0, 0)
+        end.setHours(23, 59, 59, 999)
+      }
+
+      await Promise.all([
+        fetchIncidents(start, end),
+        fetchSchedules(start, end)
+      ])
+      setLoading(false)
+    }
+
+    fetchData()
+  }, [currentDate, viewMode])
 
   // Helper functions
   const getDaysInMonth = (date: Date) => {
@@ -26,7 +130,43 @@ export function ScheduleCalendar({ dateRange, onDateRangeChange }: ScheduleCalen
   }
 
   const getFirstDayOfMonth = (date: Date) => {
-    return new Date(date.getFullYear(), date.getMonth(), 1).getDay()
+    const firstDay = new Date(date.getFullYear(), date.getMonth(), 1).getDay()
+    // Ajustar para que lunes sea 0: Domingo = 6, Lunes = 0, Martes = 1, etc.
+    return firstDay === 0 ? 6 : firstDay - 1
+  }
+
+  // Get incidents for a specific date
+  const getIncidentsForDate = (date: Date) => {
+    const dateStr = date.toISOString().split("T")[0]
+    return incidents.filter((incident) => {
+      if (!incident.schedule?.scheduledAt) return false
+      const incidentDate = new Date(incident.schedule.scheduledAt).toISOString().split("T")[0]
+      return incidentDate === dateStr
+    })
+  }
+
+  // Get schedules for a specific date
+  const getSchedulesForDate = (date: Date) => {
+    const dateStr = date.toISOString().split("T")[0]
+    return schedules.filter((schedule) => {
+      const scheduleDate = new Date(schedule.scheduledAt).toISOString().split("T")[0]
+      // If the schedule has an end date, check if the date falls within the range
+      if (schedule.endDate) {
+        const endDate = new Date(schedule.endDate).toISOString().split("T")[0]
+        return dateStr >= scheduleDate && dateStr <= endDate
+      }
+      return scheduleDate === dateStr
+    })
+  }
+
+  // Count incidents by date
+  const getIncidentCountForDate = (date: Date) => {
+    return getIncidentsForDate(date).length
+  }
+
+  // Count schedules by date
+  const getScheduleCountForDate = (date: Date) => {
+    return getSchedulesForDate(date).length
   }
 
   const getMonthName = (date: Date) => {
@@ -34,14 +174,22 @@ export function ScheduleCalendar({ dateRange, onDateRangeChange }: ScheduleCalen
   }
 
   const getWeekDays = () => {
-    return ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"]
+    return ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
   }
 
   const getWeekRange = (date: Date) => {
-    const day = date.getDay()
-    const diff = date.getDate() - day
-    const start = new Date(date.setDate(diff))
-    const end = new Date(date.setDate(diff + 6))
+    const day = date.getDay() // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+    // Ajustar para que la semana comience en lunes (1)
+    // Si es domingo (0), retroceder 6 días; si es lunes (1), retroceder 0 días, etc.
+    const diff = day === 0 ? -6 : 1 - day
+    const start = new Date(date)
+    start.setDate(date.getDate() + diff)
+    start.setHours(0, 0, 0, 0)
+
+    const end = new Date(start)
+    end.setDate(start.getDate() + 6)
+    end.setHours(23, 59, 59, 999)
+
     return { start, end }
   }
 
@@ -70,7 +218,7 @@ export function ScheduleCalendar({ dateRange, onDateRangeChange }: ScheduleCalen
   }
 
   const handleViewModeChange = (mode: string) => {
-    const newMode = mode as "day" | "week" | "month"
+    const newMode = mode as "day" | "week" | "month" | "custom"
     setViewMode(newMode)
 
     let start = new Date(currentDate)
@@ -83,9 +231,16 @@ export function ScheduleCalendar({ dateRange, onDateRangeChange }: ScheduleCalen
     } else if (newMode === "month") {
       start = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1)
       end = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0)
+    } else if (newMode === "custom") {
+      start = customStartDate
+      end = customEndDate
     }
 
     onDateRangeChange({ start, end, type: newMode })
+  }
+
+  const handleCustomDateChange = () => {
+    onDateRangeChange({ start: customStartDate, end: customEndDate, type: "custom" })
   }
 
   const handleDateClick = (date: Date) => {
@@ -135,13 +290,19 @@ export function ScheduleCalendar({ dateRange, onDateRangeChange }: ScheduleCalen
         >
           <div className="flex flex-col items-center">
             <span>{day}</span>
-            {/* Mock scheduled items indicator */}
-            {day % 5 === 0 && (
-              <div className="flex gap-1 mt-1">
-                <div className="w-1 h-1 rounded-full bg-blue-500" />
-                <div className="w-1 h-1 rounded-full bg-orange-500" />
-              </div>
-            )}
+            {/* Show incident and schedule count indicators */}
+            <div className="flex gap-1 mt-1">
+              {getScheduleCountForDate(date) > 0 && (
+                <div className="text-[10px] bg-orange-500 text-white rounded-full px-1.5 py-0.5">
+                  {getScheduleCountForDate(date)}
+                </div>
+              )}
+              {getIncidentCountForDate(date) > 0 && (
+                <div className="text-[10px] bg-blue-500 text-white rounded-full px-1.5 py-0.5">
+                  {getIncidentCountForDate(date)}
+                </div>
+              )}
+            </div>
           </div>
         </button>
       )
@@ -169,6 +330,8 @@ export function ScheduleCalendar({ dateRange, onDateRangeChange }: ScheduleCalen
       date.setDate(weekRange.start.getDate() + i)
       const isToday = date.toDateString() === new Date().toDateString()
       const isSelected = date.toDateString() === currentDate.toDateString()
+      const dayIncidents = getIncidentsForDate(date)
+      const daySchedules = getSchedulesForDate(date)
 
       days.push(
         <button
@@ -181,16 +344,17 @@ export function ScheduleCalendar({ dateRange, onDateRangeChange }: ScheduleCalen
           <div className="text-xs text-muted-foreground">{getWeekDays()[i]}</div>
           <div className="text-2xl font-bold mt-1">{date.getDate()}</div>
           <div className="mt-2 space-y-1">
-            {/* Mock scheduled items */}
-            {date.getDate() % 5 === 0 && (
-              <>
-                <div className="text-xs bg-blue-500/10 text-blue-600 px-2 py-1 rounded">
-                  3 Incidentes
-                </div>
-                <div className="text-xs bg-orange-500/10 text-orange-600 px-2 py-1 rounded">
-                  1 Calibración
-                </div>
-              </>
+            {/* Show schedules */}
+            {daySchedules.length > 0 && (
+              <div className="text-xs bg-orange-500/10 text-orange-600 px-2 py-1 rounded">
+                {daySchedules.length} Programación{daySchedules.length !== 1 ? "es" : ""}
+              </div>
+            )}
+            {/* Show real incidents */}
+            {dayIncidents.length > 0 && (
+              <div className="text-xs bg-blue-500/10 text-blue-600 px-2 py-1 rounded">
+                {dayIncidents.length} Incidente{dayIncidents.length !== 1 ? "s" : ""}
+              </div>
             )}
           </div>
         </button>
@@ -204,6 +368,30 @@ export function ScheduleCalendar({ dateRange, onDateRangeChange }: ScheduleCalen
   const renderDayView = () => {
     const hours = Array.from({ length: 24 }, (_, i) => i)
     const isToday = currentDate.toDateString() === new Date().toDateString()
+    const dayIncidents = getIncidentsForDate(currentDate)
+    const daySchedules = getSchedulesForDate(currentDate)
+
+    // Group incidents by hour
+    const incidentsByHour: { [key: number]: ScheduledIncident[] } = {}
+    dayIncidents.forEach((incident) => {
+      if (incident.schedule?.scheduledAt) {
+        const hour = new Date(incident.schedule.scheduledAt).getHours()
+        if (!incidentsByHour[hour]) {
+          incidentsByHour[hour] = []
+        }
+        incidentsByHour[hour].push(incident)
+      }
+    })
+
+    // Group schedules by hour
+    const schedulesByHour: { [key: number]: ScheduleItem[] } = {}
+    daySchedules.forEach((schedule) => {
+      const hour = new Date(schedule.scheduledAt).getHours()
+      if (!schedulesByHour[hour]) {
+        schedulesByHour[hour] = []
+      }
+      schedulesByHour[hour].push(schedule)
+    })
 
     return (
       <div className="space-y-4">
@@ -223,19 +411,47 @@ export function ScheduleCalendar({ dateRange, onDateRangeChange }: ScheduleCalen
                 {hour.toString().padStart(2, "0")}:00
               </div>
               <div className="flex-1 border-l-2 pl-4 py-2 min-h-[60px]">
-                {/* Mock scheduled items */}
-                {hour === 9 && (
-                  <div className="bg-blue-500/10 border-l-4 border-blue-500 p-2 rounded">
-                    <div className="font-medium text-sm">Calibración - VIC CDMX Norte</div>
-                    <div className="text-xs text-muted-foreground">FSR: Juan Pérez</div>
+                {/* Show schedules */}
+                {schedulesByHour[hour]?.map((schedule) => (
+                  <div
+                    key={schedule.id}
+                    className="bg-orange-500/10 border-l-4 border-orange-500 p-2 rounded mb-2"
+                  >
+                    <div className="font-medium text-sm">{schedule.title}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {schedule.vic.name} • {schedule._count.incidents} incidente(s)
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      <span className="font-medium">Inicio:</span>{" "}
+                      {new Date(schedule.scheduledAt).toLocaleString("es-MX", {
+                        dateStyle: "short",
+                        timeStyle: "short"
+                      })}
+                    </div>
+                    {schedule.endDate && (
+                      <div className="text-xs text-muted-foreground">
+                        <span className="font-medium">Fin:</span>{" "}
+                        {new Date(schedule.endDate).toLocaleString("es-MX", {
+                          dateStyle: "short",
+                          timeStyle: "short"
+                        })}
+                      </div>
+                    )}
                   </div>
-                )}
-                {hour === 14 && (
-                  <div className="bg-orange-500/10 border-l-4 border-orange-500 p-2 rounded">
-                    <div className="font-medium text-sm">Mantenimiento Preventivo</div>
-                    <div className="text-xs text-muted-foreground">FSR: María González</div>
+                ))}
+                {/* Show real scheduled incidents */}
+                {incidentsByHour[hour]?.map((incident) => (
+                  <div
+                    key={incident.id}
+                    className="bg-blue-500/10 border-l-4 border-blue-500 p-2 rounded mb-2"
+                  >
+                    <div className="font-medium text-sm">{incident.title}</div>
+                    <div className="text-xs text-muted-foreground">
+                      Prioridad: {incident.priority}
+                      {incident.status && ` • ${incident.status.name}`}
+                    </div>
                   </div>
-                )}
+                ))}
               </div>
             </div>
           ))}
@@ -262,10 +478,11 @@ export function ScheduleCalendar({ dateRange, onDateRangeChange }: ScheduleCalen
           </div>
         </div>
         <Tabs value={viewMode} onValueChange={handleViewModeChange} className="mt-4">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="month">Mes</TabsTrigger>
             <TabsTrigger value="week">Semana</TabsTrigger>
             <TabsTrigger value="day">Día</TabsTrigger>
+            <TabsTrigger value="custom">Rango</TabsTrigger>
           </TabsList>
         </Tabs>
       </CardHeader>
@@ -273,22 +490,89 @@ export function ScheduleCalendar({ dateRange, onDateRangeChange }: ScheduleCalen
         {viewMode === "month" && renderMonthView()}
         {viewMode === "week" && renderWeekView()}
         {viewMode === "day" && renderDayView()}
+        {viewMode === "custom" && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Fecha Inicio</Label>
+                <Input
+                  type="date"
+                  value={customStartDate.toISOString().split("T")[0]}
+                  onChange={(e) => setCustomStartDate(new Date(e.target.value))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Fecha Fin</Label>
+                <Input
+                  type="date"
+                  value={customEndDate.toISOString().split("T")[0]}
+                  onChange={(e) => setCustomEndDate(new Date(e.target.value))}
+                />
+              </div>
+            </div>
+            <Button onClick={handleCustomDateChange} className="w-full">
+              Aplicar Rango de Fechas
+            </Button>
+            <div className="text-sm text-muted-foreground text-center">
+              Mostrando incidentes del{" "}
+              {customStartDate.toLocaleDateString("es-MX", {
+                day: "numeric",
+                month: "short",
+                year: "numeric",
+              })}{" "}
+              al{" "}
+              {customEndDate.toLocaleDateString("es-MX", {
+                day: "numeric",
+                month: "short",
+                year: "numeric",
+              })}
+            </div>
+            {loading ? (
+              <div className="text-center py-8 text-muted-foreground">Cargando incidentes...</div>
+            ) : incidents.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                No hay incidentes programados en este rango
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-96 overflow-y-auto">
+                {incidents.map((incident) => (
+                  <div
+                    key={incident.id}
+                    className="p-3 border rounded-lg hover:bg-accent transition-colors"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <h4 className="font-medium">{incident.title}</h4>
+                        <div className="text-sm text-muted-foreground mt-1">
+                          {incident.schedule?.scheduledAt &&
+                            new Date(incident.schedule.scheduledAt).toLocaleString("es-MX", {
+                              dateStyle: "medium",
+                              timeStyle: "short",
+                            })}
+                        </div>
+                      </div>
+                      <Badge variant={incident.priority >= 8 ? "destructive" : "default"}>
+                        Prioridad: {incident.priority}
+                      </Badge>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Legend */}
         <div className="mt-6 pt-4 border-t space-y-2">
           <div className="text-xs font-medium text-muted-foreground">Leyenda</div>
           <div className="flex flex-wrap gap-3">
             <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-orange-500" />
+              <span className="text-xs">Programaciones</span>
+            </div>
+            <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-blue-500" />
               <span className="text-xs">Incidentes</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-orange-500" />
-              <span className="text-xs">Calibraciones</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-green-500" />
-              <span className="text-xs">Mantenimientos</span>
             </div>
           </div>
         </div>

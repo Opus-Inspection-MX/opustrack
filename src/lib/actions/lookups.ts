@@ -196,20 +196,55 @@ export type IncidentTypeFormData = {
   active?: boolean;
 };
 
-export async function getIncidentTypes() {
+export async function getIncidentTypes(params?: {
+  page?: number
+  limit?: number
+  search?: string
+}) {
   await requirePermission("incident-types:read");
 
+  const page = params?.page || 1
+  const limit = params?.limit || 10
+  const skip = (page - 1) * limit
+
+  // Build where clause
+  const where: any = {
+    active: true,
+  }
+
+  // Search by name or description
+  if (params?.search) {
+    where.OR = [
+      { name: { contains: params.search, mode: "insensitive" } },
+      { description: { contains: params.search, mode: "insensitive" } },
+    ]
+  }
+
+  // Get total count
+  const total = await prisma.incidentType.count({ where })
+
+  // Get paginated types
   const types = await prisma.incidentType.findMany({
-    where: { active: true },
+    where,
     include: {
       _count: {
         select: { incidents: true },
       },
     },
     orderBy: { name: "asc" },
-  });
+    skip,
+    take: limit,
+  })
 
-  return types;
+  return {
+    data: types,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+    },
+  }
 }
 
 export async function getIncidentTypeById(id: number) {
@@ -289,20 +324,52 @@ export type IncidentStatusFormData = {
   active?: boolean;
 };
 
-export async function getIncidentStatuses() {
+export async function getIncidentStatuses(params?: {
+  page?: number
+  limit?: number
+  search?: string
+}) {
   await requirePermission("incident-status:read");
 
+  const page = params?.page || 1
+  const limit = params?.limit || 10
+  const skip = (page - 1) * limit
+
+  // Build where clause
+  const where: any = {
+    active: true,
+  }
+
+  // Search by name
+  if (params?.search) {
+    where.name = { contains: params.search, mode: "insensitive" }
+  }
+
+  // Get total count
+  const total = await prisma.incidentStatus.count({ where })
+
+  // Get paginated statuses
   const statuses = await prisma.incidentStatus.findMany({
-    where: { active: true },
+    where,
     include: {
       _count: {
         select: { incidents: true },
       },
     },
     orderBy: { name: "asc" },
-  });
+    skip,
+    take: limit,
+  })
 
-  return statuses;
+  return {
+    data: statuses,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+    },
+  }
 }
 
 export async function getIncidentStatusById(id: number) {

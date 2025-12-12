@@ -201,6 +201,8 @@ async function main() {
           "route:client",
           "incidents:read", "incidents:create",
           "incident-types:read", // Needed to select incident type when creating
+          "incident-status:read", // Needed to view incident status
+          "vics:read", // Needed to select VIC when creating incidents
           "work-orders:read",
           "schedules:read",
         ],
@@ -212,6 +214,9 @@ async function main() {
         permissions: [
           "route:guest",
           "incidents:read",
+          "incident-types:read", // Needed to view incident types
+          "incident-status:read", // Needed to view incident status
+          "vics:read", // Needed to view VICs
           "work-orders:read",
           "parts:read",
           "schedules:read",
@@ -365,42 +370,125 @@ async function main() {
     });
     console.log("✅ Seeded Part");
 
-    // 10) Sample Schedule
-    const schedule = await tx.schedule.upsert({
-      where: { id: "schedule-sample-1" },
-      update: {},
-      create: {
+    // 10) Sample Schedules - múltiples fechas para testing del calendario
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const schedules = [
+      {
         id: "schedule-sample-1",
         title: "Mantenimiento Semanal",
         description: "Mantenimiento programado semanal",
-        scheduledAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-        vicId: vic.id,
+        scheduledAt: new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000), // +7 días
       },
-    });
-    console.log("✅ Seeded Schedule");
+      {
+        id: "schedule-sample-2",
+        title: "Calibración de Equipos",
+        description: "Calibración mensual de equipos de medición",
+        scheduledAt: new Date(today.getTime() + 2 * 24 * 60 * 60 * 1000), // +2 días a las 9:00
+      },
+      {
+        id: "schedule-sample-3",
+        title: "Inspección de Seguridad",
+        description: "Inspección general de seguridad del centro",
+        scheduledAt: new Date(today.getTime() + 5 * 24 * 60 * 60 * 1000), // +5 días a las 14:00
+      },
+      {
+        id: "schedule-sample-4",
+        title: "Revisión de Líneas",
+        description: "Revisión de todas las líneas de verificación",
+        scheduledAt: new Date(today.getTime() + 10 * 24 * 60 * 60 * 1000), // +10 días
+      },
+      {
+        id: "schedule-sample-5",
+        title: "Actualización de Software",
+        description: "Actualización de software de sistemas",
+        scheduledAt: new Date(today.getTime() + 1 * 24 * 60 * 60 * 1000), // +1 día
+      },
+    ];
 
-    // 11) Sample Incident
+    // Ajustar horarios
+    schedules[1].scheduledAt.setHours(9, 0, 0, 0);
+    schedules[2].scheduledAt.setHours(14, 0, 0, 0);
+    schedules[3].scheduledAt.setHours(10, 30, 0, 0);
+    schedules[4].scheduledAt.setHours(8, 0, 0, 0);
+
+    const scheduleRecords = [];
+    for (const scheduleData of schedules) {
+      const schedule = await tx.schedule.upsert({
+        where: { id: scheduleData.id },
+        update: {},
+        create: {
+          ...scheduleData,
+          vicId: vic.id,
+        },
+      });
+      scheduleRecords.push(schedule);
+    }
+    console.log("✅ Seeded Schedules");
+
+    // Usar el primer schedule para el incidente de ejemplo
+    const schedule = scheduleRecords[0];
+
+    // 11) Sample Incidents - múltiples incidentes programados
     const adminUser = await tx.user.findUnique({
       where: { email: "admin@opusinspection.com" },
     });
 
     if (adminUser) {
-      await tx.incident.upsert({
-        where: { id: 1 },
-        update: {},
-        create: {
+      const sampleIncidents = [
+        {
+          id: 1,
           title: "Falla en línea de verificación 2",
           description: "La línea 2 presenta problemas con el sistema de medición de emisiones",
           priority: 8,
-          sla: 24,
-          typeId: incidentTypeRecords[0].id,
-          statusId: incidentStatusRecords[0].id,
-          vicId: vic.id,
-          reportedById: adminUser.id,
-          scheduleId: schedule.id,
+          scheduleId: scheduleRecords[0].id,
         },
-      });
-      console.log("✅ Seeded Sample Incident");
+        {
+          id: 2,
+          title: "Calibración de analizador de gases",
+          description: "Requiere calibración del analizador de gases de la línea 1",
+          priority: 6,
+          scheduleId: scheduleRecords[1].id,
+        },
+        {
+          id: 3,
+          title: "Revisión de sistema de frenado",
+          description: "Inspección del sistema de frenado en línea 3",
+          priority: 7,
+          scheduleId: scheduleRecords[2].id,
+        },
+        {
+          id: 4,
+          title: "Mantenimiento preventivo general",
+          description: "Mantenimiento preventivo de todas las líneas",
+          priority: 5,
+          scheduleId: scheduleRecords[3].id,
+        },
+        {
+          id: 5,
+          title: "Actualización de firmware",
+          description: "Actualización de firmware en equipos de diagnóstico",
+          priority: 4,
+          scheduleId: scheduleRecords[4].id,
+        },
+      ];
+
+      for (const incidentData of sampleIncidents) {
+        await tx.incident.upsert({
+          where: { id: incidentData.id },
+          update: {},
+          create: {
+            ...incidentData,
+            sla: 24,
+            typeId: incidentTypeRecords[0].id,
+            statusId: incidentStatusRecords[0].id,
+            vicId: vic.id,
+            reportedById: adminUser.id,
+          },
+        });
+      }
+      console.log("✅ Seeded Sample Incidents");
     }
   }, {
     maxWait: 20000, // Maximum time to wait for a transaction slot (20 seconds)

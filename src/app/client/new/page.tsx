@@ -51,7 +51,7 @@ export default function ReportIncidentPage() {
       setUserVic(profile?.vic || null);
 
       if (!profile?.vic) {
-        setErrors({ general: "Debes tener un Cliente asignado para reportar incidentes" });
+        setErrors({ general: "Debes tener un CVV asignado para reportar incidentes" });
       } else {
         // Load lines for the user's VIC
         const vicLines = await getLinesByVicId(profile.vic.id);
@@ -106,7 +106,7 @@ export default function ReportIncidentPage() {
     }
 
     if (!userVic) {
-      newErrors.general = "Debes tener un Cliente asignado para reportar incidentes";
+      newErrors.general = "Debes tener un CVV asignado para reportar incidentes";
     }
 
     setErrors(newErrors);
@@ -183,7 +183,7 @@ export default function ReportIncidentPage() {
             <div className="flex items-center gap-3">
               <Building className="h-5 w-5 text-primary" />
               <div>
-                <p className="text-sm text-muted-foreground">Reportando para Cliente</p>
+                <p className="text-sm text-muted-foreground">Reportando para CVV</p>
                 <p className="font-medium">{userVic.name} ({userVic.code})</p>
               </div>
             </div>

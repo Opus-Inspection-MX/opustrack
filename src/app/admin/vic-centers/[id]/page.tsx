@@ -52,7 +52,7 @@ export default async function VICDetailPage({
           <div>
             <h1 className="text-3xl font-bold">{vic.name}</h1>
             <p className="text-muted-foreground">
-              Código Cliente: {vic.code}
+              Código CVV: {vic.code}
             </p>
           </div>
         </div>
@@ -121,7 +121,7 @@ export default async function VICDetailPage({
             <div className="flex items-start gap-3">
               <Building className="h-5 w-5 text-muted-foreground mt-0.5" />
               <div className="flex-1">
-                <p className="text-sm text-muted-foreground">Nombre del Cliente</p>
+                <p className="text-sm text-muted-foreground">Nombre del CVV</p>
                 <p className="font-medium">{vic.name}</p>
               </div>
             </div>
@@ -129,7 +129,7 @@ export default async function VICDetailPage({
             <div className="flex items-start gap-3">
               <Building className="h-5 w-5 text-muted-foreground mt-0.5" />
               <div className="flex-1">
-                <p className="text-sm text-muted-foreground">Código Cliente</p>
+                <p className="text-sm text-muted-foreground">Código CVV</p>
                 <p className="font-medium font-mono">{vic.code}</p>
               </div>
             </div>
@@ -220,13 +220,13 @@ export default async function VICDetailPage({
             Usuarios Asignados ({vic.users.length})
           </CardTitle>
           <CardDescription>
-            Usuarios asignados a este Cliente
+            Usuarios asignados a este CVV
           </CardDescription>
         </CardHeader>
         <CardContent>
           {vic.users.length === 0 ? (
             <p className="text-center text-muted-foreground py-8">
-              No hay usuarios asignados a este Cliente
+              No hay usuarios asignados a este CVV
             </p>
           ) : (
             <div className="border rounded-lg overflow-auto">
@@ -285,7 +285,7 @@ export default async function VICDetailPage({
         <CardContent>
           {vic.lines.length === 0 ? (
             <p className="text-center text-muted-foreground py-8">
-              No hay líneas asignadas a este Cliente
+              No hay líneas asignadas a este CVV
             </p>
           ) : (
             <div className="space-y-6">
@@ -365,7 +365,7 @@ export default async function VICDetailPage({
               Incidentes Recientes (Últimos {vic.incidents.length})
             </CardTitle>
             <CardDescription>
-              Incidentes más recientes reportados para este Cliente
+              Incidentes más recientes reportados para este CVV
             </CardDescription>
           </CardHeader>
           <CardContent>

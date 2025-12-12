@@ -96,7 +96,7 @@ export function PartForm({ part, vics }: PartFormProps) {
                 }
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar Cliente" />
+                  <SelectValue placeholder="Seleccionar CVV" />
                 </SelectTrigger>
                 <SelectContent>
                   {vics.map((vic) => (

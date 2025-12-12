@@ -9,17 +9,68 @@ export type ScheduleFormData = {
   title: string;
   description?: string;
   scheduledAt: Date;
+  endDate?: Date;
   vicId: string;
 };
 
 /**
- * Get all schedules
+ * Get all schedules with pagination, search, and filters
  */
-export async function getSchedules() {
+export async function getSchedules(params?: {
+  page?: number
+  limit?: number
+  search?: string
+  vicId?: string
+  statusId?: number
+  startDate?: string
+  endDate?: string
+}) {
   await requirePermission("schedules:read");
 
+  const page = params?.page || 1
+  const limit = params?.limit || 10
+  const skip = (page - 1) * limit
+
+  // Build where clause
+  const where: any = {
+    active: true,
+  }
+
+  // Search by title or description
+  if (params?.search) {
+    where.OR = [
+      { title: { contains: params.search, mode: "insensitive" } },
+      { description: { contains: params.search, mode: "insensitive" } },
+    ]
+  }
+
+  // Filter by VIC
+  if (params?.vicId) {
+    where.vicId = params.vicId
+  }
+
+  // Filter by status
+  if (params?.statusId) {
+    where.statusId = params.statusId
+  }
+
+  // Filter by date range
+  if (params?.startDate || params?.endDate) {
+    where.scheduledAt = {}
+    if (params.startDate) {
+      where.scheduledAt.gte = new Date(params.startDate)
+    }
+    if (params.endDate) {
+      where.scheduledAt.lte = new Date(params.endDate)
+    }
+  }
+
+  // Get total count
+  const total = await prisma.schedule.count({ where })
+
+  // Get paginated schedules
   const schedules = await prisma.schedule.findMany({
-    where: { active: true },
+    where,
     include: {
       vic: true,
       _count: {
@@ -27,9 +78,19 @@ export async function getSchedules() {
       },
     },
     orderBy: { scheduledAt: "desc" },
-  });
+    skip,
+    take: limit,
+  })
 
-  return schedules;
+  return {
+    data: schedules,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+    },
+  }
 }
 
 /**
@@ -74,6 +135,7 @@ export async function createSchedule(data: ScheduleFormData) {
       title: data.title,
       description: data.description || null,
       scheduledAt: data.scheduledAt,
+      endDate: data.endDate || null,
       vicId: data.vicId,
     },
     include: {
@@ -97,6 +159,7 @@ export async function updateSchedule(id: string, data: ScheduleFormData) {
       title: data.title,
       description: data.description || null,
       scheduledAt: data.scheduledAt,
+      endDate: data.endDate || null,
       vicId: data.vicId,
     },
     include: {

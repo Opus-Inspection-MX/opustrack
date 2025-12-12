@@ -46,7 +46,7 @@ export function LineForm({ line, mode }: LineFormProps) {
       setVics(data)
     } catch (error) {
       console.error("Error loading VICs:", error)
-      setErrors({ general: "Error al cargar los clientes" })
+      setErrors({ general: "Error al cargar los CVV" })
     } finally {
       setLoading(false)
     }
@@ -67,7 +67,7 @@ export function LineForm({ line, mode }: LineFormProps) {
     }
 
     if (!formData.vicId) {
-      newErrors.vicId = "El cliente es requerido"
+      newErrors.vicId = "El CVV es requerido"
     }
 
     setErrors(newErrors)
@@ -158,14 +158,14 @@ export function LineForm({ line, mode }: LineFormProps) {
 
           <div className="space-y-2">
             <Label htmlFor="vicId">
-              Cliente <span className="text-red-500">*</span>
+              CVV <span className="text-red-500">*</span>
             </Label>
             <Select
               value={formData.vicId}
               onValueChange={(value) => handleChange("vicId", value)}
             >
               <SelectTrigger className={errors.vicId ? "border-red-500" : ""}>
-                <SelectValue placeholder="Seleccionar Cliente" />
+                <SelectValue placeholder="Seleccionar CVV" />
               </SelectTrigger>
               <SelectContent>
                 {vics.map((vic) => (

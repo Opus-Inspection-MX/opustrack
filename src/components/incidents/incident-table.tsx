@@ -77,7 +77,7 @@ export function IncidentTable({ incidents, onDelete }: IncidentTableProps) {
             <TableHead>Prioridad</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>Tipo</TableHead>
-            <TableHead>Cliente</TableHead>
+            <TableHead>CVV</TableHead>
             <TableHead>Reportado Por</TableHead>
             <TableHead>Reportado El</TableHead>
             <TableHead>SLA (hrs)</TableHead>

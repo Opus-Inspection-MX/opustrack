@@ -75,7 +75,7 @@ export function PartsTable({ parts }: { parts: Part[] }) {
             <TableHead>Descripcion</TableHead>
             <TableHead>Precio</TableHead>
             <TableHead>Stock</TableHead>
-            <TableHead>Cliente</TableHead>
+            <TableHead>CVV</TableHead>
             <TableHead>Usos</TableHead>
             <TableHead className="w-10"></TableHead>
           </TableRow>

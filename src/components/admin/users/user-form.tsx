@@ -197,7 +197,7 @@ export function UserForm({ user, roles, statuses, vics }: UserFormProps) {
                 }
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar Cliente" />
+                  <SelectValue placeholder="Seleccionar CVV" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">Sin asignar</SelectItem>

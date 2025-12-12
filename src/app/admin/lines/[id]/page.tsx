@@ -66,7 +66,7 @@ export default async function LineDetailPage({ params }: LineDetailPageProps) {
             <div className="flex items-start gap-3">
               <List className="h-5 w-5 text-muted-foreground mt-0.5" />
               <div className="flex-1">
-                <p className="text-sm text-muted-foreground">Cliente</p>
+                <p className="text-sm text-muted-foreground">CVV</p>
                 <p className="font-medium">
                   {line.vic.name} ({line.vic.code})
                 </p>

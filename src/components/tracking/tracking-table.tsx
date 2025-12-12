@@ -365,7 +365,7 @@ export function TrackingTable({ incidents, fsrsByVic, incidentStatuses, onDataCh
                 onClick={() => handleSort("cliente")}
                 className="h-auto p-0 font-semibold hover:bg-transparent"
               >
-                Cliente
+                CVV
                 {getSortIcon("cliente")}
               </Button>
             </TableHead>
@@ -469,7 +469,7 @@ export function TrackingTable({ incidents, fsrsByVic, incidentStatuses, onDataCh
                     </TableCell>
                     <TableCell onClick={() => toggleRowExpansion(incident.id)}>
                       <Badge variant="outline">
-                        {incident.vic?.name || "Sin Cliente"} ({incident.vic?.code || "N/A"})
+                        {incident.vic?.name || "Sin CVV"} ({incident.vic?.code || "N/A"})
                       </Badge>
                     </TableCell>
                     <TableCell onClick={() => toggleRowExpansion(incident.id)}>

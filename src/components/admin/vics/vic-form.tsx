@@ -375,7 +375,7 @@ export function VICForm({ vic, states, fsrUsers, clientUsers }: VICFormProps) {
                           <p className="text-xs text-muted-foreground">{fsr.email}</p>
                           {otherVicsCount > 0 && (
                             <p className="text-xs text-blue-600 mt-1">
-                              Asignado a {otherVicsCount} otro{otherVicsCount > 1 ? "s" : ""} cliente{otherVicsCount > 1 ? "s" : ""}
+                              Asignado a {otherVicsCount} otro{otherVicsCount > 1 ? "s" : ""} CVV
                             </p>
                           )}
                         </div>
@@ -472,7 +472,7 @@ export function VICForm({ vic, states, fsrUsers, clientUsers }: VICFormProps) {
                           <p className="text-xs text-muted-foreground">{client.email}</p>
                           {isAssignedToOther && (
                             <p className="text-xs text-blue-600 mt-1">
-                              Ya asignado a otro cliente
+                              Ya asignado a otro CVV
                             </p>
                           )}
                         </div>

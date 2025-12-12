@@ -65,7 +65,7 @@ export function PartTable({
             <TableRow>
               <TableHead>Nombre</TableHead>
               <TableHead>Descripción</TableHead>
-              <TableHead>Cliente</TableHead>
+              <TableHead>CVV</TableHead>
               <TableHead>Precio</TableHead>
               <TableHead>Stock</TableHead>
               <TableHead>Status</TableHead>

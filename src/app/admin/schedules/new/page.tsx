@@ -28,6 +28,7 @@ export default function NewSchedulePage() {
     title: "",
     description: "",
     scheduledAt: "",
+    endDate: "",
     vicId: "",
     active: true,
   })
@@ -74,6 +75,15 @@ export default function NewSchedulePage() {
       newErrors.scheduledAt = "Scheduled date and time is required"
     }
 
+    // Validate endDate is after scheduledAt if provided
+    if (formData.endDate && formData.scheduledAt) {
+      const startDate = new Date(formData.scheduledAt)
+      const endDate = new Date(formData.endDate)
+      if (endDate <= startDate) {
+        newErrors.endDate = "End date must be after start date"
+      }
+    }
+
     if (!formData.vicId) {
       newErrors.vicId = "VIC Center is required"
     }
@@ -96,6 +106,7 @@ export default function NewSchedulePage() {
         title: formData.title.trim(),
         description: formData.description?.trim() || undefined,
         scheduledAt: new Date(formData.scheduledAt),
+        endDate: formData.endDate ? new Date(formData.endDate) : undefined,
         vicId: formData.vicId,
       })
 
@@ -172,7 +183,7 @@ export default function NewSchedulePage() {
 
             <div className="space-y-2">
               <Label htmlFor="scheduledAt">
-                Scheduled Date & Time <span className="text-red-500">*</span>
+                Start Date & Time <span className="text-red-500">*</span>
               </Label>
               <Input
                 id="scheduledAt"
@@ -182,6 +193,21 @@ export default function NewSchedulePage() {
                 className={errors.scheduledAt ? "border-red-500" : ""}
               />
               {errors.scheduledAt && <p className="text-sm text-red-500">{errors.scheduledAt}</p>}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="endDate">End Date & Time (Optional)</Label>
+              <Input
+                id="endDate"
+                type="datetime-local"
+                value={formData.endDate}
+                onChange={(e) => handleChange("endDate", e.target.value)}
+                className={errors.endDate ? "border-red-500" : ""}
+              />
+              {errors.endDate && <p className="text-sm text-red-500">{errors.endDate}</p>}
+              <p className="text-sm text-muted-foreground">
+                If provided, incidents must be created within this date range
+              </p>
             </div>
 
             <div className="space-y-2">

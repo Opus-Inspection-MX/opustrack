@@ -56,7 +56,7 @@ export function EquipmentTable({
               <TableHead>Nombre</TableHead>
               <TableHead>Descripción</TableHead>
               <TableHead>Línea</TableHead>
-              <TableHead>Cliente</TableHead>
+              <TableHead>CVV</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="w-10"></TableHead>
             </TableRow>

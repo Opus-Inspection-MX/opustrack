@@ -72,7 +72,7 @@ const menuSections = [
   {
     title: "Organización",
     items: [
-      { title: "Clientes", url: "/admin/vic-centers", icon: Building2 },
+      { title: "CVV", url: "/admin/vic-centers", icon: Building2 },
       { title: "Líneas", url: "/admin/lines", icon: List },
       { title: "Equipos", url: "/admin/equipments", icon: Wrench },
       { title: "Estados", url: "/admin/states", icon: MapPin },

@@ -4,34 +4,49 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Plus, Search } from "lucide-react"
 import { IncidentStatusTable } from "@/components/incident-status/incident-status-table"
 import { Spinner } from "@/components/ui/spinner"
+import { Pagination } from "@/components/ui/pagination"
 import { getIncidentStatuses, deleteIncidentStatus } from "@/lib/actions/lookups"
 
 export default function IncidentStatusPage() {
   const router = useRouter()
-  const [searchTerm, setSearchTerm] = useState("")
   const [statuses, setStatuses] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage, setItemsPerPage] = useState(10)
+  const [totalItems, setTotalItems] = useState(0)
+  const [totalPages, setTotalPages] = useState(0)
+
+  // Filter state
+  const [searchQuery, setSearchQuery] = useState("")
+
   useEffect(() => {
     fetchData()
-  }, [])
+  }, [currentPage, itemsPerPage, searchQuery])
 
   const fetchData = async () => {
+    setIsLoading(true)
     try {
-      setIsLoading(true)
-      const data = await getIncidentStatuses()
-      setStatuses(data)
+      const result = await getIncidentStatuses({
+        page: currentPage,
+        limit: itemsPerPage,
+        search: searchQuery || undefined,
+      })
+
+      setStatuses(result.data)
+      setTotalItems(result.pagination.total)
+      setTotalPages(result.pagination.totalPages)
     } catch (error) {
       console.error("Error fetching incident statuses:", error)
     } finally {
       setIsLoading(false)
     }
   }
-
-  const filteredStatuses = statuses.filter((status) => status.name.toLowerCase().includes(searchTerm.toLowerCase()))
 
   const handleEdit = (id: number) => {
     router.push(`/admin/incident-status/${id}/edit`)
@@ -53,7 +68,12 @@ export default function IncidentStatusPage() {
     router.push(`/admin/incident-status/${id}`)
   }
 
-  if (isLoading) {
+  const handleSearch = (value: string) => {
+    setSearchQuery(value)
+    setCurrentPage(1) // Reset to first page on search
+  }
+
+  if (isLoading && statuses.length === 0) {
     return (
       <div className="flex items-center justify-center h-64">
         <Spinner size="lg" text="Loading incident statuses..." />
@@ -74,19 +94,37 @@ export default function IncidentStatusPage() {
         </Button>
       </div>
 
-      <div className="flex items-center space-x-2">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search statuses..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-8"
-          />
+      {/* Search */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="space-y-2">
+          <Label className="text-xs font-medium">Buscar</Label>
+          <div className="relative">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por nombre..."
+              value={searchQuery}
+              onChange={(e) => handleSearch(e.target.value)}
+              className="pl-8"
+            />
+          </div>
         </div>
       </div>
 
-      <IncidentStatusTable data={filteredStatuses} onEdit={handleEdit} onDelete={handleDelete} onView={handleView} />
+      <IncidentStatusTable data={statuses} onEdit={handleEdit} onDelete={handleDelete} onView={handleView} />
+
+      {totalItems > 0 && (
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          itemsPerPage={itemsPerPage}
+          onPageChange={setCurrentPage}
+          onItemsPerPageChange={(value) => {
+            setItemsPerPage(value)
+            setCurrentPage(1)
+          }}
+        />
+      )}
     </div>
   )
 }

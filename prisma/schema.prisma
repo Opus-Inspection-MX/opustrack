@@ -125,13 +125,20 @@ model Schedule {
   id          String                  @id @default(cuid())
   title       String
   description String?
-  scheduledAt DateTime
+  scheduledAt DateTime                // Fecha de inicio
+  endDate     DateTime?               // Fecha de fin (opcional)
+  statusId    Int?                    // Estado del schedule
+  status      IncidentStatus?         @relation(fields: [statusId], references: [id])
   vicId       String
   vic         VehicleInspectionCenter @relation(fields: [vicId], references: [id])
   incidents   Incident[]
   createdAt   DateTime                @default(now())
   updatedAt   DateTime                @updatedAt
   active      Boolean                 @default(true)
+
+  @@index([statusId])
+  @@index([scheduledAt])
+  @@index([endDate])
 }
 
 model IncidentType {
@@ -148,6 +155,7 @@ model IncidentStatus {
   color      String      @default("#6B7280") // Hexadecimal color for status badge
   incidents  Incident[]
   workOrders WorkOrder[]
+  schedules  Schedule[]  // Programaciones con este estado
   active     Boolean     @default(true)
 }
 

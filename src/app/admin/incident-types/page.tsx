@@ -2,10 +2,13 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Plus } from "lucide-react"
+import { Plus, Search } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { IncidentTypeTable } from "@/components/incident-types/incident-type-table"
 import { Spinner } from "@/components/ui/spinner"
+import { Pagination } from "@/components/ui/pagination"
 import { getIncidentTypes, deleteIncidentType } from "@/lib/actions/lookups"
 
 export default function IncidentTypesPage() {
@@ -13,15 +16,31 @@ export default function IncidentTypesPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [incidentTypes, setIncidentTypes] = useState<any[]>([])
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage, setItemsPerPage] = useState(10)
+  const [totalItems, setTotalItems] = useState(0)
+  const [totalPages, setTotalPages] = useState(0)
+
+  // Filter state
+  const [searchQuery, setSearchQuery] = useState("")
+
   useEffect(() => {
     fetchData()
-  }, [])
+  }, [currentPage, itemsPerPage, searchQuery])
 
   const fetchData = async () => {
+    setIsLoading(true)
     try {
-      setIsLoading(true)
-      const data = await getIncidentTypes()
-      setIncidentTypes(data)
+      const result = await getIncidentTypes({
+        page: currentPage,
+        limit: itemsPerPage,
+        search: searchQuery || undefined,
+      })
+
+      setIncidentTypes(result.data)
+      setTotalItems(result.pagination.total)
+      setTotalPages(result.pagination.totalPages)
     } catch (error) {
       console.error("Error fetching incident types:", error)
     } finally {
@@ -49,7 +68,12 @@ export default function IncidentTypesPage() {
     router.push(`/admin/incident-types/${id}`)
   }
 
-  if (isLoading) {
+  const handleSearch = (value: string) => {
+    setSearchQuery(value)
+    setCurrentPage(1) // Reset to first page on search
+  }
+
+  if (isLoading && incidentTypes.length === 0) {
     return (
       <div className="flex items-center justify-center h-64">
         <Spinner size="lg" text="Loading incident types..." />
@@ -70,7 +94,37 @@ export default function IncidentTypesPage() {
         </Button>
       </div>
 
+      {/* Search */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="space-y-2">
+          <Label className="text-xs font-medium">Buscar</Label>
+          <div className="relative">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por nombre o descripción..."
+              value={searchQuery}
+              onChange={(e) => handleSearch(e.target.value)}
+              className="pl-8"
+            />
+          </div>
+        </div>
+      </div>
+
       <IncidentTypeTable data={incidentTypes} onEdit={handleEdit} onDelete={handleDelete} onView={handleView} />
+
+      {totalItems > 0 && (
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          itemsPerPage={itemsPerPage}
+          onPageChange={setCurrentPage}
+          onItemsPerPageChange={(value) => {
+            setItemsPerPage(value)
+            setCurrentPage(1)
+          }}
+        />
+      )}
     </div>
   )
 }

@@ -52,7 +52,7 @@ export function LineTable({
             <TableRow>
               <TableHead>Nombre</TableHead>
               <TableHead>Descripción</TableHead>
-              <TableHead>Cliente</TableHead>
+              <TableHead>CVV</TableHead>
               <TableHead>Equipos</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="w-10"></TableHead>

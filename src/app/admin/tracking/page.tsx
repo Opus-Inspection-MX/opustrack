@@ -32,15 +32,15 @@ export default function TrackingPage() {
     try {
       const today = new Date().toISOString().split('T')[0]
 
-      const [vicsData, typesData, statusesData] = await Promise.all([
+      const [vicsData, typesResult, statusesResult] = await Promise.all([
         getVICs(),
         getIncidentTypes(),
         getIncidentStatuses(),
       ])
 
       setVics(vicsData)
-      setIncidentTypes(typesData)
-      setIncidentStatuses(statusesData)
+      setIncidentTypes(typesResult.data)
+      setIncidentStatuses(statusesResult.data)
 
       // Load FSRs for all VICs in parallel (performance optimization)
       const fsrsMap: Record<string, any[]> = {}

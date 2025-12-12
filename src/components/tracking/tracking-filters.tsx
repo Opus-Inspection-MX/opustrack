@@ -172,16 +172,16 @@ export function TrackingFilters({
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {/* Cliente Filter */}
+              {/* CVV Filter */}
               <div className="space-y-2">
-                <Label htmlFor="vicId">Cliente</Label>
+                <Label htmlFor="vicId">CVV</Label>
                 <Select
                   key={`vicId-${filters.vicId}`}
                   value={filters.vicId || undefined}
                   onValueChange={(value) => handleFilterChange("vicId", value)}
                 >
                   <SelectTrigger id="vicId">
-                    <SelectValue placeholder="Todos los clientes" />
+                    <SelectValue placeholder="Todos los CVV" />
                   </SelectTrigger>
                   <SelectContent>
                     {vics.map((vic) => (
