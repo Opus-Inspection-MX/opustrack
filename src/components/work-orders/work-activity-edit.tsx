@@ -1,13 +1,13 @@
 "use client";
 
+import { Edit as EditIcon, Save, X } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { FormError } from "@/components/ui/form-error";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
-import { Save, X, Edit as EditIcon } from "lucide-react";
 import { updateWorkActivity } from "@/lib/actions/work-activities";
-import { FormError } from "@/components/ui/form-error";
 
 type WorkActivityEditProps = {
   activity: {
@@ -92,11 +92,7 @@ export function WorkActivityEdit({
           </p>
         </div>
         {!readOnly && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setIsEditing(true)}
-          >
+          <Button variant="ghost" size="sm" onClick={() => setIsEditing(true)}>
             <EditIcon className="h-4 w-4" />
           </Button>
         )}
@@ -140,11 +136,7 @@ export function WorkActivityEdit({
       </div>
 
       <div className="flex justify-end gap-2">
-        <Button
-          variant="outline"
-          onClick={handleCancel}
-          disabled={loading}
-        >
+        <Button variant="outline" onClick={handleCancel} disabled={loading}>
           <X className="mr-2 h-4 w-4" />
           Cancel
         </Button>

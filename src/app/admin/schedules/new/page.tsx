@@ -1,28 +1,33 @@
-"use client"
+"use client";
 
-import type React from "react"
-
-import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Switch } from "@/components/ui/switch"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { ArrowLeft, Save, Loader2 } from "lucide-react"
-import Link from "next/link"
-import { Spinner } from "@/components/ui/spinner"
-import { FormError } from "@/components/ui/form-error"
-import { createSchedule, getVICsForSchedules } from "@/lib/actions/schedules"
+import { ArrowLeft, Loader2, Save } from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import type React from "react";
+import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { FormError } from "@/components/ui/form-error";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Spinner } from "@/components/ui/spinner";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
+import { createSchedule, getVICsForSchedules } from "@/lib/actions/schedules";
 
 export default function NewSchedulePage() {
-  const router = useRouter()
-  const [isLoading, setIsLoading] = useState(true)
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [errors, setErrors] = useState<Record<string, string>>({})
-  const [vicCenters, setVicCenters] = useState<any[]>([])
+  const router = useRouter();
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [vicCenters, setVicCenters] = useState<any[]>([]);
 
   const [formData, setFormData] = useState({
     title: "",
@@ -31,75 +36,75 @@ export default function NewSchedulePage() {
     endDate: "",
     vicId: "",
     active: true,
-  })
+  });
 
   useEffect(() => {
     const fetchVICs = async () => {
       try {
-        setIsLoading(true)
-        const vics = await getVICsForSchedules()
-        setVicCenters(vics)
+        setIsLoading(true);
+        const vics = await getVICsForSchedules();
+        setVicCenters(vics);
       } catch (error) {
-        console.error("Error fetching VIC centers:", error)
-        setErrors({ submit: "Failed to load VIC centers" })
+        console.error("Error fetching VIC centers:", error);
+        setErrors({ submit: "Failed to load VIC centers" });
       } finally {
-        setIsLoading(false)
+        setIsLoading(false);
       }
-    }
+    };
 
-    fetchVICs()
-  }, [])
+    fetchVICs();
+  }, []);
 
   const handleChange = (field: string, value: string | boolean) => {
-    setFormData((prev) => ({ ...prev, [field]: value }))
+    setFormData((prev) => ({ ...prev, [field]: value }));
     // Clear error when user starts typing
     if (errors[field]) {
-      setErrors((prev) => ({ ...prev, [field]: "" }))
+      setErrors((prev) => ({ ...prev, [field]: "" }));
     }
-  }
+  };
 
   const validateForm = () => {
-    const newErrors: Record<string, string> = {}
+    const newErrors: Record<string, string> = {};
 
     if (!formData.title.trim()) {
-      newErrors.title = "Title is required"
+      newErrors.title = "Title is required";
     } else if (formData.title.length > 200) {
-      newErrors.title = "Title must be less than 200 characters"
+      newErrors.title = "Title must be less than 200 characters";
     }
 
     if (formData.description && formData.description.length > 1000) {
-      newErrors.description = "Description must be less than 1000 characters"
+      newErrors.description = "Description must be less than 1000 characters";
     }
 
     if (!formData.scheduledAt) {
-      newErrors.scheduledAt = "Scheduled date and time is required"
+      newErrors.scheduledAt = "Scheduled date and time is required";
     }
 
     // Validate endDate is after scheduledAt if provided
     if (formData.endDate && formData.scheduledAt) {
-      const startDate = new Date(formData.scheduledAt)
-      const endDate = new Date(formData.endDate)
+      const startDate = new Date(formData.scheduledAt);
+      const endDate = new Date(formData.endDate);
       if (endDate <= startDate) {
-        newErrors.endDate = "End date must be after start date"
+        newErrors.endDate = "End date must be after start date";
       }
     }
 
     if (!formData.vicId) {
-      newErrors.vicId = "VIC Center is required"
+      newErrors.vicId = "VIC Center is required";
     }
 
-    setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
-  }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
 
     if (!validateForm()) {
-      return
+      return;
     }
 
-    setIsSubmitting(true)
+    setIsSubmitting(true);
 
     try {
       await createSchedule({
@@ -108,17 +113,22 @@ export default function NewSchedulePage() {
         scheduledAt: new Date(formData.scheduledAt),
         endDate: formData.endDate ? new Date(formData.endDate) : undefined,
         vicId: formData.vicId,
-      })
+      });
 
-      router.push("/admin/schedules")
-      router.refresh()
+      router.push("/admin/schedules");
+      router.refresh();
     } catch (error) {
-      console.error("Error creating schedule:", error)
-      setErrors({ submit: error instanceof Error ? error.message : "Failed to create schedule. Please try again." })
+      console.error("Error creating schedule:", error);
+      setErrors({
+        submit:
+          error instanceof Error
+            ? error.message
+            : "Failed to create schedule. Please try again.",
+      });
     } finally {
-      setIsSubmitting(false)
+      setIsSubmitting(false);
     }
-  }
+  };
 
   if (isLoading) {
     return (
@@ -127,7 +137,7 @@ export default function NewSchedulePage() {
           <Spinner size="lg" text="Loading..." />
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -141,7 +151,9 @@ export default function NewSchedulePage() {
         </Link>
         <div>
           <h1 className="text-3xl font-bold">Create New Schedule</h1>
-          <p className="text-muted-foreground">Schedule a maintenance or inspection activity</p>
+          <p className="text-muted-foreground">
+            Schedule a maintenance or inspection activity
+          </p>
         </div>
       </div>
 
@@ -163,8 +175,12 @@ export default function NewSchedulePage() {
                 placeholder="e.g., Monthly Maintenance Check"
                 className={errors.title ? "border-red-500" : ""}
               />
-              {errors.title && <p className="text-sm text-red-500">{errors.title}</p>}
-              <p className="text-sm text-muted-foreground">{formData.title.length}/200</p>
+              {errors.title && (
+                <p className="text-sm text-red-500">{errors.title}</p>
+              )}
+              <p className="text-sm text-muted-foreground">
+                {formData.title.length}/200
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -177,8 +193,12 @@ export default function NewSchedulePage() {
                 rows={4}
                 className={errors.description ? "border-red-500" : ""}
               />
-              {errors.description && <p className="text-sm text-red-500">{errors.description}</p>}
-              <p className="text-sm text-muted-foreground">{formData.description.length}/1000</p>
+              {errors.description && (
+                <p className="text-sm text-red-500">{errors.description}</p>
+              )}
+              <p className="text-sm text-muted-foreground">
+                {formData.description.length}/1000
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -192,7 +212,9 @@ export default function NewSchedulePage() {
                 onChange={(e) => handleChange("scheduledAt", e.target.value)}
                 className={errors.scheduledAt ? "border-red-500" : ""}
               />
-              {errors.scheduledAt && <p className="text-sm text-red-500">{errors.scheduledAt}</p>}
+              {errors.scheduledAt && (
+                <p className="text-sm text-red-500">{errors.scheduledAt}</p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -204,7 +226,9 @@ export default function NewSchedulePage() {
                 onChange={(e) => handleChange("endDate", e.target.value)}
                 className={errors.endDate ? "border-red-500" : ""}
               />
-              {errors.endDate && <p className="text-sm text-red-500">{errors.endDate}</p>}
+              {errors.endDate && (
+                <p className="text-sm text-red-500">{errors.endDate}</p>
+              )}
               <p className="text-sm text-muted-foreground">
                 If provided, incidents must be created within this date range
               </p>
@@ -214,7 +238,10 @@ export default function NewSchedulePage() {
               <Label htmlFor="vicId">
                 VIC Center <span className="text-red-500">*</span>
               </Label>
-              <Select value={formData.vicId} onValueChange={(value) => handleChange("vicId", value)}>
+              <Select
+                value={formData.vicId}
+                onValueChange={(value) => handleChange("vicId", value)}
+              >
                 <SelectTrigger className={errors.vicId ? "border-red-500" : ""}>
                   <SelectValue placeholder="Select VIC Center" />
                 </SelectTrigger>
@@ -226,7 +253,9 @@ export default function NewSchedulePage() {
                   ))}
                 </SelectContent>
               </Select>
-              {errors.vicId && <p className="text-sm text-red-500">{errors.vicId}</p>}
+              {errors.vicId && (
+                <p className="text-sm text-red-500">{errors.vicId}</p>
+              )}
             </div>
 
             <div className="flex items-center space-x-2">
@@ -240,7 +269,9 @@ export default function NewSchedulePage() {
 
             <div className="flex gap-4 pt-4">
               <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isSubmitting && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
                 <Save className="mr-2 h-4 w-4" />
                 {isSubmitting ? "Creating..." : "Create Schedule"}
               </Button>
@@ -257,5 +288,5 @@ export default function NewSchedulePage() {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

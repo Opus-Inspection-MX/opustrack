@@ -1,23 +1,38 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { ArrowLeft, Package, Activity, Paperclip, Trash2, AlertTriangle, ExternalLink } from "lucide-react";
+import {
+  Activity,
+  AlertTriangle,
+  ArrowLeft,
+  ExternalLink,
+  Package,
+  Paperclip,
+  Trash2,
+} from "lucide-react";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
-import { WorkActivityForm } from "@/components/work-orders/work-activity-form";
-import { WorkPartForm } from "@/components/work-orders/work-part-form";
-import { WorkOrderEditForm } from "@/components/work-orders/work-order-edit-form";
 import { WorkActivityEdit } from "@/components/work-orders/work-activity-edit";
+import { WorkActivityForm } from "@/components/work-orders/work-activity-form";
+import { WorkOrderEditForm } from "@/components/work-orders/work-order-edit-form";
 import { WorkPartEdit } from "@/components/work-orders/work-part-edit";
-import { getWorkOrderById, deleteWorkOrderAttachment, getWorkOrderFormOptions } from "@/lib/actions/work-orders";
-import { getWorkActivities, deleteWorkActivity } from "@/lib/actions/work-activities";
-import { getWorkParts, deleteWorkPart } from "@/lib/actions/work-parts";
+import { WorkPartForm } from "@/components/work-orders/work-part-form";
 import { getParts } from "@/lib/actions/parts";
+import {
+  deleteWorkActivity,
+  getWorkActivities,
+} from "@/lib/actions/work-activities";
+import {
+  deleteWorkOrderAttachment,
+  getWorkOrderById,
+  getWorkOrderFormOptions,
+} from "@/lib/actions/work-orders";
+import { deleteWorkPart, getWorkParts } from "@/lib/actions/work-parts";
 import { formatFileSize, getFileIcon } from "@/lib/upload";
 
 export default function EditWorkOrderPage({
@@ -46,7 +61,7 @@ export default function EditWorkOrderPage({
     if (workOrderId) {
       fetchData();
     }
-  }, [workOrderId]);
+  }, [workOrderId, fetchData]);
 
   const fetchData = async () => {
     if (!workOrderId) return;
@@ -54,15 +69,21 @@ export default function EditWorkOrderPage({
     try {
       setLoading(true);
       const { getIncidentStatuses } = await import("@/lib/actions/lookups");
-      const [woData, activitiesData, partsData, availablePartsData, formOptions, statuses] =
-        await Promise.all([
-          getWorkOrderById(workOrderId),
-          getWorkActivities(workOrderId),
-          getWorkParts(workOrderId),
-          getParts(),
-          getWorkOrderFormOptions(),
-          getIncidentStatuses(),
-        ]);
+      const [
+        woData,
+        activitiesData,
+        partsData,
+        availablePartsData,
+        formOptions,
+        statuses,
+      ] = await Promise.all([
+        getWorkOrderById(workOrderId),
+        getWorkActivities(workOrderId),
+        getWorkParts(workOrderId),
+        getParts(),
+        getWorkOrderFormOptions(),
+        getIncidentStatuses(),
+      ]);
 
       setWorkOrder(woData);
       setActivities(activitiesData);
@@ -134,7 +155,7 @@ export default function EditWorkOrderPage({
 
   const totalPartsCost = workParts.reduce(
     (sum, wp) => sum + wp.price * wp.quantity,
-    0
+    0,
   );
 
   return (
@@ -175,8 +196,10 @@ export default function EditWorkOrderPage({
                 <p className="text-sm text-muted-foreground">Parent Incident</p>
                 <p className="font-medium">{workOrder.incident.title}</p>
                 <p className="text-xs text-muted-foreground">
-                  {workOrder.incident.type?.name && `Type: ${workOrder.incident.type.name} • `}
-                  Priority: {workOrder.incident.priority}/10 • Status: {workOrder.incident.status?.name}
+                  {workOrder.incident.type?.name &&
+                    `Type: ${workOrder.incident.type.name} • `}
+                  Priority: {workOrder.incident.priority}/10 • Status:{" "}
+                  {workOrder.incident.status?.name}
                 </p>
               </div>
             </div>
@@ -193,10 +216,10 @@ export default function EditWorkOrderPage({
       {/* Work Order Edit Form */}
       <WorkOrderEditForm
         workOrder={workOrder}
-        users={availableUsers.filter(user =>
+        users={availableUsers.filter((user) =>
           workOrder.incident?.vicId
             ? user.vicIds?.includes(workOrder.incident.vicId)
-            : true
+            : true,
         )}
         statuses={availableStatuses}
         onSuccess={fetchData}
@@ -253,10 +276,7 @@ export default function EditWorkOrderPage({
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </div>
-              <WorkActivityEdit
-                activity={activity}
-                onSuccess={fetchData}
-              />
+              <WorkActivityEdit activity={activity} onSuccess={fetchData} />
             </CardHeader>
             {activity.workParts && activity.workParts.length > 0 && (
               <CardContent>
@@ -328,10 +348,7 @@ export default function EditWorkOrderPage({
                 {workParts.map((wp) => (
                   <div key={wp.id} className="flex items-center">
                     <div className="flex-1">
-                      <WorkPartEdit
-                        workPart={wp}
-                        onSuccess={fetchData}
-                      />
+                      <WorkPartEdit workPart={wp} onSuccess={fetchData} />
                     </div>
                     <Button
                       variant="ghost"

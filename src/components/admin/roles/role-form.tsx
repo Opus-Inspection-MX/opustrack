@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { createRole, updateRole, type RoleFormData } from "@/lib/actions/roles";
+import { createRole, type RoleFormData, updateRole } from "@/lib/actions/roles";
 
 type RoleFormProps = {
   role?: {
@@ -120,11 +120,7 @@ export function RoleForm({ role }: RoleFormProps) {
           Cancelar
         </Button>
         <Button type="submit" disabled={loading}>
-          {loading
-            ? "Guardando..."
-            : role
-              ? "Actualizar Rol"
-              : "Crear Rol"}
+          {loading ? "Guardando..." : role ? "Actualizar Rol" : "Crear Rol"}
         </Button>
       </div>
 

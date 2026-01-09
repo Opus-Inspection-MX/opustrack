@@ -1,122 +1,128 @@
-"use client"
+"use client";
 
-import type React from "react"
+import { ArrowLeft, Save } from "lucide-react";
+import { useRouter } from "next/navigation";
+import type React from "react";
+import { useCallback, useEffect, useState } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Spinner } from "@/components/ui/spinner";
+import { Switch } from "@/components/ui/switch";
 
-import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
-import { ArrowLeft, Save } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Switch } from "@/components/ui/switch"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Spinner } from "@/components/ui/spinner"
-
-export default function EditIncidentStatusPage({ params }: { params: Promise<{ id: string }> }) {
-  const router = useRouter()
-  const [statusId, setStatusId] = useState<number | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
-  const [isFetching, setIsFetching] = useState(true)
+export default function EditIncidentStatusPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const router = useRouter();
+  const [statusId, setStatusId] = useState<number | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isFetching, setIsFetching] = useState(true);
   const [formData, setFormData] = useState({
     name: "",
     color: "#6B7280",
     active: true,
-  })
-  const [errors, setErrors] = useState<Record<string, string>>({})
+  });
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    params.then((p) => setStatusId(parseInt(p.id)))
-  }, [params])
+    params.then((p) => setStatusId(parseInt(p.id, 10)));
+  }, [params]);
 
-  useEffect(() => {
-    if (statusId) {
-      fetchIncidentStatus()
-    }
-  }, [statusId])
-
-  const fetchIncidentStatus = async () => {
-    if (!statusId) return
+  const fetchIncidentStatus = useCallback(async () => {
+    if (!statusId) return;
 
     try {
-      setIsFetching(true)
-      const { getIncidentStatusById } = await import("@/lib/actions/lookups")
-      const data = await getIncidentStatusById(statusId)
+      setIsFetching(true);
+      const { getIncidentStatusById } = await import("@/lib/actions/lookups");
+      const data = await getIncidentStatusById(statusId);
 
       if (data) {
         setFormData({
           name: data.name,
           color: data.color || "#6B7280",
           active: data.active,
-        })
+        });
       }
     } catch (error) {
-      console.error("Error fetching incident status:", error)
+      console.error("Error fetching incident status:", error);
     } finally {
-      setIsFetching(false)
+      setIsFetching(false);
     }
-  }
+  }, [statusId]);
+
+  useEffect(() => {
+    if (statusId) {
+      fetchIncidentStatus();
+    }
+  }, [statusId, fetchIncidentStatus]);
 
   const validateForm = () => {
-    const newErrors: Record<string, string> = {}
+    const newErrors: Record<string, string> = {};
 
     if (!formData.name.trim()) {
-      newErrors.name = "Name is required"
+      newErrors.name = "Name is required";
     } else if (formData.name.length < 2) {
-      newErrors.name = "Name must be at least 2 characters"
+      newErrors.name = "Name must be at least 2 characters";
     } else if (formData.name.length > 50) {
-      newErrors.name = "Name must be less than 50 characters"
+      newErrors.name = "Name must be less than 50 characters";
     } else if (!/^[a-zA-Z\s]+$/.test(formData.name)) {
-      newErrors.name = "Name can only contain letters and spaces"
+      newErrors.name = "Name can only contain letters and spaces";
     }
 
     if (!formData.color || !/^#[0-9A-Fa-f]{6}$/.test(formData.color)) {
-      newErrors.color = "Color must be a valid hex color (e.g., #FF0000)"
+      newErrors.color = "Color must be a valid hex color (e.g., #FF0000)";
     }
 
-    setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
-  }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
 
     if (!validateForm() || !statusId) {
-      return
+      return;
     }
 
     try {
-      setIsLoading(true)
-      const { updateIncidentStatus } = await import("@/lib/actions/lookups")
+      setIsLoading(true);
+      const { updateIncidentStatus } = await import("@/lib/actions/lookups");
       await updateIncidentStatus(statusId, {
         name: formData.name.trim(),
         color: formData.color,
         active: formData.active,
-      })
-      router.push(`/admin/incident-status/${statusId}`)
-      router.refresh()
+      });
+      router.push(`/admin/incident-status/${statusId}`);
+      router.refresh();
     } catch (error) {
-      console.error("Error updating incident status:", error)
-      alert("Failed to update incident status")
+      console.error("Error updating incident status:", error);
+      alert("Failed to update incident status");
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
-  const handleInputChange = (field: string, value: any) => {
-    setFormData((prev) => ({ ...prev, [field]: value }))
+  const handleInputChange = <K extends keyof typeof formData>(
+    field: K,
+    value: (typeof formData)[K],
+  ) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
     // Clear error when user starts typing
     if (errors[field]) {
-      setErrors((prev) => ({ ...prev, [field]: "" }))
+      setErrors((prev) => ({ ...prev, [field]: "" }));
     }
-  }
+  };
 
   if (isFetching) {
     return (
       <div className="flex items-center justify-center h-96">
         <Spinner size="lg" text="Loading incident status..." />
       </div>
-    )
+    );
   }
 
   return (
@@ -127,7 +133,9 @@ export default function EditIncidentStatusPage({ params }: { params: Promise<{ i
         </Button>
         <div>
           <h1 className="text-3xl font-bold">Edit Incident Status</h1>
-          <p className="text-muted-foreground">Update incident status information</p>
+          <p className="text-muted-foreground">
+            Update incident status information
+          </p>
         </div>
       </div>
 
@@ -148,7 +156,9 @@ export default function EditIncidentStatusPage({ params }: { params: Promise<{ i
                 placeholder="e.g., Open, In Progress, Resolved"
                 className={errors.name ? "border-red-500" : ""}
               />
-              {errors.name && <p className="text-sm text-red-500">{errors.name}</p>}
+              {errors.name && (
+                <p className="text-sm text-red-500">{errors.name}</p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -166,7 +176,9 @@ export default function EditIncidentStatusPage({ params }: { params: Promise<{ i
                 <Input
                   type="text"
                   value={formData.color}
-                  onChange={(e) => handleInputChange("color", e.target.value.toUpperCase())}
+                  onChange={(e) =>
+                    handleInputChange("color", e.target.value.toUpperCase())
+                  }
                   placeholder="#6B7280"
                   className={`flex-1 font-mono ${errors.color ? "border-red-500" : ""}`}
                 />
@@ -174,7 +186,9 @@ export default function EditIncidentStatusPage({ params }: { params: Promise<{ i
               <p className="text-sm text-muted-foreground">
                 Choose a color for this status (hex format)
               </p>
-              {errors.color && <p className="text-sm text-red-500">{errors.color}</p>}
+              {errors.color && (
+                <p className="text-sm text-red-500">{errors.color}</p>
+              )}
             </div>
 
             {formData.name && (
@@ -198,7 +212,9 @@ export default function EditIncidentStatusPage({ params }: { params: Promise<{ i
               <Switch
                 id="active"
                 checked={formData.active}
-                onCheckedChange={(checked) => handleInputChange("active", checked)}
+                onCheckedChange={(checked) =>
+                  handleInputChange("active", checked)
+                }
               />
               <Label htmlFor="active">Active Status</Label>
             </div>
@@ -212,7 +228,9 @@ export default function EditIncidentStatusPage({ params }: { params: Promise<{ i
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => router.push(`/admin/incident-status/${statusId}`)}
+                onClick={() =>
+                  router.push(`/admin/incident-status/${statusId}`)
+                }
               >
                 Cancel
               </Button>
@@ -221,5 +239,5 @@ export default function EditIncidentStatusPage({ params }: { params: Promise<{ i
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

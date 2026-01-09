@@ -1,31 +1,37 @@
-"use client"
+"use client";
 
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Search, Filter } from "lucide-react"
+import { Filter, Search } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface IncidentFiltersProps {
-  searchTerm: string
-  setSearchTerm: (value: string) => void
-  statusFilter: string
-  setStatusFilter: (value: string) => void
-  priorityFilter: string
-  setPriorityFilter: (value: string) => void
-  typeFilter: string
-  setTypeFilter: (value: string) => void
-  dateFromFilter: string
-  setDateFromFilter: (value: string) => void
-  dateToFilter: string
-  setDateToFilter: (value: string) => void
-  dateFilterType: string
-  setDateFilterType: (value: string) => void
-  sortField: string
-  setSortField: (value: string) => void
-  sortDirection: string
-  setSortDirection: (value: string) => void
+  searchTerm: string;
+  setSearchTerm: (value: string) => void;
+  statusFilter: string;
+  setStatusFilter: (value: string) => void;
+  priorityFilter: string;
+  setPriorityFilter: (value: string) => void;
+  typeFilter: string;
+  setTypeFilter: (value: string) => void;
+  dateFromFilter: string;
+  setDateFromFilter: (value: string) => void;
+  dateToFilter: string;
+  setDateToFilter: (value: string) => void;
+  dateFilterType: string;
+  setDateFilterType: (value: string) => void;
+  sortField: string;
+  setSortField: (value: string) => void;
+  sortDirection: string;
+  setSortDirection: (value: string) => void;
 }
 
 export function IncidentFilters({
@@ -106,9 +112,9 @@ export function IncidentFilters({
             <Select
               value={`${sortField}-${sortDirection}`}
               onValueChange={(value) => {
-                const [field, direction] = value.split("-")
-                setSortField(field)
-                setSortDirection(direction)
+                const [field, direction] = value.split("-");
+                setSortField(field);
+                setSortDirection(direction);
               }}
             >
               <SelectTrigger>
@@ -139,7 +145,10 @@ export function IncidentFilters({
               </SelectContent>
             </Select>
             <div className="space-y-1">
-              <Label htmlFor="dateFrom" className="text-xs text-muted-foreground">
+              <Label
+                htmlFor="dateFrom"
+                className="text-xs text-muted-foreground"
+              >
                 From Date
               </Label>
               <Input
@@ -167,15 +176,15 @@ export function IncidentFilters({
               <Button
                 variant="outline"
                 onClick={() => {
-                  setSearchTerm("")
-                  setStatusFilter("all")
-                  setPriorityFilter("all")
-                  setTypeFilter("all")
-                  setDateFromFilter("")
-                  setDateToFilter("")
-                  setDateFilterType("reportedAt")
-                  setSortField("reportedAt")
-                  setSortDirection("desc")
+                  setSearchTerm("");
+                  setStatusFilter("all");
+                  setPriorityFilter("all");
+                  setTypeFilter("all");
+                  setDateFromFilter("");
+                  setDateToFilter("");
+                  setDateFilterType("reportedAt");
+                  setSortField("reportedAt");
+                  setSortDirection("desc");
                 }}
                 className="w-full"
               >
@@ -186,5 +195,5 @@ export function IncidentFilters({
         </div>
       </CardContent>
     </Card>
-  )
+  );
 }

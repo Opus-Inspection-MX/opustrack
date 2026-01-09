@@ -1,15 +1,29 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Building,
+  Edit2,
+  Lock,
+  Mail,
+  Phone,
+  Save,
+  Shield,
+  User,
+  X,
+} from "lucide-react";
+import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { FormError } from "@/components/ui/form-error";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { User, Mail, Building, Phone, Shield, Edit2, Save, X, Lock } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
-import { FormError } from "@/components/ui/form-error";
-import { getMyProfile, updateMyProfile, updateMyPassword } from "@/lib/actions/users";
+import {
+  getMyProfile,
+  updateMyPassword,
+  updateMyProfile,
+} from "@/lib/actions/users";
 
 export default function FSRProfilePage() {
   const [user, setUser] = useState<any>(null);
@@ -36,7 +50,7 @@ export default function FSRProfilePage() {
 
   useEffect(() => {
     fetchProfile();
-  }, []);
+  }, [fetchProfile]);
 
   const fetchProfile = async () => {
     try {
@@ -84,7 +98,10 @@ export default function FSRProfilePage() {
     } catch (error) {
       console.error("Error updating profile:", error);
       setErrors({
-        submit: error instanceof Error ? error.message : "Error al actualizar el perfil",
+        submit:
+          error instanceof Error
+            ? error.message
+            : "Error al actualizar el perfil",
       });
     } finally {
       setIsSaving(false);
@@ -106,7 +123,8 @@ export default function FSRProfilePage() {
       if (!passwordData.newPassword) {
         newErrors.newPassword = "La nueva contraseña es requerida";
       } else if (passwordData.newPassword.length < 8) {
-        newErrors.newPassword = "La contraseña debe tener al menos 8 caracteres";
+        newErrors.newPassword =
+          "La contraseña debe tener al menos 8 caracteres";
       }
 
       if (passwordData.newPassword !== passwordData.confirmPassword) {
@@ -119,7 +137,10 @@ export default function FSRProfilePage() {
         return;
       }
 
-      await updateMyPassword(passwordData.currentPassword, passwordData.newPassword);
+      await updateMyPassword(
+        passwordData.currentPassword,
+        passwordData.newPassword,
+      );
       setIsChangingPassword(false);
       setPasswordData({
         currentPassword: "",
@@ -131,7 +152,10 @@ export default function FSRProfilePage() {
     } catch (error) {
       console.error("Error changing password:", error);
       setErrors({
-        submit: error instanceof Error ? error.message : "Error al cambiar la contraseña",
+        submit:
+          error instanceof Error
+            ? error.message
+            : "Error al cambiar la contraseña",
       });
     } finally {
       setIsSaving(false);
@@ -159,11 +183,16 @@ export default function FSRProfilePage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Mi Perfil</h1>
-          <p className="text-muted-foreground">Administra tu información personal</p>
+          <p className="text-muted-foreground">
+            Administra tu información personal
+          </p>
         </div>
         {!isEditing && !isChangingPassword && (
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setIsChangingPassword(true)}>
+            <Button
+              variant="outline"
+              onClick={() => setIsChangingPassword(true)}
+            >
               <Lock className="mr-2 h-4 w-4" />
               Cambiar Contraseña
             </Button>
@@ -208,7 +237,9 @@ export default function FSRProfilePage() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <p className="text-sm text-muted-foreground mb-2">Correo Electrónico</p>
+                    <p className="text-sm text-muted-foreground mb-2">
+                      Correo Electrónico
+                    </p>
                     <p className="font-medium">{user.email}</p>
                     <p className="text-xs text-muted-foreground">
                       El correo no puede ser cambiado
@@ -234,7 +265,9 @@ export default function FSRProfilePage() {
                 <div className="flex items-center gap-3">
                   <Mail className="h-5 w-5 text-muted-foreground" />
                   <div>
-                    <p className="text-sm text-muted-foreground">Correo Electrónico</p>
+                    <p className="text-sm text-muted-foreground">
+                      Correo Electrónico
+                    </p>
                     <p className="font-medium">{user.email}</p>
                   </div>
                 </div>
@@ -252,7 +285,9 @@ export default function FSRProfilePage() {
                   <div>
                     <p className="text-sm text-muted-foreground">CVV</p>
                     <p className="font-medium">
-                      {user.vic ? `${user.vic.name} (${user.vic.code})` : "No asignado"}
+                      {user.vic
+                        ? `${user.vic.name} (${user.vic.code})`
+                        : "No asignado"}
                     </p>
                   </div>
                 </div>
@@ -282,7 +317,9 @@ export default function FSRProfilePage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="secondaryTelephone">Teléfono Secundario</Label>
+                  <Label htmlFor="secondaryTelephone">
+                    Teléfono Secundario
+                  </Label>
                   <Input
                     id="secondaryTelephone"
                     value={formData.secondaryTelephone}
@@ -309,7 +346,9 @@ export default function FSRProfilePage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="emergencyContact">Contacto de Emergencia</Label>
+                  <Label htmlFor="emergencyContact">
+                    Contacto de Emergencia
+                  </Label>
                   <Input
                     id="emergencyContact"
                     value={formData.emergencyContact}
@@ -330,7 +369,9 @@ export default function FSRProfilePage() {
                     <Phone className="h-5 w-5 text-muted-foreground" />
                     <div>
                       <p className="text-sm text-muted-foreground">Teléfono</p>
-                      <p className="font-medium">{user.userProfile.telephone}</p>
+                      <p className="font-medium">
+                        {user.userProfile.telephone}
+                      </p>
                     </div>
                   </div>
                 )}
@@ -353,8 +394,12 @@ export default function FSRProfilePage() {
                   <div className="flex items-center gap-3">
                     <Building className="h-5 w-5 text-muted-foreground" />
                     <div>
-                      <p className="text-sm text-muted-foreground">Puesto de Trabajo</p>
-                      <p className="font-medium">{user.userProfile.jobPosition}</p>
+                      <p className="text-sm text-muted-foreground">
+                        Puesto de Trabajo
+                      </p>
+                      <p className="font-medium">
+                        {user.userProfile.jobPosition}
+                      </p>
                     </div>
                   </div>
                 )}
@@ -388,7 +433,8 @@ export default function FSRProfilePage() {
                 setFormData({
                   name: user.name || "",
                   telephone: user.userProfile?.telephone || "",
-                  secondaryTelephone: user.userProfile?.secondaryTelephone || "",
+                  secondaryTelephone:
+                    user.userProfile?.secondaryTelephone || "",
                   emergencyContact: user.userProfile?.emergencyContact || "",
                   jobPosition: user.userProfile?.jobPosition || "",
                 });
@@ -453,7 +499,9 @@ export default function FSRProfilePage() {
                     })
                   }
                 />
-                {errors.newPassword && <FormError message={errors.newPassword} />}
+                {errors.newPassword && (
+                  <FormError message={errors.newPassword} />
+                )}
                 <p className="text-xs text-muted-foreground">
                   Debe tener al menos 8 caracteres
                 </p>
@@ -461,7 +509,8 @@ export default function FSRProfilePage() {
 
               <div className="space-y-2">
                 <Label htmlFor="confirmPassword">
-                  Confirmar Nueva Contraseña <span className="text-red-500">*</span>
+                  Confirmar Nueva Contraseña{" "}
+                  <span className="text-red-500">*</span>
                 </Label>
                 <Input
                   id="confirmPassword"

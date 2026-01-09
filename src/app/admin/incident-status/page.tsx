@@ -1,84 +1,91 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Plus, Search } from "lucide-react"
-import { IncidentStatusTable } from "@/components/incident-status/incident-status-table"
-import { Spinner } from "@/components/ui/spinner"
-import { Pagination } from "@/components/ui/pagination"
-import { getIncidentStatuses, deleteIncidentStatus } from "@/lib/actions/lookups"
+import { Plus, Search } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
+import { IncidentStatusTable } from "@/components/incident-status/incident-status-table";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Pagination } from "@/components/ui/pagination";
+import { Spinner } from "@/components/ui/spinner";
+import {
+  deleteIncidentStatus,
+  getIncidentStatuses,
+} from "@/lib/actions/lookups";
+
+type IncidentStatus = Awaited<
+  ReturnType<typeof getIncidentStatuses>
+>["data"][number];
 
 export default function IncidentStatusPage() {
-  const router = useRouter()
-  const [statuses, setStatuses] = useState<any[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  const router = useRouter();
+  const [statuses, setStatuses] = useState<IncidentStatus[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Pagination state
-  const [currentPage, setCurrentPage] = useState(1)
-  const [itemsPerPage, setItemsPerPage] = useState(10)
-  const [totalItems, setTotalItems] = useState(0)
-  const [totalPages, setTotalPages] = useState(0)
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
 
   // Filter state
-  const [searchQuery, setSearchQuery] = useState("")
+  const [searchQuery, setSearchQuery] = useState("");
 
-  useEffect(() => {
-    fetchData()
-  }, [currentPage, itemsPerPage, searchQuery])
-
-  const fetchData = async () => {
-    setIsLoading(true)
+  const fetchData = useCallback(async () => {
+    setIsLoading(true);
     try {
       const result = await getIncidentStatuses({
         page: currentPage,
         limit: itemsPerPage,
         search: searchQuery || undefined,
-      })
+      });
 
-      setStatuses(result.data)
-      setTotalItems(result.pagination.total)
-      setTotalPages(result.pagination.totalPages)
+      setStatuses(result.data);
+      setTotalItems(result.pagination.total);
+      setTotalPages(result.pagination.totalPages);
     } catch (error) {
-      console.error("Error fetching incident statuses:", error)
+      console.error("Error fetching incident statuses:", error);
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  }, [currentPage, itemsPerPage, searchQuery]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const handleEdit = (id: number) => {
-    router.push(`/admin/incident-status/${id}/edit`)
-  }
+    router.push(`/admin/incident-status/${id}/edit`);
+  };
 
   const handleDelete = async (id: number) => {
     if (confirm("Are you sure you want to delete this incident status?")) {
       try {
-        await deleteIncidentStatus(id)
-        await fetchData()
+        await deleteIncidentStatus(id);
+        await fetchData();
       } catch (error) {
-        console.error("Error deleting incident status:", error)
-        alert("Failed to delete incident status")
+        console.error("Error deleting incident status:", error);
+        alert("Failed to delete incident status");
       }
     }
-  }
+  };
 
   const handleView = (id: number) => {
-    router.push(`/admin/incident-status/${id}`)
-  }
+    router.push(`/admin/incident-status/${id}`);
+  };
 
   const handleSearch = (value: string) => {
-    setSearchQuery(value)
-    setCurrentPage(1) // Reset to first page on search
-  }
+    setSearchQuery(value);
+    setCurrentPage(1); // Reset to first page on search
+  };
 
   if (isLoading && statuses.length === 0) {
     return (
       <div className="flex items-center justify-center h-64">
         <Spinner size="lg" text="Loading incident statuses..." />
       </div>
-    )
+    );
   }
 
   return (
@@ -86,7 +93,9 @@ export default function IncidentStatusPage() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold">Incident Status</h1>
-          <p className="text-muted-foreground">Manage incident status types and their configurations</p>
+          <p className="text-muted-foreground">
+            Manage incident status types and their configurations
+          </p>
         </div>
         <Button onClick={() => router.push("/admin/incident-status/new")}>
           <Plus className="mr-2 h-4 w-4" />
@@ -110,7 +119,12 @@ export default function IncidentStatusPage() {
         </div>
       </div>
 
-      <IncidentStatusTable data={statuses} onEdit={handleEdit} onDelete={handleDelete} onView={handleView} />
+      <IncidentStatusTable
+        data={statuses}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
+        onView={handleView}
+      />
 
       {totalItems > 0 && (
         <Pagination
@@ -120,11 +134,11 @@ export default function IncidentStatusPage() {
           itemsPerPage={itemsPerPage}
           onPageChange={setCurrentPage}
           onItemsPerPageChange={(value) => {
-            setItemsPerPage(value)
-            setCurrentPage(1)
+            setItemsPerPage(value);
+            setCurrentPage(1);
           }}
         />
       )}
     </div>
-  )
+  );
 }

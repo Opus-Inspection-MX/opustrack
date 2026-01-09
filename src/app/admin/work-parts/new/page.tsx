@@ -1,6 +1,6 @@
-"use client"
+"use client";
 
-import { WorkPartForm } from "@/components/work-parts/work-part-form"
+import { WorkPartForm } from "@/components/work-parts/work-part-form";
 
 // Mock data - replace with actual API calls
 const mockParts = [
@@ -32,7 +32,7 @@ const mockParts = [
     stock: 15,
     vic: { name: "VIC Center 2", code: "VIC002" },
   },
-]
+];
 
 const mockWorkOrders = [
   {
@@ -50,7 +50,7 @@ const mockWorkOrders = [
     status: { name: "Completed" },
     incident: { title: "Air quality improvement project" },
   },
-]
+];
 
 const mockWorkActivities = [
   {
@@ -68,21 +68,23 @@ const mockWorkActivities = [
     description: "Air filter installation and testing",
     workOrderId: "wo_003",
   },
-]
+];
 
 export default function NewWorkPartPage() {
   const handleSubmit = async (data: any) => {
-    console.log("Creating work part:", data)
+    console.log("Creating work part:", data);
     // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    alert("Work part added successfully!")
-  }
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    alert("Work part added successfully!");
+  };
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold">Add Work Part</h1>
-        <p className="text-muted-foreground">Record parts used in work orders and activities</p>
+        <p className="text-muted-foreground">
+          Record parts used in work orders and activities
+        </p>
       </div>
 
       <WorkPartForm
@@ -92,5 +94,5 @@ export default function NewWorkPartPage() {
         onSubmit={handleSubmit}
       />
     </div>
-  )
+  );
 }

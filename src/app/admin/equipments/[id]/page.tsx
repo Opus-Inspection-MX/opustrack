@@ -1,20 +1,22 @@
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Edit, Wrench, List } from "lucide-react"
-import Link from "next/link"
-import { getEquipmentById } from "@/lib/actions/equipments"
-import { notFound } from "next/navigation"
+import { ArrowLeft, Edit, List, Wrench } from "lucide-react";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { getEquipmentById } from "@/lib/actions/equipments";
 
 interface EquipmentDetailPageProps {
-  params: Promise<{ id: string }>
+  params: Promise<{ id: string }>;
 }
 
-export default async function EquipmentDetailPage({ params }: EquipmentDetailPageProps) {
-  const { id } = await params
+export default async function EquipmentDetailPage({
+  params,
+}: EquipmentDetailPageProps) {
+  const { id } = await params;
 
   try {
-    const equipment = await getEquipmentById(parseInt(id))
+    const equipment = await getEquipmentById(parseInt(id, 10));
 
     return (
       <div className="space-y-6">
@@ -91,7 +93,13 @@ export default async function EquipmentDetailPage({ params }: EquipmentDetailPag
               <Wrench className="h-5 w-5 text-muted-foreground mt-0.5" />
               <div className="flex-1">
                 <p className="text-sm text-muted-foreground">Status</p>
-                <Badge className={equipment.active ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}>
+                <Badge
+                  className={
+                    equipment.active
+                      ? "bg-green-100 text-green-800"
+                      : "bg-red-100 text-red-800"
+                  }
+                >
                   {equipment.active ? "Activo" : "Inactivo"}
                 </Badge>
               </div>
@@ -102,15 +110,16 @@ export default async function EquipmentDetailPage({ params }: EquipmentDetailPag
               <div className="flex-1">
                 <p className="text-sm text-muted-foreground">Creado</p>
                 <p className="font-medium">
-                  {new Date(equipment.createdAt).toLocaleDateString()} {new Date(equipment.createdAt).toLocaleTimeString()}
+                  {new Date(equipment.createdAt).toLocaleDateString()}{" "}
+                  {new Date(equipment.createdAt).toLocaleTimeString()}
                 </p>
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
-    )
-  } catch (error) {
-    notFound()
+    );
+  } catch (_error) {
+    notFound();
   }
 }

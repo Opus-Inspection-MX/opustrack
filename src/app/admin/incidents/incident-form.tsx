@@ -1,19 +1,36 @@
-"use client"
+"use client";
 
-import type React from "react"
+import { useRouter } from "next/navigation";
+import type React from "react";
+import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 
-import { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { useRouter } from "next/navigation"
+interface IncidentData {
+  title?: string;
+  description?: string;
+  priority?: string;
+  sla?: number;
+  typeId?: string;
+  statusId?: string;
+  vicId?: string;
+  reportedById?: string;
+  scheduleId?: string;
+}
 
 interface IncidentFormProps {
-  incident?: any
-  onClose?: () => void
+  incident?: IncidentData;
+  onClose?: () => void;
 }
 
 export function IncidentForm({ incident, onClose }: IncidentFormProps) {
@@ -27,9 +44,9 @@ export function IncidentForm({ incident, onClose }: IncidentFormProps) {
     vicId: "",
     reportedById: "",
     scheduleId: "",
-  })
+  });
 
-  const router = useRouter()
+  const router = useRouter();
 
   // Mock data - replace with actual API calls
   const incidentTypes = [
@@ -37,26 +54,26 @@ export function IncidentForm({ incident, onClose }: IncidentFormProps) {
     { id: "2", name: "System" },
     { id: "3", name: "Equipment" },
     { id: "4", name: "Network" },
-  ]
+  ];
 
   const incidentStatuses = [
     { id: "1", name: "Open" },
     { id: "2", name: "In Progress" },
     { id: "3", name: "Resolved" },
     { id: "4", name: "Closed" },
-  ]
+  ];
 
   const vics = [
     { id: "vic_001", name: "VIC Centro", code: "VIC001" },
     { id: "vic_002", name: "VIC Norte", code: "VIC002" },
     { id: "vic_003", name: "VIC Sur", code: "VIC003" },
-  ]
+  ];
 
   const users = [
     { id: "user_001", name: "John Doe" },
     { id: "user_002", name: "Jane Smith" },
     { id: "user_003", name: "Mike Johnson" },
-  ]
+  ];
 
   useEffect(() => {
     if (incident) {
@@ -70,38 +87,44 @@ export function IncidentForm({ incident, onClose }: IncidentFormProps) {
         vicId: incident.vicId || "",
         reportedById: incident.reportedById || "",
         scheduleId: incident.scheduleId || "",
-      })
+      });
     }
-  }, [incident])
+  }, [incident]);
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
 
     // Here you would make an API call to create/update the incident
-    console.log("Submitting incident:", formData)
+    console.log("Submitting incident:", formData);
 
     // Mock success
-    alert(incident ? "Incident updated successfully!" : "Incident created successfully!")
+    alert(
+      incident
+        ? "Incident updated successfully!"
+        : "Incident created successfully!",
+    );
 
     // Navigate back to incidents list
     if (onClose) {
-      onClose()
+      onClose();
     } else {
-      router.push("/admin/incidents")
+      router.push("/admin/incidents");
     }
-  }
+  };
 
   const handleChange = (field: string, value: string | number) => {
     setFormData((prev) => ({
       ...prev,
       [field]: value,
-    }))
-  }
+    }));
+  };
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{incident ? "Edit Incident" : "Create New Incident"}</CardTitle>
+        <CardTitle>
+          {incident ? "Edit Incident" : "Create New Incident"}
+        </CardTitle>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -118,7 +141,10 @@ export function IncidentForm({ incident, onClose }: IncidentFormProps) {
             </div>
             <div className="space-y-2">
               <Label htmlFor="priority">Priority *</Label>
-              <Select value={formData.priority} onValueChange={(value) => handleChange("priority", value)}>
+              <Select
+                value={formData.priority}
+                onValueChange={(value) => handleChange("priority", value)}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Select priority" />
                 </SelectTrigger>
@@ -147,7 +173,10 @@ export function IncidentForm({ incident, onClose }: IncidentFormProps) {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="typeId">Incident Type *</Label>
-              <Select value={formData.typeId} onValueChange={(value) => handleChange("typeId", value)}>
+              <Select
+                value={formData.typeId}
+                onValueChange={(value) => handleChange("typeId", value)}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Select type" />
                 </SelectTrigger>
@@ -162,7 +191,10 @@ export function IncidentForm({ incident, onClose }: IncidentFormProps) {
             </div>
             <div className="space-y-2">
               <Label htmlFor="statusId">Status *</Label>
-              <Select value={formData.statusId} onValueChange={(value) => handleChange("statusId", value)}>
+              <Select
+                value={formData.statusId}
+                onValueChange={(value) => handleChange("statusId", value)}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
@@ -181,7 +213,9 @@ export function IncidentForm({ incident, onClose }: IncidentFormProps) {
                 id="sla"
                 type="number"
                 value={formData.sla}
-                onChange={(e) => handleChange("sla", Number.parseInt(e.target.value))}
+                onChange={(e) =>
+                  handleChange("sla", Number.parseInt(e.target.value, 10))
+                }
                 placeholder="24"
                 min="1"
                 required
@@ -192,7 +226,10 @@ export function IncidentForm({ incident, onClose }: IncidentFormProps) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="vicId">VIC *</Label>
-              <Select value={formData.vicId} onValueChange={(value) => handleChange("vicId", value)}>
+              <Select
+                value={formData.vicId}
+                onValueChange={(value) => handleChange("vicId", value)}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Select VIC" />
                 </SelectTrigger>
@@ -207,7 +244,10 @@ export function IncidentForm({ incident, onClose }: IncidentFormProps) {
             </div>
             <div className="space-y-2">
               <Label htmlFor="reportedById">Reported By *</Label>
-              <Select value={formData.reportedById} onValueChange={(value) => handleChange("reportedById", value)}>
+              <Select
+                value={formData.reportedById}
+                onValueChange={(value) => handleChange("reportedById", value)}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Select reporter" />
                 </SelectTrigger>
@@ -226,14 +266,18 @@ export function IncidentForm({ incident, onClose }: IncidentFormProps) {
             <Button
               type="button"
               variant="outline"
-              onClick={() => (onClose ? onClose() : router.push("/admin/incidents"))}
+              onClick={() =>
+                onClose ? onClose() : router.push("/admin/incidents")
+              }
             >
               Cancel
             </Button>
-            <Button type="submit">{incident ? "Update Incident" : "Create Incident"}</Button>
+            <Button type="submit">
+              {incident ? "Update Incident" : "Create Incident"}
+            </Button>
           </div>
         </form>
       </CardContent>
     </Card>
-  )
+  );
 }

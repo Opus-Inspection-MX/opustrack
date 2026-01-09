@@ -1,49 +1,68 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { MoreHorizontal, Edit, Trash2, Eye } from "lucide-react"
-import { TablePagination } from "@/components/common/table-pagination"
+import { Edit, Eye, MoreHorizontal, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { TablePagination } from "@/components/common/table-pagination";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 interface IncidentStatus {
-  id: number
-  name: string
-  color: string
-  incidentCount: number
-  active: boolean
-  createdAt: string
-  updatedAt: string
+  id: number;
+  name: string;
+  color: string;
+  incidentCount: number;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 interface IncidentStatusTableProps {
-  data: IncidentStatus[]
-  onEdit: (id: number) => void
-  onDelete: (id: number) => void
-  onView: (id: number) => void
+  data: IncidentStatus[];
+  onEdit: (id: number) => void;
+  onDelete: (id: number) => void;
+  onView: (id: number) => void;
 }
 
-export function IncidentStatusTable({ data, onEdit, onDelete, onView }: IncidentStatusTableProps) {
-  const [currentPage, setCurrentPage] = useState(1)
-  const [itemsPerPage, setItemsPerPage] = useState(10)
+export function IncidentStatusTable({
+  data,
+  onEdit,
+  onDelete,
+  onView,
+}: IncidentStatusTableProps) {
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
-  const startIndex = (currentPage - 1) * itemsPerPage
-  const endIndex = startIndex + itemsPerPage
-  const currentData = data.slice(startIndex, endIndex)
-  const totalPages = Math.ceil(data.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentData = data.slice(startIndex, endIndex);
+  const totalPages = Math.ceil(data.length / itemsPerPage);
 
   const handleDelete = (id: number, incidentCount: number) => {
     if (incidentCount > 0) {
-      alert(`Cannot delete this status. It is being used by ${incidentCount} incident(s).`)
-      return
+      alert(
+        `Cannot delete this status. It is being used by ${incidentCount} incident(s).`,
+      );
+      return;
     }
 
     if (confirm("Are you sure you want to delete this incident status?")) {
-      onDelete(id)
+      onDelete(id);
     }
-  }
+  };
 
   return (
     <div className="space-y-4">
@@ -71,7 +90,9 @@ export function IncidentStatusTable({ data, onEdit, onDelete, onView }: Incident
                       style={{ backgroundColor: status.color }}
                       title={status.color}
                     />
-                    <span className="font-mono text-sm text-muted-foreground">{status.color}</span>
+                    <span className="font-mono text-sm text-muted-foreground">
+                      {status.color}
+                    </span>
                   </div>
                 </TableCell>
                 <TableCell>
@@ -86,7 +107,9 @@ export function IncidentStatusTable({ data, onEdit, onDelete, onView }: Incident
                   </Badge>
                 </TableCell>
                 <TableCell>
-                  <span className="text-sm text-muted-foreground">{status.incidentCount} incidents</span>
+                  <span className="text-sm text-muted-foreground">
+                    {status.incidentCount} incidents
+                  </span>
                 </TableCell>
                 <TableCell>
                   <Badge variant={status.active ? "default" : "secondary"}>
@@ -113,7 +136,9 @@ export function IncidentStatusTable({ data, onEdit, onDelete, onView }: Incident
                         Edit
                       </DropdownMenuItem>
                       <DropdownMenuItem
-                        onClick={() => handleDelete(status.id, status.incidentCount)}
+                        onClick={() =>
+                          handleDelete(status.id, status.incidentCount)
+                        }
                         className="text-red-600"
                         disabled={status.incidentCount > 0}
                       >
@@ -138,10 +163,10 @@ export function IncidentStatusTable({ data, onEdit, onDelete, onView }: Incident
         endIndex={endIndex}
         onPageChange={setCurrentPage}
         onItemsPerPageChange={(newItemsPerPage) => {
-          setItemsPerPage(newItemsPerPage)
-          setCurrentPage(1)
+          setItemsPerPage(newItemsPerPage);
+          setCurrentPage(1);
         }}
       />
     </div>
-  )
+  );
 }

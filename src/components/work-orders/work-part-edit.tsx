@@ -1,13 +1,13 @@
 "use client";
 
+import { Edit as EditIcon, Save, X } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Save, X, Edit as EditIcon } from "lucide-react";
-import { updateWorkPart } from "@/lib/actions/work-parts";
 import { FormError } from "@/components/ui/form-error";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { updateWorkPart } from "@/lib/actions/work-parts";
 
 type WorkPartEditProps = {
   workPart: {
@@ -112,11 +112,7 @@ export function WorkPartEdit({
           <span className="font-bold">
             ${(workPart.price * workPart.quantity).toFixed(2)}
           </span>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setIsEditing(true)}
-          >
+          <Button variant="ghost" size="sm" onClick={() => setIsEditing(true)}>
             <EditIcon className="h-4 w-4" />
           </Button>
         </div>
@@ -146,13 +142,16 @@ export function WorkPartEdit({
           max={maxQuantity}
           value={formData.quantity}
           onChange={(e) =>
-            setFormData({ ...formData, quantity: parseInt(e.target.value) || 1 })
+            setFormData({
+              ...formData,
+              quantity: parseInt(e.target.value, 10) || 1,
+            })
           }
           required
         />
         <p className="text-xs text-muted-foreground">
-          Total: ${(workPart.price * formData.quantity).toFixed(2)} •
-          Stock after save: {maxQuantity - formData.quantity}
+          Total: ${(workPart.price * formData.quantity).toFixed(2)} • Stock
+          after save: {maxQuantity - formData.quantity}
         </p>
       </div>
 
@@ -170,11 +169,7 @@ export function WorkPartEdit({
       </div>
 
       <div className="flex justify-end gap-2 pt-2">
-        <Button
-          variant="outline"
-          onClick={handleCancel}
-          disabled={loading}
-        >
+        <Button variant="outline" onClick={handleCancel} disabled={loading}>
           <X className="mr-2 h-4 w-4" />
           Cancel
         </Button>

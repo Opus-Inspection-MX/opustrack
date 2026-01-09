@@ -1,11 +1,19 @@
-import Link from "next/link"
-import { SignupForm } from "@/components/auth/signup-form"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Shield } from "lucide-react"
-import { redirect } from "next/navigation"
+import { Shield } from "lucide-react";
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import { SignupForm } from "@/components/auth/signup-form";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
 export default function SignupPage() {
-  redirect("/login?message=La+creación+de+cuentas+es+gestionada+por+administradores")
+  redirect(
+    "/login?message=La+creación+de+cuentas+es+gestionada+por+administradores",
+  );
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 p-4">
       <div className="w-full max-w-md space-y-4">
@@ -15,7 +23,9 @@ export default function SignupPage() {
               <Shield className="h-8 w-8 text-primary" />
             </div>
             <CardTitle className="text-2xl">Crear una Cuenta</CardTitle>
-            <CardDescription>Ingresa tu información para comenzar</CardDescription>
+            <CardDescription>
+              Ingresa tu información para comenzar
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <SignupForm />
@@ -26,7 +36,10 @@ export default function SignupPage() {
           <CardContent className="pt-6">
             <p className="text-center text-sm text-muted-foreground">
               ¿Ya tienes una cuenta?{" "}
-              <Link href="/login" className="font-medium text-primary hover:underline">
+              <Link
+                href="/login"
+                className="font-medium text-primary hover:underline"
+              >
                 Iniciar sesión
               </Link>
             </p>
@@ -34,11 +47,14 @@ export default function SignupPage() {
         </Card>
 
         <div className="text-center">
-          <Link href="/" className="text-sm text-muted-foreground hover:text-primary hover:underline">
+          <Link
+            href="/"
+            className="text-sm text-muted-foreground hover:text-primary hover:underline"
+          >
             Volver al Inicio
           </Link>
         </div>
       </div>
     </div>
-  )
+  );
 }

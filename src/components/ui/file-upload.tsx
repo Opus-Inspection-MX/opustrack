@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { Camera, Upload, X } from "lucide-react";
+import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Camera, Upload, X, FileIcon } from "lucide-react";
-import { validateFile, formatFileSize, getFileIcon, normalizeMimeType } from "@/lib/upload";
+import { formatFileSize, getFileIcon, validateFile } from "@/lib/upload";
 
 type FileUploadProps = {
   onFilesSelected: (files: File[]) => void;
@@ -130,7 +130,8 @@ export function FileUpload({
         />
 
         <p className="text-xs text-muted-foreground mt-2">
-          Max {maxFiles} files, {maxSizeMB}MB each. Supported: images, videos, PDFs
+          Max {maxFiles} files, {maxSizeMB}MB each. Supported: images, videos,
+          PDFs
         </p>
       </div>
 
@@ -149,7 +150,9 @@ export function FileUpload({
       {selectedFiles.length > 0 && (
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <Label className="text-sm">Selected Files ({selectedFiles.length})</Label>
+            <Label className="text-sm">
+              Selected Files ({selectedFiles.length})
+            </Label>
             <Button
               type="button"
               variant="ghost"

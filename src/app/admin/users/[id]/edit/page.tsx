@@ -1,9 +1,9 @@
-import { getUserById, getUserFormOptions } from "@/lib/actions/users";
-import { UserForm } from "@/components/admin/users/user-form";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
 import { notFound } from "next/navigation";
+import { UserForm } from "@/components/admin/users/user-form";
+import { Button } from "@/components/ui/button";
+import { getUserById, getUserFormOptions } from "@/lib/actions/users";
 
 export default async function EditUserPage({
   params,

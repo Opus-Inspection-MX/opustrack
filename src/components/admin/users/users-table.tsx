@@ -1,5 +1,11 @@
 "use client";
 
+import { Edit, Eye, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -8,13 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Edit, Trash2, Eye } from "lucide-react";
-import Link from "next/link";
 import { deleteUser } from "@/lib/actions/users";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
 
 type User = {
   id: string;
@@ -48,7 +48,7 @@ export function UsersTable({ users }: { users: User[] }) {
       await deleteUser(id);
       router.refresh();
     } catch (error) {
-      alert("Error al eliminar usuario: " + (error as Error).message);
+      alert(`Error al eliminar usuario: ${(error as Error).message}`);
       setDeleting(null);
     }
   };

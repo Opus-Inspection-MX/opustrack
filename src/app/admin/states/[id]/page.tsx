@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect, use } from "react";
+import { ArrowLeft, Building2, Edit, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { use, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Edit, Trash2, Building2 } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
-import { getStateById, deleteState } from "@/lib/actions/lookups";
+import { deleteState, getStateById } from "@/lib/actions/lookups";
 
 export default function StateDetailPage({
   params,
@@ -37,7 +37,7 @@ export default function StateDetailPage({
   const handleDelete = async () => {
     if (
       !confirm(
-        "Are you sure you want to delete this state? This action cannot be undone."
+        "Are you sure you want to delete this state? This action cannot be undone.",
       )
     ) {
       return;
@@ -167,7 +167,9 @@ export default function StateDetailPage({
                     <div
                       key={vic.id}
                       className="flex justify-between items-center p-4 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
-                      onClick={() => router.push(`/admin/vic-centers/${vic.id}`)}
+                      onClick={() =>
+                        router.push(`/admin/vic-centers/${vic.id}`)
+                      }
                     >
                       <div>
                         <p className="font-medium">{vic.name}</p>

@@ -1,12 +1,19 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { ArrowLeft, AlertTriangle, Calendar, User, Building, FileText } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowLeft,
+  Building,
+  Calendar,
+  FileText,
+  User,
+} from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import { getIncidentById } from "@/lib/actions/incidents";
@@ -23,14 +30,14 @@ export default function ClientIncidentDetailPage({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    params.then((p) => setIncidentId(parseInt(p.id)));
+    params.then((p) => setIncidentId(parseInt(p.id, 10)));
   }, [params]);
 
   useEffect(() => {
     if (incidentId) {
       fetchIncident();
     }
-  }, [incidentId]);
+  }, [incidentId, fetchIncident]);
 
   const fetchIncident = async () => {
     if (!incidentId) return;
@@ -42,7 +49,9 @@ export default function ClientIncidentDetailPage({
       setIncident(data);
     } catch (error) {
       console.error("Error fetching incident:", error);
-      setError(error instanceof Error ? error.message : "Failed to load incident");
+      setError(
+        error instanceof Error ? error.message : "Failed to load incident",
+      );
     } finally {
       setLoading(false);
     }
@@ -72,9 +81,12 @@ export default function ClientIncidentDetailPage({
             <div className="flex flex-col items-center gap-4 text-center">
               <AlertTriangle className="h-12 w-12 text-destructive" />
               <div>
-                <h3 className="text-lg font-semibold mb-2">Error al Cargar Incidente</h3>
+                <h3 className="text-lg font-semibold mb-2">
+                  Error al Cargar Incidente
+                </h3>
                 <p className="text-muted-foreground">
-                  {error || "Incidente no encontrado o no tienes permiso para verlo."}
+                  {error ||
+                    "Incidente no encontrado o no tienes permiso para verlo."}
                 </p>
               </div>
               <div className="flex gap-2">
@@ -94,15 +106,31 @@ export default function ClientIncidentDetailPage({
 
   const getPriorityBadge = (priority: number) => {
     if (priority >= 8) {
-      return <Badge variant="destructive" className="text-lg py-2 px-4">Crítica</Badge>;
+      return (
+        <Badge variant="destructive" className="text-lg py-2 px-4">
+          Crítica
+        </Badge>
+      );
     }
     if (priority >= 5) {
-      return <Badge variant="default" className="bg-orange-500 text-lg py-2 px-4">Alta</Badge>;
+      return (
+        <Badge variant="default" className="bg-orange-500 text-lg py-2 px-4">
+          Alta
+        </Badge>
+      );
     }
     if (priority >= 3) {
-      return <Badge variant="secondary" className="text-lg py-2 px-4">Media</Badge>;
+      return (
+        <Badge variant="secondary" className="text-lg py-2 px-4">
+          Media
+        </Badge>
+      );
     }
-    return <Badge variant="outline" className="text-lg py-2 px-4">Baja</Badge>;
+    return (
+      <Badge variant="outline" className="text-lg py-2 px-4">
+        Baja
+      </Badge>
+    );
   };
 
   const getStatusBadge = (status: any) => {
@@ -124,7 +152,6 @@ export default function ClientIncidentDetailPage({
     );
   };
 
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -144,12 +171,8 @@ export default function ClientIncidentDetailPage({
           <p className="text-muted-foreground">Incidente #{incident.id}</p>
         </div>
         <div className="flex gap-3">
-          <div className="text-xl">
-            {getPriorityBadge(incident.priority)}
-          </div>
-          <div className="text-xl">
-            {getStatusBadge(incident.status)}
-          </div>
+          <div className="text-xl">{getPriorityBadge(incident.priority)}</div>
+          <div className="text-xl">{getStatusBadge(incident.status)}</div>
         </div>
       </div>
 
@@ -220,7 +243,9 @@ export default function ClientIncidentDetailPage({
             <div className="flex items-start gap-3">
               <Calendar className="h-5 w-5 text-muted-foreground mt-0.5" />
               <div>
-                <p className="text-sm text-muted-foreground">Fecha de reporte</p>
+                <p className="text-sm text-muted-foreground">
+                  Fecha de reporte
+                </p>
                 <p className="font-medium">
                   {new Date(incident.reportedAt).toLocaleString()}
                 </p>

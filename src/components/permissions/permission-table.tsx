@@ -1,39 +1,56 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { MoreHorizontal, Eye, Edit, Trash2, Shield, Users } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { TablePagination } from "@/components/common/table-pagination"
+import { Edit, Eye, MoreHorizontal, Shield, Trash2, Users } from "lucide-react";
+import { useState } from "react";
+import { TablePagination } from "@/components/common/table-pagination";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 interface Permission {
-  id: number
-  name: string
-  description?: string
-  active: boolean
-  roleCount: number
+  id: number;
+  name: string;
+  description?: string;
+  active: boolean;
+  roleCount: number;
 }
 
 interface PermissionTableProps {
-  permissions: Permission[]
-  onEdit: (permission: Permission) => void
-  onDelete: (permission: Permission) => void
-  onView: (permission: Permission) => void
+  permissions: Permission[];
+  onEdit: (permission: Permission) => void;
+  onDelete: (permission: Permission) => void;
+  onView: (permission: Permission) => void;
 }
 
-export function PermissionTable({ permissions, onEdit, onDelete, onView }: PermissionTableProps) {
-  const [currentPage, setCurrentPage] = useState(1)
-  const [itemsPerPage, setItemsPerPage] = useState(10)
+export function PermissionTable({
+  permissions,
+  onEdit,
+  onDelete,
+  onView,
+}: PermissionTableProps) {
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
-  const startIndex = (currentPage - 1) * itemsPerPage
-  const endIndex = startIndex + itemsPerPage
-  const currentPermissions = permissions.slice(startIndex, endIndex)
-  const totalPages = Math.ceil(permissions.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentPermissions = permissions.slice(startIndex, endIndex);
+  const totalPages = Math.ceil(permissions.length / itemsPerPage);
 
   const getCategoryColor = (name: string) => {
-    const category = name.split(".")[0]
+    const category = name.split(".")[0];
     const colors: Record<string, string> = {
       user: "bg-blue-100 text-blue-800",
       incident: "bg-red-100 text-red-800",
@@ -41,13 +58,13 @@ export function PermissionTable({ permissions, onEdit, onDelete, onView }: Permi
       vic: "bg-purple-100 text-purple-800",
       part: "bg-yellow-100 text-yellow-800",
       admin: "bg-gray-100 text-gray-800",
-    }
-    return colors[category] || "bg-gray-100 text-gray-800"
-  }
+    };
+    return colors[category] || "bg-gray-100 text-gray-800";
+  };
 
   const getCategory = (name: string) => {
-    return name.split(".")[0].toUpperCase()
-  }
+    return name.split(".")[0].toUpperCase();
+  };
 
   return (
     <div className="space-y-4">
@@ -69,11 +86,16 @@ export function PermissionTable({ permissions, onEdit, onDelete, onView }: Permi
                 <TableCell>
                   <div className="flex items-center gap-2">
                     <Shield className="h-4 w-4 text-muted-foreground" />
-                    <code className="text-sm font-mono bg-muted px-2 py-1 rounded">{permission.name}</code>
+                    <code className="text-sm font-mono bg-muted px-2 py-1 rounded">
+                      {permission.name}
+                    </code>
                   </div>
                 </TableCell>
                 <TableCell>
-                  <Badge variant="secondary" className={getCategoryColor(permission.name)}>
+                  <Badge
+                    variant="secondary"
+                    className={getCategoryColor(permission.name)}
+                  >
                     {getCategory(permission.name)}
                   </Badge>
                 </TableCell>
@@ -86,7 +108,9 @@ export function PermissionTable({ permissions, onEdit, onDelete, onView }: Permi
                           : permission.description}
                       </span>
                     ) : (
-                      <span className="text-sm text-muted-foreground italic">Sin descripción</span>
+                      <span className="text-sm text-muted-foreground italic">
+                        Sin descripción
+                      </span>
                     )}
                   </div>
                 </TableCell>
@@ -144,10 +168,10 @@ export function PermissionTable({ permissions, onEdit, onDelete, onView }: Permi
         endIndex={endIndex}
         onPageChange={setCurrentPage}
         onItemsPerPageChange={(newItemsPerPage) => {
-          setItemsPerPage(newItemsPerPage)
-          setCurrentPage(1)
+          setItemsPerPage(newItemsPerPage);
+          setCurrentPage(1);
         }}
       />
     </div>
-  )
+  );
 }

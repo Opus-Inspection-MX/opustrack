@@ -1,9 +1,9 @@
 "use server";
 
-import { prisma } from "@/lib/database/prisma.singleton";
-import { requirePermission } from "@/lib/auth/auth";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { requirePermission } from "@/lib/auth/auth";
+import { prisma } from "@/lib/database/prisma.singleton";
 
 export type WorkOrderFormData = {
   incidentId: number;
@@ -404,7 +404,7 @@ export async function uploadWorkOrderAttachment(
     mimetype: string;
     size: number;
     description?: string;
-  }
+  },
 ) {
   await requirePermission("work-orders:update");
 
@@ -416,7 +416,7 @@ export async function uploadWorkOrderAttachment(
     fileData.filename,
     fileData.base64Data,
     fileData.mimetype,
-    { subfolder: "work-orders" }
+    { subfolder: "work-orders" },
   );
 
   // Save to database
@@ -463,7 +463,7 @@ export async function deleteWorkOrderAttachment(id: string) {
     const { deleteFile } = await import("@/lib/storage/file-storage");
     await deleteFile(
       attachment.filepath,
-      attachment.provider as "vercel-blob" | "filesystem"
+      attachment.provider as "vercel-blob" | "filesystem",
     );
   } catch (error) {
     console.error("Error deleting file:", error);

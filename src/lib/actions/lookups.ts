@@ -1,9 +1,9 @@
 "use server";
 
-import { prisma } from "@/lib/database/prisma.singleton";
-import { requirePermission } from "@/lib/auth/auth";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { requirePermission } from "@/lib/auth/auth";
+import { prisma } from "@/lib/database/prisma.singleton";
 
 // ==================== STATES ====================
 
@@ -85,7 +85,7 @@ export async function deleteState(id: number) {
 
   if (vicCount > 0) {
     throw new Error(
-      `Cannot delete state. ${vicCount} VIC(s) are in this state.`
+      `Cannot delete state. ${vicCount} VIC(s) are in this state.`,
     );
   }
 
@@ -175,7 +175,7 @@ export async function deleteUserStatus(id: number) {
 
   if (userCount > 0) {
     throw new Error(
-      `Cannot delete status. ${userCount} user(s) have this status.`
+      `Cannot delete status. ${userCount} user(s) have this status.`,
     );
   }
 
@@ -197,31 +197,31 @@ export type IncidentTypeFormData = {
 };
 
 export async function getIncidentTypes(params?: {
-  page?: number
-  limit?: number
-  search?: string
+  page?: number;
+  limit?: number;
+  search?: string;
 }) {
   await requirePermission("incident-types:read");
 
-  const page = params?.page || 1
-  const limit = params?.limit || 10
-  const skip = (page - 1) * limit
+  const page = params?.page || 1;
+  const limit = params?.limit || 10;
+  const skip = (page - 1) * limit;
 
   // Build where clause
   const where: any = {
     active: true,
-  }
+  };
 
   // Search by name or description
   if (params?.search) {
     where.OR = [
       { name: { contains: params.search, mode: "insensitive" } },
       { description: { contains: params.search, mode: "insensitive" } },
-    ]
+    ];
   }
 
   // Get total count
-  const total = await prisma.incidentType.count({ where })
+  const total = await prisma.incidentType.count({ where });
 
   // Get paginated types
   const types = await prisma.incidentType.findMany({
@@ -234,7 +234,7 @@ export async function getIncidentTypes(params?: {
     orderBy: { name: "asc" },
     skip,
     take: limit,
-  })
+  });
 
   return {
     data: types,
@@ -244,7 +244,7 @@ export async function getIncidentTypes(params?: {
       total,
       totalPages: Math.ceil(total / limit),
     },
-  }
+  };
 }
 
 export async function getIncidentTypeById(id: number) {
@@ -277,7 +277,10 @@ export async function createIncidentType(data: IncidentTypeFormData) {
   return { success: true, data: type };
 }
 
-export async function updateIncidentType(id: number, data: IncidentTypeFormData) {
+export async function updateIncidentType(
+  id: number,
+  data: IncidentTypeFormData,
+) {
   await requirePermission("incident-types:update");
 
   const type = await prisma.incidentType.update({
@@ -303,7 +306,7 @@ export async function deleteIncidentType(id: number) {
 
   if (incidentCount > 0) {
     throw new Error(
-      `Cannot delete type. ${incidentCount} incident(s) have this type.`
+      `Cannot delete type. ${incidentCount} incident(s) have this type.`,
     );
   }
 
@@ -325,28 +328,28 @@ export type IncidentStatusFormData = {
 };
 
 export async function getIncidentStatuses(params?: {
-  page?: number
-  limit?: number
-  search?: string
+  page?: number;
+  limit?: number;
+  search?: string;
 }) {
   await requirePermission("incident-status:read");
 
-  const page = params?.page || 1
-  const limit = params?.limit || 10
-  const skip = (page - 1) * limit
+  const page = params?.page || 1;
+  const limit = params?.limit || 10;
+  const skip = (page - 1) * limit;
 
   // Build where clause
   const where: any = {
     active: true,
-  }
+  };
 
   // Search by name
   if (params?.search) {
-    where.name = { contains: params.search, mode: "insensitive" }
+    where.name = { contains: params.search, mode: "insensitive" };
   }
 
   // Get total count
-  const total = await prisma.incidentStatus.count({ where })
+  const total = await prisma.incidentStatus.count({ where });
 
   // Get paginated statuses
   const statuses = await prisma.incidentStatus.findMany({
@@ -359,7 +362,7 @@ export async function getIncidentStatuses(params?: {
     orderBy: { name: "asc" },
     skip,
     take: limit,
-  })
+  });
 
   return {
     data: statuses,
@@ -369,7 +372,7 @@ export async function getIncidentStatuses(params?: {
       total,
       totalPages: Math.ceil(total / limit),
     },
-  }
+  };
 }
 
 export async function getIncidentStatusById(id: number) {
@@ -402,7 +405,10 @@ export async function createIncidentStatus(data: IncidentStatusFormData) {
   return { success: true, data: status };
 }
 
-export async function updateIncidentStatus(id: number, data: IncidentStatusFormData) {
+export async function updateIncidentStatus(
+  id: number,
+  data: IncidentStatusFormData,
+) {
   await requirePermission("incident-status:update");
 
   const status = await prisma.incidentStatus.update({
@@ -428,7 +434,7 @@ export async function deleteIncidentStatus(id: number) {
 
   if (incidentCount > 0) {
     throw new Error(
-      `Cannot delete status. ${incidentCount} incident(s) have this status.`
+      `Cannot delete status. ${incidentCount} incident(s) have this status.`,
     );
   }
 
@@ -529,7 +535,7 @@ export async function deletePermission(id: number) {
 
   if (roleCount > 0) {
     throw new Error(
-      `Cannot delete permission. ${roleCount} role(s) have this permission.`
+      `Cannot delete permission. ${roleCount} role(s) have this permission.`,
     );
   }
 

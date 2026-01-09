@@ -1,12 +1,22 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { ArrowLeft, AlertTriangle, Calendar, User, Building, FileText, Plus, Edit as EditIcon, Wrench } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowLeft,
+  Building,
+  Calendar,
+  Edit as EditIcon,
+  FileText,
+  Plus,
+  User,
+  Wrench,
+} from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import {
@@ -19,27 +29,23 @@ import {
 } from "@/components/ui/table";
 import { getIncidentById } from "@/lib/actions/incidents";
 
+type Incident = Awaited<ReturnType<typeof getIncidentById>>;
+
 export default function IncidentDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const router = useRouter();
+  const _router = useRouter();
   const [incidentId, setIncidentId] = useState<number | null>(null);
-  const [incident, setIncident] = useState<any>(null);
+  const [incident, setIncident] = useState<Incident | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    params.then((p) => setIncidentId(parseInt(p.id)));
+    params.then((p) => setIncidentId(parseInt(p.id, 10)));
   }, [params]);
 
-  useEffect(() => {
-    if (incidentId) {
-      fetchIncident();
-    }
-  }, [incidentId]);
-
-  const fetchIncident = async () => {
+  const fetchIncident = useCallback(async () => {
     if (!incidentId) return;
 
     try {
@@ -51,7 +57,13 @@ export default function IncidentDetailPage({
     } finally {
       setLoading(false);
     }
-  };
+  }, [incidentId]);
+
+  useEffect(() => {
+    if (incidentId) {
+      fetchIncident();
+    }
+  }, [incidentId, fetchIncident]);
 
   if (loading || !incident) {
     return (
@@ -105,7 +117,10 @@ export default function IncidentDetailPage({
               Edit Incident
             </Link>
           </Button>
-          <Badge variant={getPriorityColor(incident.priority)} className="h-9 px-3">
+          <Badge
+            variant={getPriorityColor(incident.priority)}
+            className="h-9 px-3"
+          >
             Priority: {incident.priority}/10
           </Badge>
           <Badge variant="secondary" className="h-9 px-3">
@@ -270,7 +285,7 @@ export default function IncidentDetailPage({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {incident.workOrders.map((wo: any) => (
+                  {incident.workOrders?.map((wo) => (
                     <TableRow key={wo.id}>
                       <TableCell>
                         <Badge variant={getStatusColor(wo.status)}>
@@ -326,7 +341,6 @@ export default function IncidentDetailPage({
           </Card>
         )}
       </div>
-
     </div>
   );
 }

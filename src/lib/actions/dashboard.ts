@@ -1,7 +1,7 @@
 "use server";
 
-import { prisma } from "@/lib/database/prisma.singleton";
 import { requirePermission } from "@/lib/auth/auth";
+import { prisma } from "@/lib/database/prisma.singleton";
 
 export async function getDashboardStats() {
   // Admin can see all stats

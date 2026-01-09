@@ -1,36 +1,47 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { MoreHorizontal, Edit, Trash2, Eye, Wrench } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
-import { TablePagination } from "@/components/common/table-pagination"
+import { Edit, Eye, MoreHorizontal, Trash2, Wrench } from "lucide-react";
+import { TablePagination } from "@/components/common/table-pagination";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 interface Equipment {
-  id: number
-  name: string
-  description?: string | null
+  id: number;
+  name: string;
+  description?: string | null;
   line: {
-    id: number
-    name: string
-    vic: { name: string; code: string }
-  }
-  active: boolean
-  createdAt: string
+    id: number;
+    name: string;
+    vic: { name: string; code: string };
+  };
+  active: boolean;
+  createdAt: string;
 }
 
 interface EquipmentTableProps {
-  equipments: Equipment[]
-  totalCount: number
-  currentPage: number
-  itemsPerPage: number
-  onPageChange: (page: number) => void
-  onItemsPerPageChange: (itemsPerPage: number) => void
-  onEdit: (id: number) => void
-  onDelete: (id: number) => void
-  onView: (id: number) => void
+  equipments: Equipment[];
+  totalCount: number;
+  currentPage: number;
+  itemsPerPage: number;
+  onPageChange: (page: number) => void;
+  onItemsPerPageChange: (itemsPerPage: number) => void;
+  onEdit: (id: number) => void;
+  onDelete: (id: number) => void;
+  onView: (id: number) => void;
 }
 
 export function EquipmentTable({
@@ -44,8 +55,8 @@ export function EquipmentTable({
   onDelete,
   onView,
 }: EquipmentTableProps) {
-  const startIndex = (currentPage - 1) * itemsPerPage
-  const endIndex = Math.min(startIndex + itemsPerPage, totalCount)
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = Math.min(startIndex + itemsPerPage, totalCount);
 
   return (
     <div className="space-y-4">
@@ -71,7 +82,9 @@ export function EquipmentTable({
                   </div>
                 </TableCell>
                 <TableCell>
-                  <span className="text-sm text-muted-foreground">{equipment.description || "-"}</span>
+                  <span className="text-sm text-muted-foreground">
+                    {equipment.description || "-"}
+                  </span>
                 </TableCell>
                 <TableCell>
                   <Badge variant="outline">{equipment.line.name}</Badge>
@@ -82,7 +95,13 @@ export function EquipmentTable({
                   </span>
                 </TableCell>
                 <TableCell>
-                  <Badge className={equipment.active ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}>
+                  <Badge
+                    className={
+                      equipment.active
+                        ? "bg-green-100 text-green-800"
+                        : "bg-red-100 text-red-800"
+                    }
+                  >
                     {equipment.active ? "Activo" : "Inactivo"}
                   </Badge>
                 </TableCell>
@@ -103,7 +122,10 @@ export function EquipmentTable({
                         <Edit className="mr-2 h-4 w-4" />
                         Editar
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => onDelete(equipment.id)} className="text-destructive">
+                      <DropdownMenuItem
+                        onClick={() => onDelete(equipment.id)}
+                        className="text-destructive"
+                      >
                         <Trash2 className="mr-2 h-4 w-4" />
                         Eliminar
                       </DropdownMenuItem>
@@ -127,5 +149,5 @@ export function EquipmentTable({
         onItemsPerPageChange={onItemsPerPageChange}
       />
     </div>
-  )
+  );
 }

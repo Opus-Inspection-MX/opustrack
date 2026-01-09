@@ -1,35 +1,47 @@
-"use client"
+"use client";
 
-import { MoreHorizontal, Edit, Trash2, Eye, MapPin } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
-import { TablePagination } from "@/components/common/table-pagination"
+import { Edit, Eye, MapPin, MoreHorizontal, Trash2 } from "lucide-react";
+import { TablePagination } from "@/components/common/table-pagination";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 interface VICCenter {
-  id: string
-  code: string
-  name: string
-  address?: string
-  phone?: string
-  email?: string
-  lines: number
-  state: { name: string }
-  active: boolean
-  createdAt: string
+  id: string;
+  code: string;
+  name: string;
+  address?: string;
+  phone?: string;
+  email?: string;
+  lines: number;
+  state: { name: string };
+  active: boolean;
+  createdAt: string;
 }
 
 interface VICCenterTableProps {
-  vicCenters: VICCenter[]
-  totalCount: number
-  currentPage: number
-  itemsPerPage: number
-  onPageChange: (page: number) => void
-  onItemsPerPageChange: (itemsPerPage: number) => void
-  onEdit: (id: string) => void
-  onDelete: (id: string) => void
-  onView: (id: string) => void
+  vicCenters: VICCenter[];
+  totalCount: number;
+  currentPage: number;
+  itemsPerPage: number;
+  onPageChange: (page: number) => void;
+  onItemsPerPageChange: (itemsPerPage: number) => void;
+  onEdit: (id: string) => void;
+  onDelete: (id: string) => void;
+  onView: (id: string) => void;
 }
 
 export function VICCenterTable({
@@ -43,8 +55,8 @@ export function VICCenterTable({
   onDelete,
   onView,
 }: VICCenterTableProps) {
-  const startIndex = (currentPage - 1) * itemsPerPage
-  const endIndex = Math.min(startIndex + itemsPerPage, totalCount)
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = Math.min(startIndex + itemsPerPage, totalCount);
 
   return (
     <div className="space-y-4">
@@ -64,7 +76,9 @@ export function VICCenterTable({
           <TableBody>
             {vicCenters.map((vic) => (
               <TableRow key={vic.id}>
-                <TableCell className="font-mono font-medium">{vic.code}</TableCell>
+                <TableCell className="font-mono font-medium">
+                  {vic.code}
+                </TableCell>
                 <TableCell>
                   <div>
                     <div className="font-medium">{vic.name}</div>
@@ -89,7 +103,13 @@ export function VICCenterTable({
                   </div>
                 </TableCell>
                 <TableCell>
-                  <Badge className={vic.active ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}>
+                  <Badge
+                    className={
+                      vic.active
+                        ? "bg-green-100 text-green-800"
+                        : "bg-red-100 text-red-800"
+                    }
+                  >
                     {vic.active ? "Active" : "Inactive"}
                   </Badge>
                 </TableCell>
@@ -110,7 +130,10 @@ export function VICCenterTable({
                         <Edit className="mr-2 h-4 w-4" />
                         Edit
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => onDelete(vic.id)} className="text-destructive">
+                      <DropdownMenuItem
+                        onClick={() => onDelete(vic.id)}
+                        className="text-destructive"
+                      >
                         <Trash2 className="mr-2 h-4 w-4" />
                         Delete
                       </DropdownMenuItem>
@@ -134,5 +157,5 @@ export function VICCenterTable({
         onItemsPerPageChange={onItemsPerPageChange}
       />
     </div>
-  )
+  );
 }

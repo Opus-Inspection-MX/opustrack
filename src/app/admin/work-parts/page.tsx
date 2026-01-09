@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { WorkPartTable } from "@/components/work-parts/work-part-table";
-import { WorkPartFilters } from "@/components/work-parts/work-part-filters";
 import { Spinner } from "@/components/ui/spinner";
-import { getAllWorkParts, deleteWorkPart } from "@/lib/actions/work-parts";
+import { WorkPartFilters } from "@/components/work-parts/work-part-filters";
+import { WorkPartTable } from "@/components/work-parts/work-part-table";
+import { deleteWorkPart, getAllWorkParts } from "@/lib/actions/work-parts";
 
 export default function WorkPartsPage() {
   const [workParts, setWorkParts] = useState<any[]>([]);
@@ -43,7 +43,7 @@ export default function WorkPartsPage() {
       filtered = filtered.filter(
         (wp) =>
           wp.part?.name.toLowerCase().includes(filters.search.toLowerCase()) ||
-          wp.description?.toLowerCase().includes(filters.search.toLowerCase())
+          wp.description?.toLowerCase().includes(filters.search.toLowerCase()),
       );
     }
 
@@ -53,13 +53,13 @@ export default function WorkPartsPage() {
 
     if (filters.workOrderStatus) {
       filtered = filtered.filter(
-        (wp) => wp.workOrder?.status?.name === filters.workOrderStatus
+        (wp) => wp.workOrder?.status?.name === filters.workOrderStatus,
       );
     }
 
     if (filters.active) {
       filtered = filtered.filter(
-        (wp) => wp.active === (filters.active === "true")
+        (wp) => wp.active === (filters.active === "true"),
       );
     }
 
@@ -73,7 +73,7 @@ export default function WorkPartsPage() {
   const handleDelete = async (id: string) => {
     if (
       confirm(
-        "Are you sure you want to delete this work part? Stock will be restored."
+        "Are you sure you want to delete this work part? Stock will be restored.",
       )
     ) {
       try {
@@ -81,13 +81,11 @@ export default function WorkPartsPage() {
         // Refresh the list
         const updatedParts = workParts.filter((wp) => wp.id !== id);
         setWorkParts(updatedParts);
-        setFilteredWorkParts(
-          filteredWorkParts.filter((wp) => wp.id !== id)
-        );
+        setFilteredWorkParts(filteredWorkParts.filter((wp) => wp.id !== id));
       } catch (error) {
         console.error("Error deleting work part:", error);
         alert(
-          error instanceof Error ? error.message : "Failed to delete work part"
+          error instanceof Error ? error.message : "Failed to delete work part",
         );
       }
     }

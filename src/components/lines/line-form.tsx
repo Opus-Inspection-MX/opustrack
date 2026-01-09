@@ -1,88 +1,100 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Loader2 } from "lucide-react"
-import { FormError } from "@/components/ui/form-error"
-import { createLine, updateLine } from "@/lib/actions/lines"
-import { getVICs } from "@/lib/actions/vics"
+import { Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { FormError } from "@/components/ui/form-error";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { createLine, updateLine } from "@/lib/actions/lines";
+import { getVICs } from "@/lib/actions/vics";
 
 interface LineFormProps {
   line?: {
-    id: number
-    name: string
-    description?: string | null
-    vicId: string
-  }
-  mode: "create" | "edit"
+    id: number;
+    name: string;
+    description?: string | null;
+    vicId: string;
+  };
+  mode: "create" | "edit";
 }
 
 export function LineForm({ line, mode }: LineFormProps) {
-  const router = useRouter()
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [errors, setErrors] = useState<Record<string, string>>({})
-  const [vics, setVics] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+  const router = useRouter();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [vics, setVics] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const [formData, setFormData] = useState({
     name: line?.name || "",
     description: line?.description || "",
     vicId: line?.vicId || "",
-  })
+  });
 
   useEffect(() => {
-    loadVics()
-  }, [])
+    loadVics();
+  }, [loadVics]);
 
   const loadVics = async () => {
     try {
-      const data = await getVICs()
-      setVics(data)
+      const data = await getVICs();
+      setVics(data);
     } catch (error) {
-      console.error("Error loading VICs:", error)
-      setErrors({ general: "Error al cargar los CVV" })
+      console.error("Error loading VICs:", error);
+      setErrors({ general: "Error al cargar los CVV" });
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const handleChange = (field: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }))
+    setFormData((prev) => ({ ...prev, [field]: value }));
     if (errors[field]) {
-      setErrors((prev) => ({ ...prev, [field]: "" }))
+      setErrors((prev) => ({ ...prev, [field]: "" }));
     }
-  }
+  };
 
   const validateForm = () => {
-    const newErrors: Record<string, string> = {}
+    const newErrors: Record<string, string> = {};
 
     if (!formData.name.trim()) {
-      newErrors.name = "El nombre es requerido"
+      newErrors.name = "El nombre es requerido";
     }
 
     if (!formData.vicId) {
-      newErrors.vicId = "El CVV es requerido"
+      newErrors.vicId = "El CVV es requerido";
     }
 
-    setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
-  }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
 
     if (!validateForm()) {
-      return
+      return;
     }
 
-    setIsSubmitting(true)
-    setErrors({})
+    setIsSubmitting(true);
+    setErrors({});
 
     try {
       if (mode === "edit" && line) {
@@ -90,41 +102,46 @@ export function LineForm({ line, mode }: LineFormProps) {
           name: formData.name,
           description: formData.description || undefined,
           vicId: formData.vicId,
-        })
+        });
       } else {
         await createLine({
           name: formData.name,
           description: formData.description || undefined,
           vicId: formData.vicId,
-        })
+        });
       }
 
-      router.push("/admin/lines")
-      router.refresh()
+      router.push("/admin/lines");
+      router.refresh();
     } catch (error) {
-      console.error("Error saving line:", error)
+      console.error("Error saving line:", error);
       setErrors({
-        general: error instanceof Error ? error.message : "Error al guardar la línea",
-      })
+        general:
+          error instanceof Error ? error.message : "Error al guardar la línea",
+      });
     } finally {
-      setIsSubmitting(false)
+      setIsSubmitting(false);
     }
-  }
+  };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
-    )
+    );
   }
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{mode === "edit" ? "Editar Línea" : "Nueva Línea"}</CardTitle>
+        <CardTitle>
+          {mode === "edit" ? "Editar Línea" : "Nueva Línea"}
+        </CardTitle>
         <CardDescription>
-          {mode === "edit" ? "Actualiza la información de la línea" : "Crea una nueva línea de inspección"}
+          {mode === "edit"
+            ? "Actualiza la información de la línea"
+            : "Crea una nueva línea de inspección"}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -184,7 +201,9 @@ export function LineForm({ line, mode }: LineFormProps) {
               disabled={isSubmitting}
               className="flex-1 sm:flex-initial"
             >
-              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {isSubmitting && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
               {mode === "edit" ? "Actualizar" : "Crear"} Línea
             </Button>
             <Button
@@ -199,5 +218,5 @@ export function LineForm({ line, mode }: LineFormProps) {
         </form>
       </CardContent>
     </Card>
-  )
+  );
 }

@@ -1,43 +1,70 @@
-"use client"
+"use client";
 
-import React, { useState, useMemo } from "react"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { ChevronDown, ChevronRight, User, MoreHorizontal, Eye, Edit, Save, X as XIcon, ArrowUpDown, ArrowUp, ArrowDown, Plus } from "lucide-react"
-import { updateWorkOrderFSR, updateIncidentDetails, updateWorkOrderDetails } from "@/lib/actions/tracking"
-import { createWorkOrder } from "@/lib/actions/work-orders"
-import { getLinesByVicId } from "@/lib/actions/lines"
-import { getEquipmentsByLineId } from "@/lib/actions/equipments"
-import { useRouter } from "next/navigation"
-import Link from "next/link"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { Label } from "@/components/ui/label"
+import type { SortingState } from "@tanstack/react-table";
 import {
-  useReactTable,
-  getCoreRowModel,
-  getSortedRowModel,
-  SortingState,
-  ColumnDef,
-  flexRender,
-} from "@tanstack/react-table"
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  ChevronDown,
+  ChevronRight,
+  Edit,
+  Eye,
+  MoreHorizontal,
+  Plus,
+  Save,
+  User,
+  X as XIcon,
+} from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import React, { useMemo, useState } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
+import { getEquipmentsByLineId } from "@/lib/actions/equipments";
+import { getLinesByVicId } from "@/lib/actions/lines";
+import {
+  updateIncidentDetails,
+  updateWorkOrderDetails,
+} from "@/lib/actions/tracking";
+import { createWorkOrder } from "@/lib/actions/work-orders";
 
 const workOrderStatusLabels: Record<string, string> = {
   PENDING: "Pendiente",
   IN_PROGRESS: "En Progreso",
   COMPLETED: "Completado",
   CANCELLED: "Cancelado",
-}
+};
 
 const workOrderStatusColors: Record<string, string> = {
   PENDING: "bg-gray-100 text-gray-800",
   IN_PROGRESS: "bg-blue-100 text-blue-800",
   COMPLETED: "bg-green-100 text-green-800",
   CANCELLED: "bg-red-100 text-red-800",
-}
+};
 
 // Utility function to convert hex color to rgba for background
 const hexToRgba = (hex: string, opacity: number) => {
@@ -48,237 +75,262 @@ const hexToRgba = (hex: string, opacity: number) => {
 };
 
 interface TrackingTableProps {
-  incidents: any[]
-  fsrsByVic: Record<string, Array<{ id: string; name: string; email: string }>>
-  incidentStatuses: Array<{ id: number; name: string; color: string }>
-  onDataChange?: () => void
+  incidents: any[];
+  fsrsByVic: Record<string, Array<{ id: string; name: string; email: string }>>;
+  incidentStatuses: Array<{ id: number; name: string; color: string }>;
+  onDataChange?: () => void;
 }
 
-export function TrackingTable({ incidents, fsrsByVic, incidentStatuses, onDataChange }: TrackingTableProps) {
-  const router = useRouter()
-  const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set())
-  const [editingWorkOrder, setEditingWorkOrder] = useState<string | null>(null)
-  const [workOrderEditForm, setWorkOrderEditForm] = useState<any>({})
-  const [savingWorkOrder, setSavingWorkOrder] = useState<string | null>(null)
-  const [editingIncident, setEditingIncident] = useState<number | null>(null)
-  const [editForm, setEditForm] = useState<any>({})
-  const [savingIncident, setSavingIncident] = useState(false)
-  const [sorting, setSorting] = useState<SortingState>([])
-  const [creatingWorkOrder, setCreatingWorkOrder] = useState<number | null>(null)
-  const [newWorkOrderForm, setNewWorkOrderForm] = useState<any>({})
-  const [savingNewWorkOrder, setSavingNewWorkOrder] = useState(false)
-  const [linesForEdit, setLinesForEdit] = useState<any[]>([])
-  const [equipmentsForEdit, setEquipmentsForEdit] = useState<any[]>([])
+export function TrackingTable({
+  incidents,
+  fsrsByVic,
+  incidentStatuses,
+  onDataChange,
+}: TrackingTableProps) {
+  const _router = useRouter();
+  const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
+  const [editingWorkOrder, setEditingWorkOrder] = useState<string | null>(null);
+  const [workOrderEditForm, setWorkOrderEditForm] = useState<any>({});
+  const [savingWorkOrder, setSavingWorkOrder] = useState<string | null>(null);
+  const [editingIncident, setEditingIncident] = useState<number | null>(null);
+  const [editForm, setEditForm] = useState<any>({});
+  const [savingIncident, setSavingIncident] = useState(false);
+  const [sorting, setSorting] = useState<SortingState>([]);
+  const [creatingWorkOrder, setCreatingWorkOrder] = useState<number | null>(
+    null,
+  );
+  const [newWorkOrderForm, setNewWorkOrderForm] = useState<any>({});
+  const [savingNewWorkOrder, setSavingNewWorkOrder] = useState(false);
+  const [linesForEdit, setLinesForEdit] = useState<any[]>([]);
+  const [equipmentsForEdit, setEquipmentsForEdit] = useState<any[]>([]);
 
   // Sort incidents based on sorting state
   const sortedIncidents = useMemo(() => {
-    if (sorting.length === 0) return incidents
+    if (sorting.length === 0) return incidents;
 
-    const sorted = [...incidents]
-    const { id, desc } = sorting[0]
+    const sorted = [...incidents];
+    const { id, desc } = sorting[0];
 
     sorted.sort((a, b) => {
-      let aValue: any
-      let bValue: any
+      let aValue: any;
+      let bValue: any;
 
       switch (id) {
         case "cliente":
-          aValue = a.vic?.name || ""
-          bValue = b.vic?.name || ""
-          break
+          aValue = a.vic?.name || "";
+          bValue = b.vic?.name || "";
+          break;
         case "incidente":
-          aValue = a.title || ""
-          bValue = b.title || ""
-          break
+          aValue = a.title || "";
+          bValue = b.title || "";
+          break;
         case "tipo":
-          aValue = a.type?.name || ""
-          bValue = b.type?.name || ""
-          break
+          aValue = a.type?.name || "";
+          bValue = b.type?.name || "";
+          break;
         case "fechaInicio":
-          aValue = new Date(a.reportedAt).getTime()
-          bValue = new Date(b.reportedAt).getTime()
-          break
+          aValue = new Date(a.reportedAt).getTime();
+          bValue = new Date(b.reportedAt).getTime();
+          break;
         case "fechaFin":
-          aValue = a.resolvedAt ? new Date(a.resolvedAt).getTime() : 0
-          bValue = b.resolvedAt ? new Date(b.resolvedAt).getTime() : 0
-          break
+          aValue = a.resolvedAt ? new Date(a.resolvedAt).getTime() : 0;
+          bValue = b.resolvedAt ? new Date(b.resolvedAt).getTime() : 0;
+          break;
         case "status":
-          aValue = a.status?.name || ""
-          bValue = b.status?.name || ""
-          break
+          aValue = a.status?.name || "";
+          bValue = b.status?.name || "";
+          break;
         default:
-          return 0
+          return 0;
       }
 
-      if (aValue < bValue) return desc ? 1 : -1
-      if (aValue > bValue) return desc ? -1 : 1
-      return 0
-    })
+      if (aValue < bValue) return desc ? 1 : -1;
+      if (aValue > bValue) return desc ? -1 : 1;
+      return 0;
+    });
 
-    return sorted
-  }, [incidents, sorting])
+    return sorted;
+  }, [incidents, sorting]);
 
   const handleSort = (columnId: string) => {
     setSorting((old) => {
-      const existing = old.find((s) => s.id === columnId)
+      const existing = old.find((s) => s.id === columnId);
       if (!existing) {
-        return [{ id: columnId, desc: false }]
+        return [{ id: columnId, desc: false }];
       }
       if (!existing.desc) {
-        return [{ id: columnId, desc: true }]
+        return [{ id: columnId, desc: true }];
       }
-      return []
-    })
-  }
+      return [];
+    });
+  };
 
   const getSortIcon = (columnId: string) => {
-    const sort = sorting.find((s) => s.id === columnId)
-    if (!sort) return <ArrowUpDown className="ml-2 h-4 w-4" />
-    return sort.desc ? <ArrowDown className="ml-2 h-4 w-4" /> : <ArrowUp className="ml-2 h-4 w-4" />
-  }
+    const sort = sorting.find((s) => s.id === columnId);
+    if (!sort) return <ArrowUpDown className="ml-2 h-4 w-4" />;
+    return sort.desc ? (
+      <ArrowDown className="ml-2 h-4 w-4" />
+    ) : (
+      <ArrowUp className="ml-2 h-4 w-4" />
+    );
+  };
 
   const toggleRowExpansion = (incidentId: number) => {
-    const newExpanded = new Set(expandedRows)
+    const newExpanded = new Set(expandedRows);
     if (newExpanded.has(incidentId)) {
-      newExpanded.delete(incidentId)
+      newExpanded.delete(incidentId);
     } else {
-      newExpanded.add(incidentId)
+      newExpanded.add(incidentId);
     }
-    setExpandedRows(newExpanded)
-  }
+    setExpandedRows(newExpanded);
+  };
 
   const handleEditWorkOrder = (workOrder: any) => {
-    setEditingWorkOrder(workOrder.id)
+    setEditingWorkOrder(workOrder.id);
     // Format datetime for datetime-local input (YYYY-MM-DDTHH:mm)
-    const startedDateTime = workOrder.startedAt ? new Date(workOrder.startedAt).toISOString().slice(0, 16) : ''
-    const finishedDateTime = workOrder.finishedAt ? new Date(workOrder.finishedAt).toISOString().slice(0, 16) : ''
+    const startedDateTime = workOrder.startedAt
+      ? new Date(workOrder.startedAt).toISOString().slice(0, 16)
+      : "";
+    const finishedDateTime = workOrder.finishedAt
+      ? new Date(workOrder.finishedAt).toISOString().slice(0, 16)
+      : "";
     setWorkOrderEditForm({
       assignedToId: workOrder.assignedTo.id,
-      statusId: workOrder.status?.id || '',
+      statusId: workOrder.status?.id || "",
       startedAt: startedDateTime,
       finishedAt: finishedDateTime,
-      folio: workOrder.folio || '',
-    })
-  }
+      folio: workOrder.folio || "",
+    });
+  };
 
-  const handleCancelWorkOrderEdit = (workOrderId: string) => {
-    setEditingWorkOrder(null)
-    setWorkOrderEditForm({})
-  }
+  const handleCancelWorkOrderEdit = (_workOrderId: string) => {
+    setEditingWorkOrder(null);
+    setWorkOrderEditForm({});
+  };
 
   const handleSaveWorkOrder = async (workOrderId: string) => {
     if (!workOrderEditForm.assignedToId) {
-      alert("Por favor selecciona un FSR")
-      return
+      alert("Por favor selecciona un FSR");
+      return;
     }
 
-    setSavingWorkOrder(workOrderId)
+    setSavingWorkOrder(workOrderId);
     try {
       await updateWorkOrderDetails(workOrderId, {
         assignedToId: workOrderEditForm.assignedToId,
-        statusId: workOrderEditForm.statusId ? parseInt(workOrderEditForm.statusId) : null,
+        statusId: workOrderEditForm.statusId
+          ? parseInt(workOrderEditForm.statusId, 10)
+          : null,
         startedAt: workOrderEditForm.startedAt || null,
         finishedAt: workOrderEditForm.finishedAt || null,
         folio: workOrderEditForm.folio || null,
-      })
-      setEditingWorkOrder(null)
-      setWorkOrderEditForm({})
+      });
+      setEditingWorkOrder(null);
+      setWorkOrderEditForm({});
       // Reload the incidents data to reflect the change
       if (onDataChange) {
-        onDataChange()
+        onDataChange();
       }
     } catch (error) {
-      console.error("Error updating work order:", error)
-      alert("Error al actualizar orden de trabajo")
+      console.error("Error updating work order:", error);
+      alert("Error al actualizar orden de trabajo");
     } finally {
-      setSavingWorkOrder(null)
+      setSavingWorkOrder(null);
     }
-  }
+  };
 
   const handleEditIncident = async (incident: any) => {
-    setEditingIncident(incident.id)
+    setEditingIncident(incident.id);
     // Format datetime for datetime-local input (YYYY-MM-DDTHH:mm)
-    const reportedDateTime = new Date(incident.reportedAt).toISOString().slice(0, 16)
-    const resolvedDateTime = incident.resolvedAt ? new Date(incident.resolvedAt).toISOString().slice(0, 16) : ''
+    const reportedDateTime = new Date(incident.reportedAt)
+      .toISOString()
+      .slice(0, 16);
+    const resolvedDateTime = incident.resolvedAt
+      ? new Date(incident.resolvedAt).toISOString().slice(0, 16)
+      : "";
     setEditForm({
       title: incident.title,
       description: incident.description,
       reportedAt: reportedDateTime,
       resolvedAt: resolvedDateTime,
-      statusId: incident.status?.id || '',
-      lineId: incident.lineId || '',
-      equipmentId: incident.equipmentId || '',
-    })
+      statusId: incident.status?.id || "",
+      lineId: incident.lineId || "",
+      equipmentId: incident.equipmentId || "",
+    });
 
     // Load lines for the incident's VIC
     if (incident.vic?.id) {
       try {
-        const lines = await getLinesByVicId(incident.vic.id)
-        setLinesForEdit(lines)
+        const lines = await getLinesByVicId(incident.vic.id);
+        setLinesForEdit(lines);
 
         // Load equipments for the incident's line
         if (incident.lineId) {
-          const equipments = await getEquipmentsByLineId(incident.lineId)
-          setEquipmentsForEdit(equipments)
+          const equipments = await getEquipmentsByLineId(incident.lineId);
+          setEquipmentsForEdit(equipments);
         } else {
-          setEquipmentsForEdit([])
+          setEquipmentsForEdit([]);
         }
       } catch (error) {
-        console.error("Error loading lines/equipments:", error)
-        setLinesForEdit([])
-        setEquipmentsForEdit([])
+        console.error("Error loading lines/equipments:", error);
+        setLinesForEdit([]);
+        setEquipmentsForEdit([]);
       }
     }
-  }
+  };
 
   const handleCancelEdit = () => {
-    setEditingIncident(null)
-    setEditForm({})
-    setLinesForEdit([])
-    setEquipmentsForEdit([])
-  }
+    setEditingIncident(null);
+    setEditForm({});
+    setLinesForEdit([]);
+    setEquipmentsForEdit([]);
+  };
 
   const handleLineChange = async (lineId: string) => {
-    const actualLineId = lineId === 'none' ? '' : lineId
-    setEditForm({ ...editForm, lineId: actualLineId, equipmentId: '' })
+    const actualLineId = lineId === "none" ? "" : lineId;
+    setEditForm({ ...editForm, lineId: actualLineId, equipmentId: "" });
 
     if (actualLineId) {
       try {
-        const equipments = await getEquipmentsByLineId(parseInt(actualLineId))
-        setEquipmentsForEdit(equipments)
+        const equipments = await getEquipmentsByLineId(
+          parseInt(actualLineId, 10),
+        );
+        setEquipmentsForEdit(equipments);
       } catch (error) {
-        console.error("Error loading equipments:", error)
-        setEquipmentsForEdit([])
+        console.error("Error loading equipments:", error);
+        setEquipmentsForEdit([]);
       }
     } else {
-      setEquipmentsForEdit([])
+      setEquipmentsForEdit([]);
     }
-  }
+  };
 
   const handleStartCreateWorkOrder = (incidentId: number) => {
-    setCreatingWorkOrder(incidentId)
+    setCreatingWorkOrder(incidentId);
     setNewWorkOrderForm({
-      assignedToId: '',
-      notes: '',
-      folio: '',
-    })
-  }
+      assignedToId: "",
+      notes: "",
+      folio: "",
+    });
+  };
 
   const handleCancelCreateWorkOrder = () => {
-    setCreatingWorkOrder(null)
-    setNewWorkOrderForm({})
-  }
+    setCreatingWorkOrder(null);
+    setNewWorkOrderForm({});
+  };
 
   const handleCreateWorkOrder = async (incidentId: number) => {
     if (!newWorkOrderForm.assignedToId) {
-      alert("Por favor selecciona un FSR")
-      return
+      alert("Por favor selecciona un FSR");
+      return;
     }
 
-    setSavingNewWorkOrder(true)
+    setSavingNewWorkOrder(true);
     try {
       // Find ABIERTO status
-      const abiertoStatus = incidentStatuses.find(status => status.name === "ABIERTO")
+      const abiertoStatus = incidentStatuses.find(
+        (status) => status.name === "ABIERTO",
+      );
 
       await createWorkOrder({
         incidentId,
@@ -288,70 +340,76 @@ export function TrackingTable({ incidents, fsrsByVic, incidentStatuses, onDataCh
         folio: newWorkOrderForm.folio || null,
         startedAt: null,
         finishedAt: null,
-      })
-      setCreatingWorkOrder(null)
-      setNewWorkOrderForm({})
+      });
+      setCreatingWorkOrder(null);
+      setNewWorkOrderForm({});
       // Reload the incidents data to reflect the change
       if (onDataChange) {
-        onDataChange()
+        onDataChange();
       }
     } catch (error) {
-      console.error("Error creating work order:", error)
-      alert("Error al crear la orden de trabajo")
+      console.error("Error creating work order:", error);
+      alert("Error al crear la orden de trabajo");
     } finally {
-      setSavingNewWorkOrder(false)
+      setSavingNewWorkOrder(false);
     }
-  }
+  };
 
   const handleSaveIncident = async (incidentId: number) => {
-    setSavingIncident(true)
+    setSavingIncident(true);
     try {
       await updateIncidentDetails(incidentId, {
         title: editForm.title,
         description: editForm.description,
         reportedAt: editForm.reportedAt,
         resolvedAt: editForm.resolvedAt || null,
-        statusId: parseInt(editForm.statusId),
-        lineId: editForm.lineId ? parseInt(editForm.lineId) : null,
-        equipmentId: editForm.equipmentId ? parseInt(editForm.equipmentId) : null,
-      })
-      setEditingIncident(null)
-      setEditForm({})
-      setLinesForEdit([])
-      setEquipmentsForEdit([])
+        statusId: parseInt(editForm.statusId, 10),
+        lineId: editForm.lineId ? parseInt(editForm.lineId, 10) : null,
+        equipmentId: editForm.equipmentId
+          ? parseInt(editForm.equipmentId, 10)
+          : null,
+      });
+      setEditingIncident(null);
+      setEditForm({});
+      setLinesForEdit([]);
+      setEquipmentsForEdit([]);
       // Reload the incidents data to reflect the change
       if (onDataChange) {
-        onDataChange()
+        onDataChange();
       }
     } catch (error) {
-      console.error("Error updating incident:", error)
-      alert("Error al actualizar incidente")
+      console.error("Error updating incident:", error);
+      alert("Error al actualizar incidente");
     } finally {
-      setSavingIncident(false)
+      setSavingIncident(false);
     }
-  }
+  };
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString)
-    return date.toLocaleDateString("es-MX")
-  }
+    const date = new Date(dateString);
+    return date.toLocaleDateString("es-MX");
+  };
 
   const formatTime = (dateString: string) => {
-    const date = new Date(dateString)
-    return date.toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })
-  }
+    const date = new Date(dateString);
+    return date.toLocaleTimeString("es-MX", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
 
   const getAssignedFSRs = (incident: any) => {
     if (incident.workOrders && incident.workOrders.length > 0) {
       // Get unique FSRs from all work orders
-      const fsrs = incident.workOrders.map((wo: any) => wo.assignedTo)
-      const uniqueFsrs = fsrs.filter((fsr: any, index: number, self: any[]) =>
-        index === self.findIndex((f) => f.id === fsr.id)
-      )
-      return uniqueFsrs
+      const fsrs = incident.workOrders.map((wo: any) => wo.assignedTo);
+      const uniqueFsrs = fsrs.filter(
+        (fsr: any, index: number, self: any[]) =>
+          index === self.findIndex((f) => f.id === fsr.id),
+      );
+      return uniqueFsrs;
     }
-    return []
-  }
+    return [];
+  };
 
   return (
     <div className="border rounded-lg overflow-x-auto">
@@ -430,15 +488,20 @@ export function TrackingTable({ incidents, fsrsByVic, incidentStatuses, onDataCh
         <TableBody>
           {sortedIncidents.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={13} className="text-center py-8 text-muted-foreground">
+              <TableCell
+                colSpan={13}
+                className="text-center py-8 text-muted-foreground"
+              >
                 No se encontraron incidentes
               </TableCell>
             </TableRow>
           ) : (
             sortedIncidents.map((incident) => {
-              const assignedFSRs = getAssignedFSRs(incident)
-              const availableFSRs = incident.vic?.id ? fsrsByVic[incident.vic.id] || [] : []
-              const isExpanded = expandedRows.has(incident.id)
+              const assignedFSRs = getAssignedFSRs(incident);
+              const availableFSRs = incident.vic?.id
+                ? fsrsByVic[incident.vic.id] || []
+                : [];
+              const isExpanded = expandedRows.has(incident.id);
 
               // Get status color for row background
               const statusColor = incident.status?.color || "#6B7280";
@@ -469,7 +532,8 @@ export function TrackingTable({ incidents, fsrsByVic, incidentStatuses, onDataCh
                     </TableCell>
                     <TableCell onClick={() => toggleRowExpansion(incident.id)}>
                       <Badge variant="outline">
-                        {incident.vic?.name || "Sin CVV"} ({incident.vic?.code || "N/A"})
+                        {incident.vic?.name || "Sin CVV"} (
+                        {incident.vic?.code || "N/A"})
                       </Badge>
                     </TableCell>
                     <TableCell onClick={() => toggleRowExpansion(incident.id)}>
@@ -486,33 +550,44 @@ export function TrackingTable({ incidents, fsrsByVic, incidentStatuses, onDataCh
                       {assignedFSRs.length > 0 ? (
                         <div className="flex flex-col gap-1">
                           {assignedFSRs.map((fsr: any) => (
-                            <div key={fsr.id} className="flex items-center gap-2">
+                            <div
+                              key={fsr.id}
+                              className="flex items-center gap-2"
+                            >
                               <User className="h-3 w-3" />
                               <span className="text-sm">{fsr.name}</span>
                             </div>
                           ))}
                         </div>
                       ) : (
-                        <span className="text-sm text-muted-foreground">Sin asignar</span>
+                        <span className="text-sm text-muted-foreground">
+                          Sin asignar
+                        </span>
                       )}
                     </TableCell>
                     <TableCell onClick={() => toggleRowExpansion(incident.id)}>
                       {incident.workOrders && incident.workOrders.length > 0 ? (
                         <div className="flex flex-col gap-1">
-                          {incident.workOrders.map((wo: any) => (
+                          {incident.workOrders.map((wo: any) =>
                             wo.folio ? (
-                              <Badge key={wo.id} variant="outline" className="text-xs">
+                              <Badge
+                                key={wo.id}
+                                variant="outline"
+                                className="text-xs"
+                              >
                                 {wo.folio}
                               </Badge>
-                            ) : null
-                          ))}
+                            ) : null,
+                          )}
                         </div>
                       ) : (
                         <span className="text-sm text-muted-foreground">-</span>
                       )}
                     </TableCell>
                     <TableCell onClick={() => toggleRowExpansion(incident.id)}>
-                      <Badge variant="secondary">{incident.type?.name || "Sin tipo"}</Badge>
+                      <Badge variant="secondary">
+                        {incident.type?.name || "Sin tipo"}
+                      </Badge>
                     </TableCell>
                     <TableCell onClick={() => toggleRowExpansion(incident.id)}>
                       {formatDate(incident.reportedAt)}
@@ -521,10 +596,14 @@ export function TrackingTable({ incidents, fsrsByVic, incidentStatuses, onDataCh
                       {formatTime(incident.reportedAt)}
                     </TableCell>
                     <TableCell onClick={() => toggleRowExpansion(incident.id)}>
-                      {incident.resolvedAt ? formatDate(incident.resolvedAt) : "-"}
+                      {incident.resolvedAt
+                        ? formatDate(incident.resolvedAt)
+                        : "-"}
                     </TableCell>
                     <TableCell onClick={() => toggleRowExpansion(incident.id)}>
-                      {incident.resolvedAt ? formatTime(incident.resolvedAt) : "-"}
+                      {incident.resolvedAt
+                        ? formatTime(incident.resolvedAt)
+                        : "-"}
                     </TableCell>
                     <TableCell onClick={() => toggleRowExpansion(incident.id)}>
                       <Badge
@@ -550,7 +629,9 @@ export function TrackingTable({ incidents, fsrsByVic, incidentStatuses, onDataCh
                         <div className="p-4 space-y-4">
                           {/* Actions Menu */}
                           <div className="flex items-center justify-between pb-4 border-b">
-                            <h4 className="font-semibold">Detalles del Incidente</h4>
+                            <h4 className="font-semibold">
+                              Detalles del Incidente
+                            </h4>
                             <div className="flex items-center gap-2">
                               {editingIncident === incident.id ? (
                                 <>
@@ -565,11 +646,15 @@ export function TrackingTable({ incidents, fsrsByVic, incidentStatuses, onDataCh
                                   </Button>
                                   <Button
                                     size="sm"
-                                    onClick={() => handleSaveIncident(incident.id)}
+                                    onClick={() =>
+                                      handleSaveIncident(incident.id)
+                                    }
                                     disabled={savingIncident}
                                   >
                                     <Save className="h-4 w-4 mr-2" />
-                                    {savingIncident ? "Guardando..." : "Guardar"}
+                                    {savingIncident
+                                      ? "Guardando..."
+                                      : "Guardar"}
                                   </Button>
                                 </>
                               ) : (
@@ -584,20 +669,28 @@ export function TrackingTable({ incidents, fsrsByVic, incidentStatuses, onDataCh
                                   </Button>
                                   <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
-                                      <Button variant="outline" size="sm" className="gap-2">
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="gap-2"
+                                      >
                                         <MoreHorizontal className="h-4 w-4" />
                                         Acciones
                                       </Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end">
                                       <DropdownMenuItem asChild>
-                                        <Link href={`/admin/incidents/${incident.id}`}>
+                                        <Link
+                                          href={`/admin/incidents/${incident.id}`}
+                                        >
                                           <Eye className="h-4 w-4 mr-2" />
                                           Ver Incidente
                                         </Link>
                                       </DropdownMenuItem>
                                       <DropdownMenuItem asChild>
-                                        <Link href={`/admin/incidents/${incident.id}/edit`}>
+                                        <Link
+                                          href={`/admin/incidents/${incident.id}/edit`}
+                                        >
                                           <Edit className="h-4 w-4 mr-2" />
                                           Edición Completa
                                         </Link>
@@ -612,28 +705,45 @@ export function TrackingTable({ incidents, fsrsByVic, incidentStatuses, onDataCh
                           {editingIncident === incident.id ? (
                             <>
                               <div className="space-y-4 p-4 bg-background rounded-lg border">
-                                <h5 className="font-semibold">Editar Incidente</h5>
+                                <h5 className="font-semibold">
+                                  Editar Incidente
+                                </h5>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                   <div className="space-y-2">
-                                    <Label htmlFor="title">Nombre del Incidente</Label>
+                                    <Label htmlFor="title">
+                                      Nombre del Incidente
+                                    </Label>
                                     <Input
                                       id="title"
                                       value={editForm.title}
-                                      onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+                                      onChange={(e) =>
+                                        setEditForm({
+                                          ...editForm,
+                                          title: e.target.value,
+                                        })
+                                      }
                                     />
                                   </div>
                                   <div className="space-y-2">
                                     <Label htmlFor="statusId">Status</Label>
                                     <Select
                                       value={editForm.statusId.toString()}
-                                      onValueChange={(value) => setEditForm({ ...editForm, statusId: value })}
+                                      onValueChange={(value) =>
+                                        setEditForm({
+                                          ...editForm,
+                                          statusId: value,
+                                        })
+                                      }
                                     >
                                       <SelectTrigger id="statusId">
                                         <SelectValue placeholder="Seleccionar status" />
                                       </SelectTrigger>
                                       <SelectContent>
                                         {incidentStatuses.map((status) => (
-                                          <SelectItem key={status.id} value={status.id.toString()}>
+                                          <SelectItem
+                                            key={status.id}
+                                            value={status.id.toString()}
+                                          >
                                             {status.name}
                                           </SelectItem>
                                         ))}
@@ -643,16 +753,23 @@ export function TrackingTable({ incidents, fsrsByVic, incidentStatuses, onDataCh
                                   <div className="space-y-2">
                                     <Label htmlFor="lineId">Línea</Label>
                                     <Select
-                                      value={editForm.lineId?.toString() || 'none'}
+                                      value={
+                                        editForm.lineId?.toString() || "none"
+                                      }
                                       onValueChange={handleLineChange}
                                     >
                                       <SelectTrigger id="lineId">
                                         <SelectValue placeholder="Seleccionar línea" />
                                       </SelectTrigger>
                                       <SelectContent>
-                                        <SelectItem value="none">Sin línea</SelectItem>
+                                        <SelectItem value="none">
+                                          Sin línea
+                                        </SelectItem>
                                         {linesForEdit.map((line) => (
-                                          <SelectItem key={line.id} value={line.id.toString()}>
+                                          <SelectItem
+                                            key={line.id}
+                                            value={line.id.toString()}
+                                          >
                                             {line.name}
                                           </SelectItem>
                                         ))}
@@ -662,17 +779,40 @@ export function TrackingTable({ incidents, fsrsByVic, incidentStatuses, onDataCh
                                   <div className="space-y-2">
                                     <Label htmlFor="equipmentId">Equipo</Label>
                                     <Select
-                                      value={editForm.equipmentId?.toString() || 'none'}
-                                      onValueChange={(value) => setEditForm({ ...editForm, equipmentId: value === 'none' ? '' : value })}
-                                      disabled={!editForm.lineId || equipmentsForEdit.length === 0}
+                                      value={
+                                        editForm.equipmentId?.toString() ||
+                                        "none"
+                                      }
+                                      onValueChange={(value) =>
+                                        setEditForm({
+                                          ...editForm,
+                                          equipmentId:
+                                            value === "none" ? "" : value,
+                                        })
+                                      }
+                                      disabled={
+                                        !editForm.lineId ||
+                                        equipmentsForEdit.length === 0
+                                      }
                                     >
                                       <SelectTrigger id="equipmentId">
-                                        <SelectValue placeholder={!editForm.lineId ? "Selecciona una línea primero" : "Seleccionar equipo"} />
+                                        <SelectValue
+                                          placeholder={
+                                            !editForm.lineId
+                                              ? "Selecciona una línea primero"
+                                              : "Seleccionar equipo"
+                                          }
+                                        />
                                       </SelectTrigger>
                                       <SelectContent>
-                                        <SelectItem value="none">Sin equipo</SelectItem>
+                                        <SelectItem value="none">
+                                          Sin equipo
+                                        </SelectItem>
                                         {equipmentsForEdit.map((equipment) => (
-                                          <SelectItem key={equipment.id} value={equipment.id.toString()}>
+                                          <SelectItem
+                                            key={equipment.id}
+                                            value={equipment.id.toString()}
+                                          >
                                             {equipment.name}
                                           </SelectItem>
                                         ))}
@@ -680,31 +820,52 @@ export function TrackingTable({ incidents, fsrsByVic, incidentStatuses, onDataCh
                                     </Select>
                                   </div>
                                   <div className="space-y-2">
-                                    <Label htmlFor="reportedAt">Fecha y Hora de Inicio</Label>
+                                    <Label htmlFor="reportedAt">
+                                      Fecha y Hora de Inicio
+                                    </Label>
                                     <Input
                                       id="reportedAt"
                                       type="datetime-local"
                                       value={editForm.reportedAt}
-                                      onChange={(e) => setEditForm({ ...editForm, reportedAt: e.target.value })}
+                                      onChange={(e) =>
+                                        setEditForm({
+                                          ...editForm,
+                                          reportedAt: e.target.value,
+                                        })
+                                      }
                                     />
                                   </div>
                                   <div className="space-y-2">
-                                    <Label htmlFor="resolvedAt">Fecha y Hora de Fin</Label>
+                                    <Label htmlFor="resolvedAt">
+                                      Fecha y Hora de Fin
+                                    </Label>
                                     <Input
                                       id="resolvedAt"
                                       type="datetime-local"
                                       value={editForm.resolvedAt}
-                                      onChange={(e) => setEditForm({ ...editForm, resolvedAt: e.target.value })}
+                                      onChange={(e) =>
+                                        setEditForm({
+                                          ...editForm,
+                                          resolvedAt: e.target.value,
+                                        })
+                                      }
                                     />
                                   </div>
                                 </div>
                                 <div className="space-y-2">
-                                  <Label htmlFor="description">Observaciones</Label>
+                                  <Label htmlFor="description">
+                                    Observaciones
+                                  </Label>
                                   <Textarea
                                     id="description"
                                     rows={4}
                                     value={editForm.description}
-                                    onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                                    onChange={(e) =>
+                                      setEditForm({
+                                        ...editForm,
+                                        description: e.target.value,
+                                      })
+                                    }
                                   />
                                 </div>
                               </div>
@@ -712,11 +873,15 @@ export function TrackingTable({ incidents, fsrsByVic, incidentStatuses, onDataCh
                               {/* Create Work Order in Edit Mode */}
                               <div className="p-4 bg-muted/50 rounded-lg border border-dashed space-y-4">
                                 <div className="flex items-center justify-between">
-                                  <h5 className="font-semibold">Crear Orden de Trabajo</h5>
+                                  <h5 className="font-semibold">
+                                    Crear Orden de Trabajo
+                                  </h5>
                                   <Button
                                     variant="outline"
                                     size="sm"
-                                    onClick={() => handleStartCreateWorkOrder(incident.id)}
+                                    onClick={() =>
+                                      handleStartCreateWorkOrder(incident.id)
+                                    }
                                     disabled={creatingWorkOrder === incident.id}
                                   >
                                     <Plus className="h-4 w-4 mr-2" />
@@ -728,42 +893,84 @@ export function TrackingTable({ incidents, fsrsByVic, incidentStatuses, onDataCh
                                   <div className="p-4 bg-background rounded-lg border space-y-4">
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                       <div className="space-y-2">
-                                        <Label htmlFor={`edit-mode-fsr-${incident.id}`}>FSR Asignado *</Label>
+                                        <Label
+                                          htmlFor={`edit-mode-fsr-${incident.id}`}
+                                        >
+                                          FSR Asignado *
+                                        </Label>
                                         <Select
                                           value={newWorkOrderForm.assignedToId}
-                                          onValueChange={(value) => setNewWorkOrderForm({ ...newWorkOrderForm, assignedToId: value })}
+                                          onValueChange={(value) =>
+                                            setNewWorkOrderForm({
+                                              ...newWorkOrderForm,
+                                              assignedToId: value,
+                                            })
+                                          }
                                         >
-                                          <SelectTrigger id={`edit-mode-fsr-${incident.id}`}>
+                                          <SelectTrigger
+                                            id={`edit-mode-fsr-${incident.id}`}
+                                          >
                                             <SelectValue placeholder="Seleccionar FSR" />
                                           </SelectTrigger>
                                           <SelectContent>
-                                            {(fsrsByVic[incident.vic?.id || ''] || []).map((fsr: any) => (
-                                              <SelectItem key={fsr.id} value={fsr.id}>
+                                            {(
+                                              fsrsByVic[
+                                                incident.vic?.id || ""
+                                              ] || []
+                                            ).map((fsr: any) => (
+                                              <SelectItem
+                                                key={fsr.id}
+                                                value={fsr.id}
+                                              >
                                                 {fsr.name} - {fsr.email}
                                               </SelectItem>
                                             ))}
                                           </SelectContent>
                                         </Select>
-                                        {(fsrsByVic[incident.vic?.id || ''] || []).length === 0 && (
-                                          <p className="text-xs text-muted-foreground">No hay FSRs disponibles para este CVV</p>
+                                        {(
+                                          fsrsByVic[incident.vic?.id || ""] ||
+                                          []
+                                        ).length === 0 && (
+                                          <p className="text-xs text-muted-foreground">
+                                            No hay FSRs disponibles para este
+                                            CVV
+                                          </p>
                                         )}
                                       </div>
                                       <div className="space-y-2">
-                                        <Label htmlFor={`edit-mode-folio-${incident.id}`}>Folio ODT</Label>
+                                        <Label
+                                          htmlFor={`edit-mode-folio-${incident.id}`}
+                                        >
+                                          Folio ODT
+                                        </Label>
                                         <Input
                                           id={`edit-mode-folio-${incident.id}`}
                                           value={newWorkOrderForm.folio}
-                                          onChange={(e) => setNewWorkOrderForm({ ...newWorkOrderForm, folio: e.target.value })}
+                                          onChange={(e) =>
+                                            setNewWorkOrderForm({
+                                              ...newWorkOrderForm,
+                                              folio: e.target.value,
+                                            })
+                                          }
                                           placeholder="Folio opcional..."
                                         />
                                       </div>
                                     </div>
                                     <div className="space-y-2">
-                                      <Label htmlFor={`edit-mode-notes-${incident.id}`}>Notas</Label>
+                                      <Label
+                                        htmlFor={`edit-mode-notes-${incident.id}`}
+                                      >
+                                        Notas
+                                      </Label>
                                       <Textarea
                                         id={`edit-mode-notes-${incident.id}`}
                                         value={newWorkOrderForm.notes}
-                                        onChange={(e) => setNewWorkOrderForm({ ...newWorkOrderForm, notes: e.target.value })}
+                                        onChange={(e) =>
+                                          setNewWorkOrderForm({
+                                            ...newWorkOrderForm,
+                                            notes: e.target.value,
+                                          })
+                                        }
                                         placeholder="Notas opcionales..."
                                         rows={3}
                                       />
@@ -780,11 +987,15 @@ export function TrackingTable({ incidents, fsrsByVic, incidentStatuses, onDataCh
                                       </Button>
                                       <Button
                                         size="sm"
-                                        onClick={() => handleCreateWorkOrder(incident.id)}
+                                        onClick={() =>
+                                          handleCreateWorkOrder(incident.id)
+                                        }
                                         disabled={savingNewWorkOrder}
                                       >
                                         <Save className="h-4 w-4 mr-2" />
-                                        {savingNewWorkOrder ? "Guardando..." : "Crear Orden"}
+                                        {savingNewWorkOrder
+                                          ? "Guardando..."
+                                          : "Crear Orden"}
                                       </Button>
                                     </div>
                                   </div>
@@ -796,21 +1007,34 @@ export function TrackingTable({ incidents, fsrsByVic, incidentStatuses, onDataCh
                               <div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
                                   <div>
-                                    <span className="font-medium text-muted-foreground">Fecha Inicio:</span>
-                                    <p>{formatDate(incident.reportedAt)} - {formatTime(incident.reportedAt)}</p>
+                                    <span className="font-medium text-muted-foreground">
+                                      Fecha Inicio:
+                                    </span>
+                                    <p>
+                                      {formatDate(incident.reportedAt)} -{" "}
+                                      {formatTime(incident.reportedAt)}
+                                    </p>
                                   </div>
                                   {incident.resolvedAt && (
                                     <div>
-                                      <span className="font-medium text-muted-foreground">Fecha Fin:</span>
-                                      <p>{formatDate(incident.resolvedAt)} - {formatTime(incident.resolvedAt)}</p>
+                                      <span className="font-medium text-muted-foreground">
+                                        Fecha Fin:
+                                      </span>
+                                      <p>
+                                        {formatDate(incident.resolvedAt)} -{" "}
+                                        {formatTime(incident.resolvedAt)}
+                                      </p>
                                     </div>
                                   )}
                                   <div>
-                                    <span className="font-medium text-muted-foreground">Status:</span>
+                                    <span className="font-medium text-muted-foreground">
+                                      Status:
+                                    </span>
                                     <div className="mt-1">
                                       <Badge
                                         style={{
-                                          backgroundColor: incident.status?.color || "#6B7280",
+                                          backgroundColor:
+                                            incident.status?.color || "#6B7280",
                                           color: "#FFFFFF",
                                         }}
                                       >
@@ -819,14 +1043,20 @@ export function TrackingTable({ incidents, fsrsByVic, incidentStatuses, onDataCh
                                     </div>
                                   </div>
                                   <div>
-                                    <span className="font-medium text-muted-foreground">Tipo:</span>
+                                    <span className="font-medium text-muted-foreground">
+                                      Tipo:
+                                    </span>
                                     <p>{incident.type?.name || "Sin tipo"}</p>
                                   </div>
                                 </div>
                               </div>
                               <div>
-                                <h4 className="font-semibold mb-2">Observaciones Completas</h4>
-                                <p className="text-sm">{incident.description}</p>
+                                <h4 className="font-semibold mb-2">
+                                  Observaciones Completas
+                                </h4>
+                                <p className="text-sm">
+                                  {incident.description}
+                                </p>
                               </div>
                             </div>
                           )}
@@ -834,11 +1064,15 @@ export function TrackingTable({ incidents, fsrsByVic, incidentStatuses, onDataCh
                           {/* Work Orders Section */}
                           <div>
                             <div className="flex items-center justify-between mb-3">
-                              <h4 className="font-semibold">Órdenes de Trabajo</h4>
+                              <h4 className="font-semibold">
+                                Órdenes de Trabajo
+                              </h4>
                               {creatingWorkOrder !== incident.id && (
                                 <Button
                                   size="sm"
-                                  onClick={() => handleStartCreateWorkOrder(incident.id)}
+                                  onClick={() =>
+                                    handleStartCreateWorkOrder(incident.id)
+                                  }
                                   disabled={editingIncident === incident.id}
                                 >
                                   <Plus className="h-4 w-4 mr-2" />
@@ -850,45 +1084,79 @@ export function TrackingTable({ incidents, fsrsByVic, incidentStatuses, onDataCh
                             {/* Create Work Order Form */}
                             {creatingWorkOrder === incident.id && (
                               <div className="p-4 bg-background rounded-lg border space-y-4 mb-3">
-                                <h5 className="font-medium">Nueva Orden de Trabajo</h5>
+                                <h5 className="font-medium">
+                                  Nueva Orden de Trabajo
+                                </h5>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                   <div className="space-y-2">
-                                    <Label htmlFor={`new-fsr-${incident.id}`}>FSR Asignado *</Label>
+                                    <Label htmlFor={`new-fsr-${incident.id}`}>
+                                      FSR Asignado *
+                                    </Label>
                                     <Select
                                       value={newWorkOrderForm.assignedToId}
-                                      onValueChange={(value) => setNewWorkOrderForm({ ...newWorkOrderForm, assignedToId: value })}
+                                      onValueChange={(value) =>
+                                        setNewWorkOrderForm({
+                                          ...newWorkOrderForm,
+                                          assignedToId: value,
+                                        })
+                                      }
                                     >
-                                      <SelectTrigger id={`new-fsr-${incident.id}`}>
+                                      <SelectTrigger
+                                        id={`new-fsr-${incident.id}`}
+                                      >
                                         <SelectValue placeholder="Seleccionar FSR" />
                                       </SelectTrigger>
                                       <SelectContent>
-                                        {(fsrsByVic[incident.vic?.id || ''] || []).map((fsr: any) => (
-                                          <SelectItem key={fsr.id} value={fsr.id}>
+                                        {(
+                                          fsrsByVic[incident.vic?.id || ""] ||
+                                          []
+                                        ).map((fsr: any) => (
+                                          <SelectItem
+                                            key={fsr.id}
+                                            value={fsr.id}
+                                          >
                                             {fsr.name} - {fsr.email}
                                           </SelectItem>
                                         ))}
                                       </SelectContent>
                                     </Select>
-                                    {(fsrsByVic[incident.vic?.id || ''] || []).length === 0 && (
-                                      <p className="text-xs text-muted-foreground">No hay FSRs disponibles para este CVV</p>
+                                    {(fsrsByVic[incident.vic?.id || ""] || [])
+                                      .length === 0 && (
+                                      <p className="text-xs text-muted-foreground">
+                                        No hay FSRs disponibles para este CVV
+                                      </p>
                                     )}
                                   </div>
                                   <div className="space-y-2">
-                                    <Label htmlFor={`new-folio-${incident.id}`}>Folio ODT</Label>
+                                    <Label htmlFor={`new-folio-${incident.id}`}>
+                                      Folio ODT
+                                    </Label>
                                     <Input
                                       id={`new-folio-${incident.id}`}
                                       value={newWorkOrderForm.folio}
-                                      onChange={(e) => setNewWorkOrderForm({ ...newWorkOrderForm, folio: e.target.value })}
+                                      onChange={(e) =>
+                                        setNewWorkOrderForm({
+                                          ...newWorkOrderForm,
+                                          folio: e.target.value,
+                                        })
+                                      }
                                       placeholder="Folio opcional..."
                                     />
                                   </div>
                                 </div>
                                 <div className="space-y-2">
-                                  <Label htmlFor={`new-notes-${incident.id}`}>Notas</Label>
+                                  <Label htmlFor={`new-notes-${incident.id}`}>
+                                    Notas
+                                  </Label>
                                   <Textarea
                                     id={`new-notes-${incident.id}`}
                                     value={newWorkOrderForm.notes}
-                                    onChange={(e) => setNewWorkOrderForm({ ...newWorkOrderForm, notes: e.target.value })}
+                                    onChange={(e) =>
+                                      setNewWorkOrderForm({
+                                        ...newWorkOrderForm,
+                                        notes: e.target.value,
+                                      })
+                                    }
                                     placeholder="Notas opcionales..."
                                     rows={3}
                                   />
@@ -905,236 +1173,369 @@ export function TrackingTable({ incidents, fsrsByVic, incidentStatuses, onDataCh
                                   </Button>
                                   <Button
                                     size="sm"
-                                    onClick={() => handleCreateWorkOrder(incident.id)}
+                                    onClick={() =>
+                                      handleCreateWorkOrder(incident.id)
+                                    }
                                     disabled={savingNewWorkOrder}
                                   >
                                     <Save className="h-4 w-4 mr-2" />
-                                    {savingNewWorkOrder ? "Guardando..." : "Crear Orden"}
+                                    {savingNewWorkOrder
+                                      ? "Guardando..."
+                                      : "Crear Orden"}
                                   </Button>
                                 </div>
                               </div>
                             )}
 
                             {/* Existing Work Orders */}
-                            {incident.workOrders && incident.workOrders.length > 0 && (
-                              <div className="space-y-3">
-                                {incident.workOrders.map((workOrder: any) => (
-                                  <div
-                                    key={workOrder.id}
-                                    className="p-4 bg-background rounded-lg border space-y-3"
-                                  >
-                                    <div className="flex items-start justify-between gap-4">
-                                      <div className="flex-1 space-y-2">
-                                        {editingWorkOrder !== workOrder.id && (
-                                          <div className="flex items-center gap-2 flex-wrap">
-                                            <Badge
-                                              className={
-                                                workOrderStatusColors[workOrder.status?.name] ||
-                                                "bg-gray-100 text-gray-800"
-                                              }
-                                            >
-                                              {workOrder.status?.name
-                                                ? workOrderStatusLabels[workOrder.status.name] ||
-                                                  workOrder.status.name
-                                                : "Sin estado"}
-                                            </Badge>
-                                            <span className="text-sm text-muted-foreground">
-                                              Creado: {formatDate(workOrder.createdAt)} - {formatTime(workOrder.createdAt)}
-                                            </span>
-                                          </div>
-                                        )}
-
-                                        {editingWorkOrder !== workOrder.id && (
-                                          <>
-                                            <div className="flex items-center gap-2">
-                                              <label className="text-sm font-medium min-w-[100px]">Fecha Inicio:</label>
+                            {incident.workOrders &&
+                              incident.workOrders.length > 0 && (
+                                <div className="space-y-3">
+                                  {incident.workOrders.map((workOrder: any) => (
+                                    <div
+                                      key={workOrder.id}
+                                      className="p-4 bg-background rounded-lg border space-y-3"
+                                    >
+                                      <div className="flex items-start justify-between gap-4">
+                                        <div className="flex-1 space-y-2">
+                                          {editingWorkOrder !==
+                                            workOrder.id && (
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                              <Badge
+                                                className={
+                                                  workOrderStatusColors[
+                                                    workOrder.status?.name
+                                                  ] ||
+                                                  "bg-gray-100 text-gray-800"
+                                                }
+                                              >
+                                                {workOrder.status?.name
+                                                  ? workOrderStatusLabels[
+                                                      workOrder.status.name
+                                                    ] || workOrder.status.name
+                                                  : "Sin estado"}
+                                              </Badge>
                                               <span className="text-sm text-muted-foreground">
-                                                {workOrder.startedAt
-                                                  ? `${formatDate(workOrder.startedAt)} - ${formatTime(workOrder.startedAt)}`
-                                                  : "-"}
+                                                Creado:{" "}
+                                                {formatDate(
+                                                  workOrder.createdAt,
+                                                )}{" "}
+                                                -{" "}
+                                                {formatTime(
+                                                  workOrder.createdAt,
+                                                )}
                                               </span>
                                             </div>
+                                          )}
 
+                                          {editingWorkOrder !==
+                                            workOrder.id && (
+                                            <>
+                                              <div className="flex items-center gap-2">
+                                                <label className="text-sm font-medium min-w-[100px]">
+                                                  Fecha Inicio:
+                                                </label>
+                                                <span className="text-sm text-muted-foreground">
+                                                  {workOrder.startedAt
+                                                    ? `${formatDate(workOrder.startedAt)} - ${formatTime(workOrder.startedAt)}`
+                                                    : "-"}
+                                                </span>
+                                              </div>
+
+                                              <div className="flex items-center gap-2">
+                                                <label className="text-sm font-medium min-w-[100px]">
+                                                  Fecha Fin:
+                                                </label>
+                                                <span className="text-sm text-muted-foreground">
+                                                  {workOrder.finishedAt
+                                                    ? `${formatDate(workOrder.finishedAt)} - ${formatTime(workOrder.finishedAt)}`
+                                                    : "-"}
+                                                </span>
+                                              </div>
+                                            </>
+                                          )}
+
+                                          {workOrder.folio && (
                                             <div className="flex items-center gap-2">
-                                              <label className="text-sm font-medium min-w-[100px]">Fecha Fin:</label>
-                                              <span className="text-sm text-muted-foreground">
-                                                {workOrder.finishedAt
-                                                  ? `${formatDate(workOrder.finishedAt)} - ${formatTime(workOrder.finishedAt)}`
-                                                  : "-"}
+                                              <label className="text-sm font-medium min-w-[100px]">
+                                                Folio ODT:
+                                              </label>
+                                              <Badge
+                                                variant="outline"
+                                                className="text-sm"
+                                              >
+                                                {workOrder.folio}
+                                              </Badge>
+                                            </div>
+                                          )}
+
+                                          {editingWorkOrder !==
+                                            workOrder.id && (
+                                            <div className="flex items-center gap-2">
+                                              <label className="text-sm font-medium min-w-[100px]">
+                                                FSR Asignado:
+                                              </label>
+                                              <span className="text-sm">
+                                                <User className="h-4 w-4 inline mr-2" />
+                                                {workOrder.assignedTo.name}
                                               </span>
                                             </div>
-                                          </>
-                                        )}
+                                          )}
 
-                                        {workOrder.folio && (
-                                          <div className="flex items-center gap-2">
-                                            <label className="text-sm font-medium min-w-[100px]">Folio ODT:</label>
-                                            <Badge variant="outline" className="text-sm">
-                                              {workOrder.folio}
-                                            </Badge>
-                                          </div>
-                                        )}
-
-                                        {editingWorkOrder !== workOrder.id && (
-                                          <div className="flex items-center gap-2">
-                                            <label className="text-sm font-medium min-w-[100px]">FSR Asignado:</label>
-                                            <span className="text-sm">
-                                              <User className="h-4 w-4 inline mr-2" />
-                                              {workOrder.assignedTo.name}
-                                            </span>
-                                          </div>
-                                        )}
-
-                                        {editingWorkOrder === workOrder.id && (
-                                          <div className="space-y-3 pt-3 border-t">
-                                            <h5 className="font-semibold text-sm">Editar Orden de Trabajo</h5>
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                              <div className="space-y-2">
-                                                <Label htmlFor={`wo-fsr-${workOrder.id}`}>FSR Asignado</Label>
-                                                <Select
-                                                  value={workOrderEditForm.assignedToId}
-                                                  onValueChange={(value) => setWorkOrderEditForm({ ...workOrderEditForm, assignedToId: value })}
-                                                >
-                                                  <SelectTrigger id={`wo-fsr-${workOrder.id}`}>
-                                                    <SelectValue placeholder="Seleccionar FSR" />
-                                                  </SelectTrigger>
-                                                  <SelectContent>
-                                                    {availableFSRs.map((fsr) => (
-                                                      <SelectItem key={fsr.id} value={fsr.id}>
-                                                        {fsr.name}
-                                                      </SelectItem>
-                                                    ))}
-                                                  </SelectContent>
-                                                </Select>
-                                              </div>
-                                              <div className="space-y-2">
-                                                <Label htmlFor={`wo-status-${workOrder.id}`}>Estado</Label>
-                                                <Select
-                                                  value={workOrderEditForm.statusId?.toString() || ''}
-                                                  onValueChange={(value) => setWorkOrderEditForm({ ...workOrderEditForm, statusId: value })}
-                                                >
-                                                  <SelectTrigger id={`wo-status-${workOrder.id}`}>
-                                                    <SelectValue placeholder="Seleccionar estado" />
-                                                  </SelectTrigger>
-                                                  <SelectContent>
-                                                    {incidentStatuses.map((status) => (
-                                                      <SelectItem key={status.id} value={status.id.toString()}>
-                                                        {status.name}
-                                                      </SelectItem>
-                                                    ))}
-                                                  </SelectContent>
-                                                </Select>
-                                              </div>
-                                              <div className="space-y-2">
-                                                <Label htmlFor={`wo-folio-${workOrder.id}`}>Folio ODT</Label>
-                                                <Input
-                                                  id={`wo-folio-${workOrder.id}`}
-                                                  type="text"
-                                                  placeholder="Número de folio..."
-                                                  value={workOrderEditForm.folio}
-                                                  onChange={(e) => setWorkOrderEditForm({ ...workOrderEditForm, folio: e.target.value })}
-                                                />
-                                              </div>
-                                              <div className="space-y-2">
-                                                <Label htmlFor={`wo-started-${workOrder.id}`}>Fecha y Hora de Inicio</Label>
-                                                <Input
-                                                  id={`wo-started-${workOrder.id}`}
-                                                  type="datetime-local"
-                                                  value={workOrderEditForm.startedAt}
-                                                  onChange={(e) => setWorkOrderEditForm({ ...workOrderEditForm, startedAt: e.target.value })}
-                                                />
-                                              </div>
-                                              <div className="space-y-2">
-                                                <Label htmlFor={`wo-finished-${workOrder.id}`}>Fecha y Hora de Fin</Label>
-                                                <Input
-                                                  id={`wo-finished-${workOrder.id}`}
-                                                  type="datetime-local"
-                                                  value={workOrderEditForm.finishedAt}
-                                                  onChange={(e) => setWorkOrderEditForm({ ...workOrderEditForm, finishedAt: e.target.value })}
-                                                />
+                                          {editingWorkOrder ===
+                                            workOrder.id && (
+                                            <div className="space-y-3 pt-3 border-t">
+                                              <h5 className="font-semibold text-sm">
+                                                Editar Orden de Trabajo
+                                              </h5>
+                                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                                <div className="space-y-2">
+                                                  <Label
+                                                    htmlFor={`wo-fsr-${workOrder.id}`}
+                                                  >
+                                                    FSR Asignado
+                                                  </Label>
+                                                  <Select
+                                                    value={
+                                                      workOrderEditForm.assignedToId
+                                                    }
+                                                    onValueChange={(value) =>
+                                                      setWorkOrderEditForm({
+                                                        ...workOrderEditForm,
+                                                        assignedToId: value,
+                                                      })
+                                                    }
+                                                  >
+                                                    <SelectTrigger
+                                                      id={`wo-fsr-${workOrder.id}`}
+                                                    >
+                                                      <SelectValue placeholder="Seleccionar FSR" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                      {availableFSRs.map(
+                                                        (fsr) => (
+                                                          <SelectItem
+                                                            key={fsr.id}
+                                                            value={fsr.id}
+                                                          >
+                                                            {fsr.name}
+                                                          </SelectItem>
+                                                        ),
+                                                      )}
+                                                    </SelectContent>
+                                                  </Select>
+                                                </div>
+                                                <div className="space-y-2">
+                                                  <Label
+                                                    htmlFor={`wo-status-${workOrder.id}`}
+                                                  >
+                                                    Estado
+                                                  </Label>
+                                                  <Select
+                                                    value={
+                                                      workOrderEditForm.statusId?.toString() ||
+                                                      ""
+                                                    }
+                                                    onValueChange={(value) =>
+                                                      setWorkOrderEditForm({
+                                                        ...workOrderEditForm,
+                                                        statusId: value,
+                                                      })
+                                                    }
+                                                  >
+                                                    <SelectTrigger
+                                                      id={`wo-status-${workOrder.id}`}
+                                                    >
+                                                      <SelectValue placeholder="Seleccionar estado" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                      {incidentStatuses.map(
+                                                        (status) => (
+                                                          <SelectItem
+                                                            key={status.id}
+                                                            value={status.id.toString()}
+                                                          >
+                                                            {status.name}
+                                                          </SelectItem>
+                                                        ),
+                                                      )}
+                                                    </SelectContent>
+                                                  </Select>
+                                                </div>
+                                                <div className="space-y-2">
+                                                  <Label
+                                                    htmlFor={`wo-folio-${workOrder.id}`}
+                                                  >
+                                                    Folio ODT
+                                                  </Label>
+                                                  <Input
+                                                    id={`wo-folio-${workOrder.id}`}
+                                                    type="text"
+                                                    placeholder="Número de folio..."
+                                                    value={
+                                                      workOrderEditForm.folio
+                                                    }
+                                                    onChange={(e) =>
+                                                      setWorkOrderEditForm({
+                                                        ...workOrderEditForm,
+                                                        folio: e.target.value,
+                                                      })
+                                                    }
+                                                  />
+                                                </div>
+                                                <div className="space-y-2">
+                                                  <Label
+                                                    htmlFor={`wo-started-${workOrder.id}`}
+                                                  >
+                                                    Fecha y Hora de Inicio
+                                                  </Label>
+                                                  <Input
+                                                    id={`wo-started-${workOrder.id}`}
+                                                    type="datetime-local"
+                                                    value={
+                                                      workOrderEditForm.startedAt
+                                                    }
+                                                    onChange={(e) =>
+                                                      setWorkOrderEditForm({
+                                                        ...workOrderEditForm,
+                                                        startedAt:
+                                                          e.target.value,
+                                                      })
+                                                    }
+                                                  />
+                                                </div>
+                                                <div className="space-y-2">
+                                                  <Label
+                                                    htmlFor={`wo-finished-${workOrder.id}`}
+                                                  >
+                                                    Fecha y Hora de Fin
+                                                  </Label>
+                                                  <Input
+                                                    id={`wo-finished-${workOrder.id}`}
+                                                    type="datetime-local"
+                                                    value={
+                                                      workOrderEditForm.finishedAt
+                                                    }
+                                                    onChange={(e) =>
+                                                      setWorkOrderEditForm({
+                                                        ...workOrderEditForm,
+                                                        finishedAt:
+                                                          e.target.value,
+                                                      })
+                                                    }
+                                                  />
+                                                </div>
                                               </div>
                                             </div>
-                                          </div>
-                                        )}
+                                          )}
+                                        </div>
+
+                                        <div className="flex items-center gap-2">
+                                          {editingWorkOrder === workOrder.id ? (
+                                            <>
+                                              <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() =>
+                                                  handleCancelWorkOrderEdit(
+                                                    workOrder.id,
+                                                  )
+                                                }
+                                                disabled={
+                                                  savingWorkOrder ===
+                                                  workOrder.id
+                                                }
+                                              >
+                                                <XIcon className="h-4 w-4 mr-2" />
+                                                Cancelar
+                                              </Button>
+                                              <Button
+                                                size="sm"
+                                                onClick={() =>
+                                                  handleSaveWorkOrder(
+                                                    workOrder.id,
+                                                  )
+                                                }
+                                                disabled={
+                                                  savingWorkOrder ===
+                                                  workOrder.id
+                                                }
+                                              >
+                                                <Save className="h-4 w-4 mr-2" />
+                                                {savingWorkOrder ===
+                                                workOrder.id
+                                                  ? "Guardando..."
+                                                  : "Guardar"}
+                                              </Button>
+                                            </>
+                                          ) : (
+                                            <>
+                                              <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() =>
+                                                  handleEditWorkOrder(workOrder)
+                                                }
+                                              >
+                                                <Edit className="h-4 w-4 mr-2" />
+                                                Edición Rápida
+                                              </Button>
+                                              <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                  <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                  >
+                                                    <MoreHorizontal className="h-4 w-4" />
+                                                  </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end">
+                                                  <DropdownMenuItem asChild>
+                                                    <Link
+                                                      href={`/admin/work-orders/${workOrder.id}`}
+                                                    >
+                                                      <Eye className="h-4 w-4 mr-2" />
+                                                      Ver Orden
+                                                    </Link>
+                                                  </DropdownMenuItem>
+                                                  <DropdownMenuItem asChild>
+                                                    <Link
+                                                      href={`/admin/work-orders/${workOrder.id}/edit`}
+                                                    >
+                                                      <Edit className="h-4 w-4 mr-2" />
+                                                      Edición Completa
+                                                    </Link>
+                                                  </DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                              </DropdownMenu>
+                                            </>
+                                          )}
+                                        </div>
                                       </div>
 
-                                      <div className="flex items-center gap-2">
-                                        {editingWorkOrder === workOrder.id ? (
-                                          <>
-                                            <Button
-                                              variant="outline"
-                                              size="sm"
-                                              onClick={() => handleCancelWorkOrderEdit(workOrder.id)}
-                                              disabled={savingWorkOrder === workOrder.id}
-                                            >
-                                              <XIcon className="h-4 w-4 mr-2" />
-                                              Cancelar
-                                            </Button>
-                                            <Button
-                                              size="sm"
-                                              onClick={() => handleSaveWorkOrder(workOrder.id)}
-                                              disabled={savingWorkOrder === workOrder.id}
-                                            >
-                                              <Save className="h-4 w-4 mr-2" />
-                                              {savingWorkOrder === workOrder.id ? "Guardando..." : "Guardar"}
-                                            </Button>
-                                          </>
-                                        ) : (
-                                          <>
-                                            <Button
-                                              variant="outline"
-                                              size="sm"
-                                              onClick={() => handleEditWorkOrder(workOrder)}
-                                            >
-                                              <Edit className="h-4 w-4 mr-2" />
-                                              Edición Rápida
-                                            </Button>
-                                            <DropdownMenu>
-                                              <DropdownMenuTrigger asChild>
-                                                <Button variant="outline" size="sm">
-                                                  <MoreHorizontal className="h-4 w-4" />
-                                                </Button>
-                                              </DropdownMenuTrigger>
-                                              <DropdownMenuContent align="end">
-                                                <DropdownMenuItem asChild>
-                                                  <Link href={`/admin/work-orders/${workOrder.id}`}>
-                                                    <Eye className="h-4 w-4 mr-2" />
-                                                    Ver Orden
-                                                  </Link>
-                                                </DropdownMenuItem>
-                                                <DropdownMenuItem asChild>
-                                                  <Link href={`/admin/work-orders/${workOrder.id}/edit`}>
-                                                    <Edit className="h-4 w-4 mr-2" />
-                                                    Edición Completa
-                                                  </Link>
-                                                </DropdownMenuItem>
-                                              </DropdownMenuContent>
-                                            </DropdownMenu>
-                                          </>
-                                        )}
-                                      </div>
+                                      {workOrder.notes && (
+                                        <div className="text-sm pt-2 border-t">
+                                          <span className="font-medium">
+                                            Notas:
+                                          </span>{" "}
+                                          {workOrder.notes}
+                                        </div>
+                                      )}
                                     </div>
-
-                                    {workOrder.notes && (
-                                      <div className="text-sm pt-2 border-t">
-                                        <span className="font-medium">Notas:</span> {workOrder.notes}
-                                      </div>
-                                    )}
-                                  </div>
-                                ))}
-                              </div>
-                            )}
+                                  ))}
+                                </div>
+                              )}
                           </div>
                         </div>
                       </TableCell>
                     </TableRow>
                   )}
                 </React.Fragment>
-              )
+              );
             })
           )}
         </TableBody>
       </Table>
     </div>
-  )
+  );
 }

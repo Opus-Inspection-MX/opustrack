@@ -1,19 +1,21 @@
-import { EquipmentForm } from "@/components/equipments/equipment-form"
-import { Button } from "@/components/ui/button"
-import { ArrowLeft } from "lucide-react"
-import Link from "next/link"
-import { getEquipmentById } from "@/lib/actions/equipments"
-import { notFound } from "next/navigation"
+import { ArrowLeft } from "lucide-react";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { EquipmentForm } from "@/components/equipments/equipment-form";
+import { Button } from "@/components/ui/button";
+import { getEquipmentById } from "@/lib/actions/equipments";
 
 interface EditEquipmentPageProps {
-  params: Promise<{ id: string }>
+  params: Promise<{ id: string }>;
 }
 
-export default async function EditEquipmentPage({ params }: EditEquipmentPageProps) {
-  const { id } = await params
+export default async function EditEquipmentPage({
+  params,
+}: EditEquipmentPageProps) {
+  const { id } = await params;
 
   try {
-    const equipment = await getEquipmentById(parseInt(id))
+    const equipment = await getEquipmentById(parseInt(id, 10));
 
     return (
       <div className="space-y-6">
@@ -25,14 +27,16 @@ export default async function EditEquipmentPage({ params }: EditEquipmentPagePro
           </Button>
           <div>
             <h1 className="text-3xl font-bold">Editar Equipo</h1>
-            <p className="text-muted-foreground">Actualiza la información del equipo</p>
+            <p className="text-muted-foreground">
+              Actualiza la información del equipo
+            </p>
           </div>
         </div>
 
         <EquipmentForm mode="edit" equipment={equipment} />
       </div>
-    )
-  } catch (error) {
-    notFound()
+    );
+  } catch (_error) {
+    notFound();
   }
 }

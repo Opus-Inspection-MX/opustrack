@@ -1,14 +1,22 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { Plus, Search } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { PermissionTable } from "@/components/permissions/permission-table"
+import { Plus, Search } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { PermissionTable } from "@/components/permissions/permission-table";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+
+interface Permission {
+  id: number;
+  name: string;
+  description: string;
+  active: boolean;
+  roleCount: number;
+}
 
 // Mock data - replace with actual API calls
-const mockPermissions = [
+const mockPermissions: Permission[] = [
   {
     id: 1,
     name: "user.create",
@@ -65,38 +73,44 @@ const mockPermissions = [
     active: true,
     roleCount: 2,
   },
-]
+];
 
 export default function PermissionsPage() {
-  const [searchTerm, setSearchTerm] = useState("")
-  const router = useRouter()
+  const [searchTerm, setSearchTerm] = useState("");
+  const router = useRouter();
 
   const filteredPermissions = mockPermissions.filter(
     (permission) =>
       permission.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       permission.description?.toLowerCase().includes(searchTerm.toLowerCase()),
-  )
+  );
 
-  const handleEdit = (permission: any) => {
-    router.push(`/admin/permissions/${permission.id}/edit`)
-  }
+  const handleEdit = (permission: Permission) => {
+    router.push(`/admin/permissions/${permission.id}/edit`);
+  };
 
-  const handleDelete = (permission: any) => {
+  const handleDelete = (permission: Permission) => {
     if (permission.roleCount > 0) {
-      alert(`Cannot delete permission "${permission.name}" because it is assigned to ${permission.roleCount} role(s).`)
-      return
+      alert(
+        `Cannot delete permission "${permission.name}" because it is assigned to ${permission.roleCount} role(s).`,
+      );
+      return;
     }
 
-    if (confirm(`Are you sure you want to delete the permission "${permission.name}"?`)) {
-      console.log("Deleting permission:", permission.id)
+    if (
+      confirm(
+        `Are you sure you want to delete the permission "${permission.name}"?`,
+      )
+    ) {
+      console.log("Deleting permission:", permission.id);
       // Implement delete logic
     }
-  }
+  };
 
   const handleView = (permission: any) => {
-    console.log("Viewing permission:", permission)
+    console.log("Viewing permission:", permission);
     // Implement view logic or navigate to detail page
-  }
+  };
 
   return (
     <div className="space-y-6">
@@ -130,5 +144,5 @@ export default function PermissionsPage() {
         onView={handleView}
       />
     </div>
-  )
+  );
 }

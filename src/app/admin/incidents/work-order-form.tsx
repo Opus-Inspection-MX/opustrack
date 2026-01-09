@@ -1,24 +1,47 @@
-"use client"
+"use client";
 
-import type React from "react"
-import { useRouter } from "next/navigation"
+import { useRouter } from "next/navigation";
+import type React from "react";
 
-import { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
+import { useEffect, useState } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 
-interface WorkOrderFormProps {
-  workOrder?: any
-  incident?: any
-  onClose?: () => void
+interface WorkOrderData {
+  incidentId?: string;
+  assignedToId?: string;
+  status?: string;
+  notes?: string;
+  startedAt?: string | Date;
+  finishedAt?: string | Date;
 }
 
-export function WorkOrderForm({ workOrder, incident, onClose }: WorkOrderFormProps) {
+interface IncidentData {
+  id: string;
+}
+
+interface WorkOrderFormProps {
+  workOrder?: WorkOrderData;
+  incident?: IncidentData;
+  onClose?: () => void;
+}
+
+export function WorkOrderForm({
+  workOrder,
+  incident,
+  onClose,
+}: WorkOrderFormProps) {
   const [formData, setFormData] = useState({
     incidentId: "",
     assignedToId: "",
@@ -26,9 +49,9 @@ export function WorkOrderForm({ workOrder, incident, onClose }: WorkOrderFormPro
     notes: "",
     startedAt: "",
     finishedAt: "",
-  })
+  });
 
-  const router = useRouter()
+  const router = useRouter();
 
   // Mock data - replace with actual API calls
   const users = [
@@ -36,14 +59,14 @@ export function WorkOrderForm({ workOrder, incident, onClose }: WorkOrderFormPro
     { id: "user_002", name: "Jane Smith", role: "System Admin" },
     { id: "user_003", name: "Mike Johnson", role: "Network Specialist" },
     { id: "user_004", name: "Sarah Wilson", role: "Equipment Specialist" },
-  ]
+  ];
 
   const workOrderStatuses = [
     { value: "PENDING", label: "Pending" },
     { value: "IN_PROGRESS", label: "In Progress" },
     { value: "COMPLETED", label: "Completed" },
     { value: "CANCELLED", label: "Cancelled" },
-  ]
+  ];
 
   useEffect(() => {
     if (workOrder) {
@@ -52,47 +75,57 @@ export function WorkOrderForm({ workOrder, incident, onClose }: WorkOrderFormPro
         assignedToId: workOrder.assignedToId || "",
         status: workOrder.status || "PENDING",
         notes: workOrder.notes || "",
-        startedAt: workOrder.startedAt ? new Date(workOrder.startedAt).toISOString().slice(0, 16) : "",
-        finishedAt: workOrder.finishedAt ? new Date(workOrder.finishedAt).toISOString().slice(0, 16) : "",
-      })
+        startedAt: workOrder.startedAt
+          ? new Date(workOrder.startedAt).toISOString().slice(0, 16)
+          : "",
+        finishedAt: workOrder.finishedAt
+          ? new Date(workOrder.finishedAt).toISOString().slice(0, 16)
+          : "",
+      });
     } else if (incident) {
       setFormData((prev) => ({
         ...prev,
         incidentId: incident.id,
-      }))
+      }));
     }
-  }, [workOrder, incident])
+  }, [workOrder, incident]);
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
 
     // Here you would make an API call to create/update the work order
-    console.log("Submitting work order:", formData)
+    console.log("Submitting work order:", formData);
 
     // Mock success
-    alert(workOrder ? "Work order updated successfully!" : "Work order created successfully!")
+    alert(
+      workOrder
+        ? "Work order updated successfully!"
+        : "Work order created successfully!",
+    );
 
     // Navigate back to appropriate list
     if (onClose) {
-      onClose()
+      onClose();
     } else {
-      router.push("/admin/work-orders")
+      router.push("/admin/work-orders");
     }
-  }
+  };
 
   const handleChange = (field: string, value: string) => {
     setFormData((prev) => ({
       ...prev,
       [field]: value,
-    }))
-  }
+    }));
+  };
 
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
           {workOrder ? "Edit Work Order" : "Create New Work Order"}
-          {incident && <Badge variant="outline">Incident: {incident.title}</Badge>}
+          {incident && (
+            <Badge variant="outline">Incident: {incident.title}</Badge>
+          )}
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -117,7 +150,10 @@ export function WorkOrderForm({ workOrder, incident, onClose }: WorkOrderFormPro
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="assignedToId">Assign To *</Label>
-              <Select value={formData.assignedToId} onValueChange={(value) => handleChange("assignedToId", value)}>
+              <Select
+                value={formData.assignedToId}
+                onValueChange={(value) => handleChange("assignedToId", value)}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Select technician" />
                 </SelectTrigger>
@@ -132,7 +168,10 @@ export function WorkOrderForm({ workOrder, incident, onClose }: WorkOrderFormPro
             </div>
             <div className="space-y-2">
               <Label htmlFor="status">Status *</Label>
-              <Select value={formData.status} onValueChange={(value) => handleChange("status", value)}>
+              <Select
+                value={formData.status}
+                onValueChange={(value) => handleChange("status", value)}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
@@ -184,14 +223,18 @@ export function WorkOrderForm({ workOrder, incident, onClose }: WorkOrderFormPro
             <Button
               type="button"
               variant="outline"
-              onClick={() => (onClose ? onClose() : router.push("/admin/work-orders"))}
+              onClick={() =>
+                onClose ? onClose() : router.push("/admin/work-orders")
+              }
             >
               Cancel
             </Button>
-            <Button type="submit">{workOrder ? "Update Work Order" : "Create Work Order"}</Button>
+            <Button type="submit">
+              {workOrder ? "Update Work Order" : "Create Work Order"}
+            </Button>
           </div>
         </form>
       </CardContent>
     </Card>
-  )
+  );
 }

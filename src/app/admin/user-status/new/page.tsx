@@ -1,62 +1,61 @@
-"use client"
+"use client";
 
-import type React from "react"
-
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { ArrowLeft, Save } from "lucide-react"
-import { FormError } from "@/components/ui/form-error"
+import { ArrowLeft, Save } from "lucide-react";
+import { useRouter } from "next/navigation";
+import type React from "react";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { FormError } from "@/components/ui/form-error";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
 export default function NewUserStatusPage() {
-  const router = useRouter()
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [errors, setErrors] = useState<Record<string, string>>({})
+  const router = useRouter();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const [formData, setFormData] = useState({
     name: "",
     description: "",
-  })
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setErrors({})
-    setIsSubmitting(true)
+    e.preventDefault();
+    setErrors({});
+    setIsSubmitting(true);
 
     try {
       // Validation
-      const newErrors: Record<string, string> = {}
+      const newErrors: Record<string, string> = {};
 
       if (!formData.name.trim()) {
-        newErrors.name = "Status name is required"
+        newErrors.name = "Status name is required";
       }
 
       if (Object.keys(newErrors).length > 0) {
-        setErrors(newErrors)
-        setIsSubmitting(false)
-        return
+        setErrors(newErrors);
+        setIsSubmitting(false);
+        return;
       }
 
       // Call backend API
-      const { createUserStatus } = await import("@/lib/actions/lookups")
+      const { createUserStatus } = await import("@/lib/actions/lookups");
       await createUserStatus({
         name: formData.name.trim(),
-      })
+      });
 
       // Redirect to user status list
-      router.push("/admin/user-status")
-      router.refresh()
+      router.push("/admin/user-status");
+      router.refresh();
     } catch (error) {
-      console.error("Error creating user status:", error)
-      setErrors({ submit: "Failed to create user status. Please try again." })
+      console.error("Error creating user status:", error);
+      setErrors({ submit: "Failed to create user status. Please try again." });
     } finally {
-      setIsSubmitting(false)
+      setIsSubmitting(false);
     }
-  }
+  };
 
   return (
     <div className="space-y-6">
@@ -66,7 +65,9 @@ export default function NewUserStatusPage() {
         </Button>
         <div>
           <h1 className="text-3xl font-bold">Create User Status</h1>
-          <p className="text-muted-foreground">Add a new user status type to the system</p>
+          <p className="text-muted-foreground">
+            Add a new user status type to the system
+          </p>
         </div>
       </div>
 
@@ -87,9 +88,9 @@ export default function NewUserStatusPage() {
                 id="name"
                 value={formData.name}
                 onChange={(e) => {
-                  setFormData({ ...formData, name: e.target.value })
+                  setFormData({ ...formData, name: e.target.value });
                   if (errors.name) {
-                    setErrors({ ...errors, name: "" })
+                    setErrors({ ...errors, name: "" });
                   }
                 }}
                 placeholder="e.g., Active, Inactive, Suspended"
@@ -103,21 +104,26 @@ export default function NewUserStatusPage() {
               <Textarea
                 id="description"
                 value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, description: e.target.value })
+                }
                 placeholder="Describe this status type"
                 rows={4}
               />
             </div>
 
             <div className="flex justify-end gap-4">
-              <Button type="button" variant="outline" onClick={() => router.back()} disabled={isSubmitting}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => router.back()}
+                disabled={isSubmitting}
+              >
                 Cancel
               </Button>
               <Button type="submit" disabled={isSubmitting}>
                 {isSubmitting ? (
-                  <>
-                    <span className="mr-2">Creating...</span>
-                  </>
+                  <span className="mr-2">Creating...</span>
                 ) : (
                   <>
                     <Save className="mr-2 h-4 w-4" />
@@ -130,5 +136,5 @@ export default function NewUserStatusPage() {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

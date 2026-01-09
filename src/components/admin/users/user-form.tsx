@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -12,8 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { createUser, updateUser, type UserFormData } from "@/lib/actions/users";
+import { createUser, type UserFormData, updateUser } from "@/lib/actions/users";
 
 type UserFormProps = {
   user?: {
@@ -151,7 +151,7 @@ export function UserForm({ user, roles, statuses, vics }: UserFormProps) {
               <Select
                 value={formData.roleId.toString()}
                 onValueChange={(value) =>
-                  setFormData({ ...formData, roleId: parseInt(value) })
+                  setFormData({ ...formData, roleId: parseInt(value, 10) })
                 }
               >
                 <SelectTrigger>
@@ -172,7 +172,10 @@ export function UserForm({ user, roles, statuses, vics }: UserFormProps) {
               <Select
                 value={formData.userStatusId.toString()}
                 onValueChange={(value) =>
-                  setFormData({ ...formData, userStatusId: parseInt(value) })
+                  setFormData({
+                    ...formData,
+                    userStatusId: parseInt(value, 10),
+                  })
                 }
               >
                 <SelectTrigger>
@@ -193,7 +196,10 @@ export function UserForm({ user, roles, statuses, vics }: UserFormProps) {
               <Select
                 value={formData.vicId || "none"}
                 onValueChange={(value) =>
-                  setFormData({ ...formData, vicId: value === "none" ? null : value })
+                  setFormData({
+                    ...formData,
+                    vicId: value === "none" ? null : value,
+                  })
                 }
               >
                 <SelectTrigger>
@@ -273,7 +279,11 @@ export function UserForm({ user, roles, statuses, vics }: UserFormProps) {
           Cancelar
         </Button>
         <Button type="submit" disabled={loading}>
-          {loading ? "Guardando..." : user ? "Actualizar Usuario" : "Crear Usuario"}
+          {loading
+            ? "Guardando..."
+            : user
+              ? "Actualizar Usuario"
+              : "Crear Usuario"}
         </Button>
       </div>
     </form>

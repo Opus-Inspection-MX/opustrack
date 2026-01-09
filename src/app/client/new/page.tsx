@@ -1,21 +1,39 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import {
+  AlertTriangle,
+  ArrowLeft,
+  Building,
+  Loader2,
+  Send,
+} from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { FormError } from "@/components/ui/form-error";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Send, Loader2, AlertTriangle, Building } from "lucide-react";
-import Link from "next/link";
+import { getEquipmentsByLineId } from "@/lib/actions/equipments";
 import { createIncidentAsClient } from "@/lib/actions/incidents";
+import { getLinesByVicId } from "@/lib/actions/lines";
 import { getIncidentTypes } from "@/lib/actions/lookups";
 import { getMyProfile } from "@/lib/actions/users";
-import { getLinesByVicId } from "@/lib/actions/lines";
-import { getEquipmentsByLineId } from "@/lib/actions/equipments";
-import { FormError } from "@/components/ui/form-error";
 
 export default function ReportIncidentPage() {
   const router = useRouter();
@@ -38,7 +56,7 @@ export default function ReportIncidentPage() {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [loadData]);
 
   const loadData = async () => {
     try {
@@ -51,7 +69,9 @@ export default function ReportIncidentPage() {
       setUserVic(profile?.vic || null);
 
       if (!profile?.vic) {
-        setErrors({ general: "Debes tener un CVV asignado para reportar incidentes" });
+        setErrors({
+          general: "Debes tener un CVV asignado para reportar incidentes",
+        });
       } else {
         // Load lines for the user's VIC
         const vicLines = await getLinesByVicId(profile.vic.id);
@@ -70,7 +90,9 @@ export default function ReportIncidentPage() {
     const loadEquipments = async () => {
       if (formData.lineId) {
         try {
-          const lineEquipments = await getEquipmentsByLineId(parseInt(formData.lineId));
+          const lineEquipments = await getEquipmentsByLineId(
+            parseInt(formData.lineId, 10),
+          );
           setEquipments(lineEquipments);
         } catch (error) {
           console.error("Error loading equipments:", error);
@@ -106,7 +128,8 @@ export default function ReportIncidentPage() {
     }
 
     if (!userVic) {
-      newErrors.general = "Debes tener un CVV asignado para reportar incidentes";
+      newErrors.general =
+        "Debes tener un CVV asignado para reportar incidentes";
     }
 
     setErrors(newErrors);
@@ -128,9 +151,9 @@ export default function ReportIncidentPage() {
         formData.title,
         formData.description,
         formData.priority,
-        formData.typeId ? parseInt(formData.typeId) : undefined,
-        formData.lineId ? parseInt(formData.lineId) : undefined,
-        formData.equipmentId ? parseInt(formData.equipmentId) : undefined
+        formData.typeId ? parseInt(formData.typeId, 10) : undefined,
+        formData.lineId ? parseInt(formData.lineId, 10) : undefined,
+        formData.equipmentId ? parseInt(formData.equipmentId, 10) : undefined,
       );
 
       if (result.success) {
@@ -141,7 +164,10 @@ export default function ReportIncidentPage() {
     } catch (error) {
       console.error("Error reporting incident:", error);
       setErrors({
-        general: error instanceof Error ? error.message : "Error al reportar el incidente. Por favor intenta de nuevo.",
+        general:
+          error instanceof Error
+            ? error.message
+            : "Error al reportar el incidente. Por favor intenta de nuevo.",
       });
     } finally {
       setIsSubmitting(false);
@@ -170,8 +196,12 @@ export default function ReportIncidentPage() {
             <AlertTriangle className="h-5 w-5 text-orange-500" />
           </div>
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold">Reportar un Incidente</h1>
-            <p className="text-sm text-muted-foreground">Responderemos lo más pronto posible</p>
+            <h1 className="text-2xl md:text-3xl font-bold">
+              Reportar un Incidente
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              Responderemos lo más pronto posible
+            </p>
           </div>
         </div>
       </div>
@@ -183,8 +213,12 @@ export default function ReportIncidentPage() {
             <div className="flex items-center gap-3">
               <Building className="h-5 w-5 text-primary" />
               <div>
-                <p className="text-sm text-muted-foreground">Reportando para CVV</p>
-                <p className="font-medium">{userVic.name} ({userVic.code})</p>
+                <p className="text-sm text-muted-foreground">
+                  Reportando para CVV
+                </p>
+                <p className="font-medium">
+                  {userVic.name} ({userVic.code})
+                </p>
               </div>
             </div>
           </CardContent>
@@ -197,7 +231,8 @@ export default function ReportIncidentPage() {
         <CardHeader>
           <CardTitle>Detalles del Incidente</CardTitle>
           <CardDescription>
-            Por favor proporciona tantos detalles como sea posible para ayudarnos a resolver el problema rápidamente
+            Por favor proporciona tantos detalles como sea posible para
+            ayudarnos a resolver el problema rápidamente
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -245,7 +280,9 @@ export default function ReportIncidentPage() {
                 onValueChange={(value) => handleChange("typeId", value)}
                 disabled={!userVic}
               >
-                <SelectTrigger className={errors.typeId ? "border-red-500" : ""}>
+                <SelectTrigger
+                  className={errors.typeId ? "border-red-500" : ""}
+                >
                   <SelectValue placeholder="Selecciona el tipo de incidente" />
                 </SelectTrigger>
                 <SelectContent>
@@ -268,7 +305,13 @@ export default function ReportIncidentPage() {
                 disabled={!userVic || lines.length === 0}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder={lines.length === 0 ? "No hay líneas disponibles" : "Selecciona una línea"} />
+                  <SelectValue
+                    placeholder={
+                      lines.length === 0
+                        ? "No hay líneas disponibles"
+                        : "Selecciona una línea"
+                    }
+                  />
                 </SelectTrigger>
                 <SelectContent>
                   {lines.map((line) => (
@@ -292,17 +335,22 @@ export default function ReportIncidentPage() {
                 disabled={!formData.lineId || equipments.length === 0}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder={
-                    !formData.lineId
-                      ? "Primero selecciona una línea"
-                      : equipments.length === 0
-                        ? "No hay equipos disponibles"
-                        : "Selecciona un equipo"
-                  } />
+                  <SelectValue
+                    placeholder={
+                      !formData.lineId
+                        ? "Primero selecciona una línea"
+                        : equipments.length === 0
+                          ? "No hay equipos disponibles"
+                          : "Selecciona un equipo"
+                    }
+                  />
                 </SelectTrigger>
                 <SelectContent>
                   {equipments.map((equipment) => (
-                    <SelectItem key={equipment.id} value={equipment.id.toString()}>
+                    <SelectItem
+                      key={equipment.id}
+                      value={equipment.id.toString()}
+                    >
                       {equipment.name}
                     </SelectItem>
                   ))}
@@ -320,7 +368,9 @@ export default function ReportIncidentPage() {
                 disabled={isSubmitting || !userVic}
                 className="flex-1 sm:flex-initial"
               >
-                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isSubmitting && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
                 <Send className="mr-2 h-4 w-4" />
                 {isSubmitting ? "Enviando..." : "Enviar Reporte"}
               </Button>

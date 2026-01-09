@@ -1,39 +1,53 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { zodResolver } from "@hookform/resolvers/zod"
-import { useForm } from "react-hook-form"
-import { z } from "zod"
-import { Button } from "@/components/ui/button"
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form"
-import { Input } from "@/components/ui/input"
-import { Switch } from "@/components/ui/switch"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Spinner } from "@/components/ui/spinner"
-import { ArrowLeft } from "lucide-react"
+import { zodResolver } from "@hookform/resolvers/zod";
+import { ArrowLeft } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Spinner } from "@/components/ui/spinner";
+import { Switch } from "@/components/ui/switch";
 
 const roleSchema = z.object({
-  name: z.string().min(1, "Role name is required").max(50, "Role name must be less than 50 characters"),
-  defaultPath: z.string().min(1, "Default path is required").regex(/^\//, "Path must start with /"),
+  name: z
+    .string()
+    .min(1, "Role name is required")
+    .max(50, "Role name must be less than 50 characters"),
+  defaultPath: z
+    .string()
+    .min(1, "Default path is required")
+    .regex(/^\//, "Path must start with /"),
   active: z.boolean(),
-})
+});
 
-type RoleFormData = z.infer<typeof roleSchema>
+type RoleFormData = z.infer<typeof roleSchema>;
 
 interface RoleFormProps {
   role?: {
-    id: number
-    name: string
-    defaultPath: string
-    active: boolean
-  }
-  onSubmit: (data: RoleFormData) => Promise<void>
+    id: number;
+    name: string;
+    defaultPath: string;
+    active: boolean;
+  };
+  onSubmit: (data: RoleFormData) => Promise<void>;
 }
 
 export function RoleForm({ role, onSubmit }: RoleFormProps) {
-  const [isLoading, setIsLoading] = useState(false)
-  const router = useRouter()
+  const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
 
   const form = useForm<RoleFormData>({
     resolver: zodResolver(roleSchema),
@@ -42,19 +56,19 @@ export function RoleForm({ role, onSubmit }: RoleFormProps) {
       defaultPath: role?.defaultPath || "/admin",
       active: role?.active ?? true,
     },
-  })
+  });
 
   const handleSubmit = async (data: RoleFormData) => {
-    setIsLoading(true)
+    setIsLoading(true);
     try {
-      await onSubmit(data)
-      router.push("/admin/roles")
+      await onSubmit(data);
+      router.push("/admin/roles");
     } catch (error) {
-      console.error("Error submitting form:", error)
+      console.error("Error submitting form:", error);
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   return (
     <div className="space-y-6">
@@ -64,8 +78,12 @@ export function RoleForm({ role, onSubmit }: RoleFormProps) {
           Back
         </Button>
         <div>
-          <h1 className="text-3xl font-bold">{role ? "Edit Role" : "Create Role"}</h1>
-          <p className="text-muted-foreground">{role ? "Update role information" : "Add a new role to the system"}</p>
+          <h1 className="text-3xl font-bold">
+            {role ? "Edit Role" : "Create Role"}
+          </h1>
+          <p className="text-muted-foreground">
+            {role ? "Update role information" : "Add a new role to the system"}
+          </p>
         </div>
       </div>
 
@@ -75,7 +93,10 @@ export function RoleForm({ role, onSubmit }: RoleFormProps) {
         </CardHeader>
         <CardContent>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+            <form
+              onSubmit={form.handleSubmit(handleSubmit)}
+              className="space-y-6"
+            >
               <FormField
                 control={form.control}
                 name="name"
@@ -83,9 +104,14 @@ export function RoleForm({ role, onSubmit }: RoleFormProps) {
                   <FormItem>
                     <FormLabel>Role Name</FormLabel>
                     <FormControl>
-                      <Input placeholder="Enter role name (e.g., Admin, Technician)" {...field} />
+                      <Input
+                        placeholder="Enter role name (e.g., Admin, Technician)"
+                        {...field}
+                      />
                     </FormControl>
-                    <FormDescription>A unique name for this role that describes the user type</FormDescription>
+                    <FormDescription>
+                      A unique name for this role that describes the user type
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -101,7 +127,8 @@ export function RoleForm({ role, onSubmit }: RoleFormProps) {
                       <Input placeholder="/admin" {...field} />
                     </FormControl>
                     <FormDescription>
-                      The default page users with this role will be redirected to after login
+                      The default page users with this role will be redirected
+                      to after login
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -115,10 +142,15 @@ export function RoleForm({ role, onSubmit }: RoleFormProps) {
                   <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
                     <div className="space-y-0.5">
                       <FormLabel className="text-base">Active Status</FormLabel>
-                      <FormDescription>When disabled, users cannot be assigned to this role</FormDescription>
+                      <FormDescription>
+                        When disabled, users cannot be assigned to this role
+                      </FormDescription>
                     </div>
                     <FormControl>
-                      <Switch checked={field.value} onCheckedChange={field.onChange} />
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
                     </FormControl>
                   </FormItem>
                 )}
@@ -129,7 +161,11 @@ export function RoleForm({ role, onSubmit }: RoleFormProps) {
                   {isLoading && <Spinner size="sm" className="mr-2" />}
                   {role ? "Update Role" : "Create Role"}
                 </Button>
-                <Button type="button" variant="outline" onClick={() => router.push("/admin/roles")}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => router.push("/admin/roles")}
+                >
                   Cancel
                 </Button>
               </div>
@@ -138,5 +174,5 @@ export function RoleForm({ role, onSubmit }: RoleFormProps) {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

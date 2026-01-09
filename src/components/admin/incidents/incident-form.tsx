@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -13,8 +13,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { createIncident, updateIncident, type IncidentFormData } from "@/lib/actions/incidents";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  createIncident,
+  type IncidentFormData,
+  updateIncident,
+} from "@/lib/actions/incidents";
 
 type IncidentFormProps = {
   incident?: {
@@ -37,7 +41,14 @@ type IncidentFormProps = {
   schedules: Array<{ id: string; scheduledAt: Date }>;
 };
 
-export function IncidentForm({ incident, types, statuses, vics, users, schedules }: IncidentFormProps) {
+export function IncidentForm({
+  incident,
+  types,
+  statuses,
+  vics,
+  users,
+  schedules,
+}: IncidentFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -47,8 +58,8 @@ export function IncidentForm({ incident, types, statuses, vics, users, schedules
     description: incident?.description || "",
     priority: incident?.priority || 5,
     sla: incident?.sla || 24,
-    typeId: incident?.typeId || (types[0]?.id || null),
-    statusId: incident?.statusId || (statuses[0]?.id || null),
+    typeId: incident?.typeId || types[0]?.id || null,
+    statusId: incident?.statusId || statuses[0]?.id || null,
     vicId: incident?.vicId || null,
     scheduleId: incident?.scheduleId || null,
     reportedById: incident?.reportedById || null,
@@ -58,7 +69,7 @@ export function IncidentForm({ incident, types, statuses, vics, users, schedules
   const [resolvedAtString, setResolvedAtString] = useState<string>(
     incident?.resolvedAt
       ? new Date(incident.resolvedAt).toISOString().slice(0, 16)
-      : ""
+      : "",
   );
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -135,7 +146,10 @@ export function IncidentForm({ incident, types, statuses, vics, users, schedules
                 max={10}
                 value={formData.priority}
                 onChange={(e) =>
-                  setFormData({ ...formData, priority: parseInt(e.target.value) || 5 })
+                  setFormData({
+                    ...formData,
+                    priority: parseInt(e.target.value, 10) || 5,
+                  })
                 }
                 required
               />
@@ -149,7 +163,10 @@ export function IncidentForm({ incident, types, statuses, vics, users, schedules
                 min={1}
                 value={formData.sla}
                 onChange={(e) =>
-                  setFormData({ ...formData, sla: parseInt(e.target.value) || 24 })
+                  setFormData({
+                    ...formData,
+                    sla: parseInt(e.target.value, 10) || 24,
+                  })
                 }
                 required
               />
@@ -169,7 +186,10 @@ export function IncidentForm({ incident, types, statuses, vics, users, schedules
               <Select
                 value={formData.typeId?.toString() || "none"}
                 onValueChange={(value) =>
-                  setFormData({ ...formData, typeId: value === "none" ? null : parseInt(value) })
+                  setFormData({
+                    ...formData,
+                    typeId: value === "none" ? null : parseInt(value, 10),
+                  })
                 }
               >
                 <SelectTrigger>
@@ -191,7 +211,10 @@ export function IncidentForm({ incident, types, statuses, vics, users, schedules
               <Select
                 value={formData.statusId?.toString() || "none"}
                 onValueChange={(value) =>
-                  setFormData({ ...formData, statusId: value === "none" ? null : parseInt(value) })
+                  setFormData({
+                    ...formData,
+                    statusId: value === "none" ? null : parseInt(value, 10),
+                  })
                 }
               >
                 <SelectTrigger>
@@ -213,7 +236,10 @@ export function IncidentForm({ incident, types, statuses, vics, users, schedules
               <Select
                 value={formData.vicId || "none"}
                 onValueChange={(value) =>
-                  setFormData({ ...formData, vicId: value === "none" ? null : value })
+                  setFormData({
+                    ...formData,
+                    vicId: value === "none" ? null : value,
+                  })
                 }
               >
                 <SelectTrigger>
@@ -235,7 +261,10 @@ export function IncidentForm({ incident, types, statuses, vics, users, schedules
               <Select
                 value={formData.reportedById || "none"}
                 onValueChange={(value) =>
-                  setFormData({ ...formData, reportedById: value === "none" ? null : value })
+                  setFormData({
+                    ...formData,
+                    reportedById: value === "none" ? null : value,
+                  })
                 }
               >
                 <SelectTrigger>
@@ -258,7 +287,10 @@ export function IncidentForm({ incident, types, statuses, vics, users, schedules
             <Select
               value={formData.scheduleId || "none"}
               onValueChange={(value) =>
-                setFormData({ ...formData, scheduleId: value === "none" ? null : value })
+                setFormData({
+                  ...formData,
+                  scheduleId: value === "none" ? null : value,
+                })
               }
             >
               <SelectTrigger>
@@ -297,7 +329,11 @@ export function IncidentForm({ incident, types, statuses, vics, users, schedules
           Cancelar
         </Button>
         <Button type="submit" disabled={loading}>
-          {loading ? "Guardando..." : incident ? "Actualizar Incidente" : "Crear Incidente"}
+          {loading
+            ? "Guardando..."
+            : incident
+              ? "Actualizar Incidente"
+              : "Crear Incidente"}
         </Button>
       </div>
     </form>

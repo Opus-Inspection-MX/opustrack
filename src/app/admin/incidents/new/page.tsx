@@ -1,11 +1,12 @@
-import { getIncidentFormOptions } from "@/lib/actions/incidents";
-import { IncidentForm } from "@/components/admin/incidents/incident-form";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import { IncidentForm } from "@/components/admin/incidents/incident-form";
 import { Button } from "@/components/ui/button";
+import { getIncidentFormOptions } from "@/lib/actions/incidents";
 
 export default async function NewIncidentPage() {
-  const { types, statuses, vics, users, schedules } = await getIncidentFormOptions();
+  const { types, statuses, vics, users, schedules } =
+    await getIncidentFormOptions();
 
   return (
     <div className="space-y-6">

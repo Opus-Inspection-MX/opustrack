@@ -1,7 +1,7 @@
-import { EquipmentForm } from "@/components/equipments/equipment-form"
-import { Button } from "@/components/ui/button"
-import { ArrowLeft } from "lucide-react"
-import Link from "next/link"
+import { ArrowLeft } from "lucide-react";
+import Link from "next/link";
+import { EquipmentForm } from "@/components/equipments/equipment-form";
+import { Button } from "@/components/ui/button";
 
 export default function NewEquipmentPage() {
   return (
@@ -14,11 +14,13 @@ export default function NewEquipmentPage() {
         </Button>
         <div>
           <h1 className="text-3xl font-bold">Nuevo Equipo</h1>
-          <p className="text-muted-foreground">Crea un nuevo equipo para una línea</p>
+          <p className="text-muted-foreground">
+            Crea un nuevo equipo para una línea
+          </p>
         </div>
       </div>
 
       <EquipmentForm mode="create" />
     </div>
-  )
+  );
 }

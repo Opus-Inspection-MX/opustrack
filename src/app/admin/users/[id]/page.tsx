@@ -1,25 +1,39 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { useRouter, useParams } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Spinner } from "@/components/ui/spinner"
-import { ArrowLeft, Edit, Mail, Calendar, Building2, Shield, UserIcon } from "lucide-react"
+import {
+  ArrowLeft,
+  Building2,
+  Calendar,
+  Edit,
+  Mail,
+  Shield,
+  UserIcon,
+} from "lucide-react";
+import { useParams, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Spinner } from "@/components/ui/spinner";
 
 export default function UserDetailPage() {
-  const router = useRouter()
-  const params = useParams()
-  const [isLoading, setIsLoading] = useState(true)
-  const [user, setUser] = useState<any>(null)
+  const router = useRouter();
+  const params = useParams();
+  const [isLoading, setIsLoading] = useState(true);
+  const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
     const fetchUser = async () => {
-      setIsLoading(true)
+      setIsLoading(true);
       try {
         // Simulate API call
-        await new Promise((resolve) => setTimeout(resolve, 500))
+        await new Promise((resolve) => setTimeout(resolve, 500));
 
         // Mock data
         const mockUser = {
@@ -32,25 +46,25 @@ export default function UserDetailPage() {
           active: true,
           createdAt: "2024-01-15T10:30:00Z",
           updatedAt: "2024-03-20T14:45:00Z",
-        }
+        };
 
-        setUser(mockUser)
+        setUser(mockUser);
       } catch (error) {
-        console.error("Error fetching user:", error)
+        console.error("Error fetching user:", error);
       } finally {
-        setIsLoading(false)
+        setIsLoading(false);
       }
-    }
+    };
 
-    fetchUser()
-  }, [params.id])
+    fetchUser();
+  }, [params.id]);
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <Spinner size="lg" />
       </div>
-    )
+    );
   }
 
   if (!user) {
@@ -68,7 +82,7 @@ export default function UserDetailPage() {
           </CardContent>
         </Card>
       </div>
-    )
+    );
   }
 
   return (
@@ -81,7 +95,9 @@ export default function UserDetailPage() {
           </Button>
           <div>
             <h1 className="text-3xl font-bold">{user.name}</h1>
-            <p className="text-muted-foreground">User details and information</p>
+            <p className="text-muted-foreground">
+              User details and information
+            </p>
           </div>
         </div>
         <Button onClick={() => router.push(`/admin/users/${user.id}/edit`)}>
@@ -100,7 +116,9 @@ export default function UserDetailPage() {
             <div className="flex items-start gap-3">
               <UserIcon className="h-5 w-5 text-muted-foreground mt-0.5" />
               <div className="flex-1">
-                <p className="text-sm font-medium text-muted-foreground">Full Name</p>
+                <p className="text-sm font-medium text-muted-foreground">
+                  Full Name
+                </p>
                 <p className="text-base">{user.name}</p>
               </div>
             </div>
@@ -108,7 +126,9 @@ export default function UserDetailPage() {
             <div className="flex items-start gap-3">
               <Mail className="h-5 w-5 text-muted-foreground mt-0.5" />
               <div className="flex-1">
-                <p className="text-sm font-medium text-muted-foreground">Email Address</p>
+                <p className="text-sm font-medium text-muted-foreground">
+                  Email Address
+                </p>
                 <p className="text-base">{user.email}</p>
               </div>
             </div>
@@ -116,7 +136,9 @@ export default function UserDetailPage() {
             <div className="flex items-start gap-3">
               <Shield className="h-5 w-5 text-muted-foreground mt-0.5" />
               <div className="flex-1">
-                <p className="text-sm font-medium text-muted-foreground">Role</p>
+                <p className="text-sm font-medium text-muted-foreground">
+                  Role
+                </p>
                 <Badge variant="secondary">{user.role.name}</Badge>
               </div>
             </div>
@@ -126,8 +148,14 @@ export default function UserDetailPage() {
                 <div className="h-2 w-2 rounded-full bg-primary" />
               </div>
               <div className="flex-1">
-                <p className="text-sm font-medium text-muted-foreground">Status</p>
-                <Badge variant={user.userStatus.name === "Active" ? "default" : "secondary"}>
+                <p className="text-sm font-medium text-muted-foreground">
+                  Status
+                </p>
+                <Badge
+                  variant={
+                    user.userStatus.name === "Active" ? "default" : "secondary"
+                  }
+                >
                   {user.userStatus.name}
                 </Badge>
               </div>
@@ -137,7 +165,9 @@ export default function UserDetailPage() {
               <div className="flex items-start gap-3">
                 <Building2 className="h-5 w-5 text-muted-foreground mt-0.5" />
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-muted-foreground">VIC Center</p>
+                  <p className="text-sm font-medium text-muted-foreground">
+                    VIC Center
+                  </p>
                   <p className="text-base">
                     {user.vicCenter.name} ({user.vicCenter.code})
                   </p>
@@ -147,11 +177,17 @@ export default function UserDetailPage() {
 
             <div className="flex items-start gap-3">
               <div className="h-5 w-5 rounded-full flex items-center justify-center mt-0.5">
-                <div className={`h-3 w-3 rounded-full ${user.active ? "bg-green-500" : "bg-red-500"}`} />
+                <div
+                  className={`h-3 w-3 rounded-full ${user.active ? "bg-green-500" : "bg-red-500"}`}
+                />
               </div>
               <div className="flex-1">
-                <p className="text-sm font-medium text-muted-foreground">Account Active</p>
-                <Badge variant={user.active ? "default" : "destructive"}>{user.active ? "Yes" : "No"}</Badge>
+                <p className="text-sm font-medium text-muted-foreground">
+                  Account Active
+                </p>
+                <Badge variant={user.active ? "default" : "destructive"}>
+                  {user.active ? "Yes" : "No"}
+                </Badge>
               </div>
             </div>
           </CardContent>
@@ -166,16 +202,24 @@ export default function UserDetailPage() {
             <div className="flex items-start gap-3">
               <Calendar className="h-5 w-5 text-muted-foreground mt-0.5" />
               <div className="flex-1">
-                <p className="text-sm font-medium text-muted-foreground">Created At</p>
-                <p className="text-base">{new Date(user.createdAt).toLocaleString()}</p>
+                <p className="text-sm font-medium text-muted-foreground">
+                  Created At
+                </p>
+                <p className="text-base">
+                  {new Date(user.createdAt).toLocaleString()}
+                </p>
               </div>
             </div>
 
             <div className="flex items-start gap-3">
               <Calendar className="h-5 w-5 text-muted-foreground mt-0.5" />
               <div className="flex-1">
-                <p className="text-sm font-medium text-muted-foreground">Last Updated</p>
-                <p className="text-base">{new Date(user.updatedAt).toLocaleString()}</p>
+                <p className="text-sm font-medium text-muted-foreground">
+                  Last Updated
+                </p>
+                <p className="text-base">
+                  {new Date(user.updatedAt).toLocaleString()}
+                </p>
               </div>
             </div>
 
@@ -184,7 +228,9 @@ export default function UserDetailPage() {
                 <div className="text-lg font-bold text-primary">#</div>
               </div>
               <div className="flex-1">
-                <p className="text-sm font-medium text-muted-foreground">User ID</p>
+                <p className="text-sm font-medium text-muted-foreground">
+                  User ID
+                </p>
                 <p className="text-base font-mono">{user.id}</p>
               </div>
             </div>
@@ -192,5 +238,5 @@ export default function UserDetailPage() {
         </Card>
       </div>
     </div>
-  )
+  );
 }

@@ -1,76 +1,78 @@
-"use client"
+"use client";
 
-import type React from "react"
-
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { ArrowLeft, Save } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Switch } from "@/components/ui/switch"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Spinner } from "@/components/ui/spinner"
+import { ArrowLeft, Save } from "lucide-react";
+import { useRouter } from "next/navigation";
+import type React from "react";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Spinner } from "@/components/ui/spinner";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 
 export default function NewIncidentTypePage() {
-  const router = useRouter()
-  const [isLoading, setIsLoading] = useState(false)
+  const router = useRouter();
+  const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     description: "",
     active: true,
-  })
-  const [errors, setErrors] = useState<Record<string, string>>({})
+  });
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const validateForm = () => {
-    const newErrors: Record<string, string> = {}
+    const newErrors: Record<string, string> = {};
 
     if (!formData.name.trim()) {
-      newErrors.name = "Name is required"
+      newErrors.name = "Name is required";
     } else if (formData.name.length > 100) {
-      newErrors.name = "Name must be less than 100 characters"
+      newErrors.name = "Name must be less than 100 characters";
     }
 
     if (formData.description && formData.description.length > 500) {
-      newErrors.description = "Description must be less than 500 characters"
+      newErrors.description = "Description must be less than 500 characters";
     }
 
-    setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
-  }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
 
     if (!validateForm()) {
-      return
+      return;
     }
 
     try {
-      setIsLoading(true)
-      const { createIncidentType } = await import("@/lib/actions/lookups")
+      setIsLoading(true);
+      const { createIncidentType } = await import("@/lib/actions/lookups");
       await createIncidentType({
         name: formData.name.trim(),
         description: formData.description?.trim() || undefined,
-      })
-      router.push("/admin/incident-types")
-      router.refresh()
+      });
+      router.push("/admin/incident-types");
+      router.refresh();
     } catch (error) {
-      console.error("Error creating incident type:", error)
-      alert("Failed to create incident type")
+      console.error("Error creating incident type:", error);
+      alert("Failed to create incident type");
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
-  const handleInputChange = (field: string, value: any) => {
-    setFormData((prev) => ({ ...prev, [field]: value }))
+  const handleInputChange = <K extends keyof typeof formData>(
+    field: K,
+    value: (typeof formData)[K],
+  ) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
     // Clear error when user starts typing
     if (errors[field]) {
-      setErrors((prev) => ({ ...prev, [field]: "" }))
+      setErrors((prev) => ({ ...prev, [field]: "" }));
     }
-  }
+  };
 
   return (
     <div className="space-y-6">
@@ -80,7 +82,9 @@ export default function NewIncidentTypePage() {
         </Button>
         <div>
           <h1 className="text-3xl font-bold">Create Incident Type</h1>
-          <p className="text-muted-foreground">Add a new incident type to the system</p>
+          <p className="text-muted-foreground">
+            Add a new incident type to the system
+          </p>
         </div>
       </div>
 
@@ -101,7 +105,9 @@ export default function NewIncidentTypePage() {
                 placeholder="e.g., Hardware Failure, Software Bug"
                 className={errors.name ? "border-red-500" : ""}
               />
-              {errors.name && <p className="text-sm text-red-500">{errors.name}</p>}
+              {errors.name && (
+                <p className="text-sm text-red-500">{errors.name}</p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -109,14 +115,20 @@ export default function NewIncidentTypePage() {
               <Textarea
                 id="description"
                 value={formData.description}
-                onChange={(e) => handleInputChange("description", e.target.value)}
+                onChange={(e) =>
+                  handleInputChange("description", e.target.value)
+                }
                 placeholder="Enter a detailed description of this incident type"
                 rows={4}
                 className={errors.description ? "border-red-500" : ""}
               />
               <div className="flex justify-between">
-                {errors.description && <p className="text-sm text-red-500">{errors.description}</p>}
-                <p className="text-sm text-muted-foreground ml-auto">{formData.description.length}/500</p>
+                {errors.description && (
+                  <p className="text-sm text-red-500">{errors.description}</p>
+                )}
+                <p className="text-sm text-muted-foreground ml-auto">
+                  {formData.description.length}/500
+                </p>
               </div>
             </div>
 
@@ -124,7 +136,9 @@ export default function NewIncidentTypePage() {
               <Switch
                 id="active"
                 checked={formData.active}
-                onCheckedChange={(checked) => handleInputChange("active", checked)}
+                onCheckedChange={(checked) =>
+                  handleInputChange("active", checked)
+                }
               />
               <Label htmlFor="active">Active</Label>
             </div>
@@ -135,7 +149,11 @@ export default function NewIncidentTypePage() {
                 <Save className="h-4 w-4 mr-2" />
                 {isLoading ? "Creating..." : "Create Incident Type"}
               </Button>
-              <Button type="button" variant="outline" onClick={() => router.push("/admin/incident-types")}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => router.push("/admin/incident-types")}
+              >
                 Cancel
               </Button>
             </div>
@@ -143,5 +161,5 @@ export default function NewIncidentTypePage() {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

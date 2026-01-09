@@ -1,7 +1,7 @@
 "use server";
 
-import { signIn as nextAuthSignIn } from "next-auth/react";
 import { redirect } from "next/navigation";
+import { signIn as nextAuthSignIn } from "next-auth/react";
 
 export async function signIn(formData: FormData) {
   const email = formData.get("email") as string;

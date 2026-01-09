@@ -1,6 +1,16 @@
-import Link from "next/link"
-import { Card, CardContent } from "@/components/ui/card"
-import { Shield, Users, BarChart3, AlertTriangle, Wrench, UserCog, Briefcase, FileText, User } from "lucide-react"
+import {
+  AlertTriangle,
+  BarChart3,
+  Briefcase,
+  FileText,
+  Shield,
+  User,
+  UserCog,
+  Users,
+  Wrench,
+} from "lucide-react";
+import Link from "next/link";
+import { Card, CardContent } from "@/components/ui/card";
 
 export default function HomePage() {
   return (
@@ -28,12 +38,15 @@ export default function HomePage() {
 
           <h1 className="text-5xl md:text-6xl font-bold tracking-tight">
             Bienvenido a{" "}
-            <span className="bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">OpusTrack</span>
+            <span className="bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+              OpusTrack
+            </span>
           </h1>
 
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Optimiza la gestión de incidentes, órdenes de trabajo y coordinación de equipos con la plataforma integral
-            de seguimiento de OpusInspection.
+            Optimiza la gestión de incidentes, órdenes de trabajo y coordinación
+            de equipos con la plataforma integral de seguimiento de
+            OpusInspection.
           </p>
         </div>
       </section>
@@ -42,7 +55,9 @@ export default function HomePage() {
         <div className="max-w-5xl mx-auto space-y-6">
           <div className="text-center space-y-2">
             <h2 className="text-3xl font-bold">Accede a tu Panel</h2>
-            <p className="text-muted-foreground">Elige tu rol para acceder al panel correspondiente</p>
+            <p className="text-muted-foreground">
+              Elige tu rol para acceder al panel correspondiente
+            </p>
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -53,7 +68,9 @@ export default function HomePage() {
                     <UserCog className="h-7 w-7 text-red-600 dark:text-red-400" />
                   </div>
                   <h3 className="font-semibold text-lg">Admin</h3>
-                  <p className="text-sm text-muted-foreground">Acceso completo al sistema y gestión</p>
+                  <p className="text-sm text-muted-foreground">
+                    Acceso completo al sistema y gestión
+                  </p>
                 </CardContent>
               </Card>
             </Link>
@@ -65,7 +82,9 @@ export default function HomePage() {
                     <Briefcase className="h-7 w-7 text-blue-600 dark:text-blue-400" />
                   </div>
                   <h3 className="font-semibold text-lg">FSR</h3>
-                  <p className="text-sm text-muted-foreground">Servicio de campo y gestión de incidentes</p>
+                  <p className="text-sm text-muted-foreground">
+                    Servicio de campo y gestión de incidentes
+                  </p>
                 </CardContent>
               </Card>
             </Link>
@@ -77,7 +96,9 @@ export default function HomePage() {
                     <FileText className="h-7 w-7 text-orange-600 dark:text-orange-400" />
                   </div>
                   <h3 className="font-semibold text-lg">Cliente</h3>
-                  <p className="text-sm text-muted-foreground">Reporte y seguimiento de incidentes</p>
+                  <p className="text-sm text-muted-foreground">
+                    Reporte y seguimiento de incidentes
+                  </p>
                 </CardContent>
               </Card>
             </Link>
@@ -89,7 +110,9 @@ export default function HomePage() {
                     <User className="h-7 w-7 text-green-600 dark:text-green-400" />
                   </div>
                   <h3 className="font-semibold text-lg">Invitado</h3>
-                  <p className="text-sm text-muted-foreground">Perfil personal e información</p>
+                  <p className="text-sm text-muted-foreground">
+                    Perfil personal e información
+                  </p>
                 </CardContent>
               </Card>
             </Link>
@@ -104,10 +127,12 @@ export default function HomePage() {
               <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
                 <AlertTriangle className="h-6 w-6 text-primary" />
               </div>
-              <h3 className="font-semibold text-lg">Seguimiento de Incidentes</h3>
+              <h3 className="font-semibold text-lg">
+                Seguimiento de Incidentes
+              </h3>
               <p className="text-sm text-muted-foreground">
-                Reporta, rastrea y gestiona incidentes con actualizaciones de estado en tiempo real y documentación
-                completa.
+                Reporta, rastrea y gestiona incidentes con actualizaciones de
+                estado en tiempo real y documentación completa.
               </p>
             </CardContent>
           </Card>
@@ -117,10 +142,12 @@ export default function HomePage() {
               <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
                 <Wrench className="h-6 w-6 text-primary" />
               </div>
-              <h3 className="font-semibold text-lg">Gestión de Órdenes de Trabajo</h3>
+              <h3 className="font-semibold text-lg">
+                Gestión de Órdenes de Trabajo
+              </h3>
               <p className="text-sm text-muted-foreground">
-                Crea, asigna y completa órdenes de trabajo eficientemente con programación integrada y seguimiento de
-                partes.
+                Crea, asigna y completa órdenes de trabajo eficientemente con
+                programación integrada y seguimiento de partes.
               </p>
             </CardContent>
           </Card>
@@ -132,8 +159,8 @@ export default function HomePage() {
               </div>
               <h3 className="font-semibold text-lg">Colaboración en Equipo</h3>
               <p className="text-sm text-muted-foreground">
-                El control de acceso basado en roles asegura que los miembros del equipo tengan las herramientas e
-                información correctas.
+                El control de acceso basado en roles asegura que los miembros
+                del equipo tengan las herramientas e información correctas.
               </p>
             </CardContent>
           </Card>
@@ -146,10 +173,13 @@ export default function HomePage() {
             <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
               <BarChart3 className="h-8 w-8 text-primary" />
             </div>
-            <h2 className="text-2xl font-bold">Construido para OpusInspection</h2>
+            <h2 className="text-2xl font-bold">
+              Construido para OpusInspection
+            </h2>
             <p className="text-muted-foreground">
-              OpusTrack es una plataforma privada de nivel empresarial diseñada específicamente para las necesidades
-              operativas de OpusInspection. El acceso es gestionado por tu administrador del sistema.
+              OpusTrack es una plataforma privada de nivel empresarial diseñada
+              específicamente para las necesidades operativas de OpusInspection.
+              El acceso es gestionado por tu administrador del sistema.
             </p>
           </CardContent>
         </Card>
@@ -157,10 +187,15 @@ export default function HomePage() {
 
       <footer className="border-t mt-20">
         <div className="container mx-auto px-4 py-8 text-center text-sm text-muted-foreground">
-          <p>&copy; {new Date().getFullYear()} OpusInspection. Todos los derechos reservados.</p>
-          <p className="mt-2">OpusTrack - Sistema Profesional de Gestión de Incidentes</p>
+          <p>
+            &copy; {new Date().getFullYear()} OpusInspection. Todos los derechos
+            reservados.
+          </p>
+          <p className="mt-2">
+            OpusTrack - Sistema Profesional de Gestión de Incidentes
+          </p>
         </div>
       </footer>
     </div>
-  )
+  );
 }

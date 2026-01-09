@@ -1,32 +1,44 @@
-"use client"
+"use client";
 
-import { MoreHorizontal, Edit, Trash2, Eye, MapPin } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
-import { TablePagination } from "@/components/common/table-pagination"
+import { Edit, Eye, MapPin, MoreHorizontal, Trash2 } from "lucide-react";
+import { TablePagination } from "@/components/common/table-pagination";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 interface State {
-  id: number
-  name: string
-  code: string
-  vicCount: number
-  active: boolean
-  createdAt: string
-  updatedAt: string
+  id: number;
+  name: string;
+  code: string;
+  vicCount: number;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 interface StateTableProps {
-  states: State[]
-  totalCount: number
-  currentPage: number
-  itemsPerPage: number
-  onPageChange: (page: number) => void
-  onItemsPerPageChange: (itemsPerPage: number) => void
-  onEdit: (id: number) => void
-  onDelete: (id: number) => void
-  onView: (id: number) => void
+  states: State[];
+  totalCount: number;
+  currentPage: number;
+  itemsPerPage: number;
+  onPageChange: (page: number) => void;
+  onItemsPerPageChange: (itemsPerPage: number) => void;
+  onEdit: (id: number) => void;
+  onDelete: (id: number) => void;
+  onView: (id: number) => void;
 }
 
 export function StateTable({
@@ -40,8 +52,8 @@ export function StateTable({
   onDelete,
   onView,
 }: StateTableProps) {
-  const startIndex = (currentPage - 1) * itemsPerPage
-  const endIndex = Math.min(startIndex + itemsPerPage, totalCount)
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = Math.min(startIndex + itemsPerPage, totalCount);
 
   return (
     <div className="space-y-4">
@@ -77,7 +89,11 @@ export function StateTable({
                 <TableCell>
                   <Badge
                     variant={state.active ? "default" : "destructive"}
-                    className={state.active ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}
+                    className={
+                      state.active
+                        ? "bg-green-100 text-green-800"
+                        : "bg-red-100 text-red-800"
+                    }
                   >
                     {state.active ? "Activo" : "Inactivo"}
                   </Badge>
@@ -129,5 +145,5 @@ export function StateTable({
         onItemsPerPageChange={onItemsPerPageChange}
       />
     </div>
-  )
+  );
 }

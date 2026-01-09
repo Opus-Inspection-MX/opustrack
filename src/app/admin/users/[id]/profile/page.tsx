@@ -1,18 +1,23 @@
-"use client"
+"use client";
 
-import type React from "react"
-
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Badge } from "@/components/ui/badge"
-import { FormError } from "@/components/ui/form-error"
-import { Spinner } from "@/components/ui/spinner"
-import { ArrowLeft, User, Mail, Phone, MapPin, Calendar } from "lucide-react"
+import { ArrowLeft, Calendar, Mail, MapPin, Phone, User } from "lucide-react";
+import { useRouter } from "next/navigation";
+import type React from "react";
+import { useState } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { FormError } from "@/components/ui/form-error";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Spinner } from "@/components/ui/spinner";
+import { Textarea } from "@/components/ui/textarea";
 
 // Mock data - replace with actual API call
 const mockUserProfile = {
@@ -27,13 +32,17 @@ const mockUserProfile = {
   vic: { name: "VIC Centro", code: "VIC001" },
   createdAt: "2024-01-15T10:30:00Z",
   lastLogin: "2024-01-20T14:22:00Z",
-}
+};
 
-export default function UserProfilePage({ params }: { params: { id: string } }) {
-  const router = useRouter()
-  const [isLoading, setIsLoading] = useState(false)
-  const [isEditing, setIsEditing] = useState(false)
-  const [errors, setErrors] = useState<Record<string, string>>({})
+export default function UserProfilePage({
+  params,
+}: {
+  params: { id: string };
+}) {
+  const router = useRouter();
+  const [isLoading, setIsLoading] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const [formData, setFormData] = useState({
     name: mockUserProfile.name,
@@ -41,65 +50,65 @@ export default function UserProfilePage({ params }: { params: { id: string } }) 
     phone: mockUserProfile.phone,
     address: mockUserProfile.address,
     bio: mockUserProfile.bio,
-  })
+  });
 
   const validateForm = () => {
-    const newErrors: Record<string, string> = {}
+    const newErrors: Record<string, string> = {};
 
     if (!formData.name.trim()) {
-      newErrors.name = "Name is required"
+      newErrors.name = "Name is required";
     }
 
     if (!formData.email.trim()) {
-      newErrors.email = "Email is required"
+      newErrors.email = "Email is required";
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = "Email is invalid"
+      newErrors.email = "Email is invalid";
     }
 
-    setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
-  }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
 
     if (!validateForm()) {
-      return
+      return;
     }
 
-    setIsLoading(true)
+    setIsLoading(true);
     try {
       // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      await new Promise((resolve) => setTimeout(resolve, 1000));
 
-      console.log("Profile updated:", formData)
-      setIsEditing(false)
+      console.log("Profile updated:", formData);
+      setIsEditing(false);
     } catch (error) {
-      console.error("Error updating profile:", error)
+      console.error("Error updating profile:", error);
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   const handleInputChange = (field: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }))
+    setFormData((prev) => ({ ...prev, [field]: value }));
     if (errors[field]) {
-      setErrors((prev) => ({ ...prev, [field]: "" }))
+      setErrors((prev) => ({ ...prev, [field]: "" }));
     }
-  }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
       case "active":
-        return "bg-green-100 text-green-800"
+        return "bg-green-100 text-green-800";
       case "inactive":
-        return "bg-gray-100 text-gray-800"
+        return "bg-gray-100 text-gray-800";
       case "suspended":
-        return "bg-red-100 text-red-800"
+        return "bg-red-100 text-red-800";
       default:
-        return "bg-gray-100 text-gray-800"
+        return "bg-gray-100 text-gray-800";
     }
-  }
+  };
 
   return (
     <div className="space-y-6">
@@ -110,7 +119,9 @@ export default function UserProfilePage({ params }: { params: { id: string } }) 
         </Button>
         <div>
           <h1 className="text-3xl font-bold">User Profile</h1>
-          <p className="text-muted-foreground">View and manage user profile information</p>
+          <p className="text-muted-foreground">
+            View and manage user profile information
+          </p>
         </div>
       </div>
 
@@ -127,13 +138,19 @@ export default function UserProfilePage({ params }: { params: { id: string } }) 
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">Role:</span>
-              <Badge variant="outline" className="bg-purple-100 text-purple-800">
+              <Badge
+                variant="outline"
+                className="bg-purple-100 text-purple-800"
+              >
                 {mockUserProfile.role.name}
               </Badge>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">Status:</span>
-              <Badge variant="outline" className={getStatusColor(mockUserProfile.userStatus.name)}>
+              <Badge
+                variant="outline"
+                className={getStatusColor(mockUserProfile.userStatus.name)}
+              >
                 {mockUserProfile.userStatus.name}
               </Badge>
             </div>
@@ -142,18 +159,22 @@ export default function UserProfilePage({ params }: { params: { id: string } }) 
                 <span className="text-sm font-medium">VIC Center:</span>
                 <div className="text-right text-sm">
                   <div className="font-medium">{mockUserProfile.vic.name}</div>
-                  <div className="text-muted-foreground">{mockUserProfile.vic.code}</div>
+                  <div className="text-muted-foreground">
+                    {mockUserProfile.vic.code}
+                  </div>
                 </div>
               </div>
             )}
             <div className="pt-4 border-t space-y-2">
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Calendar className="h-4 w-4" />
-                Joined {new Date(mockUserProfile.createdAt).toLocaleDateString()}
+                Joined{" "}
+                {new Date(mockUserProfile.createdAt).toLocaleDateString()}
               </div>
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <User className="h-4 w-4" />
-                Last login {new Date(mockUserProfile.lastLogin).toLocaleDateString()}
+                Last login{" "}
+                {new Date(mockUserProfile.lastLogin).toLocaleDateString()}
               </div>
             </div>
           </CardContent>
@@ -166,10 +187,14 @@ export default function UserProfilePage({ params }: { params: { id: string } }) 
               <div>
                 <CardTitle>Profile Information</CardTitle>
                 <CardDescription>
-                  {isEditing ? "Update your profile information" : "Your personal information"}
+                  {isEditing
+                    ? "Update your profile information"
+                    : "Your personal information"}
                 </CardDescription>
               </div>
-              {!isEditing && <Button onClick={() => setIsEditing(true)}>Edit Profile</Button>}
+              {!isEditing && (
+                <Button onClick={() => setIsEditing(true)}>Edit Profile</Button>
+              )}
             </CardHeader>
             <CardContent>
               {isEditing ? (
@@ -180,7 +205,9 @@ export default function UserProfilePage({ params }: { params: { id: string } }) 
                       <Input
                         id="name"
                         value={formData.name}
-                        onChange={(e) => handleInputChange("name", e.target.value)}
+                        onChange={(e) =>
+                          handleInputChange("name", e.target.value)
+                        }
                         placeholder="Enter full name"
                       />
                       {errors.name && <FormError message={errors.name} />}
@@ -192,7 +219,9 @@ export default function UserProfilePage({ params }: { params: { id: string } }) 
                         id="email"
                         type="email"
                         value={formData.email}
-                        onChange={(e) => handleInputChange("email", e.target.value)}
+                        onChange={(e) =>
+                          handleInputChange("email", e.target.value)
+                        }
                         placeholder="Enter email address"
                       />
                       {errors.email && <FormError message={errors.email} />}
@@ -203,7 +232,9 @@ export default function UserProfilePage({ params }: { params: { id: string } }) 
                       <Input
                         id="phone"
                         value={formData.phone}
-                        onChange={(e) => handleInputChange("phone", e.target.value)}
+                        onChange={(e) =>
+                          handleInputChange("phone", e.target.value)
+                        }
                         placeholder="Enter phone number"
                       />
                     </div>
@@ -213,7 +244,9 @@ export default function UserProfilePage({ params }: { params: { id: string } }) 
                       <Input
                         id="address"
                         value={formData.address}
-                        onChange={(e) => handleInputChange("address", e.target.value)}
+                        onChange={(e) =>
+                          handleInputChange("address", e.target.value)
+                        }
                         placeholder="Enter address"
                       />
                     </div>
@@ -231,7 +264,11 @@ export default function UserProfilePage({ params }: { params: { id: string } }) 
                   </div>
 
                   <div className="flex justify-end gap-4">
-                    <Button type="button" variant="outline" onClick={() => setIsEditing(false)}>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setIsEditing(false)}
+                    >
                       Cancel
                     </Button>
                     <Button type="submit" disabled={isLoading}>
@@ -277,7 +314,9 @@ export default function UserProfilePage({ params }: { params: { id: string } }) 
                   </div>
 
                   <div className="space-y-2">
-                    <div className="text-sm font-medium text-muted-foreground">Bio</div>
+                    <div className="text-sm font-medium text-muted-foreground">
+                      Bio
+                    </div>
                     <p className="text-sm">{mockUserProfile.bio}</p>
                   </div>
                 </div>
@@ -287,5 +326,5 @@ export default function UserProfilePage({ params }: { params: { id: string } }) 
         </div>
       </div>
     </div>
-  )
+  );
 }

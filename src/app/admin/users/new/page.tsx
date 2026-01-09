@@ -1,8 +1,8 @@
-import { getUserFormOptions } from "@/lib/actions/users";
-import { UserForm } from "@/components/admin/users/user-form";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import { UserForm } from "@/components/admin/users/user-form";
 import { Button } from "@/components/ui/button";
+import { getUserFormOptions } from "@/lib/actions/users";
 
 export default async function NewUserPage() {
   const { roles, statuses, vics } = await getUserFormOptions();

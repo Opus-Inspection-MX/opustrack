@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { signOut } from "next-auth/react";
-import { Button } from "@/components/ui/button";
 import { LogOut } from "lucide-react";
+import { signOut } from "next-auth/react";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
 import {
   Tooltip,
   TooltipContent,
@@ -12,7 +12,13 @@ import {
 } from "@/components/ui/tooltip";
 
 interface LogoutButtonProps {
-  variant?: "default" | "outline" | "ghost" | "link" | "destructive" | "secondary";
+  variant?:
+    | "default"
+    | "outline"
+    | "ghost"
+    | "link"
+    | "destructive"
+    | "secondary";
   size?: "default" | "sm" | "lg" | "icon";
   className?: string;
   showIcon?: boolean;
@@ -52,7 +58,8 @@ export function LogoutButton({
       className={className}
     >
       {showIcon && <LogOut className={iconOnly ? "h-4 w-4" : "h-4 w-4 mr-2"} />}
-      {!iconOnly && (children || (isLoggingOut ? "Cerrando sesión..." : "Cerrar Sesión"))}
+      {!iconOnly &&
+        (children || (isLoggingOut ? "Cerrando sesión..." : "Cerrar Sesión"))}
     </Button>
   );
 
@@ -60,9 +67,7 @@ export function LogoutButton({
     return (
       <TooltipProvider>
         <Tooltip>
-          <TooltipTrigger asChild>
-            {buttonContent}
-          </TooltipTrigger>
+          <TooltipTrigger asChild>{buttonContent}</TooltipTrigger>
           <TooltipContent side="right">
             <p>Cerrar Sesión</p>
           </TooltipContent>

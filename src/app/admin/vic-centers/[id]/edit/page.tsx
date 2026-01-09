@@ -1,9 +1,14 @@
-import { getVICById, getStates, getFSRUsers, getClientUsers } from "@/lib/actions/vics";
-import { VICForm } from "@/components/admin/vics/vic-form";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
 import { notFound } from "next/navigation";
+import { VICForm } from "@/components/admin/vics/vic-form";
+import { Button } from "@/components/ui/button";
+import {
+  getClientUsers,
+  getFSRUsers,
+  getStates,
+  getVICById,
+} from "@/lib/actions/vics";
 
 export default async function EditVICCenterPage({
   params,
@@ -36,7 +41,12 @@ export default async function EditVICCenterPage({
         </div>
       </div>
 
-      <VICForm vic={vic} states={states} fsrUsers={fsrUsers} clientUsers={clientUsers} />
+      <VICForm
+        vic={vic}
+        states={states}
+        fsrUsers={fsrUsers}
+        clientUsers={clientUsers}
+      />
     </div>
   );
 }

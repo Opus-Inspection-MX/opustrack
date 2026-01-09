@@ -1,55 +1,79 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { MoreHorizontal, Edit, Trash2, Calendar, Building2, Eye } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
-import { TablePagination } from "@/components/common/table-pagination"
+import {
+  Building2,
+  Calendar,
+  Edit,
+  Eye,
+  MoreHorizontal,
+  Trash2,
+} from "lucide-react";
+import { useState } from "react";
+import { TablePagination } from "@/components/common/table-pagination";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 interface Schedule {
-  id: string
-  title: string
-  description?: string
-  scheduledAt: string
-  endDate?: string | null
-  vicId: string
-  vicName: string
-  incidentCount: number
-  active: boolean
-  createdAt: string
-  updatedAt: string
+  id: string;
+  title: string;
+  description?: string;
+  scheduledAt: string;
+  endDate?: string | null;
+  vicId: string;
+  vicName: string;
+  incidentCount: number;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 interface ScheduleTableProps {
-  data: Schedule[]
-  onEdit: (id: string) => void
-  onDelete: (id: string) => void
-  onView: (id: string) => void
+  data: Schedule[];
+  onEdit: (id: string) => void;
+  onDelete: (id: string) => void;
+  onView: (id: string) => void;
 }
 
-export function ScheduleTable({ data, onEdit, onDelete, onView }: ScheduleTableProps) {
-  const [currentPage, setCurrentPage] = useState(1)
-  const [itemsPerPage, setItemsPerPage] = useState(10)
+export function ScheduleTable({
+  data,
+  onEdit,
+  onDelete,
+  onView,
+}: ScheduleTableProps) {
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
-  const startIndex = (currentPage - 1) * itemsPerPage
-  const endIndex = startIndex + itemsPerPage
-  const currentData = data.slice(startIndex, endIndex)
-  const totalPages = Math.ceil(data.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentData = data.slice(startIndex, endIndex);
+  const totalPages = Math.ceil(data.length / itemsPerPage);
 
   const getScheduleStatus = (scheduledAt: string) => {
-    const now = new Date()
-    const scheduleDate = new Date(scheduledAt)
+    const now = new Date();
+    const scheduleDate = new Date(scheduledAt);
 
     if (scheduleDate < now) {
-      return { label: "Pasado", variant: "secondary" as const }
+      return { label: "Pasado", variant: "secondary" as const };
     } else if (scheduleDate.toDateString() === now.toDateString()) {
-      return { label: "Hoy", variant: "default" as const }
+      return { label: "Hoy", variant: "default" as const };
     } else {
-      return { label: "Próximo", variant: "outline" as const }
+      return { label: "Próximo", variant: "outline" as const };
     }
-  }
+  };
 
   return (
     <div className="space-y-4">
@@ -68,7 +92,7 @@ export function ScheduleTable({ data, onEdit, onDelete, onView }: ScheduleTableP
           </TableHeader>
           <TableBody>
             {currentData.map((schedule) => {
-              const status = getScheduleStatus(schedule.scheduledAt)
+              const status = getScheduleStatus(schedule.scheduledAt);
               return (
                 <TableRow key={schedule.id}>
                   <TableCell>
@@ -94,38 +118,54 @@ export function ScheduleTable({ data, onEdit, onDelete, onView }: ScheduleTableP
                       <div className="flex items-center gap-1">
                         <Calendar className="h-4 w-4 text-muted-foreground" />
                         <div>
-                          <div className="text-xs font-medium text-muted-foreground">Inicio:</div>
+                          <div className="text-xs font-medium text-muted-foreground">
+                            Inicio:
+                          </div>
                           <div className="text-sm">
-                            {new Date(schedule.scheduledAt).toLocaleDateString("es-MX", {
-                              day: "2-digit",
-                              month: "short",
-                              year: "numeric"
-                            })}
+                            {new Date(schedule.scheduledAt).toLocaleDateString(
+                              "es-MX",
+                              {
+                                day: "2-digit",
+                                month: "short",
+                                year: "numeric",
+                              },
+                            )}
                           </div>
                           <div className="text-xs text-muted-foreground">
-                            {new Date(schedule.scheduledAt).toLocaleTimeString("es-MX", {
-                              hour: "2-digit",
-                              minute: "2-digit"
-                            })}
+                            {new Date(schedule.scheduledAt).toLocaleTimeString(
+                              "es-MX",
+                              {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              },
+                            )}
                           </div>
                         </div>
                       </div>
                       {schedule.endDate && (
                         <div className="flex items-center gap-1 pl-5">
                           <div>
-                            <div className="text-xs font-medium text-muted-foreground">Fin:</div>
+                            <div className="text-xs font-medium text-muted-foreground">
+                              Fin:
+                            </div>
                             <div className="text-sm">
-                              {new Date(schedule.endDate).toLocaleDateString("es-MX", {
-                                day: "2-digit",
-                                month: "short",
-                                year: "numeric"
-                              })}
+                              {new Date(schedule.endDate).toLocaleDateString(
+                                "es-MX",
+                                {
+                                  day: "2-digit",
+                                  month: "short",
+                                  year: "numeric",
+                                },
+                              )}
                             </div>
                             <div className="text-xs text-muted-foreground">
-                              {new Date(schedule.endDate).toLocaleTimeString("es-MX", {
-                                hour: "2-digit",
-                                minute: "2-digit"
-                              })}
+                              {new Date(schedule.endDate).toLocaleTimeString(
+                                "es-MX",
+                                {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                },
+                              )}
                             </div>
                           </div>
                         </div>
@@ -171,7 +211,7 @@ export function ScheduleTable({ data, onEdit, onDelete, onView }: ScheduleTableP
                     </DropdownMenu>
                   </TableCell>
                 </TableRow>
-              )
+              );
             })}
           </TableBody>
         </Table>
@@ -188,5 +228,5 @@ export function ScheduleTable({ data, onEdit, onDelete, onView }: ScheduleTableP
         onItemsPerPageChange={setItemsPerPage}
       />
     </div>
-  )
+  );
 }

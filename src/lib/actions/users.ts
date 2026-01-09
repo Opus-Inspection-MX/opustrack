@@ -1,10 +1,10 @@
 "use server";
 
-import { prisma } from "@/lib/database/prisma.singleton";
-import { requirePermission } from "@/lib/auth/auth";
 import { revalidatePath } from "next/cache";
-import { hashPassword } from "@/lib/security/hash";
 import { redirect } from "next/navigation";
+import { requirePermission } from "@/lib/auth/auth";
+import { prisma } from "@/lib/database/prisma.singleton";
+import { hashPassword } from "@/lib/security/hash";
 
 export type UserFormData = {
   name: string;
@@ -258,7 +258,10 @@ export async function updateMyProfile(data: {
 /**
  * Update current user's password
  */
-export async function updateMyPassword(currentPassword: string, newPassword: string) {
+export async function updateMyPassword(
+  currentPassword: string,
+  newPassword: string,
+) {
   const { requireAuth } = await import("@/lib/auth/auth");
   const user = await requireAuth();
 
@@ -276,7 +279,7 @@ export async function updateMyPassword(currentPassword: string, newPassword: str
   const bcrypt = await import("bcrypt");
   const isValidPassword = await bcrypt.compare(
     currentPassword,
-    userWithPassword.password
+    userWithPassword.password,
   );
 
   if (!isValidPassword) {

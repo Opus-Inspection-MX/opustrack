@@ -1,38 +1,55 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { MoreHorizontal, Edit, Trash2, FileText, Eye } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
-import { TablePagination } from "@/components/common/table-pagination"
+import { Edit, Eye, FileText, MoreHorizontal, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { TablePagination } from "@/components/common/table-pagination";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 interface IncidentType {
-  id: number
-  name: string
-  description?: string
-  active: boolean
-  incidentCount: number
-  createdAt: string
-  updatedAt: string
+  id: number;
+  name: string;
+  description?: string;
+  active: boolean;
+  incidentCount: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
 interface IncidentTypeTableProps {
-  data: IncidentType[]
-  onEdit: (id: number) => void
-  onDelete: (id: number) => void
-  onView: (id: number) => void
+  data: IncidentType[];
+  onEdit: (id: number) => void;
+  onDelete: (id: number) => void;
+  onView: (id: number) => void;
 }
 
-export function IncidentTypeTable({ data, onEdit, onDelete, onView }: IncidentTypeTableProps) {
-  const [currentPage, setCurrentPage] = useState(1)
-  const [itemsPerPage, setItemsPerPage] = useState(10)
+export function IncidentTypeTable({
+  data,
+  onEdit,
+  onDelete,
+  onView,
+}: IncidentTypeTableProps) {
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
-  const startIndex = (currentPage - 1) * itemsPerPage
-  const endIndex = startIndex + itemsPerPage
-  const currentData = data.slice(startIndex, endIndex)
-  const totalPages = Math.ceil(data.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentData = data.slice(startIndex, endIndex);
+  const totalPages = Math.ceil(data.length / itemsPerPage);
 
   return (
     <div className="space-y-4">
@@ -55,14 +72,20 @@ export function IncidentTypeTable({ data, onEdit, onDelete, onView }: IncidentTy
                 <TableCell>
                   {type.description ? (
                     <span className="text-sm text-muted-foreground">
-                      {type.description.length > 50 ? `${type.description.substring(0, 50)}...` : type.description}
+                      {type.description.length > 50
+                        ? `${type.description.substring(0, 50)}...`
+                        : type.description}
                     </span>
                   ) : (
-                    <span className="text-sm text-muted-foreground italic">Sin descripción</span>
+                    <span className="text-sm text-muted-foreground italic">
+                      Sin descripción
+                    </span>
                   )}
                 </TableCell>
                 <TableCell>
-                  <Badge variant={type.active ? "default" : "secondary"}>{type.active ? "Activo" : "Inactivo"}</Badge>
+                  <Badge variant={type.active ? "default" : "secondary"}>
+                    {type.active ? "Activo" : "Inactivo"}
+                  </Badge>
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-1">
@@ -70,7 +93,9 @@ export function IncidentTypeTable({ data, onEdit, onDelete, onView }: IncidentTy
                     <span>{type.incidentCount}</span>
                   </div>
                 </TableCell>
-                <TableCell>{new Date(type.createdAt).toLocaleDateString()}</TableCell>
+                <TableCell>
+                  {new Date(type.createdAt).toLocaleDateString()}
+                </TableCell>
                 <TableCell>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -115,5 +140,5 @@ export function IncidentTypeTable({ data, onEdit, onDelete, onView }: IncidentTy
         onItemsPerPageChange={setItemsPerPage}
       />
     </div>
-  )
+  );
 }

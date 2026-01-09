@@ -1,80 +1,111 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
-import { zodResolver } from "@hookform/resolvers/zod"
-import { useForm } from "react-hook-form"
-import { z } from "zod"
-import { Button } from "@/components/ui/button"
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Switch } from "@/components/ui/switch"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Spinner } from "@/components/ui/spinner"
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Spinner } from "@/components/ui/spinner";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 
 const workPartSchema = z.object({
   partId: z.string().min(1, "Part is required"),
-  quantity: z.number().int().min(1, "Quantity must be at least 1").max(999, "Quantity too high"),
-  description: z.string().max(500, "Description must be less than 500 characters").optional(),
-  price: z.number().min(0, "Price must be positive").max(999999, "Price too high"),
+  quantity: z
+    .number()
+    .int()
+    .min(1, "Quantity must be at least 1")
+    .max(999, "Quantity too high"),
+  description: z
+    .string()
+    .max(500, "Description must be less than 500 characters")
+    .optional(),
+  price: z
+    .number()
+    .min(0, "Price must be positive")
+    .max(999999, "Price too high"),
   workOrderId: z.string().optional(),
   workActivityId: z.string().optional(),
   active: z.boolean(),
-})
+});
 
-type WorkPartFormData = z.infer<typeof workPartSchema>
+type WorkPartFormData = z.infer<typeof workPartSchema>;
 
 interface Part {
-  id: string
-  name: string
-  price: number
-  stock: number
+  id: string;
+  name: string;
+  price: number;
+  stock: number;
   vic: {
-    name: string
-    code: string
-  }
+    name: string;
+    code: string;
+  };
 }
 
 interface WorkOrder {
-  id: string
+  id: string;
   status?: {
-    name: string
-  }
+    name: string;
+  };
   incident: {
-    title: string
-  }
+    title: string;
+  };
 }
 
 interface WorkActivity {
-  id: string
-  description: string
-  workOrderId: string
+  id: string;
+  description: string;
+  workOrderId: string;
 }
 
 interface WorkPartFormProps {
   workPart?: {
-    id: string
-    partId: string
-    quantity: number
-    description?: string
-    price: number
-    workOrderId?: string
-    workActivityId?: string
-    active: boolean
-  }
-  parts: Part[]
-  workOrders: WorkOrder[]
-  workActivities: WorkActivity[]
-  onSubmit: (data: WorkPartFormData) => Promise<void>
+    id: string;
+    partId: string;
+    quantity: number;
+    description?: string;
+    price: number;
+    workOrderId?: string;
+    workActivityId?: string;
+    active: boolean;
+  };
+  parts: Part[];
+  workOrders: WorkOrder[];
+  workActivities: WorkActivity[];
+  onSubmit: (data: WorkPartFormData) => Promise<void>;
 }
 
-export function WorkPartForm({ workPart, parts, workOrders, workActivities, onSubmit }: WorkPartFormProps) {
-  const [isLoading, setIsLoading] = useState(false)
-  const [selectedWorkOrder, setSelectedWorkOrder] = useState<string>("")
-  const [filteredActivities, setFilteredActivities] = useState<WorkActivity[]>([])
-  const router = useRouter()
+export function WorkPartForm({
+  workPart,
+  parts,
+  workOrders,
+  workActivities,
+  onSubmit,
+}: WorkPartFormProps) {
+  const [isLoading, setIsLoading] = useState(false);
+  const [selectedWorkOrder, setSelectedWorkOrder] = useState<string>("");
+  const [filteredActivities, setFilteredActivities] = useState<WorkActivity[]>(
+    [],
+  );
+  const router = useRouter();
 
   const form = useForm<WorkPartFormData>({
     resolver: zodResolver(workPartSchema),
@@ -87,55 +118,57 @@ export function WorkPartForm({ workPart, parts, workOrders, workActivities, onSu
       workActivityId: workPart?.workActivityId || "defaultWorkActivityId",
       active: workPart?.active ?? true,
     },
-  })
+  });
 
-  const watchedPartId = form.watch("partId")
-  const watchedWorkOrderId = form.watch("workOrderId")
+  const watchedPartId = form.watch("partId");
+  const watchedWorkOrderId = form.watch("workOrderId");
 
   // Update price when part is selected
   useEffect(() => {
     if (watchedPartId) {
-      const selectedPart = parts.find((p) => p.id === watchedPartId)
+      const selectedPart = parts.find((p) => p.id === watchedPartId);
       if (selectedPart) {
-        form.setValue("price", selectedPart.price)
+        form.setValue("price", selectedPart.price);
       }
     }
-  }, [watchedPartId, parts, form])
+  }, [watchedPartId, parts, form]);
 
   // Filter activities by work order
   useEffect(() => {
     if (watchedWorkOrderId) {
-      const filtered = workActivities.filter((activity) => activity.workOrderId === watchedWorkOrderId)
-      setFilteredActivities(filtered)
-      setSelectedWorkOrder(watchedWorkOrderId)
+      const filtered = workActivities.filter(
+        (activity) => activity.workOrderId === watchedWorkOrderId,
+      );
+      setFilteredActivities(filtered);
+      setSelectedWorkOrder(watchedWorkOrderId);
     } else {
-      setFilteredActivities([])
-      setSelectedWorkOrder("")
+      setFilteredActivities([]);
+      setSelectedWorkOrder("");
     }
-  }, [watchedWorkOrderId, workActivities])
+  }, [watchedWorkOrderId, workActivities]);
 
   const handleSubmit = async (data: WorkPartFormData) => {
-    setIsLoading(true)
+    setIsLoading(true);
     try {
-      await onSubmit(data)
-      router.push("/admin/work-parts")
+      await onSubmit(data);
+      router.push("/admin/work-parts");
     } catch (error) {
-      console.error("Error submitting form:", error)
+      console.error("Error submitting form:", error);
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   const getPartStock = (partId: string) => {
-    const part = parts.find((p) => p.id === partId)
-    return part?.stock || 0
-  }
+    const part = parts.find((p) => p.id === partId);
+    return part?.stock || 0;
+  };
 
   const calculateTotal = () => {
-    const quantity = form.watch("quantity") || 0
-    const price = form.watch("price") || 0
-    return quantity * price
-  }
+    const quantity = form.watch("quantity") || 0;
+    const price = form.watch("price") || 0;
+    return quantity * price;
+  };
 
   return (
     <Card className="max-w-2xl mx-auto">
@@ -144,7 +177,10 @@ export function WorkPartForm({ workPart, parts, workOrders, workActivities, onSu
       </CardHeader>
       <CardContent>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+          <form
+            onSubmit={form.handleSubmit(handleSubmit)}
+            className="space-y-6"
+          >
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -152,7 +188,10 @@ export function WorkPartForm({ workPart, parts, workOrders, workActivities, onSu
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Part *</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                    >
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select part" />
@@ -164,7 +203,8 @@ export function WorkPartForm({ workPart, parts, workOrders, workActivities, onSu
                             <div className="flex flex-col">
                               <span>{part.name}</span>
                               <span className="text-sm text-muted-foreground">
-                                ${part.price} - Stock: {part.stock} - {part.vic.name}
+                                ${part.price} - Stock: {part.stock} -{" "}
+                                {part.vic.name}
                               </span>
                             </div>
                           </SelectItem>
@@ -193,7 +233,11 @@ export function WorkPartForm({ workPart, parts, workOrders, workActivities, onSu
                         min="1"
                         placeholder="1"
                         {...field}
-                        onChange={(e) => field.onChange(Number.parseInt(e.target.value) || 1)}
+                        onChange={(e) =>
+                          field.onChange(
+                            Number.parseInt(e.target.value, 10) || 1,
+                          )
+                        }
                       />
                     </FormControl>
                     <FormMessage />
@@ -215,7 +259,9 @@ export function WorkPartForm({ workPart, parts, workOrders, workActivities, onSu
                         step="0.01"
                         placeholder="0.00"
                         {...field}
-                        onChange={(e) => field.onChange(Number.parseFloat(e.target.value) || 0)}
+                        onChange={(e) =>
+                          field.onChange(Number.parseFloat(e.target.value) || 0)
+                        }
                       />
                     </FormControl>
                     <FormMessage />
@@ -226,7 +272,9 @@ export function WorkPartForm({ workPart, parts, workOrders, workActivities, onSu
               <div className="space-y-2">
                 <FormLabel>Total Cost</FormLabel>
                 <div className="p-3 bg-muted rounded-md">
-                  <span className="text-lg font-semibold">${calculateTotal().toFixed(2)}</span>
+                  <span className="text-lg font-semibold">
+                    ${calculateTotal().toFixed(2)}
+                  </span>
                 </div>
               </div>
             </div>
@@ -238,7 +286,11 @@ export function WorkPartForm({ workPart, parts, workOrders, workActivities, onSu
                 <FormItem>
                   <FormLabel>Description</FormLabel>
                   <FormControl>
-                    <Textarea placeholder="Additional notes about this part usage" rows={3} {...field} />
+                    <Textarea
+                      placeholder="Additional notes about this part usage"
+                      rows={3}
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -251,14 +303,19 @@ export function WorkPartForm({ workPart, parts, workOrders, workActivities, onSu
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Work Order (Optional)</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select
+                    onValueChange={field.onChange}
+                    defaultValue={field.value}
+                  >
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Select work order" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="defaultWorkOrderId">No work order</SelectItem>
+                      <SelectItem value="defaultWorkOrderId">
+                        No work order
+                      </SelectItem>
                       {workOrders.map((workOrder) => (
                         <SelectItem key={workOrder.id} value={workOrder.id}>
                           <div className="flex flex-col">
@@ -283,14 +340,19 @@ export function WorkPartForm({ workPart, parts, workOrders, workActivities, onSu
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Work Activity (Optional)</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                    >
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select work activity" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="defaultWorkActivityId">No specific activity</SelectItem>
+                        <SelectItem value="defaultWorkActivityId">
+                          No specific activity
+                        </SelectItem>
                         {filteredActivities.map((activity) => (
                           <SelectItem key={activity.id} value={activity.id}>
                             {activity.description.length > 50
@@ -312,11 +374,18 @@ export function WorkPartForm({ workPart, parts, workOrders, workActivities, onSu
               render={({ field }) => (
                 <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
                   <div className="space-y-0.5">
-                    <FormLabel className="text-base">Active Work Part</FormLabel>
-                    <div className="text-sm text-muted-foreground">Enable this work part record</div>
+                    <FormLabel className="text-base">
+                      Active Work Part
+                    </FormLabel>
+                    <div className="text-sm text-muted-foreground">
+                      Enable this work part record
+                    </div>
                   </div>
                   <FormControl>
-                    <Switch checked={field.value} onCheckedChange={field.onChange} />
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
                   </FormControl>
                 </FormItem>
               )}
@@ -327,7 +396,11 @@ export function WorkPartForm({ workPart, parts, workOrders, workActivities, onSu
                 {isLoading && <Spinner size="sm" />}
                 {workPart ? "Update Work Part" : "Add Work Part"}
               </Button>
-              <Button type="button" variant="outline" onClick={() => router.push("/admin/work-parts")}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => router.push("/admin/work-parts")}
+              >
                 Cancel
               </Button>
             </div>
@@ -335,5 +408,5 @@ export function WorkPartForm({ workPart, parts, workOrders, workActivities, onSu
         </Form>
       </CardContent>
     </Card>
-  )
+  );
 }

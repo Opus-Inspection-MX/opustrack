@@ -1,9 +1,9 @@
-import { getRoleById, getAllPermissions } from "@/lib/actions/roles";
-import { PermissionSelector } from "@/components/admin/roles/permission-selector";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
 import { notFound } from "next/navigation";
+import { PermissionSelector } from "@/components/admin/roles/permission-selector";
+import { Button } from "@/components/ui/button";
+import { getAllPermissions, getRoleById } from "@/lib/actions/roles";
 
 export default async function RolePermissionsPage({
   params,
@@ -12,13 +12,15 @@ export default async function RolePermissionsPage({
 }) {
   const { id } = await params;
   const [role, allPermissions] = await Promise.all([
-    getRoleById(parseInt(id)),
+    getRoleById(parseInt(id, 10)),
     getAllPermissions(),
   ]);
 
   if (!role) notFound();
 
-  const currentPermissionIds = role.rolePermission.map((rp) => rp.permission.id);
+  const currentPermissionIds = role.rolePermission.map(
+    (rp) => rp.permission.id,
+  );
 
   return (
     <div className="space-y-6">
@@ -30,7 +32,9 @@ export default async function RolePermissionsPage({
         </Button>
         <div>
           <h1 className="text-3xl font-bold">Administrar Permisos</h1>
-          <p className="text-muted-foreground">Asignar permisos al rol: {role.name}</p>
+          <p className="text-muted-foreground">
+            Asignar permisos al rol: {role.name}
+          </p>
         </div>
       </div>
 

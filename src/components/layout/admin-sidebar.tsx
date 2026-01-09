@@ -1,46 +1,46 @@
-"use client"
+"use client";
 
-import Link from "next/link"
-import { usePathname } from "next/navigation"
+import {
+  Activity,
+  AlertTriangle,
+  Building2,
+  Calendar,
+  ClipboardList,
+  Cog,
+  FileText,
+  LayoutDashboard,
+  List,
+  MapPin,
+  Package,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Settings,
+  Shield,
+  Tag,
+  User,
+  UserCheck,
+  Users,
+  Wrench,
+} from "lucide-react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { LogoutButton } from "@/components/auth/logout-button";
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
-  SidebarGroup,
-  SidebarGroupLabel,
-  SidebarGroupContent,
   SidebarSeparator,
   useSidebar,
-} from "@/components/ui/sidebar"
-import { ThemeToggle } from "./theme-toggle"
-import { LogoutButton } from "@/components/auth/logout-button"
-import {
-  LayoutDashboard,
-  Users,
-  AlertTriangle,
-  Wrench,
-  Building2,
-  Package,
-  Calendar,
-  Shield,
-  Settings,
-  User,
-  MapPin,
-  UserCheck,
-  Tag,
-  Activity,
-  FileText,
-  Cog,
-  List,
-  ClipboardList,
-  PanelLeftClose,
-  PanelLeftOpen,
-} from "lucide-react"
+} from "@/components/ui/sidebar";
+import { ThemeToggle } from "./theme-toggle";
 
 const menuSections = [
   {
@@ -53,19 +53,31 @@ const menuSections = [
   {
     title: "Gestión de Incidentes",
     items: [
-      { title: "Seguimiento de Atención", url: "/admin/tracking", icon: ClipboardList },
+      {
+        title: "Seguimiento de Atención",
+        url: "/admin/tracking",
+        icon: ClipboardList,
+      },
       { title: "Programación", url: "/admin/programacion", icon: Calendar },
       { title: "Horarios", url: "/admin/schedules", icon: Calendar },
       { title: "Incidentes", url: "/admin/incidents", icon: AlertTriangle },
       { title: "Tipos de Incidente", url: "/admin/incident-types", icon: Tag },
-      { title: "Estado de Incidente", url: "/admin/incident-status", icon: FileText },
+      {
+        title: "Estado de Incidente",
+        url: "/admin/incident-status",
+        icon: FileText,
+      },
     ],
   },
   {
     title: "Gestión de Trabajo",
     items: [
       { title: "Órdenes de Trabajo", url: "/admin/work-orders", icon: Wrench },
-      { title: "Actividades de Trabajo", url: "/admin/work-activities", icon: Activity },
+      {
+        title: "Actividades de Trabajo",
+        url: "/admin/work-activities",
+        icon: Activity,
+      },
       { title: "Partes de Trabajo", url: "/admin/work-parts", icon: Cog },
     ],
   },
@@ -85,20 +97,27 @@ const menuSections = [
       { title: "Usuarios", url: "/admin/users", icon: Users },
       { title: "Roles", url: "/admin/roles", icon: Shield },
       { title: "Permisos", url: "/admin/permissions", icon: Settings },
-      { title: "Estado de Usuario", url: "/admin/user-status", icon: UserCheck },
+      {
+        title: "Estado de Usuario",
+        url: "/admin/user-status",
+        icon: UserCheck,
+      },
     ],
   },
-]
+];
 
 export function AdminSidebar() {
-  const pathname = usePathname()
-  const { toggleSidebar } = useSidebar()
+  const pathname = usePathname();
+  const { toggleSidebar } = useSidebar();
 
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="border-b px-6 py-4 group-data-[collapsible=icon]:px-2">
         <div className="flex items-center justify-between group-data-[collapsible=icon]:justify-center">
-          <Link href="/admin" className="flex items-center gap-2 group-data-[collapsible=icon]:hidden">
+          <Link
+            href="/admin"
+            className="flex items-center gap-2 group-data-[collapsible=icon]:hidden"
+          >
             <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
               <Building2 className="h-5 w-5 text-primary-foreground" />
             </div>
@@ -132,7 +151,10 @@ export function AdminSidebar() {
                     <SidebarMenuItem key={item.url}>
                       <SidebarMenuButton
                         asChild
-                        isActive={pathname === item.url || pathname.startsWith(item.url + "/")}
+                        isActive={
+                          pathname === item.url ||
+                          pathname.startsWith(`${item.url}/`)
+                        }
                         tooltip={item.title}
                       >
                         <Link href={item.url}>
@@ -171,5 +193,5 @@ export function AdminSidebar() {
 
       <SidebarRail />
     </Sidebar>
-  )
+  );
 }

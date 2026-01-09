@@ -1,19 +1,37 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { ArrowLeft, Package, Activity, Paperclip, Trash2, AlertTriangle, Play, CheckCircle } from "lucide-react";
+import {
+  Activity,
+  AlertTriangle,
+  ArrowLeft,
+  CheckCircle,
+  Package,
+  Paperclip,
+  Play,
+  Trash2,
+} from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
-import { WorkActivityForm } from "@/components/work-orders/work-activity-form";
-import { WorkActivityEdit } from "@/components/work-orders/work-activity-edit";
 import { AttachmentPreview } from "@/components/work-orders/attachment-preview";
-import { getWorkOrderById, deleteWorkOrderAttachment, startWorkOrder, completeWorkOrder, reopenWorkOrder } from "@/lib/actions/work-orders";
-import { getWorkActivities, deleteWorkActivity } from "@/lib/actions/work-activities";
+import { WorkActivityEdit } from "@/components/work-orders/work-activity-edit";
+import { WorkActivityForm } from "@/components/work-orders/work-activity-form";
+import {
+  deleteWorkActivity,
+  getWorkActivities,
+} from "@/lib/actions/work-activities";
+import {
+  completeWorkOrder,
+  deleteWorkOrderAttachment,
+  getWorkOrderById,
+  reopenWorkOrder,
+  startWorkOrder,
+} from "@/lib/actions/work-orders";
 import { getWorkParts } from "@/lib/actions/work-parts";
 
 export default function FSRWorkOrderDetailPage({
@@ -40,7 +58,7 @@ export default function FSRWorkOrderDetailPage({
     if (workOrderId) {
       fetchData();
     }
-  }, [workOrderId]);
+  }, [workOrderId, fetchData]);
 
   const fetchData = async () => {
     if (!workOrderId) return;
@@ -60,7 +78,9 @@ export default function FSRWorkOrderDetailPage({
       setAttachments(woData?.attachments || []);
     } catch (error) {
       console.error("Error fetching data:", error);
-      setError(error instanceof Error ? error.message : "Failed to load work order");
+      setError(
+        error instanceof Error ? error.message : "Failed to load work order",
+      );
     } finally {
       setLoading(false);
     }
@@ -112,7 +132,8 @@ export default function FSRWorkOrderDetailPage({
 
   const handleCompleteWork = async () => {
     if (!workOrderId) return;
-    if (!confirm("Are you sure you want to mark this work order as complete?")) return;
+    if (!confirm("Are you sure you want to mark this work order as complete?"))
+      return;
 
     try {
       setActionLoading(true);
@@ -168,9 +189,12 @@ export default function FSRWorkOrderDetailPage({
             <div className="flex flex-col items-center gap-4 text-center">
               <AlertTriangle className="h-12 w-12 text-destructive" />
               <div>
-                <h3 className="text-lg font-semibold mb-2">Failed to Load Work Order</h3>
+                <h3 className="text-lg font-semibold mb-2">
+                  Failed to Load Work Order
+                </h3>
                 <p className="text-muted-foreground">
-                  {error || "Work order not found or you don't have permission to view it."}
+                  {error ||
+                    "Work order not found or you don't have permission to view it."}
                 </p>
               </div>
               <div className="flex gap-2">
@@ -190,7 +214,7 @@ export default function FSRWorkOrderDetailPage({
 
   const totalPartsCost = workParts.reduce(
     (sum, wp) => sum + wp.price * wp.quantity,
-    0
+    0,
   );
 
   const canComplete = activities.length > 0 && !workOrder.finishedAt;
@@ -235,7 +259,10 @@ export default function FSRWorkOrderDetailPage({
           )}
           {isCompleted && (
             <>
-              <Badge variant="default" className="bg-green-600 text-lg py-2 px-4">
+              <Badge
+                variant="default"
+                className="bg-green-600 text-lg py-2 px-4"
+              >
                 Completed
               </Badge>
               <Button
@@ -288,9 +315,11 @@ export default function FSRWorkOrderDetailPage({
             <Badge
               variant="outline"
               style={{
-                backgroundColor: workOrder.status?.color ? `${workOrder.status.color}20` : undefined,
+                backgroundColor: workOrder.status?.color
+                  ? `${workOrder.status.color}20`
+                  : undefined,
                 borderColor: workOrder.status?.color || undefined,
-                color: workOrder.status?.color || undefined
+                color: workOrder.status?.color || undefined,
               }}
             >
               {workOrder.status?.name || "N/A"}
@@ -298,13 +327,11 @@ export default function FSRWorkOrderDetailPage({
           </div>
           {workOrder.folio && (
             <div>
-              <span className="font-medium">Folio:</span>{" "}
-              {workOrder.folio}
+              <span className="font-medium">Folio:</span> {workOrder.folio}
             </div>
           )}
 
           <div className="grid grid-cols-2 gap-4 text-sm">
-
             <div>
               <span className="font-medium">Created:</span>{" "}
               {new Date(workOrder.createdAt).toLocaleString()}
@@ -436,7 +463,10 @@ export default function FSRWorkOrderDetailPage({
               <CardContent className="p-0">
                 <div className="divide-y">
                   {workParts.map((wp) => (
-                    <div key={wp.id} className="p-4 flex items-center justify-between">
+                    <div
+                      key={wp.id}
+                      className="p-4 flex items-center justify-between"
+                    >
                       <div>
                         <p className="font-medium">{wp.part?.name}</p>
                         <p className="text-sm text-muted-foreground">

@@ -1,83 +1,107 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { MoreHorizontal, Edit, Trash2, Package, Wrench, Eye } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
-import { TablePagination } from "@/components/common/table-pagination"
+import {
+  Edit,
+  Eye,
+  MoreHorizontal,
+  Package,
+  Trash2,
+  Wrench,
+} from "lucide-react";
+import { useState } from "react";
+import { TablePagination } from "@/components/common/table-pagination";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 interface WorkPart {
-  id: string
+  id: string;
   part: {
-    id: string
-    name: string
-    price: number
-  }
-  quantity: number
-  description?: string
-  price: number
+    id: string;
+    name: string;
+    price: number;
+  };
+  quantity: number;
+  description?: string;
+  price: number;
   workOrder?: {
-    id: string
+    id: string;
     status?: {
-      name: string
-    }
+      name: string;
+    };
     incident: {
-      title: string
-    }
-  }
+      title: string;
+    };
+  };
   workActivity?: {
-    id: string
-    description: string
-  }
-  createdAt: string
-  active: boolean
+    id: string;
+    description: string;
+  };
+  createdAt: string;
+  active: boolean;
 }
 
 interface WorkPartTableProps {
-  data: WorkPart[]
-  onEdit: (id: string) => void
-  onDelete: (id: string) => void
-  onView: (id: string) => void
+  data: WorkPart[];
+  onEdit: (id: string) => void;
+  onDelete: (id: string) => void;
+  onView: (id: string) => void;
 }
 
-export function WorkPartTable({ data, onEdit, onDelete, onView }: WorkPartTableProps) {
-  const [currentPage, setCurrentPage] = useState(1)
-  const [itemsPerPage, setItemsPerPage] = useState(10)
+export function WorkPartTable({
+  data,
+  onEdit,
+  onDelete,
+  onView,
+}: WorkPartTableProps) {
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
-  const startIndex = (currentPage - 1) * itemsPerPage
-  const endIndex = startIndex + itemsPerPage
-  const currentData = data.slice(startIndex, endIndex)
-  const totalPages = Math.ceil(data.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentData = data.slice(startIndex, endIndex);
+  const totalPages = Math.ceil(data.length / itemsPerPage);
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("en-US", {
       style: "currency",
       currency: "USD",
-    }).format(price)
-  }
+    }).format(price);
+  };
 
   const getStatusColor = (statusName?: string) => {
-    if (!statusName) return "bg-gray-100 text-gray-800"
+    if (!statusName) return "bg-gray-100 text-gray-800";
 
     switch (statusName.toLowerCase()) {
       case "pending":
       case "pendiente":
-        return "bg-yellow-100 text-yellow-800"
+        return "bg-yellow-100 text-yellow-800";
       case "in_progress":
       case "en progreso":
-        return "bg-blue-100 text-blue-800"
+        return "bg-blue-100 text-blue-800";
       case "completed":
       case "completado":
-        return "bg-green-100 text-green-800"
+        return "bg-green-100 text-green-800";
       case "cancelled":
       case "cancelado":
-        return "bg-red-100 text-red-800"
+        return "bg-red-100 text-red-800";
       default:
-        return "bg-gray-100 text-gray-800"
+        return "bg-gray-100 text-gray-800";
     }
-  }
+  };
 
   return (
     <div className="space-y-4">
@@ -104,7 +128,9 @@ export function WorkPartTable({ data, onEdit, onDelete, onView }: WorkPartTableP
                     <div>
                       <div className="font-medium">{workPart.part.name}</div>
                       {workPart.description && (
-                        <div className="text-sm text-muted-foreground">{workPart.description}</div>
+                        <div className="text-sm text-muted-foreground">
+                          {workPart.description}
+                        </div>
                       )}
                     </div>
                   </div>
@@ -112,7 +138,9 @@ export function WorkPartTable({ data, onEdit, onDelete, onView }: WorkPartTableP
                 <TableCell>
                   <Badge variant="outline">{workPart.quantity} unidades</Badge>
                 </TableCell>
-                <TableCell className="font-mono">{formatPrice(workPart.price)}</TableCell>
+                <TableCell className="font-mono">
+                  {formatPrice(workPart.price)}
+                </TableCell>
                 <TableCell className="font-mono font-semibold">
                   {formatPrice(workPart.quantity * workPart.price)}
                 </TableCell>
@@ -121,13 +149,23 @@ export function WorkPartTable({ data, onEdit, onDelete, onView }: WorkPartTableP
                     <div className="flex items-center gap-1">
                       <Wrench className="h-4 w-4 text-muted-foreground" />
                       <div>
-                        <div className="text-sm font-medium">{workPart.workOrder.incident.title}</div>
+                        <div className="text-sm font-medium">
+                          {workPart.workOrder.incident.title}
+                        </div>
                         {workPart.workOrder.status ? (
-                          <Badge className={getStatusColor(workPart.workOrder.status.name)} variant="secondary">
+                          <Badge
+                            className={getStatusColor(
+                              workPart.workOrder.status.name,
+                            )}
+                            variant="secondary"
+                          >
                             {workPart.workOrder.status.name}
                           </Badge>
                         ) : (
-                          <Badge variant="secondary" className="bg-gray-100 text-gray-800">
+                          <Badge
+                            variant="secondary"
+                            className="bg-gray-100 text-gray-800"
+                          >
                             Sin estado
                           </Badge>
                         )}
@@ -169,7 +207,10 @@ export function WorkPartTable({ data, onEdit, onDelete, onView }: WorkPartTableP
                         <Edit className="mr-2 h-4 w-4" />
                         Editar
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => onDelete(workPart.id)} className="text-red-600">
+                      <DropdownMenuItem
+                        onClick={() => onDelete(workPart.id)}
+                        className="text-red-600"
+                      >
                         <Trash2 className="mr-2 h-4 w-4" />
                         Eliminar
                       </DropdownMenuItem>
@@ -193,5 +234,5 @@ export function WorkPartTable({ data, onEdit, onDelete, onView }: WorkPartTableP
         onItemsPerPageChange={setItemsPerPage}
       />
     </div>
-  )
+  );
 }

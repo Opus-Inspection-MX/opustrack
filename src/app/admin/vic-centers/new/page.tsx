@@ -1,8 +1,8 @@
-import { getStates, getFSRUsers, getClientUsers } from "@/lib/actions/vics";
-import { VICForm } from "@/components/admin/vics/vic-form";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import { VICForm } from "@/components/admin/vics/vic-form";
 import { Button } from "@/components/ui/button";
+import { getClientUsers, getFSRUsers, getStates } from "@/lib/actions/vics";
 
 export default async function NewVICCenterPage() {
   const [states, fsrUsers, clientUsers] = await Promise.all([

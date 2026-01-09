@@ -1,6 +1,6 @@
-"use client"
+"use client";
 
-import { WorkPartForm } from "@/components/work-parts/work-part-form"
+import { WorkPartForm } from "@/components/work-parts/work-part-form";
 
 // Mock data - replace with actual API calls
 const mockWorkPart = {
@@ -12,7 +12,7 @@ const mockWorkPart = {
   workOrderId: "wo_001",
   workActivityId: "wa_001",
   active: true,
-}
+};
 
 const mockParts = [
   {
@@ -36,7 +36,7 @@ const mockParts = [
     stock: 30,
     vic: { name: "VIC Center 2", code: "VIC002" },
   },
-]
+];
 
 const mockWorkOrders = [
   {
@@ -49,7 +49,7 @@ const mockWorkOrders = [
     status: { name: "Pending" },
     incident: { title: "Routine maintenance - Line 2" },
   },
-]
+];
 
 const mockWorkActivities = [
   {
@@ -62,15 +62,19 @@ const mockWorkActivities = [
     description: "Oil change and filter replacement",
     workOrderId: "wo_002",
   },
-]
+];
 
-export default function EditWorkPartPage({ params }: { params: { id: string } }) {
+export default function EditWorkPartPage({
+  params,
+}: {
+  params: { id: string };
+}) {
   const handleSubmit = async (data: any) => {
-    console.log("Updating work part:", params.id, data)
+    console.log("Updating work part:", params.id, data);
     // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    alert("Work part updated successfully!")
-  }
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    alert("Work part updated successfully!");
+  };
 
   return (
     <div className="space-y-6">
@@ -87,5 +91,5 @@ export default function EditWorkPartPage({ params }: { params: { id: string } })
         onSubmit={handleSubmit}
       />
     </div>
-  )
+  );
 }

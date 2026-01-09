@@ -1,18 +1,18 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
+import { Search } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
-import { Label } from "@/components/ui/label"
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -20,184 +20,198 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
-import { Search } from "lucide-react"
+} from "@/components/ui/table";
 
 interface Incident {
-  id: number
-  title: string
-  priority: number
+  id: number;
+  title: string;
+  priority: number;
   schedule: {
-    id: string
-    title: string
-    scheduledAt: string
-    endDate: string | null
-  } | null
+    id: string;
+    title: string;
+    scheduledAt: string;
+    endDate: string | null;
+  } | null;
   status: {
-    id: number
-    name: string
-    color: string
-  } | null
+    id: number;
+    name: string;
+    color: string;
+  } | null;
   type: {
-    id: number
-    name: string
-  } | null
+    id: number;
+    name: string;
+  } | null;
   vic: {
-    id: string
-    name: string
-  } | null
-  workOrders: any[]
+    id: string;
+    name: string;
+  } | null;
+  workOrders: any[];
 }
 
 interface IncidentType {
-  id: number
-  name: string
+  id: number;
+  name: string;
 }
 
 interface Schedule {
-  id: string
-  title: string
+  id: string;
+  title: string;
 }
 
 interface VIC {
-  id: string
-  name: string
-  code: string
+  id: string;
+  name: string;
+  code: string;
 }
 
 interface ScheduleActivitiesProps {
   dateRange: {
-    start: Date
-    end: Date
-    type: "day" | "week" | "month" | "custom"
-  }
+    start: Date;
+    end: Date;
+    type: "day" | "week" | "month" | "custom";
+  };
   selectedSchedule?: {
-    id: string
-    title: string
-  } | null
+    id: string;
+    title: string;
+  } | null;
 }
 
-export function ScheduleActivities({ dateRange, selectedSchedule }: ScheduleActivitiesProps) {
-  const [incidents, setIncidents] = useState<Incident[]>([])
-  const [incidentTypes, setIncidentTypes] = useState<IncidentType[]>([])
-  const [schedules, setSchedules] = useState<Schedule[]>([])
-  const [vics, setVics] = useState<VIC[]>([])
-  const [loading, setLoading] = useState(false)
+export function ScheduleActivities({
+  dateRange,
+  selectedSchedule,
+}: ScheduleActivitiesProps) {
+  const [incidents, setIncidents] = useState<Incident[]>([]);
+  const [incidentTypes, setIncidentTypes] = useState<IncidentType[]>([]);
+  const [schedules, setSchedules] = useState<Schedule[]>([]);
+  const [vics, setVics] = useState<VIC[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  const [selectedVic, setSelectedVic] = useState<string>("all")
-  const [selectedType, setSelectedType] = useState<string>("all")
-  const [selectedScheduleFilter, setSelectedScheduleFilter] = useState<string>("all")
-  const [searchQuery, setSearchQuery] = useState("")
+  const [selectedVic, setSelectedVic] = useState<string>("all");
+  const [selectedType, setSelectedType] = useState<string>("all");
+  const [selectedScheduleFilter, setSelectedScheduleFilter] =
+    useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Sincronizar filtro de schedule con selección
   useEffect(() => {
     if (selectedSchedule) {
-      setSelectedScheduleFilter(selectedSchedule.id)
+      setSelectedScheduleFilter(selectedSchedule.id);
     } else {
-      setSelectedScheduleFilter("all")
+      setSelectedScheduleFilter("all");
     }
-  }, [selectedSchedule])
+  }, [selectedSchedule]);
 
   // Cargar incidentes cuando cambia el rango de fechas
   useEffect(() => {
-    fetchIncidents()
-  }, [dateRange])
+    fetchIncidents();
+  }, [fetchIncidents]);
 
   // Cargar tipos, schedules y vics al montar
   useEffect(() => {
-    fetchIncidentTypes()
-    fetchSchedules()
-    fetchVics()
-  }, [])
+    fetchIncidentTypes();
+    fetchSchedules();
+    fetchVics();
+  }, [fetchIncidentTypes, fetchSchedules, fetchVics]);
 
   const fetchIncidents = async () => {
-    setLoading(true)
+    setLoading(true);
     try {
-      const startStr = dateRange.start.toISOString().split("T")[0]
-      const endStr = dateRange.end.toISOString().split("T")[0]
+      const startStr = dateRange.start.toISOString().split("T")[0];
+      const endStr = dateRange.end.toISOString().split("T")[0];
 
-      const response = await fetch(`/api/schedules/incidents?start=${startStr}&end=${endStr}`)
+      const response = await fetch(
+        `/api/schedules/incidents?start=${startStr}&end=${endStr}`,
+      );
 
       if (!response.ok) {
-        throw new Error("Error al obtener incidentes")
+        throw new Error("Error al obtener incidentes");
       }
 
-      const result = await response.json()
-      setIncidents(result.data || [])
+      const result = await response.json();
+      setIncidents(result.data || []);
     } catch (error) {
-      console.error("Error fetching incidents:", error)
-      setIncidents([])
+      console.error("Error fetching incidents:", error);
+      setIncidents([]);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const fetchIncidentTypes = async () => {
     try {
-      const response = await fetch("/api/incident-types")
-      if (!response.ok) return
+      const response = await fetch("/api/incident-types");
+      if (!response.ok) return;
 
-      const result = await response.json()
-      setIncidentTypes(result.data || [])
+      const result = await response.json();
+      setIncidentTypes(result.data || []);
     } catch (error) {
-      console.error("Error fetching incident types:", error)
+      console.error("Error fetching incident types:", error);
     }
-  }
+  };
 
   const fetchSchedules = async () => {
     try {
-      const response = await fetch("/api/schedules")
-      if (!response.ok) return
+      const response = await fetch("/api/schedules");
+      if (!response.ok) return;
 
-      const result = await response.json()
-      setSchedules(result.data || [])
+      const result = await response.json();
+      setSchedules(result.data || []);
     } catch (error) {
-      console.error("Error fetching schedules:", error)
+      console.error("Error fetching schedules:", error);
     }
-  }
+  };
 
   const fetchVics = async () => {
     try {
-      const response = await fetch("/api/vics")
-      if (!response.ok) return
+      const response = await fetch("/api/vics");
+      if (!response.ok) return;
 
-      const result = await response.json()
-      setVics(result.data || [])
+      const result = await response.json();
+      setVics(result.data || []);
     } catch (error) {
-      console.error("Error fetching VICs:", error)
+      console.error("Error fetching VICs:", error);
     }
-  }
+  };
 
   // Filtrar incidentes
   const filteredIncidents = incidents.filter((incident) => {
     // Filtro por VIC
     if (selectedVic !== "all" && incident.vic?.id !== selectedVic) {
-      return false
+      return false;
     }
 
     // Filtro por tipo
-    if (selectedType !== "all" && incident.type?.id.toString() !== selectedType) {
-      return false
+    if (
+      selectedType !== "all" &&
+      incident.type?.id.toString() !== selectedType
+    ) {
+      return false;
     }
 
     // Filtro por schedule
-    if (selectedScheduleFilter !== "all" && incident.schedule?.id !== selectedScheduleFilter) {
-      return false
+    if (
+      selectedScheduleFilter !== "all" &&
+      incident.schedule?.id !== selectedScheduleFilter
+    ) {
+      return false;
     }
 
     // Filtro por búsqueda
-    if (searchQuery && !incident.title.toLowerCase().includes(searchQuery.toLowerCase())) {
-      return false
+    if (
+      searchQuery &&
+      !incident.title.toLowerCase().includes(searchQuery.toLowerCase())
+    ) {
+      return false;
     }
 
-    return true
-  })
+    return true;
+  });
 
   const getPriorityColor = (priority: number) => {
-    if (priority >= 8) return "destructive"
-    if (priority >= 6) return "default"
-    return "secondary"
-  }
+    if (priority >= 8) return "destructive";
+    if (priority >= 6) return "default";
+    return "secondary";
+  };
 
   return (
     <Card className="flex flex-col">
@@ -245,7 +259,10 @@ export function ScheduleActivities({ dateRange, selectedSchedule }: ScheduleActi
 
           <div className="space-y-2">
             <Label className="text-xs font-medium">Programación</Label>
-            <Select value={selectedScheduleFilter} onValueChange={setSelectedScheduleFilter}>
+            <Select
+              value={selectedScheduleFilter}
+              onValueChange={setSelectedScheduleFilter}
+            >
               <SelectTrigger className="h-9">
                 <SelectValue />
               </SelectTrigger>
@@ -295,12 +312,15 @@ export function ScheduleActivities({ dateRange, selectedSchedule }: ScheduleActi
       <CardContent>
         <div className="flex items-center justify-between mb-4">
           <div className="text-sm text-muted-foreground">
-            Mostrando {filteredIncidents.length} de {incidents.length} incidentes
+            Mostrando {filteredIncidents.length} de {incidents.length}{" "}
+            incidentes
           </div>
         </div>
 
         {loading ? (
-          <div className="text-center py-8 text-muted-foreground">Cargando incidentes...</div>
+          <div className="text-center py-8 text-muted-foreground">
+            Cargando incidentes...
+          </div>
         ) : (
           <div>
             {/* Incidents Table */}
@@ -320,7 +340,10 @@ export function ScheduleActivities({ dateRange, selectedSchedule }: ScheduleActi
                 <TableBody>
                   {filteredIncidents.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                      <TableCell
+                        colSpan={7}
+                        className="text-center text-muted-foreground py-8"
+                      >
                         {loading
                           ? "Cargando incidentes..."
                           : "No hay incidentes que coincidan con los filtros"}
@@ -328,10 +351,17 @@ export function ScheduleActivities({ dateRange, selectedSchedule }: ScheduleActi
                     </TableRow>
                   ) : (
                     filteredIncidents.map((incident) => (
-                      <TableRow key={incident.id} className="cursor-pointer hover:bg-muted/50">
-                        <TableCell className="font-medium">{incident.title}</TableCell>
+                      <TableRow
+                        key={incident.id}
+                        className="cursor-pointer hover:bg-muted/50"
+                      >
+                        <TableCell className="font-medium">
+                          {incident.title}
+                        </TableCell>
                         <TableCell>
-                          <Badge variant="outline">{incident.type?.name || "Sin tipo"}</Badge>
+                          <Badge variant="outline">
+                            {incident.type?.name || "Sin tipo"}
+                          </Badge>
                         </TableCell>
                         <TableCell>
                           <div className="text-sm">
@@ -339,43 +369,47 @@ export function ScheduleActivities({ dateRange, selectedSchedule }: ScheduleActi
                           </div>
                         </TableCell>
                         <TableCell>
-                          <div className="text-sm">{incident.vic?.name || "Sin VIC"}</div>
+                          <div className="text-sm">
+                            {incident.vic?.name || "Sin VIC"}
+                          </div>
                         </TableCell>
                         <TableCell>
                           <div className="text-sm">
                             {incident.schedule?.scheduledAt ? (
                               <>
-                                <div className="font-medium text-xs text-muted-foreground mb-1">Inicio:</div>
+                                <div className="font-medium text-xs text-muted-foreground mb-1">
+                                  Inicio:
+                                </div>
                                 <div>
-                                  {new Date(incident.schedule.scheduledAt).toLocaleDateString(
-                                    "es-MX"
-                                  )}
+                                  {new Date(
+                                    incident.schedule.scheduledAt,
+                                  ).toLocaleDateString("es-MX")}
                                 </div>
                                 <div className="text-muted-foreground text-xs">
-                                  {new Date(incident.schedule.scheduledAt).toLocaleTimeString(
-                                    "es-MX",
-                                    {
-                                      hour: "2-digit",
-                                      minute: "2-digit",
-                                    }
-                                  )}
+                                  {new Date(
+                                    incident.schedule.scheduledAt,
+                                  ).toLocaleTimeString("es-MX", {
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  })}
                                 </div>
                                 {incident.schedule?.endDate && (
                                   <>
-                                    <div className="font-medium text-xs text-muted-foreground mt-2 mb-1">Fin:</div>
+                                    <div className="font-medium text-xs text-muted-foreground mt-2 mb-1">
+                                      Fin:
+                                    </div>
                                     <div>
-                                      {new Date(incident.schedule.endDate).toLocaleDateString(
-                                        "es-MX"
-                                      )}
+                                      {new Date(
+                                        incident.schedule.endDate,
+                                      ).toLocaleDateString("es-MX")}
                                     </div>
                                     <div className="text-muted-foreground text-xs">
-                                      {new Date(incident.schedule.endDate).toLocaleTimeString(
-                                        "es-MX",
-                                        {
-                                          hour: "2-digit",
-                                          minute: "2-digit",
-                                        }
-                                      )}
+                                      {new Date(
+                                        incident.schedule.endDate,
+                                      ).toLocaleTimeString("es-MX", {
+                                        hour: "2-digit",
+                                        minute: "2-digit",
+                                      })}
                                     </div>
                                   </>
                                 )}
@@ -391,7 +425,9 @@ export function ScheduleActivities({ dateRange, selectedSchedule }: ScheduleActi
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          <Badge variant="secondary">{incident.status?.name || "Sin estado"}</Badge>
+                          <Badge variant="secondary">
+                            {incident.status?.name || "Sin estado"}
+                          </Badge>
                         </TableCell>
                       </TableRow>
                     ))
@@ -403,5 +439,5 @@ export function ScheduleActivities({ dateRange, selectedSchedule }: ScheduleActi
         )}
       </CardContent>
     </Card>
-  )
+  );
 }

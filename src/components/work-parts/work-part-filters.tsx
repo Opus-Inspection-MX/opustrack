@@ -1,41 +1,47 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Search, Filter, X } from "lucide-react"
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Card, CardContent } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
+import { Filter, Search, X } from "lucide-react";
+import { useState } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface WorkPartFiltersProps {
   onFiltersChange: (filters: {
-    search: string
-    partId: string
-    workOrderStatus: string
-    active: string
-  }) => void
+    search: string;
+    partId: string;
+    workOrderStatus: string;
+    active: string;
+  }) => void;
 }
 
 export function WorkPartFilters({ onFiltersChange }: WorkPartFiltersProps) {
-  const [search, setSearch] = useState("")
-  const [partId, setPartId] = useState("all")
-  const [workOrderStatus, setWorkOrderStatus] = useState("all")
-  const [active, setActive] = useState("all")
+  const [search, setSearch] = useState("");
+  const [partId, setPartId] = useState("all");
+  const [workOrderStatus, setWorkOrderStatus] = useState("all");
+  const [active, setActive] = useState("all");
 
   const mockParts = [
     { id: "part_001", name: "Brake Pad Set" },
     { id: "part_002", name: "Oil Filter" },
     { id: "part_003", name: "Air Filter" },
     { id: "part_004", name: "Spark Plugs" },
-  ]
+  ];
 
   const workOrderStatuses = [
     { value: "pending", label: "Pending" },
     { value: "in_progress", label: "In Progress" },
     { value: "completed", label: "Completed" },
     { value: "cancelled", label: "Cancelled" },
-  ]
+  ];
 
   const handleFiltersChange = () => {
     onFiltersChange({
@@ -43,30 +49,30 @@ export function WorkPartFilters({ onFiltersChange }: WorkPartFiltersProps) {
       partId,
       workOrderStatus,
       active,
-    })
-  }
+    });
+  };
 
   const clearAllFilters = () => {
-    setSearch("")
-    setPartId("all")
-    setWorkOrderStatus("all")
-    setActive("all")
+    setSearch("");
+    setPartId("all");
+    setWorkOrderStatus("all");
+    setActive("all");
     onFiltersChange({
       search: "",
       partId: "all",
       workOrderStatus: "all",
       active: "all",
-    })
-  }
+    });
+  };
 
   const getActiveFilterCount = () => {
-    let count = 0
-    if (search) count++
-    if (partId !== "all") count++
-    if (workOrderStatus !== "all") count++
-    if (active !== "all") count++
-    return count
-  }
+    let count = 0;
+    if (search) count++;
+    if (partId !== "all") count++;
+    if (workOrderStatus !== "all") count++;
+    if (active !== "all") count++;
+    return count;
+  };
 
   return (
     <Card>
@@ -74,7 +80,9 @@ export function WorkPartFilters({ onFiltersChange }: WorkPartFiltersProps) {
         <div className="flex items-center gap-2 mb-4">
           <Filter className="h-4 w-4" />
           <span className="font-medium">Filters</span>
-          {getActiveFilterCount() > 0 && <Badge variant="secondary">{getActiveFilterCount()} active</Badge>}
+          {getActiveFilterCount() > 0 && (
+            <Badge variant="secondary">{getActiveFilterCount()} active</Badge>
+          )}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -86,8 +94,8 @@ export function WorkPartFilters({ onFiltersChange }: WorkPartFiltersProps) {
                 placeholder="Search parts..."
                 value={search}
                 onChange={(e) => {
-                  setSearch(e.target.value)
-                  handleFiltersChange()
+                  setSearch(e.target.value);
+                  handleFiltersChange();
                 }}
                 className="pl-10"
               />
@@ -99,8 +107,8 @@ export function WorkPartFilters({ onFiltersChange }: WorkPartFiltersProps) {
             <Select
               value={partId}
               onValueChange={(value) => {
-                setPartId(value)
-                handleFiltersChange()
+                setPartId(value);
+                handleFiltersChange();
               }}
             >
               <SelectTrigger>
@@ -122,8 +130,8 @@ export function WorkPartFilters({ onFiltersChange }: WorkPartFiltersProps) {
             <Select
               value={workOrderStatus}
               onValueChange={(value) => {
-                setWorkOrderStatus(value)
-                handleFiltersChange()
+                setWorkOrderStatus(value);
+                handleFiltersChange();
               }}
             >
               <SelectTrigger>
@@ -145,8 +153,8 @@ export function WorkPartFilters({ onFiltersChange }: WorkPartFiltersProps) {
             <Select
               value={active}
               onValueChange={(value) => {
-                setActive(value)
-                handleFiltersChange()
+                setActive(value);
+                handleFiltersChange();
               }}
             >
               <SelectTrigger>
@@ -171,5 +179,5 @@ export function WorkPartFilters({ onFiltersChange }: WorkPartFiltersProps) {
         )}
       </CardContent>
     </Card>
-  )
+  );
 }

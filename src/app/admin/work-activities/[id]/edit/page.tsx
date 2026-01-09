@@ -1,15 +1,15 @@
 "use client";
 
-import { useState, useEffect, use } from "react";
+import { ArrowLeft, Save } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { use, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { FormError } from "@/components/ui/form-error";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Save } from "lucide-react";
-import { FormError } from "@/components/ui/form-error";
 import { Spinner } from "@/components/ui/spinner";
+import { Textarea } from "@/components/ui/textarea";
 import {
   getWorkActivityById,
   updateWorkActivity,
@@ -140,9 +140,7 @@ export default function EditWorkActivityPage({
                 placeholder="Describe the work performed"
                 rows={4}
               />
-              {errors.description && (
-                <FormError message={errors.description} />
-              )}
+              {errors.description && <FormError message={errors.description} />}
             </div>
 
             {/* Performed At */}

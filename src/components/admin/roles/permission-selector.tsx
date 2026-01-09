@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { assignPermissionsToRole } from "@/lib/actions/roles";
 
 type Permission = {
@@ -33,7 +33,7 @@ export function PermissionSelector({
 }: PermissionSelectorProps) {
   const router = useRouter();
   const [selectedIds, setSelectedIds] = useState<Set<number>>(
-    new Set(currentPermissionIds)
+    new Set(currentPermissionIds),
   );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -48,7 +48,7 @@ export function PermissionSelector({
       acc[resource].push(perm);
       return acc;
     },
-    {} as Record<string, Permission[]>
+    {} as Record<string, Permission[]>,
   );
 
   const handleToggle = (permId: number) => {
@@ -110,13 +110,15 @@ export function PermissionSelector({
       <div className="space-y-4">
         {Object.entries(groupedPermissions).map(([resource, perms]) => {
           const allSelected = perms.every((p) => selectedIds.has(p.id));
-          const someSelected = perms.some((p) => selectedIds.has(p.id));
+          const _someSelected = perms.some((p) => selectedIds.has(p.id));
 
           return (
             <Card key={resource}>
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg capitalize">{resource}</CardTitle>
+                  <CardTitle className="text-lg capitalize">
+                    {resource}
+                  </CardTitle>
                   <Button
                     type="button"
                     variant="outline"

@@ -1,9 +1,15 @@
-import { requireRouteAccess } from "@/lib/auth/auth";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Lock, User } from "lucide-react";
 import Link from "next/link";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { requireRouteAccess } from "@/lib/auth/auth";
 
 export default async function GuestDashboard() {
   await requireRouteAccess("/guest");
@@ -13,9 +19,7 @@ export default async function GuestDashboard() {
       {/* Header */}
       <div>
         <h1 className="text-3xl font-bold">Panel de Invitado</h1>
-        <p className="text-muted-foreground mt-2">
-          Cuenta con acceso limitado
-        </p>
+        <p className="text-muted-foreground mt-2">Cuenta con acceso limitado</p>
       </div>
 
       {/* Access Restriction Notice */}
@@ -35,12 +39,15 @@ export default async function GuestDashboard() {
           <CardContent className="space-y-6">
             <div className="bg-white rounded-lg p-4 border">
               <h3 className="font-semibold mb-2 flex items-center gap-2">
-                <Badge variant="outline" className="bg-yellow-50">Rol INVITADO</Badge>
+                <Badge variant="outline" className="bg-yellow-50">
+                  Rol INVITADO
+                </Badge>
               </h3>
               <p className="text-sm text-muted-foreground">
-                Las cuentas de invitados actualmente están limitadas solo a la gestión de perfil.
-                Si necesitas acceso adicional para ver incidentes, órdenes de trabajo u otros recursos,
-                por favor contacta a tu administrador del sistema.
+                Las cuentas de invitados actualmente están limitadas solo a la
+                gestión de perfil. Si necesitas acceso adicional para ver
+                incidentes, órdenes de trabajo u otros recursos, por favor
+                contacta a tu administrador del sistema.
               </p>
             </div>
 
@@ -63,7 +70,9 @@ export default async function GuestDashboard() {
             </div>
 
             <div className="border-t pt-4">
-              <h4 className="text-sm font-medium mb-3">Actualmente no disponible:</h4>
+              <h4 className="text-sm font-medium mb-3">
+                Actualmente no disponible:
+              </h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
                 <li className="flex items-start gap-2">
                   <span className="text-red-500 mt-1">✗</span>

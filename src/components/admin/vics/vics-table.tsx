@@ -1,16 +1,11 @@
 "use client";
 
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
+import { Edit, Eye, MoreHorizontal, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
-import { MoreHorizontal, Edit, Trash2, Eye } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,10 +14,15 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import Link from "next/link";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { deleteVIC } from "@/lib/actions/vics";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
 
 type VIC = {
   id: string;
@@ -62,7 +62,7 @@ export function VICsTable({ vics }: { vics: VIC[] }) {
       await deleteVIC(id);
       router.refresh();
     } catch (error) {
-      alert("Error al eliminar VIC: " + (error as Error).message);
+      alert(`Error al eliminar VIC: ${(error as Error).message}`);
       setDeleting(null);
     }
   };
@@ -70,14 +70,18 @@ export function VICsTable({ vics }: { vics: VIC[] }) {
   if (vics.length === 0) {
     return (
       <div className="text-center py-12 border rounded-lg">
-        <p className="text-muted-foreground">No hay centros de verificación registrados</p>
+        <p className="text-muted-foreground">
+          No hay centros de verificación registrados
+        </p>
       </div>
     );
   }
 
   // Calculate total equipments
   const getTotalEquipments = (vic: VIC) => {
-    return vic.lines?.reduce((sum, line) => sum + line._count.equipments, 0) || 0;
+    return (
+      vic.lines?.reduce((sum, line) => sum + line._count.equipments, 0) || 0
+    );
   };
 
   // Calculate total FSRs assigned to this VIC
@@ -147,13 +151,19 @@ export function VICsTable({ vics }: { vics: VIC[] }) {
                     <DropdownMenuLabel>Acciones</DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem asChild>
-                      <Link href={`/admin/vic-centers/${vic.id}`} className="flex items-center cursor-pointer">
+                      <Link
+                        href={`/admin/vic-centers/${vic.id}`}
+                        className="flex items-center cursor-pointer"
+                      >
                         <Eye className="h-4 w-4 mr-2" />
                         Ver detalles
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
-                      <Link href={`/admin/vic-centers/${vic.id}/edit`} className="flex items-center cursor-pointer">
+                      <Link
+                        href={`/admin/vic-centers/${vic.id}/edit`}
+                        className="flex items-center cursor-pointer"
+                      >
                         <Edit className="h-4 w-4 mr-2" />
                         Editar
                       </Link>

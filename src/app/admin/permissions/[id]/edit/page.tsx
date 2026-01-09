@@ -1,8 +1,15 @@
-"use client"
+"use client";
 
-import { useState, useEffect, use } from "react"
-import { PermissionForm } from "@/components/permissions/permission-form"
-import { Spinner } from "@/components/ui/spinner"
+import { use, useEffect, useState } from "react";
+import { PermissionForm } from "@/components/permissions/permission-form";
+import { Spinner } from "@/components/ui/spinner";
+
+interface PermissionData {
+  id: number;
+  name: string;
+  description: string;
+  active: boolean;
+}
 
 export default function EditPermissionPage({
   params,
@@ -10,40 +17,40 @@ export default function EditPermissionPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
-  const [isLoading, setIsLoading] = useState(true)
-  const [permission, setPermission] = useState<any>(null)
+  const [isLoading, setIsLoading] = useState(true);
+  const [permission, setPermission] = useState<PermissionData | null>(null);
 
   useEffect(() => {
     const fetchPermission = async () => {
-      setIsLoading(true)
+      setIsLoading(true);
       try {
-        await new Promise((resolve) => setTimeout(resolve, 500))
+        await new Promise((resolve) => setTimeout(resolve, 500));
 
         const mockPermission = {
           id: Number(id),
           name: "user.create",
           description: "Allows users to create new user accounts",
           active: true,
-        }
+        };
 
-        setPermission(mockPermission)
+        setPermission(mockPermission);
       } catch (error) {
-        console.error("Error fetching permission:", error)
+        console.error("Error fetching permission:", error);
       } finally {
-        setIsLoading(false)
+        setIsLoading(false);
       }
-    }
+    };
 
-    fetchPermission()
-  }, [id])
+    fetchPermission();
+  }, [id]);
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <Spinner size="lg" />
       </div>
-    )
+    );
   }
 
-  return <PermissionForm permission={permission} />
+  return <PermissionForm permission={permission} />;
 }

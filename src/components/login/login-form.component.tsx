@@ -1,7 +1,8 @@
 "use client";
 
-import { type FormEvent, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { signIn } from "next-auth/react";
+import { type FormEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -12,7 +13,6 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { signIn } from "next-auth/react";
 
 export default function LoginForm() {
   const [loading, setLoading] = useState(false);
@@ -38,7 +38,9 @@ export default function LoginForm() {
       });
 
       if (result?.error) {
-        setError("Credenciales inválidas. Por favor, verifica tu correo y contraseña.");
+        setError(
+          "Credenciales inválidas. Por favor, verifica tu correo y contraseña.",
+        );
         setLoading(false);
       } else if (result?.ok) {
         // Success! Use window.location for a full page reload

@@ -1,11 +1,12 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, AlertTriangle, Wrench, Calendar } from "lucide-react";
-import { getDashboardStats } from "@/lib/actions/dashboard";
-import { Badge } from "@/components/ui/badge";
+import { AlertTriangle, Calendar, Users, Wrench } from "lucide-react";
 import Link from "next/link";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { getDashboardStats } from "@/lib/actions/dashboard";
 
 export default async function AdminDashboard() {
-  const { stats, recentIncidents, pendingWorkOrders } = await getDashboardStats();
+  const { stats, recentIncidents, pendingWorkOrders } =
+    await getDashboardStats();
 
   const statCards = [
     {
@@ -45,7 +46,9 @@ export default async function AdminDashboard() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl sm:text-3xl font-bold">Panel de Administración</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold">
+          Panel de Administración
+        </h1>
         <p className="text-sm sm:text-base text-muted-foreground">
           Bienvenido al panel de administración de OpusTrack
         </p>
@@ -56,12 +59,16 @@ export default async function AdminDashboard() {
           <Link key={stat.title} href={stat.href}>
             <Card className="hover:bg-muted/50 transition-colors cursor-pointer">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
+                <CardTitle className="text-sm font-medium">
+                  {stat.title}
+                </CardTitle>
                 <stat.icon className={`h-4 w-4 ${stat.color}`} />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{stat.value}</div>
-                <p className="text-xs text-muted-foreground mt-1">{stat.description}</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {stat.description}
+                </p>
               </CardContent>
             </Card>
           </Link>
@@ -90,12 +97,15 @@ export default async function AdminDashboard() {
                       <div className="flex-1">
                         <p className="text-sm font-medium">{incident.title}</p>
                         <p className="text-xs text-muted-foreground">
-                          Reportado por {incident.reportedBy?.name || "Desconocido"} •{" "}
+                          Reportado por{" "}
+                          {incident.reportedBy?.name || "Desconocido"} •{" "}
                           {new Date(incident.reportedAt).toLocaleDateString()}
                         </p>
                       </div>
                       <Badge
-                        variant={incident.priority >= 8 ? "destructive" : "secondary"}
+                        variant={
+                          incident.priority >= 8 ? "destructive" : "secondary"
+                        }
                       >
                         {incident.status?.name || "Sin estado"}
                       </Badge>
@@ -133,7 +143,9 @@ export default async function AdminDashboard() {
                           Asignado a {wo.assignedTo.name}
                         </p>
                       </div>
-                      <Badge variant="outline">{wo.status?.name || 'N/A'}</Badge>
+                      <Badge variant="outline">
+                        {wo.status?.name || "N/A"}
+                      </Badge>
                     </div>
                   </Link>
                 ))

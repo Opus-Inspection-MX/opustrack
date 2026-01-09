@@ -1,7 +1,15 @@
-"use client"
+"use client";
 
-import Link from "next/link"
-import { usePathname } from "next/navigation"
+import {
+  ClipboardList,
+  PanelLeftClose,
+  PanelLeftOpen,
+  User,
+  Wrench,
+} from "lucide-react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { LogoutButton } from "@/components/auth/logout-button";
 import {
   Sidebar,
   SidebarContent,
@@ -12,10 +20,8 @@ import {
   SidebarMenuItem,
   SidebarRail,
   useSidebar,
-} from "@/components/ui/sidebar"
-import { ThemeToggle } from "./theme-toggle"
-import { LogoutButton } from "@/components/auth/logout-button"
-import { ClipboardList, Wrench, User, PanelLeftClose, PanelLeftOpen } from "lucide-react"
+} from "@/components/ui/sidebar";
+import { ThemeToggle } from "./theme-toggle";
 
 const menuItems = [
   {
@@ -33,17 +39,20 @@ const menuItems = [
     url: "/fsr/profile",
     icon: User,
   },
-]
+];
 
 export function FSRSidebar() {
-  const pathname = usePathname()
-  const { toggleSidebar } = useSidebar()
+  const pathname = usePathname();
+  const { toggleSidebar } = useSidebar();
 
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="border-b px-6 py-4 group-data-[collapsible=icon]:px-2">
         <div className="flex items-center justify-between group-data-[collapsible=icon]:justify-center">
-          <Link href="/fsr" className="flex items-center gap-2 group-data-[collapsible=icon]:hidden">
+          <Link
+            href="/fsr"
+            className="flex items-center gap-2 group-data-[collapsible=icon]:hidden"
+          >
             <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
               <Wrench className="h-5 w-5 text-primary-foreground" />
             </div>
@@ -70,7 +79,11 @@ export function FSRSidebar() {
         <SidebarMenu>
           {menuItems.map((item) => (
             <SidebarMenuItem key={item.url}>
-              <SidebarMenuButton asChild isActive={pathname === item.url} tooltip={item.title}>
+              <SidebarMenuButton
+                asChild
+                isActive={pathname === item.url}
+                tooltip={item.title}
+              >
                 <Link href={item.url}>
                   <item.icon className="h-4 w-4" />
                   <span>{item.title}</span>
@@ -102,5 +115,5 @@ export function FSRSidebar() {
 
       <SidebarRail />
     </Sidebar>
-  )
+  );
 }

@@ -1,21 +1,27 @@
-"use client"
+"use client";
 
-import type React from "react"
-import { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { FormError } from "@/components/ui/form-error"
-import { useRouter } from "next/navigation"
-import { incidentSchema, type IncidentFormData } from "@/lib/validations"
-import { Loader2 } from "lucide-react"
+import { Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import type React from "react";
+import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { FormError } from "@/components/ui/form-error";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { type IncidentFormData, incidentSchema } from "@/lib/validations";
 
 interface IncidentFormProps {
-  incident?: any
-  onClose?: () => void
+  incident?: any;
+  onClose?: () => void;
 }
 
 export function IncidentForm({ incident, onClose }: IncidentFormProps) {
@@ -29,13 +35,13 @@ export function IncidentForm({ incident, onClose }: IncidentFormProps) {
     vicId: "",
     reportedById: "",
     scheduleId: "",
-  })
+  });
 
-  const [errors, setErrors] = useState<Record<string, string>>({})
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [touched, setTouched] = useState<Record<string, boolean>>({})
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
 
-  const router = useRouter()
+  const router = useRouter();
 
   // Mock data - replace with actual API calls
   const incidentTypes = [
@@ -43,26 +49,26 @@ export function IncidentForm({ incident, onClose }: IncidentFormProps) {
     { id: "2", name: "System" },
     { id: "3", name: "Equipment" },
     { id: "4", name: "Network" },
-  ]
+  ];
 
   const incidentStatuses = [
     { id: "1", name: "Open" },
     { id: "2", name: "In Progress" },
     { id: "3", name: "Resolved" },
     { id: "4", name: "Closed" },
-  ]
+  ];
 
   const vics = [
     { id: "vic_001", name: "VIC Centro", code: "VIC001" },
     { id: "vic_002", name: "VIC Norte", code: "VIC002" },
     { id: "vic_003", name: "VIC Sur", code: "VIC003" },
-  ]
+  ];
 
   const users = [
     { id: "user_001", name: "John Doe" },
     { id: "user_002", name: "Jane Smith" },
     { id: "user_003", name: "Mike Johnson" },
-  ]
+  ];
 
   useEffect(() => {
     if (incident) {
@@ -76,85 +82,91 @@ export function IncidentForm({ incident, onClose }: IncidentFormProps) {
         vicId: incident.vicId || "",
         reportedById: incident.reportedById || "",
         scheduleId: incident.scheduleId || "",
-      })
+      });
     }
-  }, [incident])
+  }, [incident]);
 
   const validateField = (field: string, value: any) => {
     try {
-      incidentSchema.pick({ [field]: true } as any).parse({ [field]: value })
-      setErrors((prev) => ({ ...prev, [field]: "" }))
+      incidentSchema.pick({ [field]: true } as any).parse({ [field]: value });
+      setErrors((prev) => ({ ...prev, [field]: "" }));
     } catch (error: any) {
-      const fieldError = error.issues?.[0]?.message || "Invalid value"
-      setErrors((prev) => ({ ...prev, [field]: fieldError }))
+      const fieldError = error.issues?.[0]?.message || "Invalid value";
+      setErrors((prev) => ({ ...prev, [field]: fieldError }));
     }
-  }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsSubmitting(true)
+    e.preventDefault();
+    setIsSubmitting(true);
 
     try {
       // Validate all fields
-      const validatedData = incidentSchema.parse(formData)
+      const validatedData = incidentSchema.parse(formData);
 
       // Clear any existing errors
-      setErrors({})
+      setErrors({});
 
       // Here you would make an API call to create/update the incident
-      console.log("Submitting incident:", validatedData)
+      console.log("Submitting incident:", validatedData);
 
       // Simulate API delay
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      await new Promise((resolve) => setTimeout(resolve, 1000));
 
       // Mock success
-      alert(incident ? "Incident updated successfully!" : "Incident created successfully!")
+      alert(
+        incident
+          ? "Incident updated successfully!"
+          : "Incident created successfully!",
+      );
 
       // Navigate back to incidents list
       if (onClose) {
-        onClose()
+        onClose();
       } else {
-        router.push("/admin/incidents")
+        router.push("/admin/incidents");
       }
     } catch (error: any) {
       if (error.issues) {
-        const fieldErrors: Record<string, string> = {}
+        const fieldErrors: Record<string, string> = {};
         error.issues.forEach((err: any) => {
           if (err.path?.[0]) {
-            fieldErrors[err.path[0]] = err.message
+            fieldErrors[err.path[0]] = err.message;
           }
-        })
-        setErrors(fieldErrors)
+        });
+        setErrors(fieldErrors);
       }
     } finally {
-      setIsSubmitting(false)
+      setIsSubmitting(false);
     }
-  }
+  };
 
   const handleChange = (field: string, value: string | number) => {
     setFormData((prev) => ({
       ...prev,
       [field]: value,
-    }))
+    }));
 
     // Mark field as touched
-    setTouched((prev) => ({ ...prev, [field]: true }))
+    setTouched((prev) => ({ ...prev, [field]: true }));
 
     // Validate field if it has been touched
     if (touched[field]) {
-      validateField(field, value)
+      validateField(field, value);
     }
-  }
+  };
 
   const handleBlur = (field: string) => {
-    setTouched((prev) => ({ ...prev, [field]: true }))
-    validateField(field, formData[field as keyof IncidentFormData])
-  }
+    setTouched((prev) => ({ ...prev, [field]: true }));
+    validateField(field, formData[field as keyof IncidentFormData]);
+  };
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{incident ? "Edit Incident" : "Create New Incident"}</CardTitle>
+        <CardTitle>
+          {incident ? "Edit Incident" : "Create New Incident"}
+        </CardTitle>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -173,8 +185,13 @@ export function IncidentForm({ incident, onClose }: IncidentFormProps) {
             </div>
             <div className="space-y-2">
               <Label htmlFor="priority">Priority *</Label>
-              <Select value={formData.priority} onValueChange={(value) => handleChange("priority", value)}>
-                <SelectTrigger className={errors.priority ? "border-destructive" : ""}>
+              <Select
+                value={formData.priority}
+                onValueChange={(value) => handleChange("priority", value)}
+              >
+                <SelectTrigger
+                  className={errors.priority ? "border-destructive" : ""}
+                >
                   <SelectValue placeholder="Select priority" />
                 </SelectTrigger>
                 <SelectContent>
@@ -205,8 +222,13 @@ export function IncidentForm({ incident, onClose }: IncidentFormProps) {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="typeId">Incident Type *</Label>
-              <Select value={formData.typeId} onValueChange={(value) => handleChange("typeId", value)}>
-                <SelectTrigger className={errors.typeId ? "border-destructive" : ""}>
+              <Select
+                value={formData.typeId}
+                onValueChange={(value) => handleChange("typeId", value)}
+              >
+                <SelectTrigger
+                  className={errors.typeId ? "border-destructive" : ""}
+                >
                   <SelectValue placeholder="Select type" />
                 </SelectTrigger>
                 <SelectContent>
@@ -221,8 +243,13 @@ export function IncidentForm({ incident, onClose }: IncidentFormProps) {
             </div>
             <div className="space-y-2">
               <Label htmlFor="statusId">Status *</Label>
-              <Select value={formData.statusId} onValueChange={(value) => handleChange("statusId", value)}>
-                <SelectTrigger className={errors.statusId ? "border-destructive" : ""}>
+              <Select
+                value={formData.statusId}
+                onValueChange={(value) => handleChange("statusId", value)}
+              >
+                <SelectTrigger
+                  className={errors.statusId ? "border-destructive" : ""}
+                >
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -241,7 +268,9 @@ export function IncidentForm({ incident, onClose }: IncidentFormProps) {
                 id="sla"
                 type="number"
                 value={formData.sla}
-                onChange={(e) => handleChange("sla", Number.parseInt(e.target.value) || 0)}
+                onChange={(e) =>
+                  handleChange("sla", Number.parseInt(e.target.value, 10) || 0)
+                }
                 onBlur={() => handleBlur("sla")}
                 placeholder="24"
                 min="1"
@@ -255,8 +284,13 @@ export function IncidentForm({ incident, onClose }: IncidentFormProps) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="vicId">VIC *</Label>
-              <Select value={formData.vicId} onValueChange={(value) => handleChange("vicId", value)}>
-                <SelectTrigger className={errors.vicId ? "border-destructive" : ""}>
+              <Select
+                value={formData.vicId}
+                onValueChange={(value) => handleChange("vicId", value)}
+              >
+                <SelectTrigger
+                  className={errors.vicId ? "border-destructive" : ""}
+                >
                   <SelectValue placeholder="Select VIC" />
                 </SelectTrigger>
                 <SelectContent>
@@ -271,8 +305,13 @@ export function IncidentForm({ incident, onClose }: IncidentFormProps) {
             </div>
             <div className="space-y-2">
               <Label htmlFor="reportedById">Reported By *</Label>
-              <Select value={formData.reportedById} onValueChange={(value) => handleChange("reportedById", value)}>
-                <SelectTrigger className={errors.reportedById ? "border-destructive" : ""}>
+              <Select
+                value={formData.reportedById}
+                onValueChange={(value) => handleChange("reportedById", value)}
+              >
+                <SelectTrigger
+                  className={errors.reportedById ? "border-destructive" : ""}
+                >
                   <SelectValue placeholder="Select reporter" />
                 </SelectTrigger>
                 <SelectContent>
@@ -291,18 +330,22 @@ export function IncidentForm({ incident, onClose }: IncidentFormProps) {
             <Button
               type="button"
               variant="outline"
-              onClick={() => (onClose ? onClose() : router.push("/admin/incidents"))}
+              onClick={() =>
+                onClose ? onClose() : router.push("/admin/incidents")
+              }
               disabled={isSubmitting}
             >
               Cancel
             </Button>
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {isSubmitting && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
               {incident ? "Update Incident" : "Create Incident"}
             </Button>
           </div>
         </form>
       </CardContent>
     </Card>
-  )
+  );
 }

@@ -1,14 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { WorkActivityTable } from "@/components/work-activities/work-activity-table";
 import { Spinner } from "@/components/ui/spinner";
+import { WorkActivityTable } from "@/components/work-activities/work-activity-table";
 import {
-  getAllWorkActivities,
   deleteWorkActivity,
+  getAllWorkActivities,
 } from "@/lib/actions/work-activities";
 
 export default function WorkActivitiesPage() {
@@ -59,7 +59,7 @@ export default function WorkActivitiesPage() {
         alert(
           error instanceof Error
             ? error.message
-            : "Failed to delete work activity"
+            : "Failed to delete work activity",
         );
       }
     }

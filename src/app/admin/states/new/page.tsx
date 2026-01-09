@@ -1,4 +1,4 @@
-import { StateForm } from "@/components/states/state-form"
+import { StateForm } from "@/components/states/state-form";
 
 export default function NewStatePage() {
   return (
@@ -10,5 +10,5 @@ export default function NewStatePage() {
 
       <StateForm />
     </div>
-  )
+  );
 }

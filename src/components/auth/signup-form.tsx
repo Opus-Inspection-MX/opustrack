@@ -2,5 +2,5 @@
 // Account creation is managed by administrators only
 
 export function SignupForm() {
-  return null
+  return null;
 }

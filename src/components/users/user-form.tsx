@@ -1,36 +1,47 @@
-"use client"
+"use client";
 
-import type React from "react"
-
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Switch } from "@/components/ui/switch"
-import { FormError } from "@/components/ui/form-error"
-import { Spinner } from "@/components/ui/spinner"
-import { ArrowLeft } from "lucide-react"
+import { ArrowLeft } from "lucide-react";
+import { useRouter } from "next/navigation";
+import type React from "react";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { FormError } from "@/components/ui/form-error";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Spinner } from "@/components/ui/spinner";
+import { Switch } from "@/components/ui/switch";
 
 interface UserFormProps {
   user?: {
-    id: string
-    name: string
-    email: string
-    roleId: number
-    userStatusId: number
-    vicId?: string
-    active: boolean
-  }
-  isEditing?: boolean
+    id: string;
+    name: string;
+    email: string;
+    roleId: number;
+    userStatusId: number;
+    vicId?: string;
+    active: boolean;
+  };
+  isEditing?: boolean;
 }
 
 export function UserForm({ user, isEditing = false }: UserFormProps) {
-  const router = useRouter()
-  const [isLoading, setIsLoading] = useState(false)
-  const [errors, setErrors] = useState<Record<string, string>>({})
+  const router = useRouter();
+  const [isLoading, setIsLoading] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const [formData, setFormData] = useState({
     name: user?.name || "",
@@ -41,93 +52,93 @@ export function UserForm({ user, isEditing = false }: UserFormProps) {
     userStatusId: user?.userStatusId?.toString() || "",
     vicId: user?.vicId || "none",
     active: user?.active ?? true,
-  })
+  });
 
   const roles = [
     { id: 1, name: "Admin" },
     { id: 2, name: "Technician" },
     { id: 3, name: "Inspector" },
     { id: 4, name: "Manager" },
-  ]
+  ];
 
   const userStatuses = [
     { id: 1, name: "Active" },
     { id: 2, name: "Inactive" },
     { id: 3, name: "Suspended" },
     { id: 4, name: "Pending" },
-  ]
+  ];
 
   const vicCenters = [
     { id: "vic_1", name: "VIC Centro", code: "VIC001" },
     { id: "vic_2", name: "VIC Norte", code: "VIC002" },
     { id: "vic_3", name: "VIC Sur", code: "VIC003" },
-  ]
+  ];
 
   const validateForm = () => {
-    const newErrors: Record<string, string> = {}
+    const newErrors: Record<string, string> = {};
 
     if (!formData.name.trim()) {
-      newErrors.name = "Name is required"
+      newErrors.name = "Name is required";
     }
 
     if (!formData.email.trim()) {
-      newErrors.email = "Email is required"
+      newErrors.email = "Email is required";
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = "Email is invalid"
+      newErrors.email = "Email is invalid";
     }
 
     if (!isEditing) {
       if (!formData.password) {
-        newErrors.password = "Password is required"
+        newErrors.password = "Password is required";
       } else if (formData.password.length < 6) {
-        newErrors.password = "Password must be at least 6 characters"
+        newErrors.password = "Password must be at least 6 characters";
       }
 
       if (formData.password !== formData.confirmPassword) {
-        newErrors.confirmPassword = "Passwords do not match"
+        newErrors.confirmPassword = "Passwords do not match";
       }
     }
 
     if (!formData.roleId) {
-      newErrors.roleId = "Role is required"
+      newErrors.roleId = "Role is required";
     }
 
     if (!formData.userStatusId) {
-      newErrors.userStatusId = "User status is required"
+      newErrors.userStatusId = "User status is required";
     }
 
-    setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
-  }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
 
     if (!validateForm()) {
-      return
+      return;
     }
 
-    setIsLoading(true)
+    setIsLoading(true);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      await new Promise((resolve) => setTimeout(resolve, 1000));
 
-      console.log("Form data:", formData)
+      console.log("Form data:", formData);
 
       // After successful creation/update, redirect to list page
-      router.push("/admin/users")
+      router.push("/admin/users");
     } catch (error) {
-      console.error("Error saving user:", error)
+      console.error("Error saving user:", error);
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   const handleInputChange = (field: string, value: string | boolean) => {
-    setFormData((prev) => ({ ...prev, [field]: value }))
+    setFormData((prev) => ({ ...prev, [field]: value }));
     if (errors[field]) {
-      setErrors((prev) => ({ ...prev, [field]: "" }))
+      setErrors((prev) => ({ ...prev, [field]: "" }));
     }
-  }
+  };
 
   return (
     <div className="space-y-6">
@@ -137,9 +148,13 @@ export function UserForm({ user, isEditing = false }: UserFormProps) {
           Back
         </Button>
         <div>
-          <h1 className="text-3xl font-bold">{isEditing ? "Edit User" : "Create User"}</h1>
+          <h1 className="text-3xl font-bold">
+            {isEditing ? "Edit User" : "Create User"}
+          </h1>
           <p className="text-muted-foreground">
-            {isEditing ? "Update user information" : "Add a new user to the system"}
+            {isEditing
+              ? "Update user information"
+              : "Add a new user to the system"}
           </p>
         </div>
       </div>
@@ -148,7 +163,9 @@ export function UserForm({ user, isEditing = false }: UserFormProps) {
         <CardHeader>
           <CardTitle>User Information</CardTitle>
           <CardDescription>
-            {isEditing ? "Update the user details below" : "Enter the user details below"}
+            {isEditing
+              ? "Update the user details below"
+              : "Enter the user details below"}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -185,7 +202,9 @@ export function UserForm({ user, isEditing = false }: UserFormProps) {
                       id="password"
                       type="password"
                       value={formData.password}
-                      onChange={(e) => handleInputChange("password", e.target.value)}
+                      onChange={(e) =>
+                        handleInputChange("password", e.target.value)
+                      }
                       placeholder="Enter password"
                     />
                     {errors.password && <FormError message={errors.password} />}
@@ -197,17 +216,24 @@ export function UserForm({ user, isEditing = false }: UserFormProps) {
                       id="confirmPassword"
                       type="password"
                       value={formData.confirmPassword}
-                      onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
+                      onChange={(e) =>
+                        handleInputChange("confirmPassword", e.target.value)
+                      }
                       placeholder="Confirm password"
                     />
-                    {errors.confirmPassword && <FormError message={errors.confirmPassword} />}
+                    {errors.confirmPassword && (
+                      <FormError message={errors.confirmPassword} />
+                    )}
                   </div>
                 </>
               )}
 
               <div className="space-y-2">
                 <Label htmlFor="roleId">Role *</Label>
-                <Select value={formData.roleId} onValueChange={(value) => handleInputChange("roleId", value)}>
+                <Select
+                  value={formData.roleId}
+                  onValueChange={(value) => handleInputChange("roleId", value)}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Select a role" />
                   </SelectTrigger>
@@ -226,7 +252,9 @@ export function UserForm({ user, isEditing = false }: UserFormProps) {
                 <Label htmlFor="userStatusId">Status *</Label>
                 <Select
                   value={formData.userStatusId}
-                  onValueChange={(value) => handleInputChange("userStatusId", value)}
+                  onValueChange={(value) =>
+                    handleInputChange("userStatusId", value)
+                  }
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select status" />
@@ -239,12 +267,17 @@ export function UserForm({ user, isEditing = false }: UserFormProps) {
                     ))}
                   </SelectContent>
                 </Select>
-                {errors.userStatusId && <FormError message={errors.userStatusId} />}
+                {errors.userStatusId && (
+                  <FormError message={errors.userStatusId} />
+                )}
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="vicId">VIC Center</Label>
-                <Select value={formData.vicId} onValueChange={(value) => handleInputChange("vicId", value)}>
+                <Select
+                  value={formData.vicId}
+                  onValueChange={(value) => handleInputChange("vicId", value)}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Select VIC center (optional)" />
                   </SelectTrigger>
@@ -263,14 +296,20 @@ export function UserForm({ user, isEditing = false }: UserFormProps) {
                 <Switch
                   id="active"
                   checked={formData.active}
-                  onCheckedChange={(checked) => handleInputChange("active", checked)}
+                  onCheckedChange={(checked) =>
+                    handleInputChange("active", checked)
+                  }
                 />
                 <Label htmlFor="active">Active User</Label>
               </div>
             </div>
 
             <div className="flex justify-end gap-4">
-              <Button type="button" variant="outline" onClick={() => router.back()}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => router.back()}
+              >
                 Cancel
               </Button>
               <Button type="submit" disabled={isLoading}>
@@ -282,5 +321,5 @@ export function UserForm({ user, isEditing = false }: UserFormProps) {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

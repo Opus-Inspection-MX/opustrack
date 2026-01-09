@@ -36,13 +36,18 @@ export async function middleware(req: NextRequest) {
   const defaultPath = token.defaultPath as string | undefined;
 
   if (!roleName || !defaultPath) {
-    console.error("[Middleware] Missing role data in token:", { roleName, defaultPath });
+    console.error("[Middleware] Missing role data in token:", {
+      roleName,
+      defaultPath,
+    });
     return NextResponse.redirect(new URL("/login", req.url));
   }
 
   // Handle root path - redirect to user's default path
   if (pathname === "/" || pathname === "/dashboard") {
-    console.log(`[Middleware] Redirecting to defaultPath: ${defaultPath} for role: ${roleName}`);
+    console.log(
+      `[Middleware] Redirecting to defaultPath: ${defaultPath} for role: ${roleName}`,
+    );
     return NextResponse.redirect(new URL(defaultPath, req.url));
   }
 
@@ -56,11 +61,15 @@ export async function middleware(req: NextRequest) {
   const canAccess = checkRouteAccess(roleName, pathname);
 
   if (!canAccess) {
-    console.warn(`[Middleware] Access denied for role ${roleName} to ${pathname}`);
+    console.warn(
+      `[Middleware] Access denied for role ${roleName} to ${pathname}`,
+    );
     return NextResponse.redirect(new URL("/unauthorized", req.url));
   }
 
-  console.log(`[Middleware] Access granted for role ${roleName} to ${pathname}`);
+  console.log(
+    `[Middleware] Access granted for role ${roleName} to ${pathname}`,
+  );
   return NextResponse.next();
 }
 
@@ -81,13 +90,7 @@ function checkRouteAccess(roleName: string, pathname: string): boolean {
       "/reports",
       "/profile",
     ],
-    CLIENT: [
-      "/client",
-      "/incidents",
-      "/work-orders",
-      "/schedules",
-      "/profile",
-    ],
+    CLIENT: ["/client", "/incidents", "/work-orders", "/schedules", "/profile"],
     GUEST: [
       "/guest",
       "/incidents",

@@ -123,15 +123,15 @@
   }
   /* Ensure dropdowns render above other content */
   [data-radix-popper-content-wrapper] {
-    z-index: 50 !important;
+    z-index: 50;
   }
   /* Fix for dropdown menu positioning */
   [role="menu"] {
-    z-index: 50 !important;
+    z-index: 50;
   }
   /* Ensure portals render correctly */
   [data-radix-portal] {
-    z-index: 50 !important;
+    z-index: 50;
   }
   /* Prevent table overflow issues with dropdowns */
   .overflow-x-auto {
@@ -140,7 +140,7 @@
   /* Fix for mobile dropdown positioning */
   @media (max-width: 768px) {
     [data-radix-popper-content-wrapper] {
-      position: fixed !important;
+      position: fixed;
     }
   }
 }

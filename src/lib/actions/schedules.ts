@@ -1,9 +1,9 @@
 "use server";
 
-import { prisma } from "@/lib/database/prisma.singleton";
-import { requirePermission } from "@/lib/auth/auth";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { requirePermission } from "@/lib/auth/auth";
+import { prisma } from "@/lib/database/prisma.singleton";
 
 export type ScheduleFormData = {
   title: string;
@@ -17,56 +17,56 @@ export type ScheduleFormData = {
  * Get all schedules with pagination, search, and filters
  */
 export async function getSchedules(params?: {
-  page?: number
-  limit?: number
-  search?: string
-  vicId?: string
-  statusId?: number
-  startDate?: string
-  endDate?: string
+  page?: number;
+  limit?: number;
+  search?: string;
+  vicId?: string;
+  statusId?: number;
+  startDate?: string;
+  endDate?: string;
 }) {
   await requirePermission("schedules:read");
 
-  const page = params?.page || 1
-  const limit = params?.limit || 10
-  const skip = (page - 1) * limit
+  const page = params?.page || 1;
+  const limit = params?.limit || 10;
+  const skip = (page - 1) * limit;
 
   // Build where clause
   const where: any = {
     active: true,
-  }
+  };
 
   // Search by title or description
   if (params?.search) {
     where.OR = [
       { title: { contains: params.search, mode: "insensitive" } },
       { description: { contains: params.search, mode: "insensitive" } },
-    ]
+    ];
   }
 
   // Filter by VIC
   if (params?.vicId) {
-    where.vicId = params.vicId
+    where.vicId = params.vicId;
   }
 
   // Filter by status
   if (params?.statusId) {
-    where.statusId = params.statusId
+    where.statusId = params.statusId;
   }
 
   // Filter by date range
   if (params?.startDate || params?.endDate) {
-    where.scheduledAt = {}
+    where.scheduledAt = {};
     if (params.startDate) {
-      where.scheduledAt.gte = new Date(params.startDate)
+      where.scheduledAt.gte = new Date(params.startDate);
     }
     if (params.endDate) {
-      where.scheduledAt.lte = new Date(params.endDate)
+      where.scheduledAt.lte = new Date(params.endDate);
     }
   }
 
   // Get total count
-  const total = await prisma.schedule.count({ where })
+  const total = await prisma.schedule.count({ where });
 
   // Get paginated schedules
   const schedules = await prisma.schedule.findMany({
@@ -80,7 +80,7 @@ export async function getSchedules(params?: {
     orderBy: { scheduledAt: "desc" },
     skip,
     take: limit,
-  })
+  });
 
   return {
     data: schedules,
@@ -90,7 +90,7 @@ export async function getSchedules(params?: {
       total,
       totalPages: Math.ceil(total / limit),
     },
-  }
+  };
 }
 
 /**
@@ -185,7 +185,7 @@ export async function deleteSchedule(id: string) {
 
   if (incidentCount > 0) {
     throw new Error(
-      `Cannot delete schedule. ${incidentCount} incident(s) are linked to this schedule.`
+      `Cannot delete schedule. ${incidentCount} incident(s) are linked to this schedule.`,
     );
   }
 

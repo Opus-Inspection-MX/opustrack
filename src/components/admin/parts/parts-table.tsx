@@ -1,5 +1,17 @@
 "use client";
 
+import { Edit, Eye, MoreHorizontal, Package, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Table,
   TableBody,
@@ -8,14 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Edit, Trash2, Eye, Package, MoreHorizontal } from "lucide-react";
-import Link from "next/link";
 import { deletePart } from "@/lib/actions/parts";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
 
 type Part = {
   id: string;
@@ -47,7 +52,7 @@ export function PartsTable({ parts }: { parts: Part[] }) {
       await deletePart(id);
       router.refresh();
     } catch (error) {
-      alert("Error al eliminar parte: " + (error as Error).message);
+      alert(`Error al eliminar parte: ${(error as Error).message}`);
       setDeleting(null);
     }
   };
@@ -91,9 +96,13 @@ export function PartsTable({ parts }: { parts: Part[] }) {
               </TableCell>
               <TableCell>
                 {part.description ? (
-                  <span className="max-w-xs truncate block">{part.description}</span>
+                  <span className="max-w-xs truncate block">
+                    {part.description}
+                  </span>
                 ) : (
-                  <span className="text-muted-foreground text-sm">Sin descripcion</span>
+                  <span className="text-muted-foreground text-sm">
+                    Sin descripcion
+                  </span>
                 )}
               </TableCell>
               <TableCell>

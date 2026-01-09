@@ -1,8 +1,8 @@
-import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import Link from "next/link";
-import { getIncidents } from "@/lib/actions/incidents";
 import { IncidentsTable } from "@/components/admin/incidents/incidents-table";
+import { Button } from "@/components/ui/button";
+import { getIncidents } from "@/lib/actions/incidents";
 
 export default async function IncidentsPage() {
   const incidents = await getIncidents();

@@ -1,6 +1,6 @@
-import { NextResponse } from "next/server"
-import { prisma } from "@/lib/database/prisma.singleton"
-import { withPermission } from "@/lib/auth/auth"
+import { NextResponse } from "next/server";
+import { withPermission } from "@/lib/auth/auth";
+import { prisma } from "@/lib/database/prisma.singleton";
 
 /**
  * GET /api/schedules/incidents
@@ -10,30 +10,29 @@ import { withPermission } from "@/lib/auth/auth"
  * - end: fecha de fin (ISO string)
  * - vicId: opcional, filtrar por VIC específico
  */
-export const GET = withPermission("schedules:read", async (request, user) => {
+export const GET = withPermission("schedules:read", async (request, _user) => {
   try {
-
-    const { searchParams } = new URL(request.url)
-    const startParam = searchParams.get("start")
-    const endParam = searchParams.get("end")
-    const vicIdParam = searchParams.get("vicId")
+    const { searchParams } = new URL(request.url);
+    const startParam = searchParams.get("start");
+    const endParam = searchParams.get("end");
+    const vicIdParam = searchParams.get("vicId");
 
     if (!startParam || !endParam) {
       return NextResponse.json(
         { error: "Los parámetros 'start' y 'end' son requeridos" },
-        { status: 400 }
-      )
+        { status: 400 },
+      );
     }
 
-    const start = new Date(startParam)
-    const end = new Date(endParam)
+    const start = new Date(startParam);
+    const end = new Date(endParam);
 
     // Validar fechas
-    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
       return NextResponse.json(
         { error: "Formato de fecha inválido. Use ISO 8601 (YYYY-MM-DD)" },
-        { status: 400 }
-      )
+        { status: 400 },
+      );
     }
 
     // Construir filtro
@@ -46,11 +45,11 @@ export const GET = withPermission("schedules:read", async (request, user) => {
         },
         active: true,
       },
-    }
+    };
 
     // Filtrar por VIC si se proporciona
     if (vicIdParam) {
-      where.vicId = vicIdParam
+      where.vicId = vicIdParam;
     }
 
     // Obtener incidentes con schedules en el rango
@@ -119,7 +118,7 @@ export const GET = withPermission("schedules:read", async (request, user) => {
           scheduledAt: "asc",
         },
       },
-    })
+    });
 
     return NextResponse.json({
       success: true,
@@ -129,12 +128,12 @@ export const GET = withPermission("schedules:read", async (request, user) => {
         start: start.toISOString(),
         end: end.toISOString(),
       },
-    })
+    });
   } catch (error) {
-    console.error("Error fetching scheduled incidents:", error)
+    console.error("Error fetching scheduled incidents:", error);
     return NextResponse.json(
       { error: "Error al obtener incidentes programados" },
-      { status: 500 }
-    )
+      { status: 500 },
+    );
   }
-})
+});

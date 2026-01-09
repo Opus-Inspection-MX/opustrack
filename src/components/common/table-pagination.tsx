@@ -1,18 +1,29 @@
-"use client"
+"use client";
 
-import { Button } from "@/components/ui/button"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react"
+import {
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface TablePaginationProps {
-  currentPage: number
-  totalPages: number
-  itemsPerPage: number
-  totalItems: number
-  onPageChange: (page: number) => void
-  onItemsPerPageChange: (itemsPerPage: number) => void
-  startIndex: number
-  endIndex: number
+  currentPage: number;
+  totalPages: number;
+  itemsPerPage: number;
+  totalItems: number;
+  onPageChange: (page: number) => void;
+  onItemsPerPageChange: (itemsPerPage: number) => void;
+  startIndex: number;
+  endIndex: number;
 }
 
 export function TablePagination({
@@ -25,31 +36,31 @@ export function TablePagination({
   startIndex = 0,
   endIndex = 0,
 }: TablePaginationProps) {
-  if (totalItems === 0) return null
+  if (totalItems === 0) return null;
 
   const generatePageNumbers = () => {
-    const pages = []
-    const maxVisiblePages = 5
+    const pages = [];
+    const maxVisiblePages = 5;
 
     if (totalPages <= maxVisiblePages) {
       for (let i = 1; i <= totalPages; i++) {
-        pages.push(i)
+        pages.push(i);
       }
     } else {
-      const start = Math.max(1, currentPage - 2)
-      const end = Math.min(totalPages, start + maxVisiblePages - 1)
+      const start = Math.max(1, currentPage - 2);
+      const end = Math.min(totalPages, start + maxVisiblePages - 1);
 
       for (let i = start; i <= end; i++) {
-        pages.push(i)
+        pages.push(i);
       }
     }
 
-    return pages
-  }
+    return pages;
+  };
 
-  const safeCurrentPage = Math.max(1, Math.min(currentPage, totalPages))
-  const safeStartIndex = Math.max(0, startIndex)
-  const safeEndIndex = Math.min(endIndex, totalItems)
+  const safeCurrentPage = Math.max(1, Math.min(currentPage, totalPages));
+  const safeStartIndex = Math.max(0, startIndex);
+  const safeEndIndex = Math.min(endIndex, totalItems);
 
   return (
     <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 pt-4 border-t">
@@ -111,7 +122,9 @@ export function TablePagination({
           <Button
             variant="outline"
             size="sm"
-            onClick={() => onPageChange?.(Math.min(totalPages, safeCurrentPage + 1))}
+            onClick={() =>
+              onPageChange?.(Math.min(totalPages, safeCurrentPage + 1))
+            }
             disabled={safeCurrentPage === totalPages}
             className="h-8 w-8 p-0"
           >
@@ -129,5 +142,5 @@ export function TablePagination({
         </div>
       )}
     </div>
-  )
+  );
 }

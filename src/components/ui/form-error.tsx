@@ -1,7 +1,7 @@
-import { AlertCircle } from "lucide-react"
+import { AlertCircle } from "lucide-react";
 
 interface FormErrorProps {
-  message: string
+  message: string;
 }
 
 export function FormError({ message }: FormErrorProps) {
@@ -10,5 +10,5 @@ export function FormError({ message }: FormErrorProps) {
       <AlertCircle className="h-4 w-4" />
       <span>{message}</span>
     </div>
-  )
+  );
 }

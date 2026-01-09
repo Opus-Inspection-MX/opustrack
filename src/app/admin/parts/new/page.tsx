@@ -1,8 +1,8 @@
-import { getVICs } from "@/lib/actions/vics";
-import { PartForm } from "@/components/admin/parts/part-form";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import { PartForm } from "@/components/admin/parts/part-form";
 import { Button } from "@/components/ui/button";
+import { getVICs } from "@/lib/actions/vics";
 
 export default async function NewPartPage() {
   const vics = await getVICs();

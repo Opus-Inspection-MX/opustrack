@@ -1,20 +1,20 @@
 // src/lib/auth/auth.ts
-import { getServerSession } from "next-auth";
-import { redirect } from "next/navigation";
-import { prisma } from "@/lib/database/prisma.singleton";
-import {
-  getRoleById,
-  roleCanAccessRoute,
-  userHasPermission,
-  userCanPerformAction,
-  getAccessibleRoutes,
-  isAdmin,
-  type UserWithPermissions,
-  type Role,
-} from "@/lib/authz/authz";
 
+import { redirect } from "next/navigation";
+import { getServerSession } from "next-auth";
 // Import authOptions - will be updated separately
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import {
+  getAccessibleRoutes,
+  getRoleById,
+  isAdmin,
+  type Role,
+  roleCanAccessRoute,
+  type UserWithPermissions,
+  userCanPerformAction,
+  userHasPermission,
+} from "@/lib/authz/authz";
+import { prisma } from "@/lib/database/prisma.singleton";
 
 /**
  * Get the current session or return null if not authenticated
@@ -69,10 +69,14 @@ export async function requireAuth(): Promise<UserWithPermissions> {
  * Get authenticated user or redirect to login
  * Use this in page components that require authentication
  */
-export async function requireAuthPage(callbackUrl?: string): Promise<UserWithPermissions> {
+export async function requireAuthPage(
+  callbackUrl?: string,
+): Promise<UserWithPermissions> {
   const user = await getAuthenticatedUser();
   if (!user) {
-    const params = callbackUrl ? `?callbackUrl=${encodeURIComponent(callbackUrl)}` : "";
+    const params = callbackUrl
+      ? `?callbackUrl=${encodeURIComponent(callbackUrl)}`
+      : "";
     redirect(`/login${params}`);
   }
   return user;
@@ -83,7 +87,7 @@ export async function requireAuthPage(callbackUrl?: string): Promise<UserWithPer
  */
 export function assertPermission(
   user: UserWithPermissions,
-  permissionName: string
+  permissionName: string,
 ): void {
   if (!userHasPermission(user, permissionName)) {
     throw new Error(`Permission denied: ${permissionName}`);
@@ -96,7 +100,7 @@ export function assertPermission(
 export function assertAction(
   user: UserWithPermissions,
   resource: string,
-  action: string
+  action: string,
 ): void {
   if (!userCanPerformAction(user, resource, action)) {
     throw new Error(`Permission denied: ${resource}:${action}`);
@@ -106,7 +110,10 @@ export function assertAction(
 /**
  * Check if user can access a route, throw if not
  */
-export function assertRouteAccess(user: UserWithPermissions, routePath: string): void {
+export function assertRouteAccess(
+  user: UserWithPermissions,
+  routePath: string,
+): void {
   if (!roleCanAccessRoute(user.role, routePath)) {
     throw new Error(`Access denied to route: ${routePath}`);
   }
@@ -116,7 +123,7 @@ export function assertRouteAccess(user: UserWithPermissions, routePath: string):
  * Require authentication and specific permission
  */
 export async function requirePermission(
-  permissionName: string
+  permissionName: string,
 ): Promise<UserWithPermissions> {
   const user = await requireAuth();
   assertPermission(user, permissionName);
@@ -128,7 +135,7 @@ export async function requirePermission(
  */
 export async function requireAction(
   resource: string,
-  action: string
+  action: string,
 ): Promise<UserWithPermissions> {
   const user = await requireAuth();
   assertAction(user, resource, action);
@@ -140,7 +147,7 @@ export async function requireAction(
  */
 export async function requireRouteAccess(
   routePath: string,
-  callbackUrl?: string
+  callbackUrl?: string,
 ): Promise<UserWithPermissions> {
   const user = await requireAuthPage(callbackUrl);
 
@@ -170,7 +177,7 @@ export async function canPerform(permissionName: string): Promise<boolean> {
  */
 export async function canPerformAction(
   resource: string,
-  action: string
+  action: string,
 ): Promise<boolean> {
   const user = await getAuthenticatedUser();
   if (!user) return false;
@@ -226,7 +233,7 @@ export async function getCurrentUserDefaultPath(): Promise<string> {
  * export const POST = withAuth(async (req, user) => { ... })
  */
 export function withAuth(
-  handler: (req: Request, user: UserWithPermissions) => Promise<Response>
+  handler: (req: Request, user: UserWithPermissions) => Promise<Response>,
 ) {
   return async (req: Request) => {
     try {
@@ -234,8 +241,10 @@ export function withAuth(
       return await handler(req, user);
     } catch (error) {
       return new Response(
-        JSON.stringify({ error: error instanceof Error ? error.message : "Unauthorized" }),
-        { status: 401, headers: { "Content-Type": "application/json" } }
+        JSON.stringify({
+          error: error instanceof Error ? error.message : "Unauthorized",
+        }),
+        { status: 401, headers: { "Content-Type": "application/json" } },
       );
     }
   };
@@ -248,7 +257,7 @@ export function withAuth(
  */
 export function withPermission(
   permissionName: string,
-  handler: (req: Request, user: UserWithPermissions) => Promise<Response>
+  handler: (req: Request, user: UserWithPermissions) => Promise<Response>,
 ) {
   return withAuth(async (req, user) => {
     try {
@@ -256,8 +265,10 @@ export function withPermission(
       return await handler(req, user);
     } catch (error) {
       return new Response(
-        JSON.stringify({ error: error instanceof Error ? error.message : "Forbidden" }),
-        { status: 403, headers: { "Content-Type": "application/json" } }
+        JSON.stringify({
+          error: error instanceof Error ? error.message : "Forbidden",
+        }),
+        { status: 403, headers: { "Content-Type": "application/json" } },
       );
     }
   });
@@ -271,7 +282,7 @@ export function withPermission(
 export function withAction(
   resource: string,
   action: string,
-  handler: (req: Request, user: UserWithPermissions) => Promise<Response>
+  handler: (req: Request, user: UserWithPermissions) => Promise<Response>,
 ) {
   return withAuth(async (req, user) => {
     try {
@@ -279,8 +290,10 @@ export function withAction(
       return await handler(req, user);
     } catch (error) {
       return new Response(
-        JSON.stringify({ error: error instanceof Error ? error.message : "Forbidden" }),
-        { status: 403, headers: { "Content-Type": "application/json" } }
+        JSON.stringify({
+          error: error instanceof Error ? error.message : "Forbidden",
+        }),
+        { status: 403, headers: { "Content-Type": "application/json" } },
       );
     }
   });

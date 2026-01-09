@@ -1,6 +1,6 @@
-import { RoleForm } from "@/components/admin/roles/role-form";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import { RoleForm } from "@/components/admin/roles/role-form";
 import { Button } from "@/components/ui/button";
 
 export default async function NewRolePage() {
@@ -14,7 +14,9 @@ export default async function NewRolePage() {
         </Button>
         <div>
           <h1 className="text-3xl font-bold">Nuevo Rol</h1>
-          <p className="text-muted-foreground">Crear un nuevo rol en el sistema</p>
+          <p className="text-muted-foreground">
+            Crear un nuevo rol en el sistema
+          </p>
         </div>
       </div>
 

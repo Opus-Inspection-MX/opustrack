@@ -1,8 +1,8 @@
-import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import Link from "next/link";
-import { getParts } from "@/lib/actions/parts";
 import { PartsTable } from "@/components/admin/parts/parts-table";
+import { Button } from "@/components/ui/button";
+import { getParts } from "@/lib/actions/parts";
 
 export default async function PartsPage() {
   const parts = await getParts();

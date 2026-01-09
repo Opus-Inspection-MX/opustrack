@@ -1,73 +1,91 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { TablePagination } from "@/components/common/table-pagination"
-import { MoreHorizontal, Edit, Trash2, Eye, User } from "lucide-react"
-import Link from "next/link"
+import { Edit, Eye, MoreHorizontal, Trash2, User } from "lucide-react";
+import Link from "next/link";
+import { useState } from "react";
+import { TablePagination } from "@/components/common/table-pagination";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 interface UserType {
-  id: string
-  name: string
-  email: string
-  role: { name: string }
-  userStatus: { name: string }
-  vic?: { name: string; code: string }
-  active: boolean
-  createdAt: string
+  id: string;
+  name: string;
+  email: string;
+  role: { name: string };
+  userStatus: { name: string };
+  vic?: { name: string; code: string };
+  active: boolean;
+  createdAt: string;
 }
 
 interface UserTableProps {
-  users: UserType[]
-  onDelete: (id: string) => void
+  users: UserType[];
+  onDelete: (id: string) => void;
 }
 
 export function UserTable({ users, onDelete }: UserTableProps) {
-  const [currentPage, setCurrentPage] = useState(1)
-  const [itemsPerPage, setItemsPerPage] = useState(10)
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
-  const totalPages = Math.ceil(users.length / itemsPerPage)
-  const startIndex = (currentPage - 1) * itemsPerPage
-  const endIndex = Math.min(startIndex + itemsPerPage, users.length)
-  const paginatedUsers = users.slice(startIndex, endIndex)
+  const totalPages = Math.ceil(users.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = Math.min(startIndex + itemsPerPage, users.length);
+  const paginatedUsers = users.slice(startIndex, endIndex);
 
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
       case "activo":
       case "active":
-        return "bg-green-100 text-green-800"
+        return "bg-green-100 text-green-800";
       case "inactivo":
       case "inactive":
-        return "bg-gray-100 text-gray-800"
+        return "bg-gray-100 text-gray-800";
       case "suspendido":
       case "suspended":
-        return "bg-red-100 text-red-800"
+        return "bg-red-100 text-red-800";
       case "pendiente":
       case "pending":
-        return "bg-yellow-100 text-yellow-800"
+        return "bg-yellow-100 text-yellow-800";
       default:
-        return "bg-gray-100 text-gray-800"
+        return "bg-gray-100 text-gray-800";
     }
-  }
+  };
 
   const getRoleColor = (role: string) => {
     switch (role.toLowerCase()) {
       case "admin":
-        return "bg-purple-100 text-purple-800"
+        return "bg-purple-100 text-purple-800";
       case "technician":
-        return "bg-blue-100 text-blue-800"
+        return "bg-blue-100 text-blue-800";
       case "inspector":
-        return "bg-orange-100 text-orange-800"
+        return "bg-orange-100 text-orange-800";
       case "manager":
-        return "bg-indigo-100 text-indigo-800"
+        return "bg-indigo-100 text-indigo-800";
       default:
-        return "bg-gray-100 text-gray-800"
+        return "bg-gray-100 text-gray-800";
     }
-  }
+  };
 
   return (
     <Card>
@@ -94,7 +112,10 @@ export function UserTable({ users, onDelete }: UserTableProps) {
             <TableBody>
               {paginatedUsers.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                  <TableCell
+                    colSpan={7}
+                    className="text-center py-8 text-muted-foreground"
+                  >
                     No se encontraron usuarios
                   </TableCell>
                 </TableRow>
@@ -111,12 +132,18 @@ export function UserTable({ users, onDelete }: UserTableProps) {
                     </TableCell>
                     <TableCell>{user.email}</TableCell>
                     <TableCell>
-                      <Badge variant="outline" className={getRoleColor(user.role.name)}>
+                      <Badge
+                        variant="outline"
+                        className={getRoleColor(user.role.name)}
+                      >
                         {user.role.name}
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline" className={getStatusColor(user.userStatus.name)}>
+                      <Badge
+                        variant="outline"
+                        className={getStatusColor(user.userStatus.name)}
+                      >
                         {user.userStatus.name}
                       </Badge>
                     </TableCell>
@@ -124,13 +151,17 @@ export function UserTable({ users, onDelete }: UserTableProps) {
                       {user.vic ? (
                         <div className="text-sm">
                           <div className="font-medium">{user.vic.name}</div>
-                          <div className="text-muted-foreground">{user.vic.code}</div>
+                          <div className="text-muted-foreground">
+                            {user.vic.code}
+                          </div>
                         </div>
                       ) : (
                         <span className="text-muted-foreground">-</span>
                       )}
                     </TableCell>
-                    <TableCell>{new Date(user.createdAt).toLocaleDateString()}</TableCell>
+                    <TableCell>
+                      {new Date(user.createdAt).toLocaleDateString()}
+                    </TableCell>
                     <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -158,7 +189,10 @@ export function UserTable({ users, onDelete }: UserTableProps) {
                               Perfil
                             </Link>
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => onDelete(user.id)} className="text-destructive">
+                          <DropdownMenuItem
+                            onClick={() => onDelete(user.id)}
+                            className="text-destructive"
+                          >
                             <Trash2 className="mr-2 h-4 w-4" />
                             Eliminar
                           </DropdownMenuItem>
@@ -181,11 +215,11 @@ export function UserTable({ users, onDelete }: UserTableProps) {
           endIndex={endIndex}
           onPageChange={setCurrentPage}
           onItemsPerPageChange={(newItemsPerPage) => {
-            setItemsPerPage(newItemsPerPage)
-            setCurrentPage(1)
+            setItemsPerPage(newItemsPerPage);
+            setCurrentPage(1);
           }}
         />
       </CardContent>
     </Card>
-  )
+  );
 }

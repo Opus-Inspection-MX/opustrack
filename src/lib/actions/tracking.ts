@@ -1,7 +1,7 @@
 "use server";
 
-import { prisma } from "@/lib/database/prisma.singleton";
 import { revalidatePath } from "next/cache";
+import { prisma } from "@/lib/database/prisma.singleton";
 
 export async function getIncidentsForTracking(filters?: {
   vicId?: string;
@@ -53,7 +53,7 @@ export async function getIncidentsForTracking(filters?: {
     if (filters?.folio) {
       workOrdersWhere.folio = {
         contains: filters.folio,
-        mode: 'insensitive',
+        mode: "insensitive",
       };
     }
 
@@ -258,7 +258,7 @@ export async function updateIncidentDetails(
     statusId: number;
     lineId?: number | null;
     equipmentId?: number | null;
-  }
+  },
 ) {
   try {
     await prisma.incident.update({
@@ -290,7 +290,7 @@ export async function updateWorkOrderDetails(
     startedAt?: string | null;
     finishedAt?: string | null;
     folio?: string | null;
-  }
+  },
 ) {
   try {
     await prisma.workOrder.update({

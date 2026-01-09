@@ -1,11 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { Check, Search, X } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -13,9 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Check, X, Search } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 import { createVIC, updateVIC, type VICFormData } from "@/lib/actions/vics";
 
 type VICFormProps = {
@@ -58,20 +58,19 @@ export function VICForm({ vic, states, fsrUsers, clientUsers }: VICFormProps) {
 
   // Get currently assigned FSR IDs (FSRs that have this VIC in their vicIds array)
   const assignedFSRIds = vic
-    ? fsrUsers
-        .filter(fsr => fsr.vicIds.includes(vic.id))
-        .map(fsr => fsr.id)
+    ? fsrUsers.filter((fsr) => fsr.vicIds.includes(vic.id)).map((fsr) => fsr.id)
     : [];
 
   // Get currently assigned CLIENT user IDs
   const assignedClientIds = vic
     ? clientUsers
-        .filter(client => client.vicId === vic.id)
-        .map(client => client.id)
+        .filter((client) => client.vicId === vic.id)
+        .map((client) => client.id)
     : [];
 
   const [selectedFSRs, setSelectedFSRs] = useState<string[]>(assignedFSRIds);
-  const [selectedClients, setSelectedClients] = useState<string[]>(assignedClientIds);
+  const [selectedClients, setSelectedClients] =
+    useState<string[]>(assignedClientIds);
   const [fsrSearchQuery, setFsrSearchQuery] = useState("");
   const [clientSearchQuery, setClientSearchQuery] = useState("");
 
@@ -88,39 +87,41 @@ export function VICForm({ vic, states, fsrUsers, clientUsers }: VICFormProps) {
   });
 
   // Filter FSRs based on search query
-  const filteredFSRs = fsrUsers.filter(fsr =>
-    fsr.name.toLowerCase().includes(fsrSearchQuery.toLowerCase()) ||
-    fsr.email.toLowerCase().includes(fsrSearchQuery.toLowerCase())
+  const filteredFSRs = fsrUsers.filter(
+    (fsr) =>
+      fsr.name.toLowerCase().includes(fsrSearchQuery.toLowerCase()) ||
+      fsr.email.toLowerCase().includes(fsrSearchQuery.toLowerCase()),
   );
 
   // Filter CLIENTs based on search query
-  const filteredClients = clientUsers.filter(client =>
-    client.name.toLowerCase().includes(clientSearchQuery.toLowerCase()) ||
-    client.email.toLowerCase().includes(clientSearchQuery.toLowerCase())
+  const filteredClients = clientUsers.filter(
+    (client) =>
+      client.name.toLowerCase().includes(clientSearchQuery.toLowerCase()) ||
+      client.email.toLowerCase().includes(clientSearchQuery.toLowerCase()),
   );
 
   const toggleFSR = (fsrId: string) => {
-    setSelectedFSRs(prev =>
+    setSelectedFSRs((prev) =>
       prev.includes(fsrId)
-        ? prev.filter(id => id !== fsrId)
-        : [...prev, fsrId]
+        ? prev.filter((id) => id !== fsrId)
+        : [...prev, fsrId],
     );
   };
 
   const removeFSR = (fsrId: string) => {
-    setSelectedFSRs(prev => prev.filter(id => id !== fsrId));
+    setSelectedFSRs((prev) => prev.filter((id) => id !== fsrId));
   };
 
   const toggleClient = (clientId: string) => {
-    setSelectedClients(prev =>
+    setSelectedClients((prev) =>
       prev.includes(clientId)
-        ? prev.filter(id => id !== clientId)
-        : [...prev, clientId]
+        ? prev.filter((id) => id !== clientId)
+        : [...prev, clientId],
     );
   };
 
   const removeClient = (clientId: string) => {
-    setSelectedClients(prev => prev.filter(id => id !== clientId));
+    setSelectedClients((prev) => prev.filter((id) => id !== clientId));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -206,7 +207,10 @@ export function VICForm({ vic, states, fsrUsers, clientUsers }: VICFormProps) {
                 id="rfc"
                 value={formData.rfc}
                 onChange={(e) =>
-                  setFormData({ ...formData, rfc: e.target.value.toUpperCase() })
+                  setFormData({
+                    ...formData,
+                    rfc: e.target.value.toUpperCase(),
+                  })
                 }
                 placeholder="RFC de la empresa"
                 maxLength={13}
@@ -218,7 +222,7 @@ export function VICForm({ vic, states, fsrUsers, clientUsers }: VICFormProps) {
               <Select
                 value={formData.stateId.toString()}
                 onValueChange={(value) =>
-                  setFormData({ ...formData, stateId: parseInt(value) })
+                  setFormData({ ...formData, stateId: parseInt(value, 10) })
                 }
               >
                 <SelectTrigger>
@@ -307,8 +311,8 @@ export function VICForm({ vic, states, fsrUsers, clientUsers }: VICFormProps) {
             <div className="space-y-2">
               <Label>FSRs Asignados ({selectedFSRs.length})</Label>
               <div className="flex flex-wrap gap-2">
-                {selectedFSRs.map(fsrId => {
-                  const fsr = fsrUsers.find(f => f.id === fsrId);
+                {selectedFSRs.map((fsrId) => {
+                  const fsr = fsrUsers.find((f) => f.id === fsrId);
                   if (!fsr) return null;
                   return (
                     <Badge
@@ -353,14 +357,16 @@ export function VICForm({ vic, states, fsrUsers, clientUsers }: VICFormProps) {
             <div className="border rounded-lg max-h-64 overflow-y-auto">
               {filteredFSRs.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-8">
-                  {fsrSearchQuery ? "No se encontraron FSRs" : "No hay FSRs disponibles"}
+                  {fsrSearchQuery
+                    ? "No se encontraron FSRs"
+                    : "No hay FSRs disponibles"}
                 </p>
               ) : (
                 <div className="divide-y">
-                  {filteredFSRs.map(fsr => {
+                  {filteredFSRs.map((fsr) => {
                     const isSelected = selectedFSRs.includes(fsr.id);
                     const otherVicsCount = fsr.vicIds.filter(
-                      vicId => vicId !== vic?.id
+                      (vicId) => vicId !== vic?.id,
                     ).length;
 
                     return (
@@ -372,19 +378,26 @@ export function VICForm({ vic, states, fsrUsers, clientUsers }: VICFormProps) {
                       >
                         <div className="flex-1 text-left">
                           <p className="font-medium text-sm">{fsr.name}</p>
-                          <p className="text-xs text-muted-foreground">{fsr.email}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {fsr.email}
+                          </p>
                           {otherVicsCount > 0 && (
                             <p className="text-xs text-blue-600 mt-1">
-                              Asignado a {otherVicsCount} otro{otherVicsCount > 1 ? "s" : ""} CVV
+                              Asignado a {otherVicsCount} otro
+                              {otherVicsCount > 1 ? "s" : ""} CVV
                             </p>
                           )}
                         </div>
-                        <div className={`flex items-center justify-center w-5 h-5 rounded border-2 ${
-                          isSelected
-                            ? "bg-primary border-primary"
-                            : "border-muted-foreground/30"
-                        }`}>
-                          {isSelected && <Check className="h-3 w-3 text-primary-foreground" />}
+                        <div
+                          className={`flex items-center justify-center w-5 h-5 rounded border-2 ${
+                            isSelected
+                              ? "bg-primary border-primary"
+                              : "border-muted-foreground/30"
+                          }`}
+                        >
+                          {isSelected && (
+                            <Check className="h-3 w-3 text-primary-foreground" />
+                          )}
                         </div>
                       </button>
                     );
@@ -406,8 +419,8 @@ export function VICForm({ vic, states, fsrUsers, clientUsers }: VICFormProps) {
             <div className="space-y-2">
               <Label>Usuarios Asignados ({selectedClients.length})</Label>
               <div className="flex flex-wrap gap-2">
-                {selectedClients.map(clientId => {
-                  const client = clientUsers.find(c => c.id === clientId);
+                {selectedClients.map((clientId) => {
+                  const client = clientUsers.find((c) => c.id === clientId);
                   if (!client) return null;
                   return (
                     <Badge
@@ -452,13 +465,16 @@ export function VICForm({ vic, states, fsrUsers, clientUsers }: VICFormProps) {
             <div className="border rounded-lg max-h-64 overflow-y-auto">
               {filteredClients.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-8">
-                  {clientSearchQuery ? "No se encontraron usuarios" : "No hay usuarios disponibles"}
+                  {clientSearchQuery
+                    ? "No se encontraron usuarios"
+                    : "No hay usuarios disponibles"}
                 </p>
               ) : (
                 <div className="divide-y">
-                  {filteredClients.map(client => {
+                  {filteredClients.map((client) => {
                     const isSelected = selectedClients.includes(client.id);
-                    const isAssignedToOther = client.vicId && client.vicId !== vic?.id;
+                    const isAssignedToOther =
+                      client.vicId && client.vicId !== vic?.id;
 
                     return (
                       <button
@@ -469,19 +485,25 @@ export function VICForm({ vic, states, fsrUsers, clientUsers }: VICFormProps) {
                       >
                         <div className="flex-1 text-left">
                           <p className="font-medium text-sm">{client.name}</p>
-                          <p className="text-xs text-muted-foreground">{client.email}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {client.email}
+                          </p>
                           {isAssignedToOther && (
                             <p className="text-xs text-blue-600 mt-1">
                               Ya asignado a otro CVV
                             </p>
                           )}
                         </div>
-                        <div className={`flex items-center justify-center w-5 h-5 rounded border-2 ${
-                          isSelected
-                            ? "bg-primary border-primary"
-                            : "border-muted-foreground/30"
-                        }`}>
-                          {isSelected && <Check className="h-3 w-3 text-primary-foreground" />}
+                        <div
+                          className={`flex items-center justify-center w-5 h-5 rounded border-2 ${
+                            isSelected
+                              ? "bg-primary border-primary"
+                              : "border-muted-foreground/30"
+                          }`}
+                        >
+                          {isSelected && (
+                            <Check className="h-3 w-3 text-primary-foreground" />
+                          )}
                         </div>
                       </button>
                     );

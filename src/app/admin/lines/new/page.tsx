@@ -1,7 +1,7 @@
-import { LineForm } from "@/components/lines/line-form"
-import { Button } from "@/components/ui/button"
-import { ArrowLeft } from "lucide-react"
-import Link from "next/link"
+import { ArrowLeft } from "lucide-react";
+import Link from "next/link";
+import { LineForm } from "@/components/lines/line-form";
+import { Button } from "@/components/ui/button";
 
 export default function NewLinePage() {
   return (
@@ -14,11 +14,13 @@ export default function NewLinePage() {
         </Button>
         <div>
           <h1 className="text-3xl font-bold">Nueva Línea</h1>
-          <p className="text-muted-foreground">Crea una nueva línea de inspección</p>
+          <p className="text-muted-foreground">
+            Crea una nueva línea de inspección
+          </p>
         </div>
       </div>
 
       <LineForm mode="create" />
     </div>
-  )
+  );
 }

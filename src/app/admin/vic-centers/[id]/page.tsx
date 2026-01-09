@@ -1,24 +1,28 @@
-import { getVICById } from "@/lib/actions/vics";
-import { requireRouteAccess } from "@/lib/auth/auth";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
-  ArrowLeft,
-  Edit,
-  Building,
-  MapPin,
-  Phone,
-  Mail,
-  User,
   AlertTriangle,
+  ArrowLeft,
+  Building,
   Calendar,
+  Edit,
+  Mail,
+  MapPin,
+  Package,
+  Phone,
+  User,
   Users,
   Wrench,
-  Package
 } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -27,6 +31,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { getVICById } from "@/lib/actions/vics";
+import { requireRouteAccess } from "@/lib/auth/auth";
 
 export default async function VICDetailPage({
   params,
@@ -51,9 +57,7 @@ export default async function VICDetailPage({
           </Button>
           <div>
             <h1 className="text-3xl font-bold">{vic.name}</h1>
-            <p className="text-muted-foreground">
-              Código CVV: {vic.code}
-            </p>
+            <p className="text-muted-foreground">Código CVV: {vic.code}</p>
           </div>
         </div>
         <Button asChild>
@@ -68,7 +72,9 @@ export default async function VICDetailPage({
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Usuarios</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Total Usuarios
+            </CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -84,7 +90,9 @@ export default async function VICDetailPage({
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{vic._count.lines}</div>
-            <p className="text-xs text-muted-foreground">Líneas de inspección</p>
+            <p className="text-xs text-muted-foreground">
+              Líneas de inspección
+            </p>
           </CardContent>
         </Card>
 
@@ -106,7 +114,9 @@ export default async function VICDetailPage({
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{vic._count.schedules}</div>
-            <p className="text-xs text-muted-foreground">Total de calendarios</p>
+            <p className="text-xs text-muted-foreground">
+              Total de calendarios
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -183,7 +193,9 @@ export default async function VICDetailPage({
               <div className="flex items-start gap-3">
                 <User className="h-5 w-5 text-muted-foreground mt-0.5" />
                 <div className="flex-1">
-                  <p className="text-sm text-muted-foreground">Persona de Contacto</p>
+                  <p className="text-sm text-muted-foreground">
+                    Persona de Contacto
+                  </p>
                   <p className="font-medium">{vic.contact}</p>
                 </div>
               </div>
@@ -203,7 +215,9 @@ export default async function VICDetailPage({
               <div className="flex items-start gap-3">
                 <Mail className="h-5 w-5 text-muted-foreground mt-0.5" />
                 <div className="flex-1">
-                  <p className="text-sm text-muted-foreground">Correo Electrónico</p>
+                  <p className="text-sm text-muted-foreground">
+                    Correo Electrónico
+                  </p>
                   <p className="font-medium">{vic.email}</p>
                 </div>
               </div>
@@ -219,9 +233,7 @@ export default async function VICDetailPage({
             <Users className="h-5 w-5" />
             Usuarios Asignados ({vic.users.length})
           </CardTitle>
-          <CardDescription>
-            Usuarios asignados a este CVV
-          </CardDescription>
+          <CardDescription>Usuarios asignados a este CVV</CardDescription>
         </CardHeader>
         <CardContent>
           {vic.users.length === 0 ? (
@@ -250,16 +262,18 @@ export default async function VICDetailPage({
                       </TableCell>
                       <TableCell>
                         <Badge
-                          variant={user.userStatus.name === "ACTIVO" ? "default" : "secondary"}
+                          variant={
+                            user.userStatus.name === "ACTIVO"
+                              ? "default"
+                              : "secondary"
+                          }
                         >
                           {user.userStatus.name}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
                         <Button variant="ghost" size="sm" asChild>
-                          <Link href={`/admin/users/${user.id}`}>
-                            Ver
-                          </Link>
+                          <Link href={`/admin/users/${user.id}`}>Ver</Link>
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -278,9 +292,7 @@ export default async function VICDetailPage({
             <Wrench className="h-5 w-5" />
             Líneas y Equipos ({vic.lines.length})
           </CardTitle>
-          <CardDescription>
-            Líneas de inspección y sus equipos
-          </CardDescription>
+          <CardDescription>Líneas de inspección y sus equipos</CardDescription>
         </CardHeader>
         <CardContent>
           {vic.lines.length === 0 ? (
@@ -295,7 +307,9 @@ export default async function VICDetailPage({
                     <div>
                       <h3 className="font-semibold text-lg">{line.name}</h3>
                       {line.description && (
-                        <p className="text-sm text-muted-foreground">{line.description}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {line.description}
+                        </p>
                       )}
                     </div>
                     <div className="flex items-center gap-2">
@@ -303,9 +317,7 @@ export default async function VICDetailPage({
                         {line.equipments.length} equipos
                       </Badge>
                       <Button variant="ghost" size="sm" asChild>
-                        <Link href={`/admin/lines/${line.id}`}>
-                          Ver Línea
-                        </Link>
+                        <Link href={`/admin/lines/${line.id}`}>Ver Línea</Link>
                       </Button>
                     </div>
                   </div>
@@ -317,7 +329,9 @@ export default async function VICDetailPage({
                           <TableRow>
                             <TableHead>Equipo</TableHead>
                             <TableHead>Descripción</TableHead>
-                            <TableHead className="text-right">Acciones</TableHead>
+                            <TableHead className="text-right">
+                              Acciones
+                            </TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -334,7 +348,9 @@ export default async function VICDetailPage({
                               </TableCell>
                               <TableCell className="text-right">
                                 <Button variant="ghost" size="sm" asChild>
-                                  <Link href={`/admin/equipments/${equipment.id}/edit`}>
+                                  <Link
+                                    href={`/admin/equipments/${equipment.id}/edit`}
+                                  >
                                     Ver
                                   </Link>
                                 </Button>
@@ -400,14 +416,18 @@ export default async function VICDetailPage({
                       </TableCell>
                       <TableCell>
                         {incident.status ? (
-                          <Badge variant="secondary">{incident.status.name}</Badge>
+                          <Badge variant="secondary">
+                            {incident.status.name}
+                          </Badge>
                         ) : (
                           <span className="text-muted-foreground">-</span>
                         )}
                       </TableCell>
                       <TableCell>
                         <Badge
-                          variant={incident.priority >= 7 ? "destructive" : "outline"}
+                          variant={
+                            incident.priority >= 7 ? "destructive" : "outline"
+                          }
                         >
                           {incident.priority}/10
                         </Badge>

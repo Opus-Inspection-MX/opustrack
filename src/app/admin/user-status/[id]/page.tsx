@@ -1,24 +1,30 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { useRouter, useParams } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Spinner } from "@/components/ui/spinner"
-import { ArrowLeft, Edit, Calendar, Users } from "lucide-react"
+import { ArrowLeft, Calendar, Edit, Users } from "lucide-react";
+import { useParams, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Spinner } from "@/components/ui/spinner";
 
 export default function UserStatusDetailPage() {
-  const router = useRouter()
-  const params = useParams()
-  const [isLoading, setIsLoading] = useState(true)
-  const [userStatus, setUserStatus] = useState<any>(null)
+  const router = useRouter();
+  const params = useParams();
+  const [isLoading, setIsLoading] = useState(true);
+  const [userStatus, setUserStatus] = useState<any>(null);
 
   useEffect(() => {
     const fetchUserStatus = async () => {
-      setIsLoading(true)
+      setIsLoading(true);
       try {
-        await new Promise((resolve) => setTimeout(resolve, 500))
+        await new Promise((resolve) => setTimeout(resolve, 500));
 
         const mockUserStatus = {
           id: params.id,
@@ -27,25 +33,25 @@ export default function UserStatusDetailPage() {
           userCount: 45,
           createdAt: "2024-01-01T00:00:00Z",
           updatedAt: "2024-03-10T12:00:00Z",
-        }
+        };
 
-        setUserStatus(mockUserStatus)
+        setUserStatus(mockUserStatus);
       } catch (error) {
-        console.error("Error fetching user status:", error)
+        console.error("Error fetching user status:", error);
       } finally {
-        setIsLoading(false)
+        setIsLoading(false);
       }
-    }
+    };
 
-    fetchUserStatus()
-  }, [params.id])
+    fetchUserStatus();
+  }, [params.id]);
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <Spinner size="lg" />
       </div>
-    )
+    );
   }
 
   if (!userStatus) {
@@ -59,11 +65,13 @@ export default function UserStatusDetailPage() {
         </div>
         <Card>
           <CardContent className="pt-6">
-            <p className="text-center text-muted-foreground">User status not found</p>
+            <p className="text-center text-muted-foreground">
+              User status not found
+            </p>
           </CardContent>
         </Card>
       </div>
-    )
+    );
   }
 
   return (
@@ -76,10 +84,16 @@ export default function UserStatusDetailPage() {
           </Button>
           <div>
             <h1 className="text-3xl font-bold">{userStatus.name}</h1>
-            <p className="text-muted-foreground">User status details and usage</p>
+            <p className="text-muted-foreground">
+              User status details and usage
+            </p>
           </div>
         </div>
-        <Button onClick={() => router.push(`/admin/user-status/${userStatus.id}/edit`)}>
+        <Button
+          onClick={() =>
+            router.push(`/admin/user-status/${userStatus.id}/edit`)
+          }
+        >
           <Edit className="h-4 w-4 mr-2" />
           Edit Status
         </Button>
@@ -97,17 +111,23 @@ export default function UserStatusDetailPage() {
                 <div className="h-2 w-2 rounded-full bg-primary" />
               </div>
               <div className="flex-1">
-                <p className="text-sm font-medium text-muted-foreground">Status Name</p>
+                <p className="text-sm font-medium text-muted-foreground">
+                  Status Name
+                </p>
                 <p className="text-base">{userStatus.name}</p>
               </div>
             </div>
 
             <div className="flex items-start gap-3">
               <div className="h-5 w-5 rounded-full flex items-center justify-center mt-0.5">
-                <div className={`h-3 w-3 rounded-full ${userStatus.active ? "bg-green-500" : "bg-red-500"}`} />
+                <div
+                  className={`h-3 w-3 rounded-full ${userStatus.active ? "bg-green-500" : "bg-red-500"}`}
+                />
               </div>
               <div className="flex-1">
-                <p className="text-sm font-medium text-muted-foreground">Status</p>
+                <p className="text-sm font-medium text-muted-foreground">
+                  Status
+                </p>
                 <Badge variant={userStatus.active ? "default" : "destructive"}>
                   {userStatus.active ? "Active" : "Inactive"}
                 </Badge>
@@ -125,7 +145,9 @@ export default function UserStatusDetailPage() {
             <div className="flex items-start gap-3">
               <Users className="h-5 w-5 text-muted-foreground mt-0.5" />
               <div className="flex-1">
-                <p className="text-sm font-medium text-muted-foreground">Users with this Status</p>
+                <p className="text-sm font-medium text-muted-foreground">
+                  Users with this Status
+                </p>
                 <p className="text-2xl font-bold">{userStatus.userCount}</p>
               </div>
             </div>
@@ -133,16 +155,24 @@ export default function UserStatusDetailPage() {
             <div className="flex items-start gap-3">
               <Calendar className="h-5 w-5 text-muted-foreground mt-0.5" />
               <div className="flex-1">
-                <p className="text-sm font-medium text-muted-foreground">Created</p>
-                <p className="text-base">{new Date(userStatus.createdAt).toLocaleString()}</p>
+                <p className="text-sm font-medium text-muted-foreground">
+                  Created
+                </p>
+                <p className="text-base">
+                  {new Date(userStatus.createdAt).toLocaleString()}
+                </p>
               </div>
             </div>
 
             <div className="flex items-start gap-3">
               <Calendar className="h-5 w-5 text-muted-foreground mt-0.5" />
               <div className="flex-1">
-                <p className="text-sm font-medium text-muted-foreground">Last Updated</p>
-                <p className="text-base">{new Date(userStatus.updatedAt).toLocaleString()}</p>
+                <p className="text-sm font-medium text-muted-foreground">
+                  Last Updated
+                </p>
+                <p className="text-base">
+                  {new Date(userStatus.updatedAt).toLocaleString()}
+                </p>
               </div>
             </div>
 
@@ -151,7 +181,9 @@ export default function UserStatusDetailPage() {
                 <div className="text-lg font-bold text-primary">#</div>
               </div>
               <div className="flex-1">
-                <p className="text-sm font-medium text-muted-foreground">Status ID</p>
+                <p className="text-sm font-medium text-muted-foreground">
+                  Status ID
+                </p>
                 <p className="text-base font-mono">{userStatus.id}</p>
               </div>
             </div>
@@ -159,5 +191,5 @@ export default function UserStatusDetailPage() {
         </Card>
       </div>
     </div>
-  )
+  );
 }

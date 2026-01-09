@@ -1,33 +1,34 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Calendar, Plus, ChevronLeft, ChevronRight } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { ScheduleCalendar } from "@/components/programacion/schedule-calendar"
-import { ScheduleActivities } from "@/components/programacion/schedule-activities"
-import { CreateProgramDialog } from "@/components/programacion/create-program-dialog"
-import { CreateIncidentDialog } from "@/components/programacion/create-incident-dialog"
-import { SelectScheduleDialog } from "@/components/programacion/select-schedule-dialog"
+import { Calendar, ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { useState } from "react";
+import { CreateIncidentDialog } from "@/components/programacion/create-incident-dialog";
+import { CreateProgramDialog } from "@/components/programacion/create-program-dialog";
+import { ScheduleActivities } from "@/components/programacion/schedule-activities";
+import { ScheduleCalendar } from "@/components/programacion/schedule-calendar";
+import { SelectScheduleDialog } from "@/components/programacion/select-schedule-dialog";
+import { Button } from "@/components/ui/button";
 
 export default function ProgramacionPage() {
   const [selectedDateRange, setSelectedDateRange] = useState<{
-    start: Date
-    end: Date
-    type: "day" | "week" | "month" | "custom"
+    start: Date;
+    end: Date;
+    type: "day" | "week" | "month" | "custom";
   }>({
     start: new Date(),
     end: new Date(),
-    type: "day"
-  })
-  const [createDialogOpen, setCreateDialogOpen] = useState(false)
-  const [selectScheduleDialogOpen, setSelectScheduleDialogOpen] = useState(false)
+    type: "day",
+  });
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [selectScheduleDialogOpen, setSelectScheduleDialogOpen] =
+    useState(false);
   const [selectedSchedule, setSelectedSchedule] = useState<{
-    id: string
-    title: string
-    scheduledAt: string
-    endDate: string | null
-  } | null>(null)
-  const [calendarCollapsed, setCalendarCollapsed] = useState(false)
+    id: string;
+    title: string;
+    scheduledAt: string;
+    endDate: string | null;
+  } | null>(null);
+  const [calendarCollapsed, setCalendarCollapsed] = useState(false);
 
   return (
     <div className="flex flex-col space-y-4 h-full">
@@ -68,7 +69,9 @@ export default function ProgramacionPage() {
                 onClick={() => setCreateDialogOpen(true)}
               >
                 <Plus className="h-4 w-4 sm:mr-2" />
-                <span className="hidden sm:inline">Nuevo Incidente en Programación</span>
+                <span className="hidden sm:inline">
+                  Nuevo Incidente en Programación
+                </span>
                 <span className="sm:hidden">Incidente</span>
               </Button>
             </>
@@ -89,13 +92,12 @@ export default function ProgramacionPage() {
             </span>
           </Button>
           {!selectedSchedule && (
-            <Button
-              size="sm"
-              onClick={() => setCreateDialogOpen(true)}
-            >
+            <Button size="sm" onClick={() => setCreateDialogOpen(true)}>
               <Plus className="h-4 w-4 sm:mr-2" />
               <span className="hidden sm:inline">
-                {selectedDateRange.type === "day" ? "Nuevo Incidente" : "Nueva Programación"}
+                {selectedDateRange.type === "day"
+                  ? "Nuevo Incidente"
+                  : "Nueva Programación"}
               </span>
               <span className="sm:hidden">Nuevo</span>
             </Button>
@@ -113,7 +115,7 @@ export default function ProgramacionPage() {
               : "block max-h-[50vh] lg:max-h-none"
           }`}
           style={{
-            gridColumn: calendarCollapsed ? undefined : "span 1"
+            gridColumn: calendarCollapsed ? undefined : "span 1",
           }}
         >
           <ScheduleCalendar
@@ -139,7 +141,7 @@ export default function ProgramacionPage() {
         @media (min-width: 1024px) {
           .flex.flex-col.lg\\:grid {
             display: grid;
-            grid-template-columns: ${calendarCollapsed ? '1fr' : '1fr 1fr'};
+            grid-template-columns: ${calendarCollapsed ? "1fr" : "1fr 1fr"};
           }
         }
       `}</style>
@@ -150,21 +152,23 @@ export default function ProgramacionPage() {
         onOpenChange={setSelectScheduleDialogOpen}
         onSelectSchedule={(schedule) => {
           // Ajustar las fechas del rango según el schedule seleccionado
-          const startDate = new Date(schedule.scheduledAt)
-          const endDate = schedule.endDate ? new Date(schedule.endDate) : new Date()
+          const startDate = new Date(schedule.scheduledAt);
+          const endDate = schedule.endDate
+            ? new Date(schedule.endDate)
+            : new Date();
 
           setSelectedDateRange({
             start: startDate,
             end: endDate,
-            type: "custom"
-          })
+            type: "custom",
+          });
 
           setSelectedSchedule({
             id: schedule.id,
             title: schedule.title,
             scheduledAt: schedule.scheduledAt,
             endDate: schedule.endDate,
-          })
+          });
         }}
       />
 
@@ -184,5 +188,5 @@ export default function ProgramacionPage() {
         />
       )}
     </div>
-  )
+  );
 }

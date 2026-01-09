@@ -1,14 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { ArrowLeft, Save } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { FormError } from "@/components/ui/form-error";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Save } from "lucide-react";
-import { FormError } from "@/components/ui/form-error";
 import { createWorkActivity } from "@/lib/actions/work-activities";
 
 export default function NewWorkActivityForm() {
@@ -115,9 +115,7 @@ export default function NewWorkActivityForm() {
                 placeholder="Work Order ID"
                 disabled={!!workOrderId}
               />
-              {errors.workOrderId && (
-                <FormError message={errors.workOrderId} />
-              )}
+              {errors.workOrderId && <FormError message={errors.workOrderId} />}
             </div>
 
             {/* Description */}
@@ -137,9 +135,7 @@ export default function NewWorkActivityForm() {
                 placeholder="Describe the work performed"
                 rows={4}
               />
-              {errors.description && (
-                <FormError message={errors.description} />
-              )}
+              {errors.description && <FormError message={errors.description} />}
             </div>
 
             {/* Performed At */}

@@ -1,168 +1,185 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Loader2 } from "lucide-react"
-import { FormError } from "@/components/ui/form-error"
-import { createEquipment, updateEquipment } from "@/lib/actions/equipments"
-import { getLinesByVicId } from "@/lib/actions/lines"
-import { getVICs } from "@/lib/actions/vics"
+import { Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { FormError } from "@/components/ui/form-error";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { createEquipment, updateEquipment } from "@/lib/actions/equipments";
+import { getLinesByVicId } from "@/lib/actions/lines";
+import { getVICs } from "@/lib/actions/vics";
 
 interface EquipmentFormProps {
   equipment?: {
-    id: number
-    name: string
-    description?: string | null
-    lineId: number
+    id: number;
+    name: string;
+    description?: string | null;
+    lineId: number;
     line?: {
-      vicId: string
-    }
-  }
-  mode: "create" | "edit"
+      vicId: string;
+    };
+  };
+  mode: "create" | "edit";
 }
 
 export function EquipmentForm({ equipment, mode }: EquipmentFormProps) {
-  const router = useRouter()
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [errors, setErrors] = useState<Record<string, string>>({})
-  const [vics, setVics] = useState<any[]>([])
-  const [lines, setLines] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [loadingLines, setLoadingLines] = useState(false)
+  const router = useRouter();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [vics, setVics] = useState<any[]>([]);
+  const [lines, setLines] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadingLines, setLoadingLines] = useState(false);
 
   const [formData, setFormData] = useState({
     name: equipment?.name || "",
     description: equipment?.description || "",
     vicId: equipment?.line?.vicId || "",
     lineId: equipment?.lineId?.toString() || "",
-  })
+  });
 
   useEffect(() => {
-    loadVics()
-  }, [])
+    loadVics();
+  }, [loadVics]);
 
   useEffect(() => {
     if (formData.vicId) {
-      loadLinesByVic(formData.vicId)
+      loadLinesByVic(formData.vicId);
     } else {
-      setLines([])
+      setLines([]);
     }
-  }, [formData.vicId])
+  }, [formData.vicId, loadLinesByVic]);
 
   const loadVics = async () => {
     try {
-      const data = await getVICs()
-      setVics(data)
+      const data = await getVICs();
+      setVics(data);
     } catch (error) {
-      console.error("Error loading VICs:", error)
-      setErrors({ general: "Error al cargar los CVV" })
-    } finally{
-      setLoading(false)
+      console.error("Error loading VICs:", error);
+      setErrors({ general: "Error al cargar los CVV" });
+    } finally {
+      setLoading(false);
     }
-  }
+  };
 
   const loadLinesByVic = async (vicId: string) => {
-    setLoadingLines(true)
+    setLoadingLines(true);
     try {
-      const data = await getLinesByVicId(vicId)
-      setLines(data)
+      const data = await getLinesByVicId(vicId);
+      setLines(data);
     } catch (error) {
-      console.error("Error loading lines:", error)
-      setErrors({ general: "Error al cargar las líneas" })
+      console.error("Error loading lines:", error);
+      setErrors({ general: "Error al cargar las líneas" });
     } finally {
-      setLoadingLines(false)
+      setLoadingLines(false);
     }
-  }
+  };
 
   const handleChange = (field: string, value: string) => {
     // If VIC changes, reset line selection
     if (field === "vicId") {
-      setFormData((prev) => ({ ...prev, [field]: value, lineId: "" }))
+      setFormData((prev) => ({ ...prev, [field]: value, lineId: "" }));
     } else {
-      setFormData((prev) => ({ ...prev, [field]: value }))
+      setFormData((prev) => ({ ...prev, [field]: value }));
     }
 
     if (errors[field]) {
-      setErrors((prev) => ({ ...prev, [field]: "" }))
+      setErrors((prev) => ({ ...prev, [field]: "" }));
     }
-  }
+  };
 
   const validateForm = () => {
-    const newErrors: Record<string, string> = {}
+    const newErrors: Record<string, string> = {};
 
     if (!formData.name.trim()) {
-      newErrors.name = "El nombre es requerido"
+      newErrors.name = "El nombre es requerido";
     }
 
     if (!formData.vicId) {
-      newErrors.vicId = "El CVV es requerido"
+      newErrors.vicId = "El CVV es requerido";
     }
 
     if (!formData.lineId) {
-      newErrors.lineId = "La línea es requerida"
+      newErrors.lineId = "La línea es requerida";
     }
 
-    setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
-  }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
 
     if (!validateForm()) {
-      return
+      return;
     }
 
-    setIsSubmitting(true)
-    setErrors({})
+    setIsSubmitting(true);
+    setErrors({});
 
     try {
       if (mode === "edit" && equipment) {
         await updateEquipment(equipment.id, {
           name: formData.name,
           description: formData.description || undefined,
-          lineId: parseInt(formData.lineId),
-        })
+          lineId: parseInt(formData.lineId, 10),
+        });
       } else {
         await createEquipment({
           name: formData.name,
           description: formData.description || undefined,
-          lineId: parseInt(formData.lineId),
-        })
+          lineId: parseInt(formData.lineId, 10),
+        });
       }
 
-      router.push("/admin/equipments")
-      router.refresh()
+      router.push("/admin/equipments");
+      router.refresh();
     } catch (error) {
-      console.error("Error saving equipment:", error)
+      console.error("Error saving equipment:", error);
       setErrors({
-        general: error instanceof Error ? error.message : "Error al guardar el equipo",
-      })
+        general:
+          error instanceof Error ? error.message : "Error al guardar el equipo",
+      });
     } finally {
-      setIsSubmitting(false)
+      setIsSubmitting(false);
     }
-  }
+  };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
-    )
+    );
   }
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{mode === "edit" ? "Editar Equipo" : "Nuevo Equipo"}</CardTitle>
+        <CardTitle>
+          {mode === "edit" ? "Editar Equipo" : "Nuevo Equipo"}
+        </CardTitle>
         <CardDescription>
-          {mode === "edit" ? "Actualiza la información del equipo" : "Crea un nuevo equipo para una línea"}
+          {mode === "edit"
+            ? "Actualiza la información del equipo"
+            : "Crea un nuevo equipo para una línea"}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -226,7 +243,15 @@ export function EquipmentForm({ equipment, mode }: EquipmentFormProps) {
               disabled={!formData.vicId || loadingLines}
             >
               <SelectTrigger className={errors.lineId ? "border-red-500" : ""}>
-                <SelectValue placeholder={!formData.vicId ? "Primero selecciona un CVV" : loadingLines ? "Cargando líneas..." : "Seleccionar Línea"} />
+                <SelectValue
+                  placeholder={
+                    !formData.vicId
+                      ? "Primero selecciona un CVV"
+                      : loadingLines
+                        ? "Cargando líneas..."
+                        : "Seleccionar Línea"
+                  }
+                />
               </SelectTrigger>
               <SelectContent>
                 {lines.length === 0 && formData.vicId && !loadingLines ? (
@@ -251,7 +276,9 @@ export function EquipmentForm({ equipment, mode }: EquipmentFormProps) {
               disabled={isSubmitting}
               className="flex-1 sm:flex-initial"
             >
-              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {isSubmitting && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
               {mode === "edit" ? "Actualizar" : "Crear"} Equipo
             </Button>
             <Button
@@ -266,5 +293,5 @@ export function EquipmentForm({ equipment, mode }: EquipmentFormProps) {
         </form>
       </CardContent>
     </Card>
-  )
+  );
 }

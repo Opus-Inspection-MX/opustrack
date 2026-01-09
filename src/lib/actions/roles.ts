@@ -1,9 +1,9 @@
 "use server";
 
-import { prisma } from "@/lib/database/prisma.singleton";
-import { requirePermission } from "@/lib/auth/auth";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { requirePermission } from "@/lib/auth/auth";
+import { prisma } from "@/lib/database/prisma.singleton";
 
 export type RoleFormData = {
   name: string;
@@ -138,7 +138,7 @@ export async function deleteRole(id: number) {
 
   if (userCount > 0) {
     throw new Error(
-      `Cannot delete role. ${userCount} user(s) are currently assigned to this role.`
+      `Cannot delete role. ${userCount} user(s) are currently assigned to this role.`,
     );
   }
 
@@ -170,7 +170,7 @@ export async function getAllPermissions() {
  */
 export async function assignPermissionsToRole(
   roleId: number,
-  permissionIds: number[]
+  permissionIds: number[],
 ) {
   await requirePermission("roles:update");
 

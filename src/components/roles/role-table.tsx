@@ -1,35 +1,47 @@
-"use client"
+"use client";
 
-import { MoreHorizontal, Edit, Trash2, Eye, Shield } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
-import { TablePagination } from "@/components/common/table-pagination"
+import { Edit, Eye, MoreHorizontal, Shield, Trash2 } from "lucide-react";
+import { TablePagination } from "@/components/common/table-pagination";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 interface Role {
-  id: number
-  name: string
-  defaultPath: string
-  active: boolean
+  id: number;
+  name: string;
+  defaultPath: string;
+  active: boolean;
   _count: {
-    users: number
-    rolePermission: number
-  }
-  createdAt?: string
+    users: number;
+    rolePermission: number;
+  };
+  createdAt?: string;
 }
 
 interface RoleTableProps {
-  roles: Role[]
-  totalCount: number
-  currentPage: number
-  itemsPerPage: number
-  onPageChange: (page: number) => void
-  onItemsPerPageChange: (itemsPerPage: number) => void
-  onEdit: (id: number) => void
-  onDelete: (id: number) => void
-  onView: (id: number) => void
-  onManagePermissions: (id: number) => void
+  roles: Role[];
+  totalCount: number;
+  currentPage: number;
+  itemsPerPage: number;
+  onPageChange: (page: number) => void;
+  onItemsPerPageChange: (itemsPerPage: number) => void;
+  onEdit: (id: number) => void;
+  onDelete: (id: number) => void;
+  onView: (id: number) => void;
+  onManagePermissions: (id: number) => void;
 }
 
 export function RoleTable({
@@ -44,8 +56,8 @@ export function RoleTable({
   onView,
   onManagePermissions,
 }: RoleTableProps) {
-  const startIndex = (currentPage - 1) * itemsPerPage
-  const endIndex = Math.min(startIndex + itemsPerPage, totalCount)
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = Math.min(startIndex + itemsPerPage, totalCount);
 
   return (
     <div className="space-y-4">
@@ -66,16 +78,22 @@ export function RoleTable({
               <TableRow key={role.id}>
                 <TableCell className="font-medium">{role.name}</TableCell>
                 <TableCell>
-                  <code className="text-sm bg-muted px-2 py-1 rounded">{role.defaultPath}</code>
+                  <code className="text-sm bg-muted px-2 py-1 rounded">
+                    {role.defaultPath}
+                  </code>
                 </TableCell>
                 <TableCell>
                   <Badge variant="secondary">{role._count.users} users</Badge>
                 </TableCell>
                 <TableCell>
-                  <Badge variant="outline">{role._count.rolePermission} permissions</Badge>
+                  <Badge variant="outline">
+                    {role._count.rolePermission} permissions
+                  </Badge>
                 </TableCell>
                 <TableCell>
-                  <Badge variant={role.active ? "default" : "secondary"}>{role.active ? "Active" : "Inactive"}</Badge>
+                  <Badge variant={role.active ? "default" : "secondary"}>
+                    {role.active ? "Active" : "Inactive"}
+                  </Badge>
                 </TableCell>
                 <TableCell>
                   <DropdownMenu>
@@ -90,7 +108,9 @@ export function RoleTable({
                         <Eye className="mr-2 h-4 w-4" />
                         View
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => onManagePermissions(role.id)}>
+                      <DropdownMenuItem
+                        onClick={() => onManagePermissions(role.id)}
+                      >
                         <Shield className="mr-2 h-4 w-4" />
                         Manage Permissions
                       </DropdownMenuItem>
@@ -98,7 +118,10 @@ export function RoleTable({
                         <Edit className="mr-2 h-4 w-4" />
                         Edit
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => onDelete(role.id)} className="text-destructive">
+                      <DropdownMenuItem
+                        onClick={() => onDelete(role.id)}
+                        className="text-destructive"
+                      >
                         <Trash2 className="mr-2 h-4 w-4" />
                         Delete
                       </DropdownMenuItem>
@@ -122,5 +145,5 @@ export function RoleTable({
         onItemsPerPageChange={onItemsPerPageChange}
       />
     </div>
-  )
+  );
 }

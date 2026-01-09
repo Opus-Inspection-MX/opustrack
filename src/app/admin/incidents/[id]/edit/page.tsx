@@ -1,50 +1,53 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { ArrowLeft, Package, Wrench, Trash2, Plus } from "lucide-react";
+import { ArrowLeft, Package, Plus, Trash2, Wrench } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
+import { IncidentForm } from "@/components/admin/incidents/incident-form";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
-import { getIncidentById, getIncidentFormOptions } from "@/lib/actions/incidents";
-import { IncidentForm } from "@/components/admin/incidents/incident-form";
-import { getWorkParts, deleteWorkPart } from "@/lib/actions/work-parts";
-import { WorkPartForm } from "@/components/work-orders/work-part-form";
 import { WorkPartEdit } from "@/components/work-orders/work-part-edit";
+import { WorkPartForm } from "@/components/work-orders/work-part-form";
+import {
+  getIncidentById,
+  getIncidentFormOptions,
+} from "@/lib/actions/incidents";
 import { getParts } from "@/lib/actions/parts";
+import { deleteWorkPart, getWorkParts } from "@/lib/actions/work-parts";
+
+type Incident = Awaited<ReturnType<typeof getIncidentById>>;
+type FormOptions = Awaited<ReturnType<typeof getIncidentFormOptions>>;
+type Part = Awaited<ReturnType<typeof getParts>>[number];
+type WorkPart = Awaited<ReturnType<typeof getWorkParts>>[number];
 
 export default function EditIncidentPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const router = useRouter();
+  const _router = useRouter();
   const [incidentId, setIncidentId] = useState<number | null>(null);
-  const [incident, setIncident] = useState<any>(null);
-  const [formOptions, setFormOptions] = useState<any>(null);
-  const [workOrderParts, setWorkOrderParts] = useState<Record<string, any[]>>({});
-  const [availableParts, setAvailableParts] = useState<any[]>([]);
+  const [incident, setIncident] = useState<Incident | null>(null);
+  const [formOptions, setFormOptions] = useState<FormOptions | null>(null);
+  const [workOrderParts, setWorkOrderParts] = useState<
+    Record<string, WorkPart[]>
+  >({});
+  const [availableParts, setAvailableParts] = useState<Part[]>([]);
   const [showPartForm, setShowPartForm] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    params.then((p) => setIncidentId(parseInt(p.id)));
+    params.then((p) => setIncidentId(parseInt(p.id, 10)));
   }, [params]);
 
-  useEffect(() => {
-    if (incidentId) {
-      fetchData();
-    }
-  }, [incidentId]);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     if (!incidentId) return;
 
     try {
-      setLoading(true);
-      const [incidentData, options, partsData] = await Promise.all([
+      const [incidentData, options, parts] = await Promise.all([
         getIncidentById(incidentId),
         getIncidentFormOptions(),
         getParts(),
@@ -52,18 +55,24 @@ export default function EditIncidentPage({
 
       setIncident(incidentData);
       setFormOptions(options);
-      setAvailableParts(partsData);
+      setAvailableParts(parts);
 
       // Fetch parts for each work order
       if (incidentData?.workOrders) {
-        const partsPromises = incidentData.workOrders.map((wo: any) =>
-          getWorkParts(wo.id)
-        );
-        const partsResults = await Promise.all(partsPromises);
-        const partsMap: Record<string, any[]> = {};
-        incidentData.workOrders.forEach((wo: any, idx: number) => {
-          partsMap[wo.id] = partsResults[idx];
+        const partsPromises = incidentData.workOrders.map(async (wo) => {
+          const parts = await getWorkParts(wo.id);
+          return { id: wo.id.toString(), parts };
         });
+
+        const partsData = await Promise.all(partsPromises);
+        const partsMap = partsData.reduce(
+          (acc, { id, parts }) => {
+            acc[id] = parts;
+            return acc;
+          },
+          {} as Record<string, WorkPart[]>,
+        );
+
         setWorkOrderParts(partsMap);
       }
     } catch (error) {
@@ -71,9 +80,15 @@ export default function EditIncidentPage({
     } finally {
       setLoading(false);
     }
-  };
+  }, [incidentId]);
 
-  const handleDeletePart = async (workOrderId: string, partId: string) => {
+  useEffect(() => {
+    if (incidentId) {
+      fetchData();
+    }
+  }, [incidentId, fetchData]);
+
+  const handleDeletePart = async (_workOrderId: string, partId: string) => {
     if (!confirm("Are you sure you want to remove this part?")) return;
 
     try {
@@ -138,11 +153,11 @@ export default function EditIncidentPage({
               </p>
             </div>
 
-            {incident.workOrders.map((wo: any) => {
+            {incident.workOrders?.map((wo) => {
               const parts = workOrderParts[wo.id] || [];
               const totalCost = parts.reduce(
                 (sum, wp) => sum + wp.price * wp.quantity,
-                0
+                0,
               );
 
               return (
@@ -150,19 +165,13 @@ export default function EditIncidentPage({
                   <CardHeader>
                     <div className="flex items-center justify-between">
                       <div>
-                        <CardTitle>
-                          Work Order - {wo.assignedTo.name}
-                        </CardTitle>
+                        <CardTitle>Work Order - {wo.assignedTo.name}</CardTitle>
                         <p className="text-sm text-muted-foreground mt-1">
                           Status: {wo.status?.name || "No status"} •{" "}
                           {wo._count?.workActivities || 0} activities
                         </p>
                       </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        asChild
-                      >
+                      <Button variant="outline" size="sm" asChild>
                         <Link href={`/admin/work-orders/${wo.id}/edit`}>
                           View Full Details
                         </Link>
@@ -191,7 +200,9 @@ export default function EditIncidentPage({
                           }
                           variant={showPartForm[wo.id] ? "outline" : "default"}
                         >
-                          {showPartForm[wo.id] ? "Cancel" : (
+                          {showPartForm[wo.id] ? (
+                            "Cancel"
+                          ) : (
                             <>
                               <Plus className="mr-2 h-4 w-4" />
                               Add Part

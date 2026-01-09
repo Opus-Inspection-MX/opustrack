@@ -1,11 +1,23 @@
-import { getClientIncidents } from "@/lib/actions/incidents";
-import { requireRouteAccess } from "@/lib/auth/auth";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  AlertTriangle,
+  Building,
+  CheckCircle,
+  Clock,
+  Plus,
+} from "lucide-react";
+import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Plus, AlertTriangle, Clock, CheckCircle, Building } from "lucide-react";
-import Link from "next/link";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { getClientIncidents } from "@/lib/actions/incidents";
 import { getMyProfile } from "@/lib/actions/users";
+import { requireRouteAccess } from "@/lib/auth/auth";
 
 export default async function ClientDashboard() {
   await requireRouteAccess("/client");
@@ -15,7 +27,9 @@ export default async function ClientDashboard() {
   // Calculate stats
   const stats = {
     open: incidents.filter((i) => i.status?.name === "ABIERTO").length,
-    inProgress: incidents.filter((i) => i.status?.name === "EN_PROGRESO" || i.status?.name === "PENDIENTE").length,
+    inProgress: incidents.filter(
+      (i) => i.status?.name === "EN_PROGRESO" || i.status?.name === "PENDIENTE",
+    ).length,
     closed: incidents.filter((i) => i.status?.name === "CERRADO").length,
     total: incidents.length,
   };
@@ -25,7 +39,11 @@ export default async function ClientDashboard() {
       return <Badge variant="destructive">Crítica</Badge>;
     }
     if (priority >= 5) {
-      return <Badge variant="default" className="bg-orange-500">Alta</Badge>;
+      return (
+        <Badge variant="default" className="bg-orange-500">
+          Alta
+        </Badge>
+      );
     }
     if (priority >= 3) {
       return <Badge variant="secondary">Media</Badge>;
@@ -74,7 +92,9 @@ export default async function ClientDashboard() {
               <Building className="h-5 w-5 text-primary" />
               <div>
                 <p className="text-sm text-muted-foreground">Tu CVV</p>
-                <p className="font-medium">{user.vic.name} ({user.vic.code})</p>
+                <p className="font-medium">
+                  {user.vic.name} ({user.vic.code})
+                </p>
               </div>
             </div>
           </CardContent>
@@ -85,7 +105,9 @@ export default async function ClientDashboard() {
       <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Incidentes Totales</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Incidentes Totales
+            </CardTitle>
             <AlertTriangle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -132,7 +154,9 @@ export default async function ClientDashboard() {
       <Card>
         <CardHeader>
           <CardTitle>Incidentes Recientes</CardTitle>
-          <CardDescription>Tus incidentes reportados y su estado</CardDescription>
+          <CardDescription>
+            Tus incidentes reportados y su estado
+          </CardDescription>
         </CardHeader>
         <CardContent>
           {incidents.length === 0 ? (
@@ -177,12 +201,16 @@ export default async function ClientDashboard() {
                     {/* Details */}
                     <div className="flex items-center gap-4 text-sm text-muted-foreground">
                       <span>
-                        Reportado: {new Date(incident.reportedAt).toLocaleDateString()}
+                        Reportado:{" "}
+                        {new Date(incident.reportedAt).toLocaleDateString()}
                       </span>
                       <span>SLA: {incident.sla}h</span>
-                      {incident._count?.workOrders && incident._count.workOrders > 0 && (
-                        <span>Órdenes de Trabajo: {incident._count.workOrders}</span>
-                      )}
+                      {incident._count?.workOrders &&
+                        incident._count.workOrders > 0 && (
+                          <span>
+                            Órdenes de Trabajo: {incident._count.workOrders}
+                          </span>
+                        )}
                     </div>
                   </div>
 
@@ -207,13 +235,19 @@ export default async function ClientDashboard() {
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Button asChild variant="outline" className="h-auto py-4">
-              <Link href="/client/new" className="flex flex-col items-center gap-2">
+              <Link
+                href="/client/new"
+                className="flex flex-col items-center gap-2"
+              >
                 <Plus className="h-6 w-6" />
                 <span>Reportar Nuevo Incidente</span>
               </Link>
             </Button>
             <Button asChild variant="outline" className="h-auto py-4">
-              <Link href="/profile" className="flex flex-col items-center gap-2">
+              <Link
+                href="/profile"
+                className="flex flex-col items-center gap-2"
+              >
                 <Building className="h-6 w-6" />
                 <span>Mi Perfil</span>
               </Link>

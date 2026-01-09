@@ -1,10 +1,14 @@
-"use client"
+"use client";
 
-import type React from "react"
-import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
-import { FSRSidebar } from "@/components/layout/fsr-sidebar"
-import { Wrench } from "lucide-react"
-import Link from "next/link"
+import { Wrench } from "lucide-react";
+import Link from "next/link";
+import type React from "react";
+import { FSRSidebar } from "@/components/layout/fsr-sidebar";
+import {
+  SidebarInset,
+  SidebarProvider,
+  SidebarTrigger,
+} from "@/components/ui/sidebar";
 
 export default function FSRLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -18,8 +22,10 @@ export default function FSRLayout({ children }: { children: React.ReactNode }) {
             <span className="font-semibold">FSR Portal</span>
           </Link>
         </header>
-        <main className="flex-1 overflow-auto p-4 md:p-6 lg:p-8">{children}</main>
+        <main className="flex-1 overflow-auto p-4 md:p-6 lg:p-8">
+          {children}
+        </main>
       </SidebarInset>
     </SidebarProvider>
-  )
+  );
 }

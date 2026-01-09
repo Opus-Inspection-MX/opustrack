@@ -1,54 +1,74 @@
-"use client"
+"use client";
 
-import { useState, useEffect, use } from "react"
-import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { ArrowLeft, Edit, Calendar, Building2, Clock, AlertCircle, ExternalLink, FileText } from "lucide-react"
-import Link from "next/link"
-import { Spinner } from "@/components/ui/spinner"
-import { getScheduleById } from "@/lib/actions/schedules"
+import {
+  AlertCircle,
+  ArrowLeft,
+  Building2,
+  Calendar,
+  Clock,
+  Edit,
+  ExternalLink,
+  FileText,
+} from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { use, useEffect, useState } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Spinner } from "@/components/ui/spinner";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { getScheduleById } from "@/lib/actions/schedules";
 
 interface Schedule {
-  id: string
-  title: string
-  description?: string | null
-  scheduledAt: Date
-  vicId: string
+  id: string;
+  title: string;
+  description?: string | null;
+  scheduledAt: Date;
+  vicId: string;
   vic: {
-    id: string
-    name: string
-    code: string
-  }
-  incidents: any[]
-  active: boolean
-  createdAt: Date
-  updatedAt: Date
+    id: string;
+    name: string;
+    code: string;
+  };
+  incidents: any[];
+  active: boolean;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
-export default function ViewSchedulePage({ params }: { params: Promise<{ id: string }> }) {
+export default function ViewSchedulePage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const { id } = use(params);
-  const router = useRouter()
-  const [loading, setLoading] = useState(true)
-  const [schedule, setSchedule] = useState<Schedule | null>(null)
+  const _router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [schedule, setSchedule] = useState<Schedule | null>(null);
 
   useEffect(() => {
     const fetchSchedule = async () => {
       try {
-        setLoading(true)
-        const data = await getScheduleById(id)
-        setSchedule(data as any)
+        setLoading(true);
+        const data = await getScheduleById(id);
+        setSchedule(data as any);
       } catch (error) {
-        console.error("Error fetching schedule:", error)
+        console.error("Error fetching schedule:", error);
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
+    };
 
-    fetchSchedule()
-  }, [id])
+    fetchSchedule();
+  }, [id]);
 
   if (loading) {
     return (
@@ -57,7 +77,7 @@ export default function ViewSchedulePage({ params }: { params: Promise<{ id: str
           <Spinner size="lg" text="Loading schedule..." />
         </div>
       </div>
-    )
+    );
   }
 
   if (!schedule) {
@@ -73,23 +93,35 @@ export default function ViewSchedulePage({ params }: { params: Promise<{ id: str
           </CardContent>
         </Card>
       </div>
-    )
+    );
   }
 
   const getScheduleStatus = () => {
-    const now = new Date()
-    const scheduleDate = new Date(schedule.scheduledAt)
+    const now = new Date();
+    const scheduleDate = new Date(schedule.scheduledAt);
 
     if (scheduleDate < now) {
-      return { label: "Past", variant: "secondary" as const, color: "text-gray-600" }
+      return {
+        label: "Past",
+        variant: "secondary" as const,
+        color: "text-gray-600",
+      };
     } else if (scheduleDate.toDateString() === now.toDateString()) {
-      return { label: "Today", variant: "default" as const, color: "text-blue-600" }
+      return {
+        label: "Today",
+        variant: "default" as const,
+        color: "text-blue-600",
+      };
     } else {
-      return { label: "Upcoming", variant: "outline" as const, color: "text-green-600" }
+      return {
+        label: "Upcoming",
+        variant: "outline" as const,
+        color: "text-green-600",
+      };
     }
-  }
+  };
 
-  const status = getScheduleStatus()
+  const status = getScheduleStatus();
 
   const getPriorityColor = (priority: number) => {
     if (priority >= 8) return "destructive";
@@ -130,19 +162,25 @@ export default function ViewSchedulePage({ params }: { params: Promise<{ id: str
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <label className="text-sm font-medium text-muted-foreground">Title</label>
+              <label className="text-sm font-medium text-muted-foreground">
+                Title
+              </label>
               <p className="text-lg font-semibold">{schedule.title}</p>
             </div>
 
             {schedule.description && (
               <div>
-                <label className="text-sm font-medium text-muted-foreground">Description</label>
+                <label className="text-sm font-medium text-muted-foreground">
+                  Description
+                </label>
                 <p className="text-sm">{schedule.description}</p>
               </div>
             )}
 
             <div>
-              <label className="text-sm font-medium text-muted-foreground">Status</label>
+              <label className="text-sm font-medium text-muted-foreground">
+                Status
+              </label>
               <div className="flex items-center gap-2 mt-1">
                 <Badge variant={status.variant}>{status.label}</Badge>
                 <Badge variant={schedule.active ? "default" : "secondary"}>
@@ -162,22 +200,34 @@ export default function ViewSchedulePage({ params }: { params: Promise<{ id: str
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <label className="text-sm font-medium text-muted-foreground">Scheduled Date & Time</label>
-              <p className="text-lg font-semibold">{new Date(schedule.scheduledAt).toLocaleString()}</p>
+              <label className="text-sm font-medium text-muted-foreground">
+                Scheduled Date & Time
+              </label>
+              <p className="text-lg font-semibold">
+                {new Date(schedule.scheduledAt).toLocaleString()}
+              </p>
             </div>
 
             <div>
-              <label className="text-sm font-medium text-muted-foreground">VIC Center</label>
+              <label className="text-sm font-medium text-muted-foreground">
+                VIC Center
+              </label>
               <div className="flex items-center gap-2 mt-1">
                 <Building2 className="h-4 w-4 text-muted-foreground" />
                 <span className="font-medium">{schedule.vic.code}</span>
-                <span className="text-sm text-muted-foreground">- {schedule.vic.name}</span>
+                <span className="text-sm text-muted-foreground">
+                  - {schedule.vic.name}
+                </span>
               </div>
             </div>
 
             <div>
-              <label className="text-sm font-medium text-muted-foreground">Related Incidents</label>
-              <p className="text-lg font-semibold">{schedule.incidents?.length || 0}</p>
+              <label className="text-sm font-medium text-muted-foreground">
+                Related Incidents
+              </label>
+              <p className="text-lg font-semibold">
+                {schedule.incidents?.length || 0}
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -188,12 +238,20 @@ export default function ViewSchedulePage({ params }: { params: Promise<{ id: str
           </CardHeader>
           <CardContent className="grid md:grid-cols-2 gap-4">
             <div>
-              <label className="text-sm font-medium text-muted-foreground">Created At</label>
-              <p className="text-sm">{new Date(schedule.createdAt).toLocaleString()}</p>
+              <label className="text-sm font-medium text-muted-foreground">
+                Created At
+              </label>
+              <p className="text-sm">
+                {new Date(schedule.createdAt).toLocaleString()}
+              </p>
             </div>
             <div>
-              <label className="text-sm font-medium text-muted-foreground">Last Updated</label>
-              <p className="text-sm">{new Date(schedule.updatedAt).toLocaleString()}</p>
+              <label className="text-sm font-medium text-muted-foreground">
+                Last Updated
+              </label>
+              <p className="text-sm">
+                {new Date(schedule.updatedAt).toLocaleString()}
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -219,8 +277,12 @@ export default function ViewSchedulePage({ params }: { params: Promise<{ id: str
                     <TableHead className="hidden md:table-cell">Type</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Priority</TableHead>
-                    <TableHead className="hidden lg:table-cell">Reported By</TableHead>
-                    <TableHead className="hidden sm:table-cell">Reported At</TableHead>
+                    <TableHead className="hidden lg:table-cell">
+                      Reported By
+                    </TableHead>
+                    <TableHead className="hidden sm:table-cell">
+                      Reported At
+                    </TableHead>
                     <TableHead className="w-[70px]">Action</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -232,7 +294,9 @@ export default function ViewSchedulePage({ params }: { params: Promise<{ id: str
                           <span className="truncate">{incident.title}</span>
                           <div className="md:hidden flex flex-wrap gap-1 mt-1">
                             {incident.type && (
-                              <Badge variant="outline" className="text-xs">{incident.type.name}</Badge>
+                              <Badge variant="outline" className="text-xs">
+                                {incident.type.name}
+                              </Badge>
                             )}
                           </div>
                         </div>
@@ -241,14 +305,20 @@ export default function ViewSchedulePage({ params }: { params: Promise<{ id: str
                         {incident.type ? (
                           <Badge variant="outline">{incident.type.name}</Badge>
                         ) : (
-                          <span className="text-muted-foreground text-sm">Sin tipo</span>
+                          <span className="text-muted-foreground text-sm">
+                            Sin tipo
+                          </span>
                         )}
                       </TableCell>
                       <TableCell>
                         {incident.status ? (
-                          <Badge variant="secondary">{incident.status.name}</Badge>
+                          <Badge variant="secondary">
+                            {incident.status.name}
+                          </Badge>
                         ) : (
-                          <span className="text-muted-foreground text-sm">Sin estado</span>
+                          <span className="text-muted-foreground text-sm">
+                            Sin estado
+                          </span>
                         )}
                       </TableCell>
                       <TableCell>
@@ -258,9 +328,13 @@ export default function ViewSchedulePage({ params }: { params: Promise<{ id: str
                       </TableCell>
                       <TableCell className="hidden lg:table-cell">
                         {incident.reportedBy ? (
-                          <span className="text-sm">{incident.reportedBy.name}</span>
+                          <span className="text-sm">
+                            {incident.reportedBy.name}
+                          </span>
                         ) : (
-                          <span className="text-muted-foreground text-sm">Desconocido</span>
+                          <span className="text-muted-foreground text-sm">
+                            Desconocido
+                          </span>
                         )}
                       </TableCell>
                       <TableCell className="hidden sm:table-cell text-sm text-muted-foreground">
@@ -287,5 +361,5 @@ export default function ViewSchedulePage({ params }: { params: Promise<{ id: str
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

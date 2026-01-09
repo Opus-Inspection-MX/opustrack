@@ -1,5 +1,11 @@
 "use client";
 
+import { Edit, Eye, Trash2, Wrench } from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -8,13 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Edit, Trash2, Eye, Wrench } from "lucide-react";
-import Link from "next/link";
 import { deleteWorkOrder } from "@/lib/actions/work-orders";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
 
 type WorkOrder = {
   id: string;
@@ -42,7 +42,7 @@ export function WorkOrdersTable({ workOrders }: { workOrders: WorkOrder[] }) {
   const router = useRouter();
   const [deleting, setDeleting] = useState<string | null>(null);
 
-  const handleDelete = async (id: string, title: string) => {
+  const handleDelete = async (id: string, _title: string) => {
     if (!confirm(`Esta seguro de que desea eliminar la orden de trabajo?`)) {
       return;
     }
@@ -52,7 +52,7 @@ export function WorkOrdersTable({ workOrders }: { workOrders: WorkOrder[] }) {
       await deleteWorkOrder(id);
       router.refresh();
     } catch (error) {
-      alert("Error al eliminar orden de trabajo: " + (error as Error).message);
+      alert(`Error al eliminar orden de trabajo: ${(error as Error).message}`);
       setDeleting(null);
     }
   };
@@ -73,7 +73,9 @@ export function WorkOrdersTable({ workOrders }: { workOrders: WorkOrder[] }) {
   if (workOrders.length === 0) {
     return (
       <div className="text-center py-12 border rounded-lg">
-        <p className="text-muted-foreground">No hay ordenes de trabajo registradas</p>
+        <p className="text-muted-foreground">
+          No hay ordenes de trabajo registradas
+        </p>
       </div>
     );
   }
@@ -103,7 +105,9 @@ export function WorkOrdersTable({ workOrders }: { workOrders: WorkOrder[] }) {
               </TableCell>
               <TableCell>{wo.assignedTo.name}</TableCell>
               <TableCell>
-                <Badge variant={getStatusColor(wo.status?.name || '')}>{wo.status?.name || 'N/A'}</Badge>
+                <Badge variant={getStatusColor(wo.status?.name || "")}>
+                  {wo.status?.name || "N/A"}
+                </Badge>
               </TableCell>
               <TableCell>
                 <Badge variant="outline">{wo._count.workActivities}</Badge>

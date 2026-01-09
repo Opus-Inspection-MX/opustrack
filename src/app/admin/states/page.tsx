@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { StateTable } from "@/components/states/state-table";
+import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import { getStatesAdmin, deleteState } from "@/lib/actions/lookups";
+import { deleteState, getStatesAdmin } from "@/lib/actions/lookups";
 
 export default function StatesPage() {
   const [states, setStates] = useState<any[]>([]);
@@ -46,9 +46,9 @@ export default function StatesPage() {
 
   const handleDelete = async (id: number) => {
     const state = states.find((s) => s.id === id);
-    if (state && state.vicCount && state.vicCount > 0) {
+    if (state?.vicCount && state.vicCount > 0) {
       alert(
-        "Cannot delete state with associated VIC centers. Please reassign or delete VIC centers first."
+        "Cannot delete state with associated VIC centers. Please reassign or delete VIC centers first.",
       );
       return;
     }
@@ -60,7 +60,9 @@ export default function StatesPage() {
         setStates((prev) => prev.filter((s) => s.id !== id));
       } catch (error) {
         console.error("Error deleting state:", error);
-        alert(error instanceof Error ? error.message : "Failed to delete state");
+        alert(
+          error instanceof Error ? error.message : "Failed to delete state",
+        );
       }
     }
   };

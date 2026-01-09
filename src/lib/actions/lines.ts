@@ -1,7 +1,7 @@
 "use server";
 
-import { prisma } from "@/lib/database/prisma.singleton";
 import { revalidatePath } from "next/cache";
+import { prisma } from "@/lib/database/prisma.singleton";
 
 export async function getLines() {
   try {
@@ -64,7 +64,7 @@ export async function getLinesByVicId(vicId: string) {
     const lines = await prisma.line.findMany({
       where: {
         vicId,
-        active: true
+        active: true,
       },
       include: {
         equipments: {
@@ -118,14 +118,16 @@ export async function updateLine(
     name?: string;
     description?: string;
     vicId?: string;
-  }
+  },
 ) {
   try {
     const line = await prisma.line.update({
       where: { id },
       data: {
         ...(data.name && { name: data.name }),
-        ...(data.description !== undefined && { description: data.description }),
+        ...(data.description !== undefined && {
+          description: data.description,
+        }),
         ...(data.vicId && { vicId: data.vicId }),
       },
       include: {

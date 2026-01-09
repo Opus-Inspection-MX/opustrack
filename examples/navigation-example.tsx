@@ -66,7 +66,13 @@ export async function DynamicSidebar() {
   const routes = await getMyAccessibleRoutes();
 
   // Group routes by category
-  const dashboards = routes.filter((r) => r.includes("admin") || r.includes("fsr") || r.includes("client") || r.includes("guest"));
+  const dashboards = routes.filter(
+    (r) =>
+      r.includes("admin") ||
+      r.includes("fsr") ||
+      r.includes("client") ||
+      r.includes("guest"),
+  );
   const modules = routes.filter((r) => !dashboards.includes(r));
 
   return (

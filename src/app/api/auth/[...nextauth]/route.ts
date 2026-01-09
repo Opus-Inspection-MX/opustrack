@@ -57,7 +57,10 @@ export const authOptions: NextAuthOptions = {
         }
 
         // Verify password
-        const isPasswordValid = await compare(credentials.password, user.password);
+        const isPasswordValid = await compare(
+          credentials.password,
+          user.password,
+        );
 
         if (!isPasswordValid) {
           throw new Error("Invalid email or password");

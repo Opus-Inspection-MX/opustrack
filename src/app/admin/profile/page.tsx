@@ -1,18 +1,34 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Building,
+  Edit2,
+  Lock,
+  Mail,
+  Phone,
+  Save,
+  Shield,
+  User,
+  X,
+} from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { FormError } from "@/components/ui/form-error";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { User, Mail, Building, Phone, Shield, Edit2, Save, X, Lock } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
-import { FormError } from "@/components/ui/form-error";
-import { getMyProfile, updateMyProfile, updateMyPassword } from "@/lib/actions/users";
+import {
+  getMyProfile,
+  updateMyPassword,
+  updateMyProfile,
+} from "@/lib/actions/users";
+
+type UserProfile = Awaited<ReturnType<typeof getMyProfile>>;
 
 export default function AdminProfilePage() {
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
@@ -34,11 +50,7 @@ export default function AdminProfilePage() {
     confirmPassword: "",
   });
 
-  useEffect(() => {
-    fetchProfile();
-  }, []);
-
-  const fetchProfile = async () => {
+  const fetchProfile = useCallback(async () => {
     try {
       const data = await getMyProfile();
       setUser(data);
@@ -56,7 +68,11 @@ export default function AdminProfilePage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchProfile();
+  }, [fetchProfile]);
 
   const handleSaveProfile = async () => {
     setErrors({});
@@ -84,7 +100,8 @@ export default function AdminProfilePage() {
     } catch (error) {
       console.error("Error updating profile:", error);
       setErrors({
-        submit: error instanceof Error ? error.message : "Failed to update profile",
+        submit:
+          error instanceof Error ? error.message : "Failed to update profile",
       });
     } finally {
       setIsSaving(false);
@@ -119,7 +136,10 @@ export default function AdminProfilePage() {
         return;
       }
 
-      await updateMyPassword(passwordData.currentPassword, passwordData.newPassword);
+      await updateMyPassword(
+        passwordData.currentPassword,
+        passwordData.newPassword,
+      );
       setIsChangingPassword(false);
       setPasswordData({
         currentPassword: "",
@@ -131,7 +151,8 @@ export default function AdminProfilePage() {
     } catch (error) {
       console.error("Error changing password:", error);
       setErrors({
-        submit: error instanceof Error ? error.message : "Failed to change password",
+        submit:
+          error instanceof Error ? error.message : "Failed to change password",
       });
     } finally {
       setIsSaving(false);
@@ -159,11 +180,16 @@ export default function AdminProfilePage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">My Profile</h1>
-          <p className="text-muted-foreground">Manage your personal information</p>
+          <p className="text-muted-foreground">
+            Manage your personal information
+          </p>
         </div>
         {!isEditing && !isChangingPassword && (
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setIsChangingPassword(true)}>
+            <Button
+              variant="outline"
+              onClick={() => setIsChangingPassword(true)}
+            >
               <Lock className="mr-2 h-4 w-4" />
               Change Password
             </Button>
@@ -252,7 +278,9 @@ export default function AdminProfilePage() {
                   <div>
                     <p className="text-sm text-muted-foreground">VIC</p>
                     <p className="font-medium">
-                      {user.vic ? `${user.vic.name} (${user.vic.code})` : "Not assigned"}
+                      {user.vic
+                        ? `${user.vic.name} (${user.vic.code})`
+                        : "Not assigned"}
                     </p>
                   </div>
                 </div>
@@ -282,7 +310,9 @@ export default function AdminProfilePage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="secondaryTelephone">Secondary Telephone</Label>
+                  <Label htmlFor="secondaryTelephone">
+                    Secondary Telephone
+                  </Label>
                   <Input
                     id="secondaryTelephone"
                     value={formData.secondaryTelephone}
@@ -330,7 +360,9 @@ export default function AdminProfilePage() {
                     <Phone className="h-5 w-5 text-muted-foreground" />
                     <div>
                       <p className="text-sm text-muted-foreground">Telephone</p>
-                      <p className="font-medium">{user.userProfile.telephone}</p>
+                      <p className="font-medium">
+                        {user.userProfile.telephone}
+                      </p>
                     </div>
                   </div>
                 )}
@@ -353,8 +385,12 @@ export default function AdminProfilePage() {
                   <div className="flex items-center gap-3">
                     <Building className="h-5 w-5 text-muted-foreground" />
                     <div>
-                      <p className="text-sm text-muted-foreground">Job Position</p>
-                      <p className="font-medium">{user.userProfile.jobPosition}</p>
+                      <p className="text-sm text-muted-foreground">
+                        Job Position
+                      </p>
+                      <p className="font-medium">
+                        {user.userProfile.jobPosition}
+                      </p>
                     </div>
                   </div>
                 )}
@@ -389,7 +425,8 @@ export default function AdminProfilePage() {
                 setFormData({
                   name: user.name || "",
                   telephone: user.userProfile?.telephone || "",
-                  secondaryTelephone: user.userProfile?.secondaryTelephone || "",
+                  secondaryTelephone:
+                    user.userProfile?.secondaryTelephone || "",
                   emergencyContact: user.userProfile?.emergencyContact || "",
                   jobPosition: user.userProfile?.jobPosition || "",
                 });
@@ -454,7 +491,9 @@ export default function AdminProfilePage() {
                     })
                   }
                 />
-                {errors.newPassword && <FormError message={errors.newPassword} />}
+                {errors.newPassword && (
+                  <FormError message={errors.newPassword} />
+                )}
                 <p className="text-xs text-muted-foreground">
                   Must be at least 8 characters
                 </p>

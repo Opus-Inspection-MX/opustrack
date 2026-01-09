@@ -1,12 +1,20 @@
-"use client"
+"use client";
 
-import type React from "react"
-import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
-import { InvitadoSidebar } from "@/components/layout/invitado-sidebar"
-import { User } from "lucide-react"
-import Link from "next/link"
+import { User } from "lucide-react";
+import Link from "next/link";
+import type React from "react";
+import { InvitadoSidebar } from "@/components/layout/invitado-sidebar";
+import {
+  SidebarInset,
+  SidebarProvider,
+  SidebarTrigger,
+} from "@/components/ui/sidebar";
 
-export default function GuestLayout({ children }: { children: React.ReactNode }) {
+export default function GuestLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <SidebarProvider>
       <InvitadoSidebar />
@@ -18,8 +26,10 @@ export default function GuestLayout({ children }: { children: React.ReactNode })
             <span className="font-semibold">Invitado Portal</span>
           </Link>
         </header>
-        <main className="flex-1 overflow-auto p-4 md:p-6 lg:p-8">{children}</main>
+        <main className="flex-1 overflow-auto p-4 md:p-6 lg:p-8">
+          {children}
+        </main>
       </SidebarInset>
     </SidebarProvider>
-  )
+  );
 }

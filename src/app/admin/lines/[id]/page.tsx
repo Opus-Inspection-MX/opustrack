@@ -1,21 +1,34 @@
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { ArrowLeft, Edit, List, Wrench } from "lucide-react"
-import Link from "next/link"
-import { getLineById } from "@/lib/actions/lines"
-import { notFound } from "next/navigation"
+import { ArrowLeft, Edit, List, Wrench } from "lucide-react";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { getLineById } from "@/lib/actions/lines";
 
 interface LineDetailPageProps {
-  params: Promise<{ id: string }>
+  params: Promise<{ id: string }>;
 }
 
 export default async function LineDetailPage({ params }: LineDetailPageProps) {
-  const { id } = await params
+  const { id } = await params;
 
   try {
-    const line = await getLineById(parseInt(id))
+    const line = await getLineById(parseInt(id, 10));
 
     return (
       <div className="space-y-6">
@@ -77,7 +90,13 @@ export default async function LineDetailPage({ params }: LineDetailPageProps) {
               <List className="h-5 w-5 text-muted-foreground mt-0.5" />
               <div className="flex-1">
                 <p className="text-sm text-muted-foreground">Status</p>
-                <Badge className={line.active ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}>
+                <Badge
+                  className={
+                    line.active
+                      ? "bg-green-100 text-green-800"
+                      : "bg-red-100 text-red-800"
+                  }
+                >
                   {line.active ? "Activo" : "Inactivo"}
                 </Badge>
               </div>
@@ -113,16 +132,24 @@ export default async function LineDetailPage({ params }: LineDetailPageProps) {
                   <TableBody>
                     {line.equipments.map((equipment) => (
                       <TableRow key={equipment.id}>
-                        <TableCell className="font-medium">{equipment.name}</TableCell>
+                        <TableCell className="font-medium">
+                          {equipment.name}
+                        </TableCell>
                         <TableCell>
                           {equipment.description || (
-                            <span className="text-muted-foreground text-sm">Sin descripción</span>
+                            <span className="text-muted-foreground text-sm">
+                              Sin descripción
+                            </span>
                           )}
                         </TableCell>
                         <TableCell>
                           <Badge
                             variant={equipment.active ? "default" : "secondary"}
-                            className={equipment.active ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}
+                            className={
+                              equipment.active
+                                ? "bg-green-100 text-green-800"
+                                : "bg-red-100 text-red-800"
+                            }
                           >
                             {equipment.active ? "Activo" : "Inactivo"}
                           </Badge>
@@ -139,8 +166,8 @@ export default async function LineDetailPage({ params }: LineDetailPageProps) {
           </CardContent>
         </Card>
       </div>
-    )
-  } catch (error) {
-    notFound()
+    );
+  } catch (_error) {
+    notFound();
   }
 }

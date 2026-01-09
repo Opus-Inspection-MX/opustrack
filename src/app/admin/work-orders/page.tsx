@@ -1,8 +1,8 @@
-import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import Link from "next/link";
-import { getWorkOrders } from "@/lib/actions/work-orders";
 import { WorkOrdersTable } from "@/components/admin/work-orders/work-orders-table";
+import { Button } from "@/components/ui/button";
+import { getWorkOrders } from "@/lib/actions/work-orders";
 
 export default async function WorkOrdersPage() {
   const workOrders = await getWorkOrders();

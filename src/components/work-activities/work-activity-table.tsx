@@ -1,40 +1,64 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { MoreHorizontal, Edit, Trash2, Activity, Wrench, Eye } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
-import { TablePagination } from "@/components/common/table-pagination"
+import {
+  Activity,
+  Edit,
+  Eye,
+  MoreHorizontal,
+  Trash2,
+  Wrench,
+} from "lucide-react";
+import { useState } from "react";
+import { TablePagination } from "@/components/common/table-pagination";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 interface WorkActivity {
-  id: string
-  description: string
-  performedAt: string
-  workOrderId: string
-  workOrderTitle: string
-  partsCount: number
-  active: boolean
-  createdAt: string
-  updatedAt: string
+  id: string;
+  description: string;
+  performedAt: string;
+  workOrderId: string;
+  workOrderTitle: string;
+  partsCount: number;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 interface WorkActivityTableProps {
-  data: WorkActivity[]
-  onEdit: (id: string) => void
-  onDelete: (id: string) => void
-  onView: (id: string) => void
+  data: WorkActivity[];
+  onEdit: (id: string) => void;
+  onDelete: (id: string) => void;
+  onView: (id: string) => void;
 }
 
-export function WorkActivityTable({ data, onEdit, onDelete, onView }: WorkActivityTableProps) {
-  const [currentPage, setCurrentPage] = useState(1)
-  const [itemsPerPage, setItemsPerPage] = useState(10)
+export function WorkActivityTable({
+  data,
+  onEdit,
+  onDelete,
+  onView,
+}: WorkActivityTableProps) {
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
-  const startIndex = (currentPage - 1) * itemsPerPage
-  const endIndex = startIndex + itemsPerPage
-  const currentData = data.slice(startIndex, endIndex)
-  const totalPages = Math.ceil(data.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentData = data.slice(startIndex, endIndex);
+  const totalPages = Math.ceil(data.length / itemsPerPage);
 
   return (
     <div className="space-y-4">
@@ -71,7 +95,9 @@ export function WorkActivityTable({ data, onEdit, onDelete, onView }: WorkActivi
                     <span className="text-sm">{activity.workOrderTitle}</span>
                   </div>
                 </TableCell>
-                <TableCell>{new Date(activity.performedAt).toLocaleString()}</TableCell>
+                <TableCell>
+                  {new Date(activity.performedAt).toLocaleString()}
+                </TableCell>
                 <TableCell>
                   <Badge variant="outline">{activity.partsCount} partes</Badge>
                 </TableCell>
@@ -96,7 +122,10 @@ export function WorkActivityTable({ data, onEdit, onDelete, onView }: WorkActivi
                         <Edit className="mr-2 h-4 w-4" />
                         Editar
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => onDelete(activity.id)} className="text-red-600">
+                      <DropdownMenuItem
+                        onClick={() => onDelete(activity.id)}
+                        className="text-red-600"
+                      >
                         <Trash2 className="mr-2 h-4 w-4" />
                         Eliminar
                       </DropdownMenuItem>
@@ -120,5 +149,5 @@ export function WorkActivityTable({ data, onEdit, onDelete, onView }: WorkActivi
         onItemsPerPageChange={setItemsPerPage}
       />
     </div>
-  )
+  );
 }

@@ -78,7 +78,7 @@ export async function PATCH(req: NextRequest) {
   } catch (error) {
     return Response.json(
       { error: error instanceof Error ? error.message : "Unauthorized" },
-      { status: 401 }
+      { status: 401 },
     );
   }
 }
@@ -106,7 +106,7 @@ export async function DELETE(req: NextRequest) {
     if (!isAdmin && !isOwner) {
       return Response.json(
         { error: "You can only delete your own incidents" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -118,7 +118,7 @@ export async function DELETE(req: NextRequest) {
   } catch (error) {
     return Response.json(
       { error: error instanceof Error ? error.message : "Unauthorized" },
-      { status: 401 }
+      { status: 401 },
     );
   }
 }

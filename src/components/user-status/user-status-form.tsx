@@ -1,87 +1,88 @@
-"use client"
+"use client";
 
-import type React from "react"
-
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Switch } from "@/components/ui/switch"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { FormError } from "@/components/ui/form-error"
-import { Spinner } from "@/components/ui/spinner"
-import { ArrowLeft } from "lucide-react"
+import { ArrowLeft } from "lucide-react";
+import { useRouter } from "next/navigation";
+import type React from "react";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { FormError } from "@/components/ui/form-error";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Spinner } from "@/components/ui/spinner";
+import { Switch } from "@/components/ui/switch";
 
 interface UserStatusFormProps {
   initialData?: {
-    id: number
-    name: string
-    active: boolean
-  }
+    id: number;
+    name: string;
+    active: boolean;
+  };
 }
 
 export function UserStatusForm({ initialData }: UserStatusFormProps) {
-  const router = useRouter()
-  const [isLoading, setIsLoading] = useState(false)
-  const [errors, setErrors] = useState<Record<string, string>>({})
+  const router = useRouter();
+  const [isLoading, setIsLoading] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const [formData, setFormData] = useState({
     name: initialData?.name || "",
     active: initialData?.active ?? true,
-  })
+  });
 
   const validateForm = () => {
-    const newErrors: Record<string, string> = {}
+    const newErrors: Record<string, string> = {};
 
     if (!formData.name.trim()) {
-      newErrors.name = "Name is required"
+      newErrors.name = "Name is required";
     } else if (formData.name.length > 50) {
-      newErrors.name = "Name must be less than 50 characters"
+      newErrors.name = "Name must be less than 50 characters";
     }
 
-    setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
-  }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
 
     if (!validateForm()) {
-      return
+      return;
     }
 
-    setIsLoading(true)
+    setIsLoading(true);
     try {
-      const { createUserStatus, updateUserStatus } = await import("@/lib/actions/lookups")
+      const { createUserStatus, updateUserStatus } = await import(
+        "@/lib/actions/lookups"
+      );
 
       if (initialData) {
         await updateUserStatus(initialData.id, {
           name: formData.name.trim(),
           active: formData.active,
-        })
+        });
       } else {
         await createUserStatus({
           name: formData.name.trim(),
-        })
+        });
       }
 
-      router.push("/admin/user-status")
-      router.refresh()
+      router.push("/admin/user-status");
+      router.refresh();
     } catch (error) {
-      console.error("Error saving user status:", error)
-      setErrors({ submit: "Failed to save user status. Please try again." })
+      console.error("Error saving user status:", error);
+      setErrors({ submit: "Failed to save user status. Please try again." });
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   const handleInputChange = (field: string, value: string | boolean) => {
-    setFormData((prev) => ({ ...prev, [field]: value }))
+    setFormData((prev) => ({ ...prev, [field]: value }));
     if (errors[field]) {
-      setErrors((prev) => ({ ...prev, [field]: "" }))
+      setErrors((prev) => ({ ...prev, [field]: "" }));
     }
-  }
+  };
 
   return (
     <div className="space-y-6">
@@ -91,16 +92,22 @@ export function UserStatusForm({ initialData }: UserStatusFormProps) {
           Back
         </Button>
         <div>
-          <h1 className="text-3xl font-bold">{initialData ? "Edit User Status" : "Create User Status"}</h1>
+          <h1 className="text-3xl font-bold">
+            {initialData ? "Edit User Status" : "Create User Status"}
+          </h1>
           <p className="text-muted-foreground">
-            {initialData ? "Update user status information" : "Add a new user status"}
+            {initialData
+              ? "Update user status information"
+              : "Add a new user status"}
           </p>
         </div>
       </div>
 
       <Card className="max-w-2xl">
         <CardHeader>
-          <CardTitle>{initialData ? "Edit User Status" : "Create User Status"}</CardTitle>
+          <CardTitle>
+            {initialData ? "Edit User Status" : "Create User Status"}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -121,7 +128,9 @@ export function UserStatusForm({ initialData }: UserStatusFormProps) {
               <Switch
                 id="active"
                 checked={formData.active}
-                onCheckedChange={(checked) => handleInputChange("active", checked)}
+                onCheckedChange={(checked) =>
+                  handleInputChange("active", checked)
+                }
               />
               <Label htmlFor="active">Active</Label>
             </div>
@@ -131,7 +140,11 @@ export function UserStatusForm({ initialData }: UserStatusFormProps) {
                 {isLoading && <Spinner size="sm" className="mr-2" />}
                 {initialData ? "Update Status" : "Create Status"}
               </Button>
-              <Button type="button" variant="outline" onClick={() => router.back()}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => router.back()}
+              >
                 Cancel
               </Button>
             </div>
@@ -139,5 +152,5 @@ export function UserStatusForm({ initialData }: UserStatusFormProps) {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

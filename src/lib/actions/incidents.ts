@@ -1,9 +1,10 @@
 "use server";
 
-import { prisma } from "@/lib/database/prisma.singleton";
-import { requirePermission } from "@/lib/auth/auth";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { requirePermission } from "@/lib/auth/auth";
+import { assertVicAccess, getVicWhereClause } from "@/lib/auth/filters";
+import { prisma } from "@/lib/database/prisma.singleton";
 
 export type IncidentFormData = {
   title: string;
@@ -20,12 +21,17 @@ export type IncidentFormData = {
 
 /**
  * Get all incidents with relations
+ * Filtered by user's VIC (except ADMINISTRADOR who sees all)
  */
 export async function getIncidents() {
-  await requirePermission("incidents:read");
+  const user = await requirePermission("incidents:read");
+  const vicFilter = getVicWhereClause(user);
 
   const incidents = await prisma.incident.findMany({
-    where: { active: true },
+    where: {
+      active: true,
+      ...vicFilter, // Apply VIC filter
+    },
     include: {
       type: true,
       status: true,
@@ -50,9 +56,10 @@ export async function getIncidents() {
 
 /**
  * Get single incident by ID
+ * Verifies user has access to the incident's VIC
  */
 export async function getIncidentById(id: number) {
-  await requirePermission("incidents:read");
+  const user = await requirePermission("incidents:read");
 
   const incident = await prisma.incident.findUnique({
     where: { id },
@@ -84,6 +91,13 @@ export async function getIncidentById(id: number) {
       },
     },
   });
+
+  if (!incident) {
+    throw new Error("Incident not found");
+  }
+
+  // Verify user has access to this incident's VIC
+  assertVicAccess(user, incident.vicId);
 
   return incident;
 }
@@ -129,7 +143,7 @@ export async function createIncidentAsClient(
   priority: number,
   typeId?: number,
   lineId?: number,
-  equipmentId?: number
+  equipmentId?: number,
 ) {
   const user = await requirePermission("incidents:create");
 
@@ -193,7 +207,7 @@ export async function getClientIncidents() {
   const incidents = await prisma.incident.findMany({
     where: {
       reportedById: user.id, // Filter by the user who reported it
-      vicId: user.vicId,      // Also ensure it's from their VIC
+      vicId: user.vicId, // Also ensure it's from their VIC
       active: true,
     },
     include: {
@@ -219,9 +233,22 @@ export async function getClientIncidents() {
 
 /**
  * Update existing incident
+ * Verifies user has access to the incident's VIC before updating
  */
 export async function updateIncident(id: number, data: IncidentFormData) {
-  await requirePermission("incidents:update");
+  const user = await requirePermission("incidents:update");
+
+  // Verify access before update
+  const existing = await prisma.incident.findUnique({
+    where: { id },
+    select: { vicId: true },
+  });
+
+  if (!existing) {
+    throw new Error("Incident not found");
+  }
+
+  assertVicAccess(user, existing.vicId);
 
   const incident = await prisma.incident.update({
     where: { id },
@@ -251,9 +278,22 @@ export async function updateIncident(id: number, data: IncidentFormData) {
 
 /**
  * Delete incident (soft delete)
+ * Verifies user has access to the incident's VIC before deleting
  */
 export async function deleteIncident(id: number) {
-  await requirePermission("incidents:delete");
+  const user = await requirePermission("incidents:delete");
+
+  // Verify access before delete
+  const incident = await prisma.incident.findUnique({
+    where: { id },
+    select: { vicId: true },
+  });
+
+  if (!incident) {
+    throw new Error("Incident not found");
+  }
+
+  assertVicAccess(user, incident.vicId);
 
   await prisma.incident.update({
     where: { id },
@@ -266,9 +306,22 @@ export async function deleteIncident(id: number) {
 
 /**
  * Close incident
+ * Verifies user has access to the incident's VIC before closing
  */
 export async function closeIncident(id: number) {
-  await requirePermission("incidents:close");
+  const user = await requirePermission("incidents:close");
+
+  // Verify access before closing
+  const incident = await prisma.incident.findUnique({
+    where: { id },
+    select: { vicId: true },
+  });
+
+  if (!incident) {
+    throw new Error("Incident not found");
+  }
+
+  assertVicAccess(user, incident.vicId);
 
   // Get the CERRADO status
   const closedStatus = await prisma.incidentStatus.findFirst({
@@ -293,16 +346,29 @@ export async function closeIncident(id: number) {
 }
 
 /**
- * Change incident status (Admin only)
+ * Change incident status
+ * Verifies user has access to the incident's VIC before changing status
  */
 export async function changeIncidentStatus(id: number, statusId: number) {
-  await requirePermission("incidents:update");
+  const user = await requirePermission("incidents:update");
+
+  // Verify access before status change
+  const existing = await prisma.incident.findUnique({
+    where: { id },
+    select: { vicId: true },
+  });
+
+  if (!existing) {
+    throw new Error("Incident not found");
+  }
+
+  assertVicAccess(user, existing.vicId);
 
   const incident = await prisma.incident.update({
     where: { id },
     data: {
       statusId,
-      resolvedAt: statusId === await getClosedStatusId() ? new Date() : null,
+      resolvedAt: statusId === (await getClosedStatusId()) ? new Date() : null,
     },
     include: {
       status: true,
@@ -316,13 +382,26 @@ export async function changeIncidentStatus(id: number, statusId: number) {
 }
 
 /**
- * Assign incident to FSR (Admin only)
+ * Assign incident to FSR
+ * Verifies user has access to the incident's VIC before assigning
  */
 export async function assignIncidentToFSR(
   incidentId: number,
-  fsrUserId: string
+  fsrUserId: string,
 ) {
-  await requirePermission("incidents:assign");
+  const user = await requirePermission("incidents:assign");
+
+  // Verify access to incident
+  const incident = await prisma.incident.findUnique({
+    where: { id: incidentId },
+    select: { vicId: true },
+  });
+
+  if (!incident) {
+    throw new Error("Incident not found");
+  }
+
+  assertVicAccess(user, incident.vicId);
 
   // Verify the user is an FSR
   const fsr = await prisma.user.findUnique({
@@ -382,9 +461,11 @@ async function getClosedStatusId() {
 
 /**
  * Get FSR users for assignment
+ * Filtered by user's VIC (except ADMINISTRADOR who sees all FSRs)
  */
 export async function getFSRUsers() {
-  await requirePermission("incidents:assign");
+  const user = await requirePermission("incidents:assign");
+  const vicFilter = getVicWhereClause(user);
 
   const fsrRole = await prisma.role.findUnique({
     where: { name: "FSR" },
@@ -398,6 +479,7 @@ export async function getFSRUsers() {
     where: {
       roleId: fsrRole.id,
       active: true,
+      ...vicFilter, // Only FSRs from same VIC
     },
     select: {
       id: true,
@@ -418,9 +500,11 @@ export async function getFSRUsers() {
 
 /**
  * Get form options for incidents
+ * VICs and schedules filtered by user's VIC (except ADMINISTRADOR)
  */
 export async function getIncidentFormOptions() {
-  await requirePermission("incidents:read");
+  const user = await requirePermission("incidents:read");
+  const vicFilter = getVicWhereClause(user);
 
   const [types, statuses, vics, users, schedules] = await Promise.all([
     prisma.incidentType.findMany({
@@ -431,10 +515,15 @@ export async function getIncidentFormOptions() {
       where: { active: true },
       orderBy: { name: "asc" },
     }),
+    // Filter VICs by user's access
     prisma.vehicleInspectionCenter.findMany({
-      where: { active: true },
+      where: {
+        active: true,
+        ...vicFilter,
+      },
       orderBy: { name: "asc" },
     }),
+    // Users not filtered by VIC (may need to see reporters from other VICs)
     prisma.user.findMany({
       where: { active: true },
       select: {
@@ -445,8 +534,12 @@ export async function getIncidentFormOptions() {
       },
       orderBy: { name: "asc" },
     }),
+    // Filter schedules by VIC
     prisma.schedule.findMany({
-      where: { active: true },
+      where: {
+        active: true,
+        ...vicFilter,
+      },
       orderBy: { scheduledAt: "desc" },
       take: 50,
     }),

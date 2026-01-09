@@ -1,29 +1,29 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import { useMediaQuery } from "@/hooks/use-media-query"
+import type * as React from "react";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
+} from "@/components/ui/dialog";
 import {
   Drawer,
   DrawerContent,
   DrawerDescription,
   DrawerHeader,
   DrawerTitle,
-} from "@/components/ui/drawer"
+} from "@/components/ui/drawer";
+import { useMediaQuery } from "@/hooks/use-media-query";
 
 interface ResponsiveDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  title: string
-  description?: string
-  children: React.ReactNode
-  className?: string
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  title: string;
+  description?: string;
+  children: React.ReactNode;
+  className?: string;
 }
 
 export function ResponsiveDialog({
@@ -34,7 +34,7 @@ export function ResponsiveDialog({
   children,
   className,
 }: ResponsiveDialogProps) {
-  const isDesktop = useMediaQuery("(min-width: 768px)")
+  const isDesktop = useMediaQuery("(min-width: 768px)");
 
   if (isDesktop) {
     return (
@@ -42,12 +42,14 @@ export function ResponsiveDialog({
         <DialogContent className={className}>
           <DialogHeader>
             <DialogTitle>{title}</DialogTitle>
-            {description && <DialogDescription>{description}</DialogDescription>}
+            {description && (
+              <DialogDescription>{description}</DialogDescription>
+            )}
           </DialogHeader>
           {children}
         </DialogContent>
       </Dialog>
-    )
+    );
   }
 
   return (
@@ -57,10 +59,8 @@ export function ResponsiveDialog({
           <DrawerTitle>{title}</DrawerTitle>
           {description && <DrawerDescription>{description}</DrawerDescription>}
         </DrawerHeader>
-        <div className="px-4 pb-4 overflow-y-auto max-h-[80vh]">
-          {children}
-        </div>
+        <div className="px-4 pb-4 overflow-y-auto max-h-[80vh]">{children}</div>
       </DrawerContent>
     </Drawer>
-  )
+  );
 }

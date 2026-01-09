@@ -1,34 +1,34 @@
-"use client"
+"use client";
 
-import { useState } from "react"
+import { Calendar, Clock } from "lucide-react";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-import { Label } from "@/components/ui/label"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
-import { Calendar, Clock } from "lucide-react"
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 
 interface CreateScheduleDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   dateRange: {
-    start: Date
-    end: Date
-    type: "day" | "week" | "month" | "custom"
-  }
+    start: Date;
+    end: Date;
+    type: "day" | "week" | "month" | "custom";
+  };
 }
 
 export function CreateScheduleDialog({
@@ -37,50 +37,52 @@ export function CreateScheduleDialog({
   dateRange,
 }: CreateScheduleDialogProps) {
   const [scheduleType, setScheduleType] = useState<"day" | "week" | "month">(
-    dateRange.type === "custom" ? "day" : dateRange.type
-  )
-  const [activityType, setActivityType] = useState<"incident" | "calibration" | "maintenance">("incident")
+    dateRange.type === "custom" ? "day" : dateRange.type,
+  );
+  const [activityType, setActivityType] = useState<
+    "incident" | "calibration" | "maintenance"
+  >("incident");
 
   // Ajustar fechas según el tipo de programación
   const getAdjustedDates = () => {
-    const today = new Date()
+    const today = new Date();
 
     if (scheduleType === "month") {
       // Primer día del mes actual
-      const start = new Date(today.getFullYear(), today.getMonth(), 1)
-      const end = new Date(today.getFullYear(), today.getMonth() + 1, 0)
-      return { start, end }
+      const start = new Date(today.getFullYear(), today.getMonth(), 1);
+      const end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+      return { start, end };
     } else if (scheduleType === "week") {
       // Lunes de esta semana
-      const day = today.getDay() // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
-      const diff = day === 0 ? -6 : 1 - day // Ajustar para que comience en lunes
-      const start = new Date(today)
-      start.setDate(today.getDate() + diff)
-      start.setHours(0, 0, 0, 0)
+      const day = today.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+      const diff = day === 0 ? -6 : 1 - day; // Ajustar para que comience en lunes
+      const start = new Date(today);
+      start.setDate(today.getDate() + diff);
+      start.setHours(0, 0, 0, 0);
 
-      const end = new Date(start)
-      end.setDate(start.getDate() + 6)
-      end.setHours(23, 59, 59, 999)
+      const end = new Date(start);
+      end.setDate(start.getDate() + 6);
+      end.setHours(23, 59, 59, 999);
 
-      return { start, end }
+      return { start, end };
     } else {
       // Día actual
-      const start = new Date(today)
-      start.setHours(0, 0, 0, 0)
-      const end = new Date(today)
-      end.setHours(23, 59, 59, 999)
-      return { start, end }
+      const start = new Date(today);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(today);
+      end.setHours(23, 59, 59, 999);
+      return { start, end };
     }
-  }
+  };
 
-  const adjustedDates = getAdjustedDates()
+  const adjustedDates = getAdjustedDates();
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
     // TODO: Implement schedule creation
-    console.log("Create schedule", { scheduleType, activityType })
-    onOpenChange(false)
-  }
+    console.log("Create schedule", { scheduleType, activityType });
+    onOpenChange(false);
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -88,7 +90,8 @@ export function CreateScheduleDialog({
         <DialogHeader>
           <DialogTitle>Nueva Programación</DialogTitle>
           <DialogDescription>
-            Crea una nueva programación para actividades, calibraciones o mantenimientos
+            Crea una nueva programación para actividades, calibraciones o
+            mantenimientos
           </DialogDescription>
         </DialogHeader>
 
@@ -96,7 +99,10 @@ export function CreateScheduleDialog({
           {/* Schedule Type */}
           <div className="space-y-2">
             <Label>Tipo de Programación</Label>
-            <Select value={scheduleType} onValueChange={(v) => setScheduleType(v as any)}>
+            <Select
+              value={scheduleType}
+              onValueChange={(v) => setScheduleType(v as any)}
+            >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -111,7 +117,10 @@ export function CreateScheduleDialog({
           {/* Activity Type */}
           <div className="space-y-2">
             <Label>Tipo de Actividad</Label>
-            <Select value={activityType} onValueChange={(v) => setActivityType(v as any)}>
+            <Select
+              value={activityType}
+              onValueChange={(v) => setActivityType(v as any)}
+            >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -246,7 +255,8 @@ export function CreateScheduleDialog({
           )}
 
           {/* Equipment/Part (for calibrations and maintenance) */}
-          {(activityType === "calibration" || activityType === "maintenance") && (
+          {(activityType === "calibration" ||
+            activityType === "maintenance") && (
             <div className="space-y-2">
               <Label>Equipo/Parte</Label>
               <Select>
@@ -264,7 +274,11 @@ export function CreateScheduleDialog({
 
           {/* Actions */}
           <div className="flex justify-end gap-3 pt-4">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+            >
               Cancelar
             </Button>
             <Button type="submit">Crear Programación</Button>
@@ -272,5 +286,5 @@ export function CreateScheduleDialog({
         </form>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

@@ -1,63 +1,65 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Plus } from "lucide-react"
-import { LineTable } from "@/components/lines/line-table"
-import { getLines, deleteLine } from "@/lib/actions/lines"
+import { Plus } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
+import { LineTable } from "@/components/lines/line-table";
+import { Button } from "@/components/ui/button";
+import { deleteLine, getLines } from "@/lib/actions/lines";
+
+type Line = Awaited<ReturnType<typeof getLines>>[number];
 
 export default function LinesPage() {
-  const router = useRouter()
-  const [lines, setLines] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [currentPage, setCurrentPage] = useState(1)
-  const [itemsPerPage, setItemsPerPage] = useState(10)
+  const router = useRouter();
+  const [lines, setLines] = useState<Line[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+
+  const loadLines = useCallback(async () => {
+    try {
+      const data = await getLines();
+      setLines(data);
+    } catch (error) {
+      console.error("Error loading lines:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    loadLines()
-  }, [])
-
-  const loadLines = async () => {
-    try {
-      const data = await getLines()
-      setLines(data)
-    } catch (error) {
-      console.error("Error loading lines:", error)
-    } finally {
-      setLoading(false)
-    }
-  }
+    loadLines();
+  }, [loadLines]);
 
   const handleDelete = async (id: number) => {
     if (!confirm("¿Estás seguro de que deseas eliminar esta línea?")) {
-      return
+      return;
     }
 
     try {
-      await deleteLine(id)
-      await loadLines()
+      await deleteLine(id);
+      await loadLines();
     } catch (error) {
-      console.error("Error deleting line:", error)
-      alert("Error al eliminar la línea")
+      console.error("Error deleting line:", error);
+      alert("Error al eliminar la línea");
     }
-  }
+  };
 
   const handleEdit = (id: number) => {
-    router.push(`/admin/lines/${id}/edit`)
-  }
+    router.push(`/admin/lines/${id}/edit`);
+  };
 
   const handleView = (id: number) => {
-    router.push(`/admin/lines/${id}`)
-  }
+    router.push(`/admin/lines/${id}`);
+  };
 
   const paginatedLines = lines.slice(
     (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  )
+    currentPage * itemsPerPage,
+  );
 
   if (loading) {
-    return <div>Cargando...</div>
+    return <div>Cargando...</div>;
   }
 
   return (
@@ -65,7 +67,9 @@ export default function LinesPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Líneas</h1>
-          <p className="text-muted-foreground">Gestiona las líneas de inspección</p>
+          <p className="text-muted-foreground">
+            Gestiona las líneas de inspección
+          </p>
         </div>
         <Button onClick={() => router.push("/admin/lines/new")}>
           <Plus className="mr-2 h-4 w-4" />
@@ -85,5 +89,5 @@ export default function LinesPage() {
         onView={handleView}
       />
     </div>
-  )
+  );
 }

@@ -1,8 +1,8 @@
-import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import Link from "next/link";
-import { getUsers } from "@/lib/actions/users";
 import { UsersTable } from "@/components/admin/users/users-table";
+import { Button } from "@/components/ui/button";
+import { getUsers } from "@/lib/actions/users";
 
 export default async function UsersPage() {
   const users = await getUsers();

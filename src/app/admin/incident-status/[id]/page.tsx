@@ -1,76 +1,90 @@
-"use client"
+"use client";
 
-import { useState, useEffect, use } from "react"
-import { useRouter } from "next/navigation"
-import { ArrowLeft, Edit, Calendar, CheckCircle, XCircle } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Spinner } from "@/components/ui/spinner"
+import { ArrowLeft, Calendar, CheckCircle, Edit, XCircle } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { use, useEffect, useState } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Spinner } from "@/components/ui/spinner";
 
 interface IncidentStatus {
-  id: number
-  name: string
-  color: string
-  active: boolean
-  createdAt: string
-  updatedAt: string
+  id: number;
+  name: string;
+  color: string;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
-export default function ViewIncidentStatusPage({ params }: { params: Promise<{ id: string }> }) {
+export default function ViewIncidentStatusPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const { id } = use(params);
-  const router = useRouter()
-  const [incidentStatus, setIncidentStatus] = useState<IncidentStatus | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+  const router = useRouter();
+  const [incidentStatus, setIncidentStatus] = useState<IncidentStatus | null>(
+    null,
+  );
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     // Mock data fetch
     const fetchIncidentStatus = async () => {
-      setIsLoading(true)
-      await new Promise((resolve) => setTimeout(resolve, 500))
+      setIsLoading(true);
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
       // Mock data
       setIncidentStatus({
-        id: Number.parseInt(id),
+        id: Number.parseInt(id, 10),
         name: "In Progress",
         color: "#3B82F6",
         active: true,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-      })
+      });
 
-      setIsLoading(false)
-    }
+      setIsLoading(false);
+    };
 
-    fetchIncidentStatus()
-  }, [id])
+    fetchIncidentStatus();
+  }, [id]);
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-96">
         <Spinner size="lg" text="Loading incident status..." />
       </div>
-    )
+    );
   }
 
   if (!incidentStatus) {
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => router.push("/admin/incident-status")}>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => router.push("/admin/incident-status")}
+          >
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <h1 className="text-3xl font-bold">Incident Status Not Found</h1>
         </div>
       </div>
-    )
+    );
   }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => router.push("/admin/incident-status")}>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => router.push("/admin/incident-status")}
+          >
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>
@@ -78,7 +92,9 @@ export default function ViewIncidentStatusPage({ params }: { params: Promise<{ i
             <p className="text-muted-foreground">Incident Status Details</p>
           </div>
         </div>
-        <Button onClick={() => router.push(`/admin/incident-status/${id}/edit`)}>
+        <Button
+          onClick={() => router.push(`/admin/incident-status/${id}/edit`)}
+        >
           <Edit className="h-4 w-4 mr-2" />
           Edit
         </Button>
@@ -112,8 +128,12 @@ export default function ViewIncidentStatusPage({ params }: { params: Promise<{ i
                   title={incidentStatus.color}
                 />
                 <div>
-                  <p className="font-mono font-medium text-lg">{incidentStatus.color}</p>
-                  <p className="text-sm text-muted-foreground">Hex Color Code</p>
+                  <p className="font-mono font-medium text-lg">
+                    {incidentStatus.color}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Hex Color Code
+                  </p>
                 </div>
               </div>
             </div>
@@ -147,7 +167,9 @@ export default function ViewIncidentStatusPage({ params }: { params: Promise<{ i
                 <Calendar className="h-4 w-4" />
                 Created At
               </p>
-              <p className="font-medium">{new Date(incidentStatus.createdAt).toLocaleString()}</p>
+              <p className="font-medium">
+                {new Date(incidentStatus.createdAt).toLocaleString()}
+              </p>
             </div>
 
             <div>
@@ -155,11 +177,13 @@ export default function ViewIncidentStatusPage({ params }: { params: Promise<{ i
                 <Calendar className="h-4 w-4" />
                 Last Updated
               </p>
-              <p className="font-medium">{new Date(incidentStatus.updatedAt).toLocaleString()}</p>
+              <p className="font-medium">
+                {new Date(incidentStatus.updatedAt).toLocaleString()}
+              </p>
             </div>
           </CardContent>
         </Card>
       </div>
     </div>
-  )
+  );
 }

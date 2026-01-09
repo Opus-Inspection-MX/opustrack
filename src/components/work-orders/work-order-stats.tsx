@@ -1,10 +1,10 @@
-"use client"
+"use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Clock, CheckCircle, AlertCircle } from "lucide-react"
+import { AlertCircle, CheckCircle, Clock } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface WorkOrderStatsProps {
-  workOrders: any[]
+  workOrders: any[];
 }
 
 export function WorkOrderStats({ workOrders }: WorkOrderStatsProps) {
@@ -12,7 +12,9 @@ export function WorkOrderStats({ workOrders }: WorkOrderStatsProps) {
     <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Total Work Orders</CardTitle>
+          <CardTitle className="text-sm font-medium">
+            Total Work Orders
+          </CardTitle>
           <Clock className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
@@ -25,7 +27,9 @@ export function WorkOrderStats({ workOrders }: WorkOrderStatsProps) {
           <Clock className="h-4 w-4 text-yellow-600" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{workOrders.filter((wo) => wo.status === "PENDING").length}</div>
+          <div className="text-2xl font-bold">
+            {workOrders.filter((wo) => wo.status === "PENDING").length}
+          </div>
         </CardContent>
       </Card>
       <Card>
@@ -34,7 +38,9 @@ export function WorkOrderStats({ workOrders }: WorkOrderStatsProps) {
           <AlertCircle className="h-4 w-4 text-blue-600" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{workOrders.filter((wo) => wo.status === "IN_PROGRESS").length}</div>
+          <div className="text-2xl font-bold">
+            {workOrders.filter((wo) => wo.status === "IN_PROGRESS").length}
+          </div>
         </CardContent>
       </Card>
       <Card>
@@ -43,9 +49,11 @@ export function WorkOrderStats({ workOrders }: WorkOrderStatsProps) {
           <CheckCircle className="h-4 w-4 text-green-600" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{workOrders.filter((wo) => wo.status === "COMPLETED").length}</div>
+          <div className="text-2xl font-bold">
+            {workOrders.filter((wo) => wo.status === "COMPLETED").length}
+          </div>
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

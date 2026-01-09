@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -13,8 +13,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { createPart, updatePart, type PartFormData } from "@/lib/actions/parts";
+import { Textarea } from "@/components/ui/textarea";
+import { createPart, type PartFormData, updatePart } from "@/lib/actions/parts";
 
 type PartFormProps = {
   part?: {
@@ -132,7 +132,10 @@ export function PartForm({ part, vics }: PartFormProps) {
                 min="0"
                 value={formData.price}
                 onChange={(e) =>
-                  setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })
+                  setFormData({
+                    ...formData,
+                    price: parseFloat(e.target.value) || 0,
+                  })
                 }
                 required
               />
@@ -146,7 +149,10 @@ export function PartForm({ part, vics }: PartFormProps) {
                 min="0"
                 value={formData.stock}
                 onChange={(e) =>
-                  setFormData({ ...formData, stock: parseInt(e.target.value) || 0 })
+                  setFormData({
+                    ...formData,
+                    stock: parseInt(e.target.value, 10) || 0,
+                  })
                 }
                 required
               />

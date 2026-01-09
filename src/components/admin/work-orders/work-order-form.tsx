@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -13,8 +13,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { createWorkOrder, updateWorkOrder, type WorkOrderFormData } from "@/lib/actions/work-orders";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  createWorkOrder,
+  updateWorkOrder,
+  type WorkOrderFormData,
+} from "@/lib/actions/work-orders";
 
 type WorkOrderFormProps = {
   workOrder?: {
@@ -25,18 +29,35 @@ type WorkOrderFormProps = {
     folio: string | null;
     statusId?: number | null;
   };
-  incidents: Array<{ id: number; title: string; priority: number; vicId?: string | null }>;
+  incidents: Array<{
+    id: number;
+    title: string;
+    priority: number;
+    vicId?: string | null;
+  }>;
   users: Array<{ id: string; name: string; vicIds?: string[] }>;
-  incidentStatuses: Array<{ id: number; name: string; color: string; active: boolean }>;
+  incidentStatuses: Array<{
+    id: number;
+    name: string;
+    color: string;
+    active: boolean;
+  }>;
 };
 
-export function WorkOrderForm({ workOrder, incidents, users, incidentStatuses }: WorkOrderFormProps) {
+export function WorkOrderForm({
+  workOrder,
+  incidents,
+  users,
+  incidentStatuses,
+}: WorkOrderFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Find ABIERTO status as default
-  const abiertoStatus = incidentStatuses.find(status => status.name === "ABIERTO");
+  const abiertoStatus = incidentStatuses.find(
+    (status) => status.name === "ABIERTO",
+  );
 
   const [formData, setFormData] = useState<WorkOrderFormData>({
     incidentId: workOrder?.incidentId || incidents[0]?.id || 0,
@@ -47,9 +68,11 @@ export function WorkOrderForm({ workOrder, incidents, users, incidentStatuses }:
   });
 
   // Filter FSRs based on selected incident's VIC
-  const selectedIncident = incidents.find(inc => inc.id === formData.incidentId);
+  const selectedIncident = incidents.find(
+    (inc) => inc.id === formData.incidentId,
+  );
   const filteredUsers = selectedIncident?.vicId
-    ? users.filter(user => user.vicIds?.includes(selectedIncident.vicId!))
+    ? users.filter((user) => user.vicIds?.includes(selectedIncident.vicId!))
     : users;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -89,7 +112,7 @@ export function WorkOrderForm({ workOrder, incidents, users, incidentStatuses }:
             <Select
               value={formData.incidentId.toString()}
               onValueChange={(value) =>
-                setFormData({ ...formData, incidentId: parseInt(value) })
+                setFormData({ ...formData, incidentId: parseInt(value, 10) })
               }
             >
               <SelectTrigger>
@@ -136,7 +159,10 @@ export function WorkOrderForm({ workOrder, incidents, users, incidentStatuses }:
             <Select
               value={formData.statusId?.toString() || ""}
               onValueChange={(value) =>
-                setFormData({ ...formData, statusId: value ? parseInt(value) : null })
+                setFormData({
+                  ...formData,
+                  statusId: value ? parseInt(value, 10) : null,
+                })
               }
             >
               <SelectTrigger>
@@ -190,7 +216,11 @@ export function WorkOrderForm({ workOrder, incidents, users, incidentStatuses }:
           Cancelar
         </Button>
         <Button type="submit" disabled={loading}>
-          {loading ? "Guardando..." : workOrder ? "Actualizar Orden" : "Crear Orden"}
+          {loading
+            ? "Guardando..."
+            : workOrder
+              ? "Actualizar Orden"
+              : "Crear Orden"}
         </Button>
       </div>
     </form>

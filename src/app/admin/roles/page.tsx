@@ -1,8 +1,8 @@
-import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import Link from "next/link";
-import { getRoles } from "@/lib/actions/roles";
 import { RolesTable } from "@/components/admin/roles/roles-table";
+import { Button } from "@/components/ui/button";
+import { getRoles } from "@/lib/actions/roles";
 
 export default async function RolesPage() {
   const roles = await getRoles();

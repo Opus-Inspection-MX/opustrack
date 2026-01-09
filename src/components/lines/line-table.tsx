@@ -1,33 +1,44 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { MoreHorizontal, Edit, Trash2, Eye, List } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
-import { TablePagination } from "@/components/common/table-pagination"
+import { Edit, Eye, List, MoreHorizontal, Trash2 } from "lucide-react";
+import { TablePagination } from "@/components/common/table-pagination";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 interface Line {
-  id: number
-  name: string
-  description?: string | null
-  vic: { name: string; code: string }
-  equipments: any[]
-  active: boolean
-  createdAt: string
+  id: number;
+  name: string;
+  description?: string | null;
+  vic: { name: string; code: string };
+  equipments: any[];
+  active: boolean;
+  createdAt: string;
 }
 
 interface LineTableProps {
-  lines: Line[]
-  totalCount: number
-  currentPage: number
-  itemsPerPage: number
-  onPageChange: (page: number) => void
-  onItemsPerPageChange: (itemsPerPage: number) => void
-  onEdit: (id: number) => void
-  onDelete: (id: number) => void
-  onView: (id: number) => void
+  lines: Line[];
+  totalCount: number;
+  currentPage: number;
+  itemsPerPage: number;
+  onPageChange: (page: number) => void;
+  onItemsPerPageChange: (itemsPerPage: number) => void;
+  onEdit: (id: number) => void;
+  onDelete: (id: number) => void;
+  onView: (id: number) => void;
 }
 
 export function LineTable({
@@ -41,8 +52,8 @@ export function LineTable({
   onDelete,
   onView,
 }: LineTableProps) {
-  const startIndex = (currentPage - 1) * itemsPerPage
-  const endIndex = Math.min(startIndex + itemsPerPage, totalCount)
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = Math.min(startIndex + itemsPerPage, totalCount);
 
   return (
     <div className="space-y-4">
@@ -68,7 +79,9 @@ export function LineTable({
                   </div>
                 </TableCell>
                 <TableCell>
-                  <span className="text-sm text-muted-foreground">{line.description || "-"}</span>
+                  <span className="text-sm text-muted-foreground">
+                    {line.description || "-"}
+                  </span>
                 </TableCell>
                 <TableCell>
                   <Badge variant="outline">
@@ -76,10 +89,18 @@ export function LineTable({
                   </Badge>
                 </TableCell>
                 <TableCell>
-                  <Badge variant="secondary">{line.equipments.length} equipos</Badge>
+                  <Badge variant="secondary">
+                    {line.equipments.length} equipos
+                  </Badge>
                 </TableCell>
                 <TableCell>
-                  <Badge className={line.active ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}>
+                  <Badge
+                    className={
+                      line.active
+                        ? "bg-green-100 text-green-800"
+                        : "bg-red-100 text-red-800"
+                    }
+                  >
                     {line.active ? "Activo" : "Inactivo"}
                   </Badge>
                 </TableCell>
@@ -100,7 +121,10 @@ export function LineTable({
                         <Edit className="mr-2 h-4 w-4" />
                         Editar
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => onDelete(line.id)} className="text-destructive">
+                      <DropdownMenuItem
+                        onClick={() => onDelete(line.id)}
+                        className="text-destructive"
+                      >
                         <Trash2 className="mr-2 h-4 w-4" />
                         Eliminar
                       </DropdownMenuItem>
@@ -124,5 +148,5 @@ export function LineTable({
         onItemsPerPageChange={onItemsPerPageChange}
       />
     </div>
-  )
+  );
 }

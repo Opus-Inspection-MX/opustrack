@@ -1,30 +1,36 @@
-"use client"
+"use client";
 
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Search, Filter } from "lucide-react"
+import { Filter, Search } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface WorkOrderFiltersProps {
-  searchTerm: string
-  setSearchTerm: (value: string) => void
-  statusFilter: string
-  setStatusFilter: (value: string) => void
-  assigneeFilter: string
-  setAssigneeFilter: (value: string) => void
-  dateFromFilter: string
-  setDateFromFilter: (value: string) => void
-  dateToFilter: string
-  setDateToFilter: (value: string) => void
-  dateFilterType: string
-  setDateFilterType: (value: string) => void
-  sortField: string
-  setSortField: (value: string) => void
-  sortDirection: string
-  setSortDirection: (value: string) => void
-  uniqueAssignees: string[]
+  searchTerm: string;
+  setSearchTerm: (value: string) => void;
+  statusFilter: string;
+  setStatusFilter: (value: string) => void;
+  assigneeFilter: string;
+  setAssigneeFilter: (value: string) => void;
+  dateFromFilter: string;
+  setDateFromFilter: (value: string) => void;
+  dateToFilter: string;
+  setDateToFilter: (value: string) => void;
+  dateFilterType: string;
+  setDateFilterType: (value: string) => void;
+  sortField: string;
+  setSortField: (value: string) => void;
+  sortDirection: string;
+  setSortDirection: (value: string) => void;
+  uniqueAssignees: string[];
 }
 
 export function WorkOrderFilters({
@@ -94,9 +100,9 @@ export function WorkOrderFilters({
             <Select
               value={`${sortField}-${sortDirection}`}
               onValueChange={(value) => {
-                const [field, direction] = value.split("-")
-                setSortField(field)
-                setSortDirection(direction)
+                const [field, direction] = value.split("-");
+                setSortField(field);
+                setSortDirection(direction);
               }}
             >
               <SelectTrigger>
@@ -108,7 +114,9 @@ export function WorkOrderFilters({
                 <SelectItem value="startedAt-desc">Started Latest</SelectItem>
                 <SelectItem value="startedAt-asc">Started Earliest</SelectItem>
                 <SelectItem value="incident.title-asc">Incident A-Z</SelectItem>
-                <SelectItem value="assignedTo.name-asc">Assignee A-Z</SelectItem>
+                <SelectItem value="assignedTo.name-asc">
+                  Assignee A-Z
+                </SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -127,7 +135,10 @@ export function WorkOrderFilters({
               </SelectContent>
             </Select>
             <div className="space-y-1">
-              <Label htmlFor="dateFrom" className="text-xs text-muted-foreground">
+              <Label
+                htmlFor="dateFrom"
+                className="text-xs text-muted-foreground"
+              >
                 From Date
               </Label>
               <Input
@@ -155,14 +166,14 @@ export function WorkOrderFilters({
               <Button
                 variant="outline"
                 onClick={() => {
-                  setSearchTerm("")
-                  setStatusFilter("all")
-                  setAssigneeFilter("all")
-                  setDateFromFilter("")
-                  setDateToFilter("")
-                  setDateFilterType("createdAt")
-                  setSortField("createdAt")
-                  setSortDirection("desc")
+                  setSearchTerm("");
+                  setStatusFilter("all");
+                  setAssigneeFilter("all");
+                  setDateFromFilter("");
+                  setDateToFilter("");
+                  setDateFilterType("createdAt");
+                  setSortField("createdAt");
+                  setSortDirection("desc");
                 }}
                 className="w-full"
               >
@@ -173,5 +184,5 @@ export function WorkOrderFilters({
         </div>
       </CardContent>
     </Card>
-  )
+  );
 }

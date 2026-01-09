@@ -1,19 +1,18 @@
-"use client"
+"use client";
 
-import type React from "react"
-
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Switch } from "@/components/ui/switch"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { AlertCircle } from "lucide-react"
-import { FormError } from "@/components/ui/form-error"
-import { Spinner } from "@/components/ui/spinner"
-import { z } from "zod"
+import { AlertCircle } from "lucide-react";
+import { useRouter } from "next/navigation";
+import type React from "react";
+import { useState } from "react";
+import { z } from "zod";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { FormError } from "@/components/ui/form-error";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Spinner } from "@/components/ui/spinner";
+import { Switch } from "@/components/ui/switch";
 
 const incidentStatusSchema = z.object({
   name: z
@@ -23,87 +22,98 @@ const incidentStatusSchema = z.object({
     .regex(/^[a-zA-Z\s]+$/, "Name can only contain letters and spaces"),
   color: z
     .string()
-    .regex(/^#[0-9A-Fa-f]{6}$/, "Color must be a valid hex color (e.g., #FF0000)"),
+    .regex(
+      /^#[0-9A-Fa-f]{6}$/,
+      "Color must be a valid hex color (e.g., #FF0000)",
+    ),
   active: z.boolean(),
-})
+});
 
-type IncidentStatusFormData = z.infer<typeof incidentStatusSchema>
+type IncidentStatusFormData = z.infer<typeof incidentStatusSchema>;
 
 interface IncidentStatusFormProps {
   initialData?: {
-    id: number
-    name: string
-    color: string
-    active: boolean
-  }
-  onSubmit: (data: IncidentStatusFormData) => Promise<void>
+    id: number;
+    name: string;
+    color: string;
+    active: boolean;
+  };
+  onSubmit: (data: IncidentStatusFormData) => Promise<void>;
 }
 
-export function IncidentStatusForm({ initialData, onSubmit }: IncidentStatusFormProps) {
-  const router = useRouter()
-  const [isLoading, setIsLoading] = useState(false)
-  const [errors, setErrors] = useState<Record<string, string>>({})
-  const [touched, setTouched] = useState<Record<string, boolean>>({})
+export function IncidentStatusForm({
+  initialData,
+  onSubmit,
+}: IncidentStatusFormProps) {
+  const router = useRouter();
+  const [isLoading, setIsLoading] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
 
   const [formData, setFormData] = useState<IncidentStatusFormData>({
     name: initialData?.name || "",
     color: initialData?.color || "#6B7280",
     active: initialData?.active ?? true,
-  })
+  });
 
   const validateField = (name: keyof IncidentStatusFormData, value: any) => {
     try {
-      incidentStatusSchema.shape[name].parse(value)
-      setErrors((prev) => ({ ...prev, [name]: "" }))
+      incidentStatusSchema.shape[name].parse(value);
+      setErrors((prev) => ({ ...prev, [name]: "" }));
     } catch (error) {
       if (error instanceof z.ZodError) {
-        setErrors((prev) => ({ ...prev, [name]: error.issues[0].message }))
+        setErrors((prev) => ({ ...prev, [name]: error.issues[0].message }));
       }
     }
-  }
+  };
 
-  const handleInputChange = (name: keyof IncidentStatusFormData, value: any) => {
-    setFormData((prev) => ({ ...prev, [name]: value }))
+  const handleInputChange = (
+    name: keyof IncidentStatusFormData,
+    value: any,
+  ) => {
+    setFormData((prev) => ({ ...prev, [name]: value }));
     if (touched[name]) {
-      validateField(name, value)
+      validateField(name, value);
     }
-  }
+  };
 
   const handleBlur = (name: keyof IncidentStatusFormData) => {
-    setTouched((prev) => ({ ...prev, [name]: true }))
-    validateField(name, formData[name])
-  }
+    setTouched((prev) => ({ ...prev, [name]: true }));
+    validateField(name, formData[name]);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
 
     try {
-      incidentStatusSchema.parse(formData)
-      setIsLoading(true)
-      await onSubmit(formData)
-      router.push("/admin/incident-status")
+      incidentStatusSchema.parse(formData);
+      setIsLoading(true);
+      await onSubmit(formData);
+      router.push("/admin/incident-status");
     } catch (error) {
       if (error instanceof z.ZodError) {
-        const fieldErrors: Record<string, string> = {}
+        const fieldErrors: Record<string, string> = {};
         error.issues.forEach((err) => {
           if (err.path[0]) {
-            fieldErrors[err.path[0] as string] = err.message
+            fieldErrors[err.path[0] as string] = err.message;
           }
-        })
-        setErrors(fieldErrors)
+        });
+        setErrors(fieldErrors);
       }
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
-  const hasErrors = Object.values(errors).some((error) => error !== "")
+  const hasErrors = Object.values(errors).some((error) => error !== "");
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>{initialData ? "Edit Incident Status" : "Create Incident Status"}</CardTitle>
+          <CardTitle>
+            {initialData ? "Edit Incident Status" : "Create Incident Status"}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -136,7 +146,9 @@ export function IncidentStatusForm({ initialData, onSubmit }: IncidentStatusForm
                 <Input
                   type="text"
                   value={formData.color}
-                  onChange={(e) => handleInputChange("color", e.target.value.toUpperCase())}
+                  onChange={(e) =>
+                    handleInputChange("color", e.target.value.toUpperCase())
+                  }
                   onBlur={() => handleBlur("color")}
                   placeholder="#6B7280"
                   className={`flex-1 font-mono ${errors.color ? "border-red-500" : ""}`}
@@ -171,7 +183,9 @@ export function IncidentStatusForm({ initialData, onSubmit }: IncidentStatusForm
               <Switch
                 id="active"
                 checked={formData.active}
-                onCheckedChange={(checked) => handleInputChange("active", checked)}
+                onCheckedChange={(checked) =>
+                  handleInputChange("active", checked)
+                }
               />
               <Label htmlFor="active">Active Status</Label>
             </div>
@@ -181,21 +195,37 @@ export function IncidentStatusForm({ initialData, onSubmit }: IncidentStatusForm
               <div className="p-4 border border-red-200 rounded-lg bg-red-50">
                 <div className="flex items-center gap-2 text-red-800">
                   <AlertCircle className="h-4 w-4" />
-                  <span className="font-medium">Please fix the following errors:</span>
+                  <span className="font-medium">
+                    Please fix the following errors:
+                  </span>
                 </div>
                 <ul className="mt-2 text-sm text-red-700 list-disc list-inside">
-                  {Object.entries(errors).map(([field, error]) => error && <li key={field}>{error}</li>)}
+                  {Object.entries(errors).map(
+                    ([field, error]) => error && <li key={field}>{error}</li>,
+                  )}
                 </ul>
               </div>
             )}
 
             {/* Actions */}
             <div className="flex gap-4">
-              <Button type="submit" disabled={isLoading || hasErrors} className="flex items-center gap-2">
+              <Button
+                type="submit"
+                disabled={isLoading || hasErrors}
+                className="flex items-center gap-2"
+              >
                 {isLoading && <Spinner size="sm" />}
-                {isLoading ? "Saving..." : initialData ? "Update Status" : "Create Status"}
+                {isLoading
+                  ? "Saving..."
+                  : initialData
+                    ? "Update Status"
+                    : "Create Status"}
               </Button>
-              <Button type="button" variant="outline" onClick={() => router.push("/admin/incident-status")}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => router.push("/admin/incident-status")}
+              >
                 Cancel
               </Button>
             </div>
@@ -203,5 +233,5 @@ export function IncidentStatusForm({ initialData, onSubmit }: IncidentStatusForm
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

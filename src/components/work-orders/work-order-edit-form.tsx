@@ -1,10 +1,12 @@
 "use client";
 
+import { Edit as EditIcon, Save, X } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { FormError } from "@/components/ui/form-error";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -12,10 +14,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Save, X, Edit as EditIcon } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 import { updateWorkOrder } from "@/lib/actions/work-orders";
-import { FormError } from "@/components/ui/form-error";
 
 type WorkOrderEditFormProps = {
   workOrder: {
@@ -70,7 +70,9 @@ export function WorkOrderEditForm({
         statusId: formData.statusId,
         notes: formData.notes,
         folio: formData.folio,
-        finishedAt: formData.finishedAt ? new Date(formData.finishedAt) : undefined,
+        finishedAt: formData.finishedAt
+          ? new Date(formData.finishedAt)
+          : undefined,
       });
 
       if (!result.success) {
@@ -109,7 +111,11 @@ export function WorkOrderEditForm({
         <div className="flex items-center justify-between">
           <CardTitle>Work Order Details</CardTitle>
           {!isEditing && (
-            <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsEditing(true)}
+            >
               <EditIcon className="mr-2 h-4 w-4" />
               Edit
             </Button>
@@ -151,7 +157,10 @@ export function WorkOrderEditForm({
               <Select
                 value={formData.statusId?.toString() || "none"}
                 onValueChange={(value) =>
-                  setFormData({ ...formData, statusId: value === "none" ? null : parseInt(value) })
+                  setFormData({
+                    ...formData,
+                    statusId: value === "none" ? null : parseInt(value, 10),
+                  })
                 }
               >
                 <SelectTrigger>
@@ -234,7 +243,9 @@ export function WorkOrderEditForm({
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Status</p>
-              <p className="font-medium">{workOrder.status?.name || "No status"}</p>
+              <p className="font-medium">
+                {workOrder.status?.name || "No status"}
+              </p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Número de Folio</p>

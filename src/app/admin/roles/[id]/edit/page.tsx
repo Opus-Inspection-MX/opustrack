@@ -1,9 +1,9 @@
-import { getRoleById } from "@/lib/actions/roles";
-import { RoleForm } from "@/components/admin/roles/role-form";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
 import { notFound } from "next/navigation";
+import { RoleForm } from "@/components/admin/roles/role-form";
+import { Button } from "@/components/ui/button";
+import { getRoleById } from "@/lib/actions/roles";
 
 export default async function EditRolePage({
   params,
@@ -11,7 +11,7 @@ export default async function EditRolePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const role = await getRoleById(parseInt(id));
+  const role = await getRoleById(parseInt(id, 10));
 
   if (!role) notFound();
 

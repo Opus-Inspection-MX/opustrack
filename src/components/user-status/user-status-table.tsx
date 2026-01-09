@@ -1,37 +1,54 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { MoreHorizontal, Edit, Trash2, Users, Eye } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
-import { TablePagination } from "@/components/common/table-pagination"
+import { Edit, Eye, MoreHorizontal, Trash2, Users } from "lucide-react";
+import { useState } from "react";
+import { TablePagination } from "@/components/common/table-pagination";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 interface UserStatus {
-  id: number
-  name: string
-  active: boolean
-  userCount: number
-  createdAt: string
-  updatedAt: string
+  id: number;
+  name: string;
+  active: boolean;
+  userCount: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
 interface UserStatusTableProps {
-  data: UserStatus[]
-  onEdit: (id: number) => void
-  onDelete: (id: number) => void
-  onView: (id: number) => void
+  data: UserStatus[];
+  onEdit: (id: number) => void;
+  onDelete: (id: number) => void;
+  onView: (id: number) => void;
 }
 
-export function UserStatusTable({ data, onEdit, onDelete, onView }: UserStatusTableProps) {
-  const [currentPage, setCurrentPage] = useState(1)
-  const [itemsPerPage, setItemsPerPage] = useState(10)
+export function UserStatusTable({
+  data,
+  onEdit,
+  onDelete,
+  onView,
+}: UserStatusTableProps) {
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
-  const startIndex = (currentPage - 1) * itemsPerPage
-  const endIndex = startIndex + itemsPerPage
-  const currentData = data.slice(startIndex, endIndex)
-  const totalPages = Math.ceil(data.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentData = data.slice(startIndex, endIndex);
+  const totalPages = Math.ceil(data.length / itemsPerPage);
 
   return (
     <div className="space-y-4">
@@ -61,7 +78,9 @@ export function UserStatusTable({ data, onEdit, onDelete, onView }: UserStatusTa
                     <span>{status.userCount}</span>
                   </div>
                 </TableCell>
-                <TableCell>{new Date(status.createdAt).toLocaleDateString()}</TableCell>
+                <TableCell>
+                  {new Date(status.createdAt).toLocaleDateString()}
+                </TableCell>
                 <TableCell>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -106,5 +125,5 @@ export function UserStatusTable({ data, onEdit, onDelete, onView }: UserStatusTa
         onItemsPerPageChange={setItemsPerPage}
       />
     </div>
-  )
+  );
 }

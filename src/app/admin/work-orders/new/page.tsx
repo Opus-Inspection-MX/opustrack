@@ -1,11 +1,12 @@
-import { getWorkOrderFormOptions } from "@/lib/actions/work-orders";
-import { WorkOrderForm } from "@/components/admin/work-orders/work-order-form";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import { WorkOrderForm } from "@/components/admin/work-orders/work-order-form";
 import { Button } from "@/components/ui/button";
+import { getWorkOrderFormOptions } from "@/lib/actions/work-orders";
 
 export default async function NewWorkOrderPage() {
-  const { incidents, users, incidentStatuses } = await getWorkOrderFormOptions();
+  const { incidents, users, incidentStatuses } =
+    await getWorkOrderFormOptions();
 
   return (
     <div className="space-y-6">
@@ -23,7 +24,11 @@ export default async function NewWorkOrderPage() {
         </div>
       </div>
 
-      <WorkOrderForm incidents={incidents} users={users} incidentStatuses={incidentStatuses} />
+      <WorkOrderForm
+        incidents={incidents}
+        users={users}
+        incidentStatuses={incidentStatuses}
+      />
     </div>
   );
 }

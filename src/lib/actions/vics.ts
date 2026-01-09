@@ -1,9 +1,9 @@
 "use server";
 
-import { prisma } from "@/lib/database/prisma.singleton";
-import { requirePermission } from "@/lib/auth/auth";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { requirePermission } from "@/lib/auth/auth";
+import { prisma } from "@/lib/database/prisma.singleton";
 
 export type VICFormData = {
   code: string;
@@ -74,7 +74,7 @@ export async function getVICs() {
       });
 
       return { ...vic, fsrCount };
-    })
+    }),
   );
 
   return vicsWithFSRCount;
@@ -230,26 +230,26 @@ export async function updateVIC(id: string, data: VICFormData) {
       });
 
       const currentFSRIds = allFSRs
-        .filter(user => user.vicIds.includes(id))
-        .map(user => user.id);
+        .filter((user) => user.vicIds.includes(id))
+        .map((user) => user.id);
 
       const newFSRIds = data.fsrIds;
 
       // FSRs to unassign (were assigned but are no longer selected)
       const fsrsToUnassign = currentFSRIds.filter(
-        fsrId => !newFSRIds.includes(fsrId)
+        (fsrId) => !newFSRIds.includes(fsrId),
       );
 
       // FSRs to assign (newly selected)
       const fsrsToAssign = newFSRIds.filter(
-        fsrId => !currentFSRIds.includes(fsrId)
+        (fsrId) => !currentFSRIds.includes(fsrId),
       );
 
       // Unassign FSRs - remove this VIC from their vicIds array
       for (const fsrId of fsrsToUnassign) {
-        const user = allFSRs.find(u => u.id === fsrId);
+        const user = allFSRs.find((u) => u.id === fsrId);
         if (user) {
-          const updatedVicIds = user.vicIds.filter(vicId => vicId !== id);
+          const updatedVicIds = user.vicIds.filter((vicId) => vicId !== id);
           await prisma.user.update({
             where: { id: fsrId },
             data: { vicIds: updatedVicIds },
@@ -259,7 +259,7 @@ export async function updateVIC(id: string, data: VICFormData) {
 
       // Assign new FSRs - add this VIC to their vicIds array
       for (const fsrId of fsrsToAssign) {
-        const user = allFSRs.find(u => u.id === fsrId);
+        const user = allFSRs.find((u) => u.id === fsrId);
         if (user) {
           const updatedVicIds = [...new Set([...user.vicIds, id])];
           await prisma.user.update({
@@ -288,17 +288,17 @@ export async function updateVIC(id: string, data: VICFormData) {
         select: { id: true },
       });
 
-      const currentClientIds = currentClients.map(user => user.id);
+      const currentClientIds = currentClients.map((user) => user.id);
       const newClientIds = data.clientIds;
 
       // CLIENTs to unassign (were assigned but are no longer selected)
       const clientsToUnassign = currentClientIds.filter(
-        clientId => !newClientIds.includes(clientId)
+        (clientId) => !newClientIds.includes(clientId),
       );
 
       // CLIENTs to assign (newly selected)
       const clientsToAssign = newClientIds.filter(
-        clientId => !currentClientIds.includes(clientId)
+        (clientId) => !currentClientIds.includes(clientId),
       );
 
       // Unassign CLIENTs - set vicId to null
@@ -345,7 +345,7 @@ export async function deleteVIC(id: string) {
 
   if (userCount > 0) {
     throw new Error(
-      `Cannot delete VIC. ${userCount} active user(s) are assigned to this center.`
+      `Cannot delete VIC. ${userCount} active user(s) are assigned to this center.`,
     );
   }
 

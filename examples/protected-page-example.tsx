@@ -1,7 +1,11 @@
 // Example: Protected Page with Route Access Control
 // Location: src/app/example/page.tsx
 
-import { requireRouteAccess, getMyAccessibleRoutes, canPerform } from "@/lib/auth/auth";
+import {
+  requireRouteAccess,
+  getMyAccessibleRoutes,
+  canPerform,
+} from "@/lib/auth/auth";
 import { redirect } from "next/navigation";
 
 export default async function ExamplePage() {

@@ -1,10 +1,16 @@
-import { getMyWorkOrders } from "@/lib/actions/work-orders";
-import { requireRouteAccess } from "@/lib/auth/auth";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  AlertTriangle,
+  Calendar,
+  CheckCircle,
+  Clock,
+  Wrench,
+} from "lucide-react";
+import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Wrench, Calendar, CheckCircle, Clock, AlertTriangle } from "lucide-react";
-import Link from "next/link";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { getMyWorkOrders } from "@/lib/actions/work-orders";
+import { requireRouteAccess } from "@/lib/auth/auth";
 
 export default async function FSRWorkOrdersPage() {
   await requireRouteAccess("/fsr");
@@ -13,14 +19,19 @@ export default async function FSRWorkOrdersPage() {
   // Calculate stats
   const stats = {
     total: workOrders.length,
-    notStarted: workOrders.filter(wo => !wo.startedAt).length,
-    inProgress: workOrders.filter(wo => wo.startedAt && !wo.finishedAt).length,
-    completed: workOrders.filter(wo => wo.finishedAt).length,
+    notStarted: workOrders.filter((wo) => !wo.startedAt).length,
+    inProgress: workOrders.filter((wo) => wo.startedAt && !wo.finishedAt)
+      .length,
+    completed: workOrders.filter((wo) => wo.finishedAt).length,
   };
 
   const getStatusBadge = (workOrder: any) => {
     if (workOrder.finishedAt) {
-      return <Badge variant="default" className="bg-green-600">Completed</Badge>;
+      return (
+        <Badge variant="default" className="bg-green-600">
+          Completed
+        </Badge>
+      );
     }
     if (workOrder.startedAt) {
       return <Badge variant="secondary">In Progress</Badge>;
@@ -110,11 +121,18 @@ export default async function FSRWorkOrdersPage() {
                       {/* Status and Priority */}
                       <div className="flex items-center gap-2 flex-wrap">
                         {getStatusBadge(wo)}
-                        <Badge variant="outline" className={getPriorityColor(wo.incident?.priority || 0)}>
+                        <Badge
+                          variant="outline"
+                          className={getPriorityColor(
+                            wo.incident?.priority || 0,
+                          )}
+                        >
                           Priority: {wo.incident?.priority || 0}/10
                         </Badge>
                         {wo.incident?.type && (
-                          <Badge variant="outline">{wo.incident.type.name}</Badge>
+                          <Badge variant="outline">
+                            {wo.incident.type.name}
+                          </Badge>
                         )}
                         {wo.status && (
                           <Badge variant="secondary">{wo.status.name}</Badge>
@@ -127,7 +145,9 @@ export default async function FSRWorkOrdersPage() {
                           {wo.incident?.title || "No incident"}
                         </h3>
                         {wo.notes && (
-                          <p className="text-sm text-muted-foreground mt-1">{wo.notes}</p>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            {wo.notes}
+                          </p>
                         )}
                       </div>
 
@@ -135,14 +155,17 @@ export default async function FSRWorkOrdersPage() {
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm text-muted-foreground">
                         {wo.incident?.vic && (
                           <div>
-                            <span className="font-medium">VIC:</span> {wo.incident.vic.name}
+                            <span className="font-medium">VIC:</span>{" "}
+                            {wo.incident.vic.name}
                           </div>
                         )}
                         <div>
-                          <span className="font-medium">Activities:</span> {wo._count?.workActivities || 0}
+                          <span className="font-medium">Activities:</span>{" "}
+                          {wo._count?.workActivities || 0}
                         </div>
                         <div>
-                          <span className="font-medium">Parts:</span> {wo._count?.workParts || 0}
+                          <span className="font-medium">Parts:</span>{" "}
+                          {wo._count?.workParts || 0}
                         </div>
                       </div>
 
@@ -155,13 +178,15 @@ export default async function FSRWorkOrdersPage() {
                         {wo.startedAt && (
                           <div className="flex items-center gap-1">
                             <Clock className="h-3 w-3" />
-                            Started: {new Date(wo.startedAt).toLocaleDateString()}
+                            Started:{" "}
+                            {new Date(wo.startedAt).toLocaleDateString()}
                           </div>
                         )}
                         {wo.finishedAt && (
                           <div className="flex items-center gap-1">
                             <CheckCircle className="h-3 w-3" />
-                            Completed: {new Date(wo.finishedAt).toLocaleDateString()}
+                            Completed:{" "}
+                            {new Date(wo.finishedAt).toLocaleDateString()}
                           </div>
                         )}
                       </div>

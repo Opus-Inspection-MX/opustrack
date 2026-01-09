@@ -1,7 +1,7 @@
 "use server";
 
-import { prisma } from "@/lib/database/prisma.singleton";
 import { revalidatePath } from "next/cache";
+import { prisma } from "@/lib/database/prisma.singleton";
 
 export async function getEquipments() {
   try {
@@ -119,14 +119,16 @@ export async function updateEquipment(
     name?: string;
     description?: string;
     lineId?: number;
-  }
+  },
 ) {
   try {
     const equipment = await prisma.equipment.update({
       where: { id },
       data: {
         ...(data.name && { name: data.name }),
-        ...(data.description !== undefined && { description: data.description }),
+        ...(data.description !== undefined && {
+          description: data.description,
+        }),
         ...(data.lineId && { lineId: data.lineId }),
       },
       include: {

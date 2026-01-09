@@ -1,97 +1,89 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
-import { Plus, Search, Calendar } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { Calendar, Plus, Search } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
+import { ScheduleTable } from "@/components/schedules/schedule-table";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Pagination } from "@/components/ui/pagination";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
-import { ScheduleTable } from "@/components/schedules/schedule-table"
-import { Spinner } from "@/components/ui/spinner"
-import { Pagination } from "@/components/ui/pagination"
-import { getSchedules, deleteSchedule } from "@/lib/actions/schedules"
+} from "@/components/ui/select";
+import { Spinner } from "@/components/ui/spinner";
+import { deleteSchedule, getSchedules } from "@/lib/actions/schedules";
 
 interface VIC {
-  id: string
-  name: string
-  code: string
+  id: string;
+  name: string;
+  code: string;
 }
 
 interface IncidentStatus {
-  id: number
-  name: string
+  id: number;
+  name: string;
 }
 
 export default function SchedulesPage() {
-  const router = useRouter()
-  const [isLoading, setIsLoading] = useState(true)
-  const [schedules, setSchedules] = useState<any[]>([])
-  const [vics, setVics] = useState<VIC[]>([])
-  const [statuses, setStatuses] = useState<IncidentStatus[]>([])
+  const router = useRouter();
+  const [isLoading, setIsLoading] = useState(true);
+  const [schedules, setSchedules] = useState<any[]>([]);
+  const [vics, setVics] = useState<VIC[]>([]);
+  const [statuses, setStatuses] = useState<IncidentStatus[]>([]);
 
   // Pagination state
-  const [currentPage, setCurrentPage] = useState(1)
-  const [itemsPerPage, setItemsPerPage] = useState(10)
-  const [totalItems, setTotalItems] = useState(0)
-  const [totalPages, setTotalPages] = useState(0)
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
 
   // Filter state
-  const [searchQuery, setSearchQuery] = useState("")
-  const [selectedVic, setSelectedVic] = useState<string>("all")
-  const [selectedStatus, setSelectedStatus] = useState<string>("all")
-  const [startDate, setStartDate] = useState("")
-  const [endDate, setEndDate] = useState("")
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedVic, setSelectedVic] = useState<string>("all");
+  const [selectedStatus, setSelectedStatus] = useState<string>("all");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
 
-  useEffect(() => {
-    fetchVics()
-    fetchStatuses()
-  }, [])
-
-  useEffect(() => {
-    fetchSchedulesData()
-  }, [currentPage, itemsPerPage, searchQuery, selectedVic, selectedStatus, startDate, endDate])
-
-  const fetchVics = async () => {
+  const fetchVics = useCallback(async () => {
     try {
-      const response = await fetch("/api/vics")
-      if (!response.ok) return
-      const result = await response.json()
-      setVics(result.data || [])
+      const response = await fetch("/api/vics");
+      if (!response.ok) return;
+      const result = await response.json();
+      setVics(result.data || []);
     } catch (error) {
-      console.error("Error fetching VICs:", error)
+      console.error("Error fetching VICs:", error);
     }
-  }
+  }, []);
 
-  const fetchStatuses = async () => {
+  const fetchStatuses = useCallback(async () => {
     try {
-      const response = await fetch("/api/incident-statuses")
-      if (!response.ok) return
-      const result = await response.json()
-      setStatuses(result.data || [])
+      const response = await fetch("/api/incident-statuses");
+      if (!response.ok) return;
+      const result = await response.json();
+      setStatuses(result.data || []);
     } catch (error) {
-      console.error("Error fetching statuses:", error)
+      console.error("Error fetching statuses:", error);
     }
-  }
+  }, []);
 
-  const fetchSchedulesData = async () => {
-    setIsLoading(true)
+  const fetchSchedulesData = useCallback(async () => {
+    setIsLoading(true);
     try {
       const result = await getSchedules({
         page: currentPage,
         limit: itemsPerPage,
         search: searchQuery || undefined,
         vicId: selectedVic !== "all" ? selectedVic : undefined,
-        statusId: selectedStatus !== "all" ? parseInt(selectedStatus) : undefined,
+        statusId:
+          selectedStatus !== "all" ? parseInt(selectedStatus, 10) : undefined,
         startDate: startDate || undefined,
         endDate: endDate || undefined,
-      })
+      });
 
       // Transform data to match table expectations
       const transformed = result.data.map((schedule: any) => ({
@@ -106,55 +98,64 @@ export default function SchedulesPage() {
         active: schedule.active,
         createdAt: schedule.createdAt,
         updatedAt: schedule.updatedAt,
-      }))
+      }));
 
-      setSchedules(transformed)
-      setTotalItems(result.pagination.total)
-      setTotalPages(result.pagination.totalPages)
+      setSchedules(transformed);
+      setTotalItems(result.pagination.total);
+      setTotalPages(result.pagination.totalPages);
     } catch (error) {
-      console.error("Error fetching schedules:", error)
+      console.error("Error fetching schedules:", error);
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  }, [currentPage, itemsPerPage, searchQuery, selectedVic, selectedStatus, startDate, endDate]);
+
+  useEffect(() => {
+    fetchVics();
+    fetchStatuses();
+  }, [fetchStatuses, fetchVics]);
+
+  useEffect(() => {
+    fetchSchedulesData();
+  }, [fetchSchedulesData]);
 
   const handleEdit = (id: string) => {
-    router.push(`/admin/schedules/${id}/edit`)
-  }
+    router.push(`/admin/schedules/${id}/edit`);
+  };
 
   const handleDelete = async (id: string) => {
     if (confirm("Are you sure you want to delete this schedule?")) {
       try {
-        await deleteSchedule(id)
-        await fetchSchedulesData()
+        await deleteSchedule(id);
+        await fetchSchedulesData();
       } catch (error) {
-        console.error("Error deleting schedule:", error)
+        console.error("Error deleting schedule:", error);
         alert(
-          error instanceof Error ? error.message : "Failed to delete schedule"
-        )
+          error instanceof Error ? error.message : "Failed to delete schedule",
+        );
       }
     }
-  }
+  };
 
   const handleView = (id: string) => {
-    router.push(`/admin/schedules/${id}`)
-  }
+    router.push(`/admin/schedules/${id}`);
+  };
 
   const handleSearch = (value: string) => {
-    setSearchQuery(value)
-    setCurrentPage(1) // Reset to first page on search
-  }
+    setSearchQuery(value);
+    setCurrentPage(1); // Reset to first page on search
+  };
 
   const handleFilterChange = () => {
-    setCurrentPage(1) // Reset to first page on filter change
-  }
+    setCurrentPage(1); // Reset to first page on filter change
+  };
 
   if (isLoading && schedules.length === 0) {
     return (
       <div className="flex items-center justify-center h-64">
         <Spinner size="lg" text="Loading schedules..." />
       </div>
-    )
+    );
   }
 
   return (
@@ -192,8 +193,8 @@ export default function SchedulesPage() {
           <Select
             value={selectedVic}
             onValueChange={(value) => {
-              setSelectedVic(value)
-              handleFilterChange()
+              setSelectedVic(value);
+              handleFilterChange();
             }}
           >
             <SelectTrigger>
@@ -215,8 +216,8 @@ export default function SchedulesPage() {
           <Select
             value={selectedStatus}
             onValueChange={(value) => {
-              setSelectedStatus(value)
-              handleFilterChange()
+              setSelectedStatus(value);
+              handleFilterChange();
             }}
           >
             <SelectTrigger>
@@ -242,8 +243,8 @@ export default function SchedulesPage() {
                 type="date"
                 value={startDate}
                 onChange={(e) => {
-                  setStartDate(e.target.value)
-                  handleFilterChange()
+                  setStartDate(e.target.value);
+                  handleFilterChange();
                 }}
                 className="pl-8"
               />
@@ -254,8 +255,8 @@ export default function SchedulesPage() {
                 type="date"
                 value={endDate}
                 onChange={(e) => {
-                  setEndDate(e.target.value)
-                  handleFilterChange()
+                  setEndDate(e.target.value);
+                  handleFilterChange();
                 }}
                 className="pl-8"
               />
@@ -279,11 +280,11 @@ export default function SchedulesPage() {
           itemsPerPage={itemsPerPage}
           onPageChange={setCurrentPage}
           onItemsPerPageChange={(value) => {
-            setItemsPerPage(value)
-            setCurrentPage(1)
+            setItemsPerPage(value);
+            setCurrentPage(1);
           }}
         />
       )}
     </div>
-  )
+  );
 }

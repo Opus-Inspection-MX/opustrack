@@ -1,26 +1,36 @@
-"use client"
+"use client";
 
-import type React from "react"
-import { useRouter } from "next/navigation"
-import { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { FormError } from "@/components/ui/form-error"
-import { workOrderSchema, type WorkOrderFormData } from "@/lib/validations"
-import { Loader2 } from "lucide-react"
+import { Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import type React from "react";
+import { useEffect, useState } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { FormError } from "@/components/ui/form-error";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { type WorkOrderFormData, workOrderSchema } from "@/lib/validations";
 
 interface WorkOrderFormProps {
-  workOrder?: any
-  incident?: any
-  onClose?: () => void
+  workOrder?: any;
+  incident?: any;
+  onClose?: () => void;
 }
 
-export function WorkOrderForm({ workOrder, incident, onClose }: WorkOrderFormProps) {
+export function WorkOrderForm({
+  workOrder,
+  incident,
+  onClose,
+}: WorkOrderFormProps) {
   const [formData, setFormData] = useState<WorkOrderFormData>({
     incidentId: "",
     assignedToId: "",
@@ -28,13 +38,13 @@ export function WorkOrderForm({ workOrder, incident, onClose }: WorkOrderFormPro
     notes: "",
     startedAt: "",
     finishedAt: "",
-  })
+  });
 
-  const [errors, setErrors] = useState<Record<string, string>>({})
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [touched, setTouched] = useState<Record<string, boolean>>({})
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
 
-  const router = useRouter()
+  const router = useRouter();
 
   // Mock data - replace with actual API calls
   const users = [
@@ -42,14 +52,14 @@ export function WorkOrderForm({ workOrder, incident, onClose }: WorkOrderFormPro
     { id: "user_002", name: "Jane Smith", role: "System Admin" },
     { id: "user_003", name: "Mike Johnson", role: "Network Specialist" },
     { id: "user_004", name: "Sarah Wilson", role: "Equipment Specialist" },
-  ]
+  ];
 
   const workOrderStatuses = [
     { value: "PENDING", label: "Pending" },
     { value: "IN_PROGRESS", label: "In Progress" },
     { value: "COMPLETED", label: "Completed" },
     { value: "CANCELLED", label: "Cancelled" },
-  ]
+  ];
 
   useEffect(() => {
     if (workOrder) {
@@ -58,94 +68,104 @@ export function WorkOrderForm({ workOrder, incident, onClose }: WorkOrderFormPro
         assignedToId: workOrder.assignedToId || "",
         status: workOrder.status?.name || "PENDING",
         notes: workOrder.notes || "",
-        startedAt: workOrder.startedAt ? new Date(workOrder.startedAt).toISOString().slice(0, 16) : "",
-        finishedAt: workOrder.finishedAt ? new Date(workOrder.finishedAt).toISOString().slice(0, 16) : "",
-      })
+        startedAt: workOrder.startedAt
+          ? new Date(workOrder.startedAt).toISOString().slice(0, 16)
+          : "",
+        finishedAt: workOrder.finishedAt
+          ? new Date(workOrder.finishedAt).toISOString().slice(0, 16)
+          : "",
+      });
     } else if (incident) {
       setFormData((prev) => ({
         ...prev,
         incidentId: incident.id,
-      }))
+      }));
     }
-  }, [workOrder, incident])
+  }, [workOrder, incident]);
 
   const validateField = (field: string, value: any) => {
     try {
-      workOrderSchema.pick({ [field]: true } as any).parse({ [field]: value })
-      setErrors((prev) => ({ ...prev, [field]: "" }))
+      workOrderSchema.pick({ [field]: true } as any).parse({ [field]: value });
+      setErrors((prev) => ({ ...prev, [field]: "" }));
     } catch (error: any) {
-      const fieldError = error.issues?.[0]?.message || "Invalid value"
-      setErrors((prev) => ({ ...prev, [field]: fieldError }))
+      const fieldError = error.issues?.[0]?.message || "Invalid value";
+      setErrors((prev) => ({ ...prev, [field]: fieldError }));
     }
-  }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsSubmitting(true)
+    e.preventDefault();
+    setIsSubmitting(true);
 
     try {
       // Validate all fields
-      const validatedData = workOrderSchema.parse(formData)
+      const validatedData = workOrderSchema.parse(formData);
 
       // Clear any existing errors
-      setErrors({})
+      setErrors({});
 
       // Here you would make an API call to create/update the work order
-      console.log("Submitting work order:", validatedData)
+      console.log("Submitting work order:", validatedData);
 
       // Simulate API delay
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      await new Promise((resolve) => setTimeout(resolve, 1000));
 
       // Mock success
-      alert(workOrder ? "Work order updated successfully!" : "Work order created successfully!")
+      alert(
+        workOrder
+          ? "Work order updated successfully!"
+          : "Work order created successfully!",
+      );
 
       // Navigate back to appropriate list
       if (onClose) {
-        onClose()
+        onClose();
       } else {
-        router.push("/admin/work-orders")
+        router.push("/admin/work-orders");
       }
     } catch (error: any) {
       if (error.issues) {
-        const fieldErrors: Record<string, string> = {}
+        const fieldErrors: Record<string, string> = {};
         error.issues.forEach((err: any) => {
           if (err.path?.[0]) {
-            fieldErrors[err.path[0]] = err.message
+            fieldErrors[err.path[0]] = err.message;
           }
-        })
-        setErrors(fieldErrors)
+        });
+        setErrors(fieldErrors);
       }
     } finally {
-      setIsSubmitting(false)
+      setIsSubmitting(false);
     }
-  }
+  };
 
   const handleChange = (field: string, value: string) => {
     setFormData((prev) => ({
       ...prev,
       [field]: value,
-    }))
+    }));
 
     // Mark field as touched
-    setTouched((prev) => ({ ...prev, [field]: true }))
+    setTouched((prev) => ({ ...prev, [field]: true }));
 
     // Validate field if it has been touched
     if (touched[field]) {
-      validateField(field, value)
+      validateField(field, value);
     }
-  }
+  };
 
   const handleBlur = (field: string) => {
-    setTouched((prev) => ({ ...prev, [field]: true }))
-    validateField(field, formData[field as keyof WorkOrderFormData])
-  }
+    setTouched((prev) => ({ ...prev, [field]: true }));
+    validateField(field, formData[field as keyof WorkOrderFormData]);
+  };
 
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
           {workOrder ? "Edit Work Order" : "Create New Work Order"}
-          {incident && <Badge variant="outline">Incident: {incident.title}</Badge>}
+          {incident && (
+            <Badge variant="outline">Incident: {incident.title}</Badge>
+          )}
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -170,8 +190,13 @@ export function WorkOrderForm({ workOrder, incident, onClose }: WorkOrderFormPro
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="assignedToId">Assign To *</Label>
-              <Select value={formData.assignedToId} onValueChange={(value) => handleChange("assignedToId", value)}>
-                <SelectTrigger className={errors.assignedToId ? "border-destructive" : ""}>
+              <Select
+                value={formData.assignedToId}
+                onValueChange={(value) => handleChange("assignedToId", value)}
+              >
+                <SelectTrigger
+                  className={errors.assignedToId ? "border-destructive" : ""}
+                >
                   <SelectValue placeholder="Select technician" />
                 </SelectTrigger>
                 <SelectContent>
@@ -186,8 +211,13 @@ export function WorkOrderForm({ workOrder, incident, onClose }: WorkOrderFormPro
             </div>
             <div className="space-y-2">
               <Label htmlFor="status">Status *</Label>
-              <Select value={formData.status} onValueChange={(value) => handleChange("status", value)}>
-                <SelectTrigger className={errors.status ? "border-destructive" : ""}>
+              <Select
+                value={formData.status}
+                onValueChange={(value) => handleChange("status", value)}
+              >
+                <SelectTrigger
+                  className={errors.status ? "border-destructive" : ""}
+                >
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -248,18 +278,22 @@ export function WorkOrderForm({ workOrder, incident, onClose }: WorkOrderFormPro
             <Button
               type="button"
               variant="outline"
-              onClick={() => (onClose ? onClose() : router.push("/admin/work-orders"))}
+              onClick={() =>
+                onClose ? onClose() : router.push("/admin/work-orders")
+              }
               disabled={isSubmitting}
             >
               Cancel
             </Button>
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {isSubmitting && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
               {workOrder ? "Update Work Order" : "Create Work Order"}
             </Button>
           </div>
         </form>
       </CardContent>
     </Card>
-  )
+  );
 }

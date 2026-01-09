@@ -1,103 +1,106 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { TrackingFilters } from "@/components/tracking/tracking-filters"
-import { TrackingTable } from "@/components/tracking/tracking-table"
-import { getIncidentsForTracking, getFSRsByVicId } from "@/lib/actions/tracking"
-import { getVICs } from "@/lib/actions/vics"
-import { getIncidentTypes, getIncidentStatuses } from "@/lib/actions/lookups"
-import { Loader2, ClipboardList, Plus } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import Link from "next/link"
+import { ClipboardList, Loader2, Plus } from "lucide-react";
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import { TrackingFilters } from "@/components/tracking/tracking-filters";
+import { TrackingTable } from "@/components/tracking/tracking-table";
+import { Button } from "@/components/ui/button";
+import { getIncidentStatuses, getIncidentTypes } from "@/lib/actions/lookups";
+import {
+  getFSRsByVicId,
+  getIncidentsForTracking,
+} from "@/lib/actions/tracking";
+import { getVICs } from "@/lib/actions/vics";
 
 export default function TrackingPage() {
-  const [incidents, setIncidents] = useState<any[]>([])
-  const [vics, setVics] = useState<any[]>([])
-  const [incidentTypes, setIncidentTypes] = useState<any[]>([])
-  const [incidentStatuses, setIncidentStatuses] = useState<any[]>([])
-  const [allFsrs, setAllFsrs] = useState<any[]>([])
-  const [fsrsByVic, setFsrsByVic] = useState<Record<string, any[]>>({})
-  const [loading, setLoading] = useState(true)
-  const [filters, setFilters] = useState<any>({})
+  const [incidents, setIncidents] = useState<any[]>([]);
+  const [vics, setVics] = useState<any[]>([]);
+  const [incidentTypes, setIncidentTypes] = useState<any[]>([]);
+  const [incidentStatuses, setIncidentStatuses] = useState<any[]>([]);
+  const [allFsrs, setAllFsrs] = useState<any[]>([]);
+  const [fsrsByVic, setFsrsByVic] = useState<Record<string, any[]>>({});
+  const [loading, setLoading] = useState(true);
+  const [filters, setFilters] = useState<any>({});
 
   useEffect(() => {
-    loadInitialData()
-  }, [])
+    loadInitialData();
+  }, [loadInitialData]);
 
   useEffect(() => {
-    loadIncidents(filters)
-  }, [filters])
+    loadIncidents(filters);
+  }, [filters, loadIncidents]);
 
   const loadInitialData = async () => {
     try {
-      const today = new Date().toISOString().split('T')[0]
+      const today = new Date().toISOString().split("T")[0];
 
       const [vicsData, typesResult, statusesResult] = await Promise.all([
         getVICs(),
         getIncidentTypes(),
         getIncidentStatuses(),
-      ])
+      ]);
 
-      setVics(vicsData)
-      setIncidentTypes(typesResult.data)
-      setIncidentStatuses(statusesResult.data)
+      setVics(vicsData);
+      setIncidentTypes(typesResult.data);
+      setIncidentStatuses(statusesResult.data);
 
       // Load FSRs for all VICs in parallel (performance optimization)
-      const fsrsMap: Record<string, any[]> = {}
-      const allFsrsArray: any[] = []
+      const fsrsMap: Record<string, any[]> = {};
+      const allFsrsArray: any[] = [];
 
       const fsrPromises = vicsData.map(async (vic) => {
         try {
-          const vicFsrs = await getFSRsByVicId(vic.id)
-          return { vicId: vic.id, fsrs: vicFsrs }
+          const vicFsrs = await getFSRsByVicId(vic.id);
+          return { vicId: vic.id, fsrs: vicFsrs };
         } catch (error) {
-          console.error(`Error loading FSRs for VIC ${vic.id}:`, error)
-          return { vicId: vic.id, fsrs: [] }
+          console.error(`Error loading FSRs for VIC ${vic.id}:`, error);
+          return { vicId: vic.id, fsrs: [] };
         }
-      })
+      });
 
-      const fsrResults = await Promise.all(fsrPromises)
+      const fsrResults = await Promise.all(fsrPromises);
 
       for (const result of fsrResults) {
-        fsrsMap[result.vicId] = result.fsrs
-        allFsrsArray.push(...result.fsrs)
+        fsrsMap[result.vicId] = result.fsrs;
+        allFsrsArray.push(...result.fsrs);
       }
 
-      setFsrsByVic(fsrsMap)
+      setFsrsByVic(fsrsMap);
       // Remove duplicates from allFsrs
       const uniqueFsrs = allFsrsArray.filter(
-        (fsr, index, self) => index === self.findIndex((f) => f.id === fsr.id)
-      )
-      setAllFsrs(uniqueFsrs)
+        (fsr, index, self) => index === self.findIndex((f) => f.id === fsr.id),
+      );
+      setAllFsrs(uniqueFsrs);
 
       // Load initial incidents for today only
-      await loadIncidents({ startDate: today, endDate: today })
+      await loadIncidents({ startDate: today, endDate: today });
     } catch (error) {
-      console.error("Error loading initial data:", error)
+      console.error("Error loading initial data:", error);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const loadIncidents = async (filterParams: any) => {
     try {
-      const data = await getIncidentsForTracking(filterParams)
-      setIncidents(data)
+      const data = await getIncidentsForTracking(filterParams);
+      setIncidents(data);
     } catch (error) {
-      console.error("Error loading incidents:", error)
+      console.error("Error loading incidents:", error);
     }
-  }
+  };
 
   const handleFilterChange = (newFilters: any) => {
-    setFilters(newFilters)
-  }
+    setFilters(newFilters);
+  };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
-    )
+    );
   }
 
   return (
@@ -134,7 +137,10 @@ export default function TrackingPage() {
 
       <div className="bg-muted/30 rounded-lg p-4">
         <div className="text-sm text-muted-foreground">
-          Total de incidentes: <span className="font-semibold text-foreground">{incidents.length}</span>
+          Total de incidentes:{" "}
+          <span className="font-semibold text-foreground">
+            {incidents.length}
+          </span>
         </div>
       </div>
 
@@ -147,5 +153,5 @@ export default function TrackingPage() {
         />
       </div>
     </div>
-  )
+  );
 }

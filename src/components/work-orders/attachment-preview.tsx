@@ -1,12 +1,17 @@
 "use client";
 
-import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Trash2, Download, ZoomIn } from "lucide-react";
-import { formatFileSize, getFileIcon } from "@/lib/upload";
-import { getFileUrl } from "@/lib/storage/file-utils";
+import { Download, Trash2, ZoomIn } from "lucide-react";
 import Image from "next/image";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { getFileUrl } from "@/lib/storage/file-utils";
+import { formatFileSize, getFileIcon } from "@/lib/upload";
 
 interface AttachmentPreviewProps {
   attachment: {
@@ -23,10 +28,17 @@ interface AttachmentPreviewProps {
   readOnly?: boolean;
 }
 
-export function AttachmentPreview({ attachment, onDelete, readOnly }: AttachmentPreviewProps) {
+export function AttachmentPreview({
+  attachment,
+  onDelete,
+  readOnly,
+}: AttachmentPreviewProps) {
   const [showLightbox, setShowLightbox] = useState(false);
   const isImage = attachment.mimetype.startsWith("image/");
-  const fileUrl = getFileUrl(attachment.filepath, attachment.provider as "vercel-blob" | "filesystem");
+  const fileUrl = getFileUrl(
+    attachment.filepath,
+    attachment.provider as "vercel-blob" | "filesystem",
+  );
 
   const handleDelete = () => {
     if (onDelete && confirm("Are you sure you want to delete this file?")) {
@@ -97,12 +109,7 @@ export function AttachmentPreview({ attachment, onDelete, readOnly }: Attachment
               <ZoomIn className="h-4 w-4" />
             </Button>
           )}
-          <Button
-            variant="ghost"
-            size="sm"
-            asChild
-            title="Descargar"
-          >
+          <Button variant="ghost" size="sm" asChild title="Descargar">
             <a href={fileUrl} download={attachment.filename}>
               <Download className="h-4 w-4" />
             </a>
@@ -126,9 +133,13 @@ export function AttachmentPreview({ attachment, onDelete, readOnly }: Attachment
         <Dialog open={showLightbox} onOpenChange={setShowLightbox}>
           <DialogContent className="max-w-[95vw] max-h-[95vh] w-auto p-0">
             <DialogHeader className="p-4 pb-2">
-              <DialogTitle className="text-base">{attachment.filename}</DialogTitle>
+              <DialogTitle className="text-base">
+                {attachment.filename}
+              </DialogTitle>
               {attachment.description && (
-                <p className="text-sm text-muted-foreground">{attachment.description}</p>
+                <p className="text-sm text-muted-foreground">
+                  {attachment.description}
+                </p>
               )}
             </DialogHeader>
             <div className="relative w-full h-full max-h-[80vh] flex items-center justify-center p-4 pt-0">
@@ -145,7 +156,8 @@ export function AttachmentPreview({ attachment, onDelete, readOnly }: Attachment
             </div>
             <div className="flex items-center justify-between p-4 pt-0 border-t">
               <p className="text-sm text-muted-foreground">
-                {formatFileSize(attachment.size)} • {new Date(attachment.uploadedAt).toLocaleString()}
+                {formatFileSize(attachment.size)} •{" "}
+                {new Date(attachment.uploadedAt).toLocaleString()}
               </p>
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" asChild>
@@ -154,7 +166,11 @@ export function AttachmentPreview({ attachment, onDelete, readOnly }: Attachment
                     Descargar
                   </a>
                 </Button>
-                <Button variant="outline" size="sm" onClick={() => setShowLightbox(false)}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowLightbox(false)}
+                >
                   Cerrar
                 </Button>
               </div>

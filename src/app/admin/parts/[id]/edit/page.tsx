@@ -1,10 +1,10 @@
-import { getPartById } from "@/lib/actions/parts";
-import { getVICs } from "@/lib/actions/vics";
-import { PartForm } from "@/components/admin/parts/part-form";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
 import { notFound } from "next/navigation";
+import { PartForm } from "@/components/admin/parts/part-form";
+import { Button } from "@/components/ui/button";
+import { getPartById } from "@/lib/actions/parts";
+import { getVICs } from "@/lib/actions/vics";
 
 export default async function EditPartPage({
   params,
@@ -12,10 +12,7 @@ export default async function EditPartPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [part, vics] = await Promise.all([
-    getPartById(id),
-    getVICs(),
-  ]);
+  const [part, vics] = await Promise.all([getPartById(id), getVICs()]);
 
   if (!part) notFound();
 

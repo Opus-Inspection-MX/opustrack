@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect, use } from "react";
+import { ArrowLeft, Edit, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { use, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Edit, Trash2 } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
-import { getWorkPartById, deleteWorkPart } from "@/lib/actions/work-parts";
+import { deleteWorkPart, getWorkPartById } from "@/lib/actions/work-parts";
 
 export default function WorkPartDetailPage({
   params,
@@ -35,20 +35,22 @@ export default function WorkPartDetailPage({
   }, [id]);
 
   const handleDelete = async () => {
-    if (!confirm("Are you sure you want to delete this work part? Stock will be restored.")) {
+    if (
+      !confirm(
+        "Are you sure you want to delete this work part? Stock will be restored.",
+      )
+    ) {
       return;
     }
 
     setIsDeleting(true);
     try {
       await deleteWorkPart(id);
-      router.push(
-        `/admin/work-orders/${workPart.workOrderId}`
-      );
+      router.push(`/admin/work-orders/${workPart.workOrderId}`);
     } catch (error) {
       console.error("Error deleting work part:", error);
       alert(
-        error instanceof Error ? error.message : "Failed to delete work part"
+        error instanceof Error ? error.message : "Failed to delete work part",
       );
       setIsDeleting(false);
     }
@@ -148,9 +150,9 @@ export default function WorkPartDetailPage({
                 </p>
                 <p className="text-sm font-bold">
                   $
-                  {(
-                    (workPart.price || 0) * (workPart.quantity || 0)
-                  ).toFixed(2)}
+                  {((workPart.price || 0) * (workPart.quantity || 0)).toFixed(
+                    2,
+                  )}
                 </p>
               </div>
               <div>
@@ -243,7 +245,9 @@ export default function WorkPartDetailPage({
                   <p className="text-sm font-medium text-muted-foreground">
                     Status
                   </p>
-                  <p className="text-sm">{workPart.workOrder.status?.name || "N/A"}</p>
+                  <p className="text-sm">
+                    {workPart.workOrder.status?.name || "N/A"}
+                  </p>
                 </div>
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">

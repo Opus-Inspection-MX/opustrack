@@ -1,15 +1,15 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { useFormStatus } from "react-dom"
-import { signIn } from "@/app/login/actions"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Mail, Lock, Loader2 } from "lucide-react"
+import { Loader2, Lock, Mail } from "lucide-react";
+import { useState } from "react";
+import { useFormStatus } from "react-dom";
+import { signIn } from "@/app/login/actions";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 function SubmitButton() {
-  const { pending } = useFormStatus()
+  const { pending } = useFormStatus();
 
   return (
     <Button type="submit" className="w-full" disabled={pending}>
@@ -22,17 +22,17 @@ function SubmitButton() {
         "Iniciar Sesión"
       )}
     </Button>
-  )
+  );
 }
 
 export function LoginForm() {
-  const [error, setError] = useState<string>("")
+  const [error, setError] = useState<string>("");
 
   async function handleSubmit(formData: FormData) {
-    setError("")
-    const result = await signIn(formData)
+    setError("");
+    const result = await signIn(formData);
     if (result?.error) {
-      setError(result.error)
+      setError(result.error);
     }
   }
 
@@ -57,7 +57,12 @@ export function LoginForm() {
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <Label htmlFor="password">Contraseña</Label>
-          <Button variant="link" size="sm" className="h-auto p-0 text-xs" type="button">
+          <Button
+            variant="link"
+            size="sm"
+            className="h-auto p-0 text-xs"
+            type="button"
+          >
             ¿Olvidaste tu contraseña?
           </Button>
         </div>
@@ -83,5 +88,5 @@ export function LoginForm() {
 
       <SubmitButton />
     </form>
-  )
+  );
 }

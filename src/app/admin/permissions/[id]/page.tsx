@@ -1,24 +1,30 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { useRouter, useParams } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Spinner } from "@/components/ui/spinner"
-import { ArrowLeft, Edit, Calendar, Shield } from "lucide-react"
+import { ArrowLeft, Calendar, Edit, Shield } from "lucide-react";
+import { useParams, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Spinner } from "@/components/ui/spinner";
 
 export default function PermissionDetailPage() {
-  const router = useRouter()
-  const params = useParams()
-  const [isLoading, setIsLoading] = useState(true)
-  const [permission, setPermission] = useState<any>(null)
+  const router = useRouter();
+  const params = useParams();
+  const [isLoading, setIsLoading] = useState(true);
+  const [permission, setPermission] = useState<any>(null);
 
   useEffect(() => {
     const fetchPermission = async () => {
-      setIsLoading(true)
+      setIsLoading(true);
       try {
-        await new Promise((resolve) => setTimeout(resolve, 500))
+        await new Promise((resolve) => setTimeout(resolve, 500));
 
         const mockPermission = {
           id: params.id,
@@ -28,25 +34,25 @@ export default function PermissionDetailPage() {
           roleCount: 3,
           createdAt: "2024-01-05T10:00:00Z",
           updatedAt: "2024-02-20T14:15:00Z",
-        }
+        };
 
-        setPermission(mockPermission)
+        setPermission(mockPermission);
       } catch (error) {
-        console.error("Error fetching permission:", error)
+        console.error("Error fetching permission:", error);
       } finally {
-        setIsLoading(false)
+        setIsLoading(false);
       }
-    }
+    };
 
-    fetchPermission()
-  }, [params.id])
+    fetchPermission();
+  }, [params.id]);
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <Spinner size="lg" />
       </div>
-    )
+    );
   }
 
   if (!permission) {
@@ -60,11 +66,13 @@ export default function PermissionDetailPage() {
         </div>
         <Card>
           <CardContent className="pt-6">
-            <p className="text-center text-muted-foreground">Permission not found</p>
+            <p className="text-center text-muted-foreground">
+              Permission not found
+            </p>
           </CardContent>
         </Card>
       </div>
-    )
+    );
   }
 
   return (
@@ -77,10 +85,16 @@ export default function PermissionDetailPage() {
           </Button>
           <div>
             <h1 className="text-3xl font-bold font-mono">{permission.name}</h1>
-            <p className="text-muted-foreground">Permission details and usage</p>
+            <p className="text-muted-foreground">
+              Permission details and usage
+            </p>
           </div>
         </div>
-        <Button onClick={() => router.push(`/admin/permissions/${permission.id}/edit`)}>
+        <Button
+          onClick={() =>
+            router.push(`/admin/permissions/${permission.id}/edit`)
+          }
+        >
           <Edit className="h-4 w-4 mr-2" />
           Edit Permission
         </Button>
@@ -96,7 +110,9 @@ export default function PermissionDetailPage() {
             <div className="flex items-start gap-3">
               <Shield className="h-5 w-5 text-muted-foreground mt-0.5" />
               <div className="flex-1">
-                <p className="text-sm font-medium text-muted-foreground">Permission Name</p>
+                <p className="text-sm font-medium text-muted-foreground">
+                  Permission Name
+                </p>
                 <p className="text-base font-mono">{permission.name}</p>
               </div>
             </div>
@@ -121,7 +137,9 @@ export default function PermissionDetailPage() {
                   </svg>
                 </div>
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-muted-foreground">Description</p>
+                  <p className="text-sm font-medium text-muted-foreground">
+                    Description
+                  </p>
                   <p className="text-base">{permission.description}</p>
                 </div>
               </div>
@@ -129,10 +147,14 @@ export default function PermissionDetailPage() {
 
             <div className="flex items-start gap-3">
               <div className="h-5 w-5 rounded-full flex items-center justify-center mt-0.5">
-                <div className={`h-3 w-3 rounded-full ${permission.active ? "bg-green-500" : "bg-red-500"}`} />
+                <div
+                  className={`h-3 w-3 rounded-full ${permission.active ? "bg-green-500" : "bg-red-500"}`}
+                />
               </div>
               <div className="flex-1">
-                <p className="text-sm font-medium text-muted-foreground">Status</p>
+                <p className="text-sm font-medium text-muted-foreground">
+                  Status
+                </p>
                 <Badge variant={permission.active ? "default" : "destructive"}>
                   {permission.active ? "Active" : "Inactive"}
                 </Badge>
@@ -150,7 +172,9 @@ export default function PermissionDetailPage() {
             <div className="flex items-start gap-3">
               <Shield className="h-5 w-5 text-muted-foreground mt-0.5" />
               <div className="flex-1">
-                <p className="text-sm font-medium text-muted-foreground">Roles with this Permission</p>
+                <p className="text-sm font-medium text-muted-foreground">
+                  Roles with this Permission
+                </p>
                 <p className="text-2xl font-bold">{permission.roleCount}</p>
               </div>
             </div>
@@ -158,16 +182,24 @@ export default function PermissionDetailPage() {
             <div className="flex items-start gap-3">
               <Calendar className="h-5 w-5 text-muted-foreground mt-0.5" />
               <div className="flex-1">
-                <p className="text-sm font-medium text-muted-foreground">Created</p>
-                <p className="text-base">{new Date(permission.createdAt).toLocaleString()}</p>
+                <p className="text-sm font-medium text-muted-foreground">
+                  Created
+                </p>
+                <p className="text-base">
+                  {new Date(permission.createdAt).toLocaleString()}
+                </p>
               </div>
             </div>
 
             <div className="flex items-start gap-3">
               <Calendar className="h-5 w-5 text-muted-foreground mt-0.5" />
               <div className="flex-1">
-                <p className="text-sm font-medium text-muted-foreground">Last Updated</p>
-                <p className="text-base">{new Date(permission.updatedAt).toLocaleString()}</p>
+                <p className="text-sm font-medium text-muted-foreground">
+                  Last Updated
+                </p>
+                <p className="text-base">
+                  {new Date(permission.updatedAt).toLocaleString()}
+                </p>
               </div>
             </div>
 
@@ -176,7 +208,9 @@ export default function PermissionDetailPage() {
                 <div className="text-lg font-bold text-primary">#</div>
               </div>
               <div className="flex-1">
-                <p className="text-sm font-medium text-muted-foreground">Permission ID</p>
+                <p className="text-sm font-medium text-muted-foreground">
+                  Permission ID
+                </p>
                 <p className="text-base font-mono">{permission.id}</p>
               </div>
             </div>
@@ -184,5 +218,5 @@ export default function PermissionDetailPage() {
         </Card>
       </div>
     </div>
-  )
+  );
 }

@@ -1,8 +1,8 @@
 "use server";
 
-import { prisma } from "@/lib/database/prisma.singleton";
-import { requirePermission } from "@/lib/auth/auth";
 import { revalidatePath } from "next/cache";
+import { requirePermission } from "@/lib/auth/auth";
+import { prisma } from "@/lib/database/prisma.singleton";
 
 export type WorkPartFormData = {
   workOrderId?: string;
@@ -113,7 +113,7 @@ export async function createWorkPart(data: WorkPartFormData) {
  */
 export async function updateWorkPart(
   id: string,
-  data: Partial<WorkPartFormData>
+  data: Partial<WorkPartFormData>,
 ) {
   await requirePermission("work-orders:update");
 

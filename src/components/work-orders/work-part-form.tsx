@@ -1,10 +1,12 @@
 "use client";
 
+import { Plus, Save } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { FormError } from "@/components/ui/form-error";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -12,10 +14,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Save } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 import { createWorkPart } from "@/lib/actions/work-parts";
-import { FormError } from "@/components/ui/form-error";
 
 type WorkPartFormProps = {
   workOrderId: string;
@@ -150,7 +150,11 @@ export function WorkPartForm({
                 <span className="font-medium">
                   Price: ${selectedPart.price.toFixed(2)}
                 </span>
-                <span className={selectedPart.stock > 0 ? "text-green-600" : "text-red-600"}>
+                <span
+                  className={
+                    selectedPart.stock > 0 ? "text-green-600" : "text-red-600"
+                  }
+                >
                   Stock: {selectedPart.stock}
                 </span>
               </div>
@@ -168,7 +172,10 @@ export function WorkPartForm({
               max={selectedPart?.stock || 999}
               value={formData.quantity}
               onChange={(e) =>
-                setFormData({ ...formData, quantity: parseInt(e.target.value) || 1 })
+                setFormData({
+                  ...formData,
+                  quantity: parseInt(e.target.value, 10) || 1,
+                })
               }
               required
             />

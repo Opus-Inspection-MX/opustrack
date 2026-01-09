@@ -1,18 +1,23 @@
-"use client"
+"use client";
 
-import type React from "react"
-
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { z } from "zod"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Switch } from "@/components/ui/switch"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { FormError } from "@/components/ui/form-error"
-import { Spinner } from "@/components/ui/spinner"
-import { AlertCircle } from "lucide-react"
+import { AlertCircle } from "lucide-react";
+import { useRouter } from "next/navigation";
+import type React from "react";
+import { useState } from "react";
+import { z } from "zod";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { FormError } from "@/components/ui/form-error";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Spinner } from "@/components/ui/spinner";
+import { Switch } from "@/components/ui/switch";
 
 const stateSchema = z.object({
   name: z
@@ -26,99 +31,108 @@ const stateSchema = z.object({
     .max(10, "Code must be less than 10 characters")
     .regex(/^[A-Z0-9]+$/, "Code must be uppercase letters and numbers only"),
   active: z.boolean(),
-})
+});
 
-type StateFormData = z.infer<typeof stateSchema>
+type StateFormData = z.infer<typeof stateSchema>;
 
 interface StateFormProps {
-  initialData?: Partial<StateFormData> & { id?: number }
-  isEditing?: boolean
+  initialData?: Partial<StateFormData> & { id?: number };
+  isEditing?: boolean;
 }
 
 export function StateForm({ initialData, isEditing = false }: StateFormProps) {
-  const router = useRouter()
-  const [isLoading, setIsLoading] = useState(false)
-  const [errors, setErrors] = useState<Record<string, string>>({})
-  const [touched, setTouched] = useState<Record<string, boolean>>({})
+  const router = useRouter();
+  const [isLoading, setIsLoading] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
 
   const [formData, setFormData] = useState<StateFormData>({
     name: initialData?.name || "",
     code: initialData?.code || "",
     active: initialData?.active ?? true,
-  })
+  });
 
   const validateField = (name: keyof StateFormData, value: any) => {
     try {
-      stateSchema.pick({ [name]: true }).parse({ [name]: value })
-      setErrors((prev) => ({ ...prev, [name]: "" }))
+      stateSchema.pick({ [name]: true }).parse({ [name]: value });
+      setErrors((prev) => ({ ...prev, [name]: "" }));
     } catch (error) {
       if (error instanceof z.ZodError) {
-        setErrors((prev) => ({ ...prev, [name]: error.issues[0]?.message || "" }))
+        setErrors((prev) => ({
+          ...prev,
+          [name]: error.issues[0]?.message || "",
+        }));
       }
     }
-  }
+  };
 
   const handleInputChange = (name: keyof StateFormData, value: any) => {
-    setFormData((prev) => ({ ...prev, [name]: value }))
+    setFormData((prev) => ({ ...prev, [name]: value }));
     if (touched[name]) {
-      validateField(name, value)
+      validateField(name, value);
     }
-  }
+  };
 
   const handleBlur = (name: keyof StateFormData) => {
-    setTouched((prev) => ({ ...prev, [name]: true }))
-    validateField(name, formData[name])
-  }
+    setTouched((prev) => ({ ...prev, [name]: true }));
+    validateField(name, formData[name]);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
 
     try {
-      const validatedData = stateSchema.parse(formData)
-      setIsLoading(true)
+      const validatedData = stateSchema.parse(formData);
+      setIsLoading(true);
 
-      const { createState, updateState } = await import("@/lib/actions/lookups")
+      const { createState, updateState } = await import(
+        "@/lib/actions/lookups"
+      );
 
       if (isEditing && initialData?.id) {
         await updateState(initialData.id, {
           name: validatedData.name,
           code: validatedData.code,
           active: validatedData.active,
-        })
+        });
       } else {
         await createState({
           name: validatedData.name,
           code: validatedData.code,
-        })
+        });
       }
 
-      router.push("/admin/states")
-      router.refresh()
+      router.push("/admin/states");
+      router.refresh();
     } catch (error) {
       if (error instanceof z.ZodError) {
-        const fieldErrors: Record<string, string> = {}
+        const fieldErrors: Record<string, string> = {};
         error.issues.forEach((err) => {
           if (err.path[0]) {
-            fieldErrors[err.path[0] as string] = err.message
+            fieldErrors[err.path[0] as string] = err.message;
           }
-        })
-        setErrors(fieldErrors)
+        });
+        setErrors(fieldErrors);
       } else {
-        console.error("Error saving state:", error)
-        setErrors({ submit: "Failed to save state. Please try again." })
+        console.error("Error saving state:", error);
+        setErrors({ submit: "Failed to save state. Please try again." });
       }
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
-  const hasErrors = Object.values(errors).some((error) => error !== "")
+  const hasErrors = Object.values(errors).some((error) => error !== "");
 
   return (
     <Card className="max-w-2xl mx-auto">
       <CardHeader>
         <CardTitle>{isEditing ? "Edit State" : "Create New State"}</CardTitle>
-        <CardDescription>{isEditing ? "Update state information" : "Add a new state to the system"}</CardDescription>
+        <CardDescription>
+          {isEditing
+            ? "Update state information"
+            : "Add a new state to the system"}
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -143,13 +157,17 @@ export function StateForm({ initialData, isEditing = false }: StateFormProps) {
               <Input
                 id="code"
                 value={formData.code}
-                onChange={(e) => handleInputChange("code", e.target.value.toUpperCase())}
+                onChange={(e) =>
+                  handleInputChange("code", e.target.value.toUpperCase())
+                }
                 onBlur={() => handleBlur("code")}
                 placeholder="e.g., CDMX"
                 className={errors.code ? "border-red-500" : ""}
               />
               <FormError message={errors.code} />
-              <p className="text-xs text-muted-foreground">Uppercase letters and numbers only</p>
+              <p className="text-xs text-muted-foreground">
+                Uppercase letters and numbers only
+              </p>
             </div>
           </div>
 
@@ -157,7 +175,9 @@ export function StateForm({ initialData, isEditing = false }: StateFormProps) {
             <Switch
               id="active"
               checked={formData.active}
-              onCheckedChange={(checked) => handleInputChange("active", checked)}
+              onCheckedChange={(checked) =>
+                handleInputChange("active", checked)
+              }
             />
             <Label htmlFor="active">Active</Label>
           </div>
@@ -165,12 +185,18 @@ export function StateForm({ initialData, isEditing = false }: StateFormProps) {
           {hasErrors && (
             <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-md">
               <AlertCircle className="h-4 w-4 text-red-600" />
-              <span className="text-sm text-red-600">Please fix the errors above before submitting.</span>
+              <span className="text-sm text-red-600">
+                Please fix the errors above before submitting.
+              </span>
             </div>
           )}
 
           <div className="flex gap-3 pt-4">
-            <Button type="submit" disabled={isLoading || hasErrors} className="flex-1">
+            <Button
+              type="submit"
+              disabled={isLoading || hasErrors}
+              className="flex-1"
+            >
               {isLoading ? (
                 <>
                   <Spinner size="sm" />
@@ -182,12 +208,17 @@ export function StateForm({ initialData, isEditing = false }: StateFormProps) {
                 "Create State"
               )}
             </Button>
-            <Button type="button" variant="outline" onClick={() => router.back()} disabled={isLoading}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => router.back()}
+              disabled={isLoading}
+            >
               Cancel
             </Button>
           </div>
         </form>
       </CardContent>
     </Card>
-  )
+  );
 }

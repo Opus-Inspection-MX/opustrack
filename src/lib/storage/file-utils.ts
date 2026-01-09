@@ -10,9 +10,9 @@
  */
 export function getFileUrl(
   storedUrl: string,
-  provider?: 'vercel-blob' | 'filesystem' | string | null
+  provider?: "vercel-blob" | "filesystem" | string | null,
 ): string {
-  if (!provider || provider === 'vercel-blob') {
+  if (!provider || provider === "vercel-blob") {
     return storedUrl;
   } else {
     // For filesystem, the URL is already a relative path like /uploads/...

@@ -1,53 +1,79 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { zodResolver } from "@hookform/resolvers/zod"
-import { useForm } from "react-hook-form"
-import { z } from "zod"
-import { Button } from "@/components/ui/button"
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Switch } from "@/components/ui/switch"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Spinner } from "@/components/ui/spinner"
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Spinner } from "@/components/ui/spinner";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 
 const partSchema = z.object({
-  name: z.string().min(1, "Name is required").max(100, "Name must be less than 100 characters"),
-  description: z.string().max(500, "Description must be less than 500 characters").optional(),
-  price: z.number().min(0, "Price must be positive").max(999999, "Price too high"),
-  stock: z.number().int().min(0, "Stock must be non-negative").max(999999, "Stock too high"),
+  name: z
+    .string()
+    .min(1, "Name is required")
+    .max(100, "Name must be less than 100 characters"),
+  description: z
+    .string()
+    .max(500, "Description must be less than 500 characters")
+    .optional(),
+  price: z
+    .number()
+    .min(0, "Price must be positive")
+    .max(999999, "Price too high"),
+  stock: z
+    .number()
+    .int()
+    .min(0, "Stock must be non-negative")
+    .max(999999, "Stock too high"),
   vicId: z.string().min(1, "VIC Center is required"),
   active: z.boolean(),
-})
+});
 
-type PartFormData = z.infer<typeof partSchema>
+type PartFormData = z.infer<typeof partSchema>;
 
 interface VIC {
-  id: string
-  name: string
-  code: string
+  id: string;
+  name: string;
+  code: string;
 }
 
 interface PartFormProps {
   part?: {
-    id: string
-    name: string
-    description?: string
-    price: number
-    stock: number
-    vicId: string
-    active: boolean
-  }
-  vics: VIC[]
-  onSubmit: (data: PartFormData) => Promise<void>
+    id: string;
+    name: string;
+    description?: string;
+    price: number;
+    stock: number;
+    vicId: string;
+    active: boolean;
+  };
+  vics: VIC[];
+  onSubmit: (data: PartFormData) => Promise<void>;
 }
 
 export function PartForm({ part, vics, onSubmit }: PartFormProps) {
-  const [isLoading, setIsLoading] = useState(false)
-  const router = useRouter()
+  const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
 
   const form = useForm<PartFormData>({
     resolver: zodResolver(partSchema),
@@ -59,19 +85,19 @@ export function PartForm({ part, vics, onSubmit }: PartFormProps) {
       vicId: part?.vicId || "",
       active: part?.active ?? true,
     },
-  })
+  });
 
   const handleSubmit = async (data: PartFormData) => {
-    setIsLoading(true)
+    setIsLoading(true);
     try {
-      await onSubmit(data)
-      router.push("/admin/parts")
+      await onSubmit(data);
+      router.push("/admin/parts");
     } catch (error) {
-      console.error("Error submitting form:", error)
+      console.error("Error submitting form:", error);
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   return (
     <Card className="max-w-2xl mx-auto">
@@ -80,7 +106,10 @@ export function PartForm({ part, vics, onSubmit }: PartFormProps) {
       </CardHeader>
       <CardContent>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+          <form
+            onSubmit={form.handleSubmit(handleSubmit)}
+            className="space-y-6"
+          >
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -102,7 +131,10 @@ export function PartForm({ part, vics, onSubmit }: PartFormProps) {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>VIC Center</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                    >
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select VIC center" />
@@ -129,7 +161,11 @@ export function PartForm({ part, vics, onSubmit }: PartFormProps) {
                 <FormItem>
                   <FormLabel>Description</FormLabel>
                   <FormControl>
-                    <Textarea placeholder="Enter part description" rows={3} {...field} />
+                    <Textarea
+                      placeholder="Enter part description"
+                      rows={3}
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -149,7 +185,9 @@ export function PartForm({ part, vics, onSubmit }: PartFormProps) {
                         step="0.01"
                         placeholder="0.00"
                         {...field}
-                        onChange={(e) => field.onChange(Number.parseFloat(e.target.value) || 0)}
+                        onChange={(e) =>
+                          field.onChange(Number.parseFloat(e.target.value) || 0)
+                        }
                       />
                     </FormControl>
                     <FormMessage />
@@ -168,7 +206,11 @@ export function PartForm({ part, vics, onSubmit }: PartFormProps) {
                         type="number"
                         placeholder="0"
                         {...field}
-                        onChange={(e) => field.onChange(Number.parseInt(e.target.value) || 0)}
+                        onChange={(e) =>
+                          field.onChange(
+                            Number.parseInt(e.target.value, 10) || 0,
+                          )
+                        }
                       />
                     </FormControl>
                     <FormMessage />
@@ -184,10 +226,15 @@ export function PartForm({ part, vics, onSubmit }: PartFormProps) {
                 <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
                   <div className="space-y-0.5">
                     <FormLabel className="text-base">Active Part</FormLabel>
-                    <div className="text-sm text-muted-foreground">Enable this part for use in work orders</div>
+                    <div className="text-sm text-muted-foreground">
+                      Enable this part for use in work orders
+                    </div>
                   </div>
                   <FormControl>
-                    <Switch checked={field.value} onCheckedChange={field.onChange} />
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
                   </FormControl>
                 </FormItem>
               )}
@@ -198,7 +245,11 @@ export function PartForm({ part, vics, onSubmit }: PartFormProps) {
                 {isLoading && <Spinner size="sm" />}
                 {part ? "Update Part" : "Create Part"}
               </Button>
-              <Button type="button" variant="outline" onClick={() => router.push("/admin/parts")}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => router.push("/admin/parts")}
+              >
                 Cancel
               </Button>
             </div>
@@ -206,5 +257,5 @@ export function PartForm({ part, vics, onSubmit }: PartFormProps) {
         </Form>
       </CardContent>
     </Card>
-  )
+  );
 }

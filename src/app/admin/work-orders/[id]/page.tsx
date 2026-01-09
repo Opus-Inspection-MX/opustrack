@@ -1,13 +1,20 @@
-import { getWorkOrderById } from "@/lib/actions/work-orders";
-import { getWorkActivities } from "@/lib/actions/work-activities";
-import { getWorkParts } from "@/lib/actions/work-parts";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { ArrowLeft, Calendar, User, AlertTriangle, ExternalLink, Paperclip } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowLeft,
+  Calendar,
+  ExternalLink,
+  Paperclip,
+  User,
+} from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AttachmentPreview } from "@/components/work-orders/attachment-preview";
+import { getWorkActivities } from "@/lib/actions/work-activities";
+import { getWorkOrderById } from "@/lib/actions/work-orders";
+import { getWorkParts } from "@/lib/actions/work-parts";
 
 export default async function WorkOrderDetailPage({
   params,
@@ -23,7 +30,7 @@ export default async function WorkOrderDetailPage({
 
   if (!workOrder) notFound();
 
-  const getStatusColor = (status: string) => {
+  const _getStatusColor = (status: string) => {
     switch (status) {
       case "COMPLETADO":
         return "default";
@@ -60,7 +67,8 @@ export default async function WorkOrderDetailPage({
               <p className="text-sm text-muted-foreground">Parent Incident</p>
               <p className="font-medium">{workOrder.incident.title}</p>
               <p className="text-xs text-muted-foreground">
-                Priority: {workOrder.incident.priority}/10 • Status: {workOrder.incident.status?.name}
+                Priority: {workOrder.incident.priority}/10 • Status:{" "}
+                {workOrder.incident.status?.name}
               </p>
             </div>
           </div>
@@ -105,11 +113,11 @@ export default async function WorkOrderDetailPage({
               <div>
                 <p className="text-sm text-muted-foreground">Estado</p>
                 {workOrder.status ? (
-                  <Badge variant="secondary">
-                    {workOrder.status.name}
-                  </Badge>
+                  <Badge variant="secondary">{workOrder.status.name}</Badge>
                 ) : (
-                  <span className="text-sm text-muted-foreground">Sin estado</span>
+                  <span className="text-sm text-muted-foreground">
+                    Sin estado
+                  </span>
                 )}
               </div>
             </div>
@@ -142,7 +150,7 @@ export default async function WorkOrderDetailPage({
             <div>
               <p className="text-sm text-muted-foreground">Fecha de Creacion</p>
               <p className="font-medium">
-                {new Date(workOrder.createdAt).toLocaleString('es-MX')}
+                {new Date(workOrder.createdAt).toLocaleString("es-MX")}
               </p>
             </div>
 
@@ -150,7 +158,7 @@ export default async function WorkOrderDetailPage({
               <div>
                 <p className="text-sm text-muted-foreground">Iniciado</p>
                 <p className="font-medium">
-                  {new Date(workOrder.startedAt).toLocaleString('es-MX')}
+                  {new Date(workOrder.startedAt).toLocaleString("es-MX")}
                 </p>
               </div>
             )}
@@ -159,7 +167,7 @@ export default async function WorkOrderDetailPage({
               <div>
                 <p className="text-sm text-muted-foreground">Finalizado</p>
                 <p className="font-medium">
-                  {new Date(workOrder.finishedAt).toLocaleString('es-MX')}
+                  {new Date(workOrder.finishedAt).toLocaleString("es-MX")}
                 </p>
               </div>
             )}
@@ -179,12 +187,15 @@ export default async function WorkOrderDetailPage({
           ) : (
             <div className="space-y-4">
               {activities.map((activity) => (
-                <div key={activity.id} className="border-l-2 border-primary pl-4 py-2">
+                <div
+                  key={activity.id}
+                  className="border-l-2 border-primary pl-4 py-2"
+                >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <p className="font-medium">{activity.description}</p>
                       <p className="text-sm text-muted-foreground mt-1">
-                        {new Date(activity.performedAt).toLocaleString('es-MX')}
+                        {new Date(activity.performedAt).toLocaleString("es-MX")}
                       </p>
                       {activity.workParts.length > 0 && (
                         <div className="mt-2 flex flex-wrap gap-2">
@@ -216,11 +227,16 @@ export default async function WorkOrderDetailPage({
           ) : (
             <div className="space-y-2">
               {workParts.map((wp) => (
-                <div key={wp.id} className="flex items-center justify-between py-2 border-b last:border-0">
+                <div
+                  key={wp.id}
+                  className="flex items-center justify-between py-2 border-b last:border-0"
+                >
                   <div className="flex-1">
                     <p className="font-medium">{wp.part.name}</p>
                     {wp.description && (
-                      <p className="text-sm text-muted-foreground">{wp.description}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {wp.description}
+                      </p>
                     )}
                   </div>
                   <div className="text-right">

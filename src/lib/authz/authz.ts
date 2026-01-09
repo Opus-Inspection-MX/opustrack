@@ -1,6 +1,6 @@
 // src/lib/authz/authz.ts
+
 import { prisma } from "@/lib/database/prisma.singleton";
-import { cache } from "react";
 
 /**
  * Type definitions for authorization
@@ -159,7 +159,7 @@ export function roleCanAccessRoute(role: Role, routePath: string): boolean {
 
   // Check for exact route permission match
   const hasRoutePermission = role.permissions.some(
-    (perm) => perm.routePath && normalizedPath.startsWith(perm.routePath)
+    (perm) => perm.routePath && normalizedPath.startsWith(perm.routePath),
   );
 
   if (hasRoutePermission) return true;
@@ -187,7 +187,7 @@ export function getAccessibleRoutes(role: Role): string[] {
  */
 export function userHasPermission(
   user: UserWithPermissions,
-  permissionName: string
+  permissionName: string,
 ): boolean {
   return roleHasPermission(user.role, permissionName);
 }
@@ -198,10 +198,10 @@ export function userHasPermission(
 export function userCanPerformAction(
   user: UserWithPermissions,
   resource: string,
-  action: string
+  action: string,
 ): boolean {
   return user.role.permissions.some(
-    (perm) => perm.resource === resource && perm.action === action
+    (perm) => perm.resource === resource && perm.action === action,
   );
 }
 
@@ -210,7 +210,7 @@ export function userCanPerformAction(
  */
 export function getUserResourcePermissions(
   user: UserWithPermissions,
-  resource: string
+  resource: string,
 ): Permission[] {
   return user.role.permissions.filter((perm) => perm.resource === resource);
 }
@@ -220,11 +220,9 @@ export function getUserResourcePermissions(
  */
 export function userHasAllPermissions(
   user: UserWithPermissions,
-  permissionNames: string[]
+  permissionNames: string[],
 ): boolean {
-  return permissionNames.every((permName) =>
-    userHasPermission(user, permName)
-  );
+  return permissionNames.every((permName) => userHasPermission(user, permName));
 }
 
 /**
@@ -232,11 +230,9 @@ export function userHasAllPermissions(
  */
 export function userHasAnyPermission(
   user: UserWithPermissions,
-  permissionNames: string[]
+  permissionNames: string[],
 ): boolean {
-  return permissionNames.some((permName) =>
-    userHasPermission(user, permName)
-  );
+  return permissionNames.some((permName) => userHasPermission(user, permName));
 }
 
 /**
