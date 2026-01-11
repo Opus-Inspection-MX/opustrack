@@ -87,7 +87,9 @@ export function FSRSidebar() {
             <SidebarMenuItem key={item.url}>
               <SidebarMenuButton
                 asChild
-                isActive={pathname === item.url}
+                isActive={
+                  pathname === item.url || pathname.startsWith(`${item.url}/`)
+                }
                 tooltip={item.title}
               >
                 <Link href={item.url}>
