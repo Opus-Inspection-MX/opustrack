@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -63,7 +63,7 @@ export function ScheduleCalendar({
   const [customEndDate, setCustomEndDate] = useState<Date>(new Date());
 
   // Fetch incidents from backend
-  const fetchIncidents = async (start: Date, end: Date) => {
+  const fetchIncidents = useCallback(async (start: Date, end: Date) => {
     try {
       const startStr = start.toISOString().split("T")[0];
       const endStr = end.toISOString().split("T")[0];
@@ -82,10 +82,10 @@ export function ScheduleCalendar({
       console.error("Error fetching incidents:", error);
       setIncidents([]);
     }
-  };
+  }, []);
 
   // Fetch schedules from backend
-  const fetchSchedules = async (start: Date, end: Date) => {
+  const fetchSchedules = useCallback(async (start: Date, end: Date) => {
     try {
       const startStr = start.toISOString().split("T")[0];
       const endStr = end.toISOString().split("T")[0];
@@ -104,7 +104,23 @@ export function ScheduleCalendar({
       console.error("Error fetching schedules:", error);
       setSchedules([]);
     }
-  };
+  }, []);
+
+  const getWeekRange = useCallback((date: Date) => {
+    const day = date.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+    // Ajustar para que la semana comience en lunes (1)
+    // Si es domingo (0), retroceder 6 días; si es lunes (1), retroceder 0 días, etc.
+    const diff = day === 0 ? -6 : 1 - day;
+    const start = new Date(date);
+    start.setDate(date.getDate() + diff);
+    start.setHours(0, 0, 0, 0);
+
+    const end = new Date(start);
+    end.setDate(start.getDate() + 6);
+    end.setHours(23, 59, 59, 999);
+
+    return { start, end };
+  }, []);
 
   // Load incidents and schedules when date range changes
   useEffect(() => {
@@ -196,22 +212,6 @@ export function ScheduleCalendar({
 
   const getWeekDays = () => {
     return ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
-  };
-
-  const getWeekRange = (date: Date) => {
-    const day = date.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
-    // Ajustar para que la semana comience en lunes (1)
-    // Si es domingo (0), retroceder 6 días; si es lunes (1), retroceder 0 días, etc.
-    const diff = day === 0 ? -6 : 1 - day;
-    const start = new Date(date);
-    start.setDate(date.getDate() + diff);
-    start.setHours(0, 0, 0, 0);
-
-    const end = new Date(start);
-    end.setDate(start.getDate() + 6);
-    end.setHours(23, 59, 59, 999);
-
-    return { start, end };
   };
 
   const navigateMonth = (direction: "prev" | "next") => {

@@ -108,7 +108,15 @@ export default function SchedulesPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [currentPage, itemsPerPage, searchQuery, selectedVic, selectedStatus, startDate, endDate]);
+  }, [
+    currentPage,
+    itemsPerPage,
+    searchQuery,
+    selectedVic,
+    selectedStatus,
+    startDate,
+    endDate,
+  ]);
 
   useEffect(() => {
     fetchVics();

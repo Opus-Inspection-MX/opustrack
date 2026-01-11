@@ -41,8 +41,6 @@ export const GET = withPermission(
           name: true,
           color: true,
           active: true,
-          createdAt: true,
-          updatedAt: true,
         },
         orderBy: {
           name: "asc",

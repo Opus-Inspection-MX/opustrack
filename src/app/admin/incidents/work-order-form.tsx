@@ -29,6 +29,11 @@ interface WorkOrderData {
 
 interface IncidentData {
   id: string;
+  title: string;
+  priority?: string;
+  vic?: {
+    name: string;
+  };
 }
 
 interface WorkOrderFormProps {

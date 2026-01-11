@@ -23,7 +23,12 @@ export async function getEquipments() {
       orderBy: { createdAt: "desc" },
     });
 
-    return equipments;
+    // Serialize dates for client components
+    return equipments.map((equipment) => ({
+      ...equipment,
+      createdAt: equipment.createdAt.toISOString(),
+      updatedAt: equipment.updatedAt.toISOString(),
+    }));
   } catch (error) {
     console.error("Error fetching equipments:", error);
     throw new Error("Failed to fetch equipments");

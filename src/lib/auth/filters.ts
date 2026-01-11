@@ -8,7 +8,7 @@
  * between different VICs.
  */
 
-import type { UserWithPermissions } from "@/lib/auth/auth";
+import type { UserWithPermissions } from "@/lib/authz/authz";
 
 /**
  * Returns WHERE clause for filtering by VIC
@@ -34,7 +34,7 @@ import type { UserWithPermissions } from "@/lib/auth/auth";
  * ```
  */
 export function getVicWhereClause(user: UserWithPermissions): {
-  vicId?: string | null;
+  vicId?: string | { equals: null };
 } {
   // Admin can see everything
   if (isAdmin(user)) {
@@ -43,7 +43,7 @@ export function getVicWhereClause(user: UserWithPermissions): {
 
   // Users without VIC assignment can only see records without VIC
   if (!user.vicId) {
-    return { vicId: null };
+    return { vicId: { equals: null } };
   }
 
   // Filter by user's assigned VIC

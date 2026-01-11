@@ -22,7 +22,17 @@ export async function getLines() {
       orderBy: { createdAt: "desc" },
     });
 
-    return lines;
+    // Serialize dates for client components
+    return lines.map((line) => ({
+      ...line,
+      createdAt: line.createdAt.toISOString(),
+      updatedAt: line.updatedAt.toISOString(),
+      equipments: line.equipments.map((equipment) => ({
+        ...equipment,
+        createdAt: equipment.createdAt.toISOString(),
+        updatedAt: equipment.updatedAt.toISOString(),
+      })),
+    }));
   } catch (error) {
     console.error("Error fetching lines:", error);
     throw new Error("Failed to fetch lines");

@@ -11,7 +11,7 @@ import {
   User,
   X,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -48,11 +48,7 @@ export default function ClientProfilePage() {
     confirmPassword: "",
   });
 
-  useEffect(() => {
-    fetchProfile();
-  }, [fetchProfile]);
-
-  const fetchProfile = async () => {
+  const fetchProfile = useCallback(async () => {
     try {
       const data = await getMyProfile();
       setUser(data);
@@ -70,7 +66,11 @@ export default function ClientProfilePage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchProfile();
+  }, [fetchProfile]);
 
   const handleSaveProfile = async () => {
     setErrors({});

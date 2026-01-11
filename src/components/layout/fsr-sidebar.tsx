@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Car,
   ClipboardList,
   PanelLeftClose,
   PanelLeftOpen,
@@ -33,6 +34,11 @@ const menuItems = [
     title: "Órdenes de Trabajo",
     url: "/fsr/work-orders",
     icon: Wrench,
+  },
+  {
+    title: "Viajes",
+    url: "/fsr/vehicle-trips",
+    icon: Car,
   },
   {
     title: "Mi Perfil",

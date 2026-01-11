@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -57,13 +57,7 @@ export default function EditWorkOrderPage({
     params.then((p) => setWorkOrderId(p.id));
   }, [params]);
 
-  useEffect(() => {
-    if (workOrderId) {
-      fetchData();
-    }
-  }, [workOrderId, fetchData]);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     if (!workOrderId) return;
 
     try {
@@ -90,14 +84,20 @@ export default function EditWorkOrderPage({
       setWorkParts(partsData);
       setAvailableParts(availablePartsData);
       setAvailableUsers(formOptions.users);
-      setAvailableStatuses(statuses);
+      setAvailableStatuses(statuses.data);
       setAttachments(woData?.attachments || []);
     } catch (error) {
       console.error("Error fetching data:", error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [workOrderId]);
+
+  useEffect(() => {
+    if (workOrderId) {
+      fetchData();
+    }
+  }, [workOrderId, fetchData]);
 
   const handleDeleteActivity = async (id: string) => {
     if (!confirm("Are you sure you want to delete this activity?")) return;

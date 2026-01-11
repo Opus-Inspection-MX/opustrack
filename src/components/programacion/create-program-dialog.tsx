@@ -2,7 +2,7 @@
 
 import { Calendar } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -58,6 +58,27 @@ export function CreateProgramDialog({
     vicId: "",
   });
 
+  const fetchData = useCallback(async () => {
+    try {
+      const [vicsRes, statusesRes] = await Promise.all([
+        fetch("/api/vics"),
+        fetch("/api/incident-statuses"),
+      ]);
+
+      if (vicsRes.ok) {
+        const vicsData = await vicsRes.json();
+        setVics(vicsData.data || []);
+      }
+
+      if (statusesRes.ok) {
+        const statusesData = await statusesRes.json();
+        setStatuses(statusesData.data || []);
+      }
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    }
+  }, []);
+
   useEffect(() => {
     if (open) {
       fetchData();
@@ -78,27 +99,6 @@ export function CreateProgramDialog({
       }));
     }
   }, [open, dateRange, fetchData]);
-
-  const fetchData = async () => {
-    try {
-      const [vicsRes, statusesRes] = await Promise.all([
-        fetch("/api/vics"),
-        fetch("/api/incident-statuses"),
-      ]);
-
-      if (vicsRes.ok) {
-        const vicsData = await vicsRes.json();
-        setVics(vicsData.data || []);
-      }
-
-      if (statusesRes.ok) {
-        const statusesData = await statusesRes.json();
-        setStatuses(statusesData.data || []);
-      }
-    } catch (error) {
-      console.error("Error fetching data:", error);
-    }
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

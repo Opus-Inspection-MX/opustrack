@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 interface Permission {
   id: number;
   name: string;
-  description: string;
+  description?: string;
   active: boolean;
   roleCount: number;
 }

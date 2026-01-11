@@ -28,6 +28,7 @@ model User {
   workOrders        WorkOrder[]
   reportedIncidents Incident[] @relation("IncidentReporter")
   incidents         Incident[] @relation("IncidentUser") // relación opcional si usas userId en Incident
+  vehicleTrips      VehicleTrip[] // Vehicle trips driven by this FSR
   active            Boolean   @default(true)
 }
 
@@ -216,6 +217,7 @@ model WorkOrder {
   workActivities WorkActivity[]
   attachments    WorkOrderAttachment[]
   workParts      WorkPart[]
+  vehicleTrips   VehicleTrip[] // Vehicle trips linked to this work order
   createdAt      DateTime              @default(now())
   updatedAt      DateTime              @updatedAt
   active         Boolean               @default(true)
@@ -321,4 +323,65 @@ model Equipment {
   active      Boolean    @default(true)
 
   @@index([lineId])
+}
+
+model Vehicle {
+  id           String        @id @default(cuid())
+  make         String        // e.g., "Toyota"
+  model        String        // e.g., "Corolla"
+  year         Int           // e.g., 2023
+  licensePlate String        @unique // e.g., "ABC-123-XYZ"
+  vin          String?       @unique // Vehicle Identification Number (optional)
+  color        String?       // e.g., "White"
+  status       String        @default("AVAILABLE") // AVAILABLE, IN_USE, MAINTENANCE, INACTIVE
+  notes        String?       // General notes about vehicle
+  active       Boolean       @default(true) // Soft delete
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  trips        VehicleTrip[]
+
+  @@index([licensePlate])
+  @@index([status])
+  @@index([active])
+}
+
+model VehicleTrip {
+  id                 String     @id @default(cuid())
+  vehicleId          String
+  vehicle            Vehicle    @relation(fields: [vehicleId], references: [id])
+  fsrId              String // FSR who drove
+  fsr                User       @relation(fields: [fsrId], references: [id])
+  workOrderId        String? // Optional work order link
+  workOrder          WorkOrder? @relation(fields: [workOrderId], references: [id])
+  // Start data
+  startOdometer      Int // Start reading in kilometers
+  startPhotoUrl      String // Photo of start odometer
+  startPhotoProvider String     @default("vercel-blob")
+  startLatitude      Float? // GPS latitude
+  startLongitude     Float? // GPS longitude
+  startAddress       String? // Optional manual address
+  startedAt          DateTime   @default(now())
+  // End data (nullable until trip ends)
+  endOdometer        Int? // End reading in kilometers
+  endPhotoUrl        String? // Photo of end odometer
+  endPhotoProvider   String?
+  endLatitude        Float? // GPS latitude
+  endLongitude       Float? // GPS longitude
+  endAddress         String? // Optional manual address
+  endedAt            DateTime?
+  // Calculated
+  kmDriven           Int? // Calculated: endOdometer - startOdometer
+  // Metadata
+  notes              String? // Trip notes
+  status             String     @default("IN_PROGRESS") // IN_PROGRESS, COMPLETED, CANCELLED
+  active             Boolean    @default(true) // Soft delete
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+
+  @@index([vehicleId])
+  @@index([fsrId])
+  @@index([workOrderId])
+  @@index([status])
+  @@index([startedAt])
+  @@index([active])
 }

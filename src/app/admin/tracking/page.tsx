@@ -2,7 +2,7 @@
 
 import { ClipboardList, Loader2, Plus } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { TrackingFilters } from "@/components/tracking/tracking-filters";
 import { TrackingTable } from "@/components/tracking/tracking-table";
 import { Button } from "@/components/ui/button";
@@ -23,15 +23,16 @@ export default function TrackingPage() {
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState<any>({});
 
-  useEffect(() => {
-    loadInitialData();
-  }, [loadInitialData]);
+  const loadIncidents = useCallback(async (filterParams: any) => {
+    try {
+      const data = await getIncidentsForTracking(filterParams);
+      setIncidents(data);
+    } catch (error) {
+      console.error("Error loading incidents:", error);
+    }
+  }, []);
 
-  useEffect(() => {
-    loadIncidents(filters);
-  }, [filters, loadIncidents]);
-
-  const loadInitialData = async () => {
+  const loadInitialData = useCallback(async () => {
     try {
       const today = new Date().toISOString().split("T")[0];
 
@@ -80,16 +81,15 @@ export default function TrackingPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [loadIncidents]);
 
-  const loadIncidents = async (filterParams: any) => {
-    try {
-      const data = await getIncidentsForTracking(filterParams);
-      setIncidents(data);
-    } catch (error) {
-      console.error("Error loading incidents:", error);
-    }
-  };
+  useEffect(() => {
+    loadInitialData();
+  }, [loadInitialData]);
+
+  useEffect(() => {
+    loadIncidents(filters);
+  }, [filters, loadIncidents]);
 
   const handleFilterChange = (newFilters: any) => {
     setFilters(newFilters);

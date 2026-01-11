@@ -1,7 +1,7 @@
 "use client";
 
 import { Calendar, Search } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -49,13 +49,7 @@ export function SelectScheduleDialog({
     null,
   );
 
-  useEffect(() => {
-    if (open) {
-      fetchSchedules();
-    }
-  }, [open, fetchSchedules]);
-
-  const fetchSchedules = async () => {
+  const fetchSchedules = useCallback(async () => {
     setLoading(true);
     try {
       const response = await fetch("/api/schedules");
@@ -70,7 +64,13 @@ export function SelectScheduleDialog({
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (open) {
+      fetchSchedules();
+    }
+  }, [open, fetchSchedules]);
 
   const filteredSchedules = schedules.filter(
     (schedule) =>

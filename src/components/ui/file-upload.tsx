@@ -91,10 +91,11 @@ export function FileUpload({
             type="button"
             variant="outline"
             onClick={() => fileInputRef.current?.click()}
-            className="flex-1"
+            className="flex-1 min-h-[44px]"
           >
             <Upload className="mr-2 h-4 w-4" />
-            Choose Files
+            <span className="hidden sm:inline">Choose Files</span>
+            <span className="sm:hidden">Choose</span>
           </Button>
 
           {showCamera && (
@@ -102,10 +103,11 @@ export function FileUpload({
               type="button"
               variant="outline"
               onClick={() => cameraInputRef.current?.click()}
-              className="flex-1"
+              className="flex-1 min-h-[44px]"
             >
               <Camera className="mr-2 h-4 w-4" />
-              Take Photo
+              <span className="hidden sm:inline">Take Photo</span>
+              <span className="sm:hidden">Photo</span>
             </Button>
           )}
         </div>

@@ -2,7 +2,7 @@
 
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -55,6 +55,31 @@ export function EquipmentForm({ equipment, mode }: EquipmentFormProps) {
     lineId: equipment?.lineId?.toString() || "",
   });
 
+  const loadVics = useCallback(async () => {
+    try {
+      const data = await getVICs();
+      setVics(data);
+    } catch (error) {
+      console.error("Error loading VICs:", error);
+      setErrors({ general: "Error al cargar los CVV" });
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const loadLinesByVic = useCallback(async (vicId: string) => {
+    setLoadingLines(true);
+    try {
+      const data = await getLinesByVicId(vicId);
+      setLines(data);
+    } catch (error) {
+      console.error("Error loading lines:", error);
+      setErrors({ general: "Error al cargar las líneas" });
+    } finally {
+      setLoadingLines(false);
+    }
+  }, []);
+
   useEffect(() => {
     loadVics();
   }, [loadVics]);
@@ -66,31 +91,6 @@ export function EquipmentForm({ equipment, mode }: EquipmentFormProps) {
       setLines([]);
     }
   }, [formData.vicId, loadLinesByVic]);
-
-  const loadVics = async () => {
-    try {
-      const data = await getVICs();
-      setVics(data);
-    } catch (error) {
-      console.error("Error loading VICs:", error);
-      setErrors({ general: "Error al cargar los CVV" });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadLinesByVic = async (vicId: string) => {
-    setLoadingLines(true);
-    try {
-      const data = await getLinesByVicId(vicId);
-      setLines(data);
-    } catch (error) {
-      console.error("Error loading lines:", error);
-      setErrors({ general: "Error al cargar las líneas" });
-    } finally {
-      setLoadingLines(false);
-    }
-  };
 
   const handleChange = (field: string, value: string) => {
     // If VIC changes, reset line selection

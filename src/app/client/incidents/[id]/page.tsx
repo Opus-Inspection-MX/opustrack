@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -33,13 +33,7 @@ export default function ClientIncidentDetailPage({
     params.then((p) => setIncidentId(parseInt(p.id, 10)));
   }, [params]);
 
-  useEffect(() => {
-    if (incidentId) {
-      fetchIncident();
-    }
-  }, [incidentId, fetchIncident]);
-
-  const fetchIncident = async () => {
+  const fetchIncident = useCallback(async () => {
     if (!incidentId) return;
 
     try {
@@ -55,7 +49,13 @@ export default function ClientIncidentDetailPage({
     } finally {
       setLoading(false);
     }
-  };
+  }, [incidentId]);
+
+  useEffect(() => {
+    if (incidentId) {
+      fetchIncident();
+    }
+  }, [incidentId, fetchIncident]);
 
   if (loading) {
     return (

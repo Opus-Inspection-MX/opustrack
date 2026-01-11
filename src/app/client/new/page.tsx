@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -54,18 +54,14 @@ export default function ReportIncidentPage() {
     equipmentId: "",
   });
 
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       const [types, profile] = await Promise.all([
         getIncidentTypes(),
         getMyProfile(),
       ]);
 
-      setIncidentTypes(types);
+      setIncidentTypes(types.data);
       setUserVic(profile?.vic || null);
 
       if (!profile?.vic) {
@@ -83,7 +79,11 @@ export default function ReportIncidentPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   // Load equipments when line is selected
   useEffect(() => {

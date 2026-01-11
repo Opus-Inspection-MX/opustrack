@@ -469,6 +469,58 @@ async function main() {
           resource: "incident-status",
           action: "delete",
         },
+
+        // Vehicle management permissions (Admin)
+        {
+          name: "vehicles:read",
+          description: "View vehicles",
+          resource: "vehicles",
+          action: "read",
+        },
+        {
+          name: "vehicles:create",
+          description: "Create vehicles",
+          resource: "vehicles",
+          action: "create",
+        },
+        {
+          name: "vehicles:update",
+          description: "Update vehicles",
+          resource: "vehicles",
+          action: "update",
+        },
+        {
+          name: "vehicles:delete",
+          description: "Delete vehicles",
+          resource: "vehicles",
+          action: "delete",
+        },
+
+        // Vehicle trip permissions (FSR)
+        {
+          name: "vehicle-trips:read",
+          description: "View vehicle trips",
+          resource: "vehicle-trips",
+          action: "read",
+        },
+        {
+          name: "vehicle-trips:create",
+          description: "Start vehicle trips",
+          resource: "vehicle-trips",
+          action: "create",
+        },
+        {
+          name: "vehicle-trips:update",
+          description: "Update and end vehicle trips",
+          resource: "vehicle-trips",
+          action: "update",
+        },
+        {
+          name: "vehicle-trips:delete",
+          description: "Delete vehicle trips",
+          resource: "vehicle-trips",
+          action: "delete",
+        },
       ];
 
       const permissionRecords = [];
@@ -527,6 +579,11 @@ async function main() {
             "reports:export",
             "incident-status:read",
             "incident-types:read",
+            "vehicles:read",
+            "vehicle-trips:read",
+            "vehicle-trips:create",
+            "vehicle-trips:update",
+            "vehicle-trips:delete",
           ],
         },
         {
@@ -768,7 +825,7 @@ async function main() {
       console.log("✅ Seeded Schedules");
 
       // Usar el primer schedule para el incidente de ejemplo
-      const schedule = scheduleRecords[0];
+      const _schedule = scheduleRecords[0];
 
       // 11) Sample Incidents - múltiples incidentes programados
       const adminUser = await tx.user.findUnique({

@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -54,13 +54,7 @@ export default function FSRWorkOrderDetailPage({
     params.then((p) => setWorkOrderId(p.id));
   }, [params]);
 
-  useEffect(() => {
-    if (workOrderId) {
-      fetchData();
-    }
-  }, [workOrderId, fetchData]);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     if (!workOrderId) return;
 
     try {
@@ -84,7 +78,13 @@ export default function FSRWorkOrderDetailPage({
     } finally {
       setLoading(false);
     }
-  };
+  }, [workOrderId]);
+
+  useEffect(() => {
+    if (workOrderId) {
+      fetchData();
+    }
+  }, [workOrderId, fetchData]);
 
   const handleDeleteActivity = async (id: string) => {
     if (!confirm("Are you sure you want to delete this activity?")) return;

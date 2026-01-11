@@ -5,6 +5,7 @@ import {
   AlertTriangle,
   Building2,
   Calendar,
+  Car,
   ClipboardList,
   Cog,
   FileText,
@@ -89,6 +90,7 @@ const menuSections = [
       { title: "Equipos", url: "/admin/equipments", icon: Wrench },
       { title: "Estados", url: "/admin/states", icon: MapPin },
       { title: "Inventario", url: "/admin/parts", icon: Package },
+      { title: "Vehículos", url: "/admin/vehicles", icon: Car },
     ],
   },
   {

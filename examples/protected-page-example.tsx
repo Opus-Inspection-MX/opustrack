@@ -2,11 +2,10 @@
 // Location: src/app/example/page.tsx
 
 import {
-  requireRouteAccess,
-  getMyAccessibleRoutes,
   canPerform,
+  getMyAccessibleRoutes,
+  requireRouteAccess,
 } from "@/lib/auth/auth";
-import { redirect } from "next/navigation";
 
 export default async function ExamplePage() {
   // Method 1: Require route access (redirects if unauthorized)

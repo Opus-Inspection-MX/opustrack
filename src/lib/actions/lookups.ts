@@ -236,8 +236,19 @@ export async function getIncidentTypes(params?: {
     take: limit,
   });
 
+  // Serialize dates and transform data for client components
+  const transformedTypes = types.map((type) => ({
+    id: type.id,
+    name: type.name,
+    description: type.description ?? undefined,
+    active: type.active,
+    incidentCount: type._count.incidents,
+    createdAt: new Date().toISOString(), // IncidentType doesn't have createdAt
+    updatedAt: new Date().toISOString(), // IncidentType doesn't have updatedAt
+  }));
+
   return {
-    data: types,
+    data: transformedTypes,
     pagination: {
       page,
       limit,
@@ -364,8 +375,19 @@ export async function getIncidentStatuses(params?: {
     take: limit,
   });
 
+  // Serialize dates and transform data for client components
+  const transformedStatuses = statuses.map((status) => ({
+    id: status.id,
+    name: status.name,
+    color: status.color,
+    active: status.active,
+    incidentCount: status._count.incidents,
+    createdAt: new Date().toISOString(), // IncidentStatus doesn't have createdAt
+    updatedAt: new Date().toISOString(), // IncidentStatus doesn't have updatedAt
+  }));
+
   return {
-    data: statuses,
+    data: transformedStatuses,
     pagination: {
       page,
       limit,

@@ -2,7 +2,7 @@
 
 import { Calendar } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -70,19 +70,7 @@ export function CreateIncidentDialog({
     scheduledTime: "09:00",
   });
 
-  useEffect(() => {
-    if (open) {
-      fetchData();
-      // Set default date from selectedDate (using local timezone)
-      const year = selectedDate.getFullYear();
-      const month = String(selectedDate.getMonth() + 1).padStart(2, "0");
-      const day = String(selectedDate.getDate()).padStart(2, "0");
-      const defaultDate = `${year}-${month}-${day}`;
-      setFormData((prev) => ({ ...prev, scheduledDate: defaultDate }));
-    }
-  }, [open, selectedDate, fetchData]);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       const [vicsRes, typesRes, statusesRes] = await Promise.all([
         fetch("/api/vics"),
@@ -107,7 +95,19 @@ export function CreateIncidentDialog({
     } catch (error) {
       console.error("Error fetching data:", error);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (open) {
+      fetchData();
+      // Set default date from selectedDate (using local timezone)
+      const year = selectedDate.getFullYear();
+      const month = String(selectedDate.getMonth() + 1).padStart(2, "0");
+      const day = String(selectedDate.getDate()).padStart(2, "0");
+      const defaultDate = `${year}-${month}-${day}`;
+      setFormData((prev) => ({ ...prev, scheduledDate: defaultDate }));
+    }
+  }, [open, selectedDate, fetchData]);
 
   // Validate that incident date/time falls within schedule's date range
   const validateDateRange = (date: string, time: string): boolean => {

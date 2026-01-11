@@ -52,5 +52,5 @@ export default function EditPermissionPage({
     );
   }
 
-  return <PermissionForm permission={permission} />;
+  return <PermissionForm permission={permission ?? undefined} />;
 }

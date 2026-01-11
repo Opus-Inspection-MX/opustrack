@@ -288,8 +288,8 @@ export default function IncidentDetailPage({
                   {incident.workOrders?.map((wo) => (
                     <TableRow key={wo.id}>
                       <TableCell>
-                        <Badge variant={getStatusColor(wo.status)}>
-                          {wo.status}
+                        <Badge variant={getStatusColor(wo.status?.name || "")}>
+                          {wo.status?.name || "No status"}
                         </Badge>
                       </TableCell>
                       <TableCell>

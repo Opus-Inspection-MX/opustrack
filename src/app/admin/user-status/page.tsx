@@ -2,7 +2,7 @@
 
 import { Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { UserStatusTable } from "@/components/user-status/user-status-table";
@@ -13,11 +13,7 @@ export default function UserStatusPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [userStatuses, setUserStatuses] = useState<any[]>([]);
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setIsLoading(true);
       const data = await getUserStatuses();
@@ -27,7 +23,11 @@ export default function UserStatusPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const handleEdit = (id: number) => {
     router.push(`/admin/user-status/${id}/edit`);

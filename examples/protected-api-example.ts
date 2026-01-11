@@ -1,21 +1,20 @@
 // Example: Protected API Routes with Permission Checks
 // Location: src/app/api/example/route.ts
 
-import { NextRequest } from "next/server";
+import type { NextRequest } from "next/server";
 import {
-  withAuth,
-  withPermission,
-  withAction,
   requireAuth,
   requirePermission,
-  requireAction,
+  withAction,
+  withAuth,
+  withPermission,
 } from "@/lib/auth/auth";
 import { prisma } from "@/lib/database/prisma.singleton";
 
 // Method 1: Using wrapper functions (Recommended)
 
 // Basic auth wrapper
-export const GET = withAuth(async (req, user) => {
+export const GET = withAuth(async (_req, user) => {
   // user is authenticated
   return Response.json({
     message: "Authenticated",
@@ -43,7 +42,7 @@ export const POST = withPermission("incidents:create", async (req, user) => {
 });
 
 // Action wrapper
-export const PUT = withAction("incidents", "update", async (req, user) => {
+export const PUT = withAction("incidents", "update", async (req, _user) => {
   // user can perform "update" action on "incidents" resource
   const body = await req.json();
 
@@ -60,7 +59,7 @@ export const PUT = withAction("incidents", "update", async (req, user) => {
 export async function PATCH(req: NextRequest) {
   try {
     // Check authentication
-    const user = await requireAuth();
+    const _user = await requireAuth();
 
     // Check specific permission
     await requirePermission("incidents:delete");

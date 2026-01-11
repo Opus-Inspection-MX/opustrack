@@ -1,7 +1,7 @@
 "use client";
 
 import { Search } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -101,19 +101,7 @@ export function ScheduleActivities({
     }
   }, [selectedSchedule]);
 
-  // Cargar incidentes cuando cambia el rango de fechas
-  useEffect(() => {
-    fetchIncidents();
-  }, [fetchIncidents]);
-
-  // Cargar tipos, schedules y vics al montar
-  useEffect(() => {
-    fetchIncidentTypes();
-    fetchSchedules();
-    fetchVics();
-  }, [fetchIncidentTypes, fetchSchedules, fetchVics]);
-
-  const fetchIncidents = async () => {
+  const fetchIncidents = useCallback(async () => {
     setLoading(true);
     try {
       const startStr = dateRange.start.toISOString().split("T")[0];
@@ -135,9 +123,9 @@ export function ScheduleActivities({
     } finally {
       setLoading(false);
     }
-  };
+  }, [dateRange]);
 
-  const fetchIncidentTypes = async () => {
+  const fetchIncidentTypes = useCallback(async () => {
     try {
       const response = await fetch("/api/incident-types");
       if (!response.ok) return;
@@ -147,9 +135,9 @@ export function ScheduleActivities({
     } catch (error) {
       console.error("Error fetching incident types:", error);
     }
-  };
+  }, []);
 
-  const fetchSchedules = async () => {
+  const fetchSchedules = useCallback(async () => {
     try {
       const response = await fetch("/api/schedules");
       if (!response.ok) return;
@@ -159,9 +147,9 @@ export function ScheduleActivities({
     } catch (error) {
       console.error("Error fetching schedules:", error);
     }
-  };
+  }, []);
 
-  const fetchVics = async () => {
+  const fetchVics = useCallback(async () => {
     try {
       const response = await fetch("/api/vics");
       if (!response.ok) return;
@@ -171,7 +159,19 @@ export function ScheduleActivities({
     } catch (error) {
       console.error("Error fetching VICs:", error);
     }
-  };
+  }, []);
+
+  // Cargar incidentes cuando cambia el rango de fechas
+  useEffect(() => {
+    fetchIncidents();
+  }, [fetchIncidents]);
+
+  // Cargar tipos, schedules y vics al montar
+  useEffect(() => {
+    fetchIncidentTypes();
+    fetchSchedules();
+    fetchVics();
+  }, [fetchIncidentTypes, fetchSchedules, fetchVics]);
 
   // Filtrar incidentes
   const filteredIncidents = incidents.filter((incident) => {

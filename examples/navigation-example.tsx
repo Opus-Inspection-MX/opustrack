@@ -1,8 +1,8 @@
 // Example: Dynamic Navigation Component
 // Location: src/components/layout/dynamic-nav.tsx
 
-import { getMyAccessibleRoutes, getCurrentUserRole } from "@/lib/auth/auth";
 import Link from "next/link";
+import { getCurrentUserRole, getMyAccessibleRoutes } from "@/lib/auth/auth";
 
 // Define route metadata
 const routeMetadata: Record<string, { label: string; icon?: string }> = {

@@ -2,7 +2,7 @@
 
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -48,11 +48,7 @@ export function LineForm({ line, mode }: LineFormProps) {
     vicId: line?.vicId || "",
   });
 
-  useEffect(() => {
-    loadVics();
-  }, [loadVics]);
-
-  const loadVics = async () => {
+  const loadVics = useCallback(async () => {
     try {
       const data = await getVICs();
       setVics(data);
@@ -62,7 +58,11 @@ export function LineForm({ line, mode }: LineFormProps) {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    loadVics();
+  }, [loadVics]);
 
   const handleChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));

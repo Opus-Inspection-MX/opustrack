@@ -86,6 +86,13 @@ export async function getIncidentById(id: number) {
               email: true,
             },
           },
+          status: true,
+          _count: {
+            select: {
+              workActivities: true,
+              workParts: true,
+            },
+          },
         },
         orderBy: { createdAt: "desc" },
       },
@@ -506,6 +513,22 @@ export async function getIncidentFormOptions() {
   const user = await requirePermission("incidents:read");
   const vicFilter = getVicWhereClause(user);
 
+  // Schedule.vicId is required (not nullable), so handle vicFilter specially
+  // If user has no VIC (vicFilter tries to match null), return impossible value to get empty result
+  const isNullFilter =
+    vicFilter.vicId &&
+    typeof vicFilter.vicId === "object" &&
+    "equals" in vicFilter.vicId &&
+    vicFilter.vicId.equals === null;
+  const scheduleWhere: { active: boolean; vicId?: string } = isNullFilter
+    ? { active: true, vicId: "__IMPOSSIBLE_VALUE__" }
+    : {
+        active: true,
+        ...(vicFilter.vicId && typeof vicFilter.vicId === "string"
+          ? { vicId: vicFilter.vicId }
+          : {}),
+      };
+
   const [types, statuses, vics, users, schedules] = await Promise.all([
     prisma.incidentType.findMany({
       where: { active: true },
@@ -534,12 +557,9 @@ export async function getIncidentFormOptions() {
       },
       orderBy: { name: "asc" },
     }),
-    // Filter schedules by VIC
+    // Filter schedules by VIC (Schedule.vicId is required, so handle null case specially)
     prisma.schedule.findMany({
-      where: {
-        active: true,
-        ...vicFilter,
-      },
+      where: scheduleWhere,
       orderBy: { scheduledAt: "desc" },
       take: 50,
     }),
