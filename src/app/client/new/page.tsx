@@ -35,14 +35,35 @@ import { getLinesByVicId } from "@/lib/actions/lines";
 import { getIncidentTypes } from "@/lib/actions/lookups";
 import { getMyProfile } from "@/lib/actions/users";
 
+interface IncidentType {
+  id: number;
+  name: string;
+}
+
+interface VIC {
+  id: string;
+  name: string;
+  code: string;
+}
+
+interface Line {
+  id: string;
+  name: string;
+}
+
+interface Equipment {
+  id: string;
+  name: string;
+}
+
 export default function ReportIncidentPage() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [incidentTypes, setIncidentTypes] = useState<any[]>([]);
-  const [userVic, setUserVic] = useState<any>(null);
-  const [lines, setLines] = useState<any[]>([]);
-  const [equipments, setEquipments] = useState<any[]>([]);
+  const [incidentTypes, setIncidentTypes] = useState<IncidentType[]>([]);
+  const [userVic, setUserVic] = useState<VIC | null>(null);
+  const [lines, setLines] = useState<Line[]>([]);
+  const [equipments, setEquipments] = useState<Equipment[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [formData, setFormData] = useState({

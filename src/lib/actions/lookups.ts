@@ -1,5 +1,6 @@
 "use server";
 
+import type { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requirePermission } from "@/lib/auth/auth";
@@ -208,7 +209,7 @@ export async function getIncidentTypes(params?: {
   const skip = (page - 1) * limit;
 
   // Build where clause
-  const where: any = {
+  const where: Prisma.IncidentTypeWhereInput = {
     active: true,
   };
 
@@ -350,7 +351,7 @@ export async function getIncidentStatuses(params?: {
   const skip = (page - 1) * limit;
 
   // Build where clause
-  const where: any = {
+  const where: Prisma.IncidentStatusWhereInput = {
     active: true,
   };
 
@@ -487,7 +488,7 @@ export async function getLineStatuses(params?: {
   const limit = params?.limit || 10;
   const skip = (page - 1) * limit;
 
-  const where: any = { active: true };
+  const where: Prisma.LineStatusWhereInput = { active: true };
   if (params?.search) {
     where.name = { contains: params.search, mode: "insensitive" };
   }
@@ -586,7 +587,7 @@ export async function getEquipmentStatuses(params?: {
   const limit = params?.limit || 10;
   const skip = (page - 1) * limit;
 
-  const where: any = { active: true };
+  const where: Prisma.EquipmentStatusWhereInput = { active: true };
   if (params?.search) {
     where.name = { contains: params.search, mode: "insensitive" };
   }
@@ -688,7 +689,7 @@ export async function getVehicleStatuses(params?: {
   const limit = params?.limit || 10;
   const skip = (page - 1) * limit;
 
-  const where: any = { active: true };
+  const where: Prisma.VehicleStatusWhereInput = { active: true };
   if (params?.search) {
     where.name = { contains: params.search, mode: "insensitive" };
   }
@@ -790,7 +791,7 @@ export async function getVehicleTripStatuses(params?: {
   const limit = params?.limit || 10;
   const skip = (page - 1) * limit;
 
-  const where: any = { active: true };
+  const where: Prisma.VehicleTripStatusWhereInput = { active: true };
   if (params?.search) {
     where.name = { contains: params.search, mode: "insensitive" };
   }

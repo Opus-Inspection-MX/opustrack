@@ -2,6 +2,14 @@ import { notFound } from "next/navigation";
 import { TripEndForm } from "@/components/vehicle-trips/trip-end-form";
 import { getVehicleTripById } from "@/lib/actions/vehicle-trips";
 
+interface VehicleTrip {
+  id: string;
+  status: string;
+  startOdometer: number;
+  endOdometer?: number | null;
+  vehicleId: string;
+}
+
 export default async function EndTripPage({
   params,
 }: {
@@ -9,10 +17,14 @@ export default async function EndTripPage({
 }) {
   const { id } = await params;
 
-  let trip;
+  let trip: VehicleTrip | null = null;
   try {
-    trip = await getVehicleTripById(id);
+    trip = (await getVehicleTripById(id)) as VehicleTrip;
   } catch (_error) {
+    notFound();
+  }
+
+  if (!trip) {
     notFound();
   }
 

@@ -18,6 +18,19 @@ import {
 import { getMyWorkOrders } from "@/lib/actions/work-orders";
 import { requireRouteAccess } from "@/lib/auth/auth";
 
+interface WorkOrderIncident {
+  id: number;
+  title: string;
+  priority: number;
+}
+
+interface WorkOrder {
+  id: string;
+  startedAt?: Date | string | null;
+  finishedAt?: Date | string | null;
+  incident?: WorkOrderIncident | null;
+}
+
 export default async function FSRDashboardPage() {
   await requireRouteAccess("/fsr");
   const workOrders = await getMyWorkOrders();
@@ -36,7 +49,7 @@ export default async function FSRDashboardPage() {
     .filter((wo) => !wo.finishedAt && (wo.incident?.priority || 0) >= 7)
     .slice(0, 5);
 
-  const getStatusBadge = (workOrder: any) => {
+  const getStatusBadge = (workOrder: WorkOrder) => {
     if (workOrder.finishedAt) {
       return (
         <Badge variant="default" className="bg-green-600">

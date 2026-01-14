@@ -20,9 +20,27 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { type WorkOrderFormData, workOrderSchema } from "@/lib/validations";
 
+interface WorkOrderData {
+  incidentId?: string;
+  assignedToId?: string;
+  status?: { name: string } | null;
+  notes?: string;
+  startedAt?: string | Date;
+  finishedAt?: string | Date;
+}
+
+interface IncidentData {
+  id?: string;
+}
+
+interface ZodIssue {
+  path?: (string | number)[];
+  message: string;
+}
+
 interface WorkOrderFormProps {
-  workOrder?: any;
-  incident?: any;
+  workOrder?: WorkOrderData;
+  incident?: IncidentData;
   onClose?: () => void;
 }
 
@@ -83,12 +101,15 @@ export function WorkOrderForm({
     }
   }, [workOrder, incident]);
 
-  const validateField = (field: string, value: any) => {
+  const validateField = (field: string, value: string) => {
     try {
-      workOrderSchema.pick({ [field]: true } as any).parse({ [field]: value });
+      workOrderSchema
+        .pick({ [field]: true } as Record<keyof WorkOrderFormData, true>)
+        .parse({ [field]: value });
       setErrors((prev) => ({ ...prev, [field]: "" }));
-    } catch (error: any) {
-      const fieldError = error.issues?.[0]?.message || "Invalid value";
+    } catch (error: unknown) {
+      const zodError = error as { issues?: ZodIssue[] };
+      const fieldError = zodError.issues?.[0]?.message || "Invalid value";
       setErrors((prev) => ({ ...prev, [field]: fieldError }));
     }
   };
@@ -123,14 +144,15 @@ export function WorkOrderForm({
       } else {
         router.push("/admin/work-orders");
       }
-    } catch (error: any) {
-      if (error.issues) {
+    } catch (error: unknown) {
+      const zodError = error as { issues?: ZodIssue[] };
+      if (zodError.issues) {
         const fieldErrors: Record<string, string> = {};
-        error.issues.forEach((err: any) => {
+        for (const err of zodError.issues) {
           if (err.path?.[0]) {
-            fieldErrors[err.path[0]] = err.message;
+            fieldErrors[err.path[0] as string] = err.message;
           }
-        });
+        }
         setErrors(fieldErrors);
       }
     } finally {

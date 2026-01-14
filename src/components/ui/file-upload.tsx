@@ -140,8 +140,8 @@ export function FileUpload({
       {/* Error messages */}
       {errors.length > 0 && (
         <div className="space-y-1">
-          {errors.map((error, index) => (
-            <p key={index} className="text-xs text-destructive">
+          {errors.map((error) => (
+            <p key={error} className="text-xs text-destructive">
               {error}
             </p>
           ))}
@@ -167,9 +167,9 @@ export function FileUpload({
           </div>
 
           <div className="border rounded-md divide-y">
-            {selectedFiles.map((file, index) => (
+            {selectedFiles.map((file) => (
               <div
-                key={index}
+                key={`${file.name}-${file.size}-${file.lastModified}`}
                 className="flex items-center justify-between p-3 hover:bg-muted/50"
               >
                 <div className="flex items-center gap-3 flex-1 min-w-0">

@@ -38,7 +38,7 @@ interface IncidentStatusFormProps {
     color: string;
     active: boolean;
   };
-  onSubmit: (data: IncidentStatusFormData) => Promise<any>;
+  onSubmit: (data: IncidentStatusFormData) => Promise<void>;
   redirectPath: string;
   title?: string;
   isEdit?: boolean;
@@ -62,7 +62,10 @@ export function IncidentStatusForm({
     active: initialData?.active ?? true,
   });
 
-  const validateField = (name: keyof IncidentStatusFormData, value: any) => {
+  const validateField = (
+    name: keyof IncidentStatusFormData,
+    value: string | boolean,
+  ) => {
     try {
       incidentStatusSchema.shape[name].parse(value);
       setErrors((prev) => ({ ...prev, [name]: "" }));
@@ -75,7 +78,7 @@ export function IncidentStatusForm({
 
   const handleInputChange = (
     name: keyof IncidentStatusFormData,
-    value: any,
+    value: string | boolean,
   ) => {
     setFormData((prev) => ({ ...prev, [name]: value }));
     if (touched[name]) {

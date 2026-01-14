@@ -19,8 +19,25 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { type IncidentFormData, incidentSchema } from "@/lib/validations";
 
+interface IncidentData {
+  title?: string;
+  description?: string;
+  priority?: string;
+  sla?: number;
+  typeId?: string;
+  statusId?: string;
+  vicId?: string;
+  reportedById?: string;
+  scheduleId?: string;
+}
+
+interface ZodIssue {
+  path?: (string | number)[];
+  message: string;
+}
+
 interface IncidentFormProps {
-  incident?: any;
+  incident?: IncidentData;
   onClose?: () => void;
 }
 
@@ -86,12 +103,15 @@ export function IncidentForm({ incident, onClose }: IncidentFormProps) {
     }
   }, [incident]);
 
-  const validateField = (field: string, value: any) => {
+  const validateField = (field: string, value: string | number) => {
     try {
-      incidentSchema.pick({ [field]: true } as any).parse({ [field]: value });
+      incidentSchema
+        .pick({ [field]: true } as Record<keyof IncidentFormData, true>)
+        .parse({ [field]: value });
       setErrors((prev) => ({ ...prev, [field]: "" }));
-    } catch (error: any) {
-      const fieldError = error.issues?.[0]?.message || "Invalid value";
+    } catch (error: unknown) {
+      const zodError = error as { issues?: ZodIssue[] };
+      const fieldError = zodError.issues?.[0]?.message || "Invalid value";
       setErrors((prev) => ({ ...prev, [field]: fieldError }));
     }
   };
@@ -126,14 +146,15 @@ export function IncidentForm({ incident, onClose }: IncidentFormProps) {
       } else {
         router.push("/admin/incidents");
       }
-    } catch (error: any) {
-      if (error.issues) {
+    } catch (error: unknown) {
+      const zodError = error as { issues?: ZodIssue[] };
+      if (zodError.issues) {
         const fieldErrors: Record<string, string> = {};
-        error.issues.forEach((err: any) => {
+        for (const err of zodError.issues) {
           if (err.path?.[0]) {
-            fieldErrors[err.path[0]] = err.message;
+            fieldErrors[err.path[0] as string] = err.message;
           }
-        });
+        }
         setErrors(fieldErrors);
       }
     } finally {

@@ -7,6 +7,28 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { OdometerPhotoPreview } from "@/components/vehicle-trips/odometer-photo-preview";
 import { getVehicleTripById } from "@/lib/actions/vehicle-trips";
 
+interface VehicleTrip {
+  id: string;
+  status: string;
+  startOdometer: number;
+  endOdometer?: number | null;
+  startLocation?: string | null;
+  endLocation?: string | null;
+  startPhoto?: string | null;
+  endPhoto?: string | null;
+  notes?: string | null;
+  startedAt: Date | string;
+  endedAt?: Date | string | null;
+  vehicle?: {
+    make: string;
+    model: string;
+    licensePlate: string;
+  } | null;
+  user?: {
+    name: string;
+  } | null;
+}
+
 export default async function TripDetailPage({
   params,
 }: {
@@ -14,10 +36,14 @@ export default async function TripDetailPage({
 }) {
   const { id } = await params;
 
-  let trip;
+  let trip: VehicleTrip | null = null;
   try {
-    trip = await getVehicleTripById(id);
+    trip = (await getVehicleTripById(id)) as VehicleTrip;
   } catch (_error) {
+    notFound();
+  }
+
+  if (!trip) {
     notFound();
   }
 

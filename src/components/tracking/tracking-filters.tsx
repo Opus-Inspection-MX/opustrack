@@ -59,7 +59,15 @@ export function TrackingFilters({
 
   const handleSearch = () => {
     // Convert to proper types and remove empty values
-    const cleanFilters: any = {};
+    const cleanFilters: {
+      vicId?: string;
+      typeId?: number;
+      statusId?: number;
+      startDate?: string;
+      endDate?: string;
+      assignedFsrId?: string;
+      folio?: string;
+    } = {};
     if (filters.vicId) cleanFilters.vicId = filters.vicId;
     if (filters.typeId) cleanFilters.typeId = parseInt(filters.typeId, 10);
     if (filters.statusId)

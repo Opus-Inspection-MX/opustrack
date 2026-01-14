@@ -30,7 +30,7 @@ type IncidentTypeFormData = z.infer<typeof incidentTypeSchema>;
 
 interface IncidentTypeFormProps {
   initialData?: Partial<IncidentTypeFormData & { id: number }>;
-  onSubmit: (data: IncidentTypeFormData) => Promise<any>;
+  onSubmit: (data: IncidentTypeFormData) => Promise<void>;
   redirectPath: string;
   title?: string;
   isEdit?: boolean;

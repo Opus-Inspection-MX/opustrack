@@ -1,5 +1,6 @@
 "use client";
 
+import type { LucideIcon } from "lucide-react";
 import {
   AlertCircle,
   CheckCircle,
@@ -41,7 +42,7 @@ const statusLabels: Record<string, string> = {
   CANCELLED: "Cancelado",
 };
 
-const statusIcons: Record<string, any> = {
+const statusIcons: Record<string, LucideIcon> = {
   PENDING: Clock,
   IN_PROGRESS: AlertCircle,
   COMPLETED: CheckCircle,
@@ -55,15 +56,31 @@ const priorityColors: Record<string, string> = {
   CRITICAL: "bg-red-100 text-red-800",
 };
 
+interface TableWorkOrder {
+  id: string;
+  status?: { name: string } | null;
+  incident: {
+    title: string;
+    type?: { name: string } | null;
+    priority: string;
+    vic?: { name: string } | null;
+  };
+  assignedTo?: { name: string } | null;
+  startedAt?: string | null;
+  finishedAt?: string | null;
+  workActivities?: Array<{ id: string }>;
+  createdAt: string;
+}
+
 interface WorkOrderTableProps {
-  workOrders: any[];
+  workOrders: TableWorkOrder[];
   onDelete: (id: string) => void;
 }
 
 export function WorkOrderTable({ workOrders, onDelete }: WorkOrderTableProps) {
   const router = useRouter();
 
-  const handleEdit = (workOrder: any) => {
+  const handleEdit = (workOrder: TableWorkOrder) => {
     router.push(`/admin/work-orders/${workOrder.id}/edit`);
   };
 

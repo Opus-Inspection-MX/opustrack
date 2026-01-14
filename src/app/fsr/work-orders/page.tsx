@@ -12,6 +12,19 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getMyWorkOrders } from "@/lib/actions/work-orders";
 import { requireRouteAccess } from "@/lib/auth/auth";
 
+interface WorkOrderIncident {
+  id: number;
+  title: string;
+  priority: number;
+}
+
+interface WorkOrder {
+  id: string;
+  startedAt?: Date | string | null;
+  finishedAt?: Date | string | null;
+  incident?: WorkOrderIncident | null;
+}
+
 export default async function FSRWorkOrdersPage() {
   await requireRouteAccess("/fsr");
   const workOrders = await getMyWorkOrders();
@@ -25,7 +38,7 @@ export default async function FSRWorkOrdersPage() {
     completed: workOrders.filter((wo) => wo.finishedAt).length,
   };
 
-  const getStatusBadge = (workOrder: any) => {
+  const getStatusBadge = (workOrder: WorkOrder) => {
     if (workOrder.finishedAt) {
       return (
         <Badge variant="default" className="bg-green-600">

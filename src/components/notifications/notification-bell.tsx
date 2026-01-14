@@ -60,7 +60,9 @@ export function NotificationBell({
       // Skip on first fetch to avoid showing notifications for existing items
       if (isFirstFetch.current) {
         // Mark all current notifications as "seen" for browser notification purposes
-        newNotifications.forEach((n) => shownNotificationIds.current.add(n.id));
+        for (const n of newNotifications) {
+          shownNotificationIds.current.add(n.id);
+        }
         isFirstFetch.current = false;
         return;
       }
@@ -115,9 +117,9 @@ export function NotificationBell({
       fetchNotifications();
     } else {
       // Mark initial notifications as seen
-      initialNotifications.forEach((n) =>
-        shownNotificationIds.current.add(n.id),
-      );
+      for (const n of initialNotifications) {
+        shownNotificationIds.current.add(n.id);
+      }
       isFirstFetch.current = false;
     }
 

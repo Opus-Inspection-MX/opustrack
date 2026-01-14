@@ -101,7 +101,9 @@ export function CreateScheduleDialog({
             <Label>Tipo de Programación</Label>
             <Select
               value={scheduleType}
-              onValueChange={(v) => setScheduleType(v as any)}
+              onValueChange={(v) =>
+                setScheduleType(v as "day" | "week" | "month")
+              }
             >
               <SelectTrigger>
                 <SelectValue />
@@ -119,7 +121,9 @@ export function CreateScheduleDialog({
             <Label>Tipo de Actividad</Label>
             <Select
               value={activityType}
-              onValueChange={(v) => setActivityType(v as any)}
+              onValueChange={(v) =>
+                setActivityType(v as "incident" | "calibration" | "maintenance")
+              }
             >
               <SelectTrigger>
                 <SelectValue />

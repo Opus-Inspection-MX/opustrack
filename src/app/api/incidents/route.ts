@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { withPermission } from "@/lib/auth/auth";
 import { prisma } from "@/lib/database/prisma.singleton";
@@ -98,7 +99,7 @@ export const GET = withPermission("incidents:read", async (request, _user) => {
     const { searchParams } = new URL(request.url);
     const vicId = searchParams.get("vicId");
 
-    const where: any = {
+    const where: Prisma.IncidentWhereInput = {
       active: true,
     };
 

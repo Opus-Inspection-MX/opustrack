@@ -34,6 +34,61 @@ import {
 } from "@/lib/actions/work-orders";
 import { getWorkParts } from "@/lib/actions/work-parts";
 
+interface WorkOrderStatus {
+  id: number;
+  name: string;
+}
+
+interface WorkOrderIncident {
+  id: number;
+  title: string;
+  priority: number;
+  status?: WorkOrderStatus | null;
+  type?: { name: string } | null;
+}
+
+interface FSRWorkOrder {
+  id: string;
+  status?: WorkOrderStatus | null;
+  startedAt?: Date | string | null;
+  finishedAt?: Date | string | null;
+  incident?: WorkOrderIncident | null;
+  attachments?: WorkOrderAttachment[];
+}
+
+interface WorkActivityPart {
+  id: string;
+  partId: string;
+  quantity: number;
+  price?: number | null;
+  part?: { name: string } | null;
+}
+
+interface FSRWorkActivity {
+  id: string;
+  description: string;
+  performedAt: Date | string;
+  workParts?: WorkActivityPart[];
+}
+
+interface FSRWorkPart {
+  id: string;
+  partId: string;
+  quantity: number;
+  price?: number | null;
+  part?: { name: string } | null;
+}
+
+interface WorkOrderAttachment {
+  id: string;
+  filename: string;
+  filepath: string;
+  mimetype: string;
+  size: number;
+  uploadedAt: Date | string;
+  description?: string | null;
+}
+
 export default function FSRWorkOrderDetailPage({
   params,
 }: {
@@ -41,10 +96,10 @@ export default function FSRWorkOrderDetailPage({
 }) {
   const router = useRouter();
   const [workOrderId, setWorkOrderId] = useState<string | null>(null);
-  const [workOrder, setWorkOrder] = useState<any>(null);
-  const [activities, setActivities] = useState<any[]>([]);
-  const [workParts, setWorkParts] = useState<any[]>([]);
-  const [attachments, setAttachments] = useState<any[]>([]);
+  const [workOrder, setWorkOrder] = useState<FSRWorkOrder | null>(null);
+  const [activities, setActivities] = useState<FSRWorkActivity[]>([]);
+  const [workParts, setWorkParts] = useState<FSRWorkPart[]>([]);
+  const [attachments, setAttachments] = useState<WorkOrderAttachment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showActivityForm, setShowActivityForm] = useState(false);
@@ -382,9 +437,9 @@ export default function FSRWorkOrderDetailPage({
           )}
         </div>
 
-        {showActivityForm && (
+        {showActivityForm && workOrderId && (
           <WorkActivityForm
-            workOrderId={workOrderId!}
+            workOrderId={workOrderId}
             onSuccess={handleActivitySuccess}
             onCancel={() => setShowActivityForm(false)}
           />
@@ -423,7 +478,7 @@ export default function FSRWorkOrderDetailPage({
               <CardContent>
                 <p className="text-sm font-medium mb-2">Parts Used:</p>
                 <div className="space-y-1">
-                  {activity.workParts.map((wp: any) => (
+                  {activity.workParts.map((wp: WorkActivityPart) => (
                     <div
                       key={wp.id}
                       className="text-sm flex justify-between items-center p-2 bg-muted rounded"
@@ -509,7 +564,7 @@ export default function FSRWorkOrderDetailPage({
 
         {attachments.length > 0 && (
           <div className="grid grid-cols-1 gap-3">
-            {attachments.map((attachment: any) => (
+            {attachments.map((attachment: WorkOrderAttachment) => (
               <Card key={attachment.id}>
                 <CardContent className="p-0">
                   <AttachmentPreview

@@ -110,58 +110,64 @@ export function CreateIncidentDialog({
   }, [open, selectedDate, fetchData]);
 
   // Validate that incident date/time falls within schedule's date range
-  const validateDateRange = (date: string, time: string): boolean => {
-    if (!selectedSchedule) {
-      setDateRangeError(null);
-      return true;
-    }
+  const validateDateRange = useCallback(
+    (date: string, time: string): boolean => {
+      if (!selectedSchedule) {
+        setDateRangeError(null);
+        return true;
+      }
 
-    if (!date || !time) {
-      setDateRangeError(null);
-      return true;
-    }
+      if (!date || !time) {
+        setDateRangeError(null);
+        return true;
+      }
 
-    const incidentDateTime = new Date(`${date}T${time}:00`);
-    const scheduleStart = new Date(selectedSchedule.scheduledAt);
+      const incidentDateTime = new Date(`${date}T${time}:00`);
+      const scheduleStart = new Date(selectedSchedule.scheduledAt);
 
-    // If schedule has an end date, validate against it
-    if (selectedSchedule.endDate) {
-      const scheduleEnd = new Date(selectedSchedule.endDate);
+      // If schedule has an end date, validate against it
+      if (selectedSchedule.endDate) {
+        const scheduleEnd = new Date(selectedSchedule.endDate);
 
-      if (incidentDateTime < scheduleStart || incidentDateTime > scheduleEnd) {
-        setDateRangeError(
-          `La fecha del incidente debe estar entre ${scheduleStart.toLocaleString(
-            "es-MX",
-            {
+        if (
+          incidentDateTime < scheduleStart ||
+          incidentDateTime > scheduleEnd
+        ) {
+          setDateRangeError(
+            `La fecha del incidente debe estar entre ${scheduleStart.toLocaleString(
+              "es-MX",
+              {
+                dateStyle: "short",
+                timeStyle: "short",
+              },
+            )} y ${scheduleEnd.toLocaleString("es-MX", {
               dateStyle: "short",
               timeStyle: "short",
-            },
-          )} y ${scheduleEnd.toLocaleString("es-MX", {
-            dateStyle: "short",
-            timeStyle: "short",
-          })}`,
-        );
-        return false;
+            })}`,
+          );
+          return false;
+        }
+      } else {
+        // If no end date, incident must be on or after schedule start
+        if (incidentDateTime < scheduleStart) {
+          setDateRangeError(
+            `La fecha del incidente debe ser igual o posterior a ${scheduleStart.toLocaleString(
+              "es-MX",
+              {
+                dateStyle: "short",
+                timeStyle: "short",
+              },
+            )}`,
+          );
+          return false;
+        }
       }
-    } else {
-      // If no end date, incident must be on or after schedule start
-      if (incidentDateTime < scheduleStart) {
-        setDateRangeError(
-          `La fecha del incidente debe ser igual o posterior a ${scheduleStart.toLocaleString(
-            "es-MX",
-            {
-              dateStyle: "short",
-              timeStyle: "short",
-            },
-          )}`,
-        );
-        return false;
-      }
-    }
 
-    setDateRangeError(null);
-    return true;
-  };
+      setDateRangeError(null);
+      return true;
+    },
+    [selectedSchedule],
+  );
 
   // Validate whenever date or time changes
   useEffect(() => {

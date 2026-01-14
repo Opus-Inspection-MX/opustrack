@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { withPermission } from "@/lib/auth/auth";
 import { prisma } from "@/lib/database/prisma.singleton";
@@ -23,7 +24,7 @@ export const GET = withPermission("schedules:read", async (request, _user) => {
     const endDate = searchParams.get("endDate") || "";
 
     // Construir el where clause
-    const where: any = {
+    const where: Prisma.ScheduleWhereInput = {
       active: true,
     };
 

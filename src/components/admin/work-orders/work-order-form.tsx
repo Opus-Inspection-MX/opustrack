@@ -71,8 +71,9 @@ export function WorkOrderForm({
   const selectedIncident = incidents.find(
     (inc) => inc.id === formData.incidentId,
   );
-  const filteredUsers = selectedIncident?.vicId
-    ? users.filter((user) => user.vicIds?.includes(selectedIncident.vicId!))
+  const selectedVicId = selectedIncident?.vicId;
+  const filteredUsers = selectedVicId
+    ? users.filter((user) => user.vicIds?.includes(selectedVicId))
     : users;
 
   const handleSubmit = async (e: React.FormEvent) => {

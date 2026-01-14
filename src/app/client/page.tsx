@@ -19,6 +19,12 @@ import { getClientIncidents } from "@/lib/actions/incidents";
 import { getMyProfile } from "@/lib/actions/users";
 import { requireRouteAccess } from "@/lib/auth/auth";
 
+interface IncidentStatus {
+  id: number;
+  name: string;
+  color?: string | null;
+}
+
 export default async function ClientDashboard() {
   await requireRouteAccess("/client");
   const incidents = await getClientIncidents();
@@ -51,7 +57,7 @@ export default async function ClientDashboard() {
     return <Badge variant="outline">Baja</Badge>;
   };
 
-  const getStatusBadge = (status: any) => {
+  const getStatusBadge = (status: IncidentStatus | null | undefined) => {
     if (!status) {
       return <Badge variant="outline">Desconocido</Badge>;
     }

@@ -134,13 +134,14 @@ export function PermissionForm({ permission }: PermissionFormProps) {
                 </p>
                 <div className="flex flex-wrap gap-1">
                   {permissionExamples.map((example) => (
-                    <code
+                    <button
+                      type="button"
                       key={example}
-                      className="text-xs bg-muted px-2 py-1 rounded cursor-pointer hover:bg-muted/80"
+                      className="text-xs bg-muted px-2 py-1 rounded cursor-pointer hover:bg-muted/80 font-mono"
                       onClick={() => handleInputChange("name", example)}
                     >
                       {example}
-                    </code>
+                    </button>
                   ))}
                 </div>
               </div>

@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { withPermission } from "@/lib/auth/auth";
 import { prisma } from "@/lib/database/prisma.singleton";
@@ -36,7 +37,7 @@ export const GET = withPermission("schedules:read", async (request, _user) => {
     }
 
     // Construir filtro
-    const where: any = {
+    const where: Prisma.IncidentWhereInput = {
       active: true,
       schedule: {
         scheduledAt: {

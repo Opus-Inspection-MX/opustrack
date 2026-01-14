@@ -39,12 +39,23 @@ interface EquipmentFormProps {
   mode: "create" | "edit";
 }
 
+interface VIC {
+  id: string;
+  name: string;
+  code: string;
+}
+
+interface Line {
+  id: number;
+  name: string;
+}
+
 export function EquipmentForm({ equipment, mode }: EquipmentFormProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [vics, setVics] = useState<any[]>([]);
-  const [lines, setLines] = useState<any[]>([]);
+  const [vics, setVics] = useState<VIC[]>([]);
+  const [lines, setLines] = useState<Line[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingLines, setLoadingLines] = useState(false);
 

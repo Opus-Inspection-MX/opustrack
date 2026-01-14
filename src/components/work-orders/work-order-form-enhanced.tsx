@@ -21,9 +21,29 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { type WorkOrderFormData, workOrderSchema } from "@/lib/validations";
 
+interface EnhancedWorkOrderData {
+  id?: string;
+  incidentId?: string;
+  assignedToId?: string;
+  status?: string;
+  notes?: string;
+  startedAt?: string;
+  finishedAt?: string;
+}
+
+interface EnhancedIncidentData {
+  id?: string;
+  title?: string;
+}
+
+interface ZodErrorIssue {
+  path?: (string | number)[];
+  message: string;
+}
+
 interface WorkOrderFormEnhancedProps {
-  workOrder?: any;
-  incident?: any;
+  workOrder?: EnhancedWorkOrderData;
+  incident?: EnhancedIncidentData;
   onClose?: () => void;
 }
 
@@ -123,7 +143,11 @@ export function WorkOrderFormEnhanced({
     setWorkParts([...workParts, newPart]);
   };
 
-  const updateWorkPart = (index: number, field: keyof WorkPart, value: any) => {
+  const updateWorkPart = (
+    index: number,
+    field: keyof WorkPart,
+    value: string | number,
+  ) => {
     const updatedParts = [...workParts];
     if (field === "partId") {
       const selectedPart = availableParts.find((p) => p.id === value);
@@ -222,14 +246,15 @@ export function WorkOrderFormEnhanced({
       } else {
         router.push("/admin/work-orders");
       }
-    } catch (error: any) {
-      if (error.issues) {
+    } catch (error: unknown) {
+      const zodError = error as { issues?: ZodErrorIssue[] };
+      if (zodError.issues) {
         const fieldErrors: Record<string, string> = {};
-        error.issues.forEach((err: any) => {
+        for (const err of zodError.issues) {
           if (err.path?.[0]) {
-            fieldErrors[err.path[0]] = err.message;
+            fieldErrors[err.path[0] as string] = err.message;
           }
-        });
+        }
         setErrors(fieldErrors);
       }
     } finally {

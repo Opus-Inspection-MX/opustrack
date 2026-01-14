@@ -52,7 +52,10 @@ export function StateForm({ initialData, isEditing = false }: StateFormProps) {
     active: initialData?.active ?? true,
   });
 
-  const validateField = (name: keyof StateFormData, value: any) => {
+  const validateField = (
+    name: keyof StateFormData,
+    value: string | boolean,
+  ) => {
     try {
       stateSchema.pick({ [name]: true }).parse({ [name]: value });
       setErrors((prev) => ({ ...prev, [name]: "" }));
@@ -66,7 +69,10 @@ export function StateForm({ initialData, isEditing = false }: StateFormProps) {
     }
   };
 
-  const handleInputChange = (name: keyof StateFormData, value: any) => {
+  const handleInputChange = (
+    name: keyof StateFormData,
+    value: string | boolean,
+  ) => {
     setFormData((prev) => ({ ...prev, [name]: value }));
     if (touched[name]) {
       validateField(name, value);

@@ -15,7 +15,10 @@ type StatusFormData = {
 
 interface GenericStatusFormProps {
   initialData?: StatusFormData;
-  onSubmit: (data: StatusFormData) => Promise<{ success: boolean; data?: any }>;
+  onSubmit: (data: StatusFormData) => Promise<{
+    success: boolean;
+    data?: StatusFormData;
+  }>;
   redirectPath: string;
   title: string;
   isEdit?: boolean;

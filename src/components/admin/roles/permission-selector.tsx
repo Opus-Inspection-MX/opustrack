@@ -27,7 +27,7 @@ type PermissionSelectorProps = {
 
 export function PermissionSelector({
   roleId,
-  roleName,
+  roleName: _roleName,
   allPermissions,
   currentPermissionIds,
 }: PermissionSelectorProps) {
@@ -68,10 +68,14 @@ export function PermissionSelector({
 
     if (allSelected) {
       // Deselect all
-      resourcePerms.forEach((p) => newSelected.delete(p.id));
+      for (const p of resourcePerms) {
+        newSelected.delete(p.id);
+      }
     } else {
       // Select all
-      resourcePerms.forEach((p) => newSelected.add(p.id));
+      for (const p of resourcePerms) {
+        newSelected.add(p.id);
+      }
     }
     setSelectedIds(newSelected);
   };

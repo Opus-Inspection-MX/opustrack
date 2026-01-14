@@ -311,6 +311,7 @@ export function ScheduleCalendar({
 
       days.push(
         <button
+          type="button"
           key={day}
           onClick={() => handleDateClick(date)}
           className={`p-2 text-sm rounded-lg hover:bg-accent transition-colors ${
@@ -367,6 +368,7 @@ export function ScheduleCalendar({
 
       days.push(
         <button
+          type="button"
           key={i}
           onClick={() => handleDateClick(date)}
           className={`p-4 rounded-lg border hover:bg-accent transition-colors ${

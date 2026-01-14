@@ -21,7 +21,8 @@ async function main() {
       }
       const userStatusActivo = userStatusRecords.find(
         (u) => u.name === "ACTIVO",
-      )!;
+      );
+      if (!userStatusActivo) throw new Error("UserStatus ACTIVO not found");
       console.log("✅ Seeded UserStatuses");
 
       // 1b) LineStatus
@@ -38,10 +39,13 @@ async function main() {
       }
       const lineStatusActivo = lineStatusRecords.find(
         (s) => s.name === "ACTIVO",
-      )!;
+      );
+      if (!lineStatusActivo) throw new Error("LineStatus ACTIVO not found");
       const lineStatusMantenimiento = lineStatusRecords.find(
         (s) => s.name === "MANTENIMIENTO",
-      )!;
+      );
+      if (!lineStatusMantenimiento)
+        throw new Error("LineStatus MANTENIMIENTO not found");
       console.log("✅ Seeded LineStatuses");
 
       // 1c) EquipmentStatus
@@ -58,10 +62,14 @@ async function main() {
       }
       const equipmentStatusOperativo = equipmentStatusRecords.find(
         (s) => s.name === "OPERATIVO",
-      )!;
+      );
+      if (!equipmentStatusOperativo)
+        throw new Error("EquipmentStatus OPERATIVO not found");
       const equipmentStatusMantenimiento = equipmentStatusRecords.find(
         (s) => s.name === "MANTENIMIENTO",
-      )!;
+      );
+      if (!equipmentStatusMantenimiento)
+        throw new Error("EquipmentStatus MANTENIMIENTO not found");
       console.log("✅ Seeded EquipmentStatuses");
 
       // 1d) VehicleStatus
@@ -83,7 +91,9 @@ async function main() {
       }
       const vehicleStatusAvailable = vehicleStatusRecords.find(
         (s) => s.name === "AVAILABLE",
-      )!;
+      );
+      if (!vehicleStatusAvailable)
+        throw new Error("VehicleStatus AVAILABLE not found");
       console.log("✅ Seeded VehicleStatuses");
 
       // 1e) VehicleTripStatus
@@ -100,7 +110,9 @@ async function main() {
       }
       const _vehicleTripStatusInProgress = vehicleTripStatusRecords.find(
         (s) => s.name === "IN_PROGRESS",
-      )!;
+      );
+      if (!_vehicleTripStatusInProgress)
+        throw new Error("VehicleTripStatus IN_PROGRESS not found");
       console.log("✅ Seeded VehicleTripStatuses");
 
       // 2) State - Only one for testing
@@ -915,7 +927,9 @@ async function main() {
       }
       const scheduleStatusConfirmado = scheduleStatusRecords.find(
         (s) => s.name === "CONFIRMADO",
-      )!;
+      );
+      if (!scheduleStatusConfirmado)
+        throw new Error("ScheduleStatus CONFIRMADO not found");
       console.log("✅ Seeded ScheduleStatuses");
 
       // 9) Parts - Multiple parts for testing inventory management

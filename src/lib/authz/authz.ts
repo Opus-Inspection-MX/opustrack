@@ -36,7 +36,10 @@ export type UserWithPermissions = {
  * Uses React's cache for request-level memoization
  */
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
-const permissionsCache = new Map<string, { data: any; timestamp: number }>();
+const permissionsCache = new Map<
+  string,
+  { data: unknown; timestamp: number }
+>();
 
 function getCached<T>(key: string, fetcher: () => Promise<T>): Promise<T> {
   const cached = permissionsCache.get(key);

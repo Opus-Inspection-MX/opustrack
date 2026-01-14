@@ -53,6 +53,7 @@ export function AttachmentPreview({
         <div className="flex-shrink-0">
           {isImage ? (
             <button
+              type="button"
               onClick={() => setShowLightbox(true)}
               className="relative group cursor-pointer"
             >

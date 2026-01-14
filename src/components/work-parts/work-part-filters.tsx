@@ -87,10 +87,13 @@ export function WorkPartFilters({ onFiltersChange }: WorkPartFiltersProps) {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="space-y-2">
-            <label className="text-sm font-medium">Search</label>
+            <label htmlFor="search-parts" className="text-sm font-medium">
+              Search
+            </label>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
+                id="search-parts"
                 placeholder="Search parts..."
                 value={search}
                 onChange={(e) => {
@@ -103,7 +106,7 @@ export function WorkPartFilters({ onFiltersChange }: WorkPartFiltersProps) {
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">Part</label>
+            <span className="text-sm font-medium">Part</span>
             <Select
               value={partId}
               onValueChange={(value) => {
@@ -126,7 +129,7 @@ export function WorkPartFilters({ onFiltersChange }: WorkPartFiltersProps) {
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">Work Order Status</label>
+            <span className="text-sm font-medium">Work Order Status</span>
             <Select
               value={workOrderStatus}
               onValueChange={(value) => {
@@ -149,7 +152,7 @@ export function WorkPartFilters({ onFiltersChange }: WorkPartFiltersProps) {
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">Status</label>
+            <span className="text-sm font-medium">Status</span>
             <Select
               value={active}
               onValueChange={(value) => {

@@ -25,8 +25,35 @@ import {
   updateMyProfile,
 } from "@/lib/actions/users";
 
+interface UserStatus {
+  id: number;
+  name: string;
+}
+
+interface Role {
+  id: number;
+  name: string;
+}
+
+interface VIC {
+  id: string;
+  name: string;
+  code: string;
+}
+
+interface UserProfile {
+  id: string;
+  name: string;
+  email: string;
+  telephone?: string | null;
+  secondaryTelephone?: string | null;
+  userStatus?: UserStatus | null;
+  role?: Role | null;
+  vics?: VIC[];
+}
+
 export default function FSRProfilePage() {
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);

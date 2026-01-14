@@ -1,5 +1,6 @@
 "use server";
 
+import type { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requirePermission } from "@/lib/auth/auth";
@@ -32,7 +33,7 @@ export async function getSchedules(params?: {
   const skip = (page - 1) * limit;
 
   // Build where clause
-  const where: any = {
+  const where: Prisma.ScheduleWhereInput = {
     active: true,
   };
 

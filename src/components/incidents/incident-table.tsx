@@ -56,8 +56,55 @@ const workOrderStatusLabels: Record<string, string> = {
   CANCELLED: "Cancelado",
 };
 
+interface WorkOrderStatus {
+  name: string;
+}
+
+interface AssignedUser {
+  name: string;
+}
+
+interface TableWorkOrder {
+  id: string;
+  status?: WorkOrderStatus | null;
+  assignedTo: AssignedUser;
+  startedAt?: string | null;
+  finishedAt?: string | null;
+}
+
+interface IncidentType {
+  name: string;
+}
+
+interface IncidentStatus {
+  name: string;
+}
+
+interface VIC {
+  name: string;
+  code: string;
+}
+
+interface ReportedByUser {
+  name: string;
+}
+
+interface TableIncident {
+  id: string;
+  title: string;
+  description?: string;
+  priority: string;
+  status: IncidentStatus;
+  type: IncidentType;
+  vic: VIC;
+  reportedBy: ReportedByUser;
+  reportedAt: string;
+  sla: number;
+  workOrders: TableWorkOrder[];
+}
+
 interface IncidentTableProps {
-  incidents: any[];
+  incidents: TableIncident[];
   onDelete: (id: string) => void;
 }
 
@@ -75,11 +122,11 @@ export function IncidentTable({ incidents, onDelete }: IncidentTableProps) {
     setExpandedRows(newExpanded);
   };
 
-  const handleEdit = (incident: any) => {
+  const handleEdit = (incident: TableIncident) => {
     router.push(`/admin/incidents/${incident.id}/edit`);
   };
 
-  const handleCreateWorkOrder = (incident: any) => {
+  const handleCreateWorkOrder = (incident: TableIncident) => {
     router.push(`/admin/work-orders/new?incidentId=${incident.id}`);
   };
 
@@ -227,82 +274,86 @@ export function IncidentTable({ incidents, onDelete }: IncidentTableProps) {
                       </h4>
                       {incident.workOrders.length > 0 ? (
                         <div className="space-y-2">
-                          {incident.workOrders.map((workOrder: any) => (
-                            <div
-                              key={workOrder.id}
-                              className="flex items-center justify-between p-3 bg-background rounded-lg border"
-                            >
-                              <div className="flex items-center gap-4">
-                                <Badge
-                                  className={
-                                    workOrderStatusColors[
-                                      workOrder.status?.name
-                                    ] || "bg-gray-100 text-gray-800"
-                                  }
-                                >
-                                  {workOrder.status?.name
-                                    ? workOrderStatusLabels[
-                                        workOrder.status.name
-                                      ] || workOrder.status.name
-                                    : "Sin estado"}
-                                </Badge>
-                                <div>
-                                  <div className="font-medium">
-                                    OT #{workOrder.id}
-                                  </div>
-                                  <div className="text-sm text-muted-foreground">
-                                    Asignado a: {workOrder.assignedTo.name}
-                                  </div>
-                                </div>
-                                <div className="text-sm">
-                                  {workOrder.startedAt && (
-                                    <div>
-                                      Iniciado:{" "}
-                                      {formatDate(workOrder.startedAt)}
-                                    </div>
-                                  )}
-                                  {workOrder.finishedAt && (
-                                    <div>
-                                      Finalizado:{" "}
-                                      {formatDate(workOrder.finishedAt)}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                              <DropdownMenu modal={false}>
-                                <DropdownMenuTrigger asChild>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-8 w-8 p-0"
-                                    type="button"
-                                  >
-                                    <span className="sr-only">Abrir menú</span>
-                                    <MoreHorizontal className="h-4 w-4" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent
-                                  align="end"
-                                  className="w-[200px]"
-                                >
-                                  <DropdownMenuItem
-                                    onClick={() =>
-                                      router.push(
-                                        `/admin/work-orders/${workOrder.id}/edit`,
-                                      )
+                          {incident.workOrders.map(
+                            (workOrder: TableWorkOrder) => (
+                              <div
+                                key={workOrder.id}
+                                className="flex items-center justify-between p-3 bg-background rounded-lg border"
+                              >
+                                <div className="flex items-center gap-4">
+                                  <Badge
+                                    className={
+                                      workOrderStatusColors[
+                                        workOrder.status?.name
+                                      ] || "bg-gray-100 text-gray-800"
                                     }
                                   >
-                                    <Edit className="h-4 w-4 mr-2" />
-                                    Editar Orden de Trabajo
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem className="text-destructive">
-                                    <Trash2 className="h-4 w-4 mr-2" />
-                                    Eliminar Orden de Trabajo
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            </div>
-                          ))}
+                                    {workOrder.status?.name
+                                      ? workOrderStatusLabels[
+                                          workOrder.status.name
+                                        ] || workOrder.status.name
+                                      : "Sin estado"}
+                                  </Badge>
+                                  <div>
+                                    <div className="font-medium">
+                                      OT #{workOrder.id}
+                                    </div>
+                                    <div className="text-sm text-muted-foreground">
+                                      Asignado a: {workOrder.assignedTo.name}
+                                    </div>
+                                  </div>
+                                  <div className="text-sm">
+                                    {workOrder.startedAt && (
+                                      <div>
+                                        Iniciado:{" "}
+                                        {formatDate(workOrder.startedAt)}
+                                      </div>
+                                    )}
+                                    {workOrder.finishedAt && (
+                                      <div>
+                                        Finalizado:{" "}
+                                        {formatDate(workOrder.finishedAt)}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                                <DropdownMenu modal={false}>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-8 w-8 p-0"
+                                      type="button"
+                                    >
+                                      <span className="sr-only">
+                                        Abrir menú
+                                      </span>
+                                      <MoreHorizontal className="h-4 w-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent
+                                    align="end"
+                                    className="w-[200px]"
+                                  >
+                                    <DropdownMenuItem
+                                      onClick={() =>
+                                        router.push(
+                                          `/admin/work-orders/${workOrder.id}/edit`,
+                                        )
+                                      }
+                                    >
+                                      <Edit className="h-4 w-4 mr-2" />
+                                      Editar Orden de Trabajo
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem className="text-destructive">
+                                      <Trash2 className="h-4 w-4 mr-2" />
+                                      Eliminar Orden de Trabajo
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </div>
+                            ),
+                          )}
                         </div>
                       ) : (
                         <p className="text-muted-foreground">

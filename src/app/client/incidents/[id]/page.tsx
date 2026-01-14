@@ -18,6 +18,47 @@ import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import { getIncidentById } from "@/lib/actions/incidents";
 
+interface IncidentType {
+  id: number;
+  name: string;
+}
+
+interface IncidentStatus {
+  id: number;
+  name: string;
+  color?: string | null;
+}
+
+interface VIC {
+  id: string;
+  name: string;
+  code: string;
+}
+
+interface ReportedByUser {
+  id: string;
+  name: string;
+}
+
+interface WorkOrder {
+  id: string;
+  status?: IncidentStatus | null;
+}
+
+interface Incident {
+  id: number;
+  title: string;
+  description?: string | null;
+  priority: number;
+  type?: IncidentType | null;
+  status?: IncidentStatus | null;
+  vic?: VIC | null;
+  reportedBy?: ReportedByUser | null;
+  reportedAt: Date | string;
+  createdAt: Date | string;
+  workOrders?: WorkOrder[];
+}
+
 export default function ClientIncidentDetailPage({
   params,
 }: {
@@ -25,7 +66,7 @@ export default function ClientIncidentDetailPage({
 }) {
   const router = useRouter();
   const [incidentId, setIncidentId] = useState<number | null>(null);
-  const [incident, setIncident] = useState<any>(null);
+  const [incident, setIncident] = useState<Incident | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -133,7 +174,7 @@ export default function ClientIncidentDetailPage({
     );
   };
 
-  const getStatusBadge = (status: any) => {
+  const getStatusBadge = (status: IncidentStatus | null | undefined) => {
     if (!status) {
       return (
         <Badge variant="outline" className="text-lg py-2 px-4">

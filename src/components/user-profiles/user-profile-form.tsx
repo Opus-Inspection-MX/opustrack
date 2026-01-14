@@ -75,7 +75,7 @@ export function UserProfileForm({
     jobPosition: initialData?.profile?.jobPosition || "",
   });
 
-  const validateField = (name: keyof UserProfileFormData, value: any) => {
+  const validateField = (name: keyof UserProfileFormData, value: string) => {
     try {
       userProfileSchema.shape[name].parse(value);
       setErrors((prev) => ({ ...prev, [name]: "" }));
@@ -86,7 +86,10 @@ export function UserProfileForm({
     }
   };
 
-  const handleInputChange = (name: keyof UserProfileFormData, value: any) => {
+  const handleInputChange = (
+    name: keyof UserProfileFormData,
+    value: string,
+  ) => {
     setFormData((prev) => ({ ...prev, [name]: value }));
     if (touched[name]) {
       validateField(name, value);

@@ -39,7 +39,9 @@ export function LineForm({ line, mode }: LineFormProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [vics, setVics] = useState<any[]>([]);
+  const [vics, setVics] = useState<
+    Array<{ id: string; name: string; code: string }>
+  >([]);
   const [loading, setLoading] = useState(true);
 
   const [formData, setFormData] = useState({

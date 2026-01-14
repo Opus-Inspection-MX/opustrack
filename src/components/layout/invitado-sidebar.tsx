@@ -43,6 +43,7 @@ export function InvitadoSidebar() {
             <span className="font-semibold">Portal Invitado</span>
           </Link>
           <button
+            type="button"
             onClick={toggleSidebar}
             className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center hover:bg-primary/90 transition-colors cursor-pointer hidden group-data-[collapsible=icon]:flex"
             aria-label="Expand Sidebar"
@@ -50,6 +51,7 @@ export function InvitadoSidebar() {
             <PanelLeftOpen className="h-5 w-5 text-primary-foreground" />
           </button>
           <button
+            type="button"
             onClick={toggleSidebar}
             className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center hover:bg-muted/80 transition-colors cursor-pointer group-data-[collapsible=icon]:hidden"
             aria-label="Collapse Sidebar"

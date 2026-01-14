@@ -45,7 +45,7 @@ interface Incident {
     id: string;
     name: string;
   } | null;
-  workOrders: any[];
+  workOrders: Array<{ id: string; status?: { name: string } | null }>;
 }
 
 interface IncidentType {

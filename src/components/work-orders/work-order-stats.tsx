@@ -3,8 +3,12 @@
 import { AlertCircle, CheckCircle, Clock } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
+interface StatsWorkOrder {
+  status: string;
+}
+
 interface WorkOrderStatsProps {
-  workOrders: any[];
+  workOrders: StatsWorkOrder[];
 }
 
 export function WorkOrderStats({ workOrders }: WorkOrderStatsProps) {

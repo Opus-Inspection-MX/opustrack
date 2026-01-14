@@ -1,5 +1,6 @@
 "use server";
 
+import type { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/database/prisma.singleton";
 
@@ -13,7 +14,7 @@ export async function getIncidentsForTracking(filters?: {
   folio?: string;
 }) {
   try {
-    const where: any = {
+    const where: Prisma.IncidentWhereInput = {
       active: true,
     };
 
@@ -44,7 +45,7 @@ export async function getIncidentsForTracking(filters?: {
     }
 
     // Build work orders filter at database level for better performance
-    const workOrdersWhere: any = { active: true };
+    const workOrdersWhere: Prisma.WorkOrderWhereInput = { active: true };
 
     if (filters?.assignedFsrId) {
       workOrdersWhere.assignedToId = filters.assignedFsrId;

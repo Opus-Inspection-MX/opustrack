@@ -1,5 +1,6 @@
 "use server";
 
+import type { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requirePermission } from "@/lib/auth/auth";
@@ -105,12 +106,12 @@ export async function createUser(data: UserFormData) {
 export async function updateUser(id: string, data: UserFormData) {
   await requirePermission("users:update");
 
-  const updateData: any = {
+  const updateData: Prisma.UserUpdateInput = {
     name: data.name,
     email: data.email,
-    roleId: data.roleId,
-    userStatusId: data.userStatusId,
-    vicId: data.vicId || null,
+    role: { connect: { id: data.roleId } },
+    userStatus: { connect: { id: data.userStatusId } },
+    vic: data.vicId ? { connect: { id: data.vicId } } : { disconnect: true },
   };
 
   // Only update password if provided
