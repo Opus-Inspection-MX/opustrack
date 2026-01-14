@@ -1,6 +1,6 @@
-import { requireRouteAccess } from "@/lib/auth/auth";
 import { GenericStatusForm } from "@/components/settings/generic-status-form";
 import { createVehicleTripStatus } from "@/lib/actions/lookups";
+import { requireRouteAccess } from "@/lib/auth/auth";
 
 export default async function NewVehicleTripStatusPage() {
   await requireRouteAccess("/admin/settings/vehicle-trip-status/new");

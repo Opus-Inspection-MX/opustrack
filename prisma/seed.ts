@@ -65,7 +65,12 @@ async function main() {
       console.log("✅ Seeded EquipmentStatuses");
 
       // 1d) VehicleStatus
-      const vehicleStatuses = ["AVAILABLE", "IN_USE", "MAINTENANCE", "INACTIVE"];
+      const vehicleStatuses = [
+        "AVAILABLE",
+        "IN_USE",
+        "MAINTENANCE",
+        "INACTIVE",
+      ];
       const vehicleStatusRecords = [];
       for (const name of vehicleStatuses) {
         vehicleStatusRecords.push(
@@ -93,7 +98,7 @@ async function main() {
           }),
         );
       }
-      const vehicleTripStatusInProgress = vehicleTripStatusRecords.find(
+      const _vehicleTripStatusInProgress = vehicleTripStatusRecords.find(
         (s) => s.name === "IN_PROGRESS",
       )!;
       console.log("✅ Seeded VehicleTripStatuses");

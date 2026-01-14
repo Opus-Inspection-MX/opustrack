@@ -1,12 +1,12 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, type FormEvent } from "react";
+import { type FormEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { FormError } from "@/components/ui/form-error";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -14,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { FormError } from "@/components/ui/form-error";
+import { Textarea } from "@/components/ui/textarea";
 import { createVehicle, updateVehicle } from "@/lib/actions/vehicles";
 
 interface Vehicle {
@@ -25,16 +25,36 @@ interface Vehicle {
   licensePlate: string;
   vin?: string | null;
   color?: string | null;
-  status: string;
+  status: { id: number; name: string };
+  assignedFsrId?: string | null;
+  assignedFsr?: { id: string; name: string; email: string } | null;
   notes?: string | null;
+}
+
+interface FsrUser {
+  id: string;
+  name: string;
+  email: string;
+}
+
+interface VehicleStatus {
+  id: number;
+  name: string;
 }
 
 interface VehicleFormProps {
   vehicle?: Vehicle;
   mode: "create" | "edit";
+  fsrUsers?: FsrUser[];
+  statuses?: VehicleStatus[];
 }
 
-export function VehicleForm({ vehicle, mode }: VehicleFormProps) {
+export function VehicleForm({
+  vehicle,
+  mode,
+  fsrUsers = [],
+  statuses = [],
+}: VehicleFormProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -45,7 +65,8 @@ export function VehicleForm({ vehicle, mode }: VehicleFormProps) {
     licensePlate: vehicle?.licensePlate || "",
     vin: vehicle?.vin || "",
     color: vehicle?.color || "",
-    status: vehicle?.status || "AVAILABLE",
+    status: vehicle?.status?.name || "AVAILABLE",
+    assignedFsrId: vehicle?.assignedFsrId || "",
     notes: vehicle?.notes || "",
   });
 
@@ -66,11 +87,16 @@ export function VehicleForm({ vehicle, mode }: VehicleFormProps) {
     setIsSubmitting(true);
 
     try {
+      const submitData = {
+        ...formData,
+        assignedFsrId: formData.assignedFsrId || null,
+      };
+
       if (mode === "create") {
-        await createVehicle(formData);
+        await createVehicle(submitData);
         router.push("/admin/vehicles");
       } else if (vehicle) {
-        await updateVehicle(vehicle.id, formData);
+        await updateVehicle(vehicle.id, submitData);
         router.push(`/admin/vehicles/${vehicle.id}`);
       }
     } catch (err) {
@@ -127,7 +153,7 @@ export function VehicleForm({ vehicle, mode }: VehicleFormProps) {
                 onChange={(e) =>
                   setFormData({
                     ...formData,
-                    year: Number.parseInt(e.target.value),
+                    year: Number.parseInt(e.target.value, 10),
                   })
                 }
                 min={1900}
@@ -185,10 +211,45 @@ export function VehicleForm({ vehicle, mode }: VehicleFormProps) {
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="AVAILABLE">Available</SelectItem>
-                  <SelectItem value="IN_USE">In Use</SelectItem>
-                  <SelectItem value="MAINTENANCE">Maintenance</SelectItem>
-                  <SelectItem value="INACTIVE">Inactive</SelectItem>
+                  {statuses.length > 0 ? (
+                    statuses.map((status) => (
+                      <SelectItem key={status.id} value={status.name}>
+                        {status.name}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <>
+                      <SelectItem value="AVAILABLE">Available</SelectItem>
+                      <SelectItem value="IN_USE">In Use</SelectItem>
+                      <SelectItem value="MAINTENANCE">Maintenance</SelectItem>
+                      <SelectItem value="INACTIVE">Inactive</SelectItem>
+                    </>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="assignedFsr">Assigned FSR (Optional)</Label>
+              <Select
+                value={formData.assignedFsrId}
+                onValueChange={(value) =>
+                  setFormData({
+                    ...formData,
+                    assignedFsrId: value === "none" ? "" : value,
+                  })
+                }
+              >
+                <SelectTrigger id="assignedFsr">
+                  <SelectValue placeholder="Select FSR" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No FSR Assigned</SelectItem>
+                  {fsrUsers.map((fsr) => (
+                    <SelectItem key={fsr.id} value={fsr.id}>
+                      {fsr.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

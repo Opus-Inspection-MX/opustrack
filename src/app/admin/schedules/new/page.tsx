@@ -22,12 +22,18 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { createSchedule, getVICsForSchedules } from "@/lib/actions/schedules";
 
+interface VicCenter {
+  id: string;
+  name: string;
+  code: string;
+}
+
 export default function NewSchedulePage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [vicCenters, setVicCenters] = useState<any[]>([]);
+  const [vicCenters, setVicCenters] = useState<VicCenter[]>([]);
 
   const [formData, setFormData] = useState({
     title: "",

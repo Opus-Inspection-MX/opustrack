@@ -1,7 +1,7 @@
 "use client";
 
+import { Eye, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import Link from "next/link";
-import { MoreHorizontal, Eye, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -26,7 +26,8 @@ interface Vehicle {
   model: string;
   year: number;
   licensePlate: string;
-  status: string;
+  status: string | { id: number; name: string; active: boolean };
+  assignedFsr?: { id: string; name: string; email: string } | null;
   _count?: {
     trips: number;
   };
@@ -108,7 +109,11 @@ export function VehicleTable({ vehicles, onDelete }: VehicleTableProps) {
                   <span className="text-muted-foreground">Trips:</span>{" "}
                   {vehicle._count?.trips || 0}
                 </div>
-                <div className="col-span-2">
+                <div>
+                  <span className="text-muted-foreground">FSR:</span>{" "}
+                  {vehicle.assignedFsr?.name || "—"}
+                </div>
+                <div>
                   <VehicleStatusBadge status={vehicle.status} />
                 </div>
               </div>
@@ -125,6 +130,7 @@ export function VehicleTable({ vehicles, onDelete }: VehicleTableProps) {
               <TableHead>License Plate</TableHead>
               <TableHead>Make & Model</TableHead>
               <TableHead>Year</TableHead>
+              <TableHead>Assigned FSR</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Trips</TableHead>
               <TableHead className="w-[70px]">Actions</TableHead>
@@ -140,6 +146,13 @@ export function VehicleTable({ vehicles, onDelete }: VehicleTableProps) {
                   {vehicle.make} {vehicle.model}
                 </TableCell>
                 <TableCell>{vehicle.year}</TableCell>
+                <TableCell>
+                  {vehicle.assignedFsr ? (
+                    <span className="text-sm">{vehicle.assignedFsr.name}</span>
+                  ) : (
+                    <span className="text-muted-foreground text-sm">—</span>
+                  )}
+                </TableCell>
                 <TableCell>
                   <VehicleStatusBadge status={vehicle.status} />
                 </TableCell>

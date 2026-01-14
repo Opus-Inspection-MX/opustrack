@@ -1,6 +1,15 @@
 import { VehicleForm } from "@/components/vehicles/vehicle-form";
+import {
+  getFsrUsersForAssignment,
+  getVehicleStatuses,
+} from "@/lib/actions/vehicles";
 
-export default function NewVehiclePage() {
+export default async function NewVehiclePage() {
+  const [fsrUsers, statuses] = await Promise.all([
+    getFsrUsersForAssignment(),
+    getVehicleStatuses(),
+  ]);
+
   return (
     <div className="container mx-auto py-6 space-y-6">
       <div>
@@ -10,7 +19,7 @@ export default function NewVehiclePage() {
         </p>
       </div>
 
-      <VehicleForm mode="create" />
+      <VehicleForm mode="create" fsrUsers={fsrUsers} statuses={statuses} />
     </div>
   );
 }

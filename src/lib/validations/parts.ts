@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { cuidSchema, baseQuerySchema } from "./common";
+import { baseQuerySchema, cuidSchema } from "./common";
 
 /**
  * Schema for creating a part
@@ -9,7 +9,10 @@ export const PartCreateSchema = z.object({
     .string()
     .min(2, "Name must be at least 2 characters")
     .max(200, "Name must be at most 200 characters"),
-  description: z.string().max(1000, "Description must be at most 1000 characters").optional(),
+  description: z
+    .string()
+    .max(1000, "Description must be at most 1000 characters")
+    .optional(),
   price: z.number().positive("Price must be positive"),
   stock: z.number().int().min(0, "Stock cannot be negative"),
   vicId: cuidSchema,
@@ -37,7 +40,10 @@ export const WorkPartCreateSchema = z.object({
   workActivityId: cuidSchema.optional(),
   partId: cuidSchema,
   quantity: z.number().int().positive("Quantity must be at least 1"),
-  description: z.string().max(500, "Description must be at most 500 characters").optional(),
+  description: z
+    .string()
+    .max(500, "Description must be at most 500 characters")
+    .optional(),
 });
 
 /**
@@ -46,7 +52,10 @@ export const WorkPartCreateSchema = z.object({
 export const WorkPartUpdateSchema = z.object({
   id: cuidSchema,
   quantity: z.number().int().positive("Quantity must be at least 1").optional(),
-  description: z.string().max(500, "Description must be at most 500 characters").optional(),
+  description: z
+    .string()
+    .max(500, "Description must be at most 500 characters")
+    .optional(),
 });
 
 /**

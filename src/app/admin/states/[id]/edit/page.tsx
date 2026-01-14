@@ -5,6 +5,13 @@ import { StateForm } from "@/components/states/state-form";
 import { Spinner } from "@/components/ui/spinner";
 import { getStateById } from "@/lib/actions/lookups";
 
+interface State {
+  id: number;
+  name: string;
+  code: string;
+  active: boolean;
+}
+
 export default function EditStatePage({
   params,
 }: {
@@ -12,7 +19,7 @@ export default function EditStatePage({
 }) {
   const { id } = use(params);
   const [isLoading, setIsLoading] = useState(true);
-  const [state, setState] = useState<any>(null);
+  const [state, setState] = useState<State | null>(null);
 
   useEffect(() => {
     const fetchState = async () => {

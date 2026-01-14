@@ -2,9 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { requirePermission, requireAuth } from "@/lib/auth/auth";
+import { requireAuth, requirePermission } from "@/lib/auth/auth";
 import { prisma } from "@/lib/database/prisma.singleton";
-import { uploadFile, deleteFile } from "@/lib/storage/file-storage";
+import { deleteFile, uploadFile } from "@/lib/storage/file-storage";
 
 export type TripStartData = {
   vehicleId: string;

@@ -1,10 +1,27 @@
-import { notFound } from "next/navigation";
+import { Pencil, User } from "lucide-react";
 import Link from "next/link";
-import { Pencil } from "lucide-react";
+import { notFound } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { VehicleStatusBadge } from "@/components/vehicles/vehicle-status-badge";
 import { getVehicleById } from "@/lib/actions/vehicles";
+
+interface Vehicle {
+  id: string;
+  make: string;
+  model: string;
+  year: number;
+  licensePlate: string;
+  vin?: string | null;
+  color?: string | null;
+  status: { id: number; name: string };
+  assignedFsrId?: string | null;
+  assignedFsr?: { id: string; name: string; email: string } | null;
+  notes?: string | null;
+  _count?: {
+    trips: number;
+  };
+}
 
 export default async function VehicleDetailPage({
   params,
@@ -13,10 +30,14 @@ export default async function VehicleDetailPage({
 }) {
   const { id } = await params;
 
-  let vehicle;
+  let vehicle: Vehicle | null = null;
   try {
-    vehicle = await getVehicleById(id);
-  } catch (error) {
+    vehicle = (await getVehicleById(id)) as Vehicle;
+  } catch {
+    notFound();
+  }
+
+  if (!vehicle) {
     notFound();
   }
 
@@ -82,9 +103,31 @@ export default async function VehicleDetailPage({
 
         <Card>
           <CardHeader>
-            <CardTitle>Usage Statistics</CardTitle>
+            <CardTitle>Assignment & Usage</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
+            <div>
+              <div className="text-sm text-muted-foreground">Assigned FSR</div>
+              {vehicle.assignedFsr ? (
+                <div className="flex items-center gap-2 mt-1">
+                  <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                    <User className="h-4 w-4 text-primary" />
+                  </div>
+                  <div>
+                    <div className="font-medium">
+                      {vehicle.assignedFsr.name}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {vehicle.assignedFsr.email}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-muted-foreground italic">
+                  No FSR assigned
+                </div>
+              )}
+            </div>
             <div>
               <div className="text-sm text-muted-foreground">Total Trips</div>
               <div className="text-2xl font-bold">

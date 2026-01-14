@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { cuidSchema, intIdSchema, baseQuerySchema } from "./common";
+import { baseQuerySchema, cuidSchema, intIdSchema } from "./common";
 
 /**
  * Schema for creating a schedule
@@ -9,7 +9,10 @@ export const ScheduleCreateSchema = z.object({
     .string()
     .min(3, "Title must be at least 3 characters")
     .max(200, "Title must be at most 200 characters"),
-  description: z.string().max(2000, "Description must be at most 2000 characters").optional(),
+  description: z
+    .string()
+    .max(2000, "Description must be at most 2000 characters")
+    .optional(),
   scheduledAt: z.date({ message: "Scheduled date is required" }),
   endDate: z.date().optional().nullable(),
   statusId: intIdSchema.optional().nullable(),
@@ -53,5 +56,7 @@ export const ScheduleQuerySchema = baseQuerySchema.extend({
 export type ScheduleCreateInput = z.infer<typeof ScheduleCreateSchema>;
 export type ScheduleUpdateInput = z.infer<typeof ScheduleUpdateSchema>;
 export type ScheduleDeleteInput = z.infer<typeof ScheduleDeleteSchema>;
-export type ScheduleChangeStatusInput = z.infer<typeof ScheduleChangeStatusSchema>;
+export type ScheduleChangeStatusInput = z.infer<
+  typeof ScheduleChangeStatusSchema
+>;
 export type ScheduleQueryInput = z.infer<typeof ScheduleQuerySchema>;

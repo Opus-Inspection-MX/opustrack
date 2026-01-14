@@ -148,7 +148,11 @@ export function IncidentTypeForm({
               {isLoading && <Spinner size="sm" />}
               {isEdit ? "Update Type" : "Create Type"}
             </Button>
-            <Button type="button" variant="outline" onClick={() => router.back()}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => router.back()}
+            >
               Cancel
             </Button>
           </div>

@@ -29,10 +29,36 @@ interface IncidentStatus {
   name: string;
 }
 
+interface Schedule {
+  id: string;
+  title: string;
+  description?: string | null;
+  scheduledAt: Date | string;
+  endDate?: Date | string | null;
+  vicId: string;
+  vicName: string;
+  incidentCount: number;
+  active: boolean;
+  createdAt: Date | string;
+}
+
+interface ScheduleApiResponse {
+  id: string;
+  title: string;
+  description?: string | null;
+  scheduledAt: Date | string;
+  endDate?: Date | string | null;
+  vicId: string;
+  vic?: { name: string };
+  _count?: { incidents: number };
+  active: boolean;
+  createdAt: Date | string;
+}
+
 export default function SchedulesPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
-  const [schedules, setSchedules] = useState<any[]>([]);
+  const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [vics, setVics] = useState<VIC[]>([]);
   const [statuses, setStatuses] = useState<IncidentStatus[]>([]);
 
@@ -86,7 +112,7 @@ export default function SchedulesPage() {
       });
 
       // Transform data to match table expectations
-      const transformed = result.data.map((schedule: any) => ({
+      const transformed = result.data.map((schedule: ScheduleApiResponse) => ({
         id: schedule.id,
         title: schedule.title,
         description: schedule.description,

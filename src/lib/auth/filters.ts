@@ -80,7 +80,9 @@ export function getVicWhereClause(user: UserWithPermissions): {
  * });
  * ```
  */
-export async function getVicWhereClauseAsync(user: UserWithPermissions): Promise<{
+export async function getVicWhereClauseAsync(
+  user: UserWithPermissions,
+): Promise<{
   vicId?: string | { in: string[] } | { equals: null };
 }> {
   // Admin can see everything

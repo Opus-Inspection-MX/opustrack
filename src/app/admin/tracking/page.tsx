@@ -13,24 +13,77 @@ import {
 } from "@/lib/actions/tracking";
 import { getVICs } from "@/lib/actions/vics";
 
-export default function TrackingPage() {
-  const [incidents, setIncidents] = useState<any[]>([]);
-  const [vics, setVics] = useState<any[]>([]);
-  const [incidentTypes, setIncidentTypes] = useState<any[]>([]);
-  const [incidentStatuses, setIncidentStatuses] = useState<any[]>([]);
-  const [allFsrs, setAllFsrs] = useState<any[]>([]);
-  const [fsrsByVic, setFsrsByVic] = useState<Record<string, any[]>>({});
-  const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState<any>({});
+interface VIC {
+  id: string;
+  name: string;
+  code: string;
+}
 
-  const loadIncidents = useCallback(async (filterParams: any) => {
-    try {
-      const data = await getIncidentsForTracking(filterParams);
-      setIncidents(data);
-    } catch (error) {
-      console.error("Error loading incidents:", error);
-    }
-  }, []);
+interface IncidentType {
+  id: number;
+  name: string;
+}
+
+interface IncidentStatus {
+  id: number;
+  name: string;
+}
+
+interface FSR {
+  id: string;
+  name: string;
+  email: string;
+}
+
+interface TrackingIncident {
+  id: number;
+  title: string;
+  description?: string | null;
+  vicId: string;
+  typeId?: number | null;
+  statusId?: number | null;
+  reportedAt: Date | string;
+  assignedFsrId?: string | null;
+  priority?: number;
+  type?: IncidentType | null;
+  status?: IncidentStatus | null;
+  vic?: VIC | null;
+  assignedFsr?: FSR | null;
+}
+
+interface TrackingFiltersState {
+  startDate?: string;
+  endDate?: string;
+  vicId?: string;
+  typeId?: number;
+  statusId?: number;
+  fsrId?: string;
+  search?: string;
+}
+
+export default function TrackingPage() {
+  const [incidents, setIncidents] = useState<TrackingIncident[]>([]);
+  const [vics, setVics] = useState<VIC[]>([]);
+  const [incidentTypes, setIncidentTypes] = useState<IncidentType[]>([]);
+  const [incidentStatuses, setIncidentStatuses] = useState<IncidentStatus[]>(
+    [],
+  );
+  const [allFsrs, setAllFsrs] = useState<FSR[]>([]);
+  const [fsrsByVic, setFsrsByVic] = useState<Record<string, FSR[]>>({});
+  const [loading, setLoading] = useState(true);
+  const [filters, setFilters] = useState<TrackingFiltersState>({});
+
+  const loadIncidents = useCallback(
+    async (filterParams: TrackingFiltersState) => {
+      try {
+        const data = await getIncidentsForTracking(filterParams);
+        setIncidents(data as TrackingIncident[]);
+      } catch (error) {
+        console.error("Error loading incidents:", error);
+      }
+    },
+    [],
+  );
 
   const loadInitialData = useCallback(async () => {
     try {
@@ -47,8 +100,8 @@ export default function TrackingPage() {
       setIncidentStatuses(statusesResult.data);
 
       // Load FSRs for all VICs in parallel (performance optimization)
-      const fsrsMap: Record<string, any[]> = {};
-      const allFsrsArray: any[] = [];
+      const fsrsMap: Record<string, FSR[]> = {};
+      const allFsrsArray: FSR[] = [];
 
       const fsrPromises = vicsData.map(async (vic) => {
         try {
@@ -91,7 +144,7 @@ export default function TrackingPage() {
     loadIncidents(filters);
   }, [filters, loadIncidents]);
 
-  const handleFilterChange = (newFilters: any) => {
+  const handleFilterChange = (newFilters: TrackingFiltersState) => {
     setFilters(newFilters);
   };
 

@@ -1,6 +1,6 @@
-import { requireRouteAccess } from "@/lib/auth/auth";
 import { GenericStatusForm } from "@/components/settings/generic-status-form";
 import { createLineStatus } from "@/lib/actions/lookups";
+import { requireRouteAccess } from "@/lib/auth/auth";
 
 export default async function NewLineStatusPage() {
   await requireRouteAccess("/admin/settings/line-status/new");

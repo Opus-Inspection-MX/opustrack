@@ -22,11 +22,23 @@ import {
 } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 
+interface User {
+  id: string | string[];
+  name: string;
+  email: string;
+  role: { id: number; name: string };
+  userStatus: { id: number; name: string };
+  vicCenter?: { id: string; name: string; code: string } | null;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export default function UserDetailPage() {
   const router = useRouter();
   const params = useParams();
   const [isLoading, setIsLoading] = useState(true);
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
     const fetchUser = async () => {

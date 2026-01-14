@@ -1,7 +1,10 @@
 import { notFound } from "next/navigation";
-import { requireRouteAccess } from "@/lib/auth/auth";
 import { IncidentStatusForm } from "@/components/incident-status/incident-status-form";
-import { getIncidentStatusById, updateIncidentStatus } from "@/lib/actions/lookups";
+import {
+  getIncidentStatusById,
+  updateIncidentStatus,
+} from "@/lib/actions/lookups";
+import { requireRouteAccess } from "@/lib/auth/auth";
 
 export default async function EditIncidentStatusPage({
   params,
@@ -11,7 +14,7 @@ export default async function EditIncidentStatusPage({
   await requireRouteAccess("/admin/incident-status");
 
   const { id } = await params;
-  const incidentStatus = await getIncidentStatusById(Number.parseInt(id));
+  const incidentStatus = await getIncidentStatusById(Number.parseInt(id, 10));
 
   if (!incidentStatus) {
     notFound();

@@ -1,13 +1,13 @@
 "use client";
 
+import { Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { VehicleTable } from "@/components/vehicles/vehicle-table";
-import { getVehicles, deleteVehicle } from "@/lib/actions/vehicles";
+import { deleteVehicle, getVehicles } from "@/lib/actions/vehicles";
 
 interface Vehicle {
   id: string;
@@ -17,7 +17,9 @@ interface Vehicle {
   licensePlate: string;
   vin?: string | null;
   color?: string | null;
-  status: string;
+  status: { id: number; name: string; active: boolean };
+  assignedFsrId?: string | null;
+  assignedFsr?: { id: string; name: string; email: string } | null;
   notes?: string | null;
   createdAt: string;
   updatedAt: string;

@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
-import { requireRouteAccess } from "@/lib/auth/auth";
 import { GenericStatusForm } from "@/components/settings/generic-status-form";
 import { getUserStatusById, updateUserStatus } from "@/lib/actions/lookups";
+import { requireRouteAccess } from "@/lib/auth/auth";
 
 export default async function EditUserStatusPage({
   params,
@@ -11,7 +11,7 @@ export default async function EditUserStatusPage({
   await requireRouteAccess("/admin/user-status");
 
   const { id } = await params;
-  const status = await getUserStatusById(Number.parseInt(id));
+  const status = await getUserStatusById(Number.parseInt(id, 10));
 
   if (!status) {
     notFound();
@@ -21,9 +21,7 @@ export default async function EditUserStatusPage({
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold">Edit User Status</h1>
-        <p className="text-muted-foreground">
-          Update user status information
-        </p>
+        <p className="text-muted-foreground">Update user status information</p>
       </div>
 
       <GenericStatusForm

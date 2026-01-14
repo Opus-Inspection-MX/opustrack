@@ -35,6 +35,71 @@ import {
 import { deleteWorkPart, getWorkParts } from "@/lib/actions/work-parts";
 import { formatFileSize, getFileIcon } from "@/lib/upload";
 
+interface WorkOrderStatus {
+  id: number;
+  name: string;
+}
+
+interface IncidentType {
+  id: number;
+  name: string;
+}
+
+interface WorkOrderIncident {
+  id: number;
+  title: string;
+  vicId: string;
+  priority: number;
+  type?: IncidentType | null;
+  status?: WorkOrderStatus | null;
+}
+
+interface WorkOrder {
+  id: string;
+  status?: WorkOrderStatus | null;
+  incident?: WorkOrderIncident | null;
+  attachments?: Attachment[];
+}
+
+interface WorkActivity {
+  id: string;
+  description: string;
+  performedAt: Date | string;
+  workParts?: WorkPart[];
+}
+
+interface Part {
+  id: string;
+  name: string;
+  price: number;
+  stock: number;
+}
+
+interface WorkPart {
+  id: string;
+  partId: string;
+  quantity: number;
+  price: number;
+  part?: Part | null;
+}
+
+interface Attachment {
+  id: string;
+  filename: string;
+  filepath: string;
+  mimetype: string;
+  size: number;
+  uploadedAt: Date | string;
+  description?: string | null;
+}
+
+interface User {
+  id: string;
+  name: string;
+  email: string;
+  vicIds?: string[];
+}
+
 export default function EditWorkOrderPage({
   params,
 }: {
@@ -42,13 +107,15 @@ export default function EditWorkOrderPage({
 }) {
   const router = useRouter();
   const [workOrderId, setWorkOrderId] = useState<string | null>(null);
-  const [workOrder, setWorkOrder] = useState<any>(null);
-  const [activities, setActivities] = useState<any[]>([]);
-  const [workParts, setWorkParts] = useState<any[]>([]);
-  const [availableParts, setAvailableParts] = useState<any[]>([]);
-  const [availableUsers, setAvailableUsers] = useState<any[]>([]);
-  const [availableStatuses, setAvailableStatuses] = useState<any[]>([]);
-  const [attachments, setAttachments] = useState<any[]>([]);
+  const [workOrder, setWorkOrder] = useState<WorkOrder | null>(null);
+  const [activities, setActivities] = useState<WorkActivity[]>([]);
+  const [workParts, setWorkParts] = useState<WorkPart[]>([]);
+  const [availableParts, setAvailableParts] = useState<Part[]>([]);
+  const [availableUsers, setAvailableUsers] = useState<User[]>([]);
+  const [availableStatuses, setAvailableStatuses] = useState<WorkOrderStatus[]>(
+    [],
+  );
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [loading, setLoading] = useState(true);
   const [showActivityForm, setShowActivityForm] = useState(false);
   const [showPartForm, setShowPartForm] = useState(false);
@@ -247,9 +314,9 @@ export default function EditWorkOrderPage({
           </Button>
         </div>
 
-        {showActivityForm && (
+        {showActivityForm && workOrderId && (
           <WorkActivityForm
-            workOrderId={workOrderId!}
+            workOrderId={workOrderId}
             onSuccess={handleActivitySuccess}
             onCancel={() => setShowActivityForm(false)}
           />
@@ -282,7 +349,7 @@ export default function EditWorkOrderPage({
               <CardContent>
                 <p className="text-sm font-medium mb-2">Parts Used:</p>
                 <div className="space-y-1">
-                  {activity.workParts.map((wp: any) => (
+                  {activity.workParts.map((wp: WorkPart) => (
                     <div
                       key={wp.id}
                       className="text-sm flex justify-between items-center p-2 bg-muted rounded"
@@ -324,9 +391,9 @@ export default function EditWorkOrderPage({
           </Button>
         </div>
 
-        {showPartForm && (
+        {showPartForm && workOrderId && (
           <WorkPartForm
-            workOrderId={workOrderId!}
+            workOrderId={workOrderId}
             parts={availableParts}
             onSuccess={handlePartSuccess}
             onCancel={() => setShowPartForm(false)}
@@ -392,7 +459,7 @@ export default function EditWorkOrderPage({
           <Card>
             <CardContent className="p-0">
               <div className="divide-y">
-                {attachments.map((attachment: any) => (
+                {attachments.map((attachment: Attachment) => (
                   <div
                     key={attachment.id}
                     className="p-4 flex items-center justify-between hover:bg-muted/50"

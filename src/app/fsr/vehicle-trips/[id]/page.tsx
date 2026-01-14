@@ -1,9 +1,9 @@
-import { notFound } from "next/navigation";
+import { Calendar, Car, MapPin, Pencil } from "lucide-react";
 import Link from "next/link";
-import { MapPin, Calendar, Car, Pencil } from "lucide-react";
+import { notFound } from "next/navigation";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { OdometerPhotoPreview } from "@/components/vehicle-trips/odometer-photo-preview";
 import { getVehicleTripById } from "@/lib/actions/vehicle-trips";
 
@@ -17,7 +17,7 @@ export default async function TripDetailPage({
   let trip;
   try {
     trip = await getVehicleTripById(id);
-  } catch (error) {
+  } catch (_error) {
     notFound();
   }
 

@@ -556,7 +556,9 @@ export async function deleteLineStatus(id: number) {
     where: { statusId: id, active: true },
   });
   if (lineCount > 0) {
-    throw new Error(`Cannot delete status. ${lineCount} line(s) have this status.`);
+    throw new Error(
+      `Cannot delete status. ${lineCount} line(s) have this status.`,
+    );
   }
   await prisma.lineStatus.update({
     where: { id },
@@ -633,7 +635,10 @@ export async function createEquipmentStatus(data: EquipmentStatusFormData) {
   return { success: true, data: status };
 }
 
-export async function updateEquipmentStatus(id: number, data: EquipmentStatusFormData) {
+export async function updateEquipmentStatus(
+  id: number,
+  data: EquipmentStatusFormData,
+) {
   await requirePermission("settings:update");
   const status = await prisma.equipmentStatus.update({
     where: { id },
@@ -653,7 +658,9 @@ export async function deleteEquipmentStatus(id: number) {
     where: { statusId: id, active: true },
   });
   if (equipmentCount > 0) {
-    throw new Error(`Cannot delete status. ${equipmentCount} equipment(s) have this status.`);
+    throw new Error(
+      `Cannot delete status. ${equipmentCount} equipment(s) have this status.`,
+    );
   }
   await prisma.equipmentStatus.update({
     where: { id },
@@ -730,7 +737,10 @@ export async function createVehicleStatus(data: VehicleStatusFormData) {
   return { success: true, data: status };
 }
 
-export async function updateVehicleStatus(id: number, data: VehicleStatusFormData) {
+export async function updateVehicleStatus(
+  id: number,
+  data: VehicleStatusFormData,
+) {
   await requirePermission("settings:update");
   const status = await prisma.vehicleStatus.update({
     where: { id },
@@ -750,7 +760,9 @@ export async function deleteVehicleStatus(id: number) {
     where: { statusId: id, active: true },
   });
   if (vehicleCount > 0) {
-    throw new Error(`Cannot delete status. ${vehicleCount} vehicle(s) have this status.`);
+    throw new Error(
+      `Cannot delete status. ${vehicleCount} vehicle(s) have this status.`,
+    );
   }
   await prisma.vehicleStatus.update({
     where: { id },
@@ -827,7 +839,10 @@ export async function createVehicleTripStatus(data: VehicleTripStatusFormData) {
   return { success: true, data: status };
 }
 
-export async function updateVehicleTripStatus(id: number, data: VehicleTripStatusFormData) {
+export async function updateVehicleTripStatus(
+  id: number,
+  data: VehicleTripStatusFormData,
+) {
   await requirePermission("settings:update");
   const status = await prisma.vehicleTripStatus.update({
     where: { id },
@@ -847,7 +862,9 @@ export async function deleteVehicleTripStatus(id: number) {
     where: { statusId: id, active: true },
   });
   if (tripCount > 0) {
-    throw new Error(`Cannot delete status. ${tripCount} trip(s) have this status.`);
+    throw new Error(
+      `Cannot delete status. ${tripCount} trip(s) have this status.`,
+    );
   }
   await prisma.vehicleTripStatus.update({
     where: { id },

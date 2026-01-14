@@ -11,17 +11,45 @@ import {
   getAllWorkActivities,
 } from "@/lib/actions/work-activities";
 
+interface WorkActivityApiResponse {
+  id: string;
+  description: string;
+  performedAt: Date | string;
+  workOrderId: string;
+  workOrder?: {
+    incident?: {
+      title: string;
+    } | null;
+  } | null;
+  workParts?: unknown[];
+  active: boolean;
+  createdAt: Date | string;
+  updatedAt: Date | string;
+}
+
+interface WorkActivity {
+  id: string;
+  description: string;
+  performedAt: Date | string;
+  workOrderId: string;
+  workOrderTitle: string;
+  partsCount: number;
+  active: boolean;
+  createdAt: Date | string;
+  updatedAt: Date | string;
+}
+
 export default function WorkActivitiesPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
-  const [workActivities, setWorkActivities] = useState<any[]>([]);
+  const [workActivities, setWorkActivities] = useState<WorkActivity[]>([]);
 
   useEffect(() => {
     const fetchActivities = async () => {
       try {
         const data = await getAllWorkActivities();
         // Transform data to match table expectations
-        const transformed = data.map((activity: any) => ({
+        const transformed = data.map((activity: WorkActivityApiResponse) => ({
           id: activity.id,
           description: activity.description,
           performedAt: activity.performedAt,

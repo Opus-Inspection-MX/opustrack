@@ -11,6 +11,7 @@ import {
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LogoutButton } from "@/components/auth/logout-button";
+import { NotificationBell } from "@/components/notifications";
 import {
   Sidebar,
   SidebarContent,
@@ -104,7 +105,10 @@ export function FSRSidebar() {
 
       <SidebarFooter className="border-t p-4 group-data-[collapsible=icon]:p-2">
         <div className="flex flex-col gap-2 group-data-[collapsible=icon]:items-center">
-          <ThemeToggle />
+          <div className="flex items-center gap-2 group-data-[collapsible=icon]:flex-col">
+            <NotificationBell />
+            <ThemeToggle />
+          </div>
           <div className="w-full group-data-[collapsible=icon]:w-auto">
             <LogoutButton
               variant="outline"

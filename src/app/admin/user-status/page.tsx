@@ -11,9 +11,7 @@ import { Pagination } from "@/components/ui/pagination";
 import { Spinner } from "@/components/ui/spinner";
 import { deleteUserStatus, getUserStatuses } from "@/lib/actions/lookups";
 
-type UserStatus = Awaited<
-  ReturnType<typeof getUserStatuses>
->["data"][number];
+type UserStatus = Awaited<ReturnType<typeof getUserStatuses>>["data"][number];
 
 export default function UserStatusPage() {
   const router = useRouter();
@@ -85,9 +83,7 @@ export default function UserStatusPage() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold">User Status</h1>
-          <p className="text-muted-foreground">
-            Manage user status types
-          </p>
+          <p className="text-muted-foreground">Manage user status types</p>
         </div>
         <Button onClick={() => router.push("/admin/user-status/new")}>
           <Plus className="mr-2 h-4 w-4" />

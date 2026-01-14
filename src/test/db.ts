@@ -1,5 +1,5 @@
-import { PrismaClient } from "@prisma/client";
 import { execSync } from "node:child_process";
+import { PrismaClient } from "@prisma/client";
 
 // Use a separate test database
 const TEST_DATABASE_URL =

@@ -16,6 +16,16 @@ import { getWorkActivities } from "@/lib/actions/work-activities";
 import { getWorkOrderById } from "@/lib/actions/work-orders";
 import { getWorkParts } from "@/lib/actions/work-parts";
 
+interface Attachment {
+  id: string;
+  filename: string;
+  filepath: string;
+  mimetype: string;
+  size: number;
+  uploadedAt: Date | string;
+  description?: string | null;
+}
+
 export default async function WorkOrderDetailPage({
   params,
 }: {
@@ -276,7 +286,7 @@ export default async function WorkOrderDetailPage({
             </p>
           ) : (
             <div className="grid grid-cols-1 gap-3">
-              {workOrder.attachments.map((attachment: any) => (
+              {workOrder.attachments.map((attachment: Attachment) => (
                 <AttachmentPreview
                   key={attachment.id}
                   attachment={attachment}

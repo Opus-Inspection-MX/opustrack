@@ -10,8 +10,8 @@
  * 3. Next request → validateSession() detects version mismatch → redirect to login
  */
 
-import { prisma } from "@/lib/database/prisma.singleton";
 import { redirect } from "next/navigation";
+import { prisma } from "@/lib/database/prisma.singleton";
 
 /**
  * Validates that the user's session version matches the database.
@@ -140,9 +140,7 @@ export async function invalidateMultipleUserSessions(
     },
   });
 
-  console.log(
-    `[SESSION] Invalidated sessions for ${result.count} users`,
-  );
+  console.log(`[SESSION] Invalidated sessions for ${result.count} users`);
 }
 
 /**

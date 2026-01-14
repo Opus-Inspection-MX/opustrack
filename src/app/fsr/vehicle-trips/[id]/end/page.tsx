@@ -12,7 +12,7 @@ export default async function EndTripPage({
   let trip;
   try {
     trip = await getVehicleTripById(id);
-  } catch (error) {
+  } catch (_error) {
     notFound();
   }
 

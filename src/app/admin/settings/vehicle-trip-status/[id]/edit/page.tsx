@@ -1,7 +1,10 @@
 import { notFound } from "next/navigation";
-import { requireRouteAccess } from "@/lib/auth/auth";
 import { GenericStatusForm } from "@/components/settings/generic-status-form";
-import { getVehicleTripStatusById, updateVehicleTripStatus } from "@/lib/actions/lookups";
+import {
+  getVehicleTripStatusById,
+  updateVehicleTripStatus,
+} from "@/lib/actions/lookups";
+import { requireRouteAccess } from "@/lib/auth/auth";
 
 export default async function EditVehicleTripStatusPage({
   params,
@@ -11,7 +14,7 @@ export default async function EditVehicleTripStatusPage({
   await requireRouteAccess("/admin/settings/vehicle-trip-status");
 
   const { id } = await params;
-  const status = await getVehicleTripStatusById(Number.parseInt(id));
+  const status = await getVehicleTripStatusById(Number.parseInt(id, 10));
 
   if (!status) {
     notFound();

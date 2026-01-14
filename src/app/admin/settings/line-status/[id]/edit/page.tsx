@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
-import { requireRouteAccess } from "@/lib/auth/auth";
 import { GenericStatusForm } from "@/components/settings/generic-status-form";
 import { getLineStatusById, updateLineStatus } from "@/lib/actions/lookups";
+import { requireRouteAccess } from "@/lib/auth/auth";
 
 export default async function EditLineStatusPage({
   params,
@@ -11,7 +11,7 @@ export default async function EditLineStatusPage({
   await requireRouteAccess("/admin/settings/line-status");
 
   const { id } = await params;
-  const status = await getLineStatusById(Number.parseInt(id));
+  const status = await getLineStatusById(Number.parseInt(id, 10));
 
   if (!status) {
     notFound();
@@ -21,9 +21,7 @@ export default async function EditLineStatusPage({
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold">Edit Line Status</h1>
-        <p className="text-muted-foreground">
-          Update line status information
-        </p>
+        <p className="text-muted-foreground">Update line status information</p>
       </div>
 
       <GenericStatusForm

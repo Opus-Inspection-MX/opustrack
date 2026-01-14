@@ -1,12 +1,13 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { type FormEvent, useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { FileUpload } from "@/components/ui/file-upload";
+import { FormError } from "@/components/ui/form-error";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -14,15 +15,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { FormError } from "@/components/ui/form-error";
-import { FileUpload } from "@/components/ui/file-upload";
-import { GPSLocationCapture } from "./gps-location-capture";
+import { Textarea } from "@/components/ui/textarea";
 import {
-  startVehicleTrip,
   getAvailableVehicles,
   getMyWorkOrdersForTrips,
+  startVehicleTrip,
 } from "@/lib/actions/vehicle-trips";
 import { fileToBase64, normalizeMimeType } from "@/lib/upload";
+import { GPSLocationCapture } from "./gps-location-capture";
 
 interface Vehicle {
   id: string;
@@ -110,7 +110,7 @@ export function TripStartForm() {
 
     if (
       !formData.startOdometer ||
-      Number.parseInt(formData.startOdometer) <= 0
+      Number.parseInt(formData.startOdometer, 10) <= 0
     ) {
       setError("Please enter a valid odometer reading");
       return;
@@ -132,7 +132,7 @@ export function TripStartForm() {
       await startVehicleTrip({
         vehicleId: formData.vehicleId,
         workOrderId: formData.workOrderId || null,
-        startOdometer: Number.parseInt(formData.startOdometer),
+        startOdometer: Number.parseInt(formData.startOdometer, 10),
         startPhotoFilename: photo.name,
         startPhotoBase64: photoBase64,
         startPhotoMimetype: photoMimetype,

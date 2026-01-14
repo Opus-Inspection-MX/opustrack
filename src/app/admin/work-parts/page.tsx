@@ -9,9 +9,34 @@ import { WorkPartFilters } from "@/components/work-parts/work-part-filters";
 import { WorkPartTable } from "@/components/work-parts/work-part-table";
 import { deleteWorkPart, getAllWorkParts } from "@/lib/actions/work-parts";
 
+interface Part {
+  id: string;
+  name: string;
+}
+
+interface WorkOrderStatus {
+  name: string;
+}
+
+interface WorkOrder {
+  status?: WorkOrderStatus | null;
+}
+
+interface WorkPart {
+  id: string;
+  workOrderId: string;
+  partId: string;
+  quantity: number;
+  price?: number | null;
+  description?: string | null;
+  active: boolean;
+  part?: Part | null;
+  workOrder?: WorkOrder | null;
+}
+
 export default function WorkPartsPage() {
-  const [workParts, setWorkParts] = useState<any[]>([]);
-  const [filteredWorkParts, setFilteredWorkParts] = useState<any[]>([]);
+  const [workParts, setWorkParts] = useState<WorkPart[]>([]);
+  const [filteredWorkParts, setFilteredWorkParts] = useState<WorkPart[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 

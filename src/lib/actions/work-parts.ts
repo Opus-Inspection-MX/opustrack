@@ -4,9 +4,8 @@ import { revalidatePath } from "next/cache";
 import { requirePermission } from "@/lib/auth/auth";
 import { prisma } from "@/lib/database/prisma.singleton";
 import {
-  WorkPartCreateSchema,
-  WorkPartUpdateSchema,
   type WorkPartCreateInput,
+  WorkPartCreateSchema,
 } from "@/lib/validations/parts";
 
 // Keep legacy type for backward compatibility

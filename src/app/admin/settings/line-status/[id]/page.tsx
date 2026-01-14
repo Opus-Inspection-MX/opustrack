@@ -1,10 +1,10 @@
-import { notFound } from "next/navigation";
+import { ArrowLeft, Edit } from "lucide-react";
 import Link from "next/link";
-import { requireRouteAccess } from "@/lib/auth/auth";
-import { getLineStatusById } from "@/lib/actions/lookups";
+import { notFound } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Edit } from "lucide-react";
+import { getLineStatusById } from "@/lib/actions/lookups";
+import { requireRouteAccess } from "@/lib/auth/auth";
 
 export default async function LineStatusDetailPage({
   params,
@@ -14,7 +14,7 @@ export default async function LineStatusDetailPage({
   await requireRouteAccess("/admin/settings/line-status");
 
   const { id } = await params;
-  const status = await getLineStatusById(Number.parseInt(id));
+  const status = await getLineStatusById(Number.parseInt(id, 10));
 
   if (!status) {
     notFound();
@@ -57,7 +57,9 @@ export default async function LineStatusDetailPage({
               <p className="text-lg">{status.name}</p>
             </div>
             <div>
-              <p className="text-sm font-medium text-muted-foreground">Status</p>
+              <p className="text-sm font-medium text-muted-foreground">
+                Status
+              </p>
               <p className="text-lg">
                 <span
                   className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
@@ -82,9 +84,7 @@ export default async function LineStatusDetailPage({
               <p className="text-sm font-medium text-muted-foreground">
                 Lines Using This Status
               </p>
-              <p className="text-3xl font-bold">
-                {status._count?.lines || 0}
-              </p>
+              <p className="text-3xl font-bold">{status._count?.lines || 0}</p>
             </div>
           </CardContent>
         </Card>

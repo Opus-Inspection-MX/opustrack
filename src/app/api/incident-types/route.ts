@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { withPermission } from "@/lib/auth/auth";
 import { prisma } from "@/lib/database/prisma.singleton";
@@ -21,7 +22,7 @@ export const GET = withPermission(
       const search = searchParams.get("search") || "";
 
       // Construir el where clause
-      const where: any = {
+      const where: Prisma.IncidentTypeWhereInput = {
         active: true,
       };
 

@@ -8,6 +8,21 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 import { deleteState, getStateById } from "@/lib/actions/lookups";
 
+interface VicCenter {
+  id: string;
+  name: string;
+  code: string;
+  address?: string | null;
+}
+
+interface State {
+  id: number;
+  name: string;
+  code: string;
+  active: boolean;
+  vehicleInspectionCenters: VicCenter[];
+}
+
 export default function StateDetailPage({
   params,
 }: {
@@ -17,7 +32,7 @@ export default function StateDetailPage({
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [state, setState] = useState<any>(null);
+  const [state, setState] = useState<State | null>(null);
 
   useEffect(() => {
     const fetchState = async () => {
@@ -163,10 +178,11 @@ export default function StateDetailPage({
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {state.vehicleInspectionCenters.map((vic: any) => (
-                    <div
+                  {state.vehicleInspectionCenters.map((vic: VicCenter) => (
+                    <button
+                      type="button"
                       key={vic.id}
-                      className="flex justify-between items-center p-4 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
+                      className="flex justify-between items-center w-full text-left p-4 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
                       onClick={() =>
                         router.push(`/admin/vic-centers/${vic.id}`)
                       }
@@ -194,7 +210,7 @@ export default function StateDetailPage({
                           </p>
                         )}
                       </div>
-                    </div>
+                    </button>
                   ))}
                 </div>
               </CardContent>

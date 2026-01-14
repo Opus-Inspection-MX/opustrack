@@ -26,6 +26,12 @@ import {
   updateSchedule,
 } from "@/lib/actions/schedules";
 
+interface VicCenter {
+  id: string;
+  name: string;
+  code: string;
+}
+
 export default function EditSchedulePage({
   params,
 }: {
@@ -36,7 +42,7 @@ export default function EditSchedulePage({
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [vicCenters, setVicCenters] = useState<any[]>([]);
+  const [vicCenters, setVicCenters] = useState<VicCenter[]>([]);
 
   const [formData, setFormData] = useState({
     title: "",

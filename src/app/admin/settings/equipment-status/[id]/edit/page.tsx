@@ -1,7 +1,10 @@
 import { notFound } from "next/navigation";
-import { requireRouteAccess } from "@/lib/auth/auth";
 import { GenericStatusForm } from "@/components/settings/generic-status-form";
-import { getEquipmentStatusById, updateEquipmentStatus } from "@/lib/actions/lookups";
+import {
+  getEquipmentStatusById,
+  updateEquipmentStatus,
+} from "@/lib/actions/lookups";
+import { requireRouteAccess } from "@/lib/auth/auth";
 
 export default async function EditEquipmentStatusPage({
   params,
@@ -11,7 +14,7 @@ export default async function EditEquipmentStatusPage({
   await requireRouteAccess("/admin/settings/equipment-status");
 
   const { id } = await params;
-  const status = await getEquipmentStatusById(Number.parseInt(id));
+  const status = await getEquipmentStatusById(Number.parseInt(id, 10));
 
   if (!status) {
     notFound();

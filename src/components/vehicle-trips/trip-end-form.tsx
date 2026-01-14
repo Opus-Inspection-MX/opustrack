@@ -1,18 +1,18 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, type FormEvent } from "react";
+import { type FormEvent, useState } from "react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { FileUpload } from "@/components/ui/file-upload";
+import { FormError } from "@/components/ui/form-error";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
-import { FormError } from "@/components/ui/form-error";
-import { FileUpload } from "@/components/ui/file-upload";
-import { GPSLocationCapture } from "./gps-location-capture";
 import { endVehicleTrip } from "@/lib/actions/vehicle-trips";
 import { fileToBase64, normalizeMimeType } from "@/lib/upload";
+import { GPSLocationCapture } from "./gps-location-capture";
 
 interface Trip {
   id: string;
@@ -52,8 +52,8 @@ export function TripEndForm({ trip }: TripEndFormProps) {
 
   const kmDriven =
     formData.endOdometer &&
-    Number.parseInt(formData.endOdometer) > trip.startOdometer
-      ? Number.parseInt(formData.endOdometer) - trip.startOdometer
+    Number.parseInt(formData.endOdometer, 10) > trip.startOdometer
+      ? Number.parseInt(formData.endOdometer, 10) - trip.startOdometer
       : 0;
 
   const handleLocationCapture = (location: {
@@ -74,7 +74,7 @@ export function TripEndForm({ trip }: TripEndFormProps) {
     setError("");
 
     // Validation
-    const endOdometer = Number.parseInt(formData.endOdometer);
+    const endOdometer = Number.parseInt(formData.endOdometer, 10);
     if (!formData.endOdometer || endOdometer <= 0) {
       setError("Please enter a valid odometer reading");
       return;

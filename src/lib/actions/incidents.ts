@@ -6,13 +6,9 @@ import { requirePermission } from "@/lib/auth/auth";
 import { assertVicAccess, getVicWhereClause } from "@/lib/auth/filters";
 import { prisma } from "@/lib/database/prisma.singleton";
 import {
-  IncidentCreateSchema,
   IncidentClientCreateSchema,
-  IncidentUpdateSchema,
-  IncidentAssignSchema,
-  IncidentChangeStatusSchema,
   type IncidentCreateInput,
-  type IncidentClientCreateInput,
+  IncidentCreateSchema,
 } from "@/lib/validations/incidents";
 
 // Keep legacy type for backward compatibility with existing forms
@@ -407,6 +403,7 @@ export async function changeIncidentStatus(id: number, statusId: number) {
  * Assign incident to FSR
  * Verifies user has access to the incident's VIC before assigning
  * Uses transaction to ensure atomicity when creating work order and updating incident
+ * Creates notification for the FSR
  */
 export async function assignIncidentToFSR(
   incidentId: number,
@@ -417,7 +414,7 @@ export async function assignIncidentToFSR(
   // Verify access to incident
   const incident = await prisma.incident.findUnique({
     where: { id: incidentId },
-    select: { vicId: true },
+    select: { vicId: true, title: true },
   });
 
   if (!incident) {
@@ -436,7 +433,7 @@ export async function assignIncidentToFSR(
     throw new Error("El usuario seleccionado no es un FSR");
   }
 
-  // Use transaction to create work order and update incident atomically
+  // Use transaction to create work order, update incident, and create notification
   const workOrder = await prisma.$transaction(async (tx) => {
     // Create work order for the incident
     const wo = await tx.workOrder.create({
@@ -468,12 +465,33 @@ export async function assignIncidentToFSR(
       });
     }
 
+    // Create notification for the FSR
+    await tx.notification.create({
+      data: {
+        userId: fsrUserId,
+        title: "Nueva Orden de Trabajo Asignada",
+        message: `Se le ha asignado una orden de trabajo para el incidente: ${incident.title}`,
+        type: "work_order_assigned",
+        entityType: "work_order",
+        entityId: wo.id,
+        actionUrl: `/fsr/work-orders/${wo.id}`,
+        priority: 2, // Medium priority
+        metadata: {
+          incidentId,
+          incidentTitle: incident.title,
+          assignedBy: user.name,
+          assignedById: user.id,
+        },
+      },
+    });
+
     return wo;
   });
 
   revalidatePath("/admin/incidents");
   revalidatePath(`/admin/incidents/${incidentId}`);
   revalidatePath("/fsr/incidents");
+  revalidatePath("/fsr/work-orders");
   return { success: true, data: workOrder };
 }
 

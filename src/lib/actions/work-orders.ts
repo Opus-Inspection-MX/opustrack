@@ -200,8 +200,7 @@ export async function deleteWorkOrder(id: string) {
 
     if (hasActiveParts || hasActiveActivities || hasActiveAttachments) {
       const issues = [];
-      if (hasActiveParts)
-        issues.push(`${workOrder._count.workParts} parte(s)`);
+      if (hasActiveParts) issues.push(`${workOrder._count.workParts} parte(s)`);
       if (hasActiveActivities)
         issues.push(`${workOrder._count.workActivities} actividad(es)`);
       if (hasActiveAttachments)
@@ -267,7 +266,12 @@ export async function completeWorkOrder(id: string, notes?: string) {
     });
 
     // Check completion by status name or finishedAt timestamp
-    const completedStatuses = ["CERRADO", "COMPLETADO", "RESUELTO", "FINALIZADO"];
+    const completedStatuses = [
+      "CERRADO",
+      "COMPLETADO",
+      "RESUELTO",
+      "FINALIZADO",
+    ];
     const allCompleted = incidentWorkOrders.every(
       (wo) =>
         wo.finishedAt !== null ||
@@ -303,7 +307,11 @@ export async function completeWorkOrder(id: string, notes?: string) {
     revalidatePath("/admin/incidents");
     revalidatePath("/client/incidents");
   }
-  return { success: true, data: result.workOrder, incidentAutoClosed: result.incidentAutoClosed };
+  return {
+    success: true,
+    data: result.workOrder,
+    incidentAutoClosed: result.incidentAutoClosed,
+  };
 }
 
 /**
@@ -409,7 +417,11 @@ export async function reopenWorkOrder(id: string) {
     revalidatePath("/admin/incidents");
     revalidatePath("/client/incidents");
   }
-  return { success: true, data: result.workOrder, incidentReopened: result.incidentReopened };
+  return {
+    success: true,
+    data: result.workOrder,
+    incidentReopened: result.incidentReopened,
+  };
 }
 
 /**

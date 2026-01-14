@@ -1,5 +1,5 @@
+import { Layers, Route, Settings2, Truck, Wrench } from "lucide-react";
 import Link from "next/link";
-import { requireRouteAccess } from "@/lib/auth/auth";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -8,7 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Settings2, Layers, Wrench, Truck, Route } from "lucide-react";
+import { requireRouteAccess } from "@/lib/auth/auth";
 
 export default async function SettingsPage() {
   await requireRouteAccess("/admin/settings");

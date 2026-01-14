@@ -11,6 +11,40 @@ import {
   getWorkActivityById,
 } from "@/lib/actions/work-activities";
 
+interface Part {
+  id: string;
+  name: string;
+}
+
+interface WorkPart {
+  id: string;
+  partId: string;
+  quantity: number;
+  price?: number | null;
+  description?: string | null;
+  part?: Part | null;
+}
+
+interface AssignedUser {
+  id: string;
+  name: string;
+}
+
+interface WorkOrder {
+  id: string;
+  status: string;
+  assignedTo?: AssignedUser | null;
+}
+
+interface WorkActivity {
+  id: string;
+  description: string;
+  performedAt: Date | string;
+  workOrderId: string;
+  workOrder?: WorkOrder | null;
+  workParts?: WorkPart[];
+}
+
 export default function WorkActivityDetailPage({
   params,
 }: {
@@ -20,7 +54,7 @@ export default function WorkActivityDetailPage({
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [activity, setActivity] = useState<any>(null);
+  const [activity, setActivity] = useState<WorkActivity | null>(null);
 
   useEffect(() => {
     const fetchActivity = async () => {
@@ -197,7 +231,7 @@ export default function WorkActivityDetailPage({
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
-                {activity.workParts.map((workPart: any) => (
+                {activity.workParts.map((workPart: WorkPart) => (
                   <div
                     key={workPart.id}
                     className="flex justify-between items-center p-3 border rounded-lg"

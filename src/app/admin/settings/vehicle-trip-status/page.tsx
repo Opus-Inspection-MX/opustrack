@@ -92,7 +92,9 @@ export default function VehicleTripStatusPage() {
             Manage vehicle trip status types
           </p>
         </div>
-        <Button onClick={() => router.push("/admin/settings/vehicle-trip-status/new")}>
+        <Button
+          onClick={() => router.push("/admin/settings/vehicle-trip-status/new")}
+        >
           <Plus className="mr-2 h-4 w-4" />
           New Status
         </Button>

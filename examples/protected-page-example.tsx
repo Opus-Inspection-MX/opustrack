@@ -27,13 +27,19 @@ export default async function ExamplePage() {
       {/* Conditional rendering based on permissions */}
       <div className="space-y-4">
         {canCreateIncidents && (
-          <button className="px-4 py-2 bg-blue-500 text-white rounded">
+          <button
+            type="button"
+            className="px-4 py-2 bg-blue-500 text-white rounded"
+          >
             Create Incident
           </button>
         )}
 
         {canManageUsers && (
-          <button className="px-4 py-2 bg-green-500 text-white rounded">
+          <button
+            type="button"
+            className="px-4 py-2 bg-green-500 text-white rounded"
+          >
             Manage Users
           </button>
         )}

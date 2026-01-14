@@ -9,10 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Pagination } from "@/components/ui/pagination";
 import { Spinner } from "@/components/ui/spinner";
-import {
-  deleteVehicleStatus,
-  getVehicleStatuses,
-} from "@/lib/actions/lookups";
+import { deleteVehicleStatus, getVehicleStatuses } from "@/lib/actions/lookups";
 
 type VehicleStatus = Awaited<
   ReturnType<typeof getVehicleStatuses>
@@ -88,11 +85,11 @@ export default function VehicleStatusPage() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold">Vehicle Status</h1>
-          <p className="text-muted-foreground">
-            Manage vehicle status types
-          </p>
+          <p className="text-muted-foreground">Manage vehicle status types</p>
         </div>
-        <Button onClick={() => router.push("/admin/settings/vehicle-status/new")}>
+        <Button
+          onClick={() => router.push("/admin/settings/vehicle-status/new")}
+        >
           <Plus className="mr-2 h-4 w-4" />
           New Status
         </Button>

@@ -9,14 +9,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Pagination } from "@/components/ui/pagination";
 import { Spinner } from "@/components/ui/spinner";
-import {
-  deleteLineStatus,
-  getLineStatuses,
-} from "@/lib/actions/lookups";
+import { deleteLineStatus, getLineStatuses } from "@/lib/actions/lookups";
 
-type LineStatus = Awaited<
-  ReturnType<typeof getLineStatuses>
->["data"][number];
+type LineStatus = Awaited<ReturnType<typeof getLineStatuses>>["data"][number];
 
 export default function LineStatusPage() {
   const router = useRouter();

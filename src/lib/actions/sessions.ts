@@ -3,9 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { requirePermission } from "@/lib/auth/auth";
 import {
-  invalidateUserSessions,
-  invalidateRoleSessions,
   invalidateMultipleUserSessions,
+  invalidateRoleSessions,
+  invalidateUserSessions,
 } from "@/lib/auth/session-management";
 import { prisma } from "@/lib/database/prisma.singleton";
 

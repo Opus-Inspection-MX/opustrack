@@ -8,6 +8,46 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 import { deleteWorkPart, getWorkPartById } from "@/lib/actions/work-parts";
 
+interface Part {
+  id: string;
+  name: string;
+  price?: number | null;
+  stock: number;
+  description?: string | null;
+}
+
+interface WorkOrderStatus {
+  name: string;
+}
+
+interface AssignedUser {
+  name: string;
+}
+
+interface WorkOrder {
+  id: string;
+  status?: WorkOrderStatus | null;
+  assignedTo?: AssignedUser | null;
+}
+
+interface WorkActivity {
+  id: string;
+  description: string;
+}
+
+interface WorkPart {
+  id: string;
+  workOrderId: string;
+  partId: string;
+  quantity: number;
+  price?: number | null;
+  description?: string | null;
+  createdAt: Date | string;
+  part?: Part | null;
+  workOrder?: WorkOrder | null;
+  workActivity?: WorkActivity | null;
+}
+
 export default function WorkPartDetailPage({
   params,
 }: {
@@ -17,7 +57,7 @@ export default function WorkPartDetailPage({
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [workPart, setWorkPart] = useState<any>(null);
+  const [workPart, setWorkPart] = useState<WorkPart | null>(null);
 
   useEffect(() => {
     const fetchWorkPart = async () => {

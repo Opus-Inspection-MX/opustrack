@@ -14,11 +14,22 @@ import {
 } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 
+interface Role {
+  id: string | string[];
+  name: string;
+  defaultPath: string;
+  active: boolean;
+  userCount: number;
+  permissionCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export default function RoleDetailPage() {
   const router = useRouter();
   const params = useParams();
   const [isLoading, setIsLoading] = useState(true);
-  const [role, setRole] = useState<any>(null);
+  const [role, setRole] = useState<Role | null>(null);
 
   useEffect(() => {
     const fetchRole = async () => {
@@ -131,6 +142,8 @@ export default function RoleDetailPage() {
                   strokeWidth="2"
                   strokeLinecap="round"
                   strokeLinejoin="round"
+                  aria-label="Default path"
+                  role="img"
                 >
                   <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
                   <polyline points="9 22 9 12 15 12 15 22" />

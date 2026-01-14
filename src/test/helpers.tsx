@@ -1,6 +1,6 @@
-import { render, type RenderOptions } from "@testing-library/react";
-import { type ReactElement } from "react";
+import { type RenderOptions, render } from "@testing-library/react";
 import { ThemeProvider } from "next-themes";
+import type { ReactElement } from "react";
 
 /**
  * Custom render function that wraps components with providers
@@ -104,7 +104,7 @@ export function createFormData(data: Record<string, string | File>): FormData {
 export function createMockFile(
   name = "test.jpg",
   type = "image/jpeg",
-  size = 1024,
+  _size = 1024,
 ): File {
   const blob = new Blob(["test content"], { type });
   return new File([blob], name, { type, lastModified: Date.now() });
@@ -118,5 +118,5 @@ export function createMockBase64Image(): string {
 }
 
 // Re-export common testing utilities
-export { screen, waitFor, within, fireEvent } from "@testing-library/react";
+export { fireEvent, screen, waitFor, within } from "@testing-library/react";
 export { default as userEvent } from "@testing-library/user-event";

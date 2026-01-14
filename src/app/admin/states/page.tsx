@@ -8,8 +8,30 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { deleteState, getStatesAdmin } from "@/lib/actions/lookups";
 
+interface StateApiResponse {
+  id: number;
+  name: string;
+  code: string;
+  active: boolean;
+  createdAt: Date | string;
+  updatedAt: Date | string;
+  _count?: {
+    vehicleInspectionCenters: number;
+  };
+}
+
+interface State {
+  id: number;
+  name: string;
+  code: string;
+  vicCount: number;
+  active: boolean;
+  createdAt: Date | string;
+  updatedAt: Date | string;
+}
+
 export default function StatesPage() {
-  const [states, setStates] = useState<any[]>([]);
+  const [states, setStates] = useState<State[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
@@ -20,7 +42,7 @@ export default function StatesPage() {
       try {
         const data = await getStatesAdmin();
         // Transform data to match table expectations
-        const transformed = data.map((state: any) => ({
+        const transformed = data.map((state: StateApiResponse) => ({
           id: state.id,
           name: state.name,
           code: state.code,

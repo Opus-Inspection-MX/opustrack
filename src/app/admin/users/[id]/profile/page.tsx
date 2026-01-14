@@ -35,7 +35,7 @@ const mockUserProfile = {
 };
 
 export default function UserProfilePage({
-  params,
+  params: _params,
 }: {
   params: { id: string };
 }) {

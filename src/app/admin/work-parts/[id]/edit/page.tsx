@@ -2,6 +2,15 @@
 
 import { WorkPartForm } from "@/components/work-parts/work-part-form";
 
+interface WorkPartFormData {
+  partId: string;
+  quantity: number;
+  description?: string;
+  price?: number;
+  workOrderId: string;
+  workActivityId?: string;
+}
+
 // Mock data - replace with actual API calls
 const mockWorkPart = {
   id: "wp_001",
@@ -69,7 +78,7 @@ export default function EditWorkPartPage({
 }: {
   params: { id: string };
 }) {
-  const handleSubmit = async (data: any) => {
+  const handleSubmit = async (data: WorkPartFormData) => {
     console.log("Updating work part:", params.id, data);
     // Simulate API call
     await new Promise((resolve) => setTimeout(resolve, 1000));

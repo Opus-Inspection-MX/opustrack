@@ -1,6 +1,6 @@
-import { requireRouteAccess } from "@/lib/auth/auth";
 import { GenericStatusForm } from "@/components/settings/generic-status-form";
 import { createVehicleStatus } from "@/lib/actions/lookups";
+import { requireRouteAccess } from "@/lib/auth/auth";
 
 export default async function NewVehicleStatusPage() {
   await requireRouteAccess("/admin/settings/vehicle-status/new");
@@ -9,9 +9,7 @@ export default async function NewVehicleStatusPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold">Create Vehicle Status</h1>
-        <p className="text-muted-foreground">
-          Add a new vehicle status type
-        </p>
+        <p className="text-muted-foreground">Add a new vehicle status type</p>
       </div>
 
       <GenericStatusForm

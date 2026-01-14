@@ -27,6 +27,14 @@ import {
 } from "@/components/ui/table";
 import { getScheduleById } from "@/lib/actions/schedules";
 
+interface ScheduleIncident {
+  id: number;
+  title: string;
+  type?: { name: string } | null;
+  status?: { name: string } | null;
+  reportedAt: Date | string;
+}
+
 interface Schedule {
   id: string;
   title: string;
@@ -38,7 +46,7 @@ interface Schedule {
     name: string;
     code: string;
   };
-  incidents: any[];
+  incidents: ScheduleIncident[];
   active: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -59,7 +67,7 @@ export default function ViewSchedulePage({
       try {
         setLoading(true);
         const data = await getScheduleById(id);
-        setSchedule(data as any);
+        setSchedule(data as Schedule);
       } catch (error) {
         console.error("Error fetching schedule:", error);
       } finally {
@@ -162,25 +170,23 @@ export default function ViewSchedulePage({
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <label className="text-sm font-medium text-muted-foreground">
-                Title
-              </label>
+              <p className="text-sm font-medium text-muted-foreground">Title</p>
               <p className="text-lg font-semibold">{schedule.title}</p>
             </div>
 
             {schedule.description && (
               <div>
-                <label className="text-sm font-medium text-muted-foreground">
+                <p className="text-sm font-medium text-muted-foreground">
                   Description
-                </label>
+                </p>
                 <p className="text-sm">{schedule.description}</p>
               </div>
             )}
 
             <div>
-              <label className="text-sm font-medium text-muted-foreground">
+              <p className="text-sm font-medium text-muted-foreground">
                 Status
-              </label>
+              </p>
               <div className="flex items-center gap-2 mt-1">
                 <Badge variant={status.variant}>{status.label}</Badge>
                 <Badge variant={schedule.active ? "default" : "secondary"}>
@@ -200,18 +206,18 @@ export default function ViewSchedulePage({
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <label className="text-sm font-medium text-muted-foreground">
+              <p className="text-sm font-medium text-muted-foreground">
                 Scheduled Date & Time
-              </label>
+              </p>
               <p className="text-lg font-semibold">
                 {new Date(schedule.scheduledAt).toLocaleString()}
               </p>
             </div>
 
             <div>
-              <label className="text-sm font-medium text-muted-foreground">
+              <p className="text-sm font-medium text-muted-foreground">
                 VIC Center
-              </label>
+              </p>
               <div className="flex items-center gap-2 mt-1">
                 <Building2 className="h-4 w-4 text-muted-foreground" />
                 <span className="font-medium">{schedule.vic.code}</span>
@@ -222,9 +228,9 @@ export default function ViewSchedulePage({
             </div>
 
             <div>
-              <label className="text-sm font-medium text-muted-foreground">
+              <p className="text-sm font-medium text-muted-foreground">
                 Related Incidents
-              </label>
+              </p>
               <p className="text-lg font-semibold">
                 {schedule.incidents?.length || 0}
               </p>
@@ -238,17 +244,17 @@ export default function ViewSchedulePage({
           </CardHeader>
           <CardContent className="grid md:grid-cols-2 gap-4">
             <div>
-              <label className="text-sm font-medium text-muted-foreground">
+              <p className="text-sm font-medium text-muted-foreground">
                 Created At
-              </label>
+              </p>
               <p className="text-sm">
                 {new Date(schedule.createdAt).toLocaleString()}
               </p>
             </div>
             <div>
-              <label className="text-sm font-medium text-muted-foreground">
+              <p className="text-sm font-medium text-muted-foreground">
                 Last Updated
-              </label>
+              </p>
               <p className="text-sm">
                 {new Date(schedule.updatedAt).toLocaleString()}
               </p>
@@ -287,7 +293,7 @@ export default function ViewSchedulePage({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {schedule.incidents.map((incident: any) => (
+                  {schedule.incidents.map((incident: ScheduleIncident) => (
                     <TableRow key={incident.id}>
                       <TableCell className="font-medium">
                         <div className="flex flex-col gap-1 min-w-0">

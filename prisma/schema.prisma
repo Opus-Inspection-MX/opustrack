@@ -31,6 +31,8 @@ model User {
   reportedIncidents Incident[] @relation("IncidentReporter")
   incidents         Incident[] @relation("IncidentUser") // relación opcional si usas userId en Incident
   vehicleTrips      VehicleTrip[] // Vehicle trips driven by this FSR
+  assignedVehicles  Vehicle[] @relation("AssignedVehicles") // Vehicles assigned to this FSR
+  notifications     Notification[] // User's notifications
   active            Boolean   @default(true)
 }
 
@@ -394,23 +396,26 @@ model Equipment {
 }
 
 model Vehicle {
-  id           String        @id @default(cuid())
-  make         String        // e.g., "Toyota"
-  model        String        // e.g., "Corolla"
-  year         Int           // e.g., 2023
-  licensePlate String        @unique // e.g., "ABC-123-XYZ"
-  vin          String?       @unique // Vehicle Identification Number (optional)
-  color        String?       // e.g., "White"
-  statusId     Int           @default(1) // Status ID reference
-  status       VehicleStatus @relation(fields: [statusId], references: [id])
-  notes        String?       // General notes about vehicle
-  active       Boolean       @default(true) // Soft delete
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  trips        VehicleTrip[]
+  id            String        @id @default(cuid())
+  make          String        // e.g., "Toyota"
+  model         String        // e.g., "Corolla"
+  year          Int           // e.g., 2023
+  licensePlate  String        @unique // e.g., "ABC-123-XYZ"
+  vin           String?       @unique // Vehicle Identification Number (optional)
+  color         String?       // e.g., "White"
+  statusId      Int           @default(1) // Status ID reference
+  status        VehicleStatus @relation(fields: [statusId], references: [id])
+  assignedFsrId String?       // FSR currently assigned to this vehicle
+  assignedFsr   User?         @relation("AssignedVehicles", fields: [assignedFsrId], references: [id])
+  notes         String?       // General notes about vehicle
+  active        Boolean       @default(true) // Soft delete
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  trips         VehicleTrip[]
 
   @@index([licensePlate])
   @@index([statusId])
+  @@index([assignedFsrId])
   @@index([active])
 }
 
@@ -454,4 +459,37 @@ model VehicleTrip {
   @@index([statusId])
   @@index([startedAt])
   @@index([active])
+}
+
+model Notification {
+  id         String    @id @default(cuid())
+  userId     String    // Recipient user ID
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Notification content
+  title      String    // e.g., "Nueva Orden de Trabajo Asignada"
+  message    String    // e.g., "Se le ha asignado la orden de trabajo..."
+  type       String    // e.g., "work_order_assigned", "incident_updated"
+
+  // Related entity (polymorphic approach)
+  entityType String?   // e.g., "work_order", "incident", "user"
+  entityId   String?   // ID of the related entity
+  actionUrl  String?   // URL to navigate when clicked
+
+  // Status
+  isRead     Boolean   @default(false)
+  readAt     DateTime?
+
+  // Metadata
+  priority   Int       @default(1) // 1=low, 2=medium, 3=high
+  metadata   Json?     // Additional flexible data
+
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  active     Boolean   @default(true) // Soft delete
+
+  @@index([userId, isRead])    // Fast unread count queries
+  @@index([userId, createdAt]) // Fast "recent notifications" queries
+  @@index([type])              // Filter by notification type
+  @@index([active, createdAt]) // Cleanup queries
 }

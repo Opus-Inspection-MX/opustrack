@@ -1,11 +1,11 @@
 "use client";
 
+import { Car, Plus } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { Plus, Car } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { getMyVehicleTrips } from "@/lib/actions/vehicle-trips";
 
 interface VehicleTrip {

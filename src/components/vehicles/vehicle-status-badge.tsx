@@ -1,7 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 
 interface VehicleStatusBadgeProps {
-  status: string;
+  status: string | { id: number; name: string; active?: boolean };
 }
 
 const statusConfig: Record<
@@ -18,8 +18,9 @@ const statusConfig: Record<
 };
 
 export function VehicleStatusBadge({ status }: VehicleStatusBadgeProps) {
-  const config = statusConfig[status] || {
-    label: status,
+  const statusName = typeof status === "string" ? status : status.name;
+  const config = statusConfig[statusName] || {
+    label: statusName,
     variant: "outline" as const,
   };
 

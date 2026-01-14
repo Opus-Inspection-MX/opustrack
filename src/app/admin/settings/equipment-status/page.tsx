@@ -88,11 +88,11 @@ export default function EquipmentStatusPage() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold">Equipment Status</h1>
-          <p className="text-muted-foreground">
-            Manage equipment status types
-          </p>
+          <p className="text-muted-foreground">Manage equipment status types</p>
         </div>
-        <Button onClick={() => router.push("/admin/settings/equipment-status/new")}>
+        <Button
+          onClick={() => router.push("/admin/settings/equipment-status/new")}
+        >
           <Plus className="mr-2 h-4 w-4" />
           New Status
         </Button>

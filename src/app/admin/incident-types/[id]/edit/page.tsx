@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
-import { requireRouteAccess } from "@/lib/auth/auth";
 import { IncidentTypeForm } from "@/components/incident-types/incident-type-form";
 import { getIncidentTypeById, updateIncidentType } from "@/lib/actions/lookups";
+import { requireRouteAccess } from "@/lib/auth/auth";
 
 export default async function EditIncidentTypePage({
   params,
@@ -11,7 +11,7 @@ export default async function EditIncidentTypePage({
   await requireRouteAccess("/admin/incident-types");
 
   const { id } = await params;
-  const incidentType = await getIncidentTypeById(Number.parseInt(id));
+  const incidentType = await getIncidentTypeById(Number.parseInt(id, 10));
 
   if (!incidentType) {
     notFound();

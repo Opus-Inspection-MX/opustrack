@@ -107,7 +107,7 @@ export default function PermissionsPage() {
     }
   };
 
-  const handleView = (permission: any) => {
+  const handleView = (permission: Permission) => {
     console.log("Viewing permission:", permission);
     // Implement view logic or navigate to detail page
   };
