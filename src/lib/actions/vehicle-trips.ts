@@ -329,6 +329,47 @@ export async function getMyWorkOrdersForTrips() {
 }
 
 /**
+ * Update trip notes and addresses
+ */
+export async function updateVehicleTrip(
+  id: string,
+  data: {
+    notes?: string;
+    startAddress?: string;
+    endAddress?: string;
+  },
+) {
+  const user = await requirePermission("vehicle-trips:update");
+
+  const trip = await prisma.vehicleTrip.findUnique({
+    where: { id },
+    select: { fsrId: true },
+  });
+
+  if (!trip) {
+    throw new Error("Trip not found");
+  }
+
+  // FSR can only update their own trips
+  if (user.role.name !== "ADMINISTRADOR" && trip.fsrId !== user.id) {
+    throw new Error("Access denied: You can only update your own trips");
+  }
+
+  const updatedTrip = await prisma.vehicleTrip.update({
+    where: { id },
+    data: {
+      notes: data.notes,
+      startAddress: data.startAddress,
+      endAddress: data.endAddress,
+    },
+  });
+
+  revalidatePath("/fsr/vehicle-trips");
+  revalidatePath(`/fsr/vehicle-trips/${id}`);
+  return { success: true, data: updatedTrip };
+}
+
+/**
  * Delete trip (soft delete)
  */
 export async function deleteVehicleTrip(id: string) {

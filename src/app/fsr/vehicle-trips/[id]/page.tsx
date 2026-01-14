@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { MapPin, Calendar, Car } from "lucide-react";
+import { MapPin, Calendar, Car, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -35,18 +35,34 @@ export default async function TripDetailPage({
             {trip.vehicle.licensePlate}
           </p>
         </div>
-        <div className="flex-shrink-0">
+        <div className="flex flex-col sm:flex-row gap-2 flex-shrink-0">
           {isInProgress ? (
-            <Button asChild className="w-full sm:w-auto">
-              <Link href={`/fsr/vehicle-trips/${id}/end`}>End Trip</Link>
-            </Button>
+            <>
+              <Button asChild variant="outline" className="w-full sm:w-auto">
+                <Link href={`/fsr/vehicle-trips/${id}/edit`}>
+                  <Pencil className="h-4 w-4 mr-2" />
+                  Edit
+                </Link>
+              </Button>
+              <Button asChild className="w-full sm:w-auto">
+                <Link href={`/fsr/vehicle-trips/${id}/end`}>End Trip</Link>
+              </Button>
+            </>
           ) : (
-            <Badge
-              variant="default"
-              className="text-base px-4 py-2 w-full sm:w-auto justify-center"
-            >
-              Completed
-            </Badge>
+            <>
+              <Button asChild variant="outline" className="w-full sm:w-auto">
+                <Link href={`/fsr/vehicle-trips/${id}/edit`}>
+                  <Pencil className="h-4 w-4 mr-2" />
+                  Edit
+                </Link>
+              </Button>
+              <Badge
+                variant="default"
+                className="text-base px-4 py-2 w-full sm:w-auto justify-center"
+              >
+                Completed
+              </Badge>
+            </>
           )}
         </div>
       </div>

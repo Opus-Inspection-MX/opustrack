@@ -1,243 +1,38 @@
-"use client";
+import { notFound } from "next/navigation";
+import { requireRouteAccess } from "@/lib/auth/auth";
+import { IncidentStatusForm } from "@/components/incident-status/incident-status-form";
+import { getIncidentStatusById, updateIncidentStatus } from "@/lib/actions/lookups";
 
-import { ArrowLeft, Save } from "lucide-react";
-import { useRouter } from "next/navigation";
-import type React from "react";
-import { useCallback, useEffect, useState } from "react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Spinner } from "@/components/ui/spinner";
-import { Switch } from "@/components/ui/switch";
-
-export default function EditIncidentStatusPage({
+export default async function EditIncidentStatusPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const router = useRouter();
-  const [statusId, setStatusId] = useState<number | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isFetching, setIsFetching] = useState(true);
-  const [formData, setFormData] = useState({
-    name: "",
-    color: "#6B7280",
-    active: true,
-  });
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  await requireRouteAccess("/admin/incident-status");
 
-  useEffect(() => {
-    params.then((p) => setStatusId(parseInt(p.id, 10)));
-  }, [params]);
+  const { id } = await params;
+  const incidentStatus = await getIncidentStatusById(Number.parseInt(id));
 
-  const fetchIncidentStatus = useCallback(async () => {
-    if (!statusId) return;
-
-    try {
-      setIsFetching(true);
-      const { getIncidentStatusById } = await import("@/lib/actions/lookups");
-      const data = await getIncidentStatusById(statusId);
-
-      if (data) {
-        setFormData({
-          name: data.name,
-          color: data.color || "#6B7280",
-          active: data.active,
-        });
-      }
-    } catch (error) {
-      console.error("Error fetching incident status:", error);
-    } finally {
-      setIsFetching(false);
-    }
-  }, [statusId]);
-
-  useEffect(() => {
-    if (statusId) {
-      fetchIncidentStatus();
-    }
-  }, [statusId, fetchIncidentStatus]);
-
-  const validateForm = () => {
-    const newErrors: Record<string, string> = {};
-
-    if (!formData.name.trim()) {
-      newErrors.name = "Name is required";
-    } else if (formData.name.length < 2) {
-      newErrors.name = "Name must be at least 2 characters";
-    } else if (formData.name.length > 50) {
-      newErrors.name = "Name must be less than 50 characters";
-    } else if (!/^[a-zA-Z\s]+$/.test(formData.name)) {
-      newErrors.name = "Name can only contain letters and spaces";
-    }
-
-    if (!formData.color || !/^#[0-9A-Fa-f]{6}$/.test(formData.color)) {
-      newErrors.color = "Color must be a valid hex color (e.g., #FF0000)";
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!validateForm() || !statusId) {
-      return;
-    }
-
-    try {
-      setIsLoading(true);
-      const { updateIncidentStatus } = await import("@/lib/actions/lookups");
-      await updateIncidentStatus(statusId, {
-        name: formData.name.trim(),
-        color: formData.color,
-        active: formData.active,
-      });
-      router.push(`/admin/incident-status/${statusId}`);
-      router.refresh();
-    } catch (error) {
-      console.error("Error updating incident status:", error);
-      alert("Failed to update incident status");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleInputChange = <K extends keyof typeof formData>(
-    field: K,
-    value: (typeof formData)[K],
-  ) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
-    // Clear error when user starts typing
-    if (errors[field]) {
-      setErrors((prev) => ({ ...prev, [field]: "" }));
-    }
-  };
-
-  if (isFetching) {
-    return (
-      <div className="flex items-center justify-center h-96">
-        <Spinner size="lg" text="Loading incident status..." />
-      </div>
-    );
+  if (!incidentStatus) {
+    notFound();
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => router.back()}>
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
-        <div>
-          <h1 className="text-3xl font-bold">Edit Incident Status</h1>
-          <p className="text-muted-foreground">
-            Update incident status information
-          </p>
-        </div>
+      <div>
+        <h1 className="text-3xl font-bold">Edit Incident Status</h1>
+        <p className="text-muted-foreground">
+          Update incident status information
+        </p>
       </div>
 
-      <Card className="max-w-2xl">
-        <CardHeader>
-          <CardTitle>Incident Status Information</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="name">
-                Status Name <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) => handleInputChange("name", e.target.value)}
-                placeholder="e.g., Open, In Progress, Resolved"
-                className={errors.name ? "border-red-500" : ""}
-              />
-              {errors.name && (
-                <p className="text-sm text-red-500">{errors.name}</p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="color">
-                Status Color <span className="text-red-500">*</span>
-              </Label>
-              <div className="flex gap-4 items-center">
-                <Input
-                  id="color"
-                  type="color"
-                  value={formData.color}
-                  onChange={(e) => handleInputChange("color", e.target.value)}
-                  className="h-12 w-24 cursor-pointer"
-                />
-                <Input
-                  type="text"
-                  value={formData.color}
-                  onChange={(e) =>
-                    handleInputChange("color", e.target.value.toUpperCase())
-                  }
-                  placeholder="#6B7280"
-                  className={`flex-1 font-mono ${errors.color ? "border-red-500" : ""}`}
-                />
-              </div>
-              <p className="text-sm text-muted-foreground">
-                Choose a color for this status (hex format)
-              </p>
-              {errors.color && (
-                <p className="text-sm text-red-500">{errors.color}</p>
-              )}
-            </div>
-
-            {formData.name && (
-              <div className="space-y-2">
-                <Label>Status Preview</Label>
-                <div>
-                  <Badge
-                    style={{
-                      backgroundColor: formData.color,
-                      color: "#FFFFFF",
-                      borderColor: formData.color,
-                    }}
-                  >
-                    {formData.name}
-                  </Badge>
-                </div>
-              </div>
-            )}
-
-            <div className="flex items-center space-x-2">
-              <Switch
-                id="active"
-                checked={formData.active}
-                onCheckedChange={(checked) =>
-                  handleInputChange("active", checked)
-                }
-              />
-              <Label htmlFor="active">Active Status</Label>
-            </div>
-
-            <div className="flex gap-4">
-              <Button type="submit" disabled={isLoading}>
-                {isLoading && <Spinner size="sm" />}
-                <Save className="h-4 w-4 mr-2" />
-                {isLoading ? "Saving..." : "Save Changes"}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() =>
-                  router.push(`/admin/incident-status/${statusId}`)
-                }
-              >
-                Cancel
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
+      <IncidentStatusForm
+        initialData={incidentStatus}
+        onSubmit={(data) => updateIncidentStatus(incidentStatus.id, data)}
+        redirectPath="/admin/incident-status"
+        title="Incident Status Details"
+        isEdit
+      />
     </div>
   );
 }

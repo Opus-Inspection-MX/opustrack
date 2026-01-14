@@ -1,43 +1,24 @@
-"use client";
-
-import { useRouter } from "next/navigation";
+import { requireRouteAccess } from "@/lib/auth/auth";
 import { IncidentStatusForm } from "@/components/incident-status/incident-status-form";
 import { createIncidentStatus } from "@/lib/actions/lookups";
 
-type IncidentStatusFormData = {
-  name: string;
-  color: string;
-  active: boolean;
-};
-
-export default function NewIncidentStatusPage() {
-  const router = useRouter();
-
-  const handleSubmit = async (data: IncidentStatusFormData) => {
-    try {
-      await createIncidentStatus({
-        name: data.name.trim(),
-        color: data.color,
-        active: data.active,
-      });
-      router.push("/admin/incident-status");
-      router.refresh();
-    } catch (error) {
-      console.error("Error creating incident status:", error);
-      throw error;
-    }
-  };
+export default async function NewIncidentStatusPage() {
+  await requireRouteAccess("/admin/incident-status/new");
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold">Create Incident Status</h1>
         <p className="text-muted-foreground">
-          Add a new incident status type to the system
+          Add a new incident status type
         </p>
       </div>
 
-      <IncidentStatusForm onSubmit={handleSubmit} />
+      <IncidentStatusForm
+        onSubmit={createIncidentStatus}
+        redirectPath="/admin/incident-status"
+        title="Incident Status Details"
+      />
     </div>
   );
 }

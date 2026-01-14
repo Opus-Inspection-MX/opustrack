@@ -106,6 +106,31 @@ const menuSections = [
       },
     ],
   },
+  {
+    title: "Configuración",
+    items: [
+      {
+        title: "Estado de Línea",
+        url: "/admin/settings/line-status",
+        icon: List,
+      },
+      {
+        title: "Estado de Equipo",
+        url: "/admin/settings/equipment-status",
+        icon: Wrench,
+      },
+      {
+        title: "Estado de Vehículo",
+        url: "/admin/settings/vehicle-status",
+        icon: Car,
+      },
+      {
+        title: "Estado de Viaje",
+        url: "/admin/settings/vehicle-trip-status",
+        icon: Activity,
+      },
+    ],
+  },
 ];
 
 export function AdminSidebar() {

@@ -168,82 +168,142 @@ export async function updateWorkOrder(id: string, data: WorkOrderFormData) {
 
 /**
  * Delete work order (soft delete)
+ * Uses transaction to check for active parts/attachments and attempt auto-close incident
  */
 export async function deleteWorkOrder(id: string) {
   await requirePermission("work-orders:delete");
 
-  const workOrder = await prisma.workOrder.findUnique({
-    where: { id },
-    select: { incidentId: true },
-  });
+  // Use transaction to ensure atomicity
+  const result = await prisma.$transaction(async (tx) => {
+    const workOrder = await tx.workOrder.findUnique({
+      where: { id },
+      select: {
+        incidentId: true,
+        _count: {
+          select: {
+            workParts: { where: { active: true } },
+            workActivities: { where: { active: true } },
+            attachments: { where: { active: true } },
+          },
+        },
+      },
+    });
 
-  await prisma.workOrder.update({
-    where: { id },
-    data: { active: false },
+    if (!workOrder) {
+      throw new Error("Work order not found");
+    }
+
+    // Check for active children
+    const hasActiveParts = workOrder._count.workParts > 0;
+    const hasActiveActivities = workOrder._count.workActivities > 0;
+    const hasActiveAttachments = workOrder._count.attachments > 0;
+
+    if (hasActiveParts || hasActiveActivities || hasActiveAttachments) {
+      const issues = [];
+      if (hasActiveParts)
+        issues.push(`${workOrder._count.workParts} parte(s)`);
+      if (hasActiveActivities)
+        issues.push(`${workOrder._count.workActivities} actividad(es)`);
+      if (hasActiveAttachments)
+        issues.push(`${workOrder._count.attachments} archivo(s)`);
+      throw new Error(
+        `No se puede eliminar. La orden tiene: ${issues.join(", ")} activos.`,
+      );
+    }
+
+    await tx.workOrder.update({
+      where: { id },
+      data: { active: false },
+    });
+
+    return { incidentId: workOrder.incidentId };
   });
 
   revalidatePath("/admin/work-orders");
-  if (workOrder) {
-    revalidatePath(`/admin/incidents/${workOrder.incidentId}`);
-  }
+  revalidatePath(`/admin/incidents/${result.incidentId}`);
   redirect("/admin/work-orders");
 }
 
 /**
  * Complete work order (FSR functionality)
  * Sets status to CERRADO and finishedAt timestamp
+ * Uses transaction to ensure atomicity and auto-close incident if all work orders complete
  */
 export async function completeWorkOrder(id: string, notes?: string) {
   await requirePermission("work-orders:complete");
 
-  // Get CERRADO status
-  const cerradoStatus = await prisma.incidentStatus.findFirst({
-    where: { name: "CERRADO" },
-  });
+  // Use transaction to ensure atomicity
+  const result = await prisma.$transaction(async (tx) => {
+    // Get CERRADO status
+    const cerradoStatus = await tx.incidentStatus.findFirst({
+      where: { name: "CERRADO" },
+    });
 
-  if (!cerradoStatus) {
-    throw new Error("CERRADO status not found in database");
-  }
+    if (!cerradoStatus) {
+      throw new Error("CERRADO status not found in database");
+    }
 
-  const workOrder = await prisma.workOrder.update({
-    where: { id },
-    data: {
-      finishedAt: new Date(),
-      statusId: cerradoStatus.id,
-      notes: notes || null,
-    },
-    include: {
-      incident: true,
-      assignedTo: true,
-      status: true,
-    },
-  });
-
-  // Update incident status to CERRADO if all work orders are completed
-  const incidentWorkOrders = await prisma.workOrder.findMany({
-    where: {
-      incidentId: workOrder.incidentId,
-      active: true,
-    },
-  });
-
-  const allCompleted = incidentWorkOrders.every((wo) => wo.finishedAt !== null);
-
-  if (allCompleted) {
-    await prisma.incident.update({
-      where: { id: workOrder.incidentId },
+    const workOrder = await tx.workOrder.update({
+      where: { id },
       data: {
+        finishedAt: new Date(),
         statusId: cerradoStatus.id,
-        resolvedAt: new Date(),
+        notes: notes || null,
+      },
+      include: {
+        incident: true,
+        assignedTo: true,
+        status: true,
       },
     });
-  }
+
+    // Check if all work orders for this incident are completed
+    const incidentWorkOrders = await tx.workOrder.findMany({
+      where: {
+        incidentId: workOrder.incidentId,
+        active: true,
+      },
+      include: { status: true },
+    });
+
+    // Check completion by status name or finishedAt timestamp
+    const completedStatuses = ["CERRADO", "COMPLETADO", "RESUELTO", "FINALIZADO"];
+    const allCompleted = incidentWorkOrders.every(
+      (wo) =>
+        wo.finishedAt !== null ||
+        (wo.status?.name && completedStatuses.includes(wo.status.name)),
+    );
+
+    let incidentAutoClosed = false;
+
+    if (allCompleted && incidentWorkOrders.length > 0) {
+      // Auto-close the incident
+      await tx.incident.update({
+        where: { id: workOrder.incidentId },
+        data: {
+          statusId: cerradoStatus.id,
+          resolvedAt: new Date(),
+        },
+      });
+      incidentAutoClosed = true;
+      console.log(
+        `[AUTO-CLOSE] Incident #${workOrder.incidentId} auto-closed - all work orders completed`,
+      );
+    }
+
+    return { workOrder, incidentAutoClosed, incidentId: workOrder.incidentId };
+  });
 
   revalidatePath("/fsr/work-orders");
   revalidatePath(`/fsr/work-orders/${id}`);
   revalidatePath("/admin/work-orders");
   revalidatePath(`/admin/work-orders/${id}`);
-  return { success: true, data: workOrder };
+  if (result.incidentAutoClosed) {
+    revalidatePath(`/admin/incidents/${result.incidentId}`);
+    revalidatePath("/admin/incidents");
+    revalidatePath("/client/incidents");
+  }
+  return { success: true, data: result.workOrder, incidentAutoClosed: result.incidentAutoClosed };
 }
 
 /**
@@ -284,37 +344,72 @@ export async function startWorkOrder(id: string) {
 /**
  * Reopen work order (FSR functionality)
  * Sets status to PENDIENTE and clears finishedAt timestamp
+ * Also reopens incident if it was auto-closed
  */
 export async function reopenWorkOrder(id: string) {
   await requirePermission("work-orders:update");
 
-  // Get PENDIENTE status
-  const pendienteStatus = await prisma.incidentStatus.findFirst({
-    where: { name: "PENDIENTE" },
-  });
+  // Use transaction to ensure atomicity
+  const result = await prisma.$transaction(async (tx) => {
+    // Get PENDIENTE status for work order
+    const pendienteStatus = await tx.incidentStatus.findFirst({
+      where: { name: "PENDIENTE" },
+    });
 
-  if (!pendienteStatus) {
-    throw new Error("PENDIENTE status not found in database");
-  }
+    if (!pendienteStatus) {
+      throw new Error("PENDIENTE status not found in database");
+    }
 
-  const workOrder = await prisma.workOrder.update({
-    where: { id },
-    data: {
-      finishedAt: null,
-      statusId: pendienteStatus.id,
-    },
-    include: {
-      incident: true,
-      assignedTo: true,
-      status: true,
-    },
+    // Get EN_PROGRESO status for incident
+    const enProgresoStatus = await tx.incidentStatus.findFirst({
+      where: { name: "EN_PROGRESO" },
+    });
+
+    const workOrder = await tx.workOrder.update({
+      where: { id },
+      data: {
+        finishedAt: null,
+        statusId: pendienteStatus.id,
+      },
+      include: {
+        incident: {
+          include: { status: true },
+        },
+        assignedTo: true,
+        status: true,
+      },
+    });
+
+    let incidentReopened = false;
+
+    // Check if incident was closed and reopen it
+    if (workOrder.incident.status?.name === "CERRADO" && enProgresoStatus) {
+      await tx.incident.update({
+        where: { id: workOrder.incidentId },
+        data: {
+          statusId: enProgresoStatus.id,
+          resolvedAt: null,
+        },
+      });
+      incidentReopened = true;
+      console.log(
+        `[REOPEN] Incident #${workOrder.incidentId} reopened - work order #${id} reopened`,
+      );
+    }
+
+    return { workOrder, incidentReopened, incidentId: workOrder.incidentId };
   });
 
   revalidatePath("/fsr/work-orders");
   revalidatePath(`/fsr/work-orders/${id}`);
   revalidatePath("/admin/work-orders");
   revalidatePath(`/admin/work-orders/${id}`);
-  return { success: true, data: workOrder };
+  if (result.incidentReopened) {
+    revalidatePath(`/admin/incidents/${result.incidentId}`);
+    revalidatePath("/admin/incidents");
+    revalidatePath("/client/incidents");
+  }
+  return { success: true, data: result.workOrder, incidentReopened: result.incidentReopened };
 }
 
 /**

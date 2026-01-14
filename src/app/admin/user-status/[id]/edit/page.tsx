@@ -1,42 +1,38 @@
-"use client";
+import { notFound } from "next/navigation";
+import { requireRouteAccess } from "@/lib/auth/auth";
+import { GenericStatusForm } from "@/components/settings/generic-status-form";
+import { getUserStatusById, updateUserStatus } from "@/lib/actions/lookups";
 
-import { use, useEffect, useState } from "react";
-import { Spinner } from "@/components/ui/spinner";
-import { UserStatusForm } from "@/components/user-status/user-status-form";
-import { getUserStatusById } from "@/lib/actions/lookups";
-
-export default function EditUserStatusPage({
+export default async function EditUserStatusPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { id } = use(params);
-  const [isLoading, setIsLoading] = useState(true);
-  const [userStatus, setUserStatus] = useState<any>(null);
+  await requireRouteAccess("/admin/user-status");
 
-  useEffect(() => {
-    const fetchUserStatus = async () => {
-      setIsLoading(true);
-      try {
-        const data = await getUserStatusById(Number(id));
-        setUserStatus(data);
-      } catch (error) {
-        console.error("Error fetching user status:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  const { id } = await params;
+  const status = await getUserStatusById(Number.parseInt(id));
 
-    fetchUserStatus();
-  }, [id]);
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Spinner size="lg" />
-      </div>
-    );
+  if (!status) {
+    notFound();
   }
 
-  return <UserStatusForm initialData={userStatus} />;
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold">Edit User Status</h1>
+        <p className="text-muted-foreground">
+          Update user status information
+        </p>
+      </div>
+
+      <GenericStatusForm
+        initialData={status}
+        onSubmit={(data) => updateUserStatus(status.id, data)}
+        redirectPath="/admin/user-status"
+        title="User Status Details"
+        isEdit
+      />
+    </div>
+  );
 }

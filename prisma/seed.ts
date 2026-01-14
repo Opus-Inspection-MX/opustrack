@@ -24,6 +24,80 @@ async function main() {
       )!;
       console.log("✅ Seeded UserStatuses");
 
+      // 1b) LineStatus
+      const lineStatuses = ["ACTIVO", "MANTENIMIENTO", "INACTIVO"];
+      const lineStatusRecords = [];
+      for (const name of lineStatuses) {
+        lineStatusRecords.push(
+          await tx.lineStatus.upsert({
+            where: { name },
+            update: {},
+            create: { name },
+          }),
+        );
+      }
+      const lineStatusActivo = lineStatusRecords.find(
+        (s) => s.name === "ACTIVO",
+      )!;
+      const lineStatusMantenimiento = lineStatusRecords.find(
+        (s) => s.name === "MANTENIMIENTO",
+      )!;
+      console.log("✅ Seeded LineStatuses");
+
+      // 1c) EquipmentStatus
+      const equipmentStatuses = ["OPERATIVO", "MANTENIMIENTO", "INACTIVO"];
+      const equipmentStatusRecords = [];
+      for (const name of equipmentStatuses) {
+        equipmentStatusRecords.push(
+          await tx.equipmentStatus.upsert({
+            where: { name },
+            update: {},
+            create: { name },
+          }),
+        );
+      }
+      const equipmentStatusOperativo = equipmentStatusRecords.find(
+        (s) => s.name === "OPERATIVO",
+      )!;
+      const equipmentStatusMantenimiento = equipmentStatusRecords.find(
+        (s) => s.name === "MANTENIMIENTO",
+      )!;
+      console.log("✅ Seeded EquipmentStatuses");
+
+      // 1d) VehicleStatus
+      const vehicleStatuses = ["AVAILABLE", "IN_USE", "MAINTENANCE", "INACTIVE"];
+      const vehicleStatusRecords = [];
+      for (const name of vehicleStatuses) {
+        vehicleStatusRecords.push(
+          await tx.vehicleStatus.upsert({
+            where: { name },
+            update: {},
+            create: { name },
+          }),
+        );
+      }
+      const vehicleStatusAvailable = vehicleStatusRecords.find(
+        (s) => s.name === "AVAILABLE",
+      )!;
+      console.log("✅ Seeded VehicleStatuses");
+
+      // 1e) VehicleTripStatus
+      const vehicleTripStatuses = ["IN_PROGRESS", "COMPLETED", "CANCELLED"];
+      const vehicleTripStatusRecords = [];
+      for (const name of vehicleTripStatuses) {
+        vehicleTripStatusRecords.push(
+          await tx.vehicleTripStatus.upsert({
+            where: { name },
+            update: {},
+            create: { name },
+          }),
+        );
+      }
+      const vehicleTripStatusInProgress = vehicleTripStatusRecords.find(
+        (s) => s.name === "IN_PROGRESS",
+      )!;
+      console.log("✅ Seeded VehicleTripStatuses");
+
       // 2) State - Only one for testing
       const state = await tx.state.upsert({
         where: { code: "CDMX" },
@@ -470,6 +544,33 @@ async function main() {
           action: "delete",
         },
 
+        // Settings permissions (lookup data management)
+        {
+          name: "settings:read",
+          description: "View settings and lookup data",
+          resource: "settings",
+          action: "read",
+          routePath: "/admin/settings",
+        },
+        {
+          name: "settings:create",
+          description: "Create settings and lookup data",
+          resource: "settings",
+          action: "create",
+        },
+        {
+          name: "settings:update",
+          description: "Update settings and lookup data",
+          resource: "settings",
+          action: "update",
+        },
+        {
+          name: "settings:delete",
+          description: "Delete settings and lookup data",
+          resource: "settings",
+          action: "delete",
+        },
+
         // Vehicle management permissions (Admin)
         {
           name: "vehicles:read",
@@ -709,8 +810,23 @@ async function main() {
             jobPosition: userData.roleName,
           },
         });
+
+        // Create VIC assignment if user has a VIC
+        if (userData.vicId) {
+          await tx.userVicAssignment.upsert({
+            where: {
+              userId_vicId: { userId: user.id, vicId: userData.vicId },
+            },
+            update: { isPrimary: true, active: true },
+            create: {
+              userId: user.id,
+              vicId: userData.vicId,
+              isPrimary: true,
+            },
+          });
+        }
       }
-      console.log("✅ Seeded Users with Profiles");
+      console.log("✅ Seeded Users with Profiles and VIC Assignments");
 
       // 7) IncidentTypes
       const incidentTypes = [
@@ -749,23 +865,264 @@ async function main() {
       }
       console.log("✅ Seeded IncidentStatuses");
 
-      // 9) Part - Only one for testing
-      await tx.part.upsert({
-        where: { name_vicId: { name: "Filtro de Aire", vicId: vic.id } },
-        update: {
-          description: "Filtro de aire para sistema de ventilación",
-          price: 150.0,
-          stock: 10,
-        },
-        create: {
+      // 8b) ScheduleStatuses - Separate from IncidentStatus for semantic clarity
+      const scheduleStatuses = [
+        {
+          name: "BORRADOR",
+          description: "Schedule en edición, no confirmado",
+          color: "#94A3B8",
+        }, // Gray
+        {
+          name: "CONFIRMADO",
+          description: "Schedule confirmado, listo para ejecutar",
+          color: "#3B82F6",
+        }, // Blue
+        {
+          name: "EN_CURSO",
+          description: "Schedule en ejecución",
+          color: "#F59E0B",
+        }, // Amber
+        {
+          name: "COMPLETADO",
+          description: "Schedule completado exitosamente",
+          color: "#10B981",
+        }, // Green
+        {
+          name: "CANCELADO",
+          description: "Schedule cancelado",
+          color: "#EF4444",
+        }, // Red
+        {
+          name: "POSPUESTO",
+          description: "Schedule pospuesto para otra fecha",
+          color: "#8B5CF6",
+        }, // Purple
+      ];
+      const scheduleStatusRecords = [];
+      for (const status of scheduleStatuses) {
+        scheduleStatusRecords.push(
+          await tx.scheduleStatus.upsert({
+            where: { name: status.name },
+            update: { color: status.color, description: status.description },
+            create: status,
+          }),
+        );
+      }
+      const scheduleStatusConfirmado = scheduleStatusRecords.find(
+        (s) => s.name === "CONFIRMADO",
+      )!;
+      console.log("✅ Seeded ScheduleStatuses");
+
+      // 9) Parts - Multiple parts for testing inventory management
+      const partsData = [
+        {
           name: "Filtro de Aire",
           description: "Filtro de aire para sistema de ventilación",
           price: 150.0,
           stock: 10,
-          vicId: vic.id,
         },
-      });
-      console.log("✅ Seeded Part");
+        {
+          name: "Aceite de Motor",
+          description: "Aceite sintético para motores",
+          price: 250.0,
+          stock: 15,
+        },
+        {
+          name: "Bujías",
+          description: "Juego de bujías",
+          price: 80.0,
+          stock: 20,
+        },
+        {
+          name: "Pastillas de Freno",
+          description: "Pastillas de freno delanteras",
+          price: 400.0,
+          stock: 8,
+        },
+        {
+          name: "Batería 12V",
+          description: "Batería de 12V 60Ah",
+          price: 1200.0,
+          stock: 5,
+        },
+      ];
+
+      const partRecords = [];
+      for (const partData of partsData) {
+        partRecords.push(
+          await tx.part.upsert({
+            where: { name_vicId: { name: partData.name, vicId: vic.id } },
+            update: {
+              description: partData.description,
+              price: partData.price,
+              stock: partData.stock,
+            },
+            create: {
+              ...partData,
+              vicId: vic.id,
+            },
+          }),
+        );
+      }
+      console.log("✅ Seeded Parts");
+
+      // 9b) Lines - Sample verification lines
+      const linesData = [
+        {
+          name: "Línea 1",
+          description: "Línea de verificación principal",
+          statusId: lineStatusActivo.id,
+        },
+        {
+          name: "Línea 2",
+          description: "Línea de verificación secundaria",
+          statusId: lineStatusActivo.id,
+        },
+        {
+          name: "Línea 3",
+          description: "Línea de verificación terciaria",
+          statusId: lineStatusMantenimiento.id,
+        },
+      ];
+
+      const lineRecords = [];
+      for (const lineData of linesData) {
+        lineRecords.push(
+          await tx.line.upsert({
+            where: { name_vicId: { name: lineData.name, vicId: vic.id } },
+            update: {
+              description: lineData.description,
+              statusId: lineData.statusId,
+            },
+            create: {
+              ...lineData,
+              vicId: vic.id,
+            },
+          }),
+        );
+      }
+      console.log("✅ Seeded Lines");
+
+      // 9c) Equipment - Sample equipment for lines
+      const equipmentData = [
+        {
+          name: "Analizador de Gases L1",
+          description: "Analizador de gases para línea 1",
+          model: "AG-2000",
+          serialNumber: "AG2000-001",
+          lineId: lineRecords[0].id,
+          statusId: equipmentStatusOperativo.id,
+        },
+        {
+          name: "Analizador de Gases L2",
+          description: "Analizador de gases para línea 2",
+          model: "AG-2000",
+          serialNumber: "AG2000-002",
+          lineId: lineRecords[1].id,
+          statusId: equipmentStatusOperativo.id,
+        },
+        {
+          name: "Opacímetro L1",
+          description: "Opacímetro para línea 1",
+          model: "OP-500",
+          serialNumber: "OP500-001",
+          lineId: lineRecords[0].id,
+          statusId: equipmentStatusOperativo.id,
+        },
+        {
+          name: "Dinamómetro L3",
+          description: "Dinamómetro para línea 3",
+          model: "DIN-3000",
+          serialNumber: "DIN3000-001",
+          lineId: lineRecords[2].id,
+          statusId: equipmentStatusMantenimiento.id,
+        },
+      ];
+
+      const equipmentRecords = [];
+      for (const equipData of equipmentData) {
+        // Try to find existing equipment by name and lineId
+        const existing = await tx.equipment.findFirst({
+          where: {
+            name: equipData.name,
+            lineId: equipData.lineId,
+          },
+        });
+
+        if (existing) {
+          equipmentRecords.push(
+            await tx.equipment.update({
+              where: { id: existing.id },
+              data: {
+                description: equipData.description,
+                model: equipData.model,
+                serialNumber: equipData.serialNumber,
+                statusId: equipData.statusId,
+              },
+            }),
+          );
+        } else {
+          equipmentRecords.push(
+            await tx.equipment.create({
+              data: equipData,
+            }),
+          );
+        }
+      }
+      console.log("✅ Seeded Equipment");
+
+      // 9d) Vehicles - Sample company vehicles for trip tracking
+      const vehiclesData = [
+        {
+          make: "Toyota",
+          model: "Hilux",
+          year: 2022,
+          licensePlate: "ABC-123-XYZ",
+          vin: "JTMZK3DV5N5123456",
+          color: "Blanco",
+          statusId: vehicleStatusAvailable.id,
+          notes: "Camioneta para trabajo de campo",
+        },
+        {
+          make: "Ford",
+          model: "Ranger",
+          year: 2021,
+          licensePlate: "DEF-456-UVW",
+          vin: "8AFRZZED5N1234567",
+          color: "Gris",
+          statusId: vehicleStatusAvailable.id,
+          notes: "Vehículo de supervisión",
+        },
+        {
+          make: "Nissan",
+          model: "NP300",
+          year: 2023,
+          licensePlate: "GHI-789-RST",
+          vin: "3N6AD31Z5N1234568",
+          color: "Azul",
+          statusId: vehicleStatusAvailable.id,
+          notes: "Vehículo de servicio",
+        },
+      ];
+
+      const vehicleRecords = [];
+      for (const vehicleData of vehiclesData) {
+        vehicleRecords.push(
+          await tx.vehicle.upsert({
+            where: { licensePlate: vehicleData.licensePlate },
+            update: {
+              make: vehicleData.make,
+              model: vehicleData.model,
+              year: vehicleData.year,
+              color: vehicleData.color,
+              statusId: vehicleData.statusId,
+              notes: vehicleData.notes,
+            },
+            create: vehicleData,
+          }),
+        );
+      }
+      console.log("✅ Seeded Vehicles");
 
       // 10) Sample Schedules - múltiples fechas para testing del calendario
       const today = new Date();
@@ -814,10 +1171,11 @@ async function main() {
       for (const scheduleData of schedules) {
         const schedule = await tx.schedule.upsert({
           where: { id: scheduleData.id },
-          update: {},
+          update: { statusId: scheduleStatusConfirmado.id },
           create: {
             ...scheduleData,
             vicId: vic.id,
+            statusId: scheduleStatusConfirmado.id,
           },
         });
         scheduleRecords.push(schedule);

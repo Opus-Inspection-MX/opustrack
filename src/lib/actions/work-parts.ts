@@ -3,14 +3,14 @@
 import { revalidatePath } from "next/cache";
 import { requirePermission } from "@/lib/auth/auth";
 import { prisma } from "@/lib/database/prisma.singleton";
+import {
+  WorkPartCreateSchema,
+  WorkPartUpdateSchema,
+  type WorkPartCreateInput,
+} from "@/lib/validations/parts";
 
-export type WorkPartFormData = {
-  workOrderId?: string;
-  workActivityId?: string;
-  partId: string;
-  quantity: number;
-  description?: string;
-};
+// Keep legacy type for backward compatibility
+export type WorkPartFormData = WorkPartCreateInput;
 
 /**
  * Get all work parts (admin view)
@@ -65,44 +65,54 @@ export async function getWorkParts(workOrderId: string) {
 
 /**
  * Create new work part
+ * Uses transaction to ensure atomicity between creating work part and decrementing stock
+ * Validates input with Zod schema
  */
-export async function createWorkPart(data: WorkPartFormData) {
+export async function createWorkPart(data: unknown) {
   await requirePermission("work-orders:update");
 
-  // Check part stock
-  const part = await prisma.part.findUnique({
-    where: { id: data.partId },
+  // Validate input
+  const validated = WorkPartCreateSchema.parse(data);
+
+  // Use transaction to ensure stock integrity
+  const workPart = await prisma.$transaction(async (tx) => {
+    // Check part stock within transaction to prevent race conditions
+    const part = await tx.part.findUnique({
+      where: { id: validated.partId },
+    });
+
+    if (!part) {
+      throw new Error("Parte no encontrada");
+    }
+
+    if (part.stock < validated.quantity) {
+      throw new Error(`Stock insuficiente. Disponible: ${part.stock}`);
+    }
+
+    // Create work part
+    const wp = await tx.workPart.create({
+      data: {
+        workOrderId: validated.workOrderId,
+        workActivityId: validated.workActivityId,
+        partId: validated.partId,
+        quantity: validated.quantity,
+        description: validated.description || null,
+        price: part.price, // Store the price at time of use
+      },
+    });
+
+    // Update part stock
+    await tx.part.update({
+      where: { id: validated.partId },
+      data: { stock: { decrement: validated.quantity } },
+    });
+
+    return wp;
   });
 
-  if (!part) {
-    throw new Error("Parte no encontrada");
-  }
-
-  if (part.stock < data.quantity) {
-    throw new Error(`Stock insuficiente. Disponible: ${part.stock}`);
-  }
-
-  // Create work part and update stock
-  const workPart = await prisma.workPart.create({
-    data: {
-      workOrderId: data.workOrderId,
-      workActivityId: data.workActivityId,
-      partId: data.partId,
-      quantity: data.quantity,
-      description: data.description || null,
-      price: part.price, // Store the price at time of use
-    },
-  });
-
-  // Update part stock
-  await prisma.part.update({
-    where: { id: data.partId },
-    data: { stock: { decrement: data.quantity } },
-  });
-
-  if (data.workOrderId) {
-    revalidatePath(`/admin/work-orders/${data.workOrderId}`);
-    revalidatePath(`/fsr/work-orders/${data.workOrderId}`);
+  if (validated.workOrderId) {
+    revalidatePath(`/admin/work-orders/${validated.workOrderId}`);
+    revalidatePath(`/fsr/work-orders/${validated.workOrderId}`);
   }
 
   return { success: true, data: workPart };
@@ -110,6 +120,7 @@ export async function createWorkPart(data: WorkPartFormData) {
 
 /**
  * Update work part
+ * Uses transaction to ensure atomicity when updating quantity and adjusting stock
  */
 export async function updateWorkPart(
   id: string,
@@ -117,81 +128,92 @@ export async function updateWorkPart(
 ) {
   await requirePermission("work-orders:update");
 
-  const existingWorkPart = await prisma.workPart.findUnique({
-    where: { id },
-  });
-
-  if (!existingWorkPart) {
-    throw new Error("Work part no encontrada");
-  }
-
-  // If quantity changed, update stock
-  if (data.quantity && data.quantity !== existingWorkPart.quantity) {
-    const difference = data.quantity - existingWorkPart.quantity;
-
-    const part = await prisma.part.findUnique({
-      where: { id: existingWorkPart.partId },
+  // Use transaction to ensure stock integrity
+  const result = await prisma.$transaction(async (tx) => {
+    const existingWorkPart = await tx.workPart.findUnique({
+      where: { id },
     });
 
-    if (!part) {
-      throw new Error("Parte no encontrada");
+    if (!existingWorkPart) {
+      throw new Error("Work part no encontrada");
     }
 
-    if (difference > 0 && part.stock < difference) {
-      throw new Error(`Stock insuficiente. Disponible: ${part.stock}`);
+    // If quantity changed, update stock
+    if (data.quantity && data.quantity !== existingWorkPart.quantity) {
+      const difference = data.quantity - existingWorkPart.quantity;
+
+      const part = await tx.part.findUnique({
+        where: { id: existingWorkPart.partId },
+      });
+
+      if (!part) {
+        throw new Error("Parte no encontrada");
+      }
+
+      if (difference > 0 && part.stock < difference) {
+        throw new Error(`Stock insuficiente. Disponible: ${part.stock}`);
+      }
+
+      await tx.part.update({
+        where: { id: existingWorkPart.partId },
+        data: { stock: { decrement: difference } },
+      });
     }
 
-    await prisma.part.update({
-      where: { id: existingWorkPart.partId },
-      data: { stock: { decrement: difference } },
+    const workPart = await tx.workPart.update({
+      where: { id },
+      data: {
+        quantity: data.quantity,
+        description: data.description,
+      },
     });
-  }
 
-  const workPart = await prisma.workPart.update({
-    where: { id },
-    data: {
-      quantity: data.quantity,
-      description: data.description,
-    },
+    return { workPart, workOrderId: existingWorkPart.workOrderId };
   });
 
-  if (existingWorkPart.workOrderId) {
-    revalidatePath(`/admin/work-orders/${existingWorkPart.workOrderId}`);
-    revalidatePath(`/fsr/work-orders/${existingWorkPart.workOrderId}`);
+  if (result.workOrderId) {
+    revalidatePath(`/admin/work-orders/${result.workOrderId}`);
+    revalidatePath(`/fsr/work-orders/${result.workOrderId}`);
   }
 
-  return { success: true, data: workPart };
+  return { success: true, data: result.workPart };
 }
 
 /**
  * Delete work part
+ * Uses transaction to ensure atomicity when restoring stock and soft deleting
  */
 export async function deleteWorkPart(id: string) {
   await requirePermission("work-orders:delete");
 
-  const workPart = await prisma.workPart.findUnique({
-    where: { id },
+  // Use transaction to ensure stock integrity
+  const result = await prisma.$transaction(async (tx) => {
+    const workPart = await tx.workPart.findUnique({
+      where: { id },
+    });
+
+    if (!workPart) {
+      throw new Error("Work part no encontrada");
+    }
+
+    // Restore stock
+    await tx.part.update({
+      where: { id: workPart.partId },
+      data: { stock: { increment: workPart.quantity } },
+    });
+
+    // Soft delete
+    await tx.workPart.update({
+      where: { id },
+      data: { active: false },
+    });
+
+    return { workOrderId: workPart.workOrderId };
   });
 
-  if (!workPart) {
-    throw new Error("Work part no encontrada");
-  }
-
-  // Restore stock
-  await prisma.part.update({
-    where: { id: workPart.partId },
-    data: { stock: { increment: workPart.quantity } },
-  });
-
-  // Soft delete
-  await prisma.workPart.update({
-    where: { id },
-    data: { active: false },
-  });
-
-  if (workPart.workOrderId) {
-    revalidatePath(`/admin/work-orders/${workPart.workOrderId}`);
-    revalidatePath(`/fsr/work-orders/${workPart.workOrderId}`);
+  if (result.workOrderId) {
+    revalidatePath(`/admin/work-orders/${result.workOrderId}`);
+    revalidatePath(`/fsr/work-orders/${result.workOrderId}`);
   }
 
   return { success: true };

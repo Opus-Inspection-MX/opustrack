@@ -30,7 +30,14 @@ export const authOptions: NextAuthOptions = {
             email: credentials.email,
             active: true,
           },
-          include: {
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            password: true,
+            roleId: true,
+            vicId: true,
+            sessionVersion: true,
             role: {
               select: {
                 id: true,
@@ -73,6 +80,8 @@ export const authOptions: NextAuthOptions = {
           name: user.name,
           roleId: user.roleId,
           role: user.role,
+          sessionVersion: user.sessionVersion,
+          vicId: user.vicId,
         };
       },
     }),
@@ -87,6 +96,8 @@ export const authOptions: NextAuthOptions = {
         token.roleId = user.roleId;
         token.roleName = user.role?.name;
         token.defaultPath = user.role?.defaultPath;
+        token.sessionVersion = user.sessionVersion;
+        token.vicId = user.vicId;
       }
       return token;
     },
@@ -99,6 +110,8 @@ export const authOptions: NextAuthOptions = {
         session.user.roleId = token.roleId as number;
         session.user.roleName = token.roleName as string;
         session.user.defaultPath = token.defaultPath as string;
+        session.user.sessionVersion = token.sessionVersion as number;
+        session.user.vicId = token.vicId as string | undefined;
       }
       return session;
     },

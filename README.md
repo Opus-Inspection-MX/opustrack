@@ -43,16 +43,34 @@ npm install
 
 ### 3. Configurar Variables de Entorno
 
-Crea un archivo `.env` en la raíz del proyecto:
+Este proyecto usa 2 archivos de entorno:
+
+#### Archivos de Entorno
+
+- `.env.development` - Desarrollo local Y tests (base de datos Docker)
+- `.env.production` - Testing de build de producción local (base de datos Neon)
+
+#### Setup Inicial
+
+1. **Copia la plantilla de ejemplo:**
+
+```bash
+cp .env.example .env.development
+```
+
+2. **Actualiza `.env.development` con tus credenciales de Docker:**
 
 ```env
-# Database
-DATABASE_URL="postgresql://user:password@localhost:5432/opustrack"
-
-# NextAuth
-NEXTAUTH_SECRET="your-secret-here"  # Genera con: openssl rand -base64 32
+DATABASE_URL="postgresql://tu_usuario:tu_password@localhost:5432/opustrack?schema=public"
+NEXTAUTH_SECRET="dev-secret-not-for-production"
 NEXTAUTH_URL="http://localhost:3000"
+FILE_STORAGE_PROVIDER="filesystem"
 ```
+
+**¿Por qué archivos separados?**
+- ✅ **Seguridad**: No puedes ejecutar código accidentalmente contra producción
+- ✅ **Conveniencia**: Los comandos usan automáticamente la configuración correcta
+- ✅ **Simplicidad**: Solo 2 ambientes (desarrollo y producción)
 
 ### 4. Configurar Base de Datos
 
@@ -105,26 +123,55 @@ Si estás usando Claude Code, consulta [CLAUDE.md](./CLAUDE.md) para informació
 ### Desarrollo
 
 ```bash
-npm run dev          # Iniciar servidor de desarrollo (Turbopack)
-npm run build        # Compilar para producción
-npm run start        # Iniciar servidor de producción
+npm run dev           # Iniciar servidor de desarrollo (usa .env.development)
+npm run build         # Compilar para producción local (usa .env.production)
+npm run build:vercel  # Compilar para Vercel (usa variables de Vercel Dashboard)
+npm run start         # Iniciar servidor de producción
+```
+
+### Tests
+
+```bash
+npm test              # Ejecutar tests unitarios (usa .env.development)
+npm run test:ui       # Tests con interfaz visual
+npm run test:watch    # Tests en modo watch
+npm run test:coverage # Tests con reporte de cobertura
+npm run test:e2e      # Tests end-to-end con Playwright (usa .env.development)
+npm run test:e2e:ui   # E2E tests con interfaz visual
+npm run test:e2e:debug # E2E tests en modo debug
 ```
 
 ### Calidad de Código
 
 ```bash
-npm run lint         # Verificar código con Biome
-npm run format       # Formatear código con Biome
+npm run lint          # Verificar código con Biome
+npm run format        # Formatear código con Biome
 ```
 
 ### Base de Datos
 
 ```bash
-npm run db:migrate   # Ejecutar migraciones de Prisma
-npm run db:studio    # Abrir Prisma Studio (GUI de BD)
-npm run db:reset     # Resetear base de datos
-npm run db:seed      # Poblar base de datos con datos de prueba
+npm run db:migrate    # Ejecutar migraciones (usa .env.development)
+npm run db:studio     # Abrir Prisma Studio (usa .env.development)
+npm run db:reset      # Resetear base de datos (usa .env.development)
+npm run db:seed       # Poblar base de datos (usa .env.development)
 ```
+
+**Nota**: Todos los comandos de desarrollo y tests usan `.env.development` automáticamente gracias a `dotenv-cli`.
+
+### Migraciones en Producción
+
+Para ejecutar migraciones en tu base de datos de producción (Neon):
+
+```bash
+# Opción 1: Usar .env.production localmente (CUIDADO - usa tu DB de producción!)
+dotenv -e .env.production -- npx prisma migrate deploy
+
+# Opción 2: Especificar DATABASE_URL directamente
+DATABASE_URL="postgresql://tu-neon-url" npx prisma migrate deploy
+```
+
+**IMPORTANTE**: `prisma migrate deploy` solo ejecuta migraciones pendientes sin crear nuevas. Nunca corras `prisma migrate dev` contra producción.
 
 ## 🏗️ Estructura del Proyecto
 
@@ -203,6 +250,180 @@ export const POST = withPermission("incidents:create", async (req, user) => {
   // Handler
 });
 ```
+
+## 🚀 Deployment y CI/CD
+
+### Deployment a Vercel
+
+#### ¿Qué pasa durante el deployment?
+
+Cuando haces push a tu repositorio, Vercel automáticamente:
+
+1. Clona tu código
+2. Instala dependencias: `npm install`
+3. Ejecuta el build: `npm run build:vercel`
+4. Despliega la aplicación
+
+**IMPORTANTE**: Los tests **NO se ejecutan** en Vercel durante el deployment. Vercel solo compila la aplicación.
+
+#### Configuración de Variables de Entorno en Vercel
+
+Ve a tu proyecto en Vercel Dashboard → **Settings** → **Environment Variables** y configura:
+
+```
+DATABASE_URL
+  Production + Preview: <tu-connection-string-de-neon>
+
+NEXTAUTH_SECRET
+  Production + Preview: <genera-con-openssl-rand-base64-32>
+
+NEXTAUTH_URL
+  Production: https://tu-dominio-produccion.com
+  Preview: (déjalo vacío - Vercel lo genera automáticamente)
+
+FILE_STORAGE_PROVIDER
+  All: vercel-blob
+
+BLOB_READ_WRITE_TOKEN
+  All: <obtén-desde-vercel-dashboard-storage>
+```
+
+#### Configuración del Build Command
+
+En Vercel Dashboard → **Settings** → **Build & Development Settings**:
+
+- **Build Command**: `npm run build:vercel`
+- **Output Directory**: `.next`
+- **Install Command**: `npm install`
+
+### CI/CD con GitHub Actions (Opcional pero Recomendado)
+
+Para ejecutar tests automáticamente **antes** de que Vercel despliegue, configura GitHub Actions:
+
+#### 1. Crea el archivo de workflow
+
+Crea `.github/workflows/test.yml`:
+
+```yaml
+name: Tests
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: opustrack
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run database migrations
+        run: npm run db:migrate
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/opustrack?schema=public
+
+      - name: Run unit tests
+        run: npm test
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/opustrack?schema=public
+          NEXTAUTH_SECRET: test-secret
+          NEXTAUTH_URL: http://localhost:3000
+          FILE_STORAGE_PROVIDER: filesystem
+
+      - name: Run E2E tests
+        run: npm run test:e2e
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/opustrack?schema=public
+          NEXTAUTH_SECRET: test-secret
+          NEXTAUTH_URL: http://localhost:3000
+          FILE_STORAGE_PROVIDER: filesystem
+```
+
+#### ¿Cómo funciona?
+
+1. **GitHub Actions crea una base de datos PostgreSQL temporal** en el runner de CI
+2. **Ejecuta las migraciones** para crear las tablas
+3. **Corre los tests** contra esa base de datos temporal
+4. **Si los tests pasan**, Vercel procede con el deployment
+5. **Si los tests fallan**, el deployment se detiene
+
+#### ¿Por qué GitHub Actions puede ejecutar tests si no tiene acceso a tu Docker local?
+
+**Respuesta**: GitHub Actions **NO usa tu base de datos local**. En su lugar:
+
+- ✅ Crea un contenedor PostgreSQL **temporal** en la nube (GitHub runners)
+- ✅ Este contenedor vive solo durante el workflow (unos minutos)
+- ✅ Se destruye automáticamente al finalizar
+- ✅ Es completamente independiente de tu Docker local
+- ✅ No puede acceder a tus datos locales ni de producción
+
+**Flujo completo**:
+
+```
+┌─────────────────┐
+│  git push       │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────────────┐
+│  GitHub Actions         │
+│  ┌─────────────────┐   │
+│  │ PostgreSQL temp │   │  ← Base de datos temporal
+│  └─────────────────┘   │
+│          │              │
+│          ▼              │
+│  ┌─────────────────┐   │
+│  │  Run tests      │   │  ← Tests corren aquí
+│  └─────────────────┘   │
+└────────┬────────────────┘
+         │
+         ▼ (Si tests pasan)
+┌─────────────────────────┐
+│  Vercel Deployment      │
+│  Uses: Neon Database    │  ← Producción usa tu DB real
+└─────────────────────────┘
+```
+
+### Resumen de Ambientes
+
+| Ambiente | Base de Datos | Cuándo se usa |
+|----------|---------------|---------------|
+| **Local Dev & Tests** | Docker local (`opustrack`) | `npm run dev`, `npm test` |
+| **GitHub Actions CI** | PostgreSQL temporal | Automático en push/PR |
+| **Vercel Production** | Neon (producción) | Deployment automático |
+
+**✅ Tu base de datos de producción está 100% segura:**
+- Desarrollo y tests locales → Docker local (misma base de datos)
+- Tests en CI → Base de datos temporal en GitHub
+- Producción → Neon (nunca tocada por tests)
 
 ## 🧩 Ejemplos de Uso
 

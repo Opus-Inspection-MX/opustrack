@@ -1,29 +1,47 @@
 "use client";
 
-import { Plus } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import { GenericStatusTable } from "@/components/settings/generic-status-table";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Pagination } from "@/components/ui/pagination";
 import { Spinner } from "@/components/ui/spinner";
-import { UserStatusTable } from "@/components/user-status/user-status-table";
 import { deleteUserStatus, getUserStatuses } from "@/lib/actions/lookups";
+
+type UserStatus = Awaited<
+  ReturnType<typeof getUserStatuses>
+>["data"][number];
 
 export default function UserStatusPage() {
   const router = useRouter();
+  const [statuses, setStatuses] = useState<UserStatus[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [userStatuses, setUserStatuses] = useState<any[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const fetchData = useCallback(async () => {
+    setIsLoading(true);
     try {
-      setIsLoading(true);
-      const data = await getUserStatuses();
-      setUserStatuses(data);
+      const result = await getUserStatuses({
+        page: currentPage,
+        limit: itemsPerPage,
+        search: searchQuery || undefined,
+      });
+      setStatuses(result.data);
+      setTotalItems(result.pagination.total);
+      setTotalPages(result.pagination.totalPages);
     } catch (error) {
       console.error("Error fetching user statuses:", error);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [currentPage, itemsPerPage, searchQuery]);
 
   useEffect(() => {
     fetchData();
@@ -49,7 +67,12 @@ export default function UserStatusPage() {
     router.push(`/admin/user-status/${id}`);
   };
 
-  if (isLoading) {
+  const handleSearch = (value: string) => {
+    setSearchQuery(value);
+    setCurrentPage(1);
+  };
+
+  if (isLoading && statuses.length === 0) {
     return (
       <div className="flex items-center justify-center h-64">
         <Spinner size="lg" text="Loading user statuses..." />
@@ -59,25 +82,55 @@ export default function UserStatusPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold">User Status</h1>
           <p className="text-muted-foreground">
-            Manage user status types and their configurations
+            Manage user status types
           </p>
         </div>
         <Button onClick={() => router.push("/admin/user-status/new")}>
           <Plus className="mr-2 h-4 w-4" />
-          New User Status
+          New Status
         </Button>
       </div>
 
-      <UserStatusTable
-        data={userStatuses}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="space-y-2">
+          <Label className="text-xs font-medium">Search</Label>
+          <div className="relative">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search by name..."
+              value={searchQuery}
+              onChange={(e) => handleSearch(e.target.value)}
+              className="pl-8"
+            />
+          </div>
+        </div>
+      </div>
+
+      <GenericStatusTable
+        data={statuses}
         onEdit={handleEdit}
         onDelete={handleDelete}
         onView={handleView}
+        countLabel="Users Using"
       />
+
+      {totalItems > 0 && (
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          itemsPerPage={itemsPerPage}
+          onPageChange={setCurrentPage}
+          onItemsPerPageChange={(value) => {
+            setItemsPerPage(value);
+            setCurrentPage(1);
+          }}
+        />
+      )}
     </div>
   );
 }

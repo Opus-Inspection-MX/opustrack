@@ -469,6 +469,394 @@ export async function deleteIncidentStatus(id: number) {
   redirect("/admin/incident-status");
 }
 
+// ==================== LINE STATUS ====================
+
+export type LineStatusFormData = {
+  name: string;
+  active?: boolean;
+};
+
+export async function getLineStatuses(params?: {
+  page?: number;
+  limit?: number;
+  search?: string;
+}) {
+  await requirePermission("settings:read");
+
+  const page = params?.page || 1;
+  const limit = params?.limit || 10;
+  const skip = (page - 1) * limit;
+
+  const where: any = { active: true };
+  if (params?.search) {
+    where.name = { contains: params.search, mode: "insensitive" };
+  }
+
+  const [data, total] = await Promise.all([
+    prisma.lineStatus.findMany({
+      where,
+      orderBy: { name: "asc" },
+      skip,
+      take: limit,
+      include: {
+        _count: { select: { lines: true } },
+      },
+    }),
+    prisma.lineStatus.count({ where }),
+  ]);
+
+  return {
+    data,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+    },
+  };
+}
+
+export async function getLineStatusById(id: number) {
+  await requirePermission("settings:read");
+  return await prisma.lineStatus.findUnique({
+    where: { id },
+    include: { _count: { select: { lines: true } } },
+  });
+}
+
+export async function createLineStatus(data: LineStatusFormData) {
+  await requirePermission("settings:create");
+  const status = await prisma.lineStatus.create({
+    data: {
+      name: data.name,
+      ...(data.active !== undefined && { active: data.active }),
+    },
+  });
+  revalidatePath("/admin/settings/line-status");
+  return { success: true, data: status };
+}
+
+export async function updateLineStatus(id: number, data: LineStatusFormData) {
+  await requirePermission("settings:update");
+  const status = await prisma.lineStatus.update({
+    where: { id },
+    data: {
+      name: data.name,
+      ...(data.active !== undefined && { active: data.active }),
+    },
+  });
+  revalidatePath("/admin/settings/line-status");
+  revalidatePath(`/admin/settings/line-status/${id}`);
+  return { success: true, data: status };
+}
+
+export async function deleteLineStatus(id: number) {
+  await requirePermission("settings:delete");
+  const lineCount = await prisma.line.count({
+    where: { statusId: id, active: true },
+  });
+  if (lineCount > 0) {
+    throw new Error(`Cannot delete status. ${lineCount} line(s) have this status.`);
+  }
+  await prisma.lineStatus.update({
+    where: { id },
+    data: { active: false },
+  });
+  revalidatePath("/admin/settings/line-status");
+  redirect("/admin/settings/line-status");
+}
+
+// ==================== EQUIPMENT STATUS ====================
+
+export type EquipmentStatusFormData = {
+  name: string;
+  active?: boolean;
+};
+
+export async function getEquipmentStatuses(params?: {
+  page?: number;
+  limit?: number;
+  search?: string;
+}) {
+  await requirePermission("settings:read");
+
+  const page = params?.page || 1;
+  const limit = params?.limit || 10;
+  const skip = (page - 1) * limit;
+
+  const where: any = { active: true };
+  if (params?.search) {
+    where.name = { contains: params.search, mode: "insensitive" };
+  }
+
+  const [data, total] = await Promise.all([
+    prisma.equipmentStatus.findMany({
+      where,
+      orderBy: { name: "asc" },
+      skip,
+      take: limit,
+      include: {
+        _count: { select: { equipments: true } },
+      },
+    }),
+    prisma.equipmentStatus.count({ where }),
+  ]);
+
+  return {
+    data,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+    },
+  };
+}
+
+export async function getEquipmentStatusById(id: number) {
+  await requirePermission("settings:read");
+  return await prisma.equipmentStatus.findUnique({
+    where: { id },
+    include: { _count: { select: { equipments: true } } },
+  });
+}
+
+export async function createEquipmentStatus(data: EquipmentStatusFormData) {
+  await requirePermission("settings:create");
+  const status = await prisma.equipmentStatus.create({
+    data: {
+      name: data.name,
+      ...(data.active !== undefined && { active: data.active }),
+    },
+  });
+  revalidatePath("/admin/settings/equipment-status");
+  return { success: true, data: status };
+}
+
+export async function updateEquipmentStatus(id: number, data: EquipmentStatusFormData) {
+  await requirePermission("settings:update");
+  const status = await prisma.equipmentStatus.update({
+    where: { id },
+    data: {
+      name: data.name,
+      ...(data.active !== undefined && { active: data.active }),
+    },
+  });
+  revalidatePath("/admin/settings/equipment-status");
+  revalidatePath(`/admin/settings/equipment-status/${id}`);
+  return { success: true, data: status };
+}
+
+export async function deleteEquipmentStatus(id: number) {
+  await requirePermission("settings:delete");
+  const equipmentCount = await prisma.equipment.count({
+    where: { statusId: id, active: true },
+  });
+  if (equipmentCount > 0) {
+    throw new Error(`Cannot delete status. ${equipmentCount} equipment(s) have this status.`);
+  }
+  await prisma.equipmentStatus.update({
+    where: { id },
+    data: { active: false },
+  });
+  revalidatePath("/admin/settings/equipment-status");
+  redirect("/admin/settings/equipment-status");
+}
+
+// ==================== VEHICLE STATUS ====================
+
+export type VehicleStatusFormData = {
+  name: string;
+  active?: boolean;
+};
+
+export async function getVehicleStatuses(params?: {
+  page?: number;
+  limit?: number;
+  search?: string;
+}) {
+  await requirePermission("settings:read");
+
+  const page = params?.page || 1;
+  const limit = params?.limit || 10;
+  const skip = (page - 1) * limit;
+
+  const where: any = { active: true };
+  if (params?.search) {
+    where.name = { contains: params.search, mode: "insensitive" };
+  }
+
+  const [data, total] = await Promise.all([
+    prisma.vehicleStatus.findMany({
+      where,
+      orderBy: { name: "asc" },
+      skip,
+      take: limit,
+      include: {
+        _count: { select: { vehicles: true } },
+      },
+    }),
+    prisma.vehicleStatus.count({ where }),
+  ]);
+
+  return {
+    data,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+    },
+  };
+}
+
+export async function getVehicleStatusById(id: number) {
+  await requirePermission("settings:read");
+  return await prisma.vehicleStatus.findUnique({
+    where: { id },
+    include: { _count: { select: { vehicles: true } } },
+  });
+}
+
+export async function createVehicleStatus(data: VehicleStatusFormData) {
+  await requirePermission("settings:create");
+  const status = await prisma.vehicleStatus.create({
+    data: {
+      name: data.name,
+      ...(data.active !== undefined && { active: data.active }),
+    },
+  });
+  revalidatePath("/admin/settings/vehicle-status");
+  return { success: true, data: status };
+}
+
+export async function updateVehicleStatus(id: number, data: VehicleStatusFormData) {
+  await requirePermission("settings:update");
+  const status = await prisma.vehicleStatus.update({
+    where: { id },
+    data: {
+      name: data.name,
+      ...(data.active !== undefined && { active: data.active }),
+    },
+  });
+  revalidatePath("/admin/settings/vehicle-status");
+  revalidatePath(`/admin/settings/vehicle-status/${id}`);
+  return { success: true, data: status };
+}
+
+export async function deleteVehicleStatus(id: number) {
+  await requirePermission("settings:delete");
+  const vehicleCount = await prisma.vehicle.count({
+    where: { statusId: id, active: true },
+  });
+  if (vehicleCount > 0) {
+    throw new Error(`Cannot delete status. ${vehicleCount} vehicle(s) have this status.`);
+  }
+  await prisma.vehicleStatus.update({
+    where: { id },
+    data: { active: false },
+  });
+  revalidatePath("/admin/settings/vehicle-status");
+  redirect("/admin/settings/vehicle-status");
+}
+
+// ==================== VEHICLE TRIP STATUS ====================
+
+export type VehicleTripStatusFormData = {
+  name: string;
+  active?: boolean;
+};
+
+export async function getVehicleTripStatuses(params?: {
+  page?: number;
+  limit?: number;
+  search?: string;
+}) {
+  await requirePermission("settings:read");
+
+  const page = params?.page || 1;
+  const limit = params?.limit || 10;
+  const skip = (page - 1) * limit;
+
+  const where: any = { active: true };
+  if (params?.search) {
+    where.name = { contains: params.search, mode: "insensitive" };
+  }
+
+  const [data, total] = await Promise.all([
+    prisma.vehicleTripStatus.findMany({
+      where,
+      orderBy: { name: "asc" },
+      skip,
+      take: limit,
+      include: {
+        _count: { select: { trips: true } },
+      },
+    }),
+    prisma.vehicleTripStatus.count({ where }),
+  ]);
+
+  return {
+    data,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+    },
+  };
+}
+
+export async function getVehicleTripStatusById(id: number) {
+  await requirePermission("settings:read");
+  return await prisma.vehicleTripStatus.findUnique({
+    where: { id },
+    include: { _count: { select: { trips: true } } },
+  });
+}
+
+export async function createVehicleTripStatus(data: VehicleTripStatusFormData) {
+  await requirePermission("settings:create");
+  const status = await prisma.vehicleTripStatus.create({
+    data: {
+      name: data.name,
+      ...(data.active !== undefined && { active: data.active }),
+    },
+  });
+  revalidatePath("/admin/settings/vehicle-trip-status");
+  return { success: true, data: status };
+}
+
+export async function updateVehicleTripStatus(id: number, data: VehicleTripStatusFormData) {
+  await requirePermission("settings:update");
+  const status = await prisma.vehicleTripStatus.update({
+    where: { id },
+    data: {
+      name: data.name,
+      ...(data.active !== undefined && { active: data.active }),
+    },
+  });
+  revalidatePath("/admin/settings/vehicle-trip-status");
+  revalidatePath(`/admin/settings/vehicle-trip-status/${id}`);
+  return { success: true, data: status };
+}
+
+export async function deleteVehicleTripStatus(id: number) {
+  await requirePermission("settings:delete");
+  const tripCount = await prisma.vehicleTrip.count({
+    where: { statusId: id, active: true },
+  });
+  if (tripCount > 0) {
+    throw new Error(`Cannot delete status. ${tripCount} trip(s) have this status.`);
+  }
+  await prisma.vehicleTripStatus.update({
+    where: { id },
+    data: { active: false },
+  });
+  revalidatePath("/admin/settings/vehicle-trip-status");
+  redirect("/admin/settings/vehicle-trip-status");
+}
+
 // ==================== PERMISSIONS ====================
 
 export type PermissionFormData = {

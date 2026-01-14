@@ -1,137 +1,74 @@
-"use client";
-
-import { ArrowLeft, Calendar, Edit, Users } from "lucide-react";
-import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { Badge } from "@/components/ui/badge";
+import { notFound } from "next/navigation";
+import Link from "next/link";
+import { requireRouteAccess } from "@/lib/auth/auth";
+import { getUserStatusById } from "@/lib/actions/lookups";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Spinner } from "@/components/ui/spinner";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ArrowLeft, Edit } from "lucide-react";
 
-export default function UserStatusDetailPage() {
-  const router = useRouter();
-  const params = useParams();
-  const [isLoading, setIsLoading] = useState(true);
-  const [userStatus, setUserStatus] = useState<any>(null);
+export default async function UserStatusDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  await requireRouteAccess("/admin/user-status");
 
-  useEffect(() => {
-    const fetchUserStatus = async () => {
-      setIsLoading(true);
-      try {
-        await new Promise((resolve) => setTimeout(resolve, 500));
+  const { id } = await params;
+  const status = await getUserStatusById(Number.parseInt(id));
 
-        const mockUserStatus = {
-          id: params.id,
-          name: "Active",
-          active: true,
-          userCount: 45,
-          createdAt: "2024-01-01T00:00:00Z",
-          updatedAt: "2024-03-10T12:00:00Z",
-        };
-
-        setUserStatus(mockUserStatus);
-      } catch (error) {
-        console.error("Error fetching user status:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchUserStatus();
-  }, [params.id]);
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Spinner size="lg" />
-      </div>
-    );
-  }
-
-  if (!userStatus) {
-    return (
-      <div className="space-y-6">
-        <div className="flex items-center gap-4">
-          <Button variant="outline" size="sm" onClick={() => router.back()}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back
-          </Button>
-        </div>
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-center text-muted-foreground">
-              User status not found
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    );
+  if (!status) {
+    notFound();
   }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Button variant="outline" size="sm" onClick={() => router.back()}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back
-          </Button>
+          <Link href="/admin/user-status">
+            <Button variant="ghost" size="icon">
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+          </Link>
           <div>
-            <h1 className="text-3xl font-bold">{userStatus.name}</h1>
-            <p className="text-muted-foreground">
-              User status details and usage
-            </p>
+            <h1 className="text-3xl font-bold">{status.name}</h1>
+            <p className="text-muted-foreground">User status details</p>
           </div>
         </div>
-        <Button
-          onClick={() =>
-            router.push(`/admin/user-status/${userStatus.id}/edit`)
-          }
-        >
-          <Edit className="h-4 w-4 mr-2" />
-          Edit Status
-        </Button>
+        <Link href={`/admin/user-status/${status.id}/edit`}>
+          <Button>
+            <Edit className="mr-2 h-4 w-4" />
+            Edit
+          </Button>
+        </Link>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Status Information</CardTitle>
-            <CardDescription>Basic status details</CardDescription>
+            <CardTitle>Basic Information</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-start gap-3">
-              <div className="h-5 w-5 rounded-full bg-primary/10 flex items-center justify-center mt-0.5">
-                <div className="h-2 w-2 rounded-full bg-primary" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-medium text-muted-foreground">
-                  Status Name
-                </p>
-                <p className="text-base">{userStatus.name}</p>
-              </div>
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">ID</p>
+              <p className="text-lg">{status.id}</p>
             </div>
-
-            <div className="flex items-start gap-3">
-              <div className="h-5 w-5 rounded-full flex items-center justify-center mt-0.5">
-                <div
-                  className={`h-3 w-3 rounded-full ${userStatus.active ? "bg-green-500" : "bg-red-500"}`}
-                />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-medium text-muted-foreground">
-                  Status
-                </p>
-                <Badge variant={userStatus.active ? "default" : "destructive"}>
-                  {userStatus.active ? "Active" : "Inactive"}
-                </Badge>
-              </div>
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Name</p>
+              <p className="text-lg">{status.name}</p>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Status</p>
+              <p className="text-lg">
+                <span
+                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                    status.active
+                      ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+                      : "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200"
+                  }`}
+                >
+                  {status.active ? "Active" : "Inactive"}
+                </span>
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -139,53 +76,15 @@ export default function UserStatusDetailPage() {
         <Card>
           <CardHeader>
             <CardTitle>Usage Statistics</CardTitle>
-            <CardDescription>Status assignment details</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-start gap-3">
-              <Users className="h-5 w-5 text-muted-foreground mt-0.5" />
-              <div className="flex-1">
-                <p className="text-sm font-medium text-muted-foreground">
-                  Users with this Status
-                </p>
-                <p className="text-2xl font-bold">{userStatus.userCount}</p>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-3">
-              <Calendar className="h-5 w-5 text-muted-foreground mt-0.5" />
-              <div className="flex-1">
-                <p className="text-sm font-medium text-muted-foreground">
-                  Created
-                </p>
-                <p className="text-base">
-                  {new Date(userStatus.createdAt).toLocaleString()}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-3">
-              <Calendar className="h-5 w-5 text-muted-foreground mt-0.5" />
-              <div className="flex-1">
-                <p className="text-sm font-medium text-muted-foreground">
-                  Last Updated
-                </p>
-                <p className="text-base">
-                  {new Date(userStatus.updatedAt).toLocaleString()}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-3">
-              <div className="h-5 w-5 flex items-center justify-center mt-0.5">
-                <div className="text-lg font-bold text-primary">#</div>
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-medium text-muted-foreground">
-                  Status ID
-                </p>
-                <p className="text-base font-mono">{userStatus.id}</p>
-              </div>
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">
+                Users Using This Status
+              </p>
+              <p className="text-3xl font-bold">
+                {status._count?.users || 0}
+              </p>
             </div>
           </CardContent>
         </Card>

@@ -25,7 +25,11 @@ export async function getSession() {
 
 /**
  * Get authenticated user with full role and permissions
- * Returns null if not authenticated
+ * Returns null if not authenticated or if session is invalidated
+ *
+ * Session validation:
+ * - Checks if user's sessionVersion matches JWT
+ * - If not, forces re-authentication
  */
 export async function getAuthenticatedUser(): Promise<UserWithPermissions | null> {
   const session = await getServerSession(authOptions);
@@ -39,10 +43,21 @@ export async function getAuthenticatedUser(): Promise<UserWithPermissions | null
       name: true,
       roleId: true,
       vicId: true,
+      sessionVersion: true,
     },
   });
 
   if (!user) return null;
+
+  // Validate session version (if JWT has version)
+  const jwtVersion = session.user.sessionVersion;
+  if (jwtVersion !== undefined && user.sessionVersion !== jwtVersion) {
+    // Session has been invalidated - user needs to re-login
+    console.log(
+      `[SESSION] Invalid session for user ${user.id}: JWT version ${jwtVersion} != DB version ${user.sessionVersion}`,
+    );
+    return null;
+  }
 
   const role = await getRoleById(user.roleId);
   if (!role) return null;

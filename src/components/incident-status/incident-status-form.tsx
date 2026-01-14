@@ -38,12 +38,18 @@ interface IncidentStatusFormProps {
     color: string;
     active: boolean;
   };
-  onSubmit: (data: IncidentStatusFormData) => Promise<void>;
+  onSubmit: (data: IncidentStatusFormData) => Promise<any>;
+  redirectPath: string;
+  title?: string;
+  isEdit?: boolean;
 }
 
 export function IncidentStatusForm({
   initialData,
   onSubmit,
+  redirectPath,
+  title = "Incident Status Details",
+  isEdit = false,
 }: IncidentStatusFormProps) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
@@ -89,7 +95,8 @@ export function IncidentStatusForm({
       incidentStatusSchema.parse(formData);
       setIsLoading(true);
       await onSubmit(formData);
-      router.push("/admin/incident-status");
+      router.push(redirectPath);
+      router.refresh();
     } catch (error) {
       if (error instanceof z.ZodError) {
         const fieldErrors: Record<string, string> = {};
@@ -111,9 +118,7 @@ export function IncidentStatusForm({
     <div className="max-w-2xl mx-auto space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>
-            {initialData ? "Edit Incident Status" : "Create Incident Status"}
-          </CardTitle>
+          <CardTitle>{title}</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -217,14 +222,14 @@ export function IncidentStatusForm({
                 {isLoading && <Spinner size="sm" />}
                 {isLoading
                   ? "Saving..."
-                  : initialData
+                  : isEdit
                     ? "Update Status"
                     : "Create Status"}
               </Button>
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => router.push("/admin/incident-status")}
+                onClick={() => router.back()}
               >
                 Cancel
               </Button>

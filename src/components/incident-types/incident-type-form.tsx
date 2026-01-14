@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -28,16 +29,21 @@ const incidentTypeSchema = z.object({
 type IncidentTypeFormData = z.infer<typeof incidentTypeSchema>;
 
 interface IncidentTypeFormProps {
-  initialData?: Partial<IncidentTypeFormData>;
-  onSubmit: (data: IncidentTypeFormData) => Promise<void>;
-  onCancel: () => void;
+  initialData?: Partial<IncidentTypeFormData & { id: number }>;
+  onSubmit: (data: IncidentTypeFormData) => Promise<any>;
+  redirectPath: string;
+  title?: string;
+  isEdit?: boolean;
 }
 
 export function IncidentTypeForm({
   initialData,
   onSubmit,
-  onCancel,
+  redirectPath,
+  title = "Incident Type Details",
+  isEdit = false,
 }: IncidentTypeFormProps) {
+  const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -64,6 +70,8 @@ export function IncidentTypeForm({
       setIsLoading(true);
       setError(null);
       await onSubmit(data);
+      router.push(redirectPath);
+      router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
@@ -74,9 +82,7 @@ export function IncidentTypeForm({
   return (
     <Card className="w-full max-w-2xl">
       <CardHeader>
-        <CardTitle>
-          {initialData ? "Edit Incident Type" : "Create Incident Type"}
-        </CardTitle>
+        <CardTitle>{title}</CardTitle>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
@@ -126,21 +132,23 @@ export function IncidentTypeForm({
             </div>
           </div>
 
-          <div className="flex items-center space-x-2">
-            <Switch
-              id="active"
-              checked={activeValue}
-              onCheckedChange={(checked) => setValue("active", checked)}
-            />
-            <Label htmlFor="active">Active</Label>
-          </div>
+          {isEdit && (
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="active"
+                checked={activeValue}
+                onCheckedChange={(checked) => setValue("active", checked)}
+              />
+              <Label htmlFor="active">Active</Label>
+            </div>
+          )}
 
           <div className="flex gap-4 pt-4">
             <Button type="submit" disabled={isLoading}>
               {isLoading && <Spinner size="sm" />}
-              {initialData ? "Update Type" : "Create Type"}
+              {isEdit ? "Update Type" : "Create Type"}
             </Button>
-            <Button type="button" variant="outline" onClick={onCancel}>
+            <Button type="button" variant="outline" onClick={() => router.back()}>
               Cancel
             </Button>
           </div>

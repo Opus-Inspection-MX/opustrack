@@ -5,19 +5,18 @@ import { redirect } from "next/navigation";
 import { requirePermission } from "@/lib/auth/auth";
 import { assertVicAccess, getVicWhereClause } from "@/lib/auth/filters";
 import { prisma } from "@/lib/database/prisma.singleton";
+import {
+  IncidentCreateSchema,
+  IncidentClientCreateSchema,
+  IncidentUpdateSchema,
+  IncidentAssignSchema,
+  IncidentChangeStatusSchema,
+  type IncidentCreateInput,
+  type IncidentClientCreateInput,
+} from "@/lib/validations/incidents";
 
-export type IncidentFormData = {
-  title: string;
-  description: string;
-  priority: number;
-  sla: number;
-  typeId?: number | null;
-  statusId?: number | null;
-  vicId?: string | null;
-  scheduleId?: string | null;
-  reportedById?: string | null;
-  resolvedAt?: Date | null;
-};
+// Keep legacy type for backward compatibility with existing forms
+export type IncidentFormData = IncidentCreateInput;
 
 /**
  * Get all incidents with relations
@@ -111,22 +110,26 @@ export async function getIncidentById(id: number) {
 
 /**
  * Create new incident
+ * Validates input with Zod schema
  */
-export async function createIncident(data: IncidentFormData) {
+export async function createIncident(data: unknown) {
   const user = await requirePermission("incidents:create");
+
+  // Validate input
+  const validated = IncidentCreateSchema.parse(data);
 
   const incident = await prisma.incident.create({
     data: {
-      title: data.title,
-      description: data.description,
-      priority: data.priority,
-      sla: data.sla,
-      typeId: data.typeId || null,
-      statusId: data.statusId || null,
-      vicId: data.vicId || null,
-      scheduleId: data.scheduleId || null,
-      reportedById: data.reportedById || user.id, // Use current user if not specified
-      resolvedAt: data.resolvedAt || null,
+      title: validated.title,
+      description: validated.description,
+      priority: validated.priority,
+      sla: validated.sla,
+      typeId: validated.typeId || null,
+      statusId: validated.statusId || null,
+      vicId: validated.vicId || null,
+      scheduleId: validated.scheduleId || null,
+      reportedById: validated.reportedById || user.id, // Use current user if not specified
+      resolvedAt: validated.resolvedAt || null,
     },
     include: {
       type: true,
@@ -143,16 +146,13 @@ export async function createIncident(data: IncidentFormData) {
 
 /**
  * Create incident as client (simplified for client role)
+ * Validates input with Zod schema
  */
-export async function createIncidentAsClient(
-  title: string,
-  description: string,
-  priority: number,
-  typeId?: number,
-  lineId?: number,
-  equipmentId?: number,
-) {
+export async function createIncidentAsClient(data: unknown) {
   const user = await requirePermission("incidents:create");
+
+  // Validate input
+  const validated = IncidentClientCreateSchema.parse(data);
 
   // Get ABIERTO status
   const openStatus = await prisma.incidentStatus.findFirst({
@@ -170,16 +170,16 @@ export async function createIncidentAsClient(
 
   const incident = await prisma.incident.create({
     data: {
-      title,
-      description,
-      priority,
+      title: validated.title,
+      description: validated.description,
+      priority: validated.priority,
       sla: 24, // Default SLA for client incidents
-      typeId: typeId || null,
+      typeId: validated.typeId || null,
       statusId: openStatus.id,
       vicId: user.vicId,
       reportedById: user.id,
-      lineId: lineId || null,
-      equipmentId: equipmentId || null,
+      lineId: validated.lineId || null,
+      equipmentId: validated.equipmentId || null,
     },
     include: {
       type: true,
@@ -286,6 +286,7 @@ export async function updateIncident(id: number, data: IncidentFormData) {
 /**
  * Delete incident (soft delete)
  * Verifies user has access to the incident's VIC before deleting
+ * Uses transaction to ensure atomicity when checking for active children
  */
 export async function deleteIncident(id: number) {
   const user = await requirePermission("incidents:delete");
@@ -302,9 +303,23 @@ export async function deleteIncident(id: number) {
 
   assertVicAccess(user, incident.vicId);
 
-  await prisma.incident.update({
-    where: { id },
-    data: { active: false },
+  // Use transaction to prevent race conditions when checking for children
+  await prisma.$transaction(async (tx) => {
+    // Check for active work orders
+    const activeWorkOrders = await tx.workOrder.count({
+      where: { incidentId: id, active: true },
+    });
+
+    if (activeWorkOrders > 0) {
+      throw new Error(
+        `No se puede eliminar el incidente. Tiene ${activeWorkOrders} orden(es) de trabajo activa(s).`,
+      );
+    }
+
+    await tx.incident.update({
+      where: { id },
+      data: { active: false },
+    });
   });
 
   revalidatePath("/admin/incidents");
@@ -391,6 +406,7 @@ export async function changeIncidentStatus(id: number, statusId: number) {
 /**
  * Assign incident to FSR
  * Verifies user has access to the incident's VIC before assigning
+ * Uses transaction to ensure atomicity when creating work order and updating incident
  */
 export async function assignIncidentToFSR(
   incidentId: number,
@@ -420,35 +436,40 @@ export async function assignIncidentToFSR(
     throw new Error("El usuario seleccionado no es un FSR");
   }
 
-  // Create work order for the incident
-  const workOrder = await prisma.workOrder.create({
-    data: {
-      incidentId,
-      assignedToId: fsrUserId,
-      notes: "Orden de trabajo asignada automáticamente",
-    },
-    include: {
-      assignedTo: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
+  // Use transaction to create work order and update incident atomically
+  const workOrder = await prisma.$transaction(async (tx) => {
+    // Create work order for the incident
+    const wo = await tx.workOrder.create({
+      data: {
+        incidentId,
+        assignedToId: fsrUserId,
+        notes: "Orden de trabajo asignada automáticamente",
+      },
+      include: {
+        assignedTo: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
         },
       },
-    },
-  });
-
-  // Update incident status to EN_PROGRESO
-  const inProgressStatus = await prisma.incidentStatus.findFirst({
-    where: { name: "EN_PROGRESO" },
-  });
-
-  if (inProgressStatus) {
-    await prisma.incident.update({
-      where: { id: incidentId },
-      data: { statusId: inProgressStatus.id },
     });
-  }
+
+    // Update incident status to EN_PROGRESO
+    const inProgressStatus = await tx.incidentStatus.findFirst({
+      where: { name: "EN_PROGRESO" },
+    });
+
+    if (inProgressStatus) {
+      await tx.incident.update({
+        where: { id: incidentId },
+        data: { statusId: inProgressStatus.id },
+      });
+    }
+
+    return wo;
+  });
 
   revalidatePath("/admin/incidents");
   revalidatePath(`/admin/incidents/${incidentId}`);
