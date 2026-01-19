@@ -4,10 +4,20 @@ import { getVehicleTripById } from "@/lib/actions/vehicle-trips";
 
 interface VehicleTrip {
   id: string;
-  status: string;
   startOdometer: number;
   endOdometer?: number | null;
+  startedAt: string;
+  endedAt?: string | null;
   vehicleId: string;
+  vehicle: {
+    make: string;
+    model: string;
+    licensePlate: string;
+  };
+  workOrder?: {
+    folio: string | null;
+    incident: { title: string };
+  } | null;
 }
 
 export default async function EndTripPage({
@@ -28,7 +38,7 @@ export default async function EndTripPage({
     notFound();
   }
 
-  if (trip.status !== "IN_PROGRESS") {
+  if (trip.endedAt) {
     return (
       <div className="container mx-auto py-6 space-y-6">
         <div>

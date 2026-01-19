@@ -27,8 +27,13 @@ export default async function EditIncidentTypePage({
       </div>
 
       <IncidentTypeForm
-        initialData={incidentType}
-        onSubmit={(data) => updateIncidentType(incidentType.id, data)}
+        initialData={{
+          ...incidentType,
+          description: incidentType.description ?? undefined,
+        }}
+        onSubmit={async (data) => {
+          await updateIncidentType(incidentType.id, data);
+        }}
         redirectPath="/admin/incident-types"
         title="Incident Type Details"
         isEdit

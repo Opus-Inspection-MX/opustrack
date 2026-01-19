@@ -5,10 +5,12 @@ import {
   ArrowDown,
   ArrowUp,
   ArrowUpDown,
+  CheckCircle,
   ChevronDown,
   ChevronRight,
   Edit,
   Eye,
+  Lock,
   MoreHorizontal,
   Plus,
   Save,
@@ -76,16 +78,19 @@ const hexToRgba = (hex: string, opacity: number) => {
 
 interface TrackingWorkOrder {
   id: string;
-  status?: { name: string } | null;
+  status?: { id: number; name: string } | null;
   statusId?: number | null;
   assignedTo?: { id: string; name: string } | null;
   assignedToId?: string;
   folio?: string | null;
   notes?: string | null;
-  lineId?: string | null;
-  equipmentId?: string | null;
+  lineId?: number | null;
+  equipmentId?: number | null;
   startedAt?: Date | string | null;
   finishedAt?: Date | string | null;
+  unlockedAt?: Date | string | null;
+  assignedAt?: Date | string | null;
+  createdAt?: Date | string;
 }
 
 interface TrackingIncident {
@@ -95,41 +100,48 @@ interface TrackingIncident {
   priority: number;
   sla: number;
   reportedAt: Date | string;
+  resolvedAt?: Date | string | null;
   statusId?: number | null;
   status?: { id: number; name: string; color: string } | null;
   type?: { id: number; name: string } | null;
   vic?: { id: string; name: string; code: string } | null;
   reportedBy?: { id: string; name: string } | null;
   workOrders: TrackingWorkOrder[];
-  lineId?: string | null;
-  equipmentId?: string | null;
+  lineId?: number | null;
+  equipmentId?: number | null;
+  line?: { id: number; name: string } | null;
+  equipment?: { id: number; name: string } | null;
 }
 
 interface IncidentEditForm {
   title?: string;
-  description?: string;
+  description?: string | null;
   priority?: number;
-  statusId?: number;
-  lineId?: string;
-  equipmentId?: string;
+  statusId?: number | string;
+  lineId?: number | string;
+  equipmentId?: number | string;
+  reportedAt?: string;
+  resolvedAt?: string | null;
 }
 
 interface WorkOrderEditForm {
   assignedToId?: string;
   folio?: string;
   notes?: string;
-  statusId?: number;
-  lineId?: string;
-  equipmentId?: string;
+  statusId?: number | string;
+  lineId?: number;
+  equipmentId?: number;
+  startedAt?: string;
+  finishedAt?: string;
 }
 
 interface LineOption {
-  id: string;
+  id: number;
   name: string;
 }
 
 interface EquipmentOption {
-  id: string;
+  id: number;
   name: string;
 }
 
@@ -260,10 +272,10 @@ export function TrackingTable({
       ? new Date(workOrder.finishedAt).toISOString().slice(0, 16)
       : "";
     setWorkOrderEditForm({
-      assignedToId: workOrder.assignedTo.id,
-      statusId: workOrder.status?.id || "",
-      startedAt: startedDateTime,
-      finishedAt: finishedDateTime,
+      assignedToId: workOrder.assignedTo?.id || "",
+      statusId: workOrder.status?.id,
+      startedAt: startedDateTime || undefined,
+      finishedAt: finishedDateTime || undefined,
       folio: workOrder.folio || "",
     });
   };
@@ -281,11 +293,15 @@ export function TrackingTable({
 
     setSavingWorkOrder(workOrderId);
     try {
+      const statusIdValue = workOrderEditForm.statusId
+        ? typeof workOrderEditForm.statusId === "string"
+          ? parseInt(workOrderEditForm.statusId, 10)
+          : workOrderEditForm.statusId
+        : null;
+
       await updateWorkOrderDetails(workOrderId, {
         assignedToId: workOrderEditForm.assignedToId,
-        statusId: workOrderEditForm.statusId
-          ? parseInt(workOrderEditForm.statusId, 10)
-          : null,
+        statusId: statusIdValue,
         startedAt: workOrderEditForm.startedAt || null,
         finishedAt: workOrderEditForm.finishedAt || null,
         folio: workOrderEditForm.folio || null,
@@ -399,8 +415,8 @@ export function TrackingTable({
 
       await createWorkOrder({
         incidentId,
-        assignedToId: newWorkOrderForm.assignedToId,
-        notes: newWorkOrderForm.notes || null,
+        assignedToId: newWorkOrderForm.assignedToId || "",
+        notes: newWorkOrderForm.notes || undefined,
         statusId: abiertoStatus?.id || null,
         folio: newWorkOrderForm.folio || null,
         startedAt: null,
@@ -423,16 +439,30 @@ export function TrackingTable({
   const handleSaveIncident = async (incidentId: number) => {
     setSavingIncident(true);
     try {
-      await updateIncidentDetails(incidentId, {
-        title: editForm.title,
-        description: editForm.description,
-        reportedAt: editForm.reportedAt,
-        resolvedAt: editForm.resolvedAt || null,
-        statusId: parseInt(editForm.statusId, 10),
-        lineId: editForm.lineId ? parseInt(editForm.lineId, 10) : null,
-        equipmentId: editForm.equipmentId
+      const statusIdValue = editForm.statusId
+        ? typeof editForm.statusId === "string"
+          ? parseInt(editForm.statusId, 10)
+          : editForm.statusId
+        : null;
+      const lineIdValue = editForm.lineId
+        ? typeof editForm.lineId === "string"
+          ? parseInt(editForm.lineId, 10)
+          : editForm.lineId
+        : null;
+      const equipmentIdValue = editForm.equipmentId
+        ? typeof editForm.equipmentId === "string"
           ? parseInt(editForm.equipmentId, 10)
-          : null,
+          : editForm.equipmentId
+        : null;
+
+      await updateIncidentDetails(incidentId, {
+        title: editForm.title || "",
+        description: editForm.description || "",
+        reportedAt: editForm.reportedAt || "",
+        resolvedAt: editForm.resolvedAt || null,
+        statusId: statusIdValue ?? 0,
+        lineId: lineIdValue,
+        equipmentId: equipmentIdValue,
       });
       setEditingIncident(null);
       setEditForm({});
@@ -450,29 +480,32 @@ export function TrackingTable({
     }
   };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
+  const formatDate = (dateValue: Date | string) => {
+    const date = typeof dateValue === "string" ? new Date(dateValue) : dateValue;
     return date.toLocaleDateString("es-MX");
   };
 
-  const formatTime = (dateString: string) => {
-    const date = new Date(dateString);
+  const formatTime = (dateValue: Date | string) => {
+    const date = typeof dateValue === "string" ? new Date(dateValue) : dateValue;
     return date.toLocaleTimeString("es-MX", {
       hour: "2-digit",
       minute: "2-digit",
     });
   };
 
-  const getAssignedFSRs = (incident: TrackingIncident) => {
+  const getAssignedFSRs = (
+    incident: TrackingIncident,
+  ): Array<{ id: string; name: string }> => {
     if (incident.workOrders && incident.workOrders.length > 0) {
       // Get unique FSRs from all work orders
-      type AssignedTo = { id: string; name: string } | null | undefined;
-      const fsrs = incident.workOrders.map(
-        (wo: TrackingWorkOrder) => wo.assignedTo,
-      );
+      const fsrs = incident.workOrders
+        .map((wo: TrackingWorkOrder) => wo.assignedTo)
+        .filter(
+          (fsr): fsr is { id: string; name: string } => fsr !== null && fsr !== undefined,
+        );
+      // Remove duplicates by id
       const uniqueFsrs = fsrs.filter(
-        (fsr: AssignedTo, index: number, self: AssignedTo[]) =>
-          fsr && index === self.findIndex((f) => f?.id === fsr.id),
+        (fsr, index, self) => index === self.findIndex((f) => f.id === fsr.id),
       );
       return uniqueFsrs;
     }
@@ -617,21 +650,15 @@ export function TrackingTable({
                     <TableCell onClick={() => toggleRowExpansion(incident.id)}>
                       {assignedFSRs.length > 0 ? (
                         <div className="flex flex-col gap-1">
-                          {assignedFSRs.map(
-                            (fsr: {
-                              id: string;
-                              name: string;
-                              email?: string;
-                            }) => (
-                              <div
-                                key={fsr.id}
-                                className="flex items-center gap-2"
-                              >
-                                <User className="h-3 w-3" />
-                                <span className="text-sm">{fsr.name}</span>
-                              </div>
-                            ),
-                          )}
+                          {assignedFSRs.map((fsr) => (
+                            <div
+                              key={fsr.id}
+                              className="flex items-center gap-2"
+                            >
+                              <User className="h-3 w-3" />
+                              <span className="text-sm">{fsr.name}</span>
+                            </div>
+                          ))}
                         </div>
                       ) : (
                         <span className="text-sm text-muted-foreground">
@@ -801,7 +828,7 @@ export function TrackingTable({
                                   <div className="space-y-2">
                                     <Label htmlFor="statusId">Status</Label>
                                     <Select
-                                      value={editForm.statusId.toString()}
+                                      value={editForm.statusId?.toString() || ""}
                                       onValueChange={(value) =>
                                         setEditForm({
                                           ...editForm,
@@ -916,7 +943,7 @@ export function TrackingTable({
                                     <Input
                                       id="resolvedAt"
                                       type="datetime-local"
-                                      value={editForm.resolvedAt}
+                                      value={editForm.resolvedAt || ""}
                                       onChange={(e) =>
                                         setEditForm({
                                           ...editForm,
@@ -933,7 +960,7 @@ export function TrackingTable({
                                   <Textarea
                                     id="description"
                                     rows={4}
-                                    value={editForm.description}
+                                    value={editForm.description || ""}
                                     onChange={(e) =>
                                       setEditForm({
                                         ...editForm,
@@ -1290,9 +1317,10 @@ export function TrackingTable({
                                               <div className="flex items-center gap-2 flex-wrap">
                                                 <Badge
                                                   className={
-                                                    workOrderStatusColors[
-                                                      workOrder.status?.name
-                                                    ] ||
+                                                    (workOrder.status?.name &&
+                                                      workOrderStatusColors[
+                                                        workOrder.status.name
+                                                      ]) ||
                                                     "bg-gray-100 text-gray-800"
                                                   }
                                                 >
@@ -1302,16 +1330,35 @@ export function TrackingTable({
                                                       ] || workOrder.status.name
                                                     : "Sin estado"}
                                                 </Badge>
-                                                <span className="text-sm text-muted-foreground">
-                                                  Creado:{" "}
-                                                  {formatDate(
-                                                    workOrder.createdAt,
-                                                  )}{" "}
-                                                  -{" "}
-                                                  {formatTime(
-                                                    workOrder.createdAt,
-                                                  )}
-                                                </span>
+                                                {workOrder.unlockedAt ? (
+                                                  <Badge
+                                                    variant="outline"
+                                                    className="bg-green-50 text-green-700 border-green-300"
+                                                  >
+                                                    <CheckCircle className="h-3 w-3 mr-1" />
+                                                    Desbloqueado
+                                                  </Badge>
+                                                ) : (
+                                                  <Badge
+                                                    variant="outline"
+                                                    className="bg-yellow-50 text-yellow-700 border-yellow-300"
+                                                  >
+                                                    <Lock className="h-3 w-3 mr-1" />
+                                                    No Desbloqueado
+                                                  </Badge>
+                                                )}
+                                                {workOrder.createdAt && (
+                                                  <span className="text-sm text-muted-foreground">
+                                                    Creado:{" "}
+                                                    {formatDate(
+                                                      workOrder.createdAt,
+                                                    )}{" "}
+                                                    -{" "}
+                                                    {formatTime(
+                                                      workOrder.createdAt,
+                                                    )}
+                                                  </span>
+                                                )}
                                               </div>
                                             )}
 
@@ -1364,7 +1411,7 @@ export function TrackingTable({
                                                 </span>
                                                 <span className="text-sm">
                                                   <User className="h-4 w-4 inline mr-2" />
-                                                  {workOrder.assignedTo.name}
+                                                  {workOrder.assignedTo?.name || "Sin asignar"}
                                                 </span>
                                               </div>
                                             )}

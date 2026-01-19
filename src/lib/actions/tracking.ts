@@ -71,6 +71,8 @@ export async function getIncidentsForTracking(filters?: {
         id: true,
         title: true,
         description: true,
+        priority: true,
+        sla: true,
         reportedAt: true,
         resolvedAt: true,
         lineId: true,

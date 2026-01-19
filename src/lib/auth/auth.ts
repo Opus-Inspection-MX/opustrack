@@ -2,8 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
-// Import authOptions - will be updated separately
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { authOptions } from "@/lib/auth/auth-options";
 import {
   getAccessibleRoutes,
   getRoleById,

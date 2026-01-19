@@ -45,18 +45,27 @@ interface WorkOrder {
   status?: IncidentStatus | null;
 }
 
+interface Schedule {
+  id: string;
+  title: string;
+  scheduledAt: Date | string;
+}
+
 interface Incident {
   id: number;
   title: string;
   description?: string | null;
   priority: number;
+  sla?: number | null;
   type?: IncidentType | null;
   status?: IncidentStatus | null;
   vic?: VIC | null;
   reportedBy?: ReportedByUser | null;
   reportedAt: Date | string;
+  resolvedAt?: Date | string | null;
   createdAt: Date | string;
   workOrders?: WorkOrder[];
+  schedule?: Schedule | null;
 }
 
 export default function ClientIncidentDetailPage({
@@ -251,13 +260,15 @@ export default function ClientIncidentDetailPage({
               </div>
             </div>
 
-            <div className="flex items-start gap-3">
-              <Calendar className="h-5 w-5 text-muted-foreground mt-0.5" />
-              <div>
-                <p className="text-sm text-muted-foreground">SLA</p>
-                <p className="font-medium">{incident.sla} horas</p>
+            {incident.sla && (
+              <div className="flex items-start gap-3">
+                <Calendar className="h-5 w-5 text-muted-foreground mt-0.5" />
+                <div>
+                  <p className="text-sm text-muted-foreground">SLA</p>
+                  <p className="font-medium">{incident.sla} horas</p>
+                </div>
               </div>
-            </div>
+            )}
 
             <div className="flex items-start gap-3">
               <Building className="h-5 w-5 text-muted-foreground mt-0.5" />

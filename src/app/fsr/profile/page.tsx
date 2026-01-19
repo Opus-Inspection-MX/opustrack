@@ -41,6 +41,13 @@ interface VIC {
   code: string;
 }
 
+interface UserProfileDetails {
+  telephone?: string | null;
+  secondaryTelephone?: string | null;
+  emergencyContact?: string | null;
+  jobPosition?: string | null;
+}
+
 interface UserProfile {
   id: string;
   name: string;
@@ -50,6 +57,9 @@ interface UserProfile {
   userStatus?: UserStatus | null;
   role?: Role | null;
   vics?: VIC[];
+  vic?: VIC | null;
+  userProfile?: UserProfileDetails | null;
+  createdAt?: Date | string;
 }
 
 export default function FSRProfilePage() {
@@ -275,7 +285,7 @@ export default function FSRProfilePage() {
 
                   <div>
                     <p className="text-sm text-muted-foreground mb-2">Rol</p>
-                    <Badge variant="outline">{user.role.name}</Badge>
+                    <Badge variant="outline">{user.role?.name || "N/A"}</Badge>
                   </div>
                 </div>
               </>
@@ -303,7 +313,7 @@ export default function FSRProfilePage() {
                   <Shield className="h-5 w-5 text-muted-foreground" />
                   <div>
                     <p className="text-sm text-muted-foreground">Rol</p>
-                    <Badge variant="outline">{user.role.name}</Badge>
+                    <Badge variant="outline">{user.role?.name || "N/A"}</Badge>
                   </div>
                 </div>
 
@@ -598,23 +608,25 @@ export default function FSRProfilePage() {
                 <p className="text-sm text-muted-foreground">Status</p>
                 <Badge
                   variant={
-                    user.userStatus.name === "ACTIVO" ? "default" : "secondary"
+                    user.userStatus?.name === "ACTIVO" ? "default" : "secondary"
                   }
                 >
-                  {user.userStatus.name}
+                  {user.userStatus?.name || "N/A"}
                 </Badge>
               </div>
 
-              <div>
-                <p className="text-sm text-muted-foreground">Miembro desde</p>
-                <p className="font-medium">
-                  {new Date(user.createdAt).toLocaleDateString("es-MX", {
-                    year: "numeric",
-                    month: "long",
-                    day: "numeric",
-                  })}
-                </p>
-              </div>
+              {user.createdAt && (
+                <div>
+                  <p className="text-sm text-muted-foreground">Miembro desde</p>
+                  <p className="font-medium">
+                    {new Date(user.createdAt).toLocaleDateString("es-MX", {
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                    })}
+                  </p>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>

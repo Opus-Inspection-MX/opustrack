@@ -38,7 +38,7 @@ export default function RoleDetailPage() {
         await new Promise((resolve) => setTimeout(resolve, 500));
 
         const mockRole = {
-          id: params.id,
+          id: params.id as string,
           name: "Admin",
           defaultPath: "/admin",
           active: true,

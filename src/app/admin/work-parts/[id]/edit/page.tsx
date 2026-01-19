@@ -1,14 +1,16 @@
 "use client";
 
+import { use } from "react";
 import { WorkPartForm } from "@/components/work-parts/work-part-form";
 
 interface WorkPartFormData {
   partId: string;
   quantity: number;
   description?: string;
-  price?: number;
-  workOrderId: string;
+  price: number;
+  workOrderId?: string;
   workActivityId?: string;
+  active: boolean;
 }
 
 // Mock data - replace with actual API calls
@@ -76,10 +78,11 @@ const mockWorkActivities = [
 export default function EditWorkPartPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
+  const resolvedParams = use(params);
   const handleSubmit = async (data: WorkPartFormData) => {
-    console.log("Updating work part:", params.id, data);
+    console.log("Updating work part:", resolvedParams.id, data);
     // Simulate API call
     await new Promise((resolve) => setTimeout(resolve, 1000));
     alert("Work part updated successfully!");

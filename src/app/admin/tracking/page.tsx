@@ -27,6 +27,7 @@ interface IncidentType {
 interface IncidentStatus {
   id: number;
   name: string;
+  color: string;
 }
 
 interface FSR {
@@ -35,20 +36,41 @@ interface FSR {
   email: string;
 }
 
+interface TrackingWorkOrder {
+  id: string;
+  status?: { id: number; name: string } | null;
+  statusId?: number | null;
+  assignedTo?: { id: string; name: string } | null;
+  assignedToId?: string;
+  folio?: string | null;
+  notes?: string | null;
+  lineId?: number | null;
+  equipmentId?: number | null;
+  startedAt?: Date | string | null;
+  finishedAt?: Date | string | null;
+  unlockedAt?: Date | string | null;
+  assignedAt?: Date | string | null;
+  createdAt?: Date | string;
+}
+
 interface TrackingIncident {
   id: number;
   title: string;
   description?: string | null;
-  vicId: string;
-  typeId?: number | null;
-  statusId?: number | null;
+  priority: number;
+  sla: number;
   reportedAt: Date | string;
-  assignedFsrId?: string | null;
-  priority?: number;
-  type?: IncidentType | null;
-  status?: IncidentStatus | null;
-  vic?: VIC | null;
-  assignedFsr?: FSR | null;
+  resolvedAt?: Date | string | null;
+  statusId?: number | null;
+  status?: { id: number; name: string; color: string } | null;
+  type?: { id: number; name: string } | null;
+  vic?: { id: string; name: string; code: string } | null;
+  reportedBy?: { id: string; name: string } | null;
+  workOrders: TrackingWorkOrder[];
+  lineId?: number | null;
+  equipmentId?: number | null;
+  line?: { id: number; name: string } | null;
+  equipment?: { id: number; name: string } | null;
 }
 
 interface TrackingFiltersState {

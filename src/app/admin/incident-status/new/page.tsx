@@ -13,7 +13,9 @@ export default async function NewIncidentStatusPage() {
       </div>
 
       <IncidentStatusForm
-        onSubmit={createIncidentStatus}
+        onSubmit={async (data) => {
+          await createIncidentStatus(data);
+        }}
         redirectPath="/admin/incident-status"
         title="Incident Status Details"
       />

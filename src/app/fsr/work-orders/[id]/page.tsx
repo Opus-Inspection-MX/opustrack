@@ -5,10 +5,12 @@ import {
   AlertTriangle,
   ArrowLeft,
   CheckCircle,
+  Lock,
   Package,
   Paperclip,
   Play,
   Trash2,
+  Unlock,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -31,12 +33,20 @@ import {
   getWorkOrderById,
   reopenWorkOrder,
   startWorkOrder,
+  unlockWorkOrder,
 } from "@/lib/actions/work-orders";
 import { getWorkParts } from "@/lib/actions/work-parts";
 
 interface WorkOrderStatus {
   id: number;
   name: string;
+  color?: string | null;
+}
+
+interface VIC {
+  id: string;
+  name: string;
+  code: string;
 }
 
 interface WorkOrderIncident {
@@ -45,13 +55,19 @@ interface WorkOrderIncident {
   priority: number;
   status?: WorkOrderStatus | null;
   type?: { name: string } | null;
+  vic?: VIC | null;
 }
 
 interface FSRWorkOrder {
   id: string;
+  folio?: string | null;
+  notes?: string | null;
   status?: WorkOrderStatus | null;
   startedAt?: Date | string | null;
   finishedAt?: Date | string | null;
+  unlockedAt?: Date | string | null;
+  assignedAt?: Date | string | null;
+  createdAt?: Date | string | null;
   incident?: WorkOrderIncident | null;
   attachments?: WorkOrderAttachment[];
 }
@@ -85,8 +101,9 @@ interface WorkOrderAttachment {
   filepath: string;
   mimetype: string;
   size: number;
-  uploadedAt: Date | string;
+  uploadedAt: Date;
   description?: string | null;
+  provider?: string | null;
 }
 
 export default function FSRWorkOrderDetailPage({
@@ -220,6 +237,21 @@ export default function FSRWorkOrderDetailPage({
     }
   };
 
+  const handleUnlock = async () => {
+    if (!workOrderId) return;
+
+    try {
+      setActionLoading(true);
+      await unlockWorkOrder(workOrderId);
+      await fetchData();
+    } catch (error) {
+      console.error("Error unlocking work order:", error);
+      alert("Failed to unlock work order");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -268,13 +300,14 @@ export default function FSRWorkOrderDetailPage({
   }
 
   const totalPartsCost = workParts.reduce(
-    (sum, wp) => sum + wp.price * wp.quantity,
+    (sum, wp) => sum + (wp.price ?? 0) * wp.quantity,
     0,
   );
 
   const canComplete = activities.length > 0 && !workOrder.finishedAt;
   const isCompleted = !!workOrder.finishedAt;
   const isStarted = !!workOrder.startedAt;
+  const isUnlocked = !!workOrder.unlockedAt;
 
   return (
     <div className="space-y-6">
@@ -292,7 +325,19 @@ export default function FSRWorkOrderDetailPage({
           </p>
         </div>
         <div className="flex gap-2">
-          {!isStarted && !isCompleted && (
+          {/* Unlock Button - Shows when not unlocked */}
+          {!isUnlocked && !isCompleted && (
+            <Button
+              onClick={handleUnlock}
+              disabled={actionLoading}
+              className="bg-yellow-600 hover:bg-yellow-700"
+            >
+              <Unlock className="mr-2 h-4 w-4" />
+              Unlock / Acknowledge
+            </Button>
+          )}
+          {/* Start Work Button - Shows after unlock, before start */}
+          {isUnlocked && !isStarted && !isCompleted && (
             <Button
               onClick={handleStartWork}
               disabled={actionLoading}
@@ -302,6 +347,7 @@ export default function FSRWorkOrderDetailPage({
               Start Work
             </Button>
           )}
+          {/* Complete Button - Shows after start */}
           {isStarted && canComplete && (
             <Button
               onClick={handleCompleteWork}
@@ -312,6 +358,7 @@ export default function FSRWorkOrderDetailPage({
               Complete Work Order
             </Button>
           )}
+          {/* Completed state */}
           {isCompleted && (
             <>
               <Badge
@@ -387,10 +434,23 @@ export default function FSRWorkOrderDetailPage({
           )}
 
           <div className="grid grid-cols-2 gap-4 text-sm">
-            <div>
-              <span className="font-medium">Created:</span>{" "}
-              {new Date(workOrder.createdAt).toLocaleString()}
-            </div>
+            {workOrder.createdAt && (
+              <div>
+                <span className="font-medium">Created:</span>{" "}
+                {new Date(workOrder.createdAt).toLocaleString()}
+              </div>
+            )}
+            {workOrder.unlockedAt ? (
+              <div>
+                <span className="font-medium">Unlocked:</span>{" "}
+                {new Date(workOrder.unlockedAt).toLocaleString()}
+              </div>
+            ) : (
+              <div className="flex items-center gap-1 text-yellow-600">
+                <Lock className="h-3 w-3" />
+                <span className="font-medium">Not Unlocked</span>
+              </div>
+            )}
             {workOrder.startedAt && (
               <div>
                 <span className="font-medium">Started:</span>{" "}
@@ -487,7 +547,7 @@ export default function FSRWorkOrderDetailPage({
                         {wp.part?.name} x {wp.quantity}
                       </span>
                       <span className="font-medium">
-                        ${(wp.price * wp.quantity).toFixed(2)}
+                        ${((wp.price ?? 0) * wp.quantity).toFixed(2)}
                       </span>
                     </div>
                   ))}
@@ -525,11 +585,11 @@ export default function FSRWorkOrderDetailPage({
                       <div>
                         <p className="font-medium">{wp.part?.name}</p>
                         <p className="text-sm text-muted-foreground">
-                          Quantity: {wp.quantity} × ${wp.price.toFixed(2)}
+                          Quantity: {wp.quantity} × ${(wp.price ?? 0).toFixed(2)}
                         </p>
                       </div>
                       <p className="font-bold">
-                        ${(wp.price * wp.quantity).toFixed(2)}
+                        ${((wp.price ?? 0) * wp.quantity).toFixed(2)}
                       </p>
                     </div>
                   ))}

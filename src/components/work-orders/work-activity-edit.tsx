@@ -13,7 +13,7 @@ type WorkActivityEditProps = {
   activity: {
     id: string;
     description: string;
-    performedAt: Date;
+    performedAt: Date | string;
   };
   onSuccess?: () => void;
   onCancel?: () => void;

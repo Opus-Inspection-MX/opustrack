@@ -32,8 +32,9 @@ interface AssignedUser {
 
 interface WorkOrder {
   id: string;
-  status: string;
+  status?: { name: string } | string | null;
   assignedTo?: AssignedUser | null;
+  incident?: { id: number; title: string } | null;
 }
 
 interface WorkActivity {
@@ -78,8 +79,9 @@ export default function WorkActivityDetailPage({
 
     setIsDeleting(true);
     try {
+      const workOrderId = activity?.workOrderId;
       await deleteWorkActivity(id);
-      router.push(`/admin/work-orders/${activity.workOrderId}`);
+      router.push(workOrderId ? `/admin/work-orders/${workOrderId}` : "/admin/work-orders");
     } catch (error) {
       console.error("Error deleting work activity:", error);
       alert(
@@ -208,7 +210,11 @@ export default function WorkActivityDetailPage({
                   <p className="text-sm font-medium text-muted-foreground">
                     Status
                   </p>
-                  <p className="text-sm">{activity.workOrder.status}</p>
+                  <p className="text-sm">
+                    {typeof activity.workOrder.status === "object"
+                      ? activity.workOrder.status?.name
+                      : activity.workOrder.status || "N/A"}
+                  </p>
                 </div>
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">

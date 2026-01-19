@@ -31,6 +31,9 @@ interface WorkOrderData {
 
 interface IncidentData {
   id?: string;
+  title?: string;
+  priority?: string;
+  vic?: { name?: string } | null;
 }
 
 interface ZodIssue {
@@ -84,7 +87,7 @@ export function WorkOrderForm({
       setFormData({
         incidentId: workOrder.incidentId || "",
         assignedToId: workOrder.assignedToId || "",
-        status: workOrder.status?.name || "PENDING",
+        status: (workOrder.status?.name as "PENDING" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED") || "PENDING",
         notes: workOrder.notes || "",
         startedAt: workOrder.startedAt
           ? new Date(workOrder.startedAt).toISOString().slice(0, 16)
@@ -96,12 +99,12 @@ export function WorkOrderForm({
     } else if (incident) {
       setFormData((prev) => ({
         ...prev,
-        incidentId: incident.id,
+        incidentId: incident.id || "",
       }));
     }
   }, [workOrder, incident]);
 
-  const validateField = (field: string, value: string) => {
+  const validateField = (field: string, value: string | undefined) => {
     try {
       workOrderSchema
         .pick({ [field]: true } as Record<keyof WorkOrderFormData, true>)

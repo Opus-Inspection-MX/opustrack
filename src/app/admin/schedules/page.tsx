@@ -32,14 +32,15 @@ interface IncidentStatus {
 interface Schedule {
   id: string;
   title: string;
-  description?: string | null;
-  scheduledAt: Date | string;
-  endDate?: Date | string | null;
+  description?: string;
+  scheduledAt: string;
+  endDate?: string | null;
   vicId: string;
   vicName: string;
   incidentCount: number;
   active: boolean;
-  createdAt: Date | string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 interface ScheduleApiResponse {
@@ -53,6 +54,7 @@ interface ScheduleApiResponse {
   _count?: { incidents: number };
   active: boolean;
   createdAt: Date | string;
+  updatedAt?: Date | string;
 }
 
 export default function SchedulesPage() {
@@ -112,19 +114,35 @@ export default function SchedulesPage() {
       });
 
       // Transform data to match table expectations
-      const transformed = result.data.map((schedule: ScheduleApiResponse) => ({
-        id: schedule.id,
-        title: schedule.title,
-        description: schedule.description,
-        scheduledAt: schedule.scheduledAt,
-        endDate: schedule.endDate,
-        vicId: schedule.vicId,
-        vicName: schedule.vic?.name || "Unknown VIC",
-        incidentCount: schedule._count?.incidents || 0,
-        active: schedule.active,
-        createdAt: schedule.createdAt,
-        updatedAt: schedule.updatedAt,
-      }));
+      const transformed: Schedule[] = result.data.map(
+        (schedule: ScheduleApiResponse) => ({
+          id: schedule.id,
+          title: schedule.title,
+          description: schedule.description ?? undefined,
+          scheduledAt:
+            typeof schedule.scheduledAt === "string"
+              ? schedule.scheduledAt
+              : new Date(schedule.scheduledAt).toISOString(),
+          endDate: schedule.endDate
+            ? typeof schedule.endDate === "string"
+              ? schedule.endDate
+              : new Date(schedule.endDate).toISOString()
+            : null,
+          vicId: schedule.vicId,
+          vicName: schedule.vic?.name || "Unknown VIC",
+          incidentCount: schedule._count?.incidents || 0,
+          active: schedule.active,
+          createdAt:
+            typeof schedule.createdAt === "string"
+              ? schedule.createdAt
+              : new Date(schedule.createdAt).toISOString(),
+          updatedAt: schedule.updatedAt
+            ? typeof schedule.updatedAt === "string"
+              ? schedule.updatedAt
+              : new Date(schedule.updatedAt).toISOString()
+            : new Date().toISOString(),
+        }),
+      );
 
       setSchedules(transformed);
       setTotalItems(result.pagination.total);

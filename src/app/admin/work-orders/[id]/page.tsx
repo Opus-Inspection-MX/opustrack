@@ -2,7 +2,9 @@ import {
   AlertTriangle,
   ArrowLeft,
   Calendar,
+  CheckCircle,
   ExternalLink,
+  Lock,
   Paperclip,
   User,
 } from "lucide-react";
@@ -22,8 +24,9 @@ interface Attachment {
   filepath: string;
   mimetype: string;
   size: number;
-  uploadedAt: Date | string;
+  uploadedAt: Date;
   description?: string | null;
+  provider?: string | null;
 }
 
 export default async function WorkOrderDetailPage({
@@ -39,6 +42,23 @@ export default async function WorkOrderDetailPage({
   ]);
 
   if (!workOrder) notFound();
+
+  // Helper to calculate time-to-unlock
+  const formatTimeDifference = (
+    start: Date | string | null,
+    end: Date | string | null,
+  ): string => {
+    if (!start || !end) return "-";
+    const diffMs = new Date(end).getTime() - new Date(start).getTime();
+    const diffMins = Math.floor(diffMs / (1000 * 60));
+    if (diffMins < 60) return `${diffMins}m`;
+    const hours = Math.floor(diffMins / 60);
+    const mins = diffMins % 60;
+    if (hours < 24) return `${hours}h ${mins}m`;
+    const days = Math.floor(hours / 24);
+    const remainingHours = hours % 24;
+    return `${days}d ${remainingHours}h`;
+  };
 
   const _getStatusColor = (status: string) => {
     switch (status) {
@@ -162,6 +182,49 @@ export default async function WorkOrderDetailPage({
               <p className="font-medium">
                 {new Date(workOrder.createdAt).toLocaleString("es-MX")}
               </p>
+            </div>
+
+            {workOrder.assignedAt && (
+              <div>
+                <p className="text-sm text-muted-foreground">Asignado</p>
+                <p className="font-medium">
+                  {new Date(workOrder.assignedAt).toLocaleString("es-MX")}
+                </p>
+              </div>
+            )}
+
+            <div>
+              <p className="text-sm text-muted-foreground">
+                Estado de Desbloqueo
+              </p>
+              {workOrder.unlockedAt ? (
+                <div className="mt-1">
+                  <Badge variant="default" className="bg-green-600">
+                    <CheckCircle className="h-3 w-3 mr-1" />
+                    Desbloqueado
+                  </Badge>
+                  <p className="text-sm mt-1">
+                    {new Date(workOrder.unlockedAt).toLocaleString("es-MX")}
+                  </p>
+                  {workOrder.assignedAt && (
+                    <p className="text-xs text-muted-foreground">
+                      Tiempo hasta desbloqueo:{" "}
+                      {formatTimeDifference(
+                        workOrder.assignedAt,
+                        workOrder.unlockedAt,
+                      )}
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <Badge
+                  variant="outline"
+                  className="bg-yellow-50 text-yellow-700 border-yellow-300 mt-1"
+                >
+                  <Lock className="h-3 w-3 mr-1" />
+                  No Desbloqueado
+                </Badge>
+              )}
             </div>
 
             {workOrder.startedAt && (

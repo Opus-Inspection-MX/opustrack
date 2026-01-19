@@ -48,7 +48,7 @@ interface IncidentType {
 interface WorkOrderIncident {
   id: number;
   title: string;
-  vicId: string;
+  vicId?: string | null;
   priority: number;
   type?: IncidentType | null;
   status?: WorkOrderStatus | null;
@@ -56,7 +56,13 @@ interface WorkOrderIncident {
 
 interface WorkOrder {
   id: string;
+  statusId: number | null;
   status?: WorkOrderStatus | null;
+  assignedToId: string;
+  assignedTo: { id: string; name: string };
+  notes: string | null;
+  folio: string | null;
+  finishedAt: Date | null;
   incident?: WorkOrderIncident | null;
   attachments?: Attachment[];
 }
@@ -64,7 +70,7 @@ interface WorkOrder {
 interface WorkActivity {
   id: string;
   description: string;
-  performedAt: Date | string;
+  performedAt: Date;
   workParts?: WorkPart[];
 }
 
@@ -80,7 +86,8 @@ interface WorkPart {
   partId: string;
   quantity: number;
   price: number;
-  part?: Part | null;
+  description: string | null;
+  part: { id: string; name: string; stock: number };
 }
 
 interface Attachment {

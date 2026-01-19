@@ -167,7 +167,7 @@ export function FileUpload({
           </div>
 
           <div className="border rounded-md divide-y">
-            {selectedFiles.map((file) => (
+            {selectedFiles.map((file, index) => (
               <div
                 key={`${file.name}-${file.size}-${file.lastModified}`}
                 className="flex items-center justify-between p-3 hover:bg-muted/50"

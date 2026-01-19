@@ -30,13 +30,13 @@ interface WorkActivityApiResponse {
 interface WorkActivity {
   id: string;
   description: string;
-  performedAt: Date | string;
+  performedAt: string;
   workOrderId: string;
   workOrderTitle: string;
   partsCount: number;
   active: boolean;
-  createdAt: Date | string;
-  updatedAt: Date | string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export default function WorkActivitiesPage() {
@@ -49,18 +49,29 @@ export default function WorkActivitiesPage() {
       try {
         const data = await getAllWorkActivities();
         // Transform data to match table expectations
-        const transformed = data.map((activity: WorkActivityApiResponse) => ({
-          id: activity.id,
-          description: activity.description,
-          performedAt: activity.performedAt,
-          workOrderId: activity.workOrderId,
-          workOrderTitle:
-            activity.workOrder?.incident?.title || "No incident linked",
-          partsCount: activity.workParts?.length || 0,
-          active: activity.active,
-          createdAt: activity.createdAt,
-          updatedAt: activity.updatedAt,
-        }));
+        const transformed: WorkActivity[] = data.map(
+          (activity: WorkActivityApiResponse) => ({
+            id: activity.id,
+            description: activity.description,
+            performedAt:
+              typeof activity.performedAt === "string"
+                ? activity.performedAt
+                : new Date(activity.performedAt).toISOString(),
+            workOrderId: activity.workOrderId,
+            workOrderTitle:
+              activity.workOrder?.incident?.title || "No incident linked",
+            partsCount: activity.workParts?.length || 0,
+            active: activity.active,
+            createdAt:
+              typeof activity.createdAt === "string"
+                ? activity.createdAt
+                : new Date(activity.createdAt).toISOString(),
+            updatedAt:
+              typeof activity.updatedAt === "string"
+                ? activity.updatedAt
+                : new Date(activity.updatedAt).toISOString(),
+          }),
+        );
         setWorkActivities(transformed);
       } catch (error) {
         console.error("Error fetching work activities:", error);

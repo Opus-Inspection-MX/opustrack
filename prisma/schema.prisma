@@ -274,6 +274,8 @@ model WorkOrder {
   folio          String?                // Folio number (Numero de folio)
   startedAt      DateTime?
   finishedAt     DateTime?
+  unlockedAt     DateTime?              // When FSR acknowledged/unlocked the work order
+  assignedAt     DateTime?              // When work order was assigned (for time-to-unlock calculation)
   workActivities WorkActivity[]
   attachments    WorkOrderAttachment[]
   workParts      WorkPart[]
@@ -288,6 +290,7 @@ model WorkOrder {
   @@index([folio]) // Optimize folio search queries
   @@index([active, assignedToId]) // Compound index for FSR filtering
   @@index([active, createdAt]) // Compound index for active work orders ordered by date
+  @@index([unlockedAt]) // Optimize filtering by unlock status
 }
 
 model WorkActivity {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { type FormEvent, useEffect, useState } from "react";
+import { type FormEvent, use, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FormError } from "@/components/ui/form-error";
@@ -26,7 +26,12 @@ interface Trip {
   };
 }
 
-export default function EditTripPage({ params }: { params: { id: string } }) {
+export default function EditTripPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const resolvedParams = use(params);
   const router = useRouter();
   const [trip, setTrip] = useState<Trip | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -42,7 +47,7 @@ export default function EditTripPage({ params }: { params: { id: string } }) {
   useEffect(() => {
     const loadTrip = async () => {
       try {
-        const tripData = await getVehicleTripById(params.id);
+        const tripData = await getVehicleTripById(resolvedParams.id);
         setTrip(tripData as unknown as Trip);
         setFormData({
           notes: tripData.notes || "",
@@ -59,7 +64,7 @@ export default function EditTripPage({ params }: { params: { id: string } }) {
     };
 
     loadTrip();
-  }, [params.id]);
+  }, [resolvedParams.id]);
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -67,13 +72,13 @@ export default function EditTripPage({ params }: { params: { id: string } }) {
     setIsSubmitting(true);
 
     try {
-      await updateVehicleTrip(params.id, {
+      await updateVehicleTrip(resolvedParams.id, {
         notes: formData.notes || undefined,
         startAddress: formData.startAddress || undefined,
         endAddress: formData.endAddress || undefined,
       });
 
-      router.push(`/fsr/vehicle-trips/${params.id}`);
+      router.push(`/fsr/vehicle-trips/${resolvedParams.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to update trip");
     } finally {

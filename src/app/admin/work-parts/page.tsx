@@ -9,43 +9,122 @@ import { WorkPartFilters } from "@/components/work-parts/work-part-filters";
 import { WorkPartTable } from "@/components/work-parts/work-part-table";
 import { deleteWorkPart, getAllWorkParts } from "@/lib/actions/work-parts";
 
-interface Part {
+// API response types (nullable fields from database)
+interface ApiPart {
   id: string;
+  name: string;
+  price?: number | null;
+}
+
+interface ApiWorkOrderStatus {
   name: string;
 }
 
-interface WorkOrderStatus {
-  name: string;
+interface ApiWorkOrderIncident {
+  title: string;
 }
 
-interface WorkOrder {
-  status?: WorkOrderStatus | null;
-}
-
-interface WorkPart {
+interface ApiWorkOrder {
   id: string;
-  workOrderId: string;
+  status?: ApiWorkOrderStatus | null;
+  incident?: ApiWorkOrderIncident | null;
+}
+
+interface ApiWorkActivity {
+  id: string;
+  description: string;
+}
+
+interface ApiWorkPart {
+  id: string;
+  workOrderId?: string | null;
   partId: string;
   quantity: number;
   price?: number | null;
   description?: string | null;
   active: boolean;
-  part?: Part | null;
-  workOrder?: WorkOrder | null;
+  createdAt: string | Date;
+  part?: ApiPart | null;
+  workOrder?: ApiWorkOrder | null;
+  workActivity?: ApiWorkActivity | null;
+}
+
+// Table component types (required fields for display)
+interface TableWorkPart {
+  id: string;
+  part: {
+    id: string;
+    name: string;
+    price: number;
+  };
+  quantity: number;
+  description?: string;
+  price: number;
+  workOrder?: {
+    id: string;
+    status?: {
+      name: string;
+    };
+    incident: {
+      title: string;
+    };
+  };
+  workActivity?: {
+    id: string;
+    description: string;
+  };
+  createdAt: string;
+  active: boolean;
+}
+
+// Transform API data to table-compatible format
+function transformWorkPart(wp: ApiWorkPart): TableWorkPart | null {
+  // Skip records without part data
+  if (!wp.part) return null;
+
+  return {
+    id: wp.id,
+    part: {
+      id: wp.part.id,
+      name: wp.part.name,
+      price: wp.part.price ?? 0,
+    },
+    quantity: wp.quantity,
+    description: wp.description ?? undefined,
+    price: wp.price ?? 0,
+    workOrder: wp.workOrder && wp.workOrder.incident
+      ? {
+          id: wp.workOrder.id,
+          status: wp.workOrder.status ?? undefined,
+          incident: { title: wp.workOrder.incident.title },
+        }
+      : undefined,
+    workActivity: wp.workActivity ?? undefined,
+    createdAt:
+      typeof wp.createdAt === "string"
+        ? wp.createdAt
+        : wp.createdAt.toISOString(),
+    active: wp.active,
+  };
 }
 
 export default function WorkPartsPage() {
-  const [workParts, setWorkParts] = useState<WorkPart[]>([]);
-  const [filteredWorkParts, setFilteredWorkParts] = useState<WorkPart[]>([]);
+  const [workParts, setWorkParts] = useState<TableWorkPart[]>([]);
+  const [filteredWorkParts, setFilteredWorkParts] = useState<TableWorkPart[]>(
+    [],
+  );
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
     const fetchWorkParts = async () => {
       try {
-        const data = await getAllWorkParts();
-        setWorkParts(data);
-        setFilteredWorkParts(data);
+        const data = (await getAllWorkParts()) as ApiWorkPart[];
+        const transformed = data
+          .map(transformWorkPart)
+          .filter((wp): wp is TableWorkPart => wp !== null);
+        setWorkParts(transformed);
+        setFilteredWorkParts(transformed);
       } catch (error) {
         console.error("Error fetching work parts:", error);
       } finally {
@@ -67,13 +146,13 @@ export default function WorkPartsPage() {
     if (filters.search) {
       filtered = filtered.filter(
         (wp) =>
-          wp.part?.name.toLowerCase().includes(filters.search.toLowerCase()) ||
+          wp.part.name.toLowerCase().includes(filters.search.toLowerCase()) ||
           wp.description?.toLowerCase().includes(filters.search.toLowerCase()),
       );
     }
 
     if (filters.partId) {
-      filtered = filtered.filter((wp) => wp.part?.id === filters.partId);
+      filtered = filtered.filter((wp) => wp.part.id === filters.partId);
     }
 
     if (filters.workOrderStatus) {

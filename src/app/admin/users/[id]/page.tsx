@@ -49,7 +49,7 @@ export default function UserDetailPage() {
 
         // Mock data
         const mockUser = {
-          id: params.id,
+          id: params.id as string,
           name: "John Doe",
           email: "john.doe@example.com",
           role: { id: 1, name: "Admin" },

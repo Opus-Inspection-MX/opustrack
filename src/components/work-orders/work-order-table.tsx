@@ -92,7 +92,10 @@ export function WorkOrderTable({ workOrders, onDelete }: WorkOrderTableProps) {
     );
   };
 
-  const calculateDuration = (startedAt: string, finishedAt: string | null) => {
+  const calculateDuration = (
+    startedAt: string | null | undefined,
+    finishedAt: string | null | undefined,
+  ) => {
     if (!startedAt) return "No iniciado";
     if (!finishedAt) return "En progreso";
 
@@ -166,10 +169,7 @@ export function WorkOrderTable({ workOrders, onDelete }: WorkOrderTableProps) {
                 <TableCell>
                   <div>
                     <div className="font-medium">
-                      {workOrder.assignedTo.name}
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      {workOrder.assignedTo.role}
+                      {workOrder.assignedTo?.name || "Sin asignar"}
                     </div>
                   </div>
                 </TableCell>
@@ -183,7 +183,7 @@ export function WorkOrderTable({ workOrders, onDelete }: WorkOrderTableProps) {
                 </TableCell>
                 <TableCell>
                   <Badge variant="outline">
-                    {workOrder.workActivities.length} actividades
+                    {workOrder.workActivities?.length || 0} actividades
                   </Badge>
                 </TableCell>
                 <TableCell className="text-sm">

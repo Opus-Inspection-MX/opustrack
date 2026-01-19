@@ -11,16 +11,26 @@ import { getMyVehicleTrips } from "@/lib/actions/vehicle-trips";
 interface VehicleTrip {
   id: string;
   vehicle: {
+    id: string;
     make: string;
     model: string;
     licensePlate: string;
   };
+  workOrder?: {
+    id: string;
+    folio: string | null;
+    incident: {
+      id: number;
+      title: string;
+    };
+  } | null;
   startOdometer: number;
   endOdometer: number | null;
   kmDriven: number | null;
-  status: string;
   startedAt: string;
   endedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export default function VehicleTripsPage() {
@@ -79,7 +89,7 @@ export default function VehicleTripsPage() {
                 <Link
                   key={trip.id}
                   href={
-                    trip.status === "IN_PROGRESS"
+                    !trip.endedAt
                       ? `/fsr/vehicle-trips/${trip.id}/end`
                       : `/fsr/vehicle-trips/${trip.id}`
                   }
@@ -103,7 +113,7 @@ export default function VehicleTripsPage() {
                           </div>
                         </div>
                         <div className="flex sm:flex-col items-center sm:items-end gap-2">
-                          {trip.status === "IN_PROGRESS" ? (
+                          {!trip.endedAt ? (
                             <Badge
                               variant="secondary"
                               className="whitespace-nowrap"

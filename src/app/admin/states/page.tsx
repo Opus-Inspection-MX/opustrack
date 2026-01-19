@@ -26,8 +26,8 @@ interface State {
   code: string;
   vicCount: number;
   active: boolean;
-  createdAt: Date | string;
-  updatedAt: Date | string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export default function StatesPage() {
@@ -42,14 +42,20 @@ export default function StatesPage() {
       try {
         const data = await getStatesAdmin();
         // Transform data to match table expectations
-        const transformed = data.map((state: StateApiResponse) => ({
+        const transformed: State[] = data.map((state: StateApiResponse) => ({
           id: state.id,
           name: state.name,
           code: state.code,
           vicCount: state._count?.vehicleInspectionCenters || 0,
           active: state.active,
-          createdAt: state.createdAt,
-          updatedAt: state.updatedAt,
+          createdAt:
+            typeof state.createdAt === "string"
+              ? state.createdAt
+              : new Date(state.createdAt).toISOString(),
+          updatedAt:
+            typeof state.updatedAt === "string"
+              ? state.updatedAt
+              : new Date(state.updatedAt).toISOString(),
         }));
         setStates(transformed);
       } catch (error) {

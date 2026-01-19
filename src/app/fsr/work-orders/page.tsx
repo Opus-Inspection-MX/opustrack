@@ -3,6 +3,7 @@ import {
   Calendar,
   CheckCircle,
   Clock,
+  Lock,
   Wrench,
 } from "lucide-react";
 import Link from "next/link";
@@ -22,6 +23,8 @@ interface WorkOrder {
   id: string;
   startedAt?: Date | string | null;
   finishedAt?: Date | string | null;
+  unlockedAt?: Date | string | null;
+  assignedAt?: Date | string | null;
   incident?: WorkOrderIncident | null;
 }
 
@@ -32,7 +35,11 @@ export default async function FSRWorkOrdersPage() {
   // Calculate stats
   const stats = {
     total: workOrders.length,
-    notStarted: workOrders.filter((wo) => !wo.startedAt).length,
+    pendingUnlock: workOrders.filter((wo) => !wo.unlockedAt && !wo.finishedAt)
+      .length,
+    notStarted: workOrders.filter(
+      (wo) => wo.unlockedAt && !wo.startedAt && !wo.finishedAt,
+    ).length,
     inProgress: workOrders.filter((wo) => wo.startedAt && !wo.finishedAt)
       .length,
     completed: workOrders.filter((wo) => wo.finishedAt).length,
@@ -48,6 +55,17 @@ export default async function FSRWorkOrdersPage() {
     }
     if (workOrder.startedAt) {
       return <Badge variant="secondary">In Progress</Badge>;
+    }
+    if (!workOrder.unlockedAt) {
+      return (
+        <Badge
+          variant="outline"
+          className="bg-yellow-50 text-yellow-700 border-yellow-300"
+        >
+          <Lock className="h-3 w-3 mr-1" />
+          Pending Unlock
+        </Badge>
+      );
     }
     return <Badge variant="outline">Not Started</Badge>;
   };
@@ -69,7 +87,7 @@ export default async function FSRWorkOrdersPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total</CardTitle>
@@ -77,6 +95,20 @@ export default async function FSRWorkOrdersPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.total}</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              Pending Unlock
+            </CardTitle>
+            <Lock className="h-4 w-4 text-yellow-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-yellow-600">
+              {stats.pendingUnlock}
+            </div>
           </CardContent>
         </Card>
 
@@ -207,9 +239,20 @@ export default async function FSRWorkOrdersPage() {
 
                     {/* Action Button */}
                     <div>
-                      <Button asChild>
+                      <Button
+                        asChild
+                        className={
+                          !wo.unlockedAt && !wo.finishedAt
+                            ? "bg-yellow-600 hover:bg-yellow-700"
+                            : ""
+                        }
+                      >
                         <Link href={`/fsr/work-orders/${wo.id}`}>
-                          {wo.finishedAt ? "View" : "Work On It"}
+                          {wo.finishedAt
+                            ? "View"
+                            : !wo.unlockedAt
+                              ? "Unlock"
+                              : "Work On It"}
                         </Link>
                       </Button>
                     </div>

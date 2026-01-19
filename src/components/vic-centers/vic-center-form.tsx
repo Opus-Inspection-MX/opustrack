@@ -113,7 +113,7 @@ export function VICCenterForm({
 
   const validateField = (
     name: keyof VICCenterFormData,
-    value: string | boolean,
+    value: string | number | boolean | undefined,
   ) => {
     try {
       vicCenterSchema.pick({ [name]: true }).parse({ [name]: value });
@@ -130,7 +130,7 @@ export function VICCenterForm({
 
   const handleInputChange = (
     name: keyof VICCenterFormData,
-    value: string | boolean,
+    value: string | number | boolean,
   ) => {
     setFormData((prev) => ({ ...prev, [name]: value }));
     if (touched[name]) {

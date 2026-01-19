@@ -170,10 +170,22 @@ export async function startVehicleTrip(data: TripStartData) {
     { subfolder: "vehicle-trips" },
   );
 
+  // Get the vehicle status for IN_USE
+  const inUseStatus = await prisma.vehicleStatus.findUnique({
+    where: { name: "IN_USE" },
+  });
+  if (!inUseStatus) throw new Error("Vehicle status IN_USE not found");
+
+  // Get the trip status for IN_PROGRESS
+  const inProgressStatus = await prisma.vehicleTripStatus.findUnique({
+    where: { name: "IN_PROGRESS" },
+  });
+  if (!inProgressStatus) throw new Error("Trip status IN_PROGRESS not found");
+
   // Update vehicle status to IN_USE
   await prisma.vehicle.update({
     where: { id: data.vehicleId },
-    data: { status: "IN_USE" },
+    data: { statusId: inUseStatus.id },
   });
 
   const trip = await prisma.vehicleTrip.create({
@@ -188,7 +200,7 @@ export async function startVehicleTrip(data: TripStartData) {
       startLongitude: data.startLongitude || null,
       startAddress: data.startAddress || null,
       notes: data.notes || null,
-      status: "IN_PROGRESS",
+      statusId: inProgressStatus.id,
     },
     include: {
       vehicle: true,
@@ -209,7 +221,12 @@ export async function endVehicleTrip(id: string, data: TripEndData) {
 
   const trip = await prisma.vehicleTrip.findUnique({
     where: { id },
-    select: { fsrId: true, vehicleId: true, startOdometer: true, status: true },
+    select: {
+      fsrId: true,
+      vehicleId: true,
+      startOdometer: true,
+      status: { select: { name: true } },
+    },
   });
 
   if (!trip) {
@@ -221,7 +238,7 @@ export async function endVehicleTrip(id: string, data: TripEndData) {
     throw new Error("Access denied: You can only end your own trips");
   }
 
-  if (trip.status !== "IN_PROGRESS") {
+  if (trip.status?.name !== "IN_PROGRESS") {
     throw new Error("Trip is already completed or cancelled");
   }
 
@@ -229,6 +246,17 @@ export async function endVehicleTrip(id: string, data: TripEndData) {
   if (data.endOdometer < trip.startOdometer) {
     throw new Error("End odometer reading cannot be less than start reading");
   }
+
+  // Get the statuses we need
+  const completedStatus = await prisma.vehicleTripStatus.findUnique({
+    where: { name: "COMPLETED" },
+  });
+  if (!completedStatus) throw new Error("Trip status COMPLETED not found");
+
+  const availableStatus = await prisma.vehicleStatus.findUnique({
+    where: { name: "AVAILABLE" },
+  });
+  if (!availableStatus) throw new Error("Vehicle status AVAILABLE not found");
 
   // Upload end photo
   const endPhotoResult = await uploadFile(
@@ -252,7 +280,7 @@ export async function endVehicleTrip(id: string, data: TripEndData) {
       endAddress: data.endAddress || null,
       endedAt: new Date(),
       kmDriven,
-      status: "COMPLETED",
+      statusId: completedStatus.id,
       notes: data.notes,
     },
     include: {
@@ -264,7 +292,7 @@ export async function endVehicleTrip(id: string, data: TripEndData) {
   // Update vehicle status back to AVAILABLE
   await prisma.vehicle.update({
     where: { id: trip.vehicleId },
-    data: { status: "AVAILABLE" },
+    data: { statusId: availableStatus.id },
   });
 
   revalidatePath("/fsr/vehicle-trips");
@@ -282,7 +310,7 @@ export async function getAvailableVehicles() {
   const vehicles = await prisma.vehicle.findMany({
     where: {
       active: true,
-      status: "AVAILABLE",
+      status: { name: "AVAILABLE" },
     },
     orderBy: { licensePlate: "asc" },
   });
@@ -379,7 +407,7 @@ export async function deleteVehicleTrip(id: string) {
     where: { id },
     select: {
       fsrId: true,
-      status: true,
+      status: { select: { name: true } },
       startPhotoUrl: true,
       startPhotoProvider: true,
       endPhotoUrl: true,
@@ -421,11 +449,16 @@ export async function deleteVehicleTrip(id: string) {
   }
 
   // If trip was IN_PROGRESS, set vehicle back to AVAILABLE
-  if (trip.status === "IN_PROGRESS") {
-    await prisma.vehicle.update({
-      where: { id: trip.vehicleId },
-      data: { status: "AVAILABLE" },
+  if (trip.status?.name === "IN_PROGRESS") {
+    const availableStatus = await prisma.vehicleStatus.findUnique({
+      where: { name: "AVAILABLE" },
     });
+    if (availableStatus) {
+      await prisma.vehicle.update({
+        where: { id: trip.vehicleId },
+        data: { statusId: availableStatus.id },
+      });
+    }
   }
 
   revalidatePath("/fsr/vehicle-trips");

@@ -92,7 +92,7 @@ export function IncidentForm({ incident, onClose }: IncidentFormProps) {
       setFormData({
         title: incident.title || "",
         description: incident.description || "",
-        priority: incident.priority || "MEDIUM",
+        priority: (incident.priority as "LOW" | "MEDIUM" | "HIGH" | "CRITICAL") || "MEDIUM",
         sla: incident.sla || 24,
         typeId: incident.typeId || "",
         statusId: incident.statusId || "",
@@ -179,7 +179,10 @@ export function IncidentForm({ incident, onClose }: IncidentFormProps) {
 
   const handleBlur = (field: string) => {
     setTouched((prev) => ({ ...prev, [field]: true }));
-    validateField(field, formData[field as keyof IncidentFormData]);
+    const value = formData[field as keyof IncidentFormData];
+    if (value !== undefined) {
+      validateField(field, value);
+    }
   };
 
   return (

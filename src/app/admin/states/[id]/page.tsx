@@ -13,6 +13,9 @@ interface VicCenter {
   name: string;
   code: string;
   address?: string | null;
+  phone?: string | null;
+  lines?: number | null;
+  equipments?: number | null;
 }
 
 interface State {

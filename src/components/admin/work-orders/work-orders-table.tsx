@@ -1,6 +1,6 @@
 "use client";
 
-import { Edit, Eye, Trash2, Wrench } from "lucide-react";
+import { CheckCircle, Edit, Eye, Lock, Trash2, Wrench } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -25,6 +25,8 @@ type WorkOrder = {
   } | null;
   notes: string | null;
   createdAt: Date;
+  unlockedAt: Date | null;
+  assignedAt: Date | null;
   incident: {
     title: string;
     priority: number;
@@ -36,6 +38,20 @@ type WorkOrder = {
     workActivities: number;
     workParts: number;
   };
+};
+
+// Helper to calculate time-to-unlock
+const formatTimeDifference = (start: Date | null, end: Date | null): string => {
+  if (!start || !end) return "-";
+  const diffMs = new Date(end).getTime() - new Date(start).getTime();
+  const diffMins = Math.floor(diffMs / (1000 * 60));
+  if (diffMins < 60) return `${diffMins}m`;
+  const hours = Math.floor(diffMins / 60);
+  const mins = diffMins % 60;
+  if (hours < 24) return `${hours}h ${mins}m`;
+  const days = Math.floor(hours / 24);
+  const remainingHours = hours % 24;
+  return `${days}d ${remainingHours}h`;
 };
 
 export function WorkOrdersTable({ workOrders }: { workOrders: WorkOrder[] }) {
@@ -88,6 +104,7 @@ export function WorkOrdersTable({ workOrders }: { workOrders: WorkOrder[] }) {
             <TableHead>Incidente</TableHead>
             <TableHead>Asignado A</TableHead>
             <TableHead>Status</TableHead>
+            <TableHead>Desbloqueo</TableHead>
             <TableHead>Actividades</TableHead>
             <TableHead>Partes</TableHead>
             <TableHead>Fecha Creacion</TableHead>
@@ -108,6 +125,36 @@ export function WorkOrdersTable({ workOrders }: { workOrders: WorkOrder[] }) {
                 <Badge variant={getStatusColor(wo.status?.name || "")}>
                   {wo.status?.name || "N/A"}
                 </Badge>
+              </TableCell>
+              <TableCell>
+                {wo.unlockedAt ? (
+                  <div className="flex flex-col gap-1">
+                    <Badge
+                      variant="default"
+                      className="bg-green-600 text-xs w-fit"
+                    >
+                      <CheckCircle className="h-3 w-3 mr-1" />
+                      Desbloqueado
+                    </Badge>
+                    <span className="text-xs text-muted-foreground">
+                      {new Date(wo.unlockedAt).toLocaleDateString()}
+                    </span>
+                    {wo.assignedAt && (
+                      <span className="text-xs text-muted-foreground">
+                        TTU:{" "}
+                        {formatTimeDifference(wo.assignedAt, wo.unlockedAt)}
+                      </span>
+                    )}
+                  </div>
+                ) : (
+                  <Badge
+                    variant="outline"
+                    className="bg-yellow-50 text-yellow-700 border-yellow-300"
+                  >
+                    <Lock className="h-3 w-3 mr-1" />
+                    Pendiente
+                  </Badge>
+                )}
               </TableCell>
               <TableCell>
                 <Badge variant="outline">{wo._count.workActivities}</Badge>

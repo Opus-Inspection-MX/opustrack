@@ -6,9 +6,10 @@ interface WorkPartFormData {
   partId: string;
   quantity: number;
   description?: string;
-  price?: number;
-  workOrderId: string;
+  price: number;
+  workOrderId?: string;
   workActivityId?: string;
+  active: boolean;
 }
 
 // Mock data - replace with actual API calls

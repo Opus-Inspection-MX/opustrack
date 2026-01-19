@@ -3,7 +3,7 @@
 import { ArrowLeft, Calendar, Mail, MapPin, Phone, User } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type React from "react";
-import { useState } from "react";
+import { use, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -35,10 +35,11 @@ const mockUserProfile = {
 };
 
 export default function UserProfilePage({
-  params: _params,
+  params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
+  const _params = use(params);
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);

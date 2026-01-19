@@ -29,11 +29,15 @@ interface EnhancedWorkOrderData {
   notes?: string;
   startedAt?: string;
   finishedAt?: string;
+  workParts?: WorkPart[];
+  attachments?: Attachment[];
 }
 
 interface EnhancedIncidentData {
   id?: string;
   title?: string;
+  priority?: string;
+  vic?: { name?: string } | null;
 }
 
 interface ZodErrorIssue {
@@ -112,7 +116,7 @@ export function WorkOrderFormEnhanced({
       setFormData({
         incidentId: workOrder.incidentId || "",
         assignedToId: workOrder.assignedToId || "",
-        status: workOrder.status?.name || "PENDING",
+        status: (workOrder.status as "PENDING" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED") || "PENDING",
         notes: workOrder.notes || "",
         startedAt: workOrder.startedAt
           ? new Date(workOrder.startedAt).toISOString().slice(0, 16)
@@ -126,7 +130,7 @@ export function WorkOrderFormEnhanced({
     } else if (incident) {
       setFormData((prev) => ({
         ...prev,
-        incidentId: incident.id,
+        incidentId: incident.id || "",
       }));
     }
   }, [workOrder, incident]);
@@ -154,7 +158,7 @@ export function WorkOrderFormEnhanced({
       if (selectedPart) {
         updatedParts[index] = {
           ...updatedParts[index],
-          partId: value,
+          partId: value as string,
           partName: selectedPart.name,
           price: selectedPart.price,
         };

@@ -30,9 +30,11 @@ import { getScheduleById } from "@/lib/actions/schedules";
 interface ScheduleIncident {
   id: number;
   title: string;
+  priority: number;
   type?: { name: string } | null;
   status?: { name: string } | null;
   reportedAt: Date | string;
+  reportedBy?: { name: string } | null;
 }
 
 interface Schedule {

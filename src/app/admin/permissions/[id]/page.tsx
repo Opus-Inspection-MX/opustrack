@@ -37,7 +37,7 @@ export default function PermissionDetailPage() {
         await new Promise((resolve) => setTimeout(resolve, 500));
 
         const mockPermission = {
-          id: params.id,
+          id: params.id as string,
           name: "user.create",
           description: "Allows users to create new user accounts in the system",
           active: true,

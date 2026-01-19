@@ -31,7 +31,9 @@ export default async function EditIncidentStatusPage({
 
       <IncidentStatusForm
         initialData={incidentStatus}
-        onSubmit={(data) => updateIncidentStatus(incidentStatus.id, data)}
+        onSubmit={async (data) => {
+          await updateIncidentStatus(incidentStatus.id, data);
+        }}
         redirectPath="/admin/incident-status"
         title="Incident Status Details"
         isEdit

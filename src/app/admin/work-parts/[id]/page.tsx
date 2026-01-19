@@ -37,7 +37,7 @@ interface WorkActivity {
 
 interface WorkPart {
   id: string;
-  workOrderId: string;
+  workOrderId?: string | null;
   partId: string;
   quantity: number;
   price?: number | null;
@@ -85,8 +85,9 @@ export default function WorkPartDetailPage({
 
     setIsDeleting(true);
     try {
+      const workOrderId = workPart?.workOrderId;
       await deleteWorkPart(id);
-      router.push(`/admin/work-orders/${workPart.workOrderId}`);
+      router.push(workOrderId ? `/admin/work-orders/${workOrderId}` : "/admin/work-parts");
     } catch (error) {
       console.error("Error deleting work part:", error);
       alert(

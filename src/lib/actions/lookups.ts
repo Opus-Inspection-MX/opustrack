@@ -106,20 +106,46 @@ export type UserStatusFormData = {
   active?: boolean;
 };
 
-export async function getUserStatuses() {
+export async function getUserStatuses(options?: {
+  page?: number;
+  limit?: number;
+  search?: string;
+}) {
   await requirePermission("user-status:read");
 
-  const statuses = await prisma.userStatus.findMany({
-    where: { active: true },
-    include: {
-      _count: {
-        select: { users: true },
-      },
-    },
-    orderBy: { name: "asc" },
-  });
+  const page = options?.page || 1;
+  const limit = options?.limit || 10;
+  const skip = (page - 1) * limit;
 
-  return statuses;
+  const where: { active: boolean; name?: { contains: string; mode: "insensitive" } } = { active: true };
+  if (options?.search) {
+    where.name = { contains: options.search, mode: "insensitive" };
+  }
+
+  const [statuses, total] = await Promise.all([
+    prisma.userStatus.findMany({
+      where,
+      include: {
+        _count: {
+          select: { users: true },
+        },
+      },
+      orderBy: { name: "asc" },
+      skip,
+      take: limit,
+    }),
+    prisma.userStatus.count({ where }),
+  ]);
+
+  return {
+    data: statuses,
+    pagination: {
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    },
+  };
 }
 
 export async function getUserStatusById(id: number) {
@@ -405,7 +431,7 @@ export async function getIncidentStatusById(id: number) {
     where: { id },
     include: {
       _count: {
-        select: { incidents: true },
+        select: { incidents: true, workOrders: true },
       },
     },
   });

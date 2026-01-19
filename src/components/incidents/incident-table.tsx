@@ -283,9 +283,10 @@ export function IncidentTable({ incidents, onDelete }: IncidentTableProps) {
                                 <div className="flex items-center gap-4">
                                   <Badge
                                     className={
-                                      workOrderStatusColors[
-                                        workOrder.status?.name
-                                      ] || "bg-gray-100 text-gray-800"
+                                      (workOrder.status?.name &&
+                                        workOrderStatusColors[
+                                          workOrder.status.name
+                                        ]) || "bg-gray-100 text-gray-800"
                                     }
                                   >
                                     {workOrder.status?.name

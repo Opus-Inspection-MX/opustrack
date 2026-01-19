@@ -24,7 +24,7 @@ interface Line {
   name: string;
   description?: string | null;
   vic: { name: string; code: string };
-  equipments: Array<{ id: string; name: string }>;
+  equipments: Array<{ id: number; name: string }>;
   active: boolean;
   createdAt: string;
 }

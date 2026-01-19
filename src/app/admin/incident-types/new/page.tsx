@@ -13,7 +13,9 @@ export default async function NewIncidentTypePage() {
       </div>
 
       <IncidentTypeForm
-        onSubmit={createIncidentType}
+        onSubmit={async (data) => {
+          await createIncidentType(data);
+        }}
         redirectPath="/admin/incident-types"
         title="Incident Type Details"
       />

@@ -9,23 +9,45 @@ import { getVehicleTripById } from "@/lib/actions/vehicle-trips";
 
 interface VehicleTrip {
   id: string;
-  status: string;
+  // Odometer
   startOdometer: number;
   endOdometer?: number | null;
-  startLocation?: string | null;
-  endLocation?: string | null;
-  startPhoto?: string | null;
-  endPhoto?: string | null;
-  notes?: string | null;
+  kmDriven?: number | null;
+  // Photos
+  startPhotoUrl: string;
+  startPhotoProvider?: string;
+  endPhotoUrl?: string | null;
+  endPhotoProvider?: string | null;
+  // Locations
+  startLatitude?: number | null;
+  startLongitude?: number | null;
+  startAddress?: string | null;
+  endLatitude?: number | null;
+  endLongitude?: number | null;
+  endAddress?: string | null;
+  // Timestamps
   startedAt: Date | string;
   endedAt?: Date | string | null;
-  vehicle?: {
+  // Notes
+  notes?: string | null;
+  // Relations
+  vehicle: {
     make: string;
     model: string;
     licensePlate: string;
-  } | null;
-  user?: {
+  };
+  fsr: {
+    id: string;
     name: string;
+    email: string;
+  };
+  workOrder?: {
+    id: string;
+    folio: string | null;
+    incident: {
+      id: number;
+      title: string;
+    };
   } | null;
 }
 
@@ -47,7 +69,7 @@ export default async function TripDetailPage({
     notFound();
   }
 
-  const isInProgress = trip.status === "IN_PROGRESS";
+  const isInProgress = !trip.endedAt;
 
   return (
     <div className="container mx-auto py-6 space-y-6">

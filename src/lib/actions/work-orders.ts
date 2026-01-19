@@ -124,6 +124,7 @@ export async function createWorkOrder(data: WorkOrderFormData) {
       folio: data.folio || null,
       startedAt: data.startedAt || null,
       finishedAt: data.finishedAt || null,
+      assignedAt: new Date(), // Track when work order was assigned
     },
     include: {
       incident: true,
@@ -133,6 +134,7 @@ export async function createWorkOrder(data: WorkOrderFormData) {
   });
 
   revalidatePath("/admin/work-orders");
+  revalidatePath("/fsr/work-orders");
   revalidatePath(`/admin/incidents/${data.incidentId}`);
   return { success: true, data: workOrder };
 }
@@ -143,6 +145,14 @@ export async function createWorkOrder(data: WorkOrderFormData) {
 export async function updateWorkOrder(id: string, data: WorkOrderFormData) {
   await requirePermission("work-orders:update");
 
+  // Get current work order to check if assignment is changing
+  const currentWorkOrder = await prisma.workOrder.findUnique({
+    where: { id },
+    select: { assignedToId: true },
+  });
+
+  const isReassignment = currentWorkOrder?.assignedToId !== data.assignedToId;
+
   const workOrder = await prisma.workOrder.update({
     where: { id },
     data: {
@@ -152,6 +162,11 @@ export async function updateWorkOrder(id: string, data: WorkOrderFormData) {
       folio: data.folio || null,
       startedAt: data.startedAt || null,
       finishedAt: data.finishedAt || null,
+      // If reassigned, reset unlock tracking so new FSR must acknowledge
+      ...(isReassignment && {
+        assignedAt: new Date(),
+        unlockedAt: null,
+      }),
     },
     include: {
       incident: true,
@@ -163,6 +178,8 @@ export async function updateWorkOrder(id: string, data: WorkOrderFormData) {
   revalidatePath("/admin/work-orders");
   revalidatePath(`/admin/work-orders/${id}`);
   revalidatePath(`/admin/incidents/${workOrder.incidentId}`);
+  revalidatePath("/fsr/work-orders");
+  revalidatePath(`/fsr/work-orders/${id}`);
   return { success: true, data: workOrder };
 }
 
@@ -347,6 +364,74 @@ export async function startWorkOrder(id: string) {
   revalidatePath(`/fsr/work-orders/${id}`);
   revalidatePath("/admin/work-orders");
   return { success: true, data: workOrder };
+}
+
+/**
+ * Unlock/Acknowledge work order (FSR functionality)
+ * Records that the FSR has seen and acknowledged the work order
+ * Must be the assigned FSR or have admin permissions
+ */
+export async function unlockWorkOrder(id: string) {
+  const user = await requirePermission("work-orders:update");
+
+  // Get work order to verify ownership
+  const workOrder = await prisma.workOrder.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      assignedToId: true,
+      unlockedAt: true,
+    },
+  });
+
+  if (!workOrder) {
+    throw new Error("Work order not found");
+  }
+
+  // Check if already unlocked
+  if (workOrder.unlockedAt) {
+    return { success: true, alreadyUnlocked: true };
+  }
+
+  // Get user's role to check if admin
+  const userWithRole = await prisma.user.findUnique({
+    where: { id: user.id },
+    include: { role: true },
+  });
+
+  // Verify the user is the assigned FSR (unless admin)
+  if (
+    userWithRole?.role?.name !== "ADMINISTRADOR" &&
+    workOrder.assignedToId !== user.id
+  ) {
+    throw new Error("Only the assigned FSR can unlock this work order");
+  }
+
+  const updatedWorkOrder = await prisma.workOrder.update({
+    where: { id },
+    data: {
+      unlockedAt: new Date(),
+    },
+    include: {
+      incident: true,
+      assignedTo: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      },
+      status: true,
+    },
+  });
+
+  revalidatePath("/fsr/work-orders");
+  revalidatePath(`/fsr/work-orders/${id}`);
+  revalidatePath("/admin/work-orders");
+  revalidatePath(`/admin/work-orders/${id}`);
+  revalidatePath("/admin/tracking");
+
+  return { success: true, data: updatedWorkOrder };
 }
 
 /**

@@ -75,7 +75,10 @@ export function UserProfileForm({
     jobPosition: initialData?.profile?.jobPosition || "",
   });
 
-  const validateField = (name: keyof UserProfileFormData, value: string) => {
+  const validateField = (
+    name: keyof UserProfileFormData,
+    value: string | undefined,
+  ) => {
     try {
       userProfileSchema.shape[name].parse(value);
       setErrors((prev) => ({ ...prev, [name]: "" }));

@@ -47,12 +47,12 @@ interface VIC {
 }
 
 interface Line {
-  id: string;
+  id: number;
   name: string;
 }
 
 interface Equipment {
-  id: string;
+  id: number;
   name: string;
 }
 
@@ -168,14 +168,16 @@ export default function ReportIncidentPage() {
     setErrors({});
 
     try {
-      const result = await createIncidentAsClient(
-        formData.title,
-        formData.description,
-        formData.priority,
-        formData.typeId ? parseInt(formData.typeId, 10) : undefined,
-        formData.lineId ? parseInt(formData.lineId, 10) : undefined,
-        formData.equipmentId ? parseInt(formData.equipmentId, 10) : undefined,
-      );
+      const result = await createIncidentAsClient({
+        title: formData.title,
+        description: formData.description,
+        priority: formData.priority,
+        typeId: formData.typeId ? parseInt(formData.typeId, 10) : undefined,
+        lineId: formData.lineId ? parseInt(formData.lineId, 10) : undefined,
+        equipmentId: formData.equipmentId
+          ? parseInt(formData.equipmentId, 10)
+          : undefined,
+      });
 
       if (result.success) {
         router.push("/client");

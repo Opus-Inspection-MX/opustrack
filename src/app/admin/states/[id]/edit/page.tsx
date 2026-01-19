@@ -52,7 +52,7 @@ export default function EditStatePage({
         <p className="text-muted-foreground">Update state information</p>
       </div>
 
-      <StateForm initialData={state} isEditing />
+      <StateForm initialData={state ?? undefined} isEditing />
     </div>
   );
 }
