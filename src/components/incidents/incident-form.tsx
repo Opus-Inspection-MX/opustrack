@@ -92,7 +92,9 @@ export function IncidentForm({ incident, onClose }: IncidentFormProps) {
       setFormData({
         title: incident.title || "",
         description: incident.description || "",
-        priority: (incident.priority as "LOW" | "MEDIUM" | "HIGH" | "CRITICAL") || "MEDIUM",
+        priority:
+          (incident.priority as "LOW" | "MEDIUM" | "HIGH" | "CRITICAL") ||
+          "MEDIUM",
         sla: incident.sla || 24,
         typeId: incident.typeId || "",
         statusId: incident.statusId || "",

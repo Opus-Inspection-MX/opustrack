@@ -87,7 +87,9 @@ export default function WorkPartDetailPage({
     try {
       const workOrderId = workPart?.workOrderId;
       await deleteWorkPart(id);
-      router.push(workOrderId ? `/admin/work-orders/${workOrderId}` : "/admin/work-parts");
+      router.push(
+        workOrderId ? `/admin/work-orders/${workOrderId}` : "/admin/work-parts",
+      );
     } catch (error) {
       console.error("Error deleting work part:", error);
       alert(

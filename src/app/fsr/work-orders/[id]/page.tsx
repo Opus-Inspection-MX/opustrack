@@ -585,7 +585,8 @@ export default function FSRWorkOrderDetailPage({
                       <div>
                         <p className="font-medium">{wp.part?.name}</p>
                         <p className="text-sm text-muted-foreground">
-                          Quantity: {wp.quantity} × ${(wp.price ?? 0).toFixed(2)}
+                          Quantity: {wp.quantity} × $
+                          {(wp.price ?? 0).toFixed(2)}
                         </p>
                       </div>
                       <p className="font-bold">

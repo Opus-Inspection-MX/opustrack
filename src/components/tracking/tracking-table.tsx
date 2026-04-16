@@ -481,12 +481,14 @@ export function TrackingTable({
   };
 
   const formatDate = (dateValue: Date | string) => {
-    const date = typeof dateValue === "string" ? new Date(dateValue) : dateValue;
+    const date =
+      typeof dateValue === "string" ? new Date(dateValue) : dateValue;
     return date.toLocaleDateString("es-MX");
   };
 
   const formatTime = (dateValue: Date | string) => {
-    const date = typeof dateValue === "string" ? new Date(dateValue) : dateValue;
+    const date =
+      typeof dateValue === "string" ? new Date(dateValue) : dateValue;
     return date.toLocaleTimeString("es-MX", {
       hour: "2-digit",
       minute: "2-digit",
@@ -501,7 +503,8 @@ export function TrackingTable({
       const fsrs = incident.workOrders
         .map((wo: TrackingWorkOrder) => wo.assignedTo)
         .filter(
-          (fsr): fsr is { id: string; name: string } => fsr !== null && fsr !== undefined,
+          (fsr): fsr is { id: string; name: string } =>
+            fsr !== null && fsr !== undefined,
         );
       // Remove duplicates by id
       const uniqueFsrs = fsrs.filter(
@@ -828,7 +831,9 @@ export function TrackingTable({
                                   <div className="space-y-2">
                                     <Label htmlFor="statusId">Status</Label>
                                     <Select
-                                      value={editForm.statusId?.toString() || ""}
+                                      value={
+                                        editForm.statusId?.toString() || ""
+                                      }
                                       onValueChange={(value) =>
                                         setEditForm({
                                           ...editForm,
@@ -1411,7 +1416,8 @@ export function TrackingTable({
                                                 </span>
                                                 <span className="text-sm">
                                                   <User className="h-4 w-4 inline mr-2" />
-                                                  {workOrder.assignedTo?.name || "Sin asignar"}
+                                                  {workOrder.assignedTo?.name ||
+                                                    "Sin asignar"}
                                                 </span>
                                               </div>
                                             )}

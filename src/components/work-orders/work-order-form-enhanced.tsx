@@ -116,7 +116,12 @@ export function WorkOrderFormEnhanced({
       setFormData({
         incidentId: workOrder.incidentId || "",
         assignedToId: workOrder.assignedToId || "",
-        status: (workOrder.status as "PENDING" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED") || "PENDING",
+        status:
+          (workOrder.status as
+            | "PENDING"
+            | "IN_PROGRESS"
+            | "COMPLETED"
+            | "CANCELLED") || "PENDING",
         notes: workOrder.notes || "",
         startedAt: workOrder.startedAt
           ? new Date(workOrder.startedAt).toISOString().slice(0, 16)

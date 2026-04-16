@@ -109,8 +109,6 @@ export default function TrackingPage() {
 
   const loadInitialData = useCallback(async () => {
     try {
-      const today = new Date().toISOString().split("T")[0];
-
       const [vicsData, typesResult, statusesResult] = await Promise.all([
         getVICs(),
         getIncidentTypes(),
@@ -148,27 +146,24 @@ export default function TrackingPage() {
         (fsr, index, self) => index === self.findIndex((f) => f.id === fsr.id),
       );
       setAllFsrs(uniqueFsrs);
-
-      // Load initial incidents for today only
-      await loadIncidents({ startDate: today, endDate: today });
     } catch (error) {
       console.error("Error loading initial data:", error);
     } finally {
       setLoading(false);
     }
-  }, [loadIncidents]);
+  }, []);
 
   useEffect(() => {
     loadInitialData();
   }, [loadInitialData]);
 
-  useEffect(() => {
-    loadIncidents(filters);
-  }, [filters, loadIncidents]);
-
-  const handleFilterChange = (newFilters: TrackingFiltersState) => {
-    setFilters(newFilters);
-  };
+  const handleFilterChange = useCallback(
+    (newFilters: TrackingFiltersState) => {
+      setFilters(newFilters);
+      loadIncidents(newFilters);
+    },
+    [loadIncidents],
+  );
 
   if (loading) {
     return (

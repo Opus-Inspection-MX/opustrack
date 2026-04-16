@@ -81,7 +81,11 @@ export default function WorkActivityDetailPage({
     try {
       const workOrderId = activity?.workOrderId;
       await deleteWorkActivity(id);
-      router.push(workOrderId ? `/admin/work-orders/${workOrderId}` : "/admin/work-orders");
+      router.push(
+        workOrderId
+          ? `/admin/work-orders/${workOrderId}`
+          : "/admin/work-orders",
+      );
     } catch (error) {
       console.error("Error deleting work activity:", error);
       alert(

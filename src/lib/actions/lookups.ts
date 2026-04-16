@@ -117,7 +117,10 @@ export async function getUserStatuses(options?: {
   const limit = options?.limit || 10;
   const skip = (page - 1) * limit;
 
-  const where: { active: boolean; name?: { contains: string; mode: "insensitive" } } = { active: true };
+  const where: {
+    active: boolean;
+    name?: { contains: string; mode: "insensitive" };
+  } = { active: true };
   if (options?.search) {
     where.name = { contains: options.search, mode: "insensitive" };
   }
