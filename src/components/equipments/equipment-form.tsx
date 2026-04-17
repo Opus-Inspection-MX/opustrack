@@ -21,6 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Textarea } from "@/components/ui/textarea";
 import { createEquipment, updateEquipment } from "@/lib/actions/equipments";
 import { getLinesByVicId } from "@/lib/actions/lines";
@@ -226,21 +227,18 @@ export function EquipmentForm({ equipment, mode }: EquipmentFormProps) {
             <Label htmlFor="vicId">
               CVV <span className="text-red-500">*</span>
             </Label>
-            <Select
+            <SearchableSelect
+              options={vics.map((vic) => ({
+                value: vic.id,
+                label: `${vic.name} (${vic.code})`,
+              }))}
               value={formData.vicId}
               onValueChange={(value) => handleChange("vicId", value)}
-            >
-              <SelectTrigger className={errors.vicId ? "border-red-500" : ""}>
-                <SelectValue placeholder="Seleccionar CVV" />
-              </SelectTrigger>
-              <SelectContent>
-                {vics.map((vic) => (
-                  <SelectItem key={vic.id} value={vic.id}>
-                    {vic.name} ({vic.code})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              placeholder="Seleccionar CVV"
+              searchPlaceholder="Buscar CVV..."
+              emptyMessage="No se encontraron CVV."
+              className={errors.vicId ? "border-red-500" : ""}
+            />
             {errors.vicId && <FormError message={errors.vicId} />}
           </div>
 

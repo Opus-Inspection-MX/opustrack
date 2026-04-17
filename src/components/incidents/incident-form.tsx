@@ -16,6 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Textarea } from "@/components/ui/textarea";
 import { type IncidentFormData, incidentSchema } from "@/lib/validations";
 
@@ -310,44 +311,34 @@ export function IncidentForm({ incident, onClose }: IncidentFormProps) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="vicId">VIC *</Label>
-              <Select
+              <SearchableSelect
+                options={vics.map((vic) => ({
+                  value: vic.id,
+                  label: `${vic.name} (${vic.code})`,
+                }))}
                 value={formData.vicId}
                 onValueChange={(value) => handleChange("vicId", value)}
-              >
-                <SelectTrigger
-                  className={errors.vicId ? "border-destructive" : ""}
-                >
-                  <SelectValue placeholder="Select VIC" />
-                </SelectTrigger>
-                <SelectContent>
-                  {vics.map((vic) => (
-                    <SelectItem key={vic.id} value={vic.id}>
-                      {vic.name} ({vic.code})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                placeholder="Select VIC"
+                searchPlaceholder="Search VICs..."
+                emptyMessage="No VICs found."
+                className={errors.vicId ? "border-destructive" : ""}
+              />
               <FormError message={errors.vicId} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="reportedById">Reported By *</Label>
-              <Select
+              <SearchableSelect
+                options={users.map((user) => ({
+                  value: user.id,
+                  label: user.name,
+                }))}
                 value={formData.reportedById}
                 onValueChange={(value) => handleChange("reportedById", value)}
-              >
-                <SelectTrigger
-                  className={errors.reportedById ? "border-destructive" : ""}
-                >
-                  <SelectValue placeholder="Select reporter" />
-                </SelectTrigger>
-                <SelectContent>
-                  {users.map((user) => (
-                    <SelectItem key={user.id} value={user.id}>
-                      {user.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                placeholder="Select reporter"
+                searchPlaceholder="Search users..."
+                emptyMessage="No users found."
+                className={errors.reportedById ? "border-destructive" : ""}
+              />
               <FormError message={errors.reportedById} />
             </div>
           </div>

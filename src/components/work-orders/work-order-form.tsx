@@ -17,6 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Textarea } from "@/components/ui/textarea";
 import { type WorkOrderFormData, workOrderSchema } from "@/lib/validations";
 
@@ -220,23 +221,18 @@ export function WorkOrderForm({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="assignedToId">Assign To *</Label>
-              <Select
+              <SearchableSelect
+                options={users.map((user) => ({
+                  value: user.id,
+                  label: `${user.name} - ${user.role}`,
+                }))}
                 value={formData.assignedToId}
                 onValueChange={(value) => handleChange("assignedToId", value)}
-              >
-                <SelectTrigger
-                  className={errors.assignedToId ? "border-destructive" : ""}
-                >
-                  <SelectValue placeholder="Select technician" />
-                </SelectTrigger>
-                <SelectContent>
-                  {users.map((user) => (
-                    <SelectItem key={user.id} value={user.id}>
-                      {user.name} - {user.role}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                placeholder="Select technician"
+                searchPlaceholder="Search technicians..."
+                emptyMessage="No technicians found."
+                className={errors.assignedToId ? "border-destructive" : ""}
+              />
               <FormError message={errors.assignedToId} />
             </div>
             <div className="space-y-2">

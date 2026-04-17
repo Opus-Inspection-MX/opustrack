@@ -17,6 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { type WorkOrderFormData, workOrderSchema } from "@/lib/validations";
@@ -335,27 +336,20 @@ export function WorkOrderFormEnhanced({
                   <Label htmlFor="assignedToId" className="text-sm">
                     Asignar a *
                   </Label>
-                  <Select
+                  <SearchableSelect
+                    options={users.map((user) => ({
+                      value: user.id,
+                      label: `${user.name} - ${user.role}`,
+                    }))}
                     value={formData.assignedToId}
                     onValueChange={(value) =>
                       handleChange("assignedToId", value)
                     }
-                  >
-                    <SelectTrigger
-                      className={
-                        errors.assignedToId ? "border-destructive" : ""
-                      }
-                    >
-                      <SelectValue placeholder="Seleccionar técnico" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {users.map((user) => (
-                        <SelectItem key={user.id} value={user.id}>
-                          {user.name} - {user.role}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    placeholder="Seleccionar técnico"
+                    searchPlaceholder="Buscar técnico..."
+                    emptyMessage="No se encontraron técnicos."
+                    className={errors.assignedToId ? "border-destructive" : ""}
+                  />
                   <FormError message={errors.assignedToId} />
                 </div>
 
@@ -464,26 +458,19 @@ export function WorkOrderFormEnhanced({
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                         <div className="space-y-2 sm:col-span-2 lg:col-span-1">
                           <Label className="text-sm">Parte</Label>
-                          <Select
+                          <SearchableSelect
+                            options={availableParts.map((availablePart) => ({
+                              value: availablePart.id,
+                              label: `${availablePart.name} - $${availablePart.price}`,
+                            }))}
                             value={part.partId}
                             onValueChange={(value) =>
                               updateWorkPart(index, "partId", value)
                             }
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Seleccionar parte" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {availableParts.map((availablePart) => (
-                                <SelectItem
-                                  key={availablePart.id}
-                                  value={availablePart.id}
-                                >
-                                  {availablePart.name} - ${availablePart.price}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                            placeholder="Seleccionar parte"
+                            searchPlaceholder="Buscar parte..."
+                            emptyMessage="No se encontraron partes."
+                          />
                         </div>
                         <div className="space-y-2">
                           <Label className="text-sm">Cantidad</Label>

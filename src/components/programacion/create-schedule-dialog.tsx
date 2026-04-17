@@ -19,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Textarea } from "@/components/ui/textarea";
 
 interface CreateScheduleDialogProps {
@@ -197,31 +198,35 @@ export function CreateScheduleDialog({
           {/* VIC Selection */}
           <div className="space-y-2">
             <Label>VIC (Centro de Verificación)</Label>
-            <Select>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecciona un VIC" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="vic-1">VIC CDMX Norte</SelectItem>
-                <SelectItem value="vic-2">VIC CDMX Sur</SelectItem>
-                <SelectItem value="vic-3">VIC Guadalajara</SelectItem>
-              </SelectContent>
-            </Select>
+            <SearchableSelect
+              options={[
+                { value: "vic-1", label: "VIC CDMX Norte" },
+                { value: "vic-2", label: "VIC CDMX Sur" },
+                { value: "vic-3", label: "VIC Guadalajara" },
+              ]}
+              value=""
+              onValueChange={() => {}}
+              placeholder="Selecciona un VIC"
+              searchPlaceholder="Buscar VIC..."
+              emptyMessage="No se encontraron VICs."
+            />
           </div>
 
           {/* FSR Assignment */}
           <div className="space-y-2">
             <Label>Asignar FSR</Label>
-            <Select>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecciona un FSR" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="fsr-1">Juan Pérez</SelectItem>
-                <SelectItem value="fsr-2">María González</SelectItem>
-                <SelectItem value="fsr-3">Carlos Rodríguez</SelectItem>
-              </SelectContent>
-            </Select>
+            <SearchableSelect
+              options={[
+                { value: "fsr-1", label: "Juan Pérez" },
+                { value: "fsr-2", label: "María González" },
+                { value: "fsr-3", label: "Carlos Rodríguez" },
+              ]}
+              value=""
+              onValueChange={() => {}}
+              placeholder="Selecciona un FSR"
+              searchPlaceholder="Buscar FSR..."
+              emptyMessage="No se encontraron FSRs."
+            />
           </div>
 
           {/* Title */}
@@ -263,16 +268,18 @@ export function CreateScheduleDialog({
             activityType === "maintenance") && (
             <div className="space-y-2">
               <Label>Equipo/Parte</Label>
-              <Select>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecciona equipo o parte" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="part-1">Analizador de Gases</SelectItem>
-                  <SelectItem value="part-2">Opacímetro</SelectItem>
-                  <SelectItem value="part-3">Sistema de Frenos</SelectItem>
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                options={[
+                  { value: "part-1", label: "Analizador de Gases" },
+                  { value: "part-2", label: "Opacímetro" },
+                  { value: "part-3", label: "Sistema de Frenos" },
+                ]}
+                value=""
+                onValueChange={() => {}}
+                placeholder="Selecciona equipo o parte"
+                searchPlaceholder="Buscar equipo o parte..."
+                emptyMessage="No se encontraron equipos."
+              />
             </div>
           )}
 

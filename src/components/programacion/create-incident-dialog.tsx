@@ -14,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Textarea } from "@/components/ui/textarea";
 
 interface VIC {
@@ -357,24 +358,19 @@ export function CreateIncidentDialog({
             <Label htmlFor="vicId">
               VIC <span className="text-destructive">*</span>
             </Label>
-            <Select
+            <SearchableSelect
+              options={vics.map((vic) => ({
+                value: vic.id,
+                label: vic.name,
+              }))}
               value={formData.vicId}
               onValueChange={(value) =>
                 setFormData({ ...formData, vicId: value })
               }
-              required
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Selecciona un VIC" />
-              </SelectTrigger>
-              <SelectContent>
-                {vics.map((vic) => (
-                  <SelectItem key={vic.id} value={vic.id}>
-                    {vic.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              placeholder="Selecciona un VIC"
+              searchPlaceholder="Buscar VIC..."
+              emptyMessage="No se encontraron VICs."
+            />
           </div>
 
           <div className="space-y-2">

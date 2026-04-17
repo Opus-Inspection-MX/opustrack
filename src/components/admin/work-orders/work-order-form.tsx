@@ -13,6 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Textarea } from "@/components/ui/textarea";
 import {
   createWorkOrder,
@@ -110,44 +111,36 @@ export function WorkOrderForm({
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="incidentId">Incidente *</Label>
-            <Select
+            <SearchableSelect
+              options={incidents.map((incident) => ({
+                value: incident.id.toString(),
+                label: `${incident.title} (Prioridad: ${incident.priority})`,
+              }))}
               value={formData.incidentId.toString()}
               onValueChange={(value) =>
                 setFormData({ ...formData, incidentId: parseInt(value, 10) })
               }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Seleccionar incidente" />
-              </SelectTrigger>
-              <SelectContent>
-                {incidents.map((incident) => (
-                  <SelectItem key={incident.id} value={incident.id.toString()}>
-                    {incident.title} (Prioridad: {incident.priority})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              placeholder="Seleccionar incidente"
+              searchPlaceholder="Buscar incidente..."
+              emptyMessage="No se encontraron incidentes."
+            />
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="assignedToId">Asignado A *</Label>
-            <Select
+            <SearchableSelect
+              options={filteredUsers.map((user) => ({
+                value: user.id,
+                label: user.name,
+              }))}
               value={formData.assignedToId}
               onValueChange={(value) =>
                 setFormData({ ...formData, assignedToId: value })
               }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Seleccionar usuario" />
-              </SelectTrigger>
-              <SelectContent>
-                {filteredUsers.map((user) => (
-                  <SelectItem key={user.id} value={user.id}>
-                    {user.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              placeholder="Seleccionar usuario"
+              searchPlaceholder="Buscar usuario..."
+              emptyMessage="No se encontraron usuarios."
+            />
             {filteredUsers.length === 0 && selectedIncident?.vicId && (
               <p className="text-xs text-muted-foreground">
                 No FSRs assigned to this VIC

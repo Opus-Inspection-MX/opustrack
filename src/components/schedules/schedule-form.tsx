@@ -9,13 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
@@ -175,25 +169,20 @@ export function ScheduleForm({
 
           <div className="space-y-2">
             <Label htmlFor="vicId">VIC Center *</Label>
-            <Select
+            <SearchableSelect
+              options={vicCenters.map((vic) => ({
+                value: vic.id,
+                label: `${vic.code} - ${vic.name}`,
+              }))}
               value={vicIdValue}
               onValueChange={(value) => setValue("vicId", value)}
-            >
-              <SelectTrigger
-                className={
-                  errors.vicId && touchedFields.vicId ? "border-red-500" : ""
-                }
-              >
-                <SelectValue placeholder="Select VIC Center" />
-              </SelectTrigger>
-              <SelectContent>
-                {vicCenters.map((vic) => (
-                  <SelectItem key={vic.id} value={vic.id}>
-                    {vic.code} - {vic.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              placeholder="Select VIC Center"
+              searchPlaceholder="Search VIC..."
+              emptyMessage="No VIC centers found."
+              className={
+                errors.vicId && touchedFields.vicId ? "border-red-500" : ""
+              }
+            />
             {errors.vicId && touchedFields.vicId && (
               <p className="text-sm text-red-500">{errors.vicId.message}</p>
             )}

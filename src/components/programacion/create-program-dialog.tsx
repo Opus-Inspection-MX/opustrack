@@ -14,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Textarea } from "@/components/ui/textarea";
 
 interface VIC {
@@ -197,24 +198,19 @@ export function CreateProgramDialog({
             Centro de Verificación (VIC){" "}
             <span className="text-destructive">*</span>
           </Label>
-          <Select
+          <SearchableSelect
+            options={vics.map((vic) => ({
+              value: vic.id,
+              label: `${vic.name} (${vic.code})`,
+            }))}
             value={formData.vicId}
             onValueChange={(value) =>
               setFormData({ ...formData, vicId: value })
             }
-            required
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Selecciona un VIC" />
-            </SelectTrigger>
-            <SelectContent>
-              {vics.map((vic) => (
-                <SelectItem key={vic.id} value={vic.id}>
-                  {vic.name} ({vic.code})
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            placeholder="Selecciona un VIC"
+            searchPlaceholder="Buscar VIC..."
+            emptyMessage="No se encontraron VICs."
+          />
         </div>
 
         {/* Start Date and Time */}

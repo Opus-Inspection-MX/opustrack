@@ -16,6 +16,9 @@ export async function middleware(req: NextRequest) {
     pathname.startsWith("/images") ||
     pathname.startsWith("/api/auth");
 
+  // API routes handle their own auth via requireAuth/requirePermission
+  const isApiRoute = pathname.startsWith("/api/");
+
   if (isPublic) {
     return NextResponse.next();
   }
@@ -23,12 +26,20 @@ export async function middleware(req: NextRequest) {
   // Get authentication token
   const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
 
-  // Not authenticated - redirect to login
+  // Not authenticated - redirect to login (or return 401 for API routes)
   if (!token) {
+    if (isApiRoute) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     const url = req.nextUrl.clone();
     url.pathname = "/login";
     url.searchParams.set("callbackUrl", pathname + (search || ""));
     return NextResponse.redirect(url);
+  }
+
+  // API routes handle their own fine-grained authorization
+  if (isApiRoute) {
+    return NextResponse.next();
   }
 
   // User is authenticated - check route access

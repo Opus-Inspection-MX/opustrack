@@ -13,6 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Textarea } from "@/components/ui/textarea";
 import {
   createIncident,
@@ -233,7 +234,14 @@ export function IncidentForm({
 
             <div className="space-y-2">
               <Label htmlFor="vicId">Centro de Verificacion</Label>
-              <Select
+              <SearchableSelect
+                options={[
+                  { value: "none", label: "Sin CVV" },
+                  ...vics.map((vic) => ({
+                    value: vic.id,
+                    label: `${vic.name} (${vic.code})`,
+                  })),
+                ]}
                 value={formData.vicId || "none"}
                 onValueChange={(value) =>
                   setFormData({
@@ -241,24 +249,22 @@ export function IncidentForm({
                     vicId: value === "none" ? null : value,
                   })
                 }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar CVV" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Sin CVV</SelectItem>
-                  {vics.map((vic) => (
-                    <SelectItem key={vic.id} value={vic.id}>
-                      {vic.name} ({vic.code})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                placeholder="Seleccionar CVV"
+                searchPlaceholder="Buscar CVV..."
+                emptyMessage="No se encontraron CVV."
+              />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="reportedById">Reportado Por</Label>
-              <Select
+              <SearchableSelect
+                options={[
+                  { value: "none", label: "Sin asignar" },
+                  ...users.map((user) => ({
+                    value: user.id,
+                    label: user.name,
+                  })),
+                ]}
                 value={formData.reportedById || "none"}
                 onValueChange={(value) =>
                   setFormData({
@@ -266,25 +272,23 @@ export function IncidentForm({
                     reportedById: value === "none" ? null : value,
                   })
                 }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar usuario" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Sin asignar</SelectItem>
-                  {users.map((user) => (
-                    <SelectItem key={user.id} value={user.id}>
-                      {user.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                placeholder="Seleccionar usuario"
+                searchPlaceholder="Buscar usuario..."
+                emptyMessage="No se encontraron usuarios."
+              />
             </div>
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="scheduleId">Programacion</Label>
-            <Select
+            <SearchableSelect
+              options={[
+                { value: "none", label: "Sin programacion" },
+                ...schedules.map((schedule) => ({
+                  value: schedule.id,
+                  label: new Date(schedule.scheduledAt).toLocaleString(),
+                })),
+              ]}
               value={formData.scheduleId || "none"}
               onValueChange={(value) =>
                 setFormData({
@@ -292,19 +296,10 @@ export function IncidentForm({
                   scheduleId: value === "none" ? null : value,
                 })
               }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Seleccionar programacion" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Sin programacion</SelectItem>
-                {schedules.map((schedule) => (
-                  <SelectItem key={schedule.id} value={schedule.id}>
-                    {new Date(schedule.scheduledAt).toLocaleString()}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              placeholder="Seleccionar programacion"
+              searchPlaceholder="Buscar programacion..."
+              emptyMessage="No se encontraron programaciones."
+            />
           </div>
 
           <div className="space-y-2">

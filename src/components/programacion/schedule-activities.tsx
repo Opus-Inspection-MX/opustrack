@@ -13,6 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import {
   Table,
   TableBody,
@@ -259,39 +260,40 @@ export function ScheduleActivities({
 
           <div className="space-y-2">
             <Label className="text-xs font-medium">Programación</Label>
-            <Select
+            <SearchableSelect
+              options={[
+                { value: "all", label: "Todas las programaciones" },
+                ...schedules.map((schedule) => ({
+                  value: schedule.id,
+                  label: schedule.title,
+                })),
+              ]}
               value={selectedScheduleFilter}
               onValueChange={setSelectedScheduleFilter}
-            >
-              <SelectTrigger className="h-9">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas las programaciones</SelectItem>
-                {schedules.map((schedule) => (
-                  <SelectItem key={schedule.id} value={schedule.id}>
-                    {schedule.title}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              placeholder="Todas las programaciones"
+              searchPlaceholder="Buscar programación..."
+              emptyMessage="No se encontraron programaciones."
+              className="h-9"
+            />
           </div>
 
           <div className="space-y-2">
             <Label className="text-xs font-medium">VIC</Label>
-            <Select value={selectedVic} onValueChange={setSelectedVic}>
-              <SelectTrigger className="h-9">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos los VICs</SelectItem>
-                {vics.map((vic) => (
-                  <SelectItem key={vic.id} value={vic.id}>
-                    {vic.name} ({vic.code})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <SearchableSelect
+              options={[
+                { value: "all", label: "Todos los VICs" },
+                ...vics.map((vic) => ({
+                  value: vic.id,
+                  label: `${vic.name} (${vic.code})`,
+                })),
+              ]}
+              value={selectedVic}
+              onValueChange={setSelectedVic}
+              placeholder="Todos los VICs"
+              searchPlaceholder="Buscar VIC..."
+              emptyMessage="No se encontraron VICs."
+              className="h-9"
+            />
           </div>
 
           <div className="space-y-2">

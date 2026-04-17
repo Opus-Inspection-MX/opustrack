@@ -13,6 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { createUser, type UserFormData, updateUser } from "@/lib/actions/users";
 
 type UserFormProps = {
@@ -193,7 +194,14 @@ export function UserForm({ user, roles, statuses, vics }: UserFormProps) {
 
             <div className="space-y-2">
               <Label htmlFor="vicId">Centro de Verificación</Label>
-              <Select
+              <SearchableSelect
+                options={[
+                  { value: "none", label: "Sin asignar" },
+                  ...vics.map((vic) => ({
+                    value: vic.id,
+                    label: `${vic.name} (${vic.code})`,
+                  })),
+                ]}
                 value={formData.vicId || "none"}
                 onValueChange={(value) =>
                   setFormData({
@@ -201,19 +209,10 @@ export function UserForm({ user, roles, statuses, vics }: UserFormProps) {
                     vicId: value === "none" ? null : value,
                   })
                 }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar CVV" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Sin asignar</SelectItem>
-                  {vics.map((vic) => (
-                    <SelectItem key={vic.id} value={vic.id}>
-                      {vic.name} ({vic.code})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                placeholder="Seleccionar CVV"
+                searchPlaceholder="Buscar CVV..."
+                emptyMessage="No se encontraron CVV."
+              />
             </div>
           </div>
         </CardContent>

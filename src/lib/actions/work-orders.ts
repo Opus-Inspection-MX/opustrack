@@ -646,7 +646,10 @@ export async function getWorkOrderFormOptions() {
         name: true,
         email: true,
         role: true,
-        vicIds: true,
+        vicAssignments: {
+          where: { active: true },
+          select: { vicId: true },
+        },
       },
       orderBy: { name: "asc" },
     }),
@@ -656,7 +659,12 @@ export async function getWorkOrderFormOptions() {
     }),
   ]);
 
-  return { incidents, users, incidentStatuses };
+  const usersWithVicIds = users.map((user) => ({
+    ...user,
+    vicIds: user.vicAssignments.map((va) => va.vicId),
+  }));
+
+  return { incidents, users: usersWithVicIds, incidentStatuses };
 }
 
 /**

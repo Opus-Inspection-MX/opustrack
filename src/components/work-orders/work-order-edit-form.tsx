@@ -14,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Textarea } from "@/components/ui/textarea";
 import { updateWorkOrder } from "@/lib/actions/work-orders";
 
@@ -131,23 +132,19 @@ export function WorkOrderEditForm({
               <Label htmlFor="assignedTo">
                 Assigned To <span className="text-red-500">*</span>
               </Label>
-              <Select
+              <SearchableSelect
+                options={users.map((user) => ({
+                  value: user.id,
+                  label: `${user.name} (${user.email})`,
+                }))}
                 value={formData.assignedToId}
                 onValueChange={(value) =>
                   setFormData({ ...formData, assignedToId: value })
                 }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select user" />
-                </SelectTrigger>
-                <SelectContent>
-                  {users.map((user) => (
-                    <SelectItem key={user.id} value={user.id}>
-                      {user.name} ({user.email})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                placeholder="Select user"
+                searchPlaceholder="Search users..."
+                emptyMessage="No users found."
+              />
             </div>
 
             <div className="space-y-2">
