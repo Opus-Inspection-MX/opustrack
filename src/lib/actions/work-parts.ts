@@ -73,9 +73,8 @@ export async function createWorkPart(data: unknown) {
   // Validate input
   const validated = WorkPartCreateSchema.parse(data);
 
-  // Use transaction to ensure stock integrity
+  // Use transaction with atomic conditional update to prevent race conditions
   const workPart = await prisma.$transaction(async (tx) => {
-    // Check part stock within transaction to prevent race conditions
     const part = await tx.part.findUnique({
       where: { id: validated.partId },
     });
@@ -84,8 +83,17 @@ export async function createWorkPart(data: unknown) {
       throw new Error("Parte no encontrada");
     }
 
-    if (part.stock < validated.quantity) {
-      throw new Error(`Stock insuficiente. Disponible: ${part.stock}`);
+    // Atomic decrement: WHERE stock >= quantity ensures no race condition
+    // If two transactions try simultaneously, only one will match the WHERE clause
+    const updated = await tx.part.updateMany({
+      where: { id: validated.partId, stock: { gte: validated.quantity } },
+      data: { stock: { decrement: validated.quantity } },
+    });
+
+    if (updated.count === 0) {
+      throw new Error(
+        `Stock insuficiente. Disponible: ${part.stock}, Solicitado: ${validated.quantity}`,
+      );
     }
 
     // Create work part
@@ -98,12 +106,6 @@ export async function createWorkPart(data: unknown) {
         description: validated.description || null,
         price: part.price, // Store the price at time of use
       },
-    });
-
-    // Update part stock
-    await tx.part.update({
-      where: { id: validated.partId },
-      data: { stock: { decrement: validated.quantity } },
     });
 
     return wp;
@@ -137,26 +139,35 @@ export async function updateWorkPart(
       throw new Error("Work part no encontrada");
     }
 
-    // If quantity changed, update stock
+    // If quantity changed, update stock atomically
     if (data.quantity && data.quantity !== existingWorkPart.quantity) {
       const difference = data.quantity - existingWorkPart.quantity;
 
-      const part = await tx.part.findUnique({
-        where: { id: existingWorkPart.partId },
-      });
+      if (difference > 0) {
+        // Need more stock - atomic conditional update to prevent race condition
+        const updated = await tx.part.updateMany({
+          where: {
+            id: existingWorkPart.partId,
+            stock: { gte: difference },
+          },
+          data: { stock: { decrement: difference } },
+        });
 
-      if (!part) {
-        throw new Error("Parte no encontrada");
+        if (updated.count === 0) {
+          const part = await tx.part.findUnique({
+            where: { id: existingWorkPart.partId },
+          });
+          throw new Error(
+            `Stock insuficiente. Disponible: ${part?.stock ?? 0}, Solicitado adicional: ${difference}`,
+          );
+        }
+      } else {
+        // Returning stock - always safe
+        await tx.part.update({
+          where: { id: existingWorkPart.partId },
+          data: { stock: { increment: Math.abs(difference) } },
+        });
       }
-
-      if (difference > 0 && part.stock < difference) {
-        throw new Error(`Stock insuficiente. Disponible: ${part.stock}`);
-      }
-
-      await tx.part.update({
-        where: { id: existingWorkPart.partId },
-        data: { stock: { decrement: difference } },
-      });
     }
 
     const workPart = await tx.workPart.update({

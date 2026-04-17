@@ -92,14 +92,13 @@ function transformWorkPart(wp: ApiWorkPart): TableWorkPart | null {
     quantity: wp.quantity,
     description: wp.description ?? undefined,
     price: wp.price ?? 0,
-    workOrder:
-      wp.workOrder?.incident
-        ? {
-            id: wp.workOrder.id,
-            status: wp.workOrder.status ?? undefined,
-            incident: { title: wp.workOrder.incident.title },
-          }
-        : undefined,
+    workOrder: wp.workOrder?.incident
+      ? {
+          id: wp.workOrder.id,
+          status: wp.workOrder.status ?? undefined,
+          incident: { title: wp.workOrder.incident.title },
+        }
+      : undefined,
     workActivity: wp.workActivity ?? undefined,
     createdAt:
       typeof wp.createdAt === "string"

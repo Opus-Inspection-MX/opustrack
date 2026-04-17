@@ -133,6 +133,31 @@ export async function createWorkOrder(data: WorkOrderFormData) {
     },
   });
 
+  // Notify assigned FSR
+  if (data.assignedToId) {
+    try {
+      const { createNotification } = await import(
+        "@/lib/notifications/notification-service"
+      );
+      const { NOTIFICATION_TYPES, NOTIFICATION_PRIORITY } = await import(
+        "@/lib/notifications/notification-types"
+      );
+
+      await createNotification({
+        userId: data.assignedToId,
+        title: "Nueva orden de trabajo asignada",
+        message: `Se te ha asignado una nueva orden de trabajo${workOrder.incident?.title ? ` para el incidente: ${workOrder.incident.title}` : ""}`,
+        type: NOTIFICATION_TYPES.WORK_ORDER_ASSIGNED,
+        entityType: "work_order",
+        entityId: workOrder.id,
+        actionUrl: `/fsr/work-orders/${workOrder.id}`,
+        priority: NOTIFICATION_PRIORITY.HIGH,
+      });
+    } catch (error) {
+      console.error("Error creating assignment notification:", error);
+    }
+  }
+
   revalidatePath("/admin/work-orders");
   revalidatePath("/fsr/work-orders");
   revalidatePath(`/admin/incidents/${data.incidentId}`);
@@ -174,6 +199,32 @@ export async function updateWorkOrder(id: string, data: WorkOrderFormData) {
       status: true,
     },
   });
+
+  // Notify new FSR on reassignment
+  if (isReassignment && data.assignedToId) {
+    try {
+      const { createNotification } = await import(
+        "@/lib/notifications/notification-service"
+      );
+      const { NOTIFICATION_TYPES, NOTIFICATION_PRIORITY } = await import(
+        "@/lib/notifications/notification-types"
+      );
+
+      await createNotification({
+        userId: data.assignedToId,
+        title: "Orden de trabajo asignada",
+        message: `Se te ha asignado la orden de trabajo${workOrder.incident?.title ? ` para el incidente: ${workOrder.incident.title}` : ""}`,
+        type: NOTIFICATION_TYPES.WORK_ORDER_ASSIGNED,
+        entityType: "work_order",
+        entityId: id,
+        actionUrl: `/fsr/work-orders/${id}`,
+        priority: NOTIFICATION_PRIORITY.HIGH,
+      });
+    } catch (error) {
+      console.error("Error creating reassignment notification:", error);
+      // Don't fail the update if notification fails
+    }
+  }
 
   revalidatePath("/admin/work-orders");
   revalidatePath(`/admin/work-orders/${id}`);
@@ -250,6 +301,17 @@ export async function completeWorkOrder(id: string, notes?: string) {
 
   // Use transaction to ensure atomicity
   const result = await prisma.$transaction(async (tx) => {
+    // Require at least one work activity before completion
+    const activityCount = await tx.workActivity.count({
+      where: { workOrderId: id, active: true },
+    });
+
+    if (activityCount === 0) {
+      throw new Error(
+        "No se puede completar la orden sin actividades de trabajo documentadas",
+      );
+    }
+
     // Get CERRADO status
     const cerradoStatus = await tx.incidentStatus.findFirst({
       where: { name: "CERRADO" },
@@ -599,6 +661,14 @@ export async function uploadWorkOrderAttachment(
   },
 ) {
   await requirePermission("work-orders:update");
+
+  // Enforce 10MB file size limit
+  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+  if (fileData.size > MAX_FILE_SIZE) {
+    throw new Error(
+      `El archivo es demasiado grande. Tamaño máximo: 10MB, Tamaño del archivo: ${(fileData.size / (1024 * 1024)).toFixed(1)}MB`,
+    );
+  }
 
   // Use new storage abstraction
   const { uploadFile } = await import("@/lib/storage/file-storage");

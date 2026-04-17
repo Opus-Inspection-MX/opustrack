@@ -1212,7 +1212,6 @@ async function main() {
       if (adminUser) {
         const sampleIncidents = [
           {
-            id: 1,
             title: "Falla en línea de verificación 2",
             description:
               "La línea 2 presenta problemas con el sistema de medición de emisiones",
@@ -1220,7 +1219,6 @@ async function main() {
             scheduleId: scheduleRecords[0].id,
           },
           {
-            id: 2,
             title: "Calibración de analizador de gases",
             description:
               "Requiere calibración del analizador de gases de la línea 1",
@@ -1228,21 +1226,18 @@ async function main() {
             scheduleId: scheduleRecords[1].id,
           },
           {
-            id: 3,
             title: "Revisión de sistema de frenado",
             description: "Inspección del sistema de frenado en línea 3",
             priority: 7,
             scheduleId: scheduleRecords[2].id,
           },
           {
-            id: 4,
             title: "Mantenimiento preventivo general",
             description: "Mantenimiento preventivo de todas las líneas",
             priority: 5,
             scheduleId: scheduleRecords[3].id,
           },
           {
-            id: 5,
             title: "Actualización de firmware",
             description: "Actualización de firmware en equipos de diagnóstico",
             priority: 4,
@@ -1251,18 +1246,22 @@ async function main() {
         ];
 
         for (const incidentData of sampleIncidents) {
-          await tx.incident.upsert({
-            where: { id: incidentData.id },
-            update: {},
-            create: {
-              ...incidentData,
-              sla: 24,
-              typeId: incidentTypeRecords[0].id,
-              statusId: incidentStatusRecords[0].id,
-              vicId: vic.id,
-              reportedById: adminUser.id,
-            },
+          // Check if incident already exists by title to make seed idempotent
+          const existing = await tx.incident.findFirst({
+            where: { title: incidentData.title },
           });
+          if (!existing) {
+            await tx.incident.create({
+              data: {
+                ...incidentData,
+                sla: 24,
+                typeId: incidentTypeRecords[0].id,
+                statusId: incidentStatusRecords[0].id,
+                vicId: vic.id,
+                reportedById: adminUser.id,
+              },
+            });
+          }
         }
         console.log("✅ Seeded Sample Incidents");
       }

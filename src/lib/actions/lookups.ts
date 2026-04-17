@@ -480,13 +480,24 @@ export async function updateIncidentStatus(
 export async function deleteIncidentStatus(id: number) {
   await requirePermission("incident-status:delete");
 
-  const incidentCount = await prisma.incident.count({
-    where: { statusId: id, active: true },
-  });
+  const [incidentCount, workOrderCount] = await Promise.all([
+    prisma.incident.count({
+      where: { statusId: id, active: true },
+    }),
+    prisma.workOrder.count({
+      where: { statusId: id, active: true },
+    }),
+  ]);
 
   if (incidentCount > 0) {
     throw new Error(
       `Cannot delete status. ${incidentCount} incident(s) have this status.`,
+    );
+  }
+
+  if (workOrderCount > 0) {
+    throw new Error(
+      `Cannot delete status. ${workOrderCount} work order(s) have this status.`,
     );
   }
 

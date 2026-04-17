@@ -162,6 +162,13 @@ export async function getVehicleTripById(id: string) {
 export async function startVehicleTrip(data: TripStartData) {
   const user = await requirePermission("vehicle-trips:create");
 
+  // Enforce 10MB file size limit (base64 is ~33% larger than raw)
+  const MAX_FILE_SIZE = 10 * 1024 * 1024;
+  const estimatedSize = Math.ceil(data.startPhotoBase64.length * 0.75);
+  if (estimatedSize > MAX_FILE_SIZE) {
+    throw new Error("La foto es demasiado grande. Tamaño máximo: 10MB");
+  }
+
   // Upload start photo
   const startPhotoResult = await uploadFile(
     data.startPhotoFilename,
@@ -257,6 +264,13 @@ export async function endVehicleTrip(id: string, data: TripEndData) {
     where: { name: "AVAILABLE" },
   });
   if (!availableStatus) throw new Error("Vehicle status AVAILABLE not found");
+
+  // Enforce 10MB file size limit
+  const MAX_FILE_SIZE = 10 * 1024 * 1024;
+  const estimatedEndSize = Math.ceil(data.endPhotoBase64.length * 0.75);
+  if (estimatedEndSize > MAX_FILE_SIZE) {
+    throw new Error("La foto es demasiado grande. Tamaño máximo: 10MB");
+  }
 
   // Upload end photo
   const endPhotoResult = await uploadFile(
