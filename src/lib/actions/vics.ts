@@ -67,8 +67,8 @@ export async function getVICs() {
         where: {
           roleId: fsrRole.id,
           active: true,
-          vicIds: {
-            has: vic.id,
+          vicAssignments: {
+            some: { vicId: vic.id, active: true },
           },
         },
       });
@@ -155,20 +155,12 @@ export async function createVIC(data: VICFormData) {
 
   // Assign FSRs to this VIC if provided
   if (data.fsrIds && data.fsrIds.length > 0) {
-    // For each FSR, add this VIC to their vicIds array
     for (const fsrId of data.fsrIds) {
-      const user = await prisma.user.findUnique({
-        where: { id: fsrId },
-        select: { vicIds: true },
+      await prisma.userVicAssignment.upsert({
+        where: { userId_vicId: { userId: fsrId, vicId: vic.id } },
+        update: { active: true },
+        create: { userId: fsrId, vicId: vic.id, isPrimary: false },
       });
-
-      if (user) {
-        const updatedVicIds = [...new Set([...user.vicIds, vic.id])];
-        await prisma.user.update({
-          where: { id: fsrId },
-          data: { vicIds: updatedVicIds },
-        });
-      }
     }
   }
 
@@ -220,19 +212,13 @@ export async function updateVIC(id: string, data: VICFormData) {
     });
 
     if (fsrRole) {
-      // Get all FSRs to check which ones currently have this VIC
-      const allFSRs = await prisma.user.findMany({
-        where: {
-          roleId: fsrRole.id,
-          active: true,
-        },
-        select: { id: true, vicIds: true },
+      // Get currently assigned FSRs via junction table
+      const currentAssignments = await prisma.userVicAssignment.findMany({
+        where: { vicId: id, active: true, user: { roleId: fsrRole.id } },
+        select: { userId: true },
       });
 
-      const currentFSRIds = allFSRs
-        .filter((user) => user.vicIds.includes(id))
-        .map((user) => user.id);
-
+      const currentFSRIds = currentAssignments.map((a) => a.userId);
       const newFSRIds = data.fsrIds;
 
       // FSRs to unassign (were assigned but are no longer selected)
@@ -245,28 +231,21 @@ export async function updateVIC(id: string, data: VICFormData) {
         (fsrId) => !currentFSRIds.includes(fsrId),
       );
 
-      // Unassign FSRs - remove this VIC from their vicIds array
-      for (const fsrId of fsrsToUnassign) {
-        const user = allFSRs.find((u) => u.id === fsrId);
-        if (user) {
-          const updatedVicIds = user.vicIds.filter((vicId) => vicId !== id);
-          await prisma.user.update({
-            where: { id: fsrId },
-            data: { vicIds: updatedVicIds },
-          });
-        }
+      // Unassign FSRs - soft delete the assignment
+      if (fsrsToUnassign.length > 0) {
+        await prisma.userVicAssignment.updateMany({
+          where: { vicId: id, userId: { in: fsrsToUnassign } },
+          data: { active: false },
+        });
       }
 
-      // Assign new FSRs - add this VIC to their vicIds array
+      // Assign new FSRs - upsert assignments
       for (const fsrId of fsrsToAssign) {
-        const user = allFSRs.find((u) => u.id === fsrId);
-        if (user) {
-          const updatedVicIds = [...new Set([...user.vicIds, id])];
-          await prisma.user.update({
-            where: { id: fsrId },
-            data: { vicIds: updatedVicIds },
-          });
-        }
+        await prisma.userVicAssignment.upsert({
+          where: { userId_vicId: { userId: fsrId, vicId: id } },
+          update: { active: true },
+          create: { userId: fsrId, vicId: id, isPrimary: false },
+        });
       }
     }
   }
@@ -396,12 +375,19 @@ export async function getFSRUsers() {
       id: true,
       name: true,
       email: true,
-      vicIds: true,
+      vicAssignments: {
+        where: { active: true },
+        select: { vicId: true },
+      },
     },
     orderBy: { name: "asc" },
   });
 
-  return fsrUsers;
+  // Map vicAssignments to vicIds for backward compatibility with consumers
+  return fsrUsers.map((user) => ({
+    ...user,
+    vicIds: user.vicAssignments.map((va) => va.vicId),
+  }));
 }
 
 /**

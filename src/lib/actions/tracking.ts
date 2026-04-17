@@ -158,8 +158,8 @@ export async function getFSRsByVicId(vicId: string) {
   try {
     const users = await prisma.user.findMany({
       where: {
-        vicIds: {
-          has: vicId, // Check if vicId is in the vicIds array
+        vicAssignments: {
+          some: { vicId, active: true },
         },
         active: true,
         role: {
