@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requirePermission } from "@/lib/auth/auth";
+import { getVicWhereClause } from "@/lib/auth/filters";
 import { prisma } from "@/lib/database/prisma.singleton";
 
 export type WorkOrderFormData = {
@@ -17,12 +18,17 @@ export type WorkOrderFormData = {
 
 /**
  * Get all work orders
+ * Filtered by user's VIC (except ADMINISTRADOR who sees all)
  */
 export async function getWorkOrders() {
-  await requirePermission("work-orders:read");
+  const user = await requirePermission("work-orders:read");
+  const vicFilter = getVicWhereClause(user);
 
   const workOrders = await prisma.workOrder.findMany({
-    where: { active: true },
+    where: {
+      active: true,
+      incident: { ...vicFilter },
+    },
     include: {
       incident: {
         include: {
@@ -61,7 +67,7 @@ export async function getWorkOrders() {
  * Get single work order by ID
  */
 export async function getWorkOrderById(id: string) {
-  await requirePermission("work-orders:read");
+  const user = await requirePermission("work-orders:read");
 
   const workOrder = await prisma.workOrder.findUnique({
     where: { id },
@@ -105,6 +111,12 @@ export async function getWorkOrderById(id: string) {
       status: true,
     },
   });
+
+  // Verify VIC access for non-admin users
+  if (workOrder?.incident?.vicId) {
+    const { assertVicAccess } = await import("@/lib/auth/filters");
+    assertVicAccess(user, workOrder.incident.vicId);
+  }
 
   return workOrder;
 }

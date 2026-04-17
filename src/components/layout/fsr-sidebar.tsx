@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  AlertTriangle,
   Car,
   ClipboardList,
   PanelLeftClose,
@@ -30,6 +31,11 @@ const menuItems = [
     title: "Panel",
     url: "/fsr",
     icon: ClipboardList,
+  },
+  {
+    title: "Incidentes",
+    url: "/fsr/incidents",
+    icon: AlertTriangle,
   },
   {
     title: "Órdenes de Trabajo",

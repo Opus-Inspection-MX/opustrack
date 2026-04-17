@@ -50,6 +50,43 @@ export async function getIncidents() {
 }
 
 /**
+ * Get incidents related to FSR's assigned work orders
+ */
+export async function getMyIncidents() {
+  const user = await requirePermission("incidents:read");
+
+  const incidents = await prisma.incident.findMany({
+    where: {
+      active: true,
+      workOrders: {
+        some: {
+          assignedToId: user.id,
+          active: true,
+        },
+      },
+    },
+    include: {
+      type: true,
+      status: true,
+      vic: true,
+      reportedBy: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      },
+      _count: {
+        select: { workOrders: true },
+      },
+    },
+    orderBy: { reportedAt: "desc" },
+  });
+
+  return incidents;
+}
+
+/**
  * Get single incident by ID
  * Verifies user has access to the incident's VIC
  */

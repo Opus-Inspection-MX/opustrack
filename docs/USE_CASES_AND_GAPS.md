@@ -927,7 +927,7 @@ This document provides a comprehensive analysis of the OpusTrack incident manage
 
 ### Category 1: Business Logic Issues
 
-**GAP-BL-001: Stock Management - No Negative Stock Prevention**
+**GAP-BL-001: Stock Management - No Negative Stock Prevention** ✅ FIXED
 - **Severity**: 🔴 Critical
 - **Location**: WorkPart creation logic
 - **Description**: System does not prevent creating WorkPart records when Part.stock is insufficient
@@ -945,7 +945,7 @@ This document provides a comprehensive analysis of the OpusTrack incident manage
   }
   ```
 
-**GAP-BL-002: Race Condition in Stock Management**
+**GAP-BL-002: Race Condition in Stock Management** ✅ FIXED
 - **Severity**: 🔴 Critical
 - **Location**: WorkPart create/delete operations
 - **Description**: Stock updates are not atomic - two FSRs could allocate the same last part simultaneously
@@ -989,7 +989,7 @@ This document provides a comprehensive analysis of the OpusTrack incident manage
   - Create notifications for ADMIN and assigned FSR when 80% of SLA elapsed
   - Create critical notification when SLA breached
 
-**GAP-BL-005: Work Order Completion - No Activities Required**
+**GAP-BL-005: Work Order Completion - No Activities Required** ✅ FIXED
 - **Severity**: 🟡 Important
 - **Location**: `completeWorkOrder()` in work-orders.ts
 - **Description**: FSR can complete work order without adding any work activities
@@ -1011,7 +1011,7 @@ This document provides a comprehensive analysis of the OpusTrack incident manage
   }
   ```
 
-**GAP-BL-006: File Upload Size Limit - Not Enforced**
+**GAP-BL-006: File Upload Size Limit - Not Enforced** ✅ FIXED
 - **Severity**: 🔴 Critical
 - **Location**: `uploadWorkOrderAttachment()` in work-orders.ts
 - **Description**: CLAUDE.md states "10MB limit per file" but this is not enforced in the action
@@ -1041,7 +1041,7 @@ This document provides a comprehensive analysis of the OpusTrack incident manage
   - **Option A**: Prevent deletion if ANY work orders exist (active or inactive)
   - **Option B**: Cascade soft-delete to all child work orders
 
-**GAP-BL-008: Work Order Reassignment - Unlock State Not Reset**
+**GAP-BL-008: Work Order Reassignment - Unlock State Not Reset** ✅ FIXED
 - **Severity**: 🟡 Important
 - **Location**: `updateWorkOrder()` in work-orders.ts line 154-169
 - **Description**: When work order is reassigned to different FSR, system resets `assignedAt` and `unlockedAt`, but does NOT create new notification
@@ -1060,7 +1060,7 @@ This document provides a comprehensive analysis of the OpusTrack incident manage
   4. Work order sits unacknowledged
 - **Recommendation**: Add notification creation in updateWorkOrder when reassignment occurs
 
-**GAP-BL-009: Client Cannot Track Work Progress**
+**GAP-BL-009: Client Cannot Track Work Progress** ✅ FIXED
 - **Severity**: 🟡 Important
 - **Location**: CLIENT role permissions and pages
 - **Description**: CLIENT has `work-orders:read` permission but no page to view work order details
@@ -1101,7 +1101,7 @@ This document provides a comprehensive analysis of the OpusTrack incident manage
   - **Option B**: Remove read permissions from GUEST role if not needed
   - **Option C**: Clarify GUEST role purpose in requirements
 
-**GAP-BL-011: Incident Type/Status - Soft Delete Not Enforced**
+**GAP-BL-011: Incident Type/Status - Soft Delete Not Enforced** ✅ FIXED
 - **Severity**: 🔴 Critical
 - **Location**: Lookup data management
 - **Description**: IncidentType and IncidentStatus can be deleted even if incidents are actively using them
@@ -1122,7 +1122,7 @@ This document provides a comprehensive analysis of the OpusTrack incident manage
   }
   ```
 
-**GAP-BL-012: VIC Filter - Inconsistent Application**
+**GAP-BL-012: VIC Filter - Inconsistent Application** ✅ FIXED
 - **Severity**: 🟡 Important
 - **Location**: Various server actions
 - **Description**: VIC filtering is applied in some actions but not others, inconsistently
@@ -1155,7 +1155,7 @@ This document provides a comprehensive analysis of the OpusTrack incident manage
   4. No warning or conflict detection
 - **Recommendation**: Add conflict detection logic in schedule creation
 
-**GAP-BL-015: Session Version - Never Incremented**
+**GAP-BL-015: Session Version - Never Incremented** ✅ FIXED
 - **Severity**: 🟡 Important
 - **Location**: User model
 - **Description**: User has `sessionVersion` field for invalidating sessions, but no code increments it
@@ -1173,7 +1173,7 @@ This document provides a comprehensive analysis of the OpusTrack incident manage
 
 ### Category 2: Missing Features (Documented but Not Implemented)
 
-**GAP-FEAT-001: FSR Incidents Page**
+**GAP-FEAT-001: FSR Incidents Page** ✅ FIXED
 - **Severity**: 🟡 Important
 - **Documented**: CLAUDE.md states FSR can view incidents
 - **Permissions**: FSR has `incidents:read` permission

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requirePermission } from "@/lib/auth/auth";
+import { getVicWhereClause } from "@/lib/auth/filters";
 import { prisma } from "@/lib/database/prisma.singleton";
 import {
   type WorkPartCreateInput,
@@ -12,14 +13,17 @@ import {
 export type WorkPartFormData = WorkPartCreateInput;
 
 /**
- * Get all work parts (admin view)
+ * Get all work parts
+ * Filtered by user's VIC (except ADMINISTRADOR who sees all)
  */
 export async function getAllWorkParts() {
-  await requirePermission("work-orders:read");
+  const user = await requirePermission("work-orders:read");
+  const vicFilter = getVicWhereClause(user);
 
   const workParts = await prisma.workPart.findMany({
     where: {
       active: true,
+      workOrder: { incident: { ...vicFilter } },
     },
     include: {
       part: true,

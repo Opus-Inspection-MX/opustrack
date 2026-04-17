@@ -189,6 +189,12 @@ export async function assignPermissionsToRole(
     });
   }
 
+  // Invalidate sessions for all users with this role
+  const { invalidateRoleSessions } = await import(
+    "@/lib/auth/session-management"
+  );
+  await invalidateRoleSessions(roleId);
+
   revalidatePath("/admin/roles");
   revalidatePath(`/admin/roles/${roleId}`);
   revalidatePath(`/admin/roles/${roleId}/permissions`);

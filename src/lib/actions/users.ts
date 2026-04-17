@@ -106,6 +106,12 @@ export async function createUser(data: UserFormData) {
 export async function updateUser(id: string, data: UserFormData) {
   await requirePermission("users:update");
 
+  // Get current user to detect role/status changes
+  const currentUser = await prisma.user.findUnique({
+    where: { id },
+    select: { roleId: true, userStatusId: true },
+  });
+
   const updateData: Prisma.UserUpdateInput = {
     name: data.name,
     email: data.email,
@@ -148,6 +154,18 @@ export async function updateUser(id: string, data: UserFormData) {
     },
   });
 
+  // Invalidate session if role or status changed
+  if (
+    currentUser &&
+    (currentUser.roleId !== data.roleId ||
+      currentUser.userStatusId !== data.userStatusId)
+  ) {
+    const { invalidateUserSessions } = await import(
+      "@/lib/auth/session-management"
+    );
+    await invalidateUserSessions(id);
+  }
+
   revalidatePath("/admin/users");
   revalidatePath(`/admin/users/${id}`);
   return { success: true, data: user };
@@ -163,6 +181,12 @@ export async function deleteUser(id: string) {
     where: { id },
     data: { active: false },
   });
+
+  // Invalidate sessions so deleted user is immediately logged out
+  const { invalidateUserSessions } = await import(
+    "@/lib/auth/session-management"
+  );
+  await invalidateUserSessions(id);
 
   revalidatePath("/admin/users");
   redirect("/admin/users");

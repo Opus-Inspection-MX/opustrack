@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requirePermission } from "@/lib/auth/auth";
+import { assertVicAccess, getVicWhereClause } from "@/lib/auth/filters";
 import { prisma } from "@/lib/database/prisma.singleton";
 
 export type PartFormData = {
@@ -15,12 +16,14 @@ export type PartFormData = {
 
 /**
  * Get all parts
+ * Filtered by user's VIC (except ADMINISTRADOR who sees all)
  */
 export async function getParts() {
-  await requirePermission("parts:read");
+  const user = await requirePermission("parts:read");
+  const vicFilter = getVicWhereClause(user);
 
   const parts = await prisma.part.findMany({
-    where: { active: true },
+    where: { active: true, ...vicFilter },
     include: {
       vic: true,
       _count: {
@@ -37,7 +40,7 @@ export async function getParts() {
  * Get single part by ID
  */
 export async function getPartById(id: string) {
-  await requirePermission("parts:read");
+  const user = await requirePermission("parts:read");
 
   const part = await prisma.part.findUnique({
     where: { id },
@@ -57,6 +60,10 @@ export async function getPartById(id: string) {
       },
     },
   });
+
+  if (part) {
+    assertVicAccess(user, part.vicId);
+  }
 
   return part;
 }

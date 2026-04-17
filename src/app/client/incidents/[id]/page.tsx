@@ -332,6 +332,48 @@ export default function ClientIncidentDetailPage({
         </CardContent>
       </Card>
 
+      {/* Work Orders */}
+      {incident.workOrders && incident.workOrders.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>
+              Órdenes de Trabajo ({incident.workOrders.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {incident.workOrders.map((wo) => (
+                <div
+                  key={wo.id}
+                  className="flex items-center justify-between border rounded-lg p-4 hover:bg-accent/50 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    {wo.status && (
+                      <Badge
+                        className="text-white"
+                        style={{
+                          backgroundColor: wo.status.color || "#6B7280",
+                        }}
+                      >
+                        {wo.status.name}
+                      </Badge>
+                    )}
+                    <span className="text-sm text-muted-foreground">
+                      Orden #{wo.id.slice(0, 8)}
+                    </span>
+                  </div>
+                  <Button variant="outline" size="sm" asChild>
+                    <Link href={`/client/work-orders/${wo.id}`}>
+                      Ver Progreso
+                    </Link>
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Back Button */}
       <div className="flex justify-end">
         <Button variant="outline" onClick={() => router.back()}>
