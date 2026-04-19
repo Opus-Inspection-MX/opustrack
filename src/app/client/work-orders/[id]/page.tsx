@@ -23,6 +23,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { getWorkOrderById } from "@/lib/actions/work-orders";
 import { requireRouteAccess } from "@/lib/auth/auth";
+import { getFileUrl } from "@/lib/storage/file-storage";
 
 export default async function ClientWorkOrderDetailPage({
   params,
@@ -261,28 +262,34 @@ export default async function ClientWorkOrderDetailPage({
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              {workOrder.attachments.map((attachment) => (
-                <a
-                  key={attachment.id}
-                  href={attachment.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="border rounded-lg p-3 hover:bg-accent/50 transition-colors flex flex-col items-center gap-2"
-                >
-                  {attachment.mimetype?.startsWith("image/") ? (
-                    <img
-                      src={attachment.url}
-                      alt={attachment.filename}
-                      className="w-full h-32 object-cover rounded"
-                    />
-                  ) : (
-                    <FileText className="h-12 w-12 text-muted-foreground" />
-                  )}
-                  <p className="text-xs text-muted-foreground truncate w-full text-center">
-                    {attachment.filename}
-                  </p>
-                </a>
-              ))}
+              {workOrder.attachments.map((attachment) => {
+                const url = getFileUrl(
+                  attachment.filepath,
+                  attachment.provider as "vercel-blob" | "filesystem",
+                );
+                return (
+                  <a
+                    key={attachment.id}
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="border rounded-lg p-3 hover:bg-accent/50 transition-colors flex flex-col items-center gap-2"
+                  >
+                    {attachment.mimetype?.startsWith("image/") ? (
+                      <img
+                        src={url}
+                        alt={attachment.filename}
+                        className="w-full h-32 object-cover rounded"
+                      />
+                    ) : (
+                      <FileText className="h-12 w-12 text-muted-foreground" />
+                    )}
+                    <p className="text-xs text-muted-foreground truncate w-full text-center">
+                      {attachment.filename}
+                    </p>
+                  </a>
+                );
+              })}
             </div>
           </CardContent>
         </Card>
