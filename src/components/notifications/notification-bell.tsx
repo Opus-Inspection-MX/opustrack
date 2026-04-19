@@ -44,6 +44,11 @@ export function NotificationBell({
   const [isLoading, setIsLoading] = useState(
     initialNotifications.length === 0 && initialUnreadCount === 0,
   );
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Track notification IDs we've already shown browser notifications for
   const shownNotificationIds = useRef<Set<string>>(new Set());
@@ -132,6 +137,20 @@ export function NotificationBell({
   const handleCountChange = useCallback((count: number) => {
     setUnreadCount(count);
   }, []);
+
+  if (!mounted) {
+    return (
+      <Button
+        variant="ghost"
+        size="icon"
+        className="relative opacity-50"
+        aria-label="Notificaciones"
+        disabled
+      >
+        <Bell className="h-5 w-5" />
+      </Button>
+    );
+  }
 
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
