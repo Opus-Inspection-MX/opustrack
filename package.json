@@ -3,9 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "postinstall": "prisma generate",
     "dev": "dotenv -e .env.development -- next dev --turbopack",
-    "build": "dotenv -e .env.production -p NODE_ENV=production -- next build --turbopack",
-    "build:vercel": "next build --turbopack",
+    "build": "prisma generate && next build --turbopack",
+    "build:local": "dotenv -e .env.production -p NODE_ENV=production -- next build --turbopack",
     "start": "next start",
     "lint": "biome check",
     "format": "biome format --write",
