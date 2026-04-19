@@ -1,6 +1,6 @@
 "use server";
 
-import { requireAuth } from "@/lib/auth/auth";
+import { requirePermission } from "@/lib/auth/auth";
 import {
   deleteNotification,
   type GetNotificationsOptions,
@@ -14,7 +14,7 @@ import {
  * Get current user's notifications
  */
 export async function getMyNotifications(options?: GetNotificationsOptions) {
-  const user = await requireAuth();
+  const user = await requirePermission("notifications:read");
   const notifications = await getUserNotifications(user.id, options);
   return notifications;
 }
@@ -23,7 +23,7 @@ export async function getMyNotifications(options?: GetNotificationsOptions) {
  * Get current user's unread count
  */
 export async function getMyUnreadCount(): Promise<number> {
-  const user = await requireAuth();
+  const user = await requirePermission("notifications:read");
   return await getUnreadCount(user.id);
 }
 
@@ -31,7 +31,7 @@ export async function getMyUnreadCount(): Promise<number> {
  * Mark notification as read (verifies ownership)
  */
 export async function markNotificationAsRead(notificationId: string) {
-  const user = await requireAuth();
+  const user = await requirePermission("notifications:update");
   const result = await markAsRead(notificationId, user.id);
   return { success: true, data: result };
 }
@@ -40,7 +40,7 @@ export async function markNotificationAsRead(notificationId: string) {
  * Mark all notifications as read
  */
 export async function markAllNotificationsAsRead() {
-  const user = await requireAuth();
+  const user = await requirePermission("notifications:update");
   await markAllAsRead(user.id);
   return { success: true };
 }
@@ -49,7 +49,7 @@ export async function markAllNotificationsAsRead() {
  * Delete notification (verifies ownership)
  */
 export async function deleteMyNotification(notificationId: string) {
-  const user = await requireAuth();
+  const user = await requirePermission("notifications:delete");
   await deleteNotification(notificationId, user.id);
   return { success: true };
 }
@@ -60,7 +60,7 @@ export async function deleteMyNotification(notificationId: string) {
 export async function getNotificationsWithCount(
   options?: GetNotificationsOptions,
 ) {
-  const user = await requireAuth();
+  const user = await requirePermission("notifications:read");
   const [notifications, unreadCount] = await Promise.all([
     getUserNotifications(user.id, options),
     getUnreadCount(user.id),

@@ -1,9 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { requirePermission } from "@/lib/auth/auth";
 import { prisma } from "@/lib/database/prisma.singleton";
 
 export async function getLines() {
+  await requirePermission("lines:read");
   try {
     const lines = await prisma.line.findMany({
       where: { active: true },
@@ -40,6 +42,7 @@ export async function getLines() {
 }
 
 export async function getLineById(id: number) {
+  await requirePermission("lines:read");
   try {
     const line = await prisma.line.findUnique({
       where: { id },
@@ -70,6 +73,7 @@ export async function getLineById(id: number) {
 }
 
 export async function getLinesByVicId(vicId: string) {
+  await requirePermission("lines:read");
   try {
     const lines = await prisma.line.findMany({
       where: {
@@ -96,6 +100,7 @@ export async function createLine(data: {
   description?: string;
   vicId: string;
 }) {
+  await requirePermission("lines:create");
   try {
     const line = await prisma.line.create({
       data: {
@@ -130,6 +135,7 @@ export async function updateLine(
     vicId?: string;
   },
 ) {
+  await requirePermission("lines:update");
   try {
     const line = await prisma.line.update({
       where: { id },
@@ -161,6 +167,7 @@ export async function updateLine(
 }
 
 export async function deleteLine(id: number) {
+  await requirePermission("lines:delete");
   try {
     // Soft delete - set active to false
     await prisma.line.update({
@@ -177,6 +184,7 @@ export async function deleteLine(id: number) {
 }
 
 export async function toggleLineStatus(id: number) {
+  await requirePermission("lines:update");
   try {
     const line = await prisma.line.findUnique({
       where: { id },

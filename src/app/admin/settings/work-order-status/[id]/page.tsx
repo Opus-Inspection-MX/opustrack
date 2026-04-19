@@ -3,20 +3,20 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getIncidentStatusById } from "@/lib/actions/lookups";
+import { getWorkOrderStatusById } from "@/lib/actions/lookups";
 import { requireRouteAccess } from "@/lib/auth/auth";
 
-export default async function IncidentStatusDetailPage({
+export default async function WorkOrderStatusDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await requireRouteAccess("/admin/incident-status");
+  await requireRouteAccess("/admin/settings/work-order-status");
 
   const { id } = await params;
-  const incidentStatus = await getIncidentStatusById(Number.parseInt(id, 10));
+  const status = await getWorkOrderStatusById(Number.parseInt(id, 10));
 
-  if (!incidentStatus) {
+  if (!status) {
     notFound();
   }
 
@@ -24,17 +24,17 @@ export default async function IncidentStatusDetailPage({
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Link href="/admin/incident-status">
+          <Link href="/admin/settings/work-order-status">
             <Button variant="ghost" size="icon">
               <ArrowLeft className="h-4 w-4" />
             </Button>
           </Link>
           <div>
-            <h1 className="text-3xl font-bold">{incidentStatus.name}</h1>
-            <p className="text-muted-foreground">Incident status details</p>
+            <h1 className="text-3xl font-bold">{status.name}</h1>
+            <p className="text-muted-foreground">Work order status details</p>
           </div>
         </div>
-        <Link href={`/admin/incident-status/${incidentStatus.id}/edit`}>
+        <Link href={`/admin/settings/work-order-status/${status.id}/edit`}>
           <Button>
             <Edit className="mr-2 h-4 w-4" />
             Edit
@@ -50,21 +50,20 @@ export default async function IncidentStatusDetailPage({
           <CardContent className="space-y-4">
             <div>
               <p className="text-sm font-medium text-muted-foreground">ID</p>
-              <p className="text-lg">{incidentStatus.id}</p>
+              <p className="text-lg">{status.id}</p>
             </div>
             <div>
               <p className="text-sm font-medium text-muted-foreground">Name</p>
-              <p className="text-lg">{incidentStatus.name}</p>
+              <p className="text-lg">{status.name}</p>
             </div>
             <div>
               <p className="text-sm font-medium text-muted-foreground">Color</p>
-              <div className="flex items-center gap-3">
-                <div
-                  className="w-12 h-12 rounded-lg border-2 border-gray-300 shadow-sm"
-                  style={{ backgroundColor: incidentStatus.color }}
-                  title={incidentStatus.color}
+              <div className="flex items-center gap-2">
+                <span
+                  className="inline-block w-6 h-6 rounded-full border"
+                  style={{ backgroundColor: status.color }}
                 />
-                <p className="font-mono text-lg">{incidentStatus.color}</p>
+                <span>{status.color}</span>
               </div>
             </div>
             <div>
@@ -74,12 +73,12 @@ export default async function IncidentStatusDetailPage({
               <p className="text-lg">
                 <span
                   className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                    incidentStatus.active
+                    status.active
                       ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
                       : "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200"
                   }`}
                 >
-                  {incidentStatus.active ? "Active" : "Inactive"}
+                  {status.active ? "Active" : "Inactive"}
                 </span>
               </p>
             </div>
@@ -93,10 +92,10 @@ export default async function IncidentStatusDetailPage({
           <CardContent className="space-y-4">
             <div>
               <p className="text-sm font-medium text-muted-foreground">
-                Incidents Using This Status
+                Work Orders Using This Status
               </p>
               <p className="text-3xl font-bold">
-                {incidentStatus._count?.incidents || 0}
+                {status._count?.workOrders || 0}
               </p>
             </div>
           </CardContent>

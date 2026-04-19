@@ -3,7 +3,6 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requirePermission } from "@/lib/auth/auth";
-import { assertVicAccess, getVicWhereClause } from "@/lib/auth/filters";
 import { prisma } from "@/lib/database/prisma.singleton";
 
 export type PartFormData = {
@@ -11,21 +10,17 @@ export type PartFormData = {
   description?: string;
   price: number;
   stock: number;
-  vicId: string;
 };
 
 /**
- * Get all parts
- * Filtered by user's VIC (except ADMINISTRADOR who sees all)
+ * Get all parts (warehouse-level, not scoped to VIC)
  */
 export async function getParts() {
-  const user = await requirePermission("parts:read");
-  const vicFilter = getVicWhereClause(user);
+  await requirePermission("parts:read");
 
   const parts = await prisma.part.findMany({
-    where: { active: true, ...vicFilter },
+    where: { active: true },
     include: {
-      vic: true,
       _count: {
         select: { workParts: true },
       },
@@ -40,12 +35,11 @@ export async function getParts() {
  * Get single part by ID
  */
 export async function getPartById(id: string) {
-  const user = await requirePermission("parts:read");
+  await requirePermission("parts:read");
 
   const part = await prisma.part.findUnique({
     where: { id },
     include: {
-      vic: true,
       workParts: {
         where: { active: true },
         include: {
@@ -60,10 +54,6 @@ export async function getPartById(id: string) {
       },
     },
   });
-
-  if (part) {
-    assertVicAccess(user, part.vicId);
-  }
 
   return part;
 }
@@ -80,10 +70,6 @@ export async function createPart(data: PartFormData) {
       description: data.description || null,
       price: data.price,
       stock: data.stock,
-      vicId: data.vicId,
-    },
-    include: {
-      vic: true,
     },
   });
 
@@ -104,10 +90,6 @@ export async function updatePart(id: string, data: PartFormData) {
       description: data.description || null,
       price: data.price,
       stock: data.stock,
-      vicId: data.vicId,
-    },
-    include: {
-      vic: true,
     },
   });
 
@@ -149,18 +131,4 @@ export async function updatePartStock(id: string, quantity: number) {
   revalidatePath("/admin/parts");
   revalidatePath(`/admin/parts/${id}`);
   return { success: true, data: part };
-}
-
-/**
- * Get VICs for part form
- */
-export async function getVICsForParts() {
-  await requirePermission("parts:read");
-
-  const vics = await prisma.vehicleInspectionCenter.findMany({
-    where: { active: true },
-    orderBy: { name: "asc" },
-  });
-
-  return vics;
 }

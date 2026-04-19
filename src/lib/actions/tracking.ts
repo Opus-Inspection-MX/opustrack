@@ -2,6 +2,7 @@
 
 import type { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
+import { requirePermission } from "@/lib/auth/auth";
 import { prisma } from "@/lib/database/prisma.singleton";
 
 export async function getIncidentsForTracking(filters?: {
@@ -14,6 +15,8 @@ export async function getIncidentsForTracking(filters?: {
   folio?: string;
 }) {
   try {
+    await requirePermission("tracking:read");
+
     const where: Prisma.IncidentWhereInput = {
       active: true,
     };
@@ -156,6 +159,8 @@ export async function getIncidentsForTracking(filters?: {
 
 export async function getFSRsByVicId(vicId: string) {
   try {
+    await requirePermission("tracking:read");
+
     const users = await prisma.user.findMany({
       where: {
         vicAssignments: {
@@ -185,6 +190,8 @@ export async function getFSRsByVicId(vicId: string) {
 
 export async function assignFSRToIncident(incidentId: number, fsrId: string) {
   try {
+    await requirePermission("tracking:update");
+
     // Check if there's already a work order for this incident
     const existingWorkOrder = await prisma.workOrder.findFirst({
       where: {
@@ -203,9 +210,9 @@ export async function assignFSRToIncident(incidentId: number, fsrId: string) {
       });
     } else {
       // Create a new work order
-      // Get the default status for new work orders (PENDING)
-      const pendingStatus = await prisma.incidentStatus.findFirst({
-        where: { name: "PENDING" },
+      // Get the default status for new work orders
+      const pendingStatus = await prisma.workOrderStatus.findFirst({
+        where: { name: "PENDIENTE" },
       });
 
       await prisma.workOrder.create({
@@ -227,6 +234,8 @@ export async function assignFSRToIncident(incidentId: number, fsrId: string) {
 
 export async function updateWorkOrderFSR(workOrderId: string, fsrId: string) {
   try {
+    await requirePermission("tracking:update");
+
     const updatedWorkOrder = await prisma.workOrder.update({
       where: { id: workOrderId },
       data: {
@@ -264,6 +273,8 @@ export async function updateIncidentDetails(
   },
 ) {
   try {
+    await requirePermission("tracking:update");
+
     await prisma.incident.update({
       where: { id: incidentId },
       data: {
@@ -296,6 +307,8 @@ export async function updateWorkOrderDetails(
   },
 ) {
   try {
+    await requirePermission("tracking:update");
+
     await prisma.workOrder.update({
       where: { id: workOrderId },
       data: {

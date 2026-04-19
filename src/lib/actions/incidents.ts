@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { requirePermission } from "@/lib/auth/auth";
 import { assertVicAccess, getVicWhereClause } from "@/lib/auth/filters";
 import { prisma } from "@/lib/database/prisma.singleton";
+import { getPrimaryVicId } from "@/lib/utils/vic-assignments";
 import {
   IncidentClientCreateSchema,
   type IncidentCreateInput,
@@ -197,7 +198,8 @@ export async function createIncidentAsClient(data: unknown) {
   }
 
   // Client must have a VIC assigned
-  if (!user.vicId) {
+  const userVicId = await getPrimaryVicId(user.id);
+  if (!userVicId) {
     throw new Error("El usuario no tiene un VIC asignado");
   }
 
@@ -209,7 +211,7 @@ export async function createIncidentAsClient(data: unknown) {
       sla: 24, // Default SLA for client incidents
       typeId: validated.typeId || null,
       statusId: openStatus.id,
-      vicId: user.vicId,
+      vicId: userVicId,
       reportedById: user.id,
       lineId: validated.lineId || null,
       equipmentId: validated.equipmentId || null,
@@ -239,7 +241,8 @@ export async function createIncidentAsClient(data: unknown) {
 export async function getClientIncidents() {
   const user = await requirePermission("incidents:read");
 
-  if (!user.vicId) {
+  const userVicId = await getPrimaryVicId(user.id);
+  if (!userVicId) {
     return [];
   }
 
@@ -247,7 +250,7 @@ export async function getClientIncidents() {
   const incidents = await prisma.incident.findMany({
     where: {
       reportedById: user.id, // Filter by the user who reported it
-      vicId: user.vicId, // Also ensure it's from their VIC
+      vicId: userVicId, // Also ensure it's from their VIC
       active: true,
     },
     include: {

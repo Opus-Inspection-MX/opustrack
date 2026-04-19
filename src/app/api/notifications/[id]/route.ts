@@ -1,6 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth/auth-options";
+import { requirePermission } from "@/lib/auth/auth";
 import {
   deleteNotification,
   getNotificationById,
@@ -12,14 +11,10 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const user = await requirePermission("notifications:read");
 
     const { id } = await params;
-    const notification = await getNotificationById(id, session.user.id);
+    const notification = await getNotificationById(id, user.id);
 
     if (!notification) {
       return NextResponse.json(
@@ -43,17 +38,13 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const user = await requirePermission("notifications:update");
 
     const { id } = await params;
     const body = await request.json();
 
     if (body.isRead === true) {
-      const notification = await markAsRead(id, session.user.id);
+      const notification = await markAsRead(id, user.id);
       return NextResponse.json(notification);
     }
 
@@ -72,14 +63,10 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const user = await requirePermission("notifications:delete");
 
     const { id } = await params;
-    await deleteNotification(id, session.user.id);
+    await deleteNotification(id, user.id);
 
     return NextResponse.json({ success: true });
   } catch (error) {

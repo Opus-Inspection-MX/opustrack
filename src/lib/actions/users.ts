@@ -6,6 +6,11 @@ import { redirect } from "next/navigation";
 import { requirePermission } from "@/lib/auth/auth";
 import { prisma } from "@/lib/database/prisma.singleton";
 import { hashPassword } from "@/lib/security/hash";
+import {
+  assignUserToVic,
+  getPrimaryVicId,
+  removeUserFromVic,
+} from "@/lib/utils/vic-assignments";
 
 export type UserFormData = {
   name: string;
@@ -78,7 +83,6 @@ export async function createUser(data: UserFormData) {
       password: hashedPassword,
       roleId: data.roleId,
       userStatusId: data.userStatusId,
-      vicId: data.vicId || null,
       userProfile: {
         create: {
           telephone: data.telephone || null,
@@ -95,6 +99,11 @@ export async function createUser(data: UserFormData) {
       userProfile: true,
     },
   });
+
+  // Assign VIC via UserVicAssignment if provided
+  if (data.vicId) {
+    await assignUserToVic(user.id, data.vicId, true);
+  }
 
   revalidatePath("/admin/users");
   return { success: true, data: user };
@@ -117,7 +126,6 @@ export async function updateUser(id: string, data: UserFormData) {
     email: data.email,
     role: { connect: { id: data.roleId } },
     userStatus: { connect: { id: data.userStatusId } },
-    vic: data.vicId ? { connect: { id: data.vicId } } : { disconnect: true },
   };
 
   // Only update password if provided
@@ -135,6 +143,19 @@ export async function updateUser(id: string, data: UserFormData) {
       userProfile: true,
     },
   });
+
+  // Manage VIC assignment via UserVicAssignment
+  const currentVicId = await getPrimaryVicId(id);
+  if (data.vicId && data.vicId !== currentVicId) {
+    // VIC changed: remove old, assign new
+    if (currentVicId) {
+      await removeUserFromVic(id, currentVicId);
+    }
+    await assignUserToVic(id, data.vicId, true);
+  } else if (!data.vicId && currentVicId) {
+    // VIC cleared: remove old
+    await removeUserFromVic(id, currentVicId);
+  }
 
   // Update or create user profile
   await prisma.userProfile.upsert({

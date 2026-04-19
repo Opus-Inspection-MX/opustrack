@@ -6,13 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { createPart, type PartFormData, updatePart } from "@/lib/actions/parts";
 
@@ -23,12 +16,10 @@ type PartFormProps = {
     description: string | null;
     price: number;
     stock: number;
-    vicId: string;
   };
-  vics: Array<{ id: string; name: string; code: string }>;
 };
 
-export function PartForm({ part, vics }: PartFormProps) {
+export function PartForm({ part }: PartFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -38,7 +29,6 @@ export function PartForm({ part, vics }: PartFormProps) {
     description: part?.description || "",
     price: part?.price || 0,
     stock: part?.stock || 0,
-    vicId: part?.vicId || vics[0]?.id || "",
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -73,40 +63,17 @@ export function PartForm({ part, vics }: PartFormProps) {
           <CardTitle>Informacion de la Parte</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Nombre *</Label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) =>
-                  setFormData({ ...formData, name: e.target.value })
-                }
-                placeholder="Nombre de la parte"
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="vicId">Centro de Verificacion *</Label>
-              <Select
-                value={formData.vicId}
-                onValueChange={(value) =>
-                  setFormData({ ...formData, vicId: value })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar CVV" />
-                </SelectTrigger>
-                <SelectContent>
-                  {vics.map((vic) => (
-                    <SelectItem key={vic.id} value={vic.id}>
-                      {vic.name} ({vic.code})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="name">Nombre *</Label>
+            <Input
+              id="name"
+              value={formData.name}
+              onChange={(e) =>
+                setFormData({ ...formData, name: e.target.value })
+              }
+              placeholder="Nombre de la parte"
+              required
+            />
           </div>
 
           <div className="space-y-2">

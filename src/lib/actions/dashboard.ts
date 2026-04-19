@@ -5,7 +5,7 @@ import { prisma } from "@/lib/database/prisma.singleton";
 
 export async function getDashboardStats() {
   // Admin can see all stats
-  await requirePermission("users:read");
+  await requirePermission("dashboard:view");
 
   const [
     totalUsers,
@@ -35,7 +35,7 @@ export async function getDashboardStats() {
       where: {
         active: true,
         status: {
-          name: { in: ["ABIERTO", "EN_PROGRESO", "PENDIENTE"] },
+          name: { in: ["PENDIENTE", "ASIGNADO", "EN_PROGRESO"] },
         },
       },
     }),
@@ -67,7 +67,7 @@ export async function getDashboardStats() {
       where: {
         active: true,
         status: {
-          name: { in: ["ABIERTO", "PENDIENTE"] },
+          name: { in: ["PENDIENTE", "ASIGNADO"] },
         },
       },
       include: {

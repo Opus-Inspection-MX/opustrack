@@ -28,10 +28,6 @@ type Part = {
   description: string | null;
   price: number;
   stock: number;
-  vic: {
-    name: string;
-    code: string;
-  };
   _count: {
     workParts: number;
   };
@@ -80,7 +76,6 @@ export function PartsTable({ parts }: { parts: Part[] }) {
             <TableHead>Descripcion</TableHead>
             <TableHead>Precio</TableHead>
             <TableHead>Stock</TableHead>
-            <TableHead>CVV</TableHead>
             <TableHead>Usos</TableHead>
             <TableHead className="w-10"></TableHead>
           </TableRow>
@@ -112,9 +107,6 @@ export function PartsTable({ parts }: { parts: Part[] }) {
                 <Badge variant={getStockColor(part.stock)}>
                   {part.stock} unidades
                 </Badge>
-              </TableCell>
-              <TableCell>
-                <span className="text-sm">{part.vic.name}</span>
               </TableCell>
               <TableCell>
                 <Badge variant="outline">{part._count.workParts}</Badge>

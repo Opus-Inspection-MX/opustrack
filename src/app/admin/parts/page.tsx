@@ -3,8 +3,10 @@ import Link from "next/link";
 import { PartsTable } from "@/components/admin/parts/parts-table";
 import { Button } from "@/components/ui/button";
 import { getParts } from "@/lib/actions/parts";
+import { requireRouteAccess } from "@/lib/auth/auth";
 
 export default async function PartsPage() {
+  await requireRouteAccess("/admin/parts");
   const parts = await getParts();
 
   return (

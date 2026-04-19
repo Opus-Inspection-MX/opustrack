@@ -30,12 +30,11 @@ interface WorkOrdersReportClientProps {
 }
 
 const statusColors: Record<string, string> = {
-  ABIERTO: "bg-red-100 text-red-800",
   PENDIENTE: "bg-amber-100 text-amber-800",
+  ASIGNADO: "bg-purple-100 text-purple-800",
   EN_PROGRESO: "bg-blue-100 text-blue-800",
-  CERRADO: "bg-green-100 text-green-800",
-  COMPLETED: "bg-green-100 text-green-800",
-  CANCELLED: "bg-gray-100 text-gray-800",
+  COMPLETADO: "bg-green-100 text-green-800",
+  CANCELADO: "bg-red-100 text-red-800",
   "Sin Estado": "bg-gray-100 text-gray-800",
 };
 
@@ -77,11 +76,10 @@ export function WorkOrdersReportClient({
   // Calculate totals
   const totalWorkOrders = data.reduce((sum, d) => sum + d.count, 0);
   const completedCount =
-    data.find((d) => d.status === "CERRADO" || d.status === "COMPLETED")
-      ?.count || 0;
+    data.find((d) => d.status === "COMPLETADO")?.count || 0;
   const pendingCount =
-    data.find((d) => d.status === "PENDIENTE" || d.status === "ABIERTO")
-      ?.count || 0;
+    (data.find((d) => d.status === "PENDIENTE")?.count || 0) +
+    (data.find((d) => d.status === "ASIGNADO")?.count || 0);
   const inProgressCount =
     data.find((d) => d.status === "EN_PROGRESO")?.count || 0;
 

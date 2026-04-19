@@ -1,9 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { requirePermission } from "@/lib/auth/auth";
 import { prisma } from "@/lib/database/prisma.singleton";
 
 export async function getEquipments() {
+  await requirePermission("equipments:read");
   try {
     const equipments = await prisma.equipment.findMany({
       where: { active: true },
@@ -36,6 +38,7 @@ export async function getEquipments() {
 }
 
 export async function getEquipmentById(id: number) {
+  await requirePermission("equipments:read");
   try {
     const equipment = await prisma.equipment.findUnique({
       where: { id },
@@ -66,6 +69,7 @@ export async function getEquipmentById(id: number) {
 }
 
 export async function getEquipmentsByLineId(lineId: number) {
+  await requirePermission("equipments:read");
   try {
     const equipments = await prisma.equipment.findMany({
       where: {
@@ -87,6 +91,7 @@ export async function createEquipment(data: {
   description?: string;
   lineId: number;
 }) {
+  await requirePermission("equipments:create");
   try {
     const equipment = await prisma.equipment.create({
       data: {
@@ -126,6 +131,7 @@ export async function updateEquipment(
     lineId?: number;
   },
 ) {
+  await requirePermission("equipments:update");
   try {
     const equipment = await prisma.equipment.update({
       where: { id },
@@ -164,6 +170,7 @@ export async function updateEquipment(
 }
 
 export async function deleteEquipment(id: number) {
+  await requirePermission("equipments:delete");
   try {
     const equipment = await prisma.equipment.findUnique({
       where: { id },
@@ -188,6 +195,7 @@ export async function deleteEquipment(id: number) {
 }
 
 export async function toggleEquipmentStatus(id: number) {
+  await requirePermission("equipments:update");
   try {
     const equipment = await prisma.equipment.findUnique({
       where: { id },

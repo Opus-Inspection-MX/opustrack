@@ -114,10 +114,7 @@ export async function getFSRPerformanceData(
 
       // Calculate completion time for completed work orders
       const completedWorkOrders = workOrders.filter(
-        (wo) =>
-          wo.status?.name === "CERRADO" ||
-          wo.status?.name === "COMPLETED" ||
-          wo.finishedAt,
+        (wo) => wo.status?.name === "COMPLETADO" || wo.finishedAt,
       );
 
       let totalCompletionTime = 0;

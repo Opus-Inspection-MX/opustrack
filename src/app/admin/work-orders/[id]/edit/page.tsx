@@ -136,7 +136,7 @@ export default function EditWorkOrderPage({
 
     try {
       setLoading(true);
-      const { getIncidentStatuses } = await import("@/lib/actions/lookups");
+      const { getWorkOrderStatuses } = await import("@/lib/actions/lookups");
       const [
         woData,
         activitiesData,
@@ -150,7 +150,7 @@ export default function EditWorkOrderPage({
         getWorkParts(workOrderId),
         getParts(),
         getWorkOrderFormOptions(),
-        getIncidentStatuses(),
+        getWorkOrderStatuses(),
       ]);
 
       setWorkOrder(woData);

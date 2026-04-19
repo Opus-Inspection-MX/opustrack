@@ -27,49 +27,24 @@ async function main() {
 
       // 1b) LineStatus
       const lineStatuses = ["ACTIVO", "MANTENIMIENTO", "INACTIVO"];
-      const lineStatusRecords = [];
       for (const name of lineStatuses) {
-        lineStatusRecords.push(
-          await tx.lineStatus.upsert({
-            where: { name },
-            update: {},
-            create: { name },
-          }),
-        );
+        await tx.lineStatus.upsert({
+          where: { name },
+          update: {},
+          create: { name },
+        });
       }
-      const lineStatusActivo = lineStatusRecords.find(
-        (s) => s.name === "ACTIVO",
-      );
-      if (!lineStatusActivo) throw new Error("LineStatus ACTIVO not found");
-      const lineStatusMantenimiento = lineStatusRecords.find(
-        (s) => s.name === "MANTENIMIENTO",
-      );
-      if (!lineStatusMantenimiento)
-        throw new Error("LineStatus MANTENIMIENTO not found");
       console.log("✅ Seeded LineStatuses");
 
       // 1c) EquipmentStatus
       const equipmentStatuses = ["OPERATIVO", "MANTENIMIENTO", "INACTIVO"];
-      const equipmentStatusRecords = [];
       for (const name of equipmentStatuses) {
-        equipmentStatusRecords.push(
-          await tx.equipmentStatus.upsert({
-            where: { name },
-            update: {},
-            create: { name },
-          }),
-        );
+        await tx.equipmentStatus.upsert({
+          where: { name },
+          update: {},
+          create: { name },
+        });
       }
-      const equipmentStatusOperativo = equipmentStatusRecords.find(
-        (s) => s.name === "OPERATIVO",
-      );
-      if (!equipmentStatusOperativo)
-        throw new Error("EquipmentStatus OPERATIVO not found");
-      const equipmentStatusMantenimiento = equipmentStatusRecords.find(
-        (s) => s.name === "MANTENIMIENTO",
-      );
-      if (!equipmentStatusMantenimiento)
-        throw new Error("EquipmentStatus MANTENIMIENTO not found");
       console.log("✅ Seeded EquipmentStatuses");
 
       // 1d) VehicleStatus
@@ -79,40 +54,24 @@ async function main() {
         "MAINTENANCE",
         "INACTIVE",
       ];
-      const vehicleStatusRecords = [];
       for (const name of vehicleStatuses) {
-        vehicleStatusRecords.push(
-          await tx.vehicleStatus.upsert({
-            where: { name },
-            update: {},
-            create: { name },
-          }),
-        );
+        await tx.vehicleStatus.upsert({
+          where: { name },
+          update: {},
+          create: { name },
+        });
       }
-      const vehicleStatusAvailable = vehicleStatusRecords.find(
-        (s) => s.name === "AVAILABLE",
-      );
-      if (!vehicleStatusAvailable)
-        throw new Error("VehicleStatus AVAILABLE not found");
       console.log("✅ Seeded VehicleStatuses");
 
       // 1e) VehicleTripStatus
       const vehicleTripStatuses = ["IN_PROGRESS", "COMPLETED", "CANCELLED"];
-      const vehicleTripStatusRecords = [];
       for (const name of vehicleTripStatuses) {
-        vehicleTripStatusRecords.push(
-          await tx.vehicleTripStatus.upsert({
-            where: { name },
-            update: {},
-            create: { name },
-          }),
-        );
+        await tx.vehicleTripStatus.upsert({
+          where: { name },
+          update: {},
+          create: { name },
+        });
       }
-      const _vehicleTripStatusInProgress = vehicleTripStatusRecords.find(
-        (s) => s.name === "IN_PROGRESS",
-      );
-      if (!_vehicleTripStatusInProgress)
-        throw new Error("VehicleTripStatus IN_PROGRESS not found");
       console.log("✅ Seeded VehicleTripStatuses");
 
       // 2) State - Only one for testing
@@ -639,6 +598,124 @@ async function main() {
           resource: "vehicle-trips",
           action: "delete",
         },
+        // Lines permissions
+        {
+          name: "lines:read",
+          description: "View lines",
+          resource: "lines",
+          action: "read",
+        },
+        {
+          name: "lines:create",
+          description: "Create lines",
+          resource: "lines",
+          action: "create",
+        },
+        {
+          name: "lines:update",
+          description: "Update lines",
+          resource: "lines",
+          action: "update",
+        },
+        {
+          name: "lines:delete",
+          description: "Delete lines",
+          resource: "lines",
+          action: "delete",
+        },
+        // Tracking permissions
+        {
+          name: "tracking:read",
+          description: "View tracking dashboard",
+          resource: "tracking",
+          action: "read",
+        },
+        {
+          name: "tracking:update",
+          description: "Update tracking assignments",
+          resource: "tracking",
+          action: "update",
+        },
+
+        // Notification permissions
+        {
+          name: "notifications:read",
+          description: "View notifications",
+          resource: "notifications",
+          action: "read",
+        },
+        {
+          name: "notifications:update",
+          description: "Update notifications",
+          resource: "notifications",
+          action: "update",
+        },
+        {
+          name: "notifications:delete",
+          description: "Delete notifications",
+          resource: "notifications",
+          action: "delete",
+        },
+
+        // Dashboard permission
+        {
+          name: "dashboard:view",
+          description: "View dashboard",
+          resource: "dashboard",
+          action: "read",
+        },
+
+        // Work Order Status permissions (lookup data)
+        {
+          name: "work-order-status:read",
+          description: "View work order statuses",
+          resource: "work-order-status",
+          action: "read",
+        },
+        {
+          name: "work-order-status:create",
+          description: "Create work order statuses",
+          resource: "work-order-status",
+          action: "create",
+        },
+        {
+          name: "work-order-status:update",
+          description: "Update work order statuses",
+          resource: "work-order-status",
+          action: "update",
+        },
+        {
+          name: "work-order-status:delete",
+          description: "Delete work order statuses",
+          resource: "work-order-status",
+          action: "delete",
+        },
+
+        // Equipments permissions
+        {
+          name: "equipments:read",
+          description: "View equipments",
+          resource: "equipments",
+          action: "read",
+        },
+        {
+          name: "equipments:create",
+          description: "Create equipments",
+          resource: "equipments",
+          action: "create",
+        },
+        {
+          name: "equipments:update",
+          description: "Update equipments",
+          resource: "equipments",
+          action: "update",
+        },
+        {
+          name: "equipments:delete",
+          description: "Delete equipments",
+          resource: "equipments",
+          action: "delete",
+        },
       ];
 
       const permissionRecords = [];
@@ -702,6 +779,19 @@ async function main() {
             "vehicle-trips:create",
             "vehicle-trips:update",
             "vehicle-trips:delete",
+            "lines:read",
+            "lines:create",
+            "lines:update",
+            "lines:delete",
+            "equipments:read",
+            "equipments:create",
+            "equipments:update",
+            "equipments:delete",
+            "notifications:read",
+            "notifications:update",
+            "notifications:delete",
+            "dashboard:view",
+            "work-order-status:read",
           ],
         },
         {
@@ -717,6 +807,12 @@ async function main() {
             "vics:read", // Needed to select VIC when creating incidents
             "work-orders:read",
             "schedules:read",
+            "lines:read",
+            "equipments:read",
+            "notifications:read",
+            "notifications:update",
+            "notifications:delete",
+            "dashboard:view",
           ],
         },
         {
@@ -732,6 +828,12 @@ async function main() {
             "work-orders:read",
             "parts:read",
             "schedules:read",
+            "lines:read",
+            "equipments:read",
+            "notifications:read",
+            "notifications:update",
+            "notifications:delete",
+            "dashboard:view",
           ],
         },
       ];
@@ -851,15 +953,12 @@ async function main() {
         { name: "MANTENIMIENTO", description: "Maintenance incident" },
         { name: "OTROS", description: "Other type of incident" },
       ];
-      const incidentTypeRecords = [];
       for (const it of incidentTypes) {
-        incidentTypeRecords.push(
-          await tx.incidentType.upsert({
-            where: { name: it.name },
-            update: {},
-            create: it,
-          }),
-        );
+        await tx.incidentType.upsert({
+          where: { name: it.name },
+          update: {},
+          create: it,
+        });
       }
       console.log("✅ Seeded IncidentTypes");
 
@@ -870,17 +969,31 @@ async function main() {
         { name: "EN_PROGRESO", color: "#3B82F6" }, // Blue - actively being worked on
         { name: "CERRADO", color: "#10B981" }, // Green - completed
       ];
-      const incidentStatusRecords = [];
       for (const status of incidentStatuses) {
-        incidentStatusRecords.push(
-          await tx.incidentStatus.upsert({
-            where: { name: status.name },
-            update: { color: status.color },
-            create: { name: status.name, color: status.color },
-          }),
-        );
+        await tx.incidentStatus.upsert({
+          where: { name: status.name },
+          update: { color: status.color },
+          create: { name: status.name, color: status.color },
+        });
       }
       console.log("✅ Seeded IncidentStatuses");
+
+      // 8a) WorkOrderStatuses - Separate from IncidentStatus
+      const workOrderStatuses = [
+        { name: "PENDIENTE", color: "#F59E0B" }, // Amber
+        { name: "ASIGNADO", color: "#8B5CF6" }, // Purple
+        { name: "EN_PROGRESO", color: "#3B82F6" }, // Blue
+        { name: "COMPLETADO", color: "#10B981" }, // Green
+        { name: "CANCELADO", color: "#EF4444" }, // Red
+      ];
+      for (const status of workOrderStatuses) {
+        await tx.workOrderStatus.upsert({
+          where: { name: status.name },
+          update: { color: status.color },
+          create: { name: status.name, color: status.color },
+        });
+      }
+      console.log("✅ Seeded WorkOrderStatuses");
 
       // 8b) ScheduleStatuses - Separate from IncidentStatus for semantic clarity
       const scheduleStatuses = [
@@ -915,356 +1028,14 @@ async function main() {
           color: "#8B5CF6",
         }, // Purple
       ];
-      const scheduleStatusRecords = [];
       for (const status of scheduleStatuses) {
-        scheduleStatusRecords.push(
-          await tx.scheduleStatus.upsert({
-            where: { name: status.name },
-            update: { color: status.color, description: status.description },
-            create: status,
-          }),
-        );
+        await tx.scheduleStatus.upsert({
+          where: { name: status.name },
+          update: { color: status.color, description: status.description },
+          create: status,
+        });
       }
-      const scheduleStatusConfirmado = scheduleStatusRecords.find(
-        (s) => s.name === "CONFIRMADO",
-      );
-      if (!scheduleStatusConfirmado)
-        throw new Error("ScheduleStatus CONFIRMADO not found");
       console.log("✅ Seeded ScheduleStatuses");
-
-      // 9) Parts - Multiple parts for testing inventory management
-      const partsData = [
-        {
-          name: "Filtro de Aire",
-          description: "Filtro de aire para sistema de ventilación",
-          price: 150.0,
-          stock: 10,
-        },
-        {
-          name: "Aceite de Motor",
-          description: "Aceite sintético para motores",
-          price: 250.0,
-          stock: 15,
-        },
-        {
-          name: "Bujías",
-          description: "Juego de bujías",
-          price: 80.0,
-          stock: 20,
-        },
-        {
-          name: "Pastillas de Freno",
-          description: "Pastillas de freno delanteras",
-          price: 400.0,
-          stock: 8,
-        },
-        {
-          name: "Batería 12V",
-          description: "Batería de 12V 60Ah",
-          price: 1200.0,
-          stock: 5,
-        },
-      ];
-
-      const partRecords = [];
-      for (const partData of partsData) {
-        partRecords.push(
-          await tx.part.upsert({
-            where: { name_vicId: { name: partData.name, vicId: vic.id } },
-            update: {
-              description: partData.description,
-              price: partData.price,
-              stock: partData.stock,
-            },
-            create: {
-              ...partData,
-              vicId: vic.id,
-            },
-          }),
-        );
-      }
-      console.log("✅ Seeded Parts");
-
-      // 9b) Lines - Sample verification lines
-      const linesData = [
-        {
-          name: "Línea 1",
-          description: "Línea de verificación principal",
-          statusId: lineStatusActivo.id,
-        },
-        {
-          name: "Línea 2",
-          description: "Línea de verificación secundaria",
-          statusId: lineStatusActivo.id,
-        },
-        {
-          name: "Línea 3",
-          description: "Línea de verificación terciaria",
-          statusId: lineStatusMantenimiento.id,
-        },
-      ];
-
-      const lineRecords = [];
-      for (const lineData of linesData) {
-        lineRecords.push(
-          await tx.line.upsert({
-            where: { name_vicId: { name: lineData.name, vicId: vic.id } },
-            update: {
-              description: lineData.description,
-              statusId: lineData.statusId,
-            },
-            create: {
-              ...lineData,
-              vicId: vic.id,
-            },
-          }),
-        );
-      }
-      console.log("✅ Seeded Lines");
-
-      // 9c) Equipment - Sample equipment for lines
-      const equipmentData = [
-        {
-          name: "Analizador de Gases L1",
-          description: "Analizador de gases para línea 1",
-          model: "AG-2000",
-          serialNumber: "AG2000-001",
-          lineId: lineRecords[0].id,
-          statusId: equipmentStatusOperativo.id,
-        },
-        {
-          name: "Analizador de Gases L2",
-          description: "Analizador de gases para línea 2",
-          model: "AG-2000",
-          serialNumber: "AG2000-002",
-          lineId: lineRecords[1].id,
-          statusId: equipmentStatusOperativo.id,
-        },
-        {
-          name: "Opacímetro L1",
-          description: "Opacímetro para línea 1",
-          model: "OP-500",
-          serialNumber: "OP500-001",
-          lineId: lineRecords[0].id,
-          statusId: equipmentStatusOperativo.id,
-        },
-        {
-          name: "Dinamómetro L3",
-          description: "Dinamómetro para línea 3",
-          model: "DIN-3000",
-          serialNumber: "DIN3000-001",
-          lineId: lineRecords[2].id,
-          statusId: equipmentStatusMantenimiento.id,
-        },
-      ];
-
-      const equipmentRecords = [];
-      for (const equipData of equipmentData) {
-        // Try to find existing equipment by name and lineId
-        const existing = await tx.equipment.findFirst({
-          where: {
-            name: equipData.name,
-            lineId: equipData.lineId,
-          },
-        });
-
-        if (existing) {
-          equipmentRecords.push(
-            await tx.equipment.update({
-              where: { id: existing.id },
-              data: {
-                description: equipData.description,
-                model: equipData.model,
-                serialNumber: equipData.serialNumber,
-                statusId: equipData.statusId,
-              },
-            }),
-          );
-        } else {
-          equipmentRecords.push(
-            await tx.equipment.create({
-              data: equipData,
-            }),
-          );
-        }
-      }
-      console.log("✅ Seeded Equipment");
-
-      // 9d) Vehicles - Sample company vehicles for trip tracking
-      const vehiclesData = [
-        {
-          make: "Toyota",
-          model: "Hilux",
-          year: 2022,
-          licensePlate: "ABC-123-XYZ",
-          vin: "JTMZK3DV5N5123456",
-          color: "Blanco",
-          statusId: vehicleStatusAvailable.id,
-          notes: "Camioneta para trabajo de campo",
-        },
-        {
-          make: "Ford",
-          model: "Ranger",
-          year: 2021,
-          licensePlate: "DEF-456-UVW",
-          vin: "8AFRZZED5N1234567",
-          color: "Gris",
-          statusId: vehicleStatusAvailable.id,
-          notes: "Vehículo de supervisión",
-        },
-        {
-          make: "Nissan",
-          model: "NP300",
-          year: 2023,
-          licensePlate: "GHI-789-RST",
-          vin: "3N6AD31Z5N1234568",
-          color: "Azul",
-          statusId: vehicleStatusAvailable.id,
-          notes: "Vehículo de servicio",
-        },
-      ];
-
-      const vehicleRecords = [];
-      for (const vehicleData of vehiclesData) {
-        vehicleRecords.push(
-          await tx.vehicle.upsert({
-            where: { licensePlate: vehicleData.licensePlate },
-            update: {
-              make: vehicleData.make,
-              model: vehicleData.model,
-              year: vehicleData.year,
-              color: vehicleData.color,
-              statusId: vehicleData.statusId,
-              notes: vehicleData.notes,
-            },
-            create: vehicleData,
-          }),
-        );
-      }
-      console.log("✅ Seeded Vehicles");
-
-      // 10) Sample Schedules - múltiples fechas para testing del calendario
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
-      const schedules = [
-        {
-          id: "schedule-sample-1",
-          title: "Mantenimiento Semanal",
-          description: "Mantenimiento programado semanal",
-          scheduledAt: new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000), // +7 días
-        },
-        {
-          id: "schedule-sample-2",
-          title: "Calibración de Equipos",
-          description: "Calibración mensual de equipos de medición",
-          scheduledAt: new Date(today.getTime() + 2 * 24 * 60 * 60 * 1000), // +2 días a las 9:00
-        },
-        {
-          id: "schedule-sample-3",
-          title: "Inspección de Seguridad",
-          description: "Inspección general de seguridad del centro",
-          scheduledAt: new Date(today.getTime() + 5 * 24 * 60 * 60 * 1000), // +5 días a las 14:00
-        },
-        {
-          id: "schedule-sample-4",
-          title: "Revisión de Líneas",
-          description: "Revisión de todas las líneas de verificación",
-          scheduledAt: new Date(today.getTime() + 10 * 24 * 60 * 60 * 1000), // +10 días
-        },
-        {
-          id: "schedule-sample-5",
-          title: "Actualización de Software",
-          description: "Actualización de software de sistemas",
-          scheduledAt: new Date(today.getTime() + 1 * 24 * 60 * 60 * 1000), // +1 día
-        },
-      ];
-
-      // Ajustar horarios
-      schedules[1].scheduledAt.setHours(9, 0, 0, 0);
-      schedules[2].scheduledAt.setHours(14, 0, 0, 0);
-      schedules[3].scheduledAt.setHours(10, 30, 0, 0);
-      schedules[4].scheduledAt.setHours(8, 0, 0, 0);
-
-      const scheduleRecords = [];
-      for (const scheduleData of schedules) {
-        const schedule = await tx.schedule.upsert({
-          where: { id: scheduleData.id },
-          update: { statusId: scheduleStatusConfirmado.id },
-          create: {
-            ...scheduleData,
-            vicId: vic.id,
-            statusId: scheduleStatusConfirmado.id,
-          },
-        });
-        scheduleRecords.push(schedule);
-      }
-      console.log("✅ Seeded Schedules");
-
-      // Usar el primer schedule para el incidente de ejemplo
-      const _schedule = scheduleRecords[0];
-
-      // 11) Sample Incidents - múltiples incidentes programados
-      const adminUser = await tx.user.findUnique({
-        where: { email: "admin@opusinspection.com" },
-      });
-
-      if (adminUser) {
-        const sampleIncidents = [
-          {
-            title: "Falla en línea de verificación 2",
-            description:
-              "La línea 2 presenta problemas con el sistema de medición de emisiones",
-            priority: 8,
-            scheduleId: scheduleRecords[0].id,
-          },
-          {
-            title: "Calibración de analizador de gases",
-            description:
-              "Requiere calibración del analizador de gases de la línea 1",
-            priority: 6,
-            scheduleId: scheduleRecords[1].id,
-          },
-          {
-            title: "Revisión de sistema de frenado",
-            description: "Inspección del sistema de frenado en línea 3",
-            priority: 7,
-            scheduleId: scheduleRecords[2].id,
-          },
-          {
-            title: "Mantenimiento preventivo general",
-            description: "Mantenimiento preventivo de todas las líneas",
-            priority: 5,
-            scheduleId: scheduleRecords[3].id,
-          },
-          {
-            title: "Actualización de firmware",
-            description: "Actualización de firmware en equipos de diagnóstico",
-            priority: 4,
-            scheduleId: scheduleRecords[4].id,
-          },
-        ];
-
-        for (const incidentData of sampleIncidents) {
-          // Check if incident already exists by title to make seed idempotent
-          const existing = await tx.incident.findFirst({
-            where: { title: incidentData.title },
-          });
-          if (!existing) {
-            await tx.incident.create({
-              data: {
-                ...incidentData,
-                sla: 24,
-                typeId: incidentTypeRecords[0].id,
-                statusId: incidentStatusRecords[0].id,
-                vicId: vic.id,
-                reportedById: adminUser.id,
-              },
-            });
-          }
-        }
-        console.log("✅ Seeded Sample Incidents");
-      }
     },
     {
       maxWait: 20000, // Maximum time to wait for a transaction slot (20 seconds)

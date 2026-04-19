@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { getWorkOrderFormOptions } from "@/lib/actions/work-orders";
 
 export default async function NewWorkOrderPage() {
-  const { incidents, users, incidentStatuses } =
+  const { incidents, users, workOrderStatuses } =
     await getWorkOrderFormOptions();
 
   return (
@@ -27,7 +27,7 @@ export default async function NewWorkOrderPage() {
       <WorkOrderForm
         incidents={incidents}
         users={users}
-        incidentStatuses={incidentStatuses}
+        workOrderStatuses={workOrderStatuses}
       />
     </div>
   );

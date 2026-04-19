@@ -324,20 +324,20 @@ export async function completeWorkOrder(id: string, notes?: string) {
       );
     }
 
-    // Get CERRADO status
-    const cerradoStatus = await tx.incidentStatus.findFirst({
-      where: { name: "CERRADO" },
+    // Get COMPLETADO status for work order
+    const completadoStatus = await tx.workOrderStatus.findFirst({
+      where: { name: "COMPLETADO" },
     });
 
-    if (!cerradoStatus) {
-      throw new Error("CERRADO status not found in database");
+    if (!completadoStatus) {
+      throw new Error("COMPLETADO status not found in database");
     }
 
     const workOrder = await tx.workOrder.update({
       where: { id },
       data: {
         finishedAt: new Date(),
-        statusId: cerradoStatus.id,
+        statusId: completadoStatus.id,
         notes: notes || null,
       },
       include: {
@@ -357,22 +357,22 @@ export async function completeWorkOrder(id: string, notes?: string) {
     });
 
     // Check completion by status name or finishedAt timestamp
-    const completedStatuses = [
-      "CERRADO",
-      "COMPLETADO",
-      "RESUELTO",
-      "FINALIZADO",
-    ];
     const allCompleted = incidentWorkOrders.every(
-      (wo) =>
-        wo.finishedAt !== null ||
-        (wo.status?.name && completedStatuses.includes(wo.status.name)),
+      (wo) => wo.finishedAt !== null || wo.status?.name === "COMPLETADO",
     );
 
     let incidentAutoClosed = false;
 
     if (allCompleted && incidentWorkOrders.length > 0) {
-      // Auto-close the incident
+      // Auto-close the incident using IncidentStatus CERRADO
+      const cerradoStatus = await tx.incidentStatus.findFirst({
+        where: { name: "CERRADO" },
+      });
+
+      if (!cerradoStatus) {
+        throw new Error("CERRADO incident status not found in database");
+      }
+
       await tx.incident.update({
         where: { id: workOrder.incidentId },
         data: {
@@ -412,13 +412,13 @@ export async function completeWorkOrder(id: string, notes?: string) {
 export async function startWorkOrder(id: string) {
   await requirePermission("work-orders:update");
 
-  // Get EN_PROGRESO status
-  const enProgresoStatus = await prisma.incidentStatus.findFirst({
+  // Get EN_PROGRESO status from WorkOrderStatus
+  const enProgresoStatus = await prisma.workOrderStatus.findFirst({
     where: { name: "EN_PROGRESO" },
   });
 
   if (!enProgresoStatus) {
-    throw new Error("EN_PROGRESO status not found in database");
+    throw new Error("EN_PROGRESO work order status not found in database");
   }
 
   const workOrder = await prisma.workOrder.update({
@@ -518,16 +518,16 @@ export async function reopenWorkOrder(id: string) {
 
   // Use transaction to ensure atomicity
   const result = await prisma.$transaction(async (tx) => {
-    // Get PENDIENTE status for work order
-    const pendienteStatus = await tx.incidentStatus.findFirst({
+    // Get PENDIENTE status for work order from WorkOrderStatus
+    const pendienteStatus = await tx.workOrderStatus.findFirst({
       where: { name: "PENDIENTE" },
     });
 
     if (!pendienteStatus) {
-      throw new Error("PENDIENTE status not found in database");
+      throw new Error("PENDIENTE work order status not found in database");
     }
 
-    // Get EN_PROGRESO status for incident
+    // Get EN_PROGRESO status for incident from IncidentStatus
     const enProgresoStatus = await tx.incidentStatus.findFirst({
       where: { name: "EN_PROGRESO" },
     });
@@ -629,7 +629,7 @@ export async function getMyWorkOrders() {
 export async function getWorkOrderFormOptions() {
   await requirePermission("work-orders:read");
 
-  const [incidents, users, incidentStatuses] = await Promise.all([
+  const [incidents, users, workOrderStatuses] = await Promise.all([
     prisma.incident.findMany({
       where: { active: true },
       include: {
@@ -653,7 +653,7 @@ export async function getWorkOrderFormOptions() {
       },
       orderBy: { name: "asc" },
     }),
-    prisma.incidentStatus.findMany({
+    prisma.workOrderStatus.findMany({
       where: { active: true },
       orderBy: { name: "asc" },
     }),
@@ -664,7 +664,7 @@ export async function getWorkOrderFormOptions() {
     vicIds: user.vicAssignments.map((va) => va.vicId),
   }));
 
-  return { incidents, users: usersWithVicIds, incidentStatuses };
+  return { incidents, users: usersWithVicIds, workOrderStatuses };
 }
 
 /**

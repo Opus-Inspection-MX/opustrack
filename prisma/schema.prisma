@@ -11,29 +11,29 @@ datasource db {
 }
 
 model User {
-  id                String    @id @default(cuid())
+  id                String                   @id @default(cuid())
   name              String
-  email             String    @unique
+  email             String                   @unique
   password          String
   roleId            Int
-  userStatusId      Int       @default(1)
-  vicId             String?   // Deprecated - kept for backward compatibility (use vicAssignments instead)
-  vicIds            String[]  @default([]) // Deprecated - use vicAssignments instead
-  sessionVersion    Int       @default(1) // Increment to invalidate all user sessions
-  role              Role      @relation(fields: [roleId], references: [id])
-  userStatus        UserStatus @relation(fields: [userStatusId], references: [id])
+  userStatusId      Int                      @default(1)
+  vicId             String? // Deprecated - kept for backward compatibility (use vicAssignments instead)
+  vicIds            String[]                 @default([]) // Deprecated - use vicAssignments instead
+  sessionVersion    Int                      @default(1) // Increment to invalidate all user sessions
+  role              Role                     @relation(fields: [roleId], references: [id])
+  userStatus        UserStatus               @relation(fields: [userStatusId], references: [id])
   userProfile       UserProfile?
   vic               VehicleInspectionCenter? @relation(fields: [vicId], references: [id])
   vicAssignments    UserVicAssignment[] // VIC assignments for this user
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
   workOrders        WorkOrder[]
-  reportedIncidents Incident[] @relation("IncidentReporter")
-  incidents         Incident[] @relation("IncidentUser") // relación opcional si usas userId en Incident
+  reportedIncidents Incident[]               @relation("IncidentReporter")
+  incidents         Incident[]               @relation("IncidentUser") // relación opcional si usas userId en Incident
   vehicleTrips      VehicleTrip[] // Vehicle trips driven by this FSR
-  assignedVehicles  Vehicle[] @relation("AssignedVehicles") // Vehicles assigned to this FSR
+  assignedVehicles  Vehicle[]                @relation("AssignedVehicles") // Vehicles assigned to this FSR
   notifications     Notification[] // User's notifications
-  active            Boolean   @default(true)
+  active            Boolean                  @default(true)
 }
 
 model UserVicAssignment {
@@ -125,13 +125,12 @@ model VehicleInspectionCenter {
   state           State               @relation(fields: [stateId], references: [id])
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
-  users           User[]              // Deprecated - use userAssignments instead
+  users           User[] // Deprecated - use userAssignments instead
   userAssignments UserVicAssignment[] // User assignments for this VIC
   schedules       Schedule[]
   incidents       Incident[]
-  Part            Part[]              // (conservamos el nombre para no romper tu código)
   lines           Line[]
-  active      Boolean    @default(true)
+  active          Boolean             @default(true)
 }
 
 model State {
@@ -148,9 +147,9 @@ model Schedule {
   id          String                  @id @default(cuid())
   title       String
   description String?
-  scheduledAt DateTime                // Fecha de inicio
-  endDate     DateTime?               // Fecha de fin (opcional)
-  statusId    Int?                    // Estado del schedule
+  scheduledAt DateTime // Fecha de inicio
+  endDate     DateTime? // Fecha de fin (opcional)
+  statusId    Int? // Estado del schedule
   status      ScheduleStatus?         @relation(fields: [statusId], references: [id])
   vicId       String
   vic         VehicleInspectionCenter @relation(fields: [vicId], references: [id])
@@ -184,10 +183,17 @@ model IncidentType {
 }
 
 model IncidentStatus {
+  id        Int        @id @default(autoincrement())
+  name      String     @unique
+  color     String     @default("#6B7280") // Hexadecimal color for status badge
+  incidents Incident[]
+  active    Boolean    @default(true)
+}
+
+model WorkOrderStatus {
   id         Int         @id @default(autoincrement())
   name       String      @unique
-  color      String      @default("#6B7280") // Hexadecimal color for status badge
-  incidents  Incident[]
+  color      String      @default("#6B7280")
   workOrders WorkOrder[]
   active     Boolean     @default(true)
 }
@@ -214,10 +220,10 @@ model VehicleStatus {
 }
 
 model VehicleTripStatus {
-  id    Int           @id @default(autoincrement())
-  name  String        @unique
-  trips VehicleTrip[]
-  active Boolean      @default(true)
+  id     Int           @id @default(autoincrement())
+  name   String        @unique
+  trips  VehicleTrip[]
+  active Boolean       @default(true)
 }
 
 model Incident {
@@ -269,13 +275,13 @@ model WorkOrder {
   assignedToId   String
   assignedTo     User                  @relation(fields: [assignedToId], references: [id])
   statusId       Int?
-  status         IncidentStatus?       @relation(fields: [statusId], references: [id])
+  status         WorkOrderStatus?      @relation(fields: [statusId], references: [id])
   notes          String?
-  folio          String?                // Folio number (Numero de folio)
+  folio          String? // Folio number (Numero de folio)
   startedAt      DateTime?
   finishedAt     DateTime?
-  unlockedAt     DateTime?              // When FSR acknowledged/unlocked the work order
-  assignedAt     DateTime?              // When work order was assigned (for time-to-unlock calculation)
+  unlockedAt     DateTime? // When FSR acknowledged/unlocked the work order
+  assignedAt     DateTime? // When work order was assigned (for time-to-unlock calculation)
   workActivities WorkActivity[]
   attachments    WorkOrderAttachment[]
   workParts      WorkPart[]
@@ -324,20 +330,15 @@ model WorkOrderAttachment {
 }
 
 model Part {
-  id          String                  @id @default(cuid())
-  vicId       String
-  vic         VehicleInspectionCenter @relation(fields: [vicId], references: [id])
-  name        String
+  id          String     @id @default(cuid())
+  name        String     @unique
   description String?
   price       Float
   stock       Int
   workParts   WorkPart[]
-  createdAt   DateTime                @default(now())
-  updatedAt   DateTime                @updatedAt
-  active      Boolean                 @default(true)
-
-  @@unique([name, vicId]) // ← para upsert por nombre+VIC
-  @@index([vicId])
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  active      Boolean    @default(true)
 }
 
 model WorkPart {
@@ -400,17 +401,17 @@ model Equipment {
 
 model Vehicle {
   id            String        @id @default(cuid())
-  make          String        // e.g., "Toyota"
-  model         String        // e.g., "Corolla"
-  year          Int           // e.g., 2023
+  make          String // e.g., "Toyota"
+  model         String // e.g., "Corolla"
+  year          Int // e.g., 2023
   licensePlate  String        @unique // e.g., "ABC-123-XYZ"
   vin           String?       @unique // Vehicle Identification Number (optional)
-  color         String?       // e.g., "White"
+  color         String? // e.g., "White"
   statusId      Int           @default(1) // Status ID reference
   status        VehicleStatus @relation(fields: [statusId], references: [id])
-  assignedFsrId String?       // FSR currently assigned to this vehicle
+  assignedFsrId String? // FSR currently assigned to this vehicle
   assignedFsr   User?         @relation("AssignedVehicles", fields: [assignedFsrId], references: [id])
-  notes         String?       // General notes about vehicle
+  notes         String? // General notes about vehicle
   active        Boolean       @default(true) // Soft delete
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
@@ -465,34 +466,34 @@ model VehicleTrip {
 }
 
 model Notification {
-  id         String    @id @default(cuid())
-  userId     String    // Recipient user ID
-  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     String @id @default(cuid())
+  userId String // Recipient user ID
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // Notification content
-  title      String    // e.g., "Nueva Orden de Trabajo Asignada"
-  message    String    // e.g., "Se le ha asignado la orden de trabajo..."
-  type       String    // e.g., "work_order_assigned", "incident_updated"
+  title   String // e.g., "Nueva Orden de Trabajo Asignada"
+  message String // e.g., "Se le ha asignado la orden de trabajo..."
+  type    String // e.g., "work_order_assigned", "incident_updated"
 
   // Related entity (polymorphic approach)
-  entityType String?   // e.g., "work_order", "incident", "user"
-  entityId   String?   // ID of the related entity
-  actionUrl  String?   // URL to navigate when clicked
+  entityType String? // e.g., "work_order", "incident", "user"
+  entityId   String? // ID of the related entity
+  actionUrl  String? // URL to navigate when clicked
 
   // Status
-  isRead     Boolean   @default(false)
-  readAt     DateTime?
+  isRead Boolean   @default(false)
+  readAt DateTime?
 
   // Metadata
-  priority   Int       @default(1) // 1=low, 2=medium, 3=high
-  metadata   Json?     // Additional flexible data
+  priority Int   @default(1) // 1=low, 2=medium, 3=high
+  metadata Json? // Additional flexible data
 
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
-  active     Boolean   @default(true) // Soft delete
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  active    Boolean  @default(true) // Soft delete
 
-  @@index([userId, isRead])    // Fast unread count queries
+  @@index([userId, isRead]) // Fast unread count queries
   @@index([userId, createdAt]) // Fast "recent notifications" queries
-  @@index([type])              // Filter by notification type
+  @@index([type]) // Filter by notification type
   @@index([active, createdAt]) // Cleanup queries
 }

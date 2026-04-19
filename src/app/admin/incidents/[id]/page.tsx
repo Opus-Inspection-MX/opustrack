@@ -1,5 +1,3 @@
-"use client";
-
 import {
   AlertTriangle,
   ArrowLeft,
@@ -12,13 +10,10 @@ import {
   Wrench,
 } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Spinner } from "@/components/ui/spinner";
 import {
   Table,
   TableBody,
@@ -28,69 +23,36 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { getIncidentById } from "@/lib/actions/incidents";
+import { requireRouteAccess } from "@/lib/auth/auth";
 
-type Incident = Awaited<ReturnType<typeof getIncidentById>>;
+function getPriorityColor(priority: number) {
+  if (priority >= 8) return "destructive";
+  if (priority >= 5) return "default";
+  return "secondary";
+}
 
-export default function IncidentDetailPage({
+function getStatusColor(status: string) {
+  switch (status) {
+    case "COMPLETADO":
+      return "default";
+    case "EN_PROGRESO":
+      return "secondary";
+    case "PENDIENTE":
+      return "outline";
+    default:
+      return "outline";
+  }
+}
+
+export default async function IncidentDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const _router = useRouter();
-  const [incidentId, setIncidentId] = useState<number | null>(null);
-  const [incident, setIncident] = useState<Incident | null>(null);
-  const [loading, setLoading] = useState(true);
+  await requireRouteAccess("/admin/incidents");
 
-  useEffect(() => {
-    params.then((p) => setIncidentId(parseInt(p.id, 10)));
-  }, [params]);
-
-  const fetchIncident = useCallback(async () => {
-    if (!incidentId) return;
-
-    try {
-      setLoading(true);
-      const data = await getIncidentById(incidentId);
-      setIncident(data);
-    } catch (error) {
-      console.error("Error fetching incident:", error);
-    } finally {
-      setLoading(false);
-    }
-  }, [incidentId]);
-
-  useEffect(() => {
-    if (incidentId) {
-      fetchIncident();
-    }
-  }, [incidentId, fetchIncident]);
-
-  if (loading || !incident) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Spinner size="lg" text="Loading incident..." />
-      </div>
-    );
-  }
-
-  const getPriorityColor = (priority: number) => {
-    if (priority >= 8) return "destructive";
-    if (priority >= 5) return "default";
-    return "secondary";
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "COMPLETADO":
-        return "default";
-      case "EN_PROGRESO":
-        return "secondary";
-      case "PENDIENTE":
-        return "outline";
-      default:
-        return "outline";
-    }
-  };
+  const { id } = await params;
+  const incident = await getIncidentById(Number.parseInt(id, 10));
 
   return (
     <div className="space-y-6">

@@ -25,7 +25,6 @@ interface Part {
   description?: string;
   price: number;
   stock: number;
-  vic: { name: string; code: string };
   active: boolean;
   createdAt: string;
 }
@@ -77,7 +76,6 @@ export function PartTable({
             <TableRow>
               <TableHead>Nombre</TableHead>
               <TableHead>Descripción</TableHead>
-              <TableHead>CVV</TableHead>
               <TableHead>Precio</TableHead>
               <TableHead>Stock</TableHead>
               <TableHead>Status</TableHead>
@@ -97,11 +95,6 @@ export function PartTable({
                   <span className="text-sm text-muted-foreground">
                     {part.description || "-"}
                   </span>
-                </TableCell>
-                <TableCell>
-                  <Badge variant="outline">
-                    {part.vic.name} ({part.vic.code})
-                  </Badge>
                 </TableCell>
                 <TableCell className="font-mono">
                   {formatPrice(part.price)}

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requirePermission } from "@/lib/auth/auth";
 import { prisma } from "@/lib/database/prisma.singleton";
+import { assignUserToVic } from "@/lib/utils/vic-assignments";
 
 export type VICFormData = {
   code: string;
@@ -166,14 +167,9 @@ export async function createVIC(data: VICFormData) {
 
   // Assign CLIENT users to this VIC if provided
   if (data.clientIds && data.clientIds.length > 0) {
-    await prisma.user.updateMany({
-      where: {
-        id: { in: data.clientIds },
-      },
-      data: {
-        vicId: vic.id,
-      },
-    });
+    for (const clientId of data.clientIds) {
+      await assignUserToVic(clientId, vic.id, true);
+    }
   }
 
   revalidatePath("/admin/vic-centers");
@@ -250,7 +246,7 @@ export async function updateVIC(id: string, data: VICFormData) {
     }
   }
 
-  // Handle CLIENT user reassignment
+  // Handle CLIENT user reassignment via UserVicAssignment
   if (data.clientIds !== undefined) {
     // Get CLIENT role
     const clientRole = await prisma.role.findFirst({
@@ -258,16 +254,17 @@ export async function updateVIC(id: string, data: VICFormData) {
     });
 
     if (clientRole) {
-      // Get currently assigned CLIENT users
-      const currentClients = await prisma.user.findMany({
+      // Get currently assigned CLIENT users via junction table
+      const currentAssignments = await prisma.userVicAssignment.findMany({
         where: {
           vicId: id,
-          roleId: clientRole.id,
+          active: true,
+          user: { roleId: clientRole.id },
         },
-        select: { id: true },
+        select: { userId: true },
       });
 
-      const currentClientIds = currentClients.map((user) => user.id);
+      const currentClientIds = currentAssignments.map((a) => a.userId);
       const newClientIds = data.clientIds;
 
       // CLIENTs to unassign (were assigned but are no longer selected)
@@ -280,28 +277,17 @@ export async function updateVIC(id: string, data: VICFormData) {
         (clientId) => !currentClientIds.includes(clientId),
       );
 
-      // Unassign CLIENTs - set vicId to null
+      // Unassign CLIENTs - soft delete the assignment
       if (clientsToUnassign.length > 0) {
-        await prisma.user.updateMany({
-          where: {
-            id: { in: clientsToUnassign },
-          },
-          data: {
-            vicId: null,
-          },
+        await prisma.userVicAssignment.updateMany({
+          where: { vicId: id, userId: { in: clientsToUnassign } },
+          data: { active: false },
         });
       }
 
-      // Assign new CLIENTs - set vicId to this VIC
-      if (clientsToAssign.length > 0) {
-        await prisma.user.updateMany({
-          where: {
-            id: { in: clientsToAssign },
-          },
-          data: {
-            vicId: id,
-          },
-        });
+      // Assign new CLIENTs
+      for (const clientId of clientsToAssign) {
+        await assignUserToVic(clientId, id, true);
       }
     }
   }
@@ -317,8 +303,8 @@ export async function updateVIC(id: string, data: VICFormData) {
 export async function deleteVIC(id: string) {
   await requirePermission("vics:delete");
 
-  // Check if VIC has active users
-  const userCount = await prisma.user.count({
+  // Check if VIC has active user assignments
+  const userCount = await prisma.userVicAssignment.count({
     where: { vicId: id, active: true },
   });
 
@@ -414,10 +400,17 @@ export async function getClientUsers() {
       id: true,
       name: true,
       email: true,
-      vicId: true,
+      vicAssignments: {
+        where: { active: true, isPrimary: true },
+        select: { vicId: true },
+      },
     },
     orderBy: { name: "asc" },
   });
 
-  return clientUsers;
+  // Map vicAssignments to vicId for backward compatibility
+  return clientUsers.map((user) => ({
+    ...user,
+    vicId: user.vicAssignments[0]?.vicId ?? null,
+  }));
 }

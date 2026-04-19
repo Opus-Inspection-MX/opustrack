@@ -434,7 +434,7 @@ export async function getIncidentStatusById(id: number) {
     where: { id },
     include: {
       _count: {
-        select: { incidents: true, workOrders: true },
+        select: { incidents: true },
       },
     },
   });
@@ -480,24 +480,13 @@ export async function updateIncidentStatus(
 export async function deleteIncidentStatus(id: number) {
   await requirePermission("incident-status:delete");
 
-  const [incidentCount, workOrderCount] = await Promise.all([
-    prisma.incident.count({
-      where: { statusId: id, active: true },
-    }),
-    prisma.workOrder.count({
-      where: { statusId: id, active: true },
-    }),
-  ]);
+  const incidentCount = await prisma.incident.count({
+    where: { statusId: id, active: true },
+  });
 
   if (incidentCount > 0) {
     throw new Error(
       `Cannot delete status. ${incidentCount} incident(s) have this status.`,
-    );
-  }
-
-  if (workOrderCount > 0) {
-    throw new Error(
-      `Cannot delete status. ${workOrderCount} work order(s) have this status.`,
     );
   }
 
@@ -508,6 +497,138 @@ export async function deleteIncidentStatus(id: number) {
 
   revalidatePath("/admin/incident-status");
   redirect("/admin/incident-status");
+}
+
+// ==================== WORK ORDER STATUS ====================
+
+export type WorkOrderStatusFormData = {
+  name: string;
+  color?: string;
+  active?: boolean;
+};
+
+export async function getWorkOrderStatuses(params?: {
+  page?: number;
+  limit?: number;
+  search?: string;
+}) {
+  await requirePermission("work-order-status:read");
+
+  const page = params?.page || 1;
+  const limit = params?.limit || 10;
+  const skip = (page - 1) * limit;
+
+  const where: Prisma.WorkOrderStatusWhereInput = {
+    active: true,
+  };
+
+  if (params?.search) {
+    where.name = { contains: params.search, mode: "insensitive" };
+  }
+
+  const total = await prisma.workOrderStatus.count({ where });
+
+  const statuses = await prisma.workOrderStatus.findMany({
+    where,
+    include: {
+      _count: {
+        select: { workOrders: true },
+      },
+    },
+    orderBy: { name: "asc" },
+    skip,
+    take: limit,
+  });
+
+  const transformedStatuses = statuses.map((status) => ({
+    id: status.id,
+    name: status.name,
+    color: status.color,
+    active: status.active,
+    _count: { workOrders: status._count.workOrders },
+  }));
+
+  return {
+    data: transformedStatuses,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+    },
+  };
+}
+
+export async function getWorkOrderStatusById(id: number) {
+  await requirePermission("work-order-status:read");
+
+  const status = await prisma.workOrderStatus.findUnique({
+    where: { id },
+    include: {
+      _count: {
+        select: { workOrders: true },
+      },
+    },
+  });
+
+  return status;
+}
+
+export async function createWorkOrderStatus(data: WorkOrderStatusFormData) {
+  await requirePermission("work-order-status:create");
+
+  const status = await prisma.workOrderStatus.create({
+    data: {
+      name: data.name,
+      color: data.color || "#6B7280",
+      ...(data.active !== undefined && { active: data.active }),
+    },
+  });
+
+  revalidatePath("/admin/settings/work-order-status");
+  return { success: true, data: status };
+}
+
+export async function updateWorkOrderStatus(
+  id: number,
+  data: WorkOrderStatusFormData,
+) {
+  await requirePermission("work-order-status:update");
+
+  const status = await prisma.workOrderStatus.update({
+    where: { id },
+    data: {
+      name: data.name,
+      ...(data.color && { color: data.color }),
+      ...(data.active !== undefined && { active: data.active }),
+    },
+  });
+
+  revalidatePath("/admin/settings/work-order-status");
+  revalidatePath(`/admin/settings/work-order-status/${id}`);
+  return { success: true, data: status };
+}
+
+export async function deleteWorkOrderStatus(id: number) {
+  await requirePermission("work-order-status:delete");
+
+  const workOrderCount = await prisma.workOrder.count({
+    where: { statusId: id, active: true },
+  });
+
+  if (workOrderCount > 0) {
+    throw new Error(
+      `Cannot delete status. ${workOrderCount} work order(s) have this status.`,
+    );
+  }
+
+  await prisma.workOrderStatus.update({
+    where: { id },
+    data: { active: false },
+  });
+
+  revalidatePath("/admin/settings/work-order-status");
+  redirect("/admin/settings/work-order-status");
 }
 
 // ==================== LINE STATUS ====================

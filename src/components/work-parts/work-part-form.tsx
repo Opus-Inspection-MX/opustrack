@@ -54,10 +54,6 @@ interface Part {
   name: string;
   price: number;
   stock: number;
-  vic: {
-    name: string;
-    code: string;
-  };
 }
 
 interface WorkOrder {
@@ -203,8 +199,7 @@ export function WorkPartForm({
                             <div className="flex flex-col">
                               <span>{part.name}</span>
                               <span className="text-sm text-muted-foreground">
-                                ${part.price} - Stock: {part.stock} -{" "}
-                                {part.vic.name}
+                                ${part.price} - Stock: {part.stock}
                               </span>
                             </div>
                           </SelectItem>

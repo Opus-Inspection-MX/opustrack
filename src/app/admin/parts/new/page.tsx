@@ -2,10 +2,10 @@ import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { PartForm } from "@/components/admin/parts/part-form";
 import { Button } from "@/components/ui/button";
-import { getVICs } from "@/lib/actions/vics";
+import { requireRouteAccess } from "@/lib/auth/auth";
 
 export default async function NewPartPage() {
-  const vics = await getVICs();
+  await requireRouteAccess("/admin/parts");
 
   return (
     <div className="space-y-6">
@@ -23,7 +23,7 @@ export default async function NewPartPage() {
         </div>
       </div>
 
-      <PartForm vics={vics} />
+      <PartForm />
     </div>
   );
 }

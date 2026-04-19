@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import {
   Select,
   SelectContent,
@@ -13,7 +14,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Textarea } from "@/components/ui/textarea";
 import {
   createWorkOrder,
@@ -37,7 +37,7 @@ type WorkOrderFormProps = {
     vicId?: string | null;
   }>;
   users: Array<{ id: string; name: string; vicIds?: string[] }>;
-  incidentStatuses: Array<{
+  workOrderStatuses: Array<{
     id: number;
     name: string;
     color: string;
@@ -49,21 +49,21 @@ export function WorkOrderForm({
   workOrder,
   incidents,
   users,
-  incidentStatuses,
+  workOrderStatuses,
 }: WorkOrderFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Find ABIERTO status as default
-  const abiertoStatus = incidentStatuses.find(
-    (status) => status.name === "ABIERTO",
+  // Find PENDIENTE status as default
+  const pendienteStatus = workOrderStatuses.find(
+    (status) => status.name === "PENDIENTE",
   );
 
   const [formData, setFormData] = useState<WorkOrderFormData>({
     incidentId: workOrder?.incidentId || incidents[0]?.id || 0,
     assignedToId: workOrder?.assignedToId || users[0]?.id || "",
-    statusId: workOrder?.statusId || abiertoStatus?.id || null,
+    statusId: workOrder?.statusId || pendienteStatus?.id || null,
     notes: workOrder?.notes || "",
     folio: workOrder?.folio || "",
   });
@@ -163,7 +163,7 @@ export function WorkOrderForm({
                 <SelectValue placeholder="Seleccionar estado" />
               </SelectTrigger>
               <SelectContent>
-                {incidentStatuses.map((status) => (
+                {workOrderStatuses.map((status) => (
                   <SelectItem key={status.id} value={status.id.toString()}>
                     {status.name}
                   </SelectItem>

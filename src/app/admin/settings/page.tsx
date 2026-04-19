@@ -1,4 +1,11 @@
-import { Layers, Route, Settings2, Truck, Wrench } from "lucide-react";
+import {
+  ClipboardList,
+  Layers,
+  Route,
+  Settings2,
+  Truck,
+  Wrench,
+} from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
@@ -34,6 +41,13 @@ export default async function SettingsPage() {
       icon: Truck,
       href: "/admin/settings/vehicle-status",
       color: "text-orange-600",
+    },
+    {
+      title: "Work Order Status",
+      description: "Manage work order statuses",
+      icon: ClipboardList,
+      href: "/admin/settings/work-order-status",
+      color: "text-amber-600",
     },
     {
       title: "Vehicle Trip Status",

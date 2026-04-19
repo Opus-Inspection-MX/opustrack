@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth/auth-options";
+import { requirePermission } from "@/lib/auth/auth";
 import {
   getUnreadCount,
   getUserNotifications,
@@ -8,15 +7,11 @@ import {
 
 export async function GET() {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const user = await requirePermission("notifications:read");
 
     const [notifications, unreadCount] = await Promise.all([
-      getUserNotifications(session.user.id, { limit: 20 }),
-      getUnreadCount(session.user.id),
+      getUserNotifications(user.id, { limit: 20 }),
+      getUnreadCount(user.id),
     ]);
 
     return NextResponse.json({

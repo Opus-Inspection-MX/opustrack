@@ -1,5 +1,3 @@
-"use client";
-
 import {
   AlertTriangle,
   ArrowLeft,
@@ -9,198 +7,72 @@ import {
   User,
 } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Spinner } from "@/components/ui/spinner";
 import { getIncidentById } from "@/lib/actions/incidents";
+import { requireRouteAccess } from "@/lib/auth/auth";
 
-interface IncidentType {
-  id: number;
-  name: string;
+function getPriorityBadge(priority: number) {
+  if (priority >= 8) {
+    return (
+      <Badge variant="destructive" className="text-lg py-2 px-4">
+        Critica
+      </Badge>
+    );
+  }
+  if (priority >= 5) {
+    return (
+      <Badge variant="default" className="bg-orange-500 text-lg py-2 px-4">
+        Alta
+      </Badge>
+    );
+  }
+  if (priority >= 3) {
+    return (
+      <Badge variant="secondary" className="text-lg py-2 px-4">
+        Media
+      </Badge>
+    );
+  }
+  return (
+    <Badge variant="outline" className="text-lg py-2 px-4">
+      Baja
+    </Badge>
+  );
 }
 
-interface IncidentStatus {
-  id: number;
-  name: string;
-  color?: string | null;
+function getStatusBadge(
+  status: { name: string; color?: string | null } | null,
+) {
+  if (!status) {
+    return (
+      <Badge variant="outline" className="text-lg py-2 px-4">
+        Desconocido
+      </Badge>
+    );
+  }
+
+  return (
+    <Badge
+      className="text-lg py-2 px-4 text-white"
+      style={{ backgroundColor: status.color || "#6B7280" }}
+    >
+      {status.name}
+    </Badge>
+  );
 }
 
-interface VIC {
-  id: string;
-  name: string;
-  code: string;
-}
-
-interface ReportedByUser {
-  id: string;
-  name: string;
-}
-
-interface WorkOrder {
-  id: string;
-  status?: IncidentStatus | null;
-}
-
-interface Schedule {
-  id: string;
-  title: string;
-  scheduledAt: Date | string;
-}
-
-interface Incident {
-  id: number;
-  title: string;
-  description?: string | null;
-  priority: number;
-  sla?: number | null;
-  type?: IncidentType | null;
-  status?: IncidentStatus | null;
-  vic?: VIC | null;
-  reportedBy?: ReportedByUser | null;
-  reportedAt: Date | string;
-  resolvedAt?: Date | string | null;
-  createdAt: Date | string;
-  workOrders?: WorkOrder[];
-  schedule?: Schedule | null;
-}
-
-export default function ClientIncidentDetailPage({
+export default async function ClientIncidentDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const router = useRouter();
-  const [incidentId, setIncidentId] = useState<number | null>(null);
-  const [incident, setIncident] = useState<Incident | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  await requireRouteAccess("/client/incidents");
 
-  useEffect(() => {
-    params.then((p) => setIncidentId(parseInt(p.id, 10)));
-  }, [params]);
-
-  const fetchIncident = useCallback(async () => {
-    if (!incidentId) return;
-
-    try {
-      setLoading(true);
-      setError(null);
-      const data = await getIncidentById(incidentId);
-      setIncident(data);
-    } catch (error) {
-      console.error("Error fetching incident:", error);
-      setError(
-        error instanceof Error ? error.message : "Failed to load incident",
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, [incidentId]);
-
-  useEffect(() => {
-    if (incidentId) {
-      fetchIncident();
-    }
-  }, [incidentId, fetchIncident]);
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Spinner size="lg" text="Cargando incidente..." />
-      </div>
-    );
-  }
-
-  if (error || !incident) {
-    return (
-      <div className="space-y-6">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" asChild>
-            <Link href="/client">
-              <ArrowLeft className="h-4 w-4" />
-            </Link>
-          </Button>
-          <h1 className="text-3xl font-bold">Incidente</h1>
-        </div>
-        <Card className="border-destructive">
-          <CardContent className="py-8">
-            <div className="flex flex-col items-center gap-4 text-center">
-              <AlertTriangle className="h-12 w-12 text-destructive" />
-              <div>
-                <h3 className="text-lg font-semibold mb-2">
-                  Error al Cargar Incidente
-                </h3>
-                <p className="text-muted-foreground">
-                  {error ||
-                    "Incidente no encontrado o no tienes permiso para verlo."}
-                </p>
-              </div>
-              <div className="flex gap-2">
-                <Button onClick={() => fetchIncident()} variant="outline">
-                  Reintentar
-                </Button>
-                <Button asChild>
-                  <Link href="/client">Volver a Mis Incidentes</Link>
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  const getPriorityBadge = (priority: number) => {
-    if (priority >= 8) {
-      return (
-        <Badge variant="destructive" className="text-lg py-2 px-4">
-          Crítica
-        </Badge>
-      );
-    }
-    if (priority >= 5) {
-      return (
-        <Badge variant="default" className="bg-orange-500 text-lg py-2 px-4">
-          Alta
-        </Badge>
-      );
-    }
-    if (priority >= 3) {
-      return (
-        <Badge variant="secondary" className="text-lg py-2 px-4">
-          Media
-        </Badge>
-      );
-    }
-    return (
-      <Badge variant="outline" className="text-lg py-2 px-4">
-        Baja
-      </Badge>
-    );
-  };
-
-  const getStatusBadge = (status: IncidentStatus | null | undefined) => {
-    if (!status) {
-      return (
-        <Badge variant="outline" className="text-lg py-2 px-4">
-          Desconocido
-        </Badge>
-      );
-    }
-
-    return (
-      <Badge
-        className="text-lg py-2 px-4 text-white"
-        style={{ backgroundColor: status.color || "#6B7280" }}
-      >
-        {status.name}
-      </Badge>
-    );
-  };
+  const { id } = await params;
+  const incident = await getIncidentById(Number.parseInt(id, 10));
 
   return (
     <div className="space-y-6">
@@ -234,7 +106,7 @@ export default function ClientIncidentDetailPage({
         <CardContent className="space-y-6">
           {/* Description */}
           <div>
-            <p className="text-sm text-muted-foreground mb-2">Descripción</p>
+            <p className="text-sm text-muted-foreground mb-2">Descripcion</p>
             <p className="text-base">{incident.description}</p>
           </div>
 
@@ -337,7 +209,7 @@ export default function ClientIncidentDetailPage({
         <Card>
           <CardHeader>
             <CardTitle>
-              Órdenes de Trabajo ({incident.workOrders.length})
+              Ordenes de Trabajo ({incident.workOrders.length})
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -376,8 +248,8 @@ export default function ClientIncidentDetailPage({
 
       {/* Back Button */}
       <div className="flex justify-end">
-        <Button variant="outline" onClick={() => router.back()}>
-          Volver
+        <Button variant="outline" asChild>
+          <Link href="/client">Volver</Link>
         </Button>
       </div>
     </div>

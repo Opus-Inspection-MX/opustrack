@@ -4,15 +4,17 @@ import { notFound } from "next/navigation";
 import { PartForm } from "@/components/admin/parts/part-form";
 import { Button } from "@/components/ui/button";
 import { getPartById } from "@/lib/actions/parts";
-import { getVICs } from "@/lib/actions/vics";
+import { requireRouteAccess } from "@/lib/auth/auth";
 
 export default async function EditPartPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
+  await requireRouteAccess("/admin/parts");
+
   const { id } = await params;
-  const [part, vics] = await Promise.all([getPartById(id), getVICs()]);
+  const part = await getPartById(id);
 
   if (!part) notFound();
 
@@ -32,7 +34,7 @@ export default async function EditPartPage({
         </div>
       </div>
 
-      <PartForm part={part} vics={vics} />
+      <PartForm part={part} />
     </div>
   );
 }

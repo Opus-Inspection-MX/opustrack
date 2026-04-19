@@ -16,13 +16,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
@@ -45,17 +38,10 @@ const partSchema = z.object({
     .int()
     .min(0, "Stock must be non-negative")
     .max(999999, "Stock too high"),
-  vicId: z.string().min(1, "VIC Center is required"),
   active: z.boolean(),
 });
 
 type PartFormData = z.infer<typeof partSchema>;
-
-interface VIC {
-  id: string;
-  name: string;
-  code: string;
-}
 
 interface PartFormProps {
   part?: {
@@ -64,14 +50,12 @@ interface PartFormProps {
     description?: string;
     price: number;
     stock: number;
-    vicId: string;
     active: boolean;
   };
-  vics: VIC[];
   onSubmit: (data: PartFormData) => Promise<void>;
 }
 
-export function PartForm({ part, vics, onSubmit }: PartFormProps) {
+export function PartForm({ part, onSubmit }: PartFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
@@ -82,7 +66,6 @@ export function PartForm({ part, vics, onSubmit }: PartFormProps) {
       description: part?.description || "",
       price: part?.price || 0,
       stock: part?.stock || 0,
-      vicId: part?.vicId || "",
       active: part?.active ?? true,
     },
   });
@@ -110,49 +93,19 @@ export function PartForm({ part, vics, onSubmit }: PartFormProps) {
             onSubmit={form.handleSubmit(handleSubmit)}
             className="space-y-6"
           >
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Part Name</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Enter part name" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="vicId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>VIC Center</FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select VIC center" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {vics.map((vic) => (
-                          <SelectItem key={vic.id} value={vic.id}>
-                            {vic.name} ({vic.code})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
+            <FormField
+              control={form.control}
+              name="name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Part Name</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Enter part name" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <FormField
               control={form.control}
