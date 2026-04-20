@@ -1,7 +1,10 @@
 "use server";
 
+import moment from "moment-timezone";
 import { requirePermission } from "@/lib/auth/auth";
 import { prisma } from "@/lib/database/prisma.singleton";
+
+const REPORT_TZ = "America/Mexico_City";
 
 export type DateRange = {
   startDate: string;
@@ -990,4 +993,295 @@ export async function getUnlockTimeData(
   };
 
   return { workOrders: unlockData, summary };
+}
+
+// ============================================
+// NOTIFICATION ENGAGEMENT REPORT
+// ============================================
+
+export type NotificationEngagementRow = {
+  userId: string;
+  userName: string;
+  userEmail: string;
+  totalNotifications: number;
+  readCount: number;
+  unreadCount: number;
+  readRatePct: number | null;
+  criticalUnreadCount: number;
+  lastReadAt: string | null;
+  oldestUnreadCreatedAt: string | null;
+  oldestUnreadDays: number | null;
+};
+
+export type NotificationEngagementSummary = {
+  totalNotifications: number;
+  totalRead: number;
+  totalUnread: number;
+  fsrsWithUnread: number;
+  fsrsWithCriticalUnread: number;
+  overallReadRatePct: number;
+};
+
+export async function getNotificationEngagementReport(
+  dateRange?: DateRange,
+): Promise<{
+  rows: NotificationEngagementRow[];
+  summary: NotificationEngagementSummary;
+}> {
+  await requirePermission("reports:view");
+
+  const startDate = dateRange?.startDate
+    ? moment.tz(dateRange.startDate, REPORT_TZ).startOf("day").toDate()
+    : moment().tz(REPORT_TZ).subtract(30, "days").startOf("day").toDate();
+  const endDate = dateRange?.endDate
+    ? moment.tz(dateRange.endDate, REPORT_TZ).endOf("day").toDate()
+    : moment().tz(REPORT_TZ).endOf("day").toDate();
+
+  const fsrRole = await prisma.role.findFirst({
+    where: { name: "FSR", active: true },
+  });
+  if (!fsrRole) {
+    return {
+      rows: [],
+      summary: {
+        totalNotifications: 0,
+        totalRead: 0,
+        totalUnread: 0,
+        fsrsWithUnread: 0,
+        fsrsWithCriticalUnread: 0,
+        overallReadRatePct: 0,
+      },
+    };
+  }
+
+  const fsrUsers = await prisma.user.findMany({
+    where: { roleId: fsrRole.id, active: true },
+    select: { id: true, name: true, email: true },
+    orderBy: { name: "asc" },
+  });
+
+  const rows: NotificationEngagementRow[] = await Promise.all(
+    fsrUsers.map(async (user) => {
+      const notifications = await prisma.notification.findMany({
+        where: {
+          userId: user.id,
+          active: true,
+          createdAt: { gte: startDate, lte: endDate },
+        },
+        select: {
+          isRead: true,
+          readAt: true,
+          createdAt: true,
+          priority: true,
+        },
+      });
+
+      const readCount = notifications.filter((n) => n.isRead).length;
+      const unreadCount = notifications.length - readCount;
+      const criticalUnreadCount = notifications.filter(
+        (n) => !n.isRead && n.priority >= 3,
+      ).length;
+      const lastReadAt = notifications
+        .filter((n) => n.readAt)
+        .map((n) => n.readAt as Date)
+        .sort((a, b) => b.getTime() - a.getTime())[0];
+      const oldestUnread = notifications
+        .filter((n) => !n.isRead)
+        .map((n) => n.createdAt)
+        .sort((a, b) => a.getTime() - b.getTime())[0];
+
+      return {
+        userId: user.id,
+        userName: user.name,
+        userEmail: user.email,
+        totalNotifications: notifications.length,
+        readCount,
+        unreadCount,
+        readRatePct:
+          notifications.length > 0
+            ? Math.round((readCount / notifications.length) * 100)
+            : null,
+        criticalUnreadCount,
+        lastReadAt: lastReadAt ? lastReadAt.toISOString() : null,
+        oldestUnreadCreatedAt: oldestUnread ? oldestUnread.toISOString() : null,
+        oldestUnreadDays: oldestUnread
+          ? moment().diff(moment(oldestUnread), "days")
+          : null,
+      };
+    }),
+  );
+
+  rows.sort((a, b) => b.unreadCount - a.unreadCount);
+
+  const totalNotifications = rows.reduce((s, r) => s + r.totalNotifications, 0);
+  const totalRead = rows.reduce((s, r) => s + r.readCount, 0);
+  const totalUnread = rows.reduce((s, r) => s + r.unreadCount, 0);
+
+  const summary: NotificationEngagementSummary = {
+    totalNotifications,
+    totalRead,
+    totalUnread,
+    fsrsWithUnread: rows.filter((r) => r.unreadCount > 0).length,
+    fsrsWithCriticalUnread: rows.filter((r) => r.criticalUnreadCount > 0)
+      .length,
+    overallReadRatePct:
+      totalNotifications > 0
+        ? Math.round((totalRead / totalNotifications) * 100)
+        : 0,
+  };
+
+  return { rows, summary };
+}
+
+// ============================================
+// DAILY TRIP COMPLIANCE REPORT
+// ============================================
+
+export type DailyTripComplianceCell = {
+  reported: boolean;
+  tripCount: number;
+  kmDriven: number;
+};
+
+export type DailyTripComplianceRow = {
+  userId: string;
+  userName: string;
+  userEmail: string;
+  daysReported: number;
+  daysMissed: number;
+  totalDays: number;
+  complianceRatePct: number;
+  byDay: Record<string, DailyTripComplianceCell>;
+  lastTripAt: string | null;
+  reportedToday: boolean;
+};
+
+export type DailyTripComplianceSummary = {
+  totalFsrs: number;
+  fullyCompliant: number;
+  missedToday: number;
+  averageComplianceRate: number;
+};
+
+export async function getDailyTripComplianceReport(
+  dateRange?: DateRange,
+): Promise<{
+  days: string[];
+  rows: DailyTripComplianceRow[];
+  summary: DailyTripComplianceSummary;
+}> {
+  await requirePermission("reports:view");
+
+  const start = dateRange?.startDate
+    ? moment.tz(dateRange.startDate, REPORT_TZ).startOf("day")
+    : moment().tz(REPORT_TZ).subtract(6, "days").startOf("day");
+  const end = dateRange?.endDate
+    ? moment.tz(dateRange.endDate, REPORT_TZ).endOf("day")
+    : moment().tz(REPORT_TZ).endOf("day");
+
+  const days: string[] = [];
+  const iter = start.clone();
+  while (iter.isSameOrBefore(end, "day")) {
+    days.push(iter.format("YYYY-MM-DD"));
+    iter.add(1, "day");
+  }
+
+  const fsrRole = await prisma.role.findFirst({
+    where: { name: "FSR", active: true },
+  });
+  if (!fsrRole) {
+    return {
+      days,
+      rows: [],
+      summary: {
+        totalFsrs: 0,
+        fullyCompliant: 0,
+        missedToday: 0,
+        averageComplianceRate: 0,
+      },
+    };
+  }
+
+  const fsrUsers = await prisma.user.findMany({
+    where: { roleId: fsrRole.id, active: true },
+    select: { id: true, name: true, email: true },
+    orderBy: { name: "asc" },
+  });
+
+  const fsrIds = fsrUsers.map((u) => u.id);
+
+  const trips =
+    fsrIds.length === 0
+      ? []
+      : await prisma.vehicleTrip.findMany({
+          where: {
+            active: true,
+            fsrId: { in: fsrIds },
+            startedAt: { gte: start.toDate(), lte: end.toDate() },
+          },
+          select: {
+            fsrId: true,
+            startedAt: true,
+            kmDriven: true,
+          },
+        });
+
+  const today = moment().tz(REPORT_TZ).format("YYYY-MM-DD");
+
+  const rows: DailyTripComplianceRow[] = fsrUsers.map((user) => {
+    const byDay: Record<string, DailyTripComplianceCell> = {};
+    for (const day of days) {
+      byDay[day] = { reported: false, tripCount: 0, kmDriven: 0 };
+    }
+
+    const userTrips = trips.filter((t) => t.fsrId === user.id);
+    let lastTripAt: Date | null = null;
+
+    for (const trip of userTrips) {
+      const day = moment(trip.startedAt).tz(REPORT_TZ).format("YYYY-MM-DD");
+      if (byDay[day]) {
+        byDay[day].reported = true;
+        byDay[day].tripCount += 1;
+        byDay[day].kmDriven += trip.kmDriven || 0;
+      }
+      if (!lastTripAt || trip.startedAt > lastTripAt) {
+        lastTripAt = trip.startedAt;
+      }
+    }
+
+    const daysReported = Object.values(byDay).filter((c) => c.reported).length;
+    const totalDays = days.length;
+    const reportedToday =
+      days.includes(today) && byDay[today]?.reported === true;
+
+    return {
+      userId: user.id,
+      userName: user.name,
+      userEmail: user.email,
+      daysReported,
+      daysMissed: totalDays - daysReported,
+      totalDays,
+      complianceRatePct:
+        totalDays > 0 ? Math.round((daysReported / totalDays) * 100) : 0,
+      byDay,
+      lastTripAt: lastTripAt ? lastTripAt.toISOString() : null,
+      reportedToday,
+    };
+  });
+
+  const summary: DailyTripComplianceSummary = {
+    totalFsrs: rows.length,
+    fullyCompliant: rows.filter((r) => r.complianceRatePct === 100).length,
+    missedToday: days.includes(today)
+      ? rows.filter((r) => !r.reportedToday).length
+      : 0,
+    averageComplianceRate:
+      rows.length > 0
+        ? Math.round(
+            rows.reduce((s, r) => s + r.complianceRatePct, 0) / rows.length,
+          )
+        : 0,
+  };
+
+  return { days, rows, summary };
 }

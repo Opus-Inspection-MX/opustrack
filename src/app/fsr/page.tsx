@@ -1,10 +1,13 @@
 import {
   AlertTriangle,
+  Bell,
   Calendar,
   CheckCircle,
+  CheckCircle2,
   Clock,
   Wrench,
 } from "lucide-react";
+import moment from "moment";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,8 +18,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  getMyNotifications,
+  getMyUnreadCount,
+} from "@/lib/actions/notifications";
 import { getMyWorkOrders } from "@/lib/actions/work-orders";
 import { requireRouteAccess } from "@/lib/auth/auth";
+
+moment.locale("es");
 
 interface WorkOrderIncident {
   id: number;
@@ -33,7 +42,11 @@ interface WorkOrder {
 
 export default async function FSRDashboardPage() {
   await requireRouteAccess("/fsr");
-  const workOrders = await getMyWorkOrders();
+  const [workOrders, unreadNotifications, unreadCount] = await Promise.all([
+    getMyWorkOrders(),
+    getMyNotifications({ limit: 3, unreadOnly: true }),
+    getMyUnreadCount(),
+  ]);
 
   // Calculate stats
   const stats = {
@@ -129,6 +142,73 @@ export default async function FSRDashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Work Notifications */}
+      <Card
+        className={
+          unreadCount > 0
+            ? "border-l-4 border-l-amber-500 bg-amber-50/50 dark:bg-amber-950/20"
+            : "border-l-4 border-l-emerald-500 bg-emerald-50/40 dark:bg-emerald-950/20"
+        }
+      >
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div
+              className={`h-10 w-10 rounded-full flex items-center justify-center ${
+                unreadCount > 0
+                  ? "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300"
+                  : "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
+              }`}
+            >
+              {unreadCount > 0 ? (
+                <Bell className="h-5 w-5" />
+              ) : (
+                <CheckCircle2 className="h-5 w-5" />
+              )}
+            </div>
+            <div>
+              <CardTitle>
+                {unreadCount > 0
+                  ? `Tienes ${unreadCount} notificación${
+                      unreadCount === 1 ? "" : "es"
+                    } sin leer`
+                  : "Sin notificaciones pendientes"}
+              </CardTitle>
+              <CardDescription>
+                {unreadCount > 0
+                  ? "Abre tus notificaciones para ver tu trabajo actual"
+                  : "Estás al día con tu trabajo"}
+              </CardDescription>
+            </div>
+          </div>
+          <Button asChild variant={unreadCount > 0 ? "default" : "outline"}>
+            <Link href="/fsr/notifications">Ver mis notificaciones</Link>
+          </Button>
+        </CardHeader>
+        {unreadNotifications.length > 0 && (
+          <CardContent>
+            <div className="space-y-2">
+              {unreadNotifications.map((n) => (
+                <Link
+                  key={n.id}
+                  href={`/fsr/notifications?open=${n.id}`}
+                  className="flex items-start justify-between gap-4 border rounded-lg p-3 bg-background hover:bg-accent/50 transition-colors"
+                >
+                  <div className="flex-1 space-y-1">
+                    <p className="font-medium text-sm">{n.title}</p>
+                    <p className="text-xs text-muted-foreground line-clamp-2">
+                      {n.message}
+                    </p>
+                  </div>
+                  <span className="text-xs text-muted-foreground whitespace-nowrap">
+                    {moment(n.createdAt).fromNow()}
+                  </span>
+                </Link>
+              ))}
+            </div>
+          </CardContent>
+        )}
+      </Card>
 
       {/* Urgent Work Orders */}
       {urgentWorkOrders.length > 0 && (

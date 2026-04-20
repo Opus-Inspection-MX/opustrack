@@ -1,7 +1,9 @@
 import {
   AlertTriangle,
+  Bell,
   Car,
   CheckCircle,
+  CheckCircle2,
   ClipboardList,
   Package,
   TrendingUp,
@@ -52,6 +54,22 @@ const reports = [
     href: "/admin/reports/parts-usage",
     icon: Package,
     color: "bg-pink-500",
+  },
+  {
+    title: "Cumplimiento Diario de Viajes",
+    description:
+      "Que FSRs han registrado su viaje diario y cuales no, con matriz de cumplimiento por dia.",
+    href: "/admin/reports/daily-trip-compliance",
+    icon: CheckCircle2,
+    color: "bg-teal-500",
+  },
+  {
+    title: "Engagement de Notificaciones",
+    description:
+      "Que FSRs han abierto sus notificaciones de trabajo y cuales tienen pendientes criticas.",
+    href: "/admin/reports/notification-engagement",
+    icon: Bell,
+    color: "bg-orange-500",
   },
 ];
 
