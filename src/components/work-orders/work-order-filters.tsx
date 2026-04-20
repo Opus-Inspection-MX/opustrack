@@ -57,7 +57,7 @@ export function WorkOrderFilters({
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Filter className="h-5 w-5" />
-          Filters & Search
+          Filtros y Búsqueda
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -66,7 +66,7 @@ export function WorkOrderFilters({
             <div className="relative">
               <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search work orders..."
+                placeholder="Buscar órdenes de trabajo..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
@@ -74,22 +74,22 @@ export function WorkOrderFilters({
             </div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger>
-                <SelectValue placeholder="Status" />
+                <SelectValue placeholder="Estado" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="PENDING">Pending</SelectItem>
-                <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
-                <SelectItem value="COMPLETED">Completed</SelectItem>
-                <SelectItem value="CANCELLED">Cancelled</SelectItem>
+                <SelectItem value="all">Todos los Estados</SelectItem>
+                <SelectItem value="PENDING">Pendiente</SelectItem>
+                <SelectItem value="IN_PROGRESS">En Progreso</SelectItem>
+                <SelectItem value="COMPLETED">Completada</SelectItem>
+                <SelectItem value="CANCELLED">Cancelada</SelectItem>
               </SelectContent>
             </Select>
             <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
               <SelectTrigger>
-                <SelectValue placeholder="Assignee" />
+                <SelectValue placeholder="Asignado a" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Assignees</SelectItem>
+                <SelectItem value="all">Todos los Asignados</SelectItem>
                 {uniqueAssignees.map((assignee) => (
                   <SelectItem key={assignee} value={assignee}>
                     {assignee}
@@ -106,16 +106,16 @@ export function WorkOrderFilters({
               }}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Sort by" />
+                <SelectValue placeholder="Ordenar por" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="createdAt-desc">Latest First</SelectItem>
-                <SelectItem value="createdAt-asc">Oldest First</SelectItem>
-                <SelectItem value="startedAt-desc">Started Latest</SelectItem>
-                <SelectItem value="startedAt-asc">Started Earliest</SelectItem>
-                <SelectItem value="incident.title-asc">Incident A-Z</SelectItem>
+                <SelectItem value="createdAt-desc">Más Recientes</SelectItem>
+                <SelectItem value="createdAt-asc">Más Antiguas</SelectItem>
+                <SelectItem value="startedAt-desc">Iniciadas Últimas</SelectItem>
+                <SelectItem value="startedAt-asc">Iniciadas Primeras</SelectItem>
+                <SelectItem value="incident.title-asc">Incidente A-Z</SelectItem>
                 <SelectItem value="assignedTo.name-asc">
-                  Assignee A-Z
+                  Asignado A-Z
                 </SelectItem>
               </SelectContent>
             </Select>
@@ -125,13 +125,13 @@ export function WorkOrderFilters({
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-4 border-t">
             <Select value={dateFilterType} onValueChange={setDateFilterType}>
               <SelectTrigger>
-                <SelectValue placeholder="Date Filter Type" />
+                <SelectValue placeholder="Filtrar por Fecha" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="createdAt">Created Date</SelectItem>
-                <SelectItem value="startedAt">Started Date</SelectItem>
-                <SelectItem value="finishedAt">Finished Date</SelectItem>
-                <SelectItem value="updatedAt">Updated Date</SelectItem>
+                <SelectItem value="createdAt">Fecha de Creación</SelectItem>
+                <SelectItem value="startedAt">Fecha de Inicio</SelectItem>
+                <SelectItem value="finishedAt">Fecha de Fin</SelectItem>
+                <SelectItem value="updatedAt">Fecha de Actualización</SelectItem>
               </SelectContent>
             </Select>
             <div className="space-y-1">
@@ -139,7 +139,7 @@ export function WorkOrderFilters({
                 htmlFor="dateFrom"
                 className="text-xs text-muted-foreground"
               >
-                From Date
+                Desde
               </Label>
               <Input
                 id="dateFrom"
@@ -151,7 +151,7 @@ export function WorkOrderFilters({
             </div>
             <div className="space-y-1">
               <Label htmlFor="dateTo" className="text-xs text-muted-foreground">
-                To Date
+                Hasta
               </Label>
               <Input
                 id="dateTo"
@@ -177,7 +177,7 @@ export function WorkOrderFilters({
                 }}
                 className="w-full"
               >
-                Clear All Filters
+                Limpiar Filtros
               </Button>
             </div>
           </div>

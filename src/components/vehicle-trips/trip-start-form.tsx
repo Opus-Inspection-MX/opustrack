@@ -74,7 +74,7 @@ export function TripStartForm() {
       setVehicles(vehiclesData);
       setWorkOrders(workOrdersData);
     } catch (err) {
-      setError("Error loading form data");
+      setError("Error al cargar los datos del formulario");
       console.error(err);
     } finally {
       setLoadingData(false);
@@ -104,7 +104,7 @@ export function TripStartForm() {
 
     // Validation
     if (!formData.vehicleId) {
-      setError("Please select a vehicle");
+      setError("Por favor selecciona un vehículo");
       return;
     }
 
@@ -112,12 +112,12 @@ export function TripStartForm() {
       !formData.startOdometer ||
       Number.parseInt(formData.startOdometer, 10) <= 0
     ) {
-      setError("Please enter a valid odometer reading");
+      setError("Por favor ingresa una lectura de odómetro válida");
       return;
     }
 
     if (!photo) {
-      setError("Please capture a photo of the odometer");
+      setError("Por favor toma una foto del odómetro");
       return;
     }
 
@@ -144,7 +144,7 @@ export function TripStartForm() {
 
       router.push("/fsr/vehicle-trips");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to start trip");
+      setError(err instanceof Error ? err.message : "Error al iniciar el viaje");
     } finally {
       setIsSubmitting(false);
     }
@@ -154,7 +154,7 @@ export function TripStartForm() {
     return (
       <Card>
         <CardContent className="py-8 text-center text-muted-foreground">
-          Loading form...
+          Cargando formulario...
         </CardContent>
       </Card>
     );
@@ -165,10 +165,10 @@ export function TripStartForm() {
       <Card>
         <CardContent className="py-8 text-center">
           <p className="text-muted-foreground mb-4">
-            No available vehicles. All vehicles are currently in use.
+            No hay vehículos disponibles. Todos los vehículos están en uso.
           </p>
           <Button onClick={() => router.back()} variant="outline">
-            Go Back
+            Regresar
           </Button>
         </CardContent>
       </Card>
@@ -178,14 +178,14 @@ export function TripStartForm() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Start Trip</CardTitle>
+        <CardTitle>Iniciar Viaje</CardTitle>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
           {error && <FormError message={error} />}
 
           <div>
-            <Label htmlFor="vehicle">Vehicle *</Label>
+            <Label htmlFor="vehicle">Vehículo *</Label>
             <Select
               value={formData.vehicleId}
               onValueChange={(value) =>
@@ -193,7 +193,7 @@ export function TripStartForm() {
               }
             >
               <SelectTrigger id="vehicle">
-                <SelectValue placeholder="Select a vehicle" />
+                <SelectValue placeholder="Selecciona un vehículo" />
               </SelectTrigger>
               <SelectContent>
                 {vehicles.map((vehicle) => (
@@ -206,7 +206,7 @@ export function TripStartForm() {
           </div>
 
           <div>
-            <Label htmlFor="workOrder">Work Order (Optional)</Label>
+            <Label htmlFor="workOrder">Orden de Trabajo (Opcional)</Label>
             <Select
               value={formData.workOrderId || "none"}
               onValueChange={(value) =>
@@ -217,10 +217,10 @@ export function TripStartForm() {
               }
             >
               <SelectTrigger id="workOrder">
-                <SelectValue placeholder="None - Personal trip" />
+                <SelectValue placeholder="Ninguna - Viaje personal" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="none">None - Personal trip</SelectItem>
+                <SelectItem value="none">Ninguna - Viaje personal</SelectItem>
                 {workOrders.map((wo) => (
                   <SelectItem key={wo.id} value={wo.id}>
                     {wo.folio ? `#${wo.folio}` : `WO-${wo.id}`} -{" "}
@@ -232,7 +232,7 @@ export function TripStartForm() {
           </div>
 
           <div>
-            <Label htmlFor="startOdometer">Starting Odometer (km) *</Label>
+            <Label htmlFor="startOdometer">Odómetro Inicial (km) *</Label>
             <Input
               id="startOdometer"
               type="number"
@@ -240,19 +240,19 @@ export function TripStartForm() {
               onChange={(e) =>
                 setFormData({ ...formData, startOdometer: e.target.value })
               }
-              placeholder="e.g., 12345"
+              placeholder="Ej. 12345"
               min={0}
               required
             />
           </div>
 
           <div>
-            <Label>Odometer Photo *</Label>
+            <Label>Foto del Odómetro *</Label>
             <FileUpload
               onFilesSelected={(files) => setPhoto(files[0] || null)}
               maxFiles={1}
               maxSizeMB={10}
-              label="Capture odometer reading"
+              label="Captura la lectura del odómetro"
               showCamera={true}
               accept="image/*"
             />
@@ -260,19 +260,19 @@ export function TripStartForm() {
 
           <GPSLocationCapture
             onLocationCapture={handleLocationCapture}
-            label="Starting Location (Optional)"
+            label="Ubicación de Inicio (Opcional)"
             showAddressField={true}
           />
 
           <div>
-            <Label htmlFor="notes">Notes (Optional)</Label>
+            <Label htmlFor="notes">Notas (Opcional)</Label>
             <Textarea
               id="notes"
               value={formData.notes}
               onChange={(e) =>
                 setFormData({ ...formData, notes: e.target.value })
               }
-              placeholder="Trip purpose, destination, etc."
+              placeholder="Propósito del viaje, destino, etc."
               rows={3}
             />
           </div>
@@ -285,14 +285,14 @@ export function TripStartForm() {
               disabled={isSubmitting}
               className="w-full sm:w-auto order-2 sm:order-1"
             >
-              Cancel
+              Cancelar
             </Button>
             <Button
               type="submit"
               disabled={isSubmitting}
               className="w-full sm:w-auto order-1 sm:order-2"
             >
-              {isSubmitting ? "Starting Trip..." : "Start Trip"}
+              {isSubmitting ? "Iniciando Viaje..." : "Iniciar Viaje"}
             </Button>
           </div>
         </form>

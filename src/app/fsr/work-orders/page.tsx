@@ -49,12 +49,12 @@ export default async function FSRWorkOrdersPage() {
     if (workOrder.finishedAt) {
       return (
         <Badge variant="default" className="bg-green-600">
-          Completed
+          Completada
         </Badge>
       );
     }
     if (workOrder.startedAt) {
-      return <Badge variant="secondary">In Progress</Badge>;
+      return <Badge variant="secondary">En Progreso</Badge>;
     }
     if (!workOrder.unlockedAt) {
       return (
@@ -63,11 +63,11 @@ export default async function FSRWorkOrdersPage() {
           className="bg-yellow-50 text-yellow-700 border-yellow-300"
         >
           <Lock className="h-3 w-3 mr-1" />
-          Pending Unlock
+          Pendiente de Desbloqueo
         </Badge>
       );
     }
-    return <Badge variant="outline">Not Started</Badge>;
+    return <Badge variant="outline">No Iniciada</Badge>;
   };
 
   const getPriorityColor = (priority: number) => {
@@ -80,9 +80,9 @@ export default async function FSRWorkOrdersPage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold">My Work Orders</h1>
+        <h1 className="text-3xl font-bold">Mis Órdenes de Trabajo</h1>
         <p className="text-muted-foreground mt-2">
-          Work orders assigned to you
+          Órdenes de trabajo asignadas a ti
         </p>
       </div>
 
@@ -101,7 +101,7 @@ export default async function FSRWorkOrdersPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
-              Pending Unlock
+              Pend. Desbloqueo
             </CardTitle>
             <Lock className="h-4 w-4 text-yellow-500" />
           </CardHeader>
@@ -114,7 +114,7 @@ export default async function FSRWorkOrdersPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Not Started</CardTitle>
+            <CardTitle className="text-sm font-medium">No Iniciadas</CardTitle>
             <Clock className="h-4 w-4 text-gray-500" />
           </CardHeader>
           <CardContent>
@@ -124,7 +124,7 @@ export default async function FSRWorkOrdersPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">In Progress</CardTitle>
+            <CardTitle className="text-sm font-medium">En Progreso</CardTitle>
             <AlertTriangle className="h-4 w-4 text-yellow-500" />
           </CardHeader>
           <CardContent>
@@ -134,7 +134,7 @@ export default async function FSRWorkOrdersPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Completed</CardTitle>
+            <CardTitle className="text-sm font-medium">Completadas</CardTitle>
             <CheckCircle className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
@@ -146,13 +146,13 @@ export default async function FSRWorkOrdersPage() {
       {/* Work Orders List */}
       <Card>
         <CardHeader>
-          <CardTitle>Work Orders ({workOrders.length})</CardTitle>
+          <CardTitle>Órdenes de Trabajo ({workOrders.length})</CardTitle>
         </CardHeader>
         <CardContent>
           {workOrders.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <Wrench className="mx-auto h-12 w-12 mb-4 opacity-50" />
-              <p>No work orders assigned yet</p>
+              <p>No tienes órdenes de trabajo asignadas</p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -172,7 +172,7 @@ export default async function FSRWorkOrdersPage() {
                             wo.incident?.priority || 0,
                           )}
                         >
-                          Priority: {wo.incident?.priority || 0}/10
+                          Prioridad: {wo.incident?.priority || 0}/10
                         </Badge>
                         {wo.incident?.type && (
                           <Badge variant="outline">
@@ -187,7 +187,7 @@ export default async function FSRWorkOrdersPage() {
                       {/* Incident Title */}
                       <div>
                         <h3 className="font-semibold text-lg">
-                          {wo.incident?.title || "No incident"}
+                          {wo.incident?.title || "Sin incidente"}
                         </h3>
                         {wo.notes && (
                           <p className="text-sm text-muted-foreground mt-1">
@@ -205,11 +205,11 @@ export default async function FSRWorkOrdersPage() {
                           </div>
                         )}
                         <div>
-                          <span className="font-medium">Activities:</span>{" "}
+                          <span className="font-medium">Actividades:</span>{" "}
                           {wo._count?.workActivities || 0}
                         </div>
                         <div>
-                          <span className="font-medium">Parts:</span>{" "}
+                          <span className="font-medium">Refacciones:</span>{" "}
                           {wo._count?.workParts || 0}
                         </div>
                       </div>
@@ -218,20 +218,20 @@ export default async function FSRWorkOrdersPage() {
                       <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
                         <div className="flex items-center gap-1">
                           <Calendar className="h-3 w-3" />
-                          Created: {new Date(wo.createdAt).toLocaleDateString()}
+                          Creada: {new Date(wo.createdAt).toLocaleDateString("es-MX")}
                         </div>
                         {wo.startedAt && (
                           <div className="flex items-center gap-1">
                             <Clock className="h-3 w-3" />
-                            Started:{" "}
-                            {new Date(wo.startedAt).toLocaleDateString()}
+                            Iniciada:{" "}
+                            {new Date(wo.startedAt).toLocaleDateString("es-MX")}
                           </div>
                         )}
                         {wo.finishedAt && (
                           <div className="flex items-center gap-1">
                             <CheckCircle className="h-3 w-3" />
-                            Completed:{" "}
-                            {new Date(wo.finishedAt).toLocaleDateString()}
+                            Completada:{" "}
+                            {new Date(wo.finishedAt).toLocaleDateString("es-MX")}
                           </div>
                         )}
                       </div>
@@ -249,10 +249,10 @@ export default async function FSRWorkOrdersPage() {
                       >
                         <Link href={`/fsr/work-orders/${wo.id}`}>
                           {wo.finishedAt
-                            ? "View"
+                            ? "Ver"
                             : !wo.unlockedAt
-                              ? "Unlock"
-                              : "Work On It"}
+                              ? "Desbloquear"
+                              : "Trabajar"}
                         </Link>
                       </Button>
                     </div>

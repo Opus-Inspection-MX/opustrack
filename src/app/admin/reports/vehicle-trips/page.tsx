@@ -1,3 +1,4 @@
+import moment from "moment-timezone";
 import {
   getReportSummary,
   getVehicleTripsByFSRData,
@@ -6,13 +7,18 @@ import {
 import { requireRouteAccess } from "@/lib/auth/auth";
 import { VehicleTripsReportClient } from "./vehicle-trips-report-client";
 
+const TZ = "America/Mexico_City";
+
 export default async function VehicleTripsReportPage() {
   await requireRouteAccess("/admin");
 
+  const startDate = moment().tz(TZ).startOf("isoWeek").format("YYYY-MM-DD");
+  const endDate = moment().tz(TZ).endOf("isoWeek").format("YYYY-MM-DD");
+
   const [initialTrendData, initialFsrData, initialSummary] = await Promise.all([
-    getVehicleTripTrendData(),
-    getVehicleTripsByFSRData(),
-    getReportSummary(),
+    getVehicleTripTrendData({ startDate, endDate }),
+    getVehicleTripsByFSRData({ startDate, endDate }),
+    getReportSummary({ startDate, endDate }),
   ]);
 
   return (
@@ -20,6 +26,8 @@ export default async function VehicleTripsReportPage() {
       initialTrendData={initialTrendData}
       initialFsrData={initialFsrData}
       initialSummary={initialSummary}
+      initialStartDate={startDate}
+      initialEndDate={endDate}
     />
   );
 }

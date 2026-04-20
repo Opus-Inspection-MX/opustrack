@@ -98,7 +98,7 @@ export function IncidentsTable({ incidents }: { incidents: Incident[] }) {
             <TableRow>
               <TableHead>Titulo</TableHead>
               <TableHead className="hidden md:table-cell">Tipo</TableHead>
-              <TableHead>Status</TableHead>
+              <TableHead>Estado</TableHead>
               <TableHead>Prioridad</TableHead>
               <TableHead className="hidden lg:table-cell">CVV</TableHead>
               <TableHead className="hidden xl:table-cell">

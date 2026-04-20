@@ -103,7 +103,7 @@ export function WorkOrdersTable({ workOrders }: { workOrders: WorkOrder[] }) {
           <TableRow>
             <TableHead>Incidente</TableHead>
             <TableHead>Asignado A</TableHead>
-            <TableHead>Status</TableHead>
+            <TableHead>Estado</TableHead>
             <TableHead>Desbloqueo</TableHead>
             <TableHead>Actividades</TableHead>
             <TableHead>Partes</TableHead>

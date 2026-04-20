@@ -31,7 +31,7 @@ export function GPSLocationCapture({
 
   const captureGPS = () => {
     if (!navigator.geolocation) {
-      setError("Geolocation is not supported by your browser");
+      setError("La geolocalización no está disponible en tu navegador");
       return;
     }
 
@@ -78,7 +78,7 @@ export function GPSLocationCapture({
             <MapPin className="h-4 w-4" />
           )}
           <span className="ml-2">
-            {loading ? "Capturing..." : "Capture GPS"}
+            {loading ? "Obteniendo ubicación..." : "Capturar GPS"}
           </span>
         </Button>
       </div>
@@ -92,10 +92,10 @@ export function GPSLocationCapture({
 
       {showAddressField && (
         <div>
-          <Label htmlFor="address">Address/Location Name (Optional)</Label>
+          <Label htmlFor="address">Dirección/Nombre del Lugar (Opcional)</Label>
           <Input
             id="address"
-            placeholder="e.g., Cliente ABC, Calle XYZ 123"
+            placeholder="Ej. Cliente ABC, Calle XYZ 123"
             value={address}
             onChange={(e) => {
               setAddress(e.target.value);

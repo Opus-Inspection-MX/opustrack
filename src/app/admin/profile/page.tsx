@@ -83,7 +83,7 @@ export default function AdminProfilePage() {
       const newErrors: Record<string, string> = {};
 
       if (!formData.name.trim()) {
-        newErrors.name = "Name is required";
+        newErrors.name = "El nombre es requerido";
       }
 
       if (Object.keys(newErrors).length > 0) {
@@ -95,13 +95,13 @@ export default function AdminProfilePage() {
       await updateMyProfile(formData);
       await fetchProfile();
       setIsEditing(false);
-      setSuccessMessage("Profile updated successfully!");
+      setSuccessMessage("¡Perfil actualizado exitosamente!");
       setTimeout(() => setSuccessMessage(""), 3000);
     } catch (error) {
       console.error("Error updating profile:", error);
       setErrors({
         submit:
-          error instanceof Error ? error.message : "Failed to update profile",
+          error instanceof Error ? error.message : "Error al actualizar el perfil",
       });
     } finally {
       setIsSaving(false);
@@ -117,17 +117,17 @@ export default function AdminProfilePage() {
       const newErrors: Record<string, string> = {};
 
       if (!passwordData.currentPassword) {
-        newErrors.currentPassword = "Current password is required";
+        newErrors.currentPassword = "La contraseña actual es requerida";
       }
 
       if (!passwordData.newPassword) {
-        newErrors.newPassword = "New password is required";
+        newErrors.newPassword = "La nueva contraseña es requerida";
       } else if (passwordData.newPassword.length < 8) {
-        newErrors.newPassword = "Password must be at least 8 characters";
+        newErrors.newPassword = "La contraseña debe tener al menos 8 caracteres";
       }
 
       if (passwordData.newPassword !== passwordData.confirmPassword) {
-        newErrors.confirmPassword = "Passwords do not match";
+        newErrors.confirmPassword = "Las contraseñas no coinciden";
       }
 
       if (Object.keys(newErrors).length > 0) {
@@ -146,13 +146,13 @@ export default function AdminProfilePage() {
         newPassword: "",
         confirmPassword: "",
       });
-      setSuccessMessage("Password changed successfully!");
+      setSuccessMessage("¡Contraseña cambiada exitosamente!");
       setTimeout(() => setSuccessMessage(""), 3000);
     } catch (error) {
       console.error("Error changing password:", error);
       setErrors({
         submit:
-          error instanceof Error ? error.message : "Failed to change password",
+          error instanceof Error ? error.message : "Error al cambiar la contraseña",
       });
     } finally {
       setIsSaving(false);
@@ -162,7 +162,7 @@ export default function AdminProfilePage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Spinner size="lg" text="Loading profile..." />
+        <Spinner size="lg" text="Cargando perfil..." />
       </div>
     );
   }
@@ -170,7 +170,7 @@ export default function AdminProfilePage() {
   if (!user) {
     return (
       <div className="container max-w-4xl mx-auto py-8">
-        <p>Profile not found</p>
+        <p>Perfil no encontrado</p>
       </div>
     );
   }
@@ -179,9 +179,9 @@ export default function AdminProfilePage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">My Profile</h1>
+          <h1 className="text-3xl font-bold">Mi Perfil</h1>
           <p className="text-muted-foreground">
-            Manage your personal information
+            Administra tu información personal
           </p>
         </div>
         {!isEditing && !isChangingPassword && (
@@ -191,11 +191,11 @@ export default function AdminProfilePage() {
               onClick={() => setIsChangingPassword(true)}
             >
               <Lock className="mr-2 h-4 w-4" />
-              Change Password
+              Cambiar Contraseña
             </Button>
             <Button onClick={() => setIsEditing(true)}>
               <Edit2 className="mr-2 h-4 w-4" />
-              Edit Profile
+              Editar Perfil
             </Button>
           </div>
         )}
@@ -213,14 +213,14 @@ export default function AdminProfilePage() {
         {/* Personal Information Card */}
         <Card>
           <CardHeader>
-            <CardTitle>Personal Information</CardTitle>
+            <CardTitle>Información Personal</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {isEditing ? (
               <>
                 <div className="space-y-2">
                   <Label htmlFor="name">
-                    Name <span className="text-red-500">*</span>
+                    Nombre <span className="text-red-500">*</span>
                   </Label>
                   <Input
                     id="name"
@@ -234,15 +234,15 @@ export default function AdminProfilePage() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <p className="text-sm text-muted-foreground mb-2">Email</p>
+                    <p className="text-sm text-muted-foreground mb-2">Correo</p>
                     <p className="font-medium">{user.email}</p>
                     <p className="text-xs text-muted-foreground">
-                      Email cannot be changed
+                      El correo no puede modificarse
                     </p>
                   </div>
 
                   <div>
-                    <p className="text-sm text-muted-foreground mb-2">Role</p>
+                    <p className="text-sm text-muted-foreground mb-2">Rol</p>
                     <Badge variant="outline">{user.role.name}</Badge>
                   </div>
                 </div>
@@ -252,7 +252,7 @@ export default function AdminProfilePage() {
                 <div className="flex items-center gap-3">
                   <User className="h-5 w-5 text-muted-foreground" />
                   <div>
-                    <p className="text-sm text-muted-foreground">Name</p>
+                    <p className="text-sm text-muted-foreground">Nombre</p>
                     <p className="font-medium">{user.name}</p>
                   </div>
                 </div>
@@ -260,7 +260,7 @@ export default function AdminProfilePage() {
                 <div className="flex items-center gap-3">
                   <Mail className="h-5 w-5 text-muted-foreground" />
                   <div>
-                    <p className="text-sm text-muted-foreground">Email</p>
+                    <p className="text-sm text-muted-foreground">Correo</p>
                     <p className="font-medium">{user.email}</p>
                   </div>
                 </div>
@@ -268,7 +268,7 @@ export default function AdminProfilePage() {
                 <div className="flex items-center gap-3">
                   <Shield className="h-5 w-5 text-muted-foreground" />
                   <div>
-                    <p className="text-sm text-muted-foreground">Role</p>
+                    <p className="text-sm text-muted-foreground">Rol</p>
                     <Badge variant="outline">{user.role.name}</Badge>
                   </div>
                 </div>
@@ -280,7 +280,7 @@ export default function AdminProfilePage() {
                     <p className="font-medium">
                       {user.vic
                         ? `${user.vic.name} (${user.vic.code})`
-                        : "Not assigned"}
+                        : "Sin asignar"}
                     </p>
                   </div>
                 </div>
@@ -292,13 +292,13 @@ export default function AdminProfilePage() {
         {/* Contact Information Card */}
         <Card>
           <CardHeader>
-            <CardTitle>Contact Information</CardTitle>
+            <CardTitle>Información de Contacto</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {isEditing ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="telephone">Telephone</Label>
+                  <Label htmlFor="telephone">Teléfono</Label>
                   <Input
                     id="telephone"
                     value={formData.telephone}
@@ -311,7 +311,7 @@ export default function AdminProfilePage() {
 
                 <div className="space-y-2">
                   <Label htmlFor="secondaryTelephone">
-                    Secondary Telephone
+                    Teléfono Secundario
                   </Label>
                   <Input
                     id="secondaryTelephone"
@@ -327,19 +327,19 @@ export default function AdminProfilePage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="jobPosition">Job Position</Label>
+                  <Label htmlFor="jobPosition">Puesto de Trabajo</Label>
                   <Input
                     id="jobPosition"
                     value={formData.jobPosition}
                     onChange={(e) =>
                       setFormData({ ...formData, jobPosition: e.target.value })
                     }
-                    placeholder="e.g., Senior Technician"
+                    placeholder="Ej. Técnico Senior"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="emergencyContact">Emergency Contact</Label>
+                  <Label htmlFor="emergencyContact">Contacto de Emergencia</Label>
                   <Input
                     id="emergencyContact"
                     value={formData.emergencyContact}
@@ -349,7 +349,7 @@ export default function AdminProfilePage() {
                         emergencyContact: e.target.value,
                       })
                     }
-                    placeholder="Name - Phone"
+                    placeholder="Nombre - Teléfono"
                   />
                 </div>
               </div>
@@ -359,7 +359,7 @@ export default function AdminProfilePage() {
                   <div className="flex items-center gap-3">
                     <Phone className="h-5 w-5 text-muted-foreground" />
                     <div>
-                      <p className="text-sm text-muted-foreground">Telephone</p>
+                      <p className="text-sm text-muted-foreground">Teléfono</p>
                       <p className="font-medium">
                         {user.userProfile.telephone}
                       </p>
@@ -372,7 +372,7 @@ export default function AdminProfilePage() {
                     <Phone className="h-5 w-5 text-muted-foreground" />
                     <div>
                       <p className="text-sm text-muted-foreground">
-                        Secondary Telephone
+                        Teléfono Secundario
                       </p>
                       <p className="font-medium">
                         {user.userProfile.secondaryTelephone}
@@ -386,7 +386,7 @@ export default function AdminProfilePage() {
                     <Building className="h-5 w-5 text-muted-foreground" />
                     <div>
                       <p className="text-sm text-muted-foreground">
-                        Job Position
+                        Puesto de Trabajo
                       </p>
                       <p className="font-medium">
                         {user.userProfile.jobPosition}
@@ -400,7 +400,7 @@ export default function AdminProfilePage() {
                     <Phone className="h-5 w-5 text-muted-foreground" />
                     <div>
                       <p className="text-sm text-muted-foreground">
-                        Emergency Contact
+                        Contacto de Emergencia
                       </p>
                       <p className="font-medium">
                         {user.userProfile.emergencyContact}
@@ -434,15 +434,15 @@ export default function AdminProfilePage() {
               disabled={isSaving}
             >
               <X className="mr-2 h-4 w-4" />
-              Cancel
+              Cancelar
             </Button>
             <Button onClick={handleSaveProfile} disabled={isSaving}>
               {isSaving ? (
-                "Saving..."
+                "Guardando..."
               ) : (
                 <>
                   <Save className="mr-2 h-4 w-4" />
-                  Save Changes
+                  Guardar Cambios
                 </>
               )}
             </Button>
@@ -453,12 +453,12 @@ export default function AdminProfilePage() {
         {isChangingPassword && (
           <Card>
             <CardHeader>
-              <CardTitle>Change Password</CardTitle>
+              <CardTitle>Cambiar Contraseña</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="currentPassword">
-                  Current Password <span className="text-red-500">*</span>
+                  Contraseña Actual <span className="text-red-500">*</span>
                 </Label>
                 <Input
                   id="currentPassword"
@@ -478,7 +478,7 @@ export default function AdminProfilePage() {
 
               <div className="space-y-2">
                 <Label htmlFor="newPassword">
-                  New Password <span className="text-red-500">*</span>
+                  Nueva Contraseña <span className="text-red-500">*</span>
                 </Label>
                 <Input
                   id="newPassword"
@@ -495,13 +495,13 @@ export default function AdminProfilePage() {
                   <FormError message={errors.newPassword} />
                 )}
                 <p className="text-xs text-muted-foreground">
-                  Must be at least 8 characters
+                  Debe tener al menos 8 caracteres
                 </p>
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="confirmPassword">
-                  Confirm New Password <span className="text-red-500">*</span>
+                  Confirmar Nueva Contraseña <span className="text-red-500">*</span>
                 </Label>
                 <Input
                   id="confirmPassword"
@@ -534,15 +534,15 @@ export default function AdminProfilePage() {
                   disabled={isSaving}
                 >
                   <X className="mr-2 h-4 w-4" />
-                  Cancel
+                  Cancelar
                 </Button>
                 <Button onClick={handleChangePassword} disabled={isSaving}>
                   {isSaving ? (
-                    "Changing..."
+                    "Cambiando..."
                   ) : (
                     <>
                       <Lock className="mr-2 h-4 w-4" />
-                      Change Password
+                      Cambiar Contraseña
                     </>
                   )}
                 </Button>
@@ -554,12 +554,12 @@ export default function AdminProfilePage() {
         {/* Account Status Card */}
         <Card>
           <CardHeader>
-            <CardTitle>Account Status</CardTitle>
+            <CardTitle>Estado de la Cuenta</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <p className="text-sm text-muted-foreground">Status</p>
+                <p className="text-sm text-muted-foreground">Estado</p>
                 <Badge
                   variant={
                     user.userStatus.name === "ACTIVO" ? "default" : "secondary"
@@ -570,9 +570,9 @@ export default function AdminProfilePage() {
               </div>
 
               <div>
-                <p className="text-sm text-muted-foreground">Member since</p>
+                <p className="text-sm text-muted-foreground">Miembro desde</p>
                 <p className="font-medium">
-                  {new Date(user.createdAt).toLocaleDateString("en-US", {
+                  {new Date(user.createdAt).toLocaleDateString("es-MX", {
                     year: "numeric",
                     month: "long",
                     day: "numeric",

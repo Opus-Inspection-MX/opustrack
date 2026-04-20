@@ -145,7 +145,7 @@ export default function FSRWorkOrderDetailPage({
     } catch (error) {
       console.error("Error fetching data:", error);
       setError(
-        error instanceof Error ? error.message : "Failed to load work order",
+        error instanceof Error ? error.message : "Error al cargar la orden de trabajo",
       );
     } finally {
       setLoading(false);
@@ -159,26 +159,26 @@ export default function FSRWorkOrderDetailPage({
   }, [workOrderId, fetchData]);
 
   const handleDeleteActivity = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this activity?")) return;
+    if (!confirm("¿Estás seguro de que deseas eliminar esta actividad?")) return;
 
     try {
       await deleteWorkActivity(id);
       await fetchData();
     } catch (error) {
       console.error("Error deleting activity:", error);
-      alert("Failed to delete activity");
+      alert("Error al eliminar la actividad");
     }
   };
 
   const handleDeleteAttachment = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this file?")) return;
+    if (!confirm("¿Estás seguro de que deseas eliminar este archivo?")) return;
 
     try {
       await deleteWorkOrderAttachment(id);
       await fetchData();
     } catch (error) {
       console.error("Error deleting attachment:", error);
-      alert("Failed to delete file");
+      alert("Error al eliminar el archivo");
     }
   };
 
@@ -196,7 +196,7 @@ export default function FSRWorkOrderDetailPage({
       await fetchData();
     } catch (error) {
       console.error("Error starting work order:", error);
-      alert("Failed to start work order");
+      alert("Error al iniciar la orden de trabajo");
     } finally {
       setActionLoading(false);
     }
@@ -204,17 +204,17 @@ export default function FSRWorkOrderDetailPage({
 
   const handleCompleteWork = async () => {
     if (!workOrderId) return;
-    if (!confirm("Are you sure you want to mark this work order as complete?"))
+    if (!confirm("¿Estás seguro de que deseas marcar esta orden como completada?"))
       return;
 
     try {
       setActionLoading(true);
       await completeWorkOrder(workOrderId);
       await fetchData();
-      alert("Work order completed successfully!");
+      alert("¡Orden de trabajo completada exitosamente!");
     } catch (error) {
       console.error("Error completing work order:", error);
-      alert("Failed to complete work order");
+      alert("Error al completar la orden de trabajo");
     } finally {
       setActionLoading(false);
     }
@@ -222,16 +222,16 @@ export default function FSRWorkOrderDetailPage({
 
   const handleReopenWork = async () => {
     if (!workOrderId) return;
-    if (!confirm("Are you sure you want to reopen this work order?")) return;
+    if (!confirm("¿Estás seguro de que deseas reabrir esta orden de trabajo?")) return;
 
     try {
       setActionLoading(true);
       await reopenWorkOrder(workOrderId);
       await fetchData();
-      alert("Work order reopened successfully!");
+      alert("¡Orden de trabajo reabierta exitosamente!");
     } catch (error) {
       console.error("Error reopening work order:", error);
-      alert("Failed to reopen work order");
+      alert("Error al reabrir la orden de trabajo");
     } finally {
       setActionLoading(false);
     }
@@ -246,7 +246,7 @@ export default function FSRWorkOrderDetailPage({
       await fetchData();
     } catch (error) {
       console.error("Error unlocking work order:", error);
-      alert("Failed to unlock work order");
+      alert("Error al desbloquear la orden de trabajo");
     } finally {
       setActionLoading(false);
     }
@@ -255,7 +255,7 @@ export default function FSRWorkOrderDetailPage({
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Spinner size="lg" text="Loading work order..." />
+        <Spinner size="lg" text="Cargando orden de trabajo..." />
       </div>
     );
   }
@@ -269,7 +269,7 @@ export default function FSRWorkOrderDetailPage({
               <ArrowLeft className="h-4 w-4" />
             </Link>
           </Button>
-          <h1 className="text-3xl font-bold">Work Order</h1>
+          <h1 className="text-3xl font-bold">Orden de Trabajo</h1>
         </div>
         <Card className="border-destructive">
           <CardContent className="py-8">
@@ -277,19 +277,19 @@ export default function FSRWorkOrderDetailPage({
               <AlertTriangle className="h-12 w-12 text-destructive" />
               <div>
                 <h3 className="text-lg font-semibold mb-2">
-                  Failed to Load Work Order
+                  Error al Cargar la Orden de Trabajo
                 </h3>
                 <p className="text-muted-foreground">
                   {error ||
-                    "Work order not found or you don't have permission to view it."}
+                    "Orden de trabajo no encontrada o no tienes permiso para verla."}
                 </p>
               </div>
               <div className="flex gap-2">
                 <Button onClick={() => fetchData()} variant="outline">
-                  Try Again
+                  Reintentar
                 </Button>
                 <Button asChild>
-                  <Link href="/fsr/work-orders">Back to Work Orders</Link>
+                  <Link href="/fsr/work-orders">Volver a Órdenes</Link>
                 </Button>
               </div>
             </div>
@@ -319,9 +319,9 @@ export default function FSRWorkOrderDetailPage({
           </Link>
         </Button>
         <div className="flex-1">
-          <h1 className="text-3xl font-bold">Work Order</h1>
+          <h1 className="text-3xl font-bold">Orden de Trabajo</h1>
           <p className="text-muted-foreground">
-            {workOrder.incident?.title || "No incident"}
+            {workOrder.incident?.title || "Sin incidente"}
           </p>
         </div>
         <div className="flex gap-2">
@@ -333,7 +333,7 @@ export default function FSRWorkOrderDetailPage({
               className="bg-yellow-600 hover:bg-yellow-700"
             >
               <Unlock className="mr-2 h-4 w-4" />
-              Unlock / Acknowledge
+              Desbloquear / Confirmar
             </Button>
           )}
           {/* Start Work Button - Shows after unlock, before start */}
@@ -344,7 +344,7 @@ export default function FSRWorkOrderDetailPage({
               variant="secondary"
             >
               <Play className="mr-2 h-4 w-4" />
-              Start Work
+              Iniciar Trabajo
             </Button>
           )}
           {/* Complete Button - Shows after start */}
@@ -355,7 +355,7 @@ export default function FSRWorkOrderDetailPage({
               className="bg-green-600 hover:bg-green-700"
             >
               <CheckCircle className="mr-2 h-4 w-4" />
-              Complete Work Order
+              Completar Orden
             </Button>
           )}
           {/* Completed state */}
@@ -365,14 +365,14 @@ export default function FSRWorkOrderDetailPage({
                 variant="default"
                 className="bg-green-600 text-lg py-2 px-4"
               >
-                Completed
+                Completada
               </Badge>
               <Button
                 onClick={handleReopenWork}
                 disabled={actionLoading}
                 variant="outline"
               >
-                Reopen
+                Reabrir
               </Button>
             </>
           )}
@@ -386,15 +386,15 @@ export default function FSRWorkOrderDetailPage({
             <div className="flex items-center gap-3">
               <AlertTriangle className="h-5 w-5 text-primary" />
               <div className="flex-1">
-                <p className="text-sm text-muted-foreground">Parent Incident</p>
+                <p className="text-sm text-muted-foreground">Incidente Relacionado</p>
                 <p className="font-medium">{workOrder.incident.title}</p>
                 <div className="flex gap-4 text-xs text-muted-foreground mt-1">
                   {workOrder.incident.type?.name && (
-                    <span>Type: {workOrder.incident.type.name}</span>
+                    <span>Tipo: {workOrder.incident.type.name}</span>
                   )}
-                  <span>Priority: {workOrder.incident.priority}/10</span>
+                  <span>Prioridad: {workOrder.incident.priority}/10</span>
                   {workOrder.incident.status?.name && (
-                    <span>Status: {workOrder.incident.status.name}</span>
+                    <span>Estado: {workOrder.incident.status.name}</span>
                   )}
                   {workOrder.incident.vic?.name && (
                     <span>VIC: {workOrder.incident.vic.name}</span>
@@ -409,11 +409,11 @@ export default function FSRWorkOrderDetailPage({
       {/* Work Order Details */}
       <Card>
         <CardHeader>
-          <CardTitle>Work Order Details</CardTitle>
+          <CardTitle>Detalles de la Orden</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
-            <span className="font-medium">Status:</span>{" "}
+            <span className="font-medium">Estado:</span>{" "}
             <Badge
               variant="outline"
               style={{
@@ -436,37 +436,37 @@ export default function FSRWorkOrderDetailPage({
           <div className="grid grid-cols-2 gap-4 text-sm">
             {workOrder.createdAt && (
               <div>
-                <span className="font-medium">Created:</span>{" "}
+                <span className="font-medium">Creada:</span>{" "}
                 {new Date(workOrder.createdAt).toLocaleString()}
               </div>
             )}
             {workOrder.unlockedAt ? (
               <div>
-                <span className="font-medium">Unlocked:</span>{" "}
+                <span className="font-medium">Desbloqueada:</span>{" "}
                 {new Date(workOrder.unlockedAt).toLocaleString()}
               </div>
             ) : (
               <div className="flex items-center gap-1 text-yellow-600">
                 <Lock className="h-3 w-3" />
-                <span className="font-medium">Not Unlocked</span>
+                <span className="font-medium">No Desbloqueada</span>
               </div>
             )}
             {workOrder.startedAt && (
               <div>
-                <span className="font-medium">Started:</span>{" "}
+                <span className="font-medium">Iniciada:</span>{" "}
                 {new Date(workOrder.startedAt).toLocaleString()}
               </div>
             )}
             {workOrder.finishedAt && (
               <div>
-                <span className="font-medium">Completed:</span>{" "}
+                <span className="font-medium">Completada:</span>{" "}
                 {new Date(workOrder.finishedAt).toLocaleString()}
               </div>
             )}
           </div>
           {workOrder.notes && (
             <div>
-              <p className="font-medium text-sm mb-1">Notes:</p>
+              <p className="font-medium text-sm mb-1">Notas:</p>
               <p className="text-sm text-muted-foreground">{workOrder.notes}</p>
             </div>
           )}
@@ -481,10 +481,10 @@ export default function FSRWorkOrderDetailPage({
           <div>
             <h2 className="text-2xl font-bold flex items-center gap-2">
               <Activity className="h-6 w-6" />
-              Work Activities ({activities.length})
+              Actividades de Trabajo ({activities.length})
             </h2>
             <p className="text-sm text-muted-foreground">
-              Document all work performed on this order
+              Documenta todo el trabajo realizado en esta orden
             </p>
           </div>
           {!isCompleted && (
@@ -492,7 +492,7 @@ export default function FSRWorkOrderDetailPage({
               onClick={() => setShowActivityForm(!showActivityForm)}
               variant={showActivityForm ? "outline" : "default"}
             >
-              {showActivityForm ? "Cancel" : "Add Activity"}
+              {showActivityForm ? "Cancelar" : "Agregar Actividad"}
             </Button>
           )}
         </div>
@@ -508,7 +508,7 @@ export default function FSRWorkOrderDetailPage({
         {activities.length === 0 && !showActivityForm && (
           <Card>
             <CardContent className="py-8 text-center text-muted-foreground">
-              No work activities yet. Click "Add Activity" to record work done.
+              Sin actividades aún. Haz clic en "Agregar Actividad" para registrar el trabajo.
             </CardContent>
           </Card>
         )}
@@ -536,7 +536,7 @@ export default function FSRWorkOrderDetailPage({
             </CardHeader>
             {activity.workParts && activity.workParts.length > 0 && (
               <CardContent>
-                <p className="text-sm font-medium mb-2">Parts Used:</p>
+                <p className="text-sm font-medium mb-2">Refacciones Usadas:</p>
                 <div className="space-y-1">
                   {activity.workParts.map((wp: WorkActivityPart) => (
                     <div
@@ -567,10 +567,10 @@ export default function FSRWorkOrderDetailPage({
             <div>
               <h2 className="text-2xl font-bold flex items-center gap-2">
                 <Package className="h-6 w-6" />
-                Parts Used ({workParts.length})
+                Refacciones Usadas ({workParts.length})
               </h2>
               <p className="text-sm text-muted-foreground">
-                Total Cost: ${totalPartsCost.toFixed(2)}
+                Costo Total: ${totalPartsCost.toFixed(2)}
               </p>
             </div>
 
@@ -585,7 +585,7 @@ export default function FSRWorkOrderDetailPage({
                       <div>
                         <p className="font-medium">{wp.part?.name}</p>
                         <p className="text-sm text-muted-foreground">
-                          Quantity: {wp.quantity} × $
+                          Cantidad: {wp.quantity} × $
                           {(wp.price ?? 0).toFixed(2)}
                         </p>
                       </div>
@@ -608,17 +608,17 @@ export default function FSRWorkOrderDetailPage({
         <div>
           <h2 className="text-2xl font-bold flex items-center gap-2">
             <Paperclip className="h-6 w-6" />
-            Attachments ({attachments.length})
+            Archivos Adjuntos ({attachments.length})
           </h2>
           <p className="text-sm text-muted-foreground">
-            Photos, videos, and documents attached to this work order
+            Fotos, videos y documentos adjuntos a esta orden
           </p>
         </div>
 
         {attachments.length === 0 && (
           <Card>
             <CardContent className="py-8 text-center text-muted-foreground">
-              No attachments. Files are uploaded when adding work activities.
+              Sin archivos adjuntos. Los archivos se suben al agregar actividades.
             </CardContent>
           </Card>
         )}
@@ -643,7 +643,7 @@ export default function FSRWorkOrderDetailPage({
       {/* Back Button */}
       <div className="flex justify-end">
         <Button variant="outline" onClick={() => router.back()}>
-          Back to Work Orders
+          Volver a Órdenes
         </Button>
       </div>
     </div>

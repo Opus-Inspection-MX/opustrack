@@ -17,7 +17,7 @@ export function WorkOrderStats({ workOrders }: WorkOrderStatsProps) {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">
-            Total Work Orders
+            Total Órdenes
           </CardTitle>
           <Clock className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
@@ -27,7 +27,7 @@ export function WorkOrderStats({ workOrders }: WorkOrderStatsProps) {
       </Card>
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Pending</CardTitle>
+          <CardTitle className="text-sm font-medium">Pendiente</CardTitle>
           <Clock className="h-4 w-4 text-yellow-600" />
         </CardHeader>
         <CardContent>
@@ -38,7 +38,7 @@ export function WorkOrderStats({ workOrders }: WorkOrderStatsProps) {
       </Card>
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">In Progress</CardTitle>
+          <CardTitle className="text-sm font-medium">En Progreso</CardTitle>
           <AlertCircle className="h-4 w-4 text-blue-600" />
         </CardHeader>
         <CardContent>
@@ -49,7 +49,7 @@ export function WorkOrderStats({ workOrders }: WorkOrderStatsProps) {
       </Card>
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Completed</CardTitle>
+          <CardTitle className="text-sm font-medium">Completado</CardTitle>
           <CheckCircle className="h-4 w-4 text-green-600" />
         </CardHeader>
         <CardContent>

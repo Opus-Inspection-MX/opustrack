@@ -56,7 +56,7 @@ export default function EditTripPage({
         });
       } catch (err) {
         setError(
-          err instanceof Error ? err.message : "Failed to load trip data",
+          err instanceof Error ? err.message : "Error al cargar los datos del viaje",
         );
       } finally {
         setLoading(false);
@@ -80,7 +80,7 @@ export default function EditTripPage({
 
       router.push(`/fsr/vehicle-trips/${resolvedParams.id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update trip");
+      setError(err instanceof Error ? err.message : "Error al actualizar el viaje");
     } finally {
       setIsSubmitting(false);
     }
@@ -91,7 +91,7 @@ export default function EditTripPage({
       <div className="container mx-auto py-6">
         <Card>
           <CardContent className="py-8 text-center text-muted-foreground">
-            Loading trip data...
+            Cargando datos del viaje...
           </CardContent>
         </Card>
       </div>
@@ -103,13 +103,13 @@ export default function EditTripPage({
       <div className="container mx-auto py-6">
         <Card>
           <CardContent className="py-8 text-center">
-            <p className="text-destructive">Trip not found</p>
+            <p className="text-destructive">Viaje no encontrado</p>
             <Button
               variant="outline"
               onClick={() => router.back()}
               className="mt-4"
             >
-              Go Back
+              Regresar
             </Button>
           </CardContent>
         </Card>
@@ -121,7 +121,7 @@ export default function EditTripPage({
     <div className="container mx-auto py-6 space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-start">
         <div className="min-w-0">
-          <h1 className="text-2xl sm:text-3xl font-bold">Edit Trip</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold">Editar Viaje</h1>
           <p className="text-sm sm:text-base text-muted-foreground truncate">
             {trip.vehicle.make} {trip.vehicle.model} -{" "}
             {trip.vehicle.licensePlate}
@@ -131,10 +131,10 @@ export default function EditTripPage({
 
       <Card>
         <CardHeader>
-          <CardTitle>Update Trip Information</CardTitle>
+          <CardTitle>Actualizar Información del Viaje</CardTitle>
           <p className="text-sm text-muted-foreground">
-            You can update notes and addresses. Odometer readings and photos
-            cannot be changed.
+            Puedes actualizar notas y direcciones. Las lecturas del odómetro y las fotos
+            no pueden modificarse.
           </p>
         </CardHeader>
         <CardContent>
@@ -142,40 +142,40 @@ export default function EditTripPage({
             {error && <FormError message={error} />}
 
             <div>
-              <Label htmlFor="notes">Notes</Label>
+              <Label htmlFor="notes">Notas</Label>
               <Textarea
                 id="notes"
                 value={formData.notes}
                 onChange={(e) =>
                   setFormData({ ...formData, notes: e.target.value })
                 }
-                placeholder="Trip purpose, destination, observations, etc."
+                placeholder="Propósito, destino, observaciones, etc."
                 rows={4}
               />
             </div>
 
             <div>
-              <Label htmlFor="startAddress">Starting Location/Address</Label>
+              <Label htmlFor="startAddress">Dirección de Inicio</Label>
               <Input
                 id="startAddress"
                 value={formData.startAddress}
                 onChange={(e) =>
                   setFormData({ ...formData, startAddress: e.target.value })
                 }
-                placeholder="e.g., Cliente ABC, Calle XYZ 123"
+                placeholder="Ej. Cliente ABC, Calle XYZ 123"
               />
             </div>
 
             {trip.status === "COMPLETED" && (
               <div>
-                <Label htmlFor="endAddress">Ending Location/Address</Label>
+                <Label htmlFor="endAddress">Dirección de Fin</Label>
                 <Input
                   id="endAddress"
                   value={formData.endAddress}
                   onChange={(e) =>
                     setFormData({ ...formData, endAddress: e.target.value })
                   }
-                  placeholder="e.g., Office, Cliente XYZ"
+                  placeholder="Ej. Oficina, Cliente XYZ"
                 />
               </div>
             )}
@@ -188,14 +188,14 @@ export default function EditTripPage({
                 disabled={isSubmitting}
                 className="w-full sm:w-auto order-2 sm:order-1"
               >
-                Cancel
+                Cancelar
               </Button>
               <Button
                 type="submit"
                 disabled={isSubmitting}
                 className="w-full sm:w-auto order-1 sm:order-2"
               >
-                {isSubmitting ? "Saving..." : "Save Changes"}
+                {isSubmitting ? "Guardando..." : "Guardar Cambios"}
               </Button>
             </div>
           </form>

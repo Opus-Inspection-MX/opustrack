@@ -174,38 +174,38 @@ export default function EditWorkOrderPage({
   }, [workOrderId, fetchData]);
 
   const handleDeleteActivity = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this activity?")) return;
+    if (!confirm("¿Estás seguro de que deseas eliminar esta actividad?")) return;
 
     try {
       await deleteWorkActivity(id);
       await fetchData();
     } catch (error) {
       console.error("Error deleting activity:", error);
-      alert("Failed to delete activity");
+      alert("Error al eliminar la actividad");
     }
   };
 
   const handleDeletePart = async (id: string) => {
-    if (!confirm("Are you sure you want to remove this part?")) return;
+    if (!confirm("¿Estás seguro de que deseas eliminar esta refacción?")) return;
 
     try {
       await deleteWorkPart(id);
       await fetchData();
     } catch (error) {
       console.error("Error deleting part:", error);
-      alert("Failed to remove part");
+      alert("Error al eliminar la refacción");
     }
   };
 
   const handleDeleteAttachment = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this file?")) return;
+    if (!confirm("¿Estás seguro de que deseas eliminar este archivo?")) return;
 
     try {
       await deleteWorkOrderAttachment(id);
       await fetchData();
     } catch (error) {
       console.error("Error deleting attachment:", error);
-      alert("Failed to delete file");
+      alert("Error al eliminar el archivo");
     }
   };
 
@@ -222,7 +222,7 @@ export default function EditWorkOrderPage({
   if (loading || !workOrder) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Spinner size="lg" text="Loading work order..." />
+        <Spinner size="lg" text="Cargando orden de trabajo..." />
       </div>
     );
   }
@@ -242,9 +242,9 @@ export default function EditWorkOrderPage({
           </Link>
         </Button>
         <div className="flex-1">
-          <h1 className="text-3xl font-bold">Edit Work Order</h1>
+          <h1 className="text-3xl font-bold">Editar Orden de Trabajo</h1>
           <p className="text-muted-foreground">
-            {workOrder.incident?.title || "No incident"}
+            {workOrder.incident?.title || "Sin incidente"}
           </p>
         </div>
         <Badge
@@ -267,12 +267,12 @@ export default function EditWorkOrderPage({
             <div className="flex items-center gap-3">
               <AlertTriangle className="h-5 w-5 text-primary" />
               <div>
-                <p className="text-sm text-muted-foreground">Parent Incident</p>
+                <p className="text-sm text-muted-foreground">Incidente Padre</p>
                 <p className="font-medium">{workOrder.incident.title}</p>
                 <p className="text-xs text-muted-foreground">
                   {workOrder.incident.type?.name &&
-                    `Type: ${workOrder.incident.type.name} • `}
-                  Priority: {workOrder.incident.priority}/10 • Status:{" "}
+                    `Tipo: ${workOrder.incident.type.name} • `}
+                  Prioridad: {workOrder.incident.priority}/10 • Estado:{" "}
                   {workOrder.incident.status?.name}
                 </p>
               </div>
@@ -280,7 +280,7 @@ export default function EditWorkOrderPage({
             <Button variant="outline" size="sm" asChild>
               <Link href={`/admin/incidents/${workOrder.incident.id}`}>
                 <ExternalLink className="mr-2 h-4 w-4" />
-                View Incident
+                Ver Incidente
               </Link>
             </Button>
           </CardContent>
@@ -307,17 +307,17 @@ export default function EditWorkOrderPage({
           <div>
             <h2 className="text-2xl font-bold flex items-center gap-2">
               <Activity className="h-6 w-6" />
-              Work Activities ({activities.length})
+              Actividades de Trabajo ({activities.length})
             </h2>
             <p className="text-sm text-muted-foreground">
-              Track all work performed on this order
+              Registro de todo el trabajo realizado en esta orden
             </p>
           </div>
           <Button
             onClick={() => setShowActivityForm(!showActivityForm)}
             variant={showActivityForm ? "outline" : "default"}
           >
-            {showActivityForm ? "Cancel" : "Add Activity"}
+            {showActivityForm ? "Cancelar" : "Agregar Actividad"}
           </Button>
         </div>
 
@@ -332,7 +332,7 @@ export default function EditWorkOrderPage({
         {activities.length === 0 && !showActivityForm && (
           <Card>
             <CardContent className="py-8 text-center text-muted-foreground">
-              No work activities yet. Click "Add Activity" to record work done.
+              Sin actividades aún. Haz clic en "Agregar Actividad" para registrar el trabajo.
             </CardContent>
           </Card>
         )}
@@ -354,7 +354,7 @@ export default function EditWorkOrderPage({
             </CardHeader>
             {activity.workParts && activity.workParts.length > 0 && (
               <CardContent>
-                <p className="text-sm font-medium mb-2">Parts Used:</p>
+                <p className="text-sm font-medium mb-2">Refacciones Usadas:</p>
                 <div className="space-y-1">
                   {activity.workParts.map((wp: WorkPart) => (
                     <div
@@ -384,17 +384,17 @@ export default function EditWorkOrderPage({
           <div>
             <h2 className="text-2xl font-bold flex items-center gap-2">
               <Package className="h-6 w-6" />
-              Parts Used ({workParts.length})
+              Refacciones Usadas ({workParts.length})
             </h2>
             <p className="text-sm text-muted-foreground">
-              Total Cost: ${totalPartsCost.toFixed(2)}
+              Costo Total: ${totalPartsCost.toFixed(2)}
             </p>
           </div>
           <Button
             onClick={() => setShowPartForm(!showPartForm)}
             variant={showPartForm ? "outline" : "default"}
           >
-            {showPartForm ? "Cancel" : "Add Part"}
+            {showPartForm ? "Cancelar" : "Agregar Refacción"}
           </Button>
         </div>
 
@@ -410,7 +410,7 @@ export default function EditWorkOrderPage({
         {workParts.length === 0 && !showPartForm && (
           <Card>
             <CardContent className="py-8 text-center text-muted-foreground">
-              No parts used yet. Click "Add Part" to record parts.
+              Sin refacciones aún. Haz clic en "Agregar Refacción" para registrar.
             </CardContent>
           </Card>
         )}

@@ -41,7 +41,7 @@ export function AttachmentPreview({
   );
 
   const handleDelete = () => {
-    if (onDelete && confirm("Are you sure you want to delete this file?")) {
+    if (onDelete && confirm("¿Estás seguro de que deseas eliminar este archivo?")) {
       onDelete(attachment.id);
     }
   };
@@ -89,7 +89,7 @@ export function AttachmentPreview({
           </a>
           <p className="text-xs text-muted-foreground">
             {formatFileSize(attachment.size)} •{" "}
-            {new Date(attachment.uploadedAt).toLocaleDateString()}
+            {new Date(attachment.uploadedAt).toLocaleDateString("es-MX")}
           </p>
           {attachment.description && (
             <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
@@ -158,7 +158,7 @@ export function AttachmentPreview({
             <div className="flex items-center justify-between p-4 pt-0 border-t">
               <p className="text-sm text-muted-foreground">
                 {formatFileSize(attachment.size)} •{" "}
-                {new Date(attachment.uploadedAt).toLocaleString()}
+                {new Date(attachment.uploadedAt).toLocaleString("es-MX")}
               </p>
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" asChild>

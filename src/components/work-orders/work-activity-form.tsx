@@ -36,7 +36,7 @@ export function WorkActivityForm({
     try {
       // Validate description
       if (!description.trim()) {
-        setError("Description is required");
+        setError("La descripción es requerida");
         setLoading(false);
         return;
       }
@@ -78,7 +78,7 @@ export function WorkActivityForm({
       }
     } catch (err) {
       console.error("Error creating work activity:", err);
-      setError((err as Error).message || "Failed to create work activity");
+      setError((err as Error).message || "Error al crear la actividad");
       setLoading(false);
     }
   };
@@ -88,7 +88,7 @@ export function WorkActivityForm({
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Plus className="h-5 w-5" />
-          Add Work Activity
+          Agregar Actividad
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -97,18 +97,18 @@ export function WorkActivityForm({
 
           <div className="space-y-2">
             <Label htmlFor="description">
-              Description <span className="text-red-500">*</span>
+              Descripción <span className="text-red-500">*</span>
             </Label>
             <Textarea
               id="description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Describe the work performed..."
+              placeholder="Describe el trabajo realizado..."
               rows={4}
               required
             />
             <p className="text-xs text-muted-foreground">
-              Provide a detailed description of the work activity performed
+              Proporciona una descripción detallada del trabajo realizado
             </p>
           </div>
 
@@ -116,7 +116,7 @@ export function WorkActivityForm({
             onFilesSelected={setFiles}
             maxFiles={10}
             maxSizeMB={10}
-            label="Evidence Files (Photos, Videos, Documents)"
+            label="Archivos de Evidencia (Fotos, Videos, Documentos)"
             showCamera={true}
           />
 
@@ -128,16 +128,16 @@ export function WorkActivityForm({
                 onClick={onCancel}
                 disabled={loading}
               >
-                Cancel
+                Cancelar
               </Button>
             )}
             <Button type="submit" disabled={loading}>
               {loading ? (
-                "Saving..."
+                "Guardando..."
               ) : (
                 <>
                   <Save className="mr-2 h-4 w-4" />
-                  Save Activity
+                  Guardar Actividad
                 </>
               )}
             </Button>

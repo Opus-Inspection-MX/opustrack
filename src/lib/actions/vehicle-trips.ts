@@ -31,15 +31,29 @@ export type TripEndData = {
 };
 
 /**
- * Get trips for current FSR
+ * Get trips for current FSR. Optional date range filters by startedAt.
  */
-export async function getMyVehicleTrips() {
+export async function getMyVehicleTrips(range?: {
+  startDate?: string;
+  endDate?: string;
+}) {
   const user = await requirePermission("vehicle-trips:read");
+
+  const startedAtFilter: { gte?: Date; lte?: Date } = {};
+  if (range?.startDate) {
+    startedAtFilter.gte = new Date(`${range.startDate}T00:00:00`);
+  }
+  if (range?.endDate) {
+    startedAtFilter.lte = new Date(`${range.endDate}T23:59:59.999`);
+  }
 
   const trips = await prisma.vehicleTrip.findMany({
     where: {
       fsrId: user.id, // Only FSR's own trips
       active: true,
+      ...(Object.keys(startedAtFilter).length > 0
+        ? { startedAt: startedAtFilter }
+        : {}),
     },
     include: {
       vehicle: true,

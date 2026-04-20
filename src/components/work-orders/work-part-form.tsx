@@ -50,19 +50,19 @@ export function WorkPartForm({
     try {
       // Validate
       if (!formData.partId) {
-        setError("Please select a part");
+        setError("Por favor selecciona una refacción");
         setLoading(false);
         return;
       }
 
       if (formData.quantity <= 0) {
-        setError("Quantity must be greater than 0");
+        setError("La cantidad debe ser mayor a 0");
         setLoading(false);
         return;
       }
 
       if (selectedPart && formData.quantity > selectedPart.stock) {
-        setError(`Insufficient stock. Available: ${selectedPart.stock}`);
+        setError(`Stock insuficiente. Disponible: ${selectedPart.stock}`);
         setLoading(false);
         return;
       }
@@ -92,7 +92,7 @@ export function WorkPartForm({
       }
     } catch (err) {
       console.error("Error adding part:", err);
-      setError((err as Error).message || "Failed to add part");
+      setError((err as Error).message || "Error al agregar la refacción");
       setLoading(false);
     }
   };
@@ -102,7 +102,7 @@ export function WorkPartForm({
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Plus className="h-5 w-5" />
-          Add Parts Used
+          Agregar Refacciones
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -111,7 +111,7 @@ export function WorkPartForm({
 
           <div className="space-y-2">
             <Label htmlFor="partId">
-              Part <span className="text-red-500">*</span>
+              Refacción <span className="text-red-500">*</span>
             </Label>
             <SearchableSelect
               options={parts.map((part) => ({
@@ -122,9 +122,9 @@ export function WorkPartForm({
               onValueChange={(value) =>
                 setFormData({ ...formData, partId: value })
               }
-              placeholder="Select a part"
-              searchPlaceholder="Search parts..."
-              emptyMessage="No parts found."
+              placeholder="Seleccionar refacción"
+              searchPlaceholder="Buscar refacciones..."
+              emptyMessage="No se encontraron refacciones."
             />
           </div>
 
@@ -138,7 +138,7 @@ export function WorkPartForm({
               )}
               <div className="flex gap-4 text-xs">
                 <span className="font-medium">
-                  Price: ${selectedPart.price.toFixed(2)}
+                  Precio: ${selectedPart.price.toFixed(2)}
                 </span>
                 <span
                   className={
@@ -153,7 +153,7 @@ export function WorkPartForm({
 
           <div className="space-y-2">
             <Label htmlFor="quantity">
-              Quantity <span className="text-red-500">*</span>
+              Cantidad <span className="text-red-500">*</span>
             </Label>
             <Input
               id="quantity"
@@ -171,20 +171,20 @@ export function WorkPartForm({
             />
             {selectedPart && (
               <p className="text-xs text-muted-foreground">
-                Total: ${(selectedPart.price * formData.quantity).toFixed(2)}
+                Total: ${(selectedPart.price * formData.quantity).toFixed(2)} MXN
               </p>
             )}
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="description">Notes</Label>
+            <Label htmlFor="description">Notas</Label>
             <Textarea
               id="description"
               value={formData.description}
               onChange={(e) =>
                 setFormData({ ...formData, description: e.target.value })
               }
-              placeholder="Additional notes about this part usage..."
+              placeholder="Notas adicionales sobre el uso de esta refacción..."
               rows={2}
             />
           </div>
@@ -197,16 +197,16 @@ export function WorkPartForm({
                 onClick={onCancel}
                 disabled={loading}
               >
-                Cancel
+                Cancelar
               </Button>
             )}
             <Button type="submit" disabled={loading || !formData.partId}>
               {loading ? (
-                "Adding..."
+                "Agregando..."
               ) : (
                 <>
                   <Save className="mr-2 h-4 w-4" />
-                  Add Part
+                  Agregar Refacción
                 </>
               )}
             </Button>

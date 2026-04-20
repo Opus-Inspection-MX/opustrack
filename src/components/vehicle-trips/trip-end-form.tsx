@@ -76,17 +76,17 @@ export function TripEndForm({ trip }: TripEndFormProps) {
     // Validation
     const endOdometer = Number.parseInt(formData.endOdometer, 10);
     if (!formData.endOdometer || endOdometer <= 0) {
-      setError("Please enter a valid odometer reading");
+      setError("Por favor ingresa una lectura de odómetro válida");
       return;
     }
 
     if (endOdometer < trip.startOdometer) {
-      setError("End odometer reading cannot be less than start reading");
+      setError("La lectura final no puede ser menor a la inicial");
       return;
     }
 
     if (!photo) {
-      setError("Please capture a photo of the odometer");
+      setError("Por favor toma una foto del odómetro");
       return;
     }
 
@@ -111,7 +111,7 @@ export function TripEndForm({ trip }: TripEndFormProps) {
 
       router.push("/fsr/vehicle-trips");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to end trip");
+      setError(err instanceof Error ? err.message : "Error al finalizar el viaje");
     } finally {
       setIsSubmitting(false);
     }
@@ -120,7 +120,7 @@ export function TripEndForm({ trip }: TripEndFormProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>End Trip</CardTitle>
+        <CardTitle>Finalizar Viaje</CardTitle>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -130,7 +130,7 @@ export function TripEndForm({ trip }: TripEndFormProps) {
           <Card className="bg-muted">
             <CardContent className="pt-6 space-y-3">
               <div>
-                <div className="text-sm text-muted-foreground">Vehicle</div>
+                <div className="text-sm text-muted-foreground">Vehículo</div>
                 <div className="font-medium">
                   {trip.vehicle.make} {trip.vehicle.model} -{" "}
                   {trip.vehicle.licensePlate}
@@ -140,7 +140,7 @@ export function TripEndForm({ trip }: TripEndFormProps) {
               {trip.workOrder && (
                 <div>
                   <div className="text-sm text-muted-foreground">
-                    Work Order
+                    Orden de Trabajo
                   </div>
                   <div className="font-medium">
                     {trip.workOrder.folio ? `#${trip.workOrder.folio}` : "N/A"}{" "}
@@ -150,7 +150,7 @@ export function TripEndForm({ trip }: TripEndFormProps) {
               )}
 
               <div>
-                <div className="text-sm text-muted-foreground">Started At</div>
+                <div className="text-sm text-muted-foreground">Inicio</div>
                 <div className="font-medium">
                   {new Date(trip.startedAt).toLocaleString("es-MX")}
                 </div>
@@ -158,7 +158,7 @@ export function TripEndForm({ trip }: TripEndFormProps) {
 
               <div>
                 <div className="text-sm text-muted-foreground">
-                  Starting Odometer
+                  Odómetro Inicial
                 </div>
                 <div className="font-medium">{trip.startOdometer} km</div>
               </div>
@@ -166,7 +166,7 @@ export function TripEndForm({ trip }: TripEndFormProps) {
           </Card>
 
           <div>
-            <Label htmlFor="endOdometer">Ending Odometer (km) *</Label>
+            <Label htmlFor="endOdometer">Odómetro Final (km) *</Label>
             <Input
               id="endOdometer"
               type="number"
@@ -181,7 +181,7 @@ export function TripEndForm({ trip }: TripEndFormProps) {
             {kmDriven > 0 && (
               <div className="mt-2 flex flex-col sm:flex-row sm:items-center gap-2">
                 <span className="text-sm text-muted-foreground">
-                  Kilometers driven:
+                  Kilómetros recorridos:
                 </span>
                 <Badge variant="secondary" className="text-base w-fit">
                   {kmDriven} km
@@ -191,12 +191,12 @@ export function TripEndForm({ trip }: TripEndFormProps) {
           </div>
 
           <div>
-            <Label>Odometer Photo *</Label>
+            <Label>Foto del Odómetro *</Label>
             <FileUpload
               onFilesSelected={(files) => setPhoto(files[0] || null)}
               maxFiles={1}
               maxSizeMB={10}
-              label="Capture odometer reading"
+              label="Captura la lectura del odómetro"
               showCamera={true}
               accept="image/*"
             />
@@ -204,19 +204,19 @@ export function TripEndForm({ trip }: TripEndFormProps) {
 
           <GPSLocationCapture
             onLocationCapture={handleLocationCapture}
-            label="Ending Location (Optional)"
+            label="Ubicación de Fin (Opcional)"
             showAddressField={true}
           />
 
           <div>
-            <Label htmlFor="notes">Notes (Optional)</Label>
+            <Label htmlFor="notes">Notas (Opcional)</Label>
             <Textarea
               id="notes"
               value={formData.notes}
               onChange={(e) =>
                 setFormData({ ...formData, notes: e.target.value })
               }
-              placeholder="Any issues, observations, or additional notes"
+              placeholder="Problemas, observaciones o notas adicionales"
               rows={3}
             />
           </div>
@@ -229,14 +229,14 @@ export function TripEndForm({ trip }: TripEndFormProps) {
               disabled={isSubmitting}
               className="w-full sm:w-auto order-2 sm:order-1"
             >
-              Cancel
+              Cancelar
             </Button>
             <Button
               type="submit"
               disabled={isSubmitting}
               className="w-full sm:w-auto order-1 sm:order-2"
             >
-              {isSubmitting ? "Ending Trip..." : "End Trip"}
+              {isSubmitting ? "Finalizando Viaje..." : "Finalizar Viaje"}
             </Button>
           </div>
         </form>

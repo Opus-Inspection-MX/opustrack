@@ -76,7 +76,7 @@ export default async function TripDetailPage({
       <div className="flex flex-col sm:flex-row gap-4 sm:justify-between sm:items-start">
         <div className="min-w-0">
           <h1 className="text-2xl sm:text-3xl font-bold truncate">
-            Trip Details
+            Detalle del Viaje
           </h1>
           <p className="text-sm sm:text-base text-muted-foreground truncate">
             {trip.vehicle.make} {trip.vehicle.model} -{" "}
@@ -93,7 +93,7 @@ export default async function TripDetailPage({
                 </Link>
               </Button>
               <Button asChild className="w-full sm:w-auto">
-                <Link href={`/fsr/vehicle-trips/${id}/end`}>End Trip</Link>
+                <Link href={`/fsr/vehicle-trips/${id}/end`}>Finalizar Viaje</Link>
               </Button>
             </>
           ) : (
@@ -108,7 +108,7 @@ export default async function TripDetailPage({
                 variant="default"
                 className="text-base px-4 py-2 w-full sm:w-auto justify-center"
               >
-                Completed
+                Completado
               </Badge>
             </>
           )}
@@ -120,21 +120,21 @@ export default async function TripDetailPage({
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Car className="h-5 w-5" />
-            Trip Summary
+            Resumen del Viaje
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <div>
-              <div className="text-sm text-muted-foreground">Status</div>
+              <div className="text-sm text-muted-foreground">Estado</div>
               <Badge variant={isInProgress ? "secondary" : "default"}>
-                {isInProgress ? "In Progress" : "Completed"}
+                {isInProgress ? "En Progreso" : "Completado"}
               </Badge>
             </div>
 
             {trip.workOrder && (
               <div>
-                <div className="text-sm text-muted-foreground">Work Order</div>
+                <div className="text-sm text-muted-foreground">Orden de Trabajo</div>
                 <div className="font-medium">
                   {trip.workOrder.folio ? `#${trip.workOrder.folio}` : "N/A"} -{" "}
                   {trip.workOrder.incident.title}
@@ -145,7 +145,7 @@ export default async function TripDetailPage({
             {!isInProgress && trip.kmDriven !== null && (
               <div>
                 <div className="text-sm text-muted-foreground">
-                  Kilometers Driven
+                  Kilómetros Recorridos
                 </div>
                 <div className="text-3xl font-bold text-primary">
                   {trip.kmDriven} km
@@ -156,7 +156,7 @@ export default async function TripDetailPage({
 
           {trip.notes && (
             <div>
-              <div className="text-sm text-muted-foreground">Notes</div>
+              <div className="text-sm text-muted-foreground">Notas</div>
               <div className="text-sm">{trip.notes}</div>
             </div>
           )}
@@ -168,13 +168,13 @@ export default async function TripDetailPage({
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Calendar className="h-5 w-5" />
-            Start Information
+            Información de Inicio
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <div>
-              <div className="text-sm text-muted-foreground">Started At</div>
+              <div className="text-sm text-muted-foreground">Inicio</div>
               <div className="font-medium text-sm sm:text-base">
                 {new Date(trip.startedAt).toLocaleString("es-MX", {
                   dateStyle: "full",
@@ -187,7 +187,7 @@ export default async function TripDetailPage({
               <div>
                 <div className="text-sm text-muted-foreground flex items-center gap-1">
                   <MapPin className="h-4 w-4" />
-                  Start Location
+                  Ubicación de Inicio
                 </div>
                 <div className="font-mono text-xs sm:text-sm break-all">
                   {trip.startLatitude.toFixed(6)},{" "}
@@ -205,7 +205,7 @@ export default async function TripDetailPage({
           <OdometerPhotoPreview
             photoUrl={trip.startPhotoUrl}
             provider={trip.startPhotoProvider as "vercel-blob" | "filesystem"}
-            label="Start Odometer"
+            label="Odómetro Inicial"
             odometer={trip.startOdometer}
           />
         </CardContent>
@@ -217,13 +217,13 @@ export default async function TripDetailPage({
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Calendar className="h-5 w-5" />
-              End Information
+              Información de Fin
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <div>
-                <div className="text-sm text-muted-foreground">Ended At</div>
+                <div className="text-sm text-muted-foreground">Fin</div>
                 <div className="font-medium text-sm sm:text-base">
                   {trip.endedAt &&
                     new Date(trip.endedAt).toLocaleString("es-MX", {
@@ -237,7 +237,7 @@ export default async function TripDetailPage({
                 <div>
                   <div className="text-sm text-muted-foreground flex items-center gap-1">
                     <MapPin className="h-4 w-4" />
-                    End Location
+                    Ubicación de Fin
                   </div>
                   <div className="font-mono text-xs sm:text-sm break-all">
                     {trip.endLatitude.toFixed(6)},{" "}
@@ -258,7 +258,7 @@ export default async function TripDetailPage({
                 (trip.endPhotoProvider as "vercel-blob" | "filesystem") ||
                 "vercel-blob"
               }
-              label="End Odometer"
+              label="Odómetro Final"
               odometer={trip.endOdometer}
             />
           </CardContent>
@@ -268,11 +268,11 @@ export default async function TripDetailPage({
       {/* FSR Information */}
       <Card>
         <CardHeader>
-          <CardTitle>Driver Information</CardTitle>
+          <CardTitle>Información del Conductor</CardTitle>
         </CardHeader>
         <CardContent>
           <div>
-            <div className="text-sm text-muted-foreground">Driver</div>
+            <div className="text-sm text-muted-foreground">Conductor</div>
             <div className="font-medium">{trip.fsr.name}</div>
             <div className="text-sm text-muted-foreground">
               {trip.fsr.email}
@@ -283,7 +283,7 @@ export default async function TripDetailPage({
 
       <div className="flex justify-end">
         <Button variant="outline" asChild>
-          <Link href="/fsr/vehicle-trips">Back to Trips</Link>
+          <Link href="/fsr/vehicle-trips">Regresar a Viajes</Link>
         </Button>
       </div>
     </div>

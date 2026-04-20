@@ -29,27 +29,24 @@ interface VehicleTripsReportClientProps {
   initialTrendData: VehicleTripData[];
   initialFsrData: FSRTripData[];
   initialSummary: Awaited<ReturnType<typeof getReportSummary>>;
+  initialStartDate: string;
+  initialEndDate: string;
 }
 
 export function VehicleTripsReportClient({
   initialTrendData,
   initialFsrData,
   initialSummary,
+  initialStartDate,
+  initialEndDate,
 }: VehicleTripsReportClientProps) {
   const [isPending, startTransition] = useTransition();
   const [trendData, setTrendData] = useState(initialTrendData);
   const [fsrData, setFsrData] = useState(initialFsrData);
   const [summary, setSummary] = useState(initialSummary);
 
-  // Date range state
-  const today = new Date();
-  const thirtyDaysAgo = new Date(today);
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-  const [startDate, setStartDate] = useState(
-    thirtyDaysAgo.toISOString().split("T")[0],
-  );
-  const [endDate, setEndDate] = useState(today.toISOString().split("T")[0]);
+  const [startDate, setStartDate] = useState(initialStartDate);
+  const [endDate, setEndDate] = useState(initialEndDate);
 
   const handleDateChange = (newStartDate: string, newEndDate: string) => {
     setStartDate(newStartDate);

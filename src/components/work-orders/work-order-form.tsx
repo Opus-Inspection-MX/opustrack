@@ -77,10 +77,10 @@ export function WorkOrderForm({
   ];
 
   const workOrderStatuses = [
-    { value: "PENDING", label: "Pending" },
-    { value: "IN_PROGRESS", label: "In Progress" },
-    { value: "COMPLETED", label: "Completed" },
-    { value: "CANCELLED", label: "Cancelled" },
+    { value: "PENDING", label: "Pendiente" },
+    { value: "IN_PROGRESS", label: "En Progreso" },
+    { value: "COMPLETED", label: "Completado" },
+    { value: "CANCELLED", label: "Cancelado" },
   ];
 
   useEffect(() => {
@@ -143,8 +143,8 @@ export function WorkOrderForm({
       // Mock success
       alert(
         workOrder
-          ? "Work order updated successfully!"
-          : "Work order created successfully!",
+          ? "¡Orden de trabajo actualizada exitosamente!"
+          : "¡Orden de trabajo creada exitosamente!",
       );
 
       // Navigate back to appropriate list
@@ -193,9 +193,9 @@ export function WorkOrderForm({
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
-          {workOrder ? "Edit Work Order" : "Create New Work Order"}
+          {workOrder ? "Editar Orden de Trabajo" : "Crear Nueva Orden de Trabajo"}
           {incident && (
-            <Badge variant="outline">Incident: {incident.title}</Badge>
+            <Badge variant="outline">Incidente: {incident.title}</Badge>
           )}
         </CardTitle>
       </CardHeader>
@@ -203,13 +203,13 @@ export function WorkOrderForm({
         <form onSubmit={handleSubmit} className="space-y-4">
           {incident && (
             <div className="p-4 bg-muted rounded-lg">
-              <h4 className="font-semibold mb-2">Related Incident</h4>
+              <h4 className="font-semibold mb-2">Incidente Relacionado</h4>
               <div className="text-sm space-y-1">
                 <div>
-                  <strong>Title:</strong> {incident.title}
+                  <strong>Título:</strong> {incident.title}
                 </div>
                 <div>
-                  <strong>Priority:</strong> {incident.priority}
+                  <strong>Prioridad:</strong> {incident.priority}
                 </div>
                 <div>
                   <strong>VIC:</strong> {incident.vic?.name}
@@ -220,7 +220,7 @@ export function WorkOrderForm({
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="assignedToId">Assign To *</Label>
+              <Label htmlFor="assignedToId">Asignar A *</Label>
               <SearchableSelect
                 options={users.map((user) => ({
                   value: user.id,
@@ -228,15 +228,15 @@ export function WorkOrderForm({
                 }))}
                 value={formData.assignedToId}
                 onValueChange={(value) => handleChange("assignedToId", value)}
-                placeholder="Select technician"
-                searchPlaceholder="Search technicians..."
-                emptyMessage="No technicians found."
+                placeholder="Seleccionar técnico"
+                searchPlaceholder="Buscar técnicos..."
+                emptyMessage="No se encontraron técnicos."
                 className={errors.assignedToId ? "border-destructive" : ""}
               />
               <FormError message={errors.assignedToId} />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="status">Status *</Label>
+              <Label htmlFor="status">Estado *</Label>
               <Select
                 value={formData.status}
                 onValueChange={(value) => handleChange("status", value)}
@@ -244,7 +244,7 @@ export function WorkOrderForm({
                 <SelectTrigger
                   className={errors.status ? "border-destructive" : ""}
                 >
-                  <SelectValue placeholder="Select status" />
+                  <SelectValue placeholder="Seleccionar estado" />
                 </SelectTrigger>
                 <SelectContent>
                   {workOrderStatuses.map((status) => (
@@ -259,13 +259,13 @@ export function WorkOrderForm({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="notes">Notes</Label>
+            <Label htmlFor="notes">Notas</Label>
             <Textarea
               id="notes"
               value={formData.notes}
               onChange={(e) => handleChange("notes", e.target.value)}
               onBlur={() => handleBlur("notes")}
-              placeholder="Add any additional notes or instructions"
+              placeholder="Agregar notas o instrucciones adicionales"
               rows={4}
               className={errors.notes ? "border-destructive" : ""}
             />
@@ -274,7 +274,7 @@ export function WorkOrderForm({
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="startedAt">Started At</Label>
+              <Label htmlFor="startedAt">Fecha de Inicio</Label>
               <Input
                 id="startedAt"
                 type="datetime-local"
@@ -286,7 +286,7 @@ export function WorkOrderForm({
               <FormError message={errors.startedAt} />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="finishedAt">Finished At</Label>
+              <Label htmlFor="finishedAt">Fecha de Finalización</Label>
               <Input
                 id="finishedAt"
                 type="datetime-local"
@@ -309,13 +309,13 @@ export function WorkOrderForm({
               }
               disabled={isSubmitting}
             >
-              Cancel
+              Cancelar
             </Button>
             <Button type="submit" disabled={isSubmitting}>
               {isSubmitting && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               )}
-              {workOrder ? "Update Work Order" : "Create Work Order"}
+              {workOrder ? "Actualizar Orden" : "Crear Orden"}
             </Button>
           </div>
         </form>

@@ -86,7 +86,7 @@ export function WorkOrderEditForm({
       }
     } catch (err) {
       console.error("Error updating work order:", err);
-      setError((err as Error).message || "Failed to update work order");
+      setError((err as Error).message || "Error al actualizar la orden de trabajo");
     } finally {
       setLoading(false);
     }
@@ -110,7 +110,7 @@ export function WorkOrderEditForm({
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
-          <CardTitle>Work Order Details</CardTitle>
+          <CardTitle>Detalles de la Orden</CardTitle>
           {!isEditing && (
             <Button
               variant="outline"
@@ -118,7 +118,7 @@ export function WorkOrderEditForm({
               onClick={() => setIsEditing(true)}
             >
               <EditIcon className="mr-2 h-4 w-4" />
-              Edit
+              Editar
             </Button>
           )}
         </div>
@@ -130,7 +130,7 @@ export function WorkOrderEditForm({
           <>
             <div className="space-y-2">
               <Label htmlFor="assignedTo">
-                Assigned To <span className="text-red-500">*</span>
+                Asignado A <span className="text-red-500">*</span>
               </Label>
               <SearchableSelect
                 options={users.map((user) => ({
@@ -141,15 +141,15 @@ export function WorkOrderEditForm({
                 onValueChange={(value) =>
                   setFormData({ ...formData, assignedToId: value })
                 }
-                placeholder="Select user"
-                searchPlaceholder="Search users..."
-                emptyMessage="No users found."
+                placeholder="Seleccionar usuario"
+                searchPlaceholder="Buscar usuarios..."
+                emptyMessage="No se encontraron usuarios."
               />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="status">
-                Status <span className="text-red-500">*</span>
+                Estado <span className="text-red-500">*</span>
               </Label>
               <Select
                 value={formData.statusId?.toString() || "none"}
@@ -161,7 +161,7 @@ export function WorkOrderEditForm({
                 }
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select status" />
+                  <SelectValue placeholder="Seleccionar estado" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">Sin estado</SelectItem>
@@ -187,7 +187,7 @@ export function WorkOrderEditForm({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="finishedAt">Finished At</Label>
+              <Label htmlFor="finishedAt">Fecha de Finalización</Label>
               <Input
                 id="finishedAt"
                 type="datetime-local"
@@ -199,14 +199,14 @@ export function WorkOrderEditForm({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="notes">Notes</Label>
+              <Label htmlFor="notes">Notas</Label>
               <Textarea
                 id="notes"
                 value={formData.notes}
                 onChange={(e) =>
                   setFormData({ ...formData, notes: e.target.value })
                 }
-                placeholder="Add notes about this work order..."
+                placeholder="Agregar notas sobre esta orden de trabajo..."
                 rows={4}
               />
             </div>
@@ -218,15 +218,15 @@ export function WorkOrderEditForm({
                 disabled={loading}
               >
                 <X className="mr-2 h-4 w-4" />
-                Cancel
+                Cancelar
               </Button>
               <Button onClick={handleSave} disabled={loading}>
                 {loading ? (
-                  "Saving..."
+                  "Guardando..."
                 ) : (
                   <>
                     <Save className="mr-2 h-4 w-4" />
-                    Save Changes
+                    Guardar Cambios
                   </>
                 )}
               </Button>
@@ -235,13 +235,13 @@ export function WorkOrderEditForm({
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <p className="text-sm text-muted-foreground">Assigned To</p>
+              <p className="text-sm text-muted-foreground">Asignado A</p>
               <p className="font-medium">{workOrder.assignedTo?.name}</p>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Status</p>
+              <p className="text-sm text-muted-foreground">Estado</p>
               <p className="font-medium">
-                {workOrder.status?.name || "No status"}
+                {workOrder.status?.name || "Sin estado"}
               </p>
             </div>
             <div>
@@ -249,16 +249,16 @@ export function WorkOrderEditForm({
               <p className="font-medium">{workOrder.folio || "No asignado"}</p>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Finished At</p>
+              <p className="text-sm text-muted-foreground">Fecha de Finalización</p>
               <p className="font-medium">
                 {workOrder.finishedAt
-                  ? new Date(workOrder.finishedAt).toLocaleString()
-                  : "Not finished yet"}
+                  ? new Date(workOrder.finishedAt).toLocaleString("es-MX")
+                  : "Aún no finalizada"}
               </p>
             </div>
             {workOrder.notes && (
               <div className="md:col-span-2">
-                <p className="text-sm text-muted-foreground">Notes</p>
+                <p className="text-sm text-muted-foreground">Notas</p>
                 <p className="text-sm mt-1">{workOrder.notes}</p>
               </div>
             )}

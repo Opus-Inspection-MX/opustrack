@@ -69,9 +69,9 @@ export function UsersTable({ users }: { users: User[] }) {
             <TableHead>Nombre</TableHead>
             <TableHead>Email</TableHead>
             <TableHead>Rol</TableHead>
-            <TableHead>Status</TableHead>
+            <TableHead>Estado</TableHead>
             <TableHead>CVV</TableHead>
-            <TableHead>Status</TableHead>
+            <TableHead>Activo</TableHead>
             <TableHead className="text-right">Acciones</TableHead>
           </TableRow>
         </TableHeader>

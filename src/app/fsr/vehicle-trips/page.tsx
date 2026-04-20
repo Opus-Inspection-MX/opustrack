@@ -1,12 +1,16 @@
 "use client";
 
 import { Car, Plus } from "lucide-react";
+import moment from "moment-timezone";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { DateRangeFilter } from "@/components/reports";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getMyVehicleTrips } from "@/lib/actions/vehicle-trips";
+
+const TZ = "America/Mexico_City";
 
 interface VehicleTrip {
   id: string;
@@ -36,11 +40,17 @@ interface VehicleTrip {
 export default function VehicleTripsPage() {
   const [trips, setTrips] = useState<VehicleTrip[]>([]);
   const [loading, setLoading] = useState(true);
+  const [startDate, setStartDate] = useState(() =>
+    moment().tz(TZ).startOf("isoWeek").format("YYYY-MM-DD"),
+  );
+  const [endDate, setEndDate] = useState(() =>
+    moment().tz(TZ).endOf("isoWeek").format("YYYY-MM-DD"),
+  );
 
-  const loadTrips = useCallback(async () => {
+  const loadTrips = useCallback(async (start: string, end: string) => {
     setLoading(true);
     try {
-      const data = await getMyVehicleTrips();
+      const data = await getMyVehicleTrips({ startDate: start, endDate: end });
       setTrips(data);
     } catch (error) {
       console.error("Error loading trips:", error);
@@ -50,38 +60,50 @@ export default function VehicleTripsPage() {
   }, []);
 
   useEffect(() => {
-    loadTrips();
-  }, [loadTrips]);
+    loadTrips(startDate, endDate);
+  }, [loadTrips, startDate, endDate]);
+
+  const handleDateChange = (s: string, e: string) => {
+    setStartDate(s);
+    setEndDate(e);
+  };
 
   return (
     <div className="container mx-auto py-6 space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold">Vehicle Trips</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold">Viajes de Vehículo</h1>
           <p className="text-sm sm:text-base text-muted-foreground">
-            Track kilometers driven
+            Registro de kilómetros recorridos
           </p>
         </div>
-        <Button asChild className="w-full sm:w-auto">
-          <Link href="/fsr/vehicle-trips/start">
-            <Plus className="h-4 w-4 mr-2" />
-            Start Trip
-          </Link>
-        </Button>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <DateRangeFilter
+            startDate={startDate}
+            endDate={endDate}
+            onDateChange={handleDateChange}
+          />
+          <Button asChild className="w-full sm:w-auto">
+            <Link href="/fsr/vehicle-trips/start">
+              <Plus className="h-4 w-4 mr-2" />
+              Iniciar Viaje
+            </Link>
+          </Button>
+        </div>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>My Trips</CardTitle>
+          <CardTitle>Mis Viajes</CardTitle>
         </CardHeader>
         <CardContent>
           {loading ? (
             <div className="text-center py-8 text-muted-foreground">
-              Loading trips...
+              Cargando viajes...
             </div>
           ) : trips.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              No trips found. Start your first trip to track kilometers.
+              No se encontraron viajes en este rango de fechas.
             </div>
           ) : (
             <div className="space-y-4">
@@ -118,7 +140,7 @@ export default function VehicleTripsPage() {
                               variant="secondary"
                               className="whitespace-nowrap"
                             >
-                              In Progress
+                              En Progreso
                             </Badge>
                           ) : (
                             <>
@@ -126,7 +148,7 @@ export default function VehicleTripsPage() {
                                 {trip.kmDriven} km
                               </div>
                               <Badge className="whitespace-nowrap">
-                                Completed
+                                Completado
                               </Badge>
                             </>
                           )}

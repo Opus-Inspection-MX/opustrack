@@ -42,9 +42,9 @@ export default async function EndTripPage({
     return (
       <div className="container mx-auto py-6 space-y-6">
         <div>
-          <h1 className="text-3xl font-bold">End Trip</h1>
+          <h1 className="text-3xl font-bold">Finalizar Viaje</h1>
           <p className="text-destructive">
-            This trip is already completed or cancelled.
+            Este viaje ya fue completado o cancelado.
           </p>
         </div>
       </div>
@@ -54,9 +54,9 @@ export default async function EndTripPage({
   return (
     <div className="container mx-auto py-6 space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">End Trip</h1>
+        <h1 className="text-3xl font-bold">Finalizar Viaje</h1>
         <p className="text-muted-foreground">
-          Record your ending odometer reading
+          Registra la lectura final del odómetro
         </p>
       </div>
 
