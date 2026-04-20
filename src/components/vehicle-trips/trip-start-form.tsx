@@ -208,16 +208,19 @@ export function TripStartForm() {
           <div>
             <Label htmlFor="workOrder">Work Order (Optional)</Label>
             <Select
-              value={formData.workOrderId}
+              value={formData.workOrderId || "none"}
               onValueChange={(value) =>
-                setFormData({ ...formData, workOrderId: value })
+                setFormData({
+                  ...formData,
+                  workOrderId: value === "none" ? "" : value,
+                })
               }
             >
               <SelectTrigger id="workOrder">
                 <SelectValue placeholder="None - Personal trip" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">None - Personal trip</SelectItem>
+                <SelectItem value="none">None - Personal trip</SelectItem>
                 {workOrders.map((wo) => (
                   <SelectItem key={wo.id} value={wo.id}>
                     {wo.folio ? `#${wo.folio}` : `WO-${wo.id}`} -{" "}

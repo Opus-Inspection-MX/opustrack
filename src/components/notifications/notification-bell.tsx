@@ -97,7 +97,30 @@ export function NotificationBell({
     [router],
   );
 
-  // Fetch notifications on mount and poll every 30 seconds
+  // Seed the "already seen" set from any initial data. Runs once on mount.
+  const hasInitialData =
+    initialNotifications.length > 0 || initialUnreadCount > 0;
+  // biome-ignore lint/correctness/useExhaustiveDependencies: seed-once on mount only
+  useEffect(() => {
+    if (hasInitialData) {
+      for (const n of initialNotifications) {
+        shownNotificationIds.current.add(n.id);
+      }
+      isFirstFetch.current = false;
+    }
+  }, []);
+
+  // Keep latest browser-notification callback in a ref so the polling
+  // effect doesn't need it as a dep (prevents remount loops).
+  const showBrowserNotificationForNewRef = useRef(
+    showBrowserNotificationForNew,
+  );
+  useEffect(() => {
+    showBrowserNotificationForNewRef.current = showBrowserNotificationForNew;
+  }, [showBrowserNotificationForNew]);
+
+  // Fetch notifications on mount and poll every 10 seconds. Runs once.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: mount-only polling
   useEffect(() => {
     const fetchNotifications = async () => {
       try {
@@ -106,9 +129,7 @@ export function NotificationBell({
           const data = await response.json();
           setNotifications(data.notifications);
           setUnreadCount(data.unreadCount);
-
-          // Show browser notifications for new items
-          showBrowserNotificationForNew(data.notifications);
+          showBrowserNotificationForNewRef.current(data.notifications);
         }
       } catch (error) {
         console.error("Failed to fetch notifications:", error);
@@ -117,22 +138,13 @@ export function NotificationBell({
       }
     };
 
-    // Fetch immediately if no initial data
-    if (initialNotifications.length === 0 && initialUnreadCount === 0) {
+    if (!hasInitialData) {
       fetchNotifications();
-    } else {
-      // Mark initial notifications as seen
-      for (const n of initialNotifications) {
-        shownNotificationIds.current.add(n.id);
-      }
-      isFirstFetch.current = false;
     }
 
-    // Poll every 30 seconds
-    const interval = setInterval(fetchNotifications, 30000);
-
+    const interval = setInterval(fetchNotifications, 10000);
     return () => clearInterval(interval);
-  }, [initialNotifications, initialUnreadCount, showBrowserNotificationForNew]);
+  }, []);
 
   const handleCountChange = useCallback((count: number) => {
     setUnreadCount(count);
