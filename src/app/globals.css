@@ -155,29 +155,29 @@
   [data-sidebar],
   .no-print,
   button:not(.print-button) {
-    display: none !important;
+    display: none;
   }
 
   /* Full width content */
   main {
-    width: 100% !important;
-    max-width: 100% !important;
-    padding: 0 !important;
-    margin: 0 !important;
+    width: 100%;
+    max-width: 100%;
+    padding: 0;
+    margin: 0;
   }
 
   /* Reset background colors for printing */
   body,
   .dark {
-    background: white !important;
-    color: black !important;
+    background: white;
+    color: black;
   }
 
   /* Make cards print nicely */
   [class*="card"] {
     break-inside: avoid;
-    box-shadow: none !important;
-    border: 1px solid #e5e7eb !important;
+    box-shadow: none;
+    border: 1px solid #e5e7eb;
   }
 
   /* Ensure charts are visible when printing */
@@ -187,12 +187,12 @@
 
   /* Table styling for print */
   table {
-    font-size: 12px !important;
+    font-size: 12px;
   }
 
   th,
   td {
-    padding: 8px 4px !important;
+    padding: 8px 4px;
   }
 
   /* Page breaks */
@@ -202,15 +202,15 @@
 
   /* Ensure text is readable */
   * {
-    color: black !important;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
+    color: black;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 
   /* Keep badge colors */
   [class*="badge"],
   [class*="Badge"] {
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 }

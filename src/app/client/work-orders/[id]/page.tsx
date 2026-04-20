@@ -4,11 +4,12 @@ import {
   CheckCircle,
   Clock,
   FileText,
-  Image,
+  Image as ImageIcon,
   Package,
   User,
   Wrench,
 } from "lucide-react";
+import NextImage from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
@@ -253,7 +254,7 @@ export default async function ClientWorkOrderDetailPage({
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Image className="h-5 w-5" />
+              <ImageIcon className="h-5 w-5" />
               Evidencia ({workOrder.attachments.length})
             </CardTitle>
             <CardDescription>
@@ -276,9 +277,12 @@ export default async function ClientWorkOrderDetailPage({
                     className="border rounded-lg p-3 hover:bg-accent/50 transition-colors flex flex-col items-center gap-2"
                   >
                     {attachment.mimetype?.startsWith("image/") ? (
-                      <img
+                      <NextImage
                         src={url}
                         alt={attachment.filename}
+                        width={200}
+                        height={128}
+                        unoptimized
                         className="w-full h-32 object-cover rounded"
                       />
                     ) : (

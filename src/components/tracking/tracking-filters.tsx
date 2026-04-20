@@ -139,7 +139,7 @@ export function TrackingFilters({
       endDate: today,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [onFilterChange, today]);
 
   return (
     <div className="space-y-4">

@@ -29,7 +29,7 @@ export default async function FSRIncidentDetailPage({
   await requireRouteAccess("/fsr");
   const { id } = await params;
 
-  let incident;
+  let incident: Awaited<ReturnType<typeof getIncidentById>> | null = null;
   try {
     incident = await getIncidentById(Number.parseInt(id, 10));
   } catch {

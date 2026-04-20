@@ -56,8 +56,11 @@ export function PieChart<T extends Record<string, unknown>>({
           }
           labelLine={false}
         >
-          {data.map((_, index) => (
-            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+          {data.map((entry, index) => (
+            <Cell
+              key={`cell-${String(entry[nameKey] ?? index)}`}
+              fill={COLORS[index % COLORS.length]}
+            />
           ))}
         </Pie>
         <Tooltip

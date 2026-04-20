@@ -706,7 +706,7 @@ export async function getSLAComplianceData(
         : 0,
     byPriority: Object.entries(priorityStats)
       .map(([priority, stats]) => ({
-        priority: parseInt(priority),
+        priority: parseInt(priority, 10),
         total: stats.total,
         compliant: stats.compliant,
         breached: stats.breached,
