@@ -20,7 +20,7 @@ export default async function EditLineStatusPage({
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Edit Line Status</h1>
+        <h1 className="text-3xl font-bold">Editar Estado de Línea</h1>
         <p className="text-muted-foreground">Update line status information</p>
       </div>
 

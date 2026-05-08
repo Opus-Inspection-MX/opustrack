@@ -40,7 +40,7 @@ export function PermissionForm({ permission }: PermissionFormProps) {
     "user.delete",
     "incident.create",
     "incident.read",
-    "workorder.manage",
+    "assignment.manage",
     "admin.access",
   ];
 

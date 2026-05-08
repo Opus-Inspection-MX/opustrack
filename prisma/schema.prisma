@@ -27,7 +27,7 @@ model User {
   vicAssignments    UserVicAssignment[] // VIC assignments for this user
   createdAt         DateTime                 @default(now())
   updatedAt         DateTime                 @updatedAt
-  workOrders        WorkOrder[]
+  assignments       Assignment[]
   reportedIncidents Incident[]               @relation("IncidentReporter")
   incidents         Incident[]               @relation("IncidentUser") // relación opcional si usas userId en Incident
   vehicleTrips      VehicleTrip[] // Vehicle trips driven by this FSR
@@ -69,7 +69,7 @@ model Permission {
   id          Int              @id @default(autoincrement())
   name        String           @unique
   description String?
-  resource    String? // e.g., "incidents", "users", "work-orders"
+  resource    String? // e.g., "incidents", "users", "assignments"
   action      String? // e.g., "read", "create", "update", "delete"
   routePath   String? // e.g., "/admin", "/incidents", "/fsr"
   roles       RolePermission[]
@@ -190,12 +190,12 @@ model IncidentStatus {
   active    Boolean    @default(true)
 }
 
-model WorkOrderStatus {
-  id         Int         @id @default(autoincrement())
-  name       String      @unique
-  color      String      @default("#6B7280")
-  workOrders WorkOrder[]
-  active     Boolean     @default(true)
+model AssignmentStatus {
+  id          Int          @id @default(autoincrement())
+  name        String       @unique
+  color       String       @default("#6B7280")
+  assignments Assignment[]
+  active      Boolean      @default(true)
 }
 
 model LineStatus {
@@ -253,10 +253,10 @@ model Incident {
   userId String?
   user   User?   @relation("IncidentUser", fields: [userId], references: [id])
 
-  workOrders WorkOrder[]
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
-  active     Boolean     @default(true)
+  assignments Assignment[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  active      Boolean      @default(true)
 
   @@index([vicId])
   @@index([statusId])
@@ -268,65 +268,64 @@ model Incident {
   @@index([active, reportedAt]) // Compound index for active incidents ordered by date
 }
 
-model WorkOrder {
-  id             String                @id @default(cuid())
-  incidentId     Int
-  incident       Incident              @relation(fields: [incidentId], references: [id])
-  assignedToId   String
-  assignedTo     User                  @relation(fields: [assignedToId], references: [id])
-  statusId       Int?
-  status         WorkOrderStatus?      @relation(fields: [statusId], references: [id])
-  notes          String?
-  folio          String? // Folio number (Numero de folio)
-  startedAt      DateTime?
-  finishedAt     DateTime?
-  unlockedAt     DateTime? // When FSR acknowledged/unlocked the work order
-  assignedAt     DateTime? // When work order was assigned (for time-to-unlock calculation)
-  workActivities WorkActivity[]
-  attachments    WorkOrderAttachment[]
-  workParts      WorkPart[]
-  vehicleTrips   VehicleTrip[] // Vehicle trips linked to this work order
-  createdAt      DateTime              @default(now())
-  updatedAt      DateTime              @updatedAt
-  active         Boolean               @default(true)
+model Assignment {
+  id                   String                 @id @default(cuid())
+  incidentId           Int
+  incident             Incident               @relation(fields: [incidentId], references: [id])
+  assignedToId         String
+  assignedTo           User                   @relation(fields: [assignedToId], references: [id])
+  statusId             Int?
+  status               AssignmentStatus?      @relation(fields: [statusId], references: [id])
+  notes                String?
+  folio                Int       @unique @default(dbgenerated("nextval('assignment_folio_seq')")) // Auto-generated numeric folio
+  startedAt            DateTime?
+  finishedAt           DateTime?
+  unlockedAt           DateTime? // When FSR acknowledged/unlocked the assignment
+  assignedAt           DateTime? // When assignment was assigned (for time-to-unlock calculation)
+  assignmentActivities AssignmentActivity[]
+  attachments          AssignmentAttachment[]
+  workParts            WorkPart[]
+  vehicleTrips         VehicleTrip[] // Vehicle trips linked to this assignment
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
+  active               Boolean                @default(true)
 
   @@index([incidentId])
   @@index([assignedToId])
   @@index([statusId])
-  @@index([folio]) // Optimize folio search queries
   @@index([active, assignedToId]) // Compound index for FSR filtering
-  @@index([active, createdAt]) // Compound index for active work orders ordered by date
+  @@index([active, createdAt]) // Compound index for active assignments ordered by date
   @@index([unlockedAt]) // Optimize filtering by unlock status
 }
 
-model WorkActivity {
-  id          String     @id @default(cuid())
-  workOrderId String
-  workOrder   WorkOrder  @relation(fields: [workOrderId], references: [id])
-  description String
-  performedAt DateTime   @default(now())
-  workParts   WorkPart[]
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-  active      Boolean    @default(true)
+model AssignmentActivity {
+  id           String     @id @default(cuid())
+  assignmentId String
+  assignment   Assignment @relation(fields: [assignmentId], references: [id])
+  description  String
+  performedAt  DateTime   @default(now())
+  workParts    WorkPart[]
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  active       Boolean    @default(true)
 
-  @@index([workOrderId])
+  @@index([assignmentId])
 }
 
-model WorkOrderAttachment {
-  id          String    @id @default(cuid())
-  workOrderId String
-  workOrder   WorkOrder @relation(fields: [workOrderId], references: [id])
-  filename    String
-  filepath    String
-  mimetype    String
-  size        Int
-  description String?
-  provider    String    @default("vercel-blob") // "vercel-blob" or "filesystem"
-  uploadedAt  DateTime  @default(now())
-  active      Boolean   @default(true)
+model AssignmentAttachment {
+  id           String     @id @default(cuid())
+  assignmentId String
+  assignment   Assignment @relation(fields: [assignmentId], references: [id])
+  filename     String
+  filepath     String
+  mimetype     String
+  size         Int
+  description  String?
+  provider     String     @default("vercel-blob") // "vercel-blob" or "filesystem"
+  uploadedAt   DateTime   @default(now())
+  active       Boolean    @default(true)
 
-  @@index([workOrderId])
+  @@index([assignmentId])
 }
 
 model Part {
@@ -342,22 +341,22 @@ model Part {
 }
 
 model WorkPart {
-  id             String        @id @default(cuid())
-  partId         String
-  part           Part          @relation(fields: [partId], references: [id])
-  quantity       Int
-  description    String?
-  price          Float
-  workOrderId    String?
-  workOrder      WorkOrder?    @relation(fields: [workOrderId], references: [id])
-  workActivityId String?
-  workActivity   WorkActivity? @relation(fields: [workActivityId], references: [id])
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
-  active         Boolean       @default(true)
+  id           String              @id @default(cuid())
+  partId       String
+  part         Part                @relation(fields: [partId], references: [id])
+  quantity     Int
+  description  String?
+  price        Float
+  assignmentId String?
+  assignment   Assignment?         @relation(fields: [assignmentId], references: [id])
+  activityId   String?
+  activity     AssignmentActivity? @relation(fields: [activityId], references: [id])
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  active       Boolean             @default(true)
 
-  @@index([workOrderId])
-  @@index([workActivityId])
+  @@index([assignmentId])
+  @@index([activityId])
 }
 
 model Line {
@@ -429,8 +428,8 @@ model VehicleTrip {
   vehicle            Vehicle           @relation(fields: [vehicleId], references: [id])
   fsrId              String // FSR who drove
   fsr                User              @relation(fields: [fsrId], references: [id])
-  workOrderId        String? // Optional work order link
-  workOrder          WorkOrder?        @relation(fields: [workOrderId], references: [id])
+  assignmentId       String? // Optional assignment link
+  assignment         Assignment?       @relation(fields: [assignmentId], references: [id])
   // Start data
   startOdometer      Int // Start reading in kilometers
   startPhotoUrl      String // Photo of start odometer
@@ -459,7 +458,7 @@ model VehicleTrip {
 
   @@index([vehicleId])
   @@index([fsrId])
-  @@index([workOrderId])
+  @@index([assignmentId])
   @@index([statusId])
   @@index([startedAt])
   @@index([active])
@@ -471,12 +470,12 @@ model Notification {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // Notification content
-  title   String // e.g., "Nueva Orden de Trabajo Asignada"
-  message String // e.g., "Se le ha asignado la orden de trabajo..."
-  type    String // e.g., "work_order_assigned", "incident_updated"
+  title   String // e.g., "Nueva Asignación"
+  message String // e.g., "Se le ha asignado la asignación..."
+  type    String // e.g., "assignment_assigned", "incident_updated"
 
   // Related entity (polymorphic approach)
-  entityType String? // e.g., "work_order", "incident", "user"
+  entityType String? // e.g., "assignment", "incident", "user"
   entityId   String? // ID of the related entity
   actionUrl  String? // URL to navigate when clicked
 

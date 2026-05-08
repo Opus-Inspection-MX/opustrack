@@ -5,12 +5,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { IncidentForm } from "@/components/admin/incidents/incident-form";
+import { WorkPartEdit } from "@/components/assignments/work-part-edit";
+import { WorkPartForm } from "@/components/assignments/work-part-form";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
-import { WorkPartEdit } from "@/components/work-orders/work-part-edit";
-import { WorkPartForm } from "@/components/work-orders/work-part-form";
 import {
   getIncidentById,
   getIncidentFormOptions,
@@ -32,7 +32,7 @@ export default function EditIncidentPage({
   const [incidentId, setIncidentId] = useState<number | null>(null);
   const [incident, setIncident] = useState<Incident | null>(null);
   const [formOptions, setFormOptions] = useState<FormOptions | null>(null);
-  const [workOrderParts, setWorkOrderParts] = useState<
+  const [assignmentParts, setAssignmentParts] = useState<
     Record<string, WorkPart[]>
   >({});
   const [availableParts, setAvailableParts] = useState<Part[]>([]);
@@ -57,9 +57,9 @@ export default function EditIncidentPage({
       setFormOptions(options);
       setAvailableParts(parts);
 
-      // Fetch parts for each work order
-      if (incidentData?.workOrders) {
-        const partsPromises = incidentData.workOrders.map(async (wo) => {
+      // Fetch parts for each asignación
+      if (incidentData?.assignments) {
+        const partsPromises = incidentData.assignments.map(async (wo) => {
           const parts = await getWorkParts(wo.id);
           return { id: wo.id.toString(), parts };
         });
@@ -73,7 +73,7 @@ export default function EditIncidentPage({
           {} as Record<string, WorkPart[]>,
         );
 
-        setWorkOrderParts(partsMap);
+        setAssignmentParts(partsMap);
       }
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -88,27 +88,28 @@ export default function EditIncidentPage({
     }
   }, [incidentId, fetchData]);
 
-  const handleDeletePart = async (_workOrderId: string, partId: string) => {
-    if (!confirm("Are you sure you want to remove this part?")) return;
+  const handleDeletePart = async (_assignmentId: string, partId: string) => {
+    if (!confirm("¿Estás seguro de que deseas eliminar esta refacción?"))
+      return;
 
     try {
       await deleteWorkPart(partId);
       await fetchData();
     } catch (error) {
       console.error("Error deleting part:", error);
-      alert("Failed to remove part");
+      alert("Error al eliminar la refacción");
     }
   };
 
-  const handlePartSuccess = (workOrderId: string) => {
-    setShowPartForm({ ...showPartForm, [workOrderId]: false });
+  const handlePartSuccess = (assignmentId: string) => {
+    setShowPartForm({ ...showPartForm, [assignmentId]: false });
     fetchData();
   };
 
   if (loading || !incident || !formOptions) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Spinner size="lg" text="Loading incident..." />
+        <Spinner size="lg" text="Cargando incidente..." />
       </div>
     );
   }
@@ -138,7 +139,7 @@ export default function EditIncidentPage({
         schedules={formOptions.schedules}
       />
 
-      {incident.workOrders && incident.workOrders.length > 0 && (
+      {incident.assignments && incident.assignments.length > 0 && (
         <>
           <Separator />
 
@@ -146,15 +147,15 @@ export default function EditIncidentPage({
             <div>
               <h2 className="text-2xl font-bold flex items-center gap-2">
                 <Wrench className="h-6 w-6" />
-                Work Orders & Parts
+                Asignaciones y Refacciones
               </h2>
               <p className="text-sm text-muted-foreground">
-                Manage parts used in work orders
+                Gestionar refacciones usadas en asignaciones
               </p>
             </div>
 
-            {incident.workOrders?.map((wo) => {
-              const parts = workOrderParts[wo.id] || [];
+            {incident.assignments?.map((wo) => {
+              const parts = assignmentParts[wo.id] || [];
               const totalCost = parts.reduce(
                 (sum, wp) => sum + wp.price * wp.quantity,
                 0,
@@ -165,15 +166,15 @@ export default function EditIncidentPage({
                   <CardHeader>
                     <div className="flex items-center justify-between">
                       <div>
-                        <CardTitle>Work Order - {wo.assignedTo.name}</CardTitle>
+                        <CardTitle>Asignación - {wo.assignedTo.name}</CardTitle>
                         <p className="text-sm text-muted-foreground mt-1">
-                          Status: {wo.status?.name || "No status"} •{" "}
-                          {wo._count?.workActivities || 0} activities
+                          Estado: {wo.status?.name || "Sin estado"} •{" "}
+                          {wo._count?.assignmentActivities || 0} actividades
                         </p>
                       </div>
                       <Button variant="outline" size="sm" asChild>
-                        <Link href={`/admin/work-orders/${wo.id}/edit`}>
-                          View Full Details
+                        <Link href={`/admin/assignments/${wo.id}/edit`}>
+                          Ver Detalle Completo
                         </Link>
                       </Button>
                     </div>
@@ -184,10 +185,10 @@ export default function EditIncidentPage({
                         <div>
                           <h3 className="text-lg font-semibold flex items-center gap-2">
                             <Package className="h-5 w-5" />
-                            Parts Used ({parts.length})
+                            Refacciones Usadas ({parts.length})
                           </h3>
                           <p className="text-sm text-muted-foreground">
-                            Total Cost: ${totalCost.toFixed(2)}
+                            Costo Total: ${totalCost.toFixed(2)}
                           </p>
                         </div>
                         <Button
@@ -201,11 +202,11 @@ export default function EditIncidentPage({
                           variant={showPartForm[wo.id] ? "outline" : "default"}
                         >
                           {showPartForm[wo.id] ? (
-                            "Cancel"
+                            "Cancelar"
                           ) : (
                             <>
                               <Plus className="mr-2 h-4 w-4" />
-                              Add Part
+                              Agregar Refacción
                             </>
                           )}
                         </Button>
@@ -213,7 +214,7 @@ export default function EditIncidentPage({
 
                       {showPartForm[wo.id] && (
                         <WorkPartForm
-                          workOrderId={wo.id}
+                          assignmentId={wo.id}
                           parts={availableParts}
                           onSuccess={() => handlePartSuccess(wo.id)}
                           onCancel={() =>
@@ -224,7 +225,8 @@ export default function EditIncidentPage({
 
                       {parts.length === 0 && !showPartForm[wo.id] ? (
                         <div className="text-center py-8 text-muted-foreground border rounded-lg bg-muted/30">
-                          No parts used yet. Click "Add Part" to record parts.
+                          Sin refacciones aún. Haz clic en "Agregar Refacción"
+                          para registrar.
                         </div>
                       ) : (
                         parts.length > 0 && (

@@ -38,8 +38,8 @@ const menuItems = [
     icon: AlertTriangle,
   },
   {
-    title: "Órdenes de Trabajo",
-    url: "/fsr/work-orders",
+    title: "Asignaciones",
+    url: "/fsr/assignments",
     icon: Wrench,
   },
   {

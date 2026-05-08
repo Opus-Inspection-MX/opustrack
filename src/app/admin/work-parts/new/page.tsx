@@ -7,8 +7,8 @@ interface WorkPartFormData {
   quantity: number;
   description?: string;
   price: number;
-  workOrderId?: string;
-  workActivityId?: string;
+  assignmentId?: string;
+  activityId?: string;
   active: boolean;
 }
 
@@ -44,7 +44,7 @@ const mockParts = [
   },
 ];
 
-const mockWorkOrders = [
+const mockAssignments = [
   {
     id: "wo_001",
     status: { name: "In Progress" },
@@ -62,21 +62,21 @@ const mockWorkOrders = [
   },
 ];
 
-const mockWorkActivities = [
+const mockAssignmentActivities = [
   {
     id: "wa_001",
     description: "Brake pad replacement and system check",
-    workOrderId: "wo_001",
+    assignmentId: "wo_001",
   },
   {
     id: "wa_002",
     description: "Oil change and filter replacement",
-    workOrderId: "wo_002",
+    assignmentId: "wo_002",
   },
   {
     id: "wa_003",
     description: "Air filter installation and testing",
-    workOrderId: "wo_003",
+    assignmentId: "wo_003",
   },
 ];
 
@@ -85,22 +85,22 @@ export default function NewWorkPartPage() {
     console.log("Creating work part:", data);
     // Simulate API call
     await new Promise((resolve) => setTimeout(resolve, 1000));
-    alert("Work part added successfully!");
+    alert("¡Refacción agregada exitosamente!");
   };
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Add Work Part</h1>
+        <h1 className="text-3xl font-bold">Agregar Refacción</h1>
         <p className="text-muted-foreground">
-          Record parts used in work orders and activities
+          Record parts used in asignacións and activities
         </p>
       </div>
 
       <WorkPartForm
         parts={mockParts}
-        workOrders={mockWorkOrders}
-        workActivities={mockWorkActivities}
+        assignments={mockAssignments}
+        assignmentActivities={mockAssignmentActivities}
         onSubmit={handleSubmit}
       />
     </div>

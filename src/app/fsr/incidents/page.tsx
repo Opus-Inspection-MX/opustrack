@@ -42,7 +42,7 @@ export default async function FSRIncidentsPage() {
       <div>
         <h1 className="text-3xl font-bold">Mis Incidentes</h1>
         <p className="text-muted-foreground mt-2">
-          Incidentes relacionados con tus ordenes de trabajo asignadas
+          Incidentes relacionados con tus asignaciones asignadas
         </p>
       </div>
 
@@ -50,14 +50,14 @@ export default async function FSRIncidentsPage() {
         <CardHeader>
           <CardTitle>Incidentes ({incidents.length})</CardTitle>
           <CardDescription>
-            Mostrando incidentes que tienen ordenes de trabajo asignadas a ti
+            Mostrando incidentes que tienen asignaciones asignadas a ti
           </CardDescription>
         </CardHeader>
         <CardContent>
           {incidents.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <AlertTriangle className="mx-auto h-12 w-12 mb-4 opacity-50" />
-              <p>No hay incidentes relacionados con tus ordenes de trabajo</p>
+              <p>No hay incidentes relacionados con tus asignaciones</p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -121,7 +121,7 @@ export default async function FSRIncidentsPage() {
                       </div>
 
                       <div className="text-xs text-muted-foreground">
-                        {incident._count.workOrders} orden(es) de trabajo
+                        {incident._count.assignments} orden(es) de trabajo
                         {incident.sla && (
                           <span className="ml-4">SLA: {incident.sla}h</span>
                         )}

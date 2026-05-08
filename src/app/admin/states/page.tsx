@@ -76,12 +76,12 @@ export default function StatesPage() {
     const state = states.find((s) => s.id === id);
     if (state?.vicCount && state.vicCount > 0) {
       alert(
-        "Cannot delete state with associated VIC centers. Please reassign or delete VIC centers first.",
+        "No se puede eliminar el estado con centros VIC asociados. Por favor reasigna o elimina los centros VIC primero.",
       );
       return;
     }
 
-    if (confirm("Are you sure you want to delete this state?")) {
+    if (confirm("¿Estás seguro de que deseas eliminar este estado?")) {
       try {
         await deleteState(id);
         // Refresh the list
@@ -89,7 +89,9 @@ export default function StatesPage() {
       } catch (error) {
         console.error("Error deleting state:", error);
         alert(
-          error instanceof Error ? error.message : "Failed to delete state",
+          error instanceof Error
+            ? error.message
+            : "Error al eliminar el estado",
         );
       }
     }
@@ -102,7 +104,7 @@ export default function StatesPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Spinner size="lg" text="Loading states..." />
+        <Spinner size="lg" text="Cargando estados..." />
       </div>
     );
   }
@@ -111,14 +113,14 @@ export default function StatesPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">States</h1>
+          <h1 className="text-3xl font-bold">Estados</h1>
           <p className="text-muted-foreground">
-            Manage geographic states and regions
+            Gestionar estados y regiones geográficas
           </p>
         </div>
         <Button onClick={() => router.push("/admin/states/new")}>
           <Plus className="mr-2 h-4 w-4" />
-          Add State
+          Agregar Estado
         </Button>
       </div>
 

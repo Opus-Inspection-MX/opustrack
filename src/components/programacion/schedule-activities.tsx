@@ -46,7 +46,7 @@ interface Incident {
     id: string;
     name: string;
   } | null;
-  workOrders: Array<{ id: string; status?: { name: string } | null }>;
+  assignments: Array<{ id: string; status?: { name: string } | null }>;
 }
 
 interface IncidentType {

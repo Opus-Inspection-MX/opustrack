@@ -176,14 +176,16 @@ export default function SchedulesPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm("Are you sure you want to delete this schedule?")) {
+    if (confirm("¿Estás seguro de que deseas eliminar este horario?")) {
       try {
         await deleteSchedule(id);
         await fetchSchedulesData();
       } catch (error) {
         console.error("Error deleting schedule:", error);
         alert(
-          error instanceof Error ? error.message : "Failed to delete schedule",
+          error instanceof Error
+            ? error.message
+            : "Error al eliminar el horario",
         );
       }
     }
@@ -205,7 +207,7 @@ export default function SchedulesPage() {
   if (isLoading && schedules.length === 0) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Spinner size="lg" text="Loading schedules..." />
+        <Spinner size="lg" text="Cargando horarios..." />
       </div>
     );
   }
@@ -214,14 +216,14 @@ export default function SchedulesPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Schedules</h1>
+          <h1 className="text-3xl font-bold">Horarios</h1>
           <p className="text-muted-foreground">
-            Manage maintenance schedules and planned activities
+            Gestionar horarios de mantenimiento y actividades planificadas
           </p>
         </div>
         <Button onClick={() => router.push("/admin/schedules/new")}>
           <Plus className="mr-2 h-4 w-4" />
-          New Schedule
+          Nuevo Horario
         </Button>
       </div>
 

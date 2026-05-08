@@ -20,7 +20,7 @@ export default async function EditIncidentTypePage({
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Edit Incident Type</h1>
+        <h1 className="text-3xl font-bold">Editar Tipo de Incidente</h1>
         <p className="text-muted-foreground">
           Update incident type information
         </p>

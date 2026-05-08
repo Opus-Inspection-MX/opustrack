@@ -41,9 +41,9 @@ interface VehicleTrip {
     name: string;
     email: string;
   };
-  workOrder?: {
+  assignment?: {
     id: string;
-    folio: string | null;
+    folio: number;
     incident: {
       id: number;
       title: string;
@@ -93,7 +93,9 @@ export default async function TripDetailPage({
                 </Link>
               </Button>
               <Button asChild className="w-full sm:w-auto">
-                <Link href={`/fsr/vehicle-trips/${id}/end`}>Finalizar Viaje</Link>
+                <Link href={`/fsr/vehicle-trips/${id}/end`}>
+                  Finalizar Viaje
+                </Link>
               </Button>
             </>
           ) : (
@@ -132,12 +134,11 @@ export default async function TripDetailPage({
               </Badge>
             </div>
 
-            {trip.workOrder && (
+            {trip.assignment && (
               <div>
-                <div className="text-sm text-muted-foreground">Orden de Trabajo</div>
+                <div className="text-sm text-muted-foreground">Asignación</div>
                 <div className="font-medium">
-                  {trip.workOrder.folio ? `#${trip.workOrder.folio}` : "N/A"} -{" "}
-                  {trip.workOrder.incident.title}
+                  AS-{trip.assignment.folio} - {trip.assignment.incident.title}
                 </div>
               </div>
             )}

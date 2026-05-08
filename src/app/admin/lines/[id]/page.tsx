@@ -89,7 +89,7 @@ export default async function LineDetailPage({ params }: LineDetailPageProps) {
             <div className="flex items-start gap-3">
               <List className="h-5 w-5 text-muted-foreground mt-0.5" />
               <div className="flex-1">
-                <p className="text-sm text-muted-foreground">Status</p>
+                <p className="text-sm text-muted-foreground">Estado</p>
                 <Badge
                   className={
                     line.active
@@ -125,7 +125,7 @@ export default async function LineDetailPage({ params }: LineDetailPageProps) {
                     <TableRow>
                       <TableHead>Nombre</TableHead>
                       <TableHead>Descripción</TableHead>
-                      <TableHead>Status</TableHead>
+                      <TableHead>Estado</TableHead>
                       <TableHead>Creado</TableHead>
                     </TableRow>
                   </TableHeader>

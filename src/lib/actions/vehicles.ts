@@ -64,7 +64,7 @@ export async function getVehicleById(id: string) {
           fsr: {
             select: { id: true, name: true, email: true },
           },
-          workOrder: {
+          assignment: {
             select: { id: true, folio: true },
           },
         },

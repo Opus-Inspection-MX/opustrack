@@ -81,10 +81,10 @@ const menuSections = [
   {
     title: "Gestión de Trabajo",
     items: [
-      { title: "Órdenes de Trabajo", url: "/admin/work-orders", icon: Wrench },
+      { title: "Asignaciones", url: "/admin/assignments", icon: Wrench },
       {
         title: "Actividades de Trabajo",
-        url: "/admin/work-activities",
+        url: "/admin/assignment-activities",
         icon: Activity,
       },
       { title: "Partes de Trabajo", url: "/admin/work-parts", icon: Cog },
@@ -100,8 +100,8 @@ const menuSections = [
         icon: TrendingUp,
       },
       {
-        title: "Órdenes de Trabajo",
-        url: "/admin/reports/work-orders",
+        title: "Asignaciones",
+        url: "/admin/reports/assignments",
         icon: ClipboardList,
       },
       { title: "Incidentes", url: "/admin/reports/incidents", icon: PieChart },
@@ -121,8 +121,8 @@ const menuSections = [
         icon: Target,
       },
       {
-        title: "Antigüedad Órdenes",
-        url: "/admin/reports/work-order-aging",
+        title: "Antigüedad Asignaciones",
+        url: "/admin/reports/assignment-aging",
         icon: Clock,
       },
       {

@@ -8,7 +8,7 @@ export default async function NewIncidentStatusPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Create Incident Status</h1>
+        <h1 className="text-3xl font-bold">Crear Estado de Incidente</h1>
         <p className="text-muted-foreground">Add a new incident status type</p>
       </div>
 

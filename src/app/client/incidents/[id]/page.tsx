@@ -90,7 +90,7 @@ export default async function ClientIncidentDetailPage({
               <AlertTriangle className="h-6 w-6 text-destructive" />
             )}
           </div>
-          <p className="text-muted-foreground">Incidente #{incident.id}</p>
+          <p className="text-muted-foreground">Folio: INC-{incident.id}</p>
         </div>
         <div className="flex gap-3">
           <div className="text-xl">{getPriorityBadge(incident.priority)}</div>
@@ -204,17 +204,15 @@ export default async function ClientIncidentDetailPage({
         </CardContent>
       </Card>
 
-      {/* Work Orders */}
-      {incident.workOrders && incident.workOrders.length > 0 && (
+      {/* Assignments */}
+      {incident.assignments && incident.assignments.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>
-              Ordenes de Trabajo ({incident.workOrders.length})
-            </CardTitle>
+            <CardTitle>Asignaciones ({incident.assignments.length})</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {incident.workOrders.map((wo) => (
+              {incident.assignments.map((wo) => (
                 <div
                   key={wo.id}
                   className="flex items-center justify-between border rounded-lg p-4 hover:bg-accent/50 transition-colors"
@@ -235,7 +233,7 @@ export default async function ClientIncidentDetailPage({
                     </span>
                   </div>
                   <Button variant="outline" size="sm" asChild>
-                    <Link href={`/client/work-orders/${wo.id}`}>
+                    <Link href={`/client/assignments/${wo.id}`}>
                       Ver Progreso
                     </Link>
                   </Button>

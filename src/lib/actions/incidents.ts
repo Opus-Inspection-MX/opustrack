@@ -41,7 +41,7 @@ export async function getIncidents() {
       },
       schedule: true,
       _count: {
-        select: { workOrders: true },
+        select: { assignments: true },
       },
     },
     orderBy: { reportedAt: "desc" },
@@ -59,7 +59,7 @@ export async function getMyIncidents() {
   const incidents = await prisma.incident.findMany({
     where: {
       active: true,
-      workOrders: {
+      assignments: {
         some: {
           assignedToId: user.id,
           active: true,
@@ -78,7 +78,7 @@ export async function getMyIncidents() {
         },
       },
       _count: {
-        select: { workOrders: true },
+        select: { assignments: true },
       },
     },
     orderBy: { reportedAt: "desc" },
@@ -109,7 +109,7 @@ export async function getIncidentById(id: number) {
         },
       },
       schedule: true,
-      workOrders: {
+      assignments: {
         where: { active: true },
         include: {
           assignedTo: {
@@ -122,7 +122,7 @@ export async function getIncidentById(id: number) {
           status: true,
           _count: {
             select: {
-              workActivities: true,
+              assignmentActivities: true,
               workParts: true,
             },
           },
@@ -265,7 +265,7 @@ export async function getClientIncidents() {
         },
       },
       _count: {
-        select: { workOrders: true },
+        select: { assignments: true },
       },
     },
     orderBy: { reportedAt: "desc" },
@@ -341,14 +341,14 @@ export async function deleteIncident(id: number) {
 
   // Use transaction to prevent race conditions when checking for children
   await prisma.$transaction(async (tx) => {
-    // Check for active work orders
-    const activeWorkOrders = await tx.workOrder.count({
+    // Check for active assignments
+    const activeAssignments = await tx.assignment.count({
       where: { incidentId: id, active: true },
     });
 
-    if (activeWorkOrders > 0) {
+    if (activeAssignments > 0) {
       throw new Error(
-        `No se puede eliminar el incidente. Tiene ${activeWorkOrders} orden(es) de trabajo activa(s).`,
+        `No se puede eliminar el incidente. Tiene ${activeAssignments} asignación(es) activa(s).`,
       );
     }
 
@@ -473,14 +473,14 @@ export async function assignIncidentToFSR(
     throw new Error("El usuario seleccionado no es un FSR");
   }
 
-  // Use transaction to create work order, update incident, and create notification
-  const workOrder = await prisma.$transaction(async (tx) => {
-    // Create work order for the incident
-    const wo = await tx.workOrder.create({
+  // Use transaction to create assignment, update incident, and create notification
+  const assignment = await prisma.$transaction(async (tx) => {
+    // Create assignment for the incident
+    const a = await tx.assignment.create({
       data: {
         incidentId,
         assignedToId: fsrUserId,
-        notes: "Orden de trabajo asignada automáticamente",
+        notes: "Asignación creada automáticamente",
       },
       include: {
         assignedTo: {
@@ -509,12 +509,12 @@ export async function assignIncidentToFSR(
     await tx.notification.create({
       data: {
         userId: fsrUserId,
-        title: "Nueva Orden de Trabajo Asignada",
-        message: `Se le ha asignado una orden de trabajo para el incidente: ${incident.title}`,
-        type: "work_order_assigned",
-        entityType: "work_order",
-        entityId: wo.id,
-        actionUrl: `/fsr/work-orders/${wo.id}`,
+        title: "Nueva Asignación",
+        message: `Se le ha asignado una asignación para el incidente: ${incident.title}`,
+        type: "assignment_assigned",
+        entityType: "assignment",
+        entityId: a.id,
+        actionUrl: `/fsr/assignments/${a.id}`,
         priority: 2, // Medium priority
         metadata: {
           incidentId,
@@ -525,14 +525,14 @@ export async function assignIncidentToFSR(
       },
     });
 
-    return wo;
+    return a;
   });
 
   revalidatePath("/admin/incidents");
   revalidatePath(`/admin/incidents/${incidentId}`);
   revalidatePath("/fsr/incidents");
-  revalidatePath("/fsr/work-orders");
-  return { success: true, data: workOrder };
+  revalidatePath("/fsr/assignments");
+  return { success: true, data: assignment };
 }
 
 /**

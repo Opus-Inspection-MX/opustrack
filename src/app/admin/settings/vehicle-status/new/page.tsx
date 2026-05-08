@@ -8,7 +8,7 @@ export default async function NewVehicleStatusPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Create Vehicle Status</h1>
+        <h1 className="text-3xl font-bold">Crear Estado de Vehículo</h1>
         <p className="text-muted-foreground">Add a new vehicle status type</p>
       </div>
 

@@ -79,7 +79,7 @@ export default function EditSchedulePage({
         setVicCenters(vics);
       } catch (error) {
         console.error("Error fetching data:", error);
-        setErrors({ submit: "Failed to load schedule data" });
+        setErrors({ submit: "Error al cargar los datos del horario" });
       } finally {
         setLoading(false);
       }
@@ -99,30 +99,31 @@ export default function EditSchedulePage({
     const newErrors: Record<string, string> = {};
 
     if (!formData.title.trim()) {
-      newErrors.title = "Title is required";
+      newErrors.title = "El título es requerido";
     } else if (formData.title.length > 200) {
-      newErrors.title = "Title must be less than 200 characters";
+      newErrors.title = "El título debe tener menos de 200 caracteres";
     }
 
     if (formData.description && formData.description.length > 1000) {
-      newErrors.description = "Description must be less than 1000 characters";
+      newErrors.description =
+        "La descripción debe tener menos de 1000 caracteres";
     }
 
     if (!formData.scheduledAt) {
-      newErrors.scheduledAt = "Scheduled date and time is required";
+      newErrors.scheduledAt = "La fecha y hora programada es requerida";
     }
 
-    // Validate endDate is after scheduledAt if provided
     if (formData.endDate && formData.scheduledAt) {
       const startDate = new Date(formData.scheduledAt);
       const endDate = new Date(formData.endDate);
       if (endDate <= startDate) {
-        newErrors.endDate = "End date must be after start date";
+        newErrors.endDate =
+          "La fecha de fin debe ser posterior a la fecha de inicio";
       }
     }
 
     if (!formData.vicId) {
-      newErrors.vicId = "VIC Center is required";
+      newErrors.vicId = "El Centro VIC es requerido";
     }
 
     setErrors(newErrors);
@@ -155,7 +156,7 @@ export default function EditSchedulePage({
         submit:
           error instanceof Error
             ? error.message
-            : "Failed to update schedule. Please try again.",
+            : "Error al actualizar el horario. Por favor intenta de nuevo.",
       });
     } finally {
       setIsSubmitting(false);
@@ -166,7 +167,7 @@ export default function EditSchedulePage({
     return (
       <div className="container mx-auto p-6">
         <div className="flex items-center justify-center min-h-[400px]">
-          <Spinner size="lg" text="Loading schedule..." />
+          <Spinner size="lg" text="Cargando horario..." />
         </div>
       </div>
     );
@@ -178,18 +179,20 @@ export default function EditSchedulePage({
         <Link href={`/admin/schedules/${id}`}>
           <Button variant="outline" size="sm">
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Back
+            Regresar
           </Button>
         </Link>
         <div>
-          <h1 className="text-3xl font-bold">Edit Schedule</h1>
-          <p className="text-muted-foreground">Update schedule information</p>
+          <h1 className="text-3xl font-bold">Editar Horario</h1>
+          <p className="text-muted-foreground">
+            Actualizar información del horario
+          </p>
         </div>
       </div>
 
       <Card className="max-w-2xl">
         <CardHeader>
-          <CardTitle>Schedule Details</CardTitle>
+          <CardTitle>Detalles del Horario</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -197,13 +200,13 @@ export default function EditSchedulePage({
 
             <div className="space-y-2">
               <Label htmlFor="title">
-                Title <span className="text-red-500">*</span>
+                Título <span className="text-red-500">*</span>
               </Label>
               <Input
                 id="title"
                 value={formData.title}
                 onChange={(e) => handleChange("title", e.target.value)}
-                placeholder="e.g., Monthly Maintenance Check"
+                placeholder="Ej. Revisión mensual de mantenimiento"
                 className={errors.title ? "border-red-500" : ""}
               />
               {errors.title && (
@@ -215,12 +218,12 @@ export default function EditSchedulePage({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
+              <Label htmlFor="description">Descripción</Label>
               <Textarea
                 id="description"
                 value={formData.description}
                 onChange={(e) => handleChange("description", e.target.value)}
-                placeholder="Describe the scheduled activity..."
+                placeholder="Describe la actividad programada..."
                 rows={4}
                 className={errors.description ? "border-red-500" : ""}
               />
@@ -234,7 +237,7 @@ export default function EditSchedulePage({
 
             <div className="space-y-2">
               <Label htmlFor="scheduledAt">
-                Start Date & Time <span className="text-red-500">*</span>
+                Fecha y Hora de Inicio <span className="text-red-500">*</span>
               </Label>
               <Input
                 id="scheduledAt"
@@ -249,7 +252,7 @@ export default function EditSchedulePage({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="endDate">End Date & Time (Optional)</Label>
+              <Label htmlFor="endDate">Fecha y Hora de Fin (Opcional)</Label>
               <Input
                 id="endDate"
                 type="datetime-local"
@@ -261,7 +264,8 @@ export default function EditSchedulePage({
                 <p className="text-sm text-red-500">{errors.endDate}</p>
               )}
               <p className="text-sm text-muted-foreground">
-                If provided, incidents must be created within this date range
+                Si se proporciona, los incidentes deben crearse dentro de este
+                rango de fechas
               </p>
             </div>
 
@@ -274,7 +278,7 @@ export default function EditSchedulePage({
                 onValueChange={(value) => handleChange("vicId", value)}
               >
                 <SelectTrigger className={errors.vicId ? "border-red-500" : ""}>
-                  <SelectValue placeholder="Select VIC Center" />
+                  <SelectValue placeholder="Seleccionar Centro VIC" />
                 </SelectTrigger>
                 <SelectContent>
                   {vicCenters.map((vic) => (
@@ -295,7 +299,7 @@ export default function EditSchedulePage({
                 checked={formData.active}
                 onCheckedChange={(checked) => handleChange("active", checked)}
               />
-              <Label htmlFor="active">Active</Label>
+              <Label htmlFor="active">Activo</Label>
             </div>
 
             <div className="flex gap-4 pt-4">
@@ -304,7 +308,7 @@ export default function EditSchedulePage({
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 )}
                 <Save className="mr-2 h-4 w-4" />
-                {isSubmitting ? "Saving..." : "Save Changes"}
+                {isSubmitting ? "Guardando..." : "Guardar Cambios"}
               </Button>
               <Button
                 type="button"
@@ -312,7 +316,7 @@ export default function EditSchedulePage({
                 onClick={() => router.push(`/admin/schedules/${id}`)}
                 disabled={isSubmitting}
               >
-                Cancel
+                Cancelar
               </Button>
             </div>
           </form>

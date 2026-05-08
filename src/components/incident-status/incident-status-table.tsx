@@ -54,12 +54,14 @@ export function IncidentStatusTable({
   const handleDelete = (id: number, incidentCount: number) => {
     if (incidentCount > 0) {
       alert(
-        `Cannot delete this status. It is being used by ${incidentCount} incident(s).`,
+        `No se puede eliminar este estado. Está siendo usado por ${incidentCount} incidente(s).`,
       );
       return;
     }
 
-    if (confirm("Are you sure you want to delete this incident status?")) {
+    if (
+      confirm("¿Estás seguro de que deseas eliminar este estado de incidente?")
+    ) {
       onDelete(id);
     }
   };

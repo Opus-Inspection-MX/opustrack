@@ -31,7 +31,7 @@ export default function NewPermissionPage() {
       const newErrors: Record<string, string> = {};
 
       if (!formData.name.trim()) {
-        newErrors.name = "Permission name is required";
+        newErrors.name = "El nombre del permiso es requerido";
       }
 
       if (Object.keys(newErrors).length > 0) {
@@ -49,7 +49,9 @@ export default function NewPermissionPage() {
       router.push("/admin/permissions");
     } catch (error) {
       console.error("Error creating permission:", error);
-      setErrors({ submit: "Failed to create permission. Please try again." });
+      setErrors({
+        submit: "Error al crear el permiso. Por favor intenta de nuevo.",
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -62,16 +64,16 @@ export default function NewPermissionPage() {
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div>
-          <h1 className="text-3xl font-bold">Create Permission</h1>
+          <h1 className="text-3xl font-bold">Crear Permiso</h1>
           <p className="text-muted-foreground">
-            Add a new permission to the system
+            Agregar un nuevo permiso al sistema
           </p>
         </div>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Permission Information</CardTitle>
+          <CardTitle>Información del Permiso</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -80,7 +82,7 @@ export default function NewPermissionPage() {
             {/* Permission Name */}
             <div className="space-y-2">
               <Label htmlFor="name">
-                Permission Name <span className="text-red-500">*</span>
+                Nombre del Permiso <span className="text-red-500">*</span>
               </Label>
               <Input
                 id="name"
@@ -117,15 +119,15 @@ export default function NewPermissionPage() {
                 onClick={() => router.back()}
                 disabled={isSubmitting}
               >
-                Cancel
+                Cancelar
               </Button>
               <Button type="submit" disabled={isSubmitting}>
                 {isSubmitting ? (
-                  <span className="mr-2">Creating...</span>
+                  <span className="mr-2">Creando...</span>
                 ) : (
                   <>
                     <Save className="mr-2 h-4 w-4" />
-                    Create Permission
+                    Crear Permiso
                   </>
                 )}
               </Button>

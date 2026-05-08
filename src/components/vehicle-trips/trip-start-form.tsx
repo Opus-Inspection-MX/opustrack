@@ -18,7 +18,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import {
   getAvailableVehicles,
-  getMyWorkOrdersForTrips,
+  getMyAssignmentsForTrips,
   startVehicleTrip,
 } from "@/lib/actions/vehicle-trips";
 import { fileToBase64, normalizeMimeType } from "@/lib/upload";
@@ -31,9 +31,9 @@ interface Vehicle {
   licensePlate: string;
 }
 
-interface WorkOrder {
+interface Assignment {
   id: string;
-  folio: string | null;
+  folio: number;
   incident: {
     id: number;
     title: string;
@@ -49,12 +49,12 @@ export function TripStartForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
+  const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [loadingData, setLoadingData] = useState(true);
 
   const [formData, setFormData] = useState({
     vehicleId: "",
-    workOrderId: "",
+    assignmentId: "",
     startOdometer: "",
     latitude: undefined as number | undefined,
     longitude: undefined as number | undefined,
@@ -67,12 +67,12 @@ export function TripStartForm() {
   const loadFormData = useCallback(async () => {
     setLoadingData(true);
     try {
-      const [vehiclesData, workOrdersData] = await Promise.all([
+      const [vehiclesData, assignmentsData] = await Promise.all([
         getAvailableVehicles(),
-        getMyWorkOrdersForTrips(),
+        getMyAssignmentsForTrips(),
       ]);
       setVehicles(vehiclesData);
-      setWorkOrders(workOrdersData);
+      setAssignments(assignmentsData);
     } catch (err) {
       setError("Error al cargar los datos del formulario");
       console.error(err);
@@ -128,10 +128,9 @@ export function TripStartForm() {
       const photoBase64 = await fileToBase64(photo);
       const photoMimetype = normalizeMimeType(photo);
 
-      // Start trip
       await startVehicleTrip({
         vehicleId: formData.vehicleId,
-        workOrderId: formData.workOrderId || null,
+        assignmentId: formData.assignmentId || null,
         startOdometer: Number.parseInt(formData.startOdometer, 10),
         startPhotoFilename: photo.name,
         startPhotoBase64: photoBase64,
@@ -144,7 +143,9 @@ export function TripStartForm() {
 
       router.push("/fsr/vehicle-trips");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error al iniciar el viaje");
+      setError(
+        err instanceof Error ? err.message : "Error al iniciar el viaje",
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -206,25 +207,24 @@ export function TripStartForm() {
           </div>
 
           <div>
-            <Label htmlFor="workOrder">Orden de Trabajo (Opcional)</Label>
+            <Label htmlFor="assignment">Asignación (Opcional)</Label>
             <Select
-              value={formData.workOrderId || "none"}
+              value={formData.assignmentId || "none"}
               onValueChange={(value) =>
                 setFormData({
                   ...formData,
-                  workOrderId: value === "none" ? "" : value,
+                  assignmentId: value === "none" ? "" : value,
                 })
               }
             >
-              <SelectTrigger id="workOrder">
+              <SelectTrigger id="assignment">
                 <SelectValue placeholder="Ninguna - Viaje personal" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">Ninguna - Viaje personal</SelectItem>
-                {workOrders.map((wo) => (
-                  <SelectItem key={wo.id} value={wo.id}>
-                    {wo.folio ? `#${wo.folio}` : `WO-${wo.id}`} -{" "}
-                    {wo.incident.title}
+                {assignments.map((a) => (
+                  <SelectItem key={a.id} value={a.id}>
+                    AS-{a.folio} - {a.incident.title}
                   </SelectItem>
                 ))}
               </SelectContent>

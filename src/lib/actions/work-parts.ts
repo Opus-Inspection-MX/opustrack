@@ -17,17 +17,17 @@ export type WorkPartFormData = WorkPartCreateInput;
  * Filtered by user's VIC (except ADMINISTRADOR who sees all)
  */
 export async function getAllWorkParts() {
-  const user = await requirePermission("work-orders:read");
+  const user = await requirePermission("assignments:read");
   const vicFilter = getVicWhereClause(user);
 
   const workParts = await prisma.workPart.findMany({
     where: {
       active: true,
-      workOrder: { incident: { ...vicFilter } },
+      assignment: { incident: { ...vicFilter } },
     },
     include: {
       part: true,
-      workOrder: {
+      assignment: {
         include: {
           status: true,
           incident: {
@@ -37,7 +37,7 @@ export async function getAllWorkParts() {
           },
         },
       },
-      workActivity: true,
+      activity: true,
     },
     orderBy: { createdAt: "desc" },
   });
@@ -46,19 +46,19 @@ export async function getAllWorkParts() {
 }
 
 /**
- * Get work parts for a work order
+ * Get work parts for an assignment
  */
-export async function getWorkParts(workOrderId: string) {
-  await requirePermission("work-orders:read");
+export async function getWorkParts(assignmentId: string) {
+  await requirePermission("assignments:read");
 
   const workParts = await prisma.workPart.findMany({
     where: {
-      workOrderId,
+      assignmentId,
       active: true,
     },
     include: {
       part: true,
-      workActivity: true,
+      activity: true,
     },
     orderBy: { createdAt: "desc" },
   });
@@ -72,12 +72,10 @@ export async function getWorkParts(workOrderId: string) {
  * Validates input with Zod schema
  */
 export async function createWorkPart(data: unknown) {
-  await requirePermission("work-orders:update");
+  await requirePermission("assignments:update");
 
-  // Validate input
   const validated = WorkPartCreateSchema.parse(data);
 
-  // Use transaction with atomic conditional update to prevent race conditions
   const workPart = await prisma.$transaction(async (tx) => {
     const part = await tx.part.findUnique({
       where: { id: validated.partId },
@@ -87,8 +85,6 @@ export async function createWorkPart(data: unknown) {
       throw new Error("Parte no encontrada");
     }
 
-    // Atomic decrement: WHERE stock >= quantity ensures no race condition
-    // If two transactions try simultaneously, only one will match the WHERE clause
     const updated = await tx.part.updateMany({
       where: { id: validated.partId, stock: { gte: validated.quantity } },
       data: { stock: { decrement: validated.quantity } },
@@ -100,24 +96,23 @@ export async function createWorkPart(data: unknown) {
       );
     }
 
-    // Create work part
     const wp = await tx.workPart.create({
       data: {
-        workOrderId: validated.workOrderId,
-        workActivityId: validated.workActivityId,
+        assignmentId: validated.assignmentId,
+        activityId: validated.activityId,
         partId: validated.partId,
         quantity: validated.quantity,
         description: validated.description || null,
-        price: part.price, // Store the price at time of use
+        price: part.price,
       },
     });
 
     return wp;
   });
 
-  if (validated.workOrderId) {
-    revalidatePath(`/admin/work-orders/${validated.workOrderId}`);
-    revalidatePath(`/fsr/work-orders/${validated.workOrderId}`);
+  if (validated.assignmentId) {
+    revalidatePath(`/admin/assignments/${validated.assignmentId}`);
+    revalidatePath(`/fsr/assignments/${validated.assignmentId}`);
   }
 
   return { success: true, data: workPart };
@@ -131,9 +126,8 @@ export async function updateWorkPart(
   id: string,
   data: Partial<WorkPartFormData>,
 ) {
-  await requirePermission("work-orders:update");
+  await requirePermission("assignments:update");
 
-  // Use transaction to ensure stock integrity
   const result = await prisma.$transaction(async (tx) => {
     const existingWorkPart = await tx.workPart.findUnique({
       where: { id },
@@ -143,12 +137,10 @@ export async function updateWorkPart(
       throw new Error("Work part no encontrada");
     }
 
-    // If quantity changed, update stock atomically
     if (data.quantity && data.quantity !== existingWorkPart.quantity) {
       const difference = data.quantity - existingWorkPart.quantity;
 
       if (difference > 0) {
-        // Need more stock - atomic conditional update to prevent race condition
         const updated = await tx.part.updateMany({
           where: {
             id: existingWorkPart.partId,
@@ -166,7 +158,6 @@ export async function updateWorkPart(
           );
         }
       } else {
-        // Returning stock - always safe
         await tx.part.update({
           where: { id: existingWorkPart.partId },
           data: { stock: { increment: Math.abs(difference) } },
@@ -182,12 +173,12 @@ export async function updateWorkPart(
       },
     });
 
-    return { workPart, workOrderId: existingWorkPart.workOrderId };
+    return { workPart, assignmentId: existingWorkPart.assignmentId };
   });
 
-  if (result.workOrderId) {
-    revalidatePath(`/admin/work-orders/${result.workOrderId}`);
-    revalidatePath(`/fsr/work-orders/${result.workOrderId}`);
+  if (result.assignmentId) {
+    revalidatePath(`/admin/assignments/${result.assignmentId}`);
+    revalidatePath(`/fsr/assignments/${result.assignmentId}`);
   }
 
   return { success: true, data: result.workPart };
@@ -198,9 +189,8 @@ export async function updateWorkPart(
  * Uses transaction to ensure atomicity when restoring stock and soft deleting
  */
 export async function deleteWorkPart(id: string) {
-  await requirePermission("work-orders:delete");
+  await requirePermission("assignments:delete");
 
-  // Use transaction to ensure stock integrity
   const result = await prisma.$transaction(async (tx) => {
     const workPart = await tx.workPart.findUnique({
       where: { id },
@@ -210,24 +200,22 @@ export async function deleteWorkPart(id: string) {
       throw new Error("Work part no encontrada");
     }
 
-    // Restore stock
     await tx.part.update({
       where: { id: workPart.partId },
       data: { stock: { increment: workPart.quantity } },
     });
 
-    // Soft delete
     await tx.workPart.update({
       where: { id },
       data: { active: false },
     });
 
-    return { workOrderId: workPart.workOrderId };
+    return { assignmentId: workPart.assignmentId };
   });
 
-  if (result.workOrderId) {
-    revalidatePath(`/admin/work-orders/${result.workOrderId}`);
-    revalidatePath(`/fsr/work-orders/${result.workOrderId}`);
+  if (result.assignmentId) {
+    revalidatePath(`/admin/assignments/${result.assignmentId}`);
+    revalidatePath(`/fsr/assignments/${result.assignmentId}`);
   }
 
   return { success: true };
@@ -237,20 +225,20 @@ export async function deleteWorkPart(id: string) {
  * Get work part by ID
  */
 export async function getWorkPartById(id: string) {
-  await requirePermission("work-orders:read");
+  await requirePermission("assignments:read");
 
   const workPart = await prisma.workPart.findUnique({
     where: { id },
     include: {
       part: true,
-      workOrder: {
+      assignment: {
         include: {
           status: true,
           incident: true,
           assignedTo: true,
         },
       },
-      workActivity: true,
+      activity: true,
     },
   });
 
@@ -258,7 +246,7 @@ export async function getWorkPartById(id: string) {
 }
 
 /**
- * Get parts available for work order (for FSR)
+ * Get parts available for assignment (for FSR)
  */
 export async function getAvailableParts(vicId?: string) {
   await requirePermission("parts:read");
@@ -267,7 +255,7 @@ export async function getAvailableParts(vicId?: string) {
     where: {
       active: true,
       ...(vicId && { vicId }),
-      stock: { gt: 0 }, // Only show parts with stock
+      stock: { gt: 0 },
     },
     orderBy: { name: "asc" },
   });

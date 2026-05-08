@@ -14,15 +14,15 @@ export type DateRange = {
 export type FSRPerformanceData = {
   fsrId: string;
   fsrName: string;
-  totalWorkOrders: number;
-  completedWorkOrders: number;
+  totalAssignments: number;
+  completedAssignments: number;
   averageCompletionTime: number; // in hours
   totalActivities: number;
   totalTrips: number;
   totalKmDriven: number;
 };
 
-export type WorkOrderStatusData = {
+export type AssignmentStatusData = {
   status: string;
   count: number;
   percentage: number;
@@ -97,8 +97,7 @@ export async function getFSRPerformanceData(
   // Get performance data for each FSR
   const performanceData: FSRPerformanceData[] = await Promise.all(
     fsrUsers.map(async (fsr) => {
-      // Get work orders
-      const workOrders = await prisma.workOrder.findMany({
+      const assignments = await prisma.assignment.findMany({
         where: {
           assignedToId: fsr.id,
           active: true,
@@ -109,23 +108,21 @@ export async function getFSRPerformanceData(
         },
         include: {
           status: true,
-          workActivities: {
+          assignmentActivities: {
             where: { active: true },
           },
         },
       });
 
-      // Calculate completion time for completed work orders
-      const completedWorkOrders = workOrders.filter(
-        (wo) => wo.status?.name === "COMPLETADO" || wo.finishedAt,
+      const completedAssignments = assignments.filter(
+        (a) => a.status?.name === "COMPLETADO" || a.finishedAt,
       );
 
       let totalCompletionTime = 0;
-      completedWorkOrders.forEach((wo) => {
-        if (wo.startedAt && wo.finishedAt) {
+      completedAssignments.forEach((a) => {
+        if (a.startedAt && a.finishedAt) {
           totalCompletionTime +=
-            (wo.finishedAt.getTime() - wo.startedAt.getTime()) /
-            (1000 * 60 * 60);
+            (a.finishedAt.getTime() - a.startedAt.getTime()) / (1000 * 60 * 60);
         }
       });
 
@@ -149,19 +146,19 @@ export async function getFSRPerformanceData(
         0,
       );
 
-      const totalActivities = workOrders.reduce(
-        (sum, wo) => sum + wo.workActivities.length,
+      const totalActivities = assignments.reduce(
+        (sum, a) => sum + a.assignmentActivities.length,
         0,
       );
 
       return {
         fsrId: fsr.id,
         fsrName: fsr.name,
-        totalWorkOrders: workOrders.length,
-        completedWorkOrders: completedWorkOrders.length,
+        totalAssignments: assignments.length,
+        completedAssignments: completedAssignments.length,
         averageCompletionTime:
-          completedWorkOrders.length > 0
-            ? totalCompletionTime / completedWorkOrders.length
+          completedAssignments.length > 0
+            ? totalCompletionTime / completedAssignments.length
             : 0,
         totalActivities,
         totalTrips: trips.length,
@@ -171,16 +168,16 @@ export async function getFSRPerformanceData(
   );
 
   return performanceData.sort(
-    (a, b) => b.completedWorkOrders - a.completedWorkOrders,
+    (a, b) => b.completedAssignments - a.completedAssignments,
   );
 }
 
 /**
  * Get Work Order Status Distribution
  */
-export async function getWorkOrderStatusData(
+export async function getAssignmentStatusData(
   dateRange?: DateRange,
-): Promise<WorkOrderStatusData[]> {
+): Promise<AssignmentStatusData[]> {
   await requirePermission("reports:view");
 
   const startDate = dateRange?.startDate
@@ -188,7 +185,7 @@ export async function getWorkOrderStatusData(
     : new Date(new Date().setMonth(new Date().getMonth() - 1));
   const endDate = dateRange?.endDate ? new Date(dateRange.endDate) : new Date();
 
-  const workOrders = await prisma.workOrder.findMany({
+  const assignments = await prisma.assignment.findMany({
     where: {
       active: true,
       createdAt: {
@@ -201,14 +198,13 @@ export async function getWorkOrderStatusData(
     },
   });
 
-  // Group by status
   const statusCounts: Record<string, number> = {};
-  workOrders.forEach((wo) => {
-    const statusName = wo.status?.name || "Sin Estado";
+  assignments.forEach((a) => {
+    const statusName = a.status?.name || "Sin Estado";
     statusCounts[statusName] = (statusCounts[statusName] || 0) + 1;
   });
 
-  const total = workOrders.length || 1;
+  const total = assignments.length || 1;
   return Object.entries(statusCounts).map(([status, count]) => ({
     status,
     count,
@@ -483,8 +479,8 @@ export async function getReportSummary(dateRange?: DateRange) {
   const [
     totalIncidents,
     resolvedIncidents,
-    totalWorkOrders,
-    completedWorkOrders,
+    totalAssignments,
+    completedAssignments,
     totalTrips,
     totalKmDriven,
     partsUsed,
@@ -502,13 +498,13 @@ export async function getReportSummary(dateRange?: DateRange) {
         resolvedAt: { not: null },
       },
     }),
-    prisma.workOrder.count({
+    prisma.assignment.count({
       where: {
         active: true,
         createdAt: { gte: startDate, lte: endDate },
       },
     }),
-    prisma.workOrder.count({
+    prisma.assignment.count({
       where: {
         active: true,
         createdAt: { gte: startDate, lte: endDate },
@@ -544,11 +540,11 @@ export async function getReportSummary(dateRange?: DateRange) {
       totalIncidents > 0
         ? Math.round((resolvedIncidents / totalIncidents) * 100)
         : 0,
-    totalWorkOrders,
-    completedWorkOrders,
-    workOrderCompletionRate:
-      totalWorkOrders > 0
-        ? Math.round((completedWorkOrders / totalWorkOrders) * 100)
+    totalAssignments,
+    completedAssignments,
+    assignmentCompletionRate:
+      totalAssignments > 0
+        ? Math.round((completedAssignments / totalAssignments) * 100)
         : 0,
     totalTrips,
     totalKmDriven: totalKmDriven._sum.kmDriven || 0,
@@ -722,12 +718,12 @@ export async function getSLAComplianceData(
 }
 
 // ============================================
-// WORK ORDER AGING REPORT
+// ASSIGNMENT AGING REPORT
 // ============================================
 
-export type WorkOrderAgingData = {
-  workOrderId: string;
-  folio: string | null;
+export type AssignmentAgingData = {
+  assignmentId: string;
+  folio: number;
   incidentTitle: string;
   assignedTo: string;
   status: string;
@@ -745,7 +741,7 @@ export type AgingSummary = {
     percentage: number;
   }>;
   avgAge: number;
-  oldestWorkOrder: number;
+  oldestAssignment: number;
 };
 
 const AGE_BUCKETS = [
@@ -762,19 +758,18 @@ function getAgeBucket(days: number): string {
 }
 
 /**
- * Get Work Order Aging Report Data
+ * Get Assignment Aging Report Data
  */
-export async function getWorkOrderAgingData(): Promise<{
-  workOrders: WorkOrderAgingData[];
+export async function getAssignmentAgingData(): Promise<{
+  assignments: AssignmentAgingData[];
   summary: AgingSummary;
 }> {
   await requirePermission("reports:view");
 
-  // Get all active, non-completed work orders
-  const workOrders = await prisma.workOrder.findMany({
+  const assignments = await prisma.assignment.findMany({
     where: {
       active: true,
-      finishedAt: null, // Not completed
+      finishedAt: null,
     },
     include: {
       incident: {
@@ -784,7 +779,7 @@ export async function getWorkOrderAgingData(): Promise<{
         select: { name: true },
       },
       status: true,
-      workActivities: {
+      assignmentActivities: {
         where: { active: true },
         orderBy: { performedAt: "desc" },
         take: 1,
@@ -802,8 +797,8 @@ export async function getWorkOrderAgingData(): Promise<{
   let totalAge = 0;
   let oldestAge = 0;
 
-  const agingData: WorkOrderAgingData[] = workOrders.map((wo) => {
-    const ageInMs = now.getTime() - wo.createdAt.getTime();
+  const agingData: AssignmentAgingData[] = assignments.map((a) => {
+    const ageInMs = now.getTime() - a.createdAt.getTime();
     const ageInDays = Math.floor(ageInMs / (1000 * 60 * 60 * 24));
     const ageBucket = getAgeBucket(ageInDays);
 
@@ -812,37 +807,37 @@ export async function getWorkOrderAgingData(): Promise<{
     if (ageInDays > oldestAge) oldestAge = ageInDays;
 
     const lastActivity =
-      wo.workActivities.length > 0
-        ? wo.workActivities[0].performedAt.toISOString()
+      a.assignmentActivities.length > 0
+        ? a.assignmentActivities[0].performedAt.toISOString()
         : null;
 
     return {
-      workOrderId: wo.id,
-      folio: wo.folio,
-      incidentTitle: wo.incident.title,
-      assignedTo: wo.assignedTo.name,
-      status: wo.status?.name || "Sin Estado",
-      createdAt: wo.createdAt.toISOString(),
+      assignmentId: a.id,
+      folio: a.folio,
+      incidentTitle: a.incident.title,
+      assignedTo: a.assignedTo.name,
+      status: a.status?.name || "Sin Estado",
+      createdAt: a.createdAt.toISOString(),
       ageInDays,
       ageBucket,
       lastActivity,
     };
   });
 
-  const total = workOrders.length || 1;
+  const total = assignments.length || 1;
   const summary: AgingSummary = {
-    total: workOrders.length,
+    total: assignments.length,
     byBucket: AGE_BUCKETS.map((b) => ({
       bucket: b.name,
       count: bucketCounts[b.name],
       percentage: Math.round((bucketCounts[b.name] / total) * 100),
     })),
     avgAge:
-      workOrders.length > 0 ? Math.round(totalAge / workOrders.length) : 0,
-    oldestWorkOrder: oldestAge,
+      assignments.length > 0 ? Math.round(totalAge / assignments.length) : 0,
+    oldestAssignment: oldestAge,
   };
 
-  return { workOrders: agingData, summary };
+  return { assignments: agingData, summary };
 }
 
 // ============================================
@@ -850,8 +845,8 @@ export async function getWorkOrderAgingData(): Promise<{
 // ============================================
 
 export type UnlockTimeData = {
-  workOrderId: string;
-  folio: string | null;
+  assignmentId: string;
+  folio: number;
   incidentTitle: string;
   fsrName: string;
   assignedAt: string | null;
@@ -862,7 +857,7 @@ export type UnlockTimeData = {
 };
 
 export type UnlockTimeSummary = {
-  totalWorkOrders: number;
+  totalAssignments: number;
   unlockedCount: number;
   pendingUnlockCount: number;
   unlockRate: number;
@@ -882,7 +877,7 @@ export type UnlockTimeSummary = {
  */
 export async function getUnlockTimeData(
   dateRange?: DateRange,
-): Promise<{ workOrders: UnlockTimeData[]; summary: UnlockTimeSummary }> {
+): Promise<{ assignments: UnlockTimeData[]; summary: UnlockTimeSummary }> {
   await requirePermission("reports:view");
 
   const startDate = dateRange?.startDate
@@ -890,7 +885,7 @@ export async function getUnlockTimeData(
     : new Date(new Date().setMonth(new Date().getMonth() - 1));
   const endDate = dateRange?.endDate ? new Date(dateRange.endDate) : new Date();
 
-  const workOrders = await prisma.workOrder.findMany({
+  const assignments = await prisma.assignment.findMany({
     where: {
       active: true,
       createdAt: {
@@ -916,11 +911,11 @@ export async function getUnlockTimeData(
     { name: string; total: number; unlocked: number; totalTime: number }
   > = {};
 
-  const unlockData: UnlockTimeData[] = workOrders.map((wo) => {
-    const fsrId = wo.assignedToId;
+  const unlockData: UnlockTimeData[] = assignments.map((a) => {
+    const fsrId = a.assignedToId;
     if (!fsrStats[fsrId]) {
       fsrStats[fsrId] = {
-        name: wo.assignedTo.name,
+        name: a.assignedTo.name,
         total: 0,
         unlocked: 0,
         totalTime: 0,
@@ -929,11 +924,11 @@ export async function getUnlockTimeData(
     fsrStats[fsrId].total++;
 
     let timeToUnlockMinutes: number | null = null;
-    const isUnlocked = wo.unlockedAt !== null;
+    const isUnlocked = a.unlockedAt !== null;
 
-    if (wo.assignedAt && wo.unlockedAt) {
+    if (a.assignedAt && a.unlockedAt) {
       timeToUnlockMinutes = Math.round(
-        (wo.unlockedAt.getTime() - wo.assignedAt.getTime()) / (1000 * 60),
+        (a.unlockedAt.getTime() - a.assignedAt.getTime()) / (1000 * 60),
       );
       unlockTimes.push(timeToUnlockMinutes);
       fsrStats[fsrId].unlocked++;
@@ -941,14 +936,14 @@ export async function getUnlockTimeData(
     }
 
     return {
-      workOrderId: wo.id,
-      folio: wo.folio,
-      incidentTitle: wo.incident.title,
-      fsrName: wo.assignedTo.name,
-      assignedAt: wo.assignedAt?.toISOString() || null,
-      unlockedAt: wo.unlockedAt?.toISOString() || null,
+      assignmentId: a.id,
+      folio: a.folio,
+      incidentTitle: a.incident.title,
+      fsrName: a.assignedTo.name,
+      assignedAt: a.assignedAt?.toISOString() || null,
+      unlockedAt: a.unlockedAt?.toISOString() || null,
       timeToUnlockMinutes,
-      status: wo.status?.name || "Sin Estado",
+      status: a.status?.name || "Sin Estado",
       isUnlocked,
     };
   });
@@ -971,12 +966,12 @@ export async function getUnlockTimeData(
       : 0;
 
   const summary: UnlockTimeSummary = {
-    totalWorkOrders: workOrders.length,
+    totalAssignments: assignments.length,
     unlockedCount,
-    pendingUnlockCount: workOrders.length - unlockedCount,
+    pendingUnlockCount: assignments.length - unlockedCount,
     unlockRate:
-      workOrders.length > 0
-        ? Math.round((unlockedCount / workOrders.length) * 100)
+      assignments.length > 0
+        ? Math.round((unlockedCount / assignments.length) * 100)
         : 0,
     avgTimeToUnlock: avgTime,
     medianTimeToUnlock: Math.round(medianTime),
@@ -992,7 +987,7 @@ export async function getUnlockTimeData(
       .sort((a, b) => a.avgTimeMinutes - b.avgTimeMinutes),
   };
 
-  return { workOrders: unlockData, summary };
+  return { assignments: unlockData, summary };
 }
 
 // ============================================

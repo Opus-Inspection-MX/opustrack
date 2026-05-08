@@ -228,73 +228,73 @@ async function main() {
           action: "manage",
         },
 
-        // Work order permissions
+        // Assignment permissions
         {
-          name: "work-orders:read",
-          description: "View work orders",
-          resource: "work-orders",
+          name: "assignments:read",
+          description: "View assignments",
+          resource: "assignments",
           action: "read",
         },
         {
-          name: "work-orders:create",
-          description: "Create work orders",
-          resource: "work-orders",
+          name: "assignments:create",
+          description: "Create assignments",
+          resource: "assignments",
           action: "create",
         },
         {
-          name: "work-orders:update",
-          description: "Update work orders",
-          resource: "work-orders",
+          name: "assignments:update",
+          description: "Update assignments",
+          resource: "assignments",
           action: "update",
         },
         {
-          name: "work-orders:delete",
-          description: "Delete work orders",
-          resource: "work-orders",
+          name: "assignments:delete",
+          description: "Delete assignments",
+          resource: "assignments",
           action: "delete",
         },
         {
-          name: "work-orders:assign",
-          description: "Assign work orders",
-          resource: "work-orders",
+          name: "assignments:assign",
+          description: "Assign assignments",
+          resource: "assignments",
           action: "assign",
         },
         {
-          name: "work-orders:complete",
-          description: "Complete work orders",
-          resource: "work-orders",
+          name: "assignments:complete",
+          description: "Complete assignments",
+          resource: "assignments",
           action: "complete",
         },
 
-        // Work activity permissions
+        // Assignment activity permissions
         {
-          name: "work-activities:read",
-          description: "View work activities",
-          resource: "work-activities",
+          name: "assignment-activities:read",
+          description: "View assignment activities",
+          resource: "assignment-activities",
           action: "read",
         },
         {
-          name: "work-activities:create",
-          description: "Create work activities",
-          resource: "work-activities",
+          name: "assignment-activities:create",
+          description: "Create assignment activities",
+          resource: "assignment-activities",
           action: "create",
         },
         {
-          name: "work-activities:update",
-          description: "Update work activities",
-          resource: "work-activities",
+          name: "assignment-activities:update",
+          description: "Update assignment activities",
+          resource: "assignment-activities",
           action: "update",
         },
         {
-          name: "work-activities:delete",
-          description: "Delete work activities",
-          resource: "work-activities",
+          name: "assignment-activities:delete",
+          description: "Delete assignment activities",
+          resource: "assignment-activities",
           action: "delete",
         },
         {
-          name: "work-activities:complete",
-          description: "Complete work activities",
-          resource: "work-activities",
+          name: "assignment-activities:complete",
+          description: "Complete assignment activities",
+          resource: "assignment-activities",
           action: "complete",
         },
 
@@ -665,29 +665,29 @@ async function main() {
           action: "read",
         },
 
-        // Work Order Status permissions (lookup data)
+        // Assignment Status permissions (lookup data)
         {
-          name: "work-order-status:read",
-          description: "View work order statuses",
-          resource: "work-order-status",
+          name: "assignment-status:read",
+          description: "View assignment statuses",
+          resource: "assignment-status",
           action: "read",
         },
         {
-          name: "work-order-status:create",
-          description: "Create work order statuses",
-          resource: "work-order-status",
+          name: "assignment-status:create",
+          description: "Create assignment statuses",
+          resource: "assignment-status",
           action: "create",
         },
         {
-          name: "work-order-status:update",
-          description: "Update work order statuses",
-          resource: "work-order-status",
+          name: "assignment-status:update",
+          description: "Update assignment statuses",
+          resource: "assignment-status",
           action: "update",
         },
         {
-          name: "work-order-status:delete",
-          description: "Delete work order statuses",
-          resource: "work-order-status",
+          name: "assignment-status:delete",
+          description: "Delete assignment statuses",
+          resource: "assignment-status",
           action: "delete",
         },
 
@@ -756,13 +756,13 @@ async function main() {
             "route:fsr",
             "incidents:read",
             "incidents:update",
-            "work-orders:read",
-            "work-orders:update",
-            "work-orders:complete",
-            "work-activities:read",
-            "work-activities:create",
-            "work-activities:update",
-            "work-activities:complete",
+            "assignments:read",
+            "assignments:update",
+            "assignments:complete",
+            "assignment-activities:read",
+            "assignment-activities:create",
+            "assignment-activities:update",
+            "assignment-activities:complete",
             "work-parts:read",
             "work-parts:create",
             "work-parts:update",
@@ -791,7 +791,7 @@ async function main() {
             "notifications:update",
             "notifications:delete",
             "dashboard:view",
-            "work-order-status:read",
+            "assignment-status:read",
           ],
         },
         {
@@ -805,7 +805,7 @@ async function main() {
             "incident-types:read", // Needed to select incident type when creating
             "incident-status:read", // Needed to view incident status
             "vics:read", // Needed to select VIC when creating incidents
-            "work-orders:read",
+            "assignments:read",
             "schedules:read",
             "lines:read",
             "equipments:read",
@@ -825,7 +825,7 @@ async function main() {
             "incident-types:read", // Needed to view incident types
             "incident-status:read", // Needed to view incident status
             "vics:read", // Needed to view VICs
-            "work-orders:read",
+            "assignments:read",
             "parts:read",
             "schedules:read",
             "lines:read",
@@ -978,22 +978,22 @@ async function main() {
       }
       console.log("✅ Seeded IncidentStatuses");
 
-      // 8a) WorkOrderStatuses - Separate from IncidentStatus
-      const workOrderStatuses = [
+      // 8a) AssignmentStatuses - Separate from IncidentStatus
+      const assignmentStatuses = [
         { name: "PENDIENTE", color: "#F59E0B" }, // Amber
         { name: "ASIGNADO", color: "#8B5CF6" }, // Purple
         { name: "EN_PROGRESO", color: "#3B82F6" }, // Blue
         { name: "COMPLETADO", color: "#10B981" }, // Green
         { name: "CANCELADO", color: "#EF4444" }, // Red
       ];
-      for (const status of workOrderStatuses) {
-        await tx.workOrderStatus.upsert({
+      for (const status of assignmentStatuses) {
+        await tx.assignmentStatus.upsert({
           where: { name: status.name },
           update: { color: status.color },
           create: { name: status.name, color: status.color },
         });
       }
-      console.log("✅ Seeded WorkOrderStatuses");
+      console.log("✅ Seeded AssignmentStatuses");
 
       // 8b) ScheduleStatuses - Separate from IncidentStatus for semantic clarity
       const scheduleStatuses = [

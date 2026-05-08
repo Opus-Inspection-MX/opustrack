@@ -23,7 +23,7 @@ export default async function EditIncidentStatusPage({
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Edit Incident Status</h1>
+        <h1 className="text-3xl font-bold">Editar Estado de Incidente</h1>
         <p className="text-muted-foreground">
           Update incident status information
         </p>

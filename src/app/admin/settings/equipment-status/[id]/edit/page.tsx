@@ -23,7 +23,7 @@ export default async function EditEquipmentStatusPage({
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Edit Equipment Status</h1>
+        <h1 className="text-3xl font-bold">Editar Estado de Equipo</h1>
         <p className="text-muted-foreground">
           Update equipment status information
         </p>

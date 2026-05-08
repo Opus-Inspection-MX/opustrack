@@ -2,11 +2,11 @@
  * Notification type constants
  */
 export const NOTIFICATION_TYPES = {
-  // Work Order notifications
-  WORK_ORDER_ASSIGNED: "work_order_assigned",
-  WORK_ORDER_UPDATED: "work_order_updated",
-  WORK_ORDER_COMPLETED: "work_order_completed",
-  WORK_ORDER_REOPENED: "work_order_reopened",
+  // Assignment notifications
+  ASSIGNMENT_ASSIGNED: "assignment_assigned",
+  ASSIGNMENT_UPDATED: "assignment_updated",
+  ASSIGNMENT_COMPLETED: "assignment_completed",
+  ASSIGNMENT_REOPENED: "assignment_reopened",
 
   // Incident notifications
   INCIDENT_CREATED: "incident_created",
@@ -26,7 +26,7 @@ export type NotificationType =
  * Entity types that can be linked to notifications
  */
 export const ENTITY_TYPES = {
-  WORK_ORDER: "work_order",
+  ASSIGNMENT: "assignment",
   INCIDENT: "incident",
   USER: "user",
   SCHEDULE: "schedule",

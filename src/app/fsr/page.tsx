@@ -18,59 +18,59 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { getMyAssignments } from "@/lib/actions/assignments";
 import {
   getMyNotifications,
   getMyUnreadCount,
 } from "@/lib/actions/notifications";
-import { getMyWorkOrders } from "@/lib/actions/work-orders";
 import { requireRouteAccess } from "@/lib/auth/auth";
 
 moment.locale("es");
 
-interface WorkOrderIncident {
+interface AssignmentIncident {
   id: number;
   title: string;
   priority: number;
 }
 
-interface WorkOrder {
+interface Assignment {
   id: string;
   startedAt?: Date | string | null;
   finishedAt?: Date | string | null;
-  incident?: WorkOrderIncident | null;
+  incident?: AssignmentIncident | null;
 }
 
 export default async function FSRDashboardPage() {
   await requireRouteAccess("/fsr");
-  const [workOrders, unreadNotifications, unreadCount] = await Promise.all([
-    getMyWorkOrders(),
+  const [assignments, unreadNotifications, unreadCount] = await Promise.all([
+    getMyAssignments(),
     getMyNotifications({ limit: 3, unreadOnly: true }),
     getMyUnreadCount(),
   ]);
 
   // Calculate stats
   const stats = {
-    total: workOrders.length,
-    notStarted: workOrders.filter((wo) => !wo.startedAt).length,
-    inProgress: workOrders.filter((wo) => wo.startedAt && !wo.finishedAt)
+    total: assignments.length,
+    notStarted: assignments.filter((wo) => !wo.startedAt).length,
+    inProgress: assignments.filter((wo) => wo.startedAt && !wo.finishedAt)
       .length,
-    completed: workOrders.filter((wo) => wo.finishedAt).length,
+    completed: assignments.filter((wo) => wo.finishedAt).length,
   };
 
-  // Get urgent work orders (high priority and not completed)
-  const urgentWorkOrders = workOrders
+  // Get urgent asignacións (high priority and not completed)
+  const urgentAssignments = assignments
     .filter((wo) => !wo.finishedAt && (wo.incident?.priority || 0) >= 7)
     .slice(0, 5);
 
-  const getStatusBadge = (workOrder: WorkOrder) => {
-    if (workOrder.finishedAt) {
+  const getStatusBadge = (assignment: Assignment) => {
+    if (assignment.finishedAt) {
       return (
         <Badge variant="default" className="bg-green-600">
           Completado
         </Badge>
       );
     }
-    if (workOrder.startedAt) {
+    if (assignment.startedAt) {
       return <Badge variant="secondary">En Progreso</Badge>;
     }
     return <Badge variant="outline">No Iniciado</Badge>;
@@ -97,7 +97,7 @@ export default async function FSRDashboardPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
-              Órdenes de Trabajo Totales
+              Asignaciones Totales
             </CardTitle>
             <Wrench className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
@@ -210,22 +210,21 @@ export default async function FSRDashboardPage() {
         )}
       </Card>
 
-      {/* Urgent Work Orders */}
-      {urgentWorkOrders.length > 0 && (
+      {/* Urgent Assignments */}
+      {urgentAssignments.length > 0 && (
         <Card className="border-red-200 bg-red-50/50 dark:border-red-800 dark:bg-red-950/30">
           <CardHeader>
             <CardTitle className="text-red-700 dark:text-red-400 flex items-center gap-2">
               <AlertTriangle className="h-5 w-5" />
-              Órdenes de Trabajo Urgentes ({urgentWorkOrders.length})
+              Asignaciones Urgentes ({urgentAssignments.length})
             </CardTitle>
             <CardDescription className="text-red-600 dark:text-red-300">
-              Órdenes de trabajo de alta prioridad que requieren atención
-              inmediata
+              Asignaciones de alta prioridad que requieren atención inmediata
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {urgentWorkOrders.map((wo) => (
+              {urgentAssignments.map((wo) => (
                 <div
                   key={wo.id}
                   className="bg-white dark:bg-slate-800 border border-red-200 dark:border-red-800 rounded-lg p-4"
@@ -253,7 +252,7 @@ export default async function FSRDashboardPage() {
                       </div>
                     </div>
                     <Button asChild size="sm">
-                      <Link href={`/fsr/work-orders/${wo.id}`}>Ver</Link>
+                      <Link href={`/fsr/assignments/${wo.id}`}>Ver</Link>
                     </Button>
                   </div>
                 </div>
@@ -263,28 +262,28 @@ export default async function FSRDashboardPage() {
         </Card>
       )}
 
-      {/* Recent Work Orders */}
+      {/* Recent Assignments */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
-            <CardTitle>Órdenes de Trabajo Recientes</CardTitle>
+            <CardTitle>Asignaciones Recientes</CardTitle>
             <CardDescription>
-              Tus órdenes de trabajo asignadas más recientes
+              Tus asignaciones asignadas más recientes
             </CardDescription>
           </div>
           <Button asChild variant="outline">
-            <Link href="/fsr/work-orders">Ver Todas</Link>
+            <Link href="/fsr/assignments">Ver Todas</Link>
           </Button>
         </CardHeader>
         <CardContent>
-          {workOrders.length === 0 ? (
+          {assignments.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <Wrench className="mx-auto h-12 w-12 mb-4 opacity-50" />
-              <p>No hay órdenes de trabajo asignadas aún</p>
+              <p>No hay asignaciones asignadas aún</p>
             </div>
           ) : (
             <div className="space-y-4">
-              {workOrders.slice(0, 5).map((wo) => (
+              {assignments.slice(0, 5).map((wo) => (
                 <div
                   key={wo.id}
                   className="border rounded-lg p-4 hover:bg-accent/50 transition-colors"
@@ -319,7 +318,7 @@ export default async function FSRDashboardPage() {
                         )}
                         <div>
                           <span className="font-medium">Actividades:</span>{" "}
-                          {wo._count?.workActivities || 0}
+                          {wo._count?.assignmentActivities || 0}
                         </div>
                         <div>
                           <span className="font-medium">Creada:</span>{" "}
@@ -328,7 +327,7 @@ export default async function FSRDashboardPage() {
                       </div>
                     </div>
                     <Button asChild>
-                      <Link href={`/fsr/work-orders/${wo.id}`}>
+                      <Link href={`/fsr/assignments/${wo.id}`}>
                         {wo.finishedAt ? "Ver" : "Trabajar en Esto"}
                       </Link>
                     </Button>
@@ -349,7 +348,7 @@ export default async function FSRDashboardPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Button asChild variant="outline" className="h-auto py-4">
               <Link
-                href="/fsr/work-orders"
+                href="/fsr/assignments"
                 className="flex flex-col items-center gap-2"
               >
                 <Wrench className="h-6 w-6" />

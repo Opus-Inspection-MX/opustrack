@@ -16,28 +16,28 @@ interface ApiPart {
   price?: number | null;
 }
 
-interface ApiWorkOrderStatus {
+interface ApiAssignmentStatus {
   name: string;
 }
 
-interface ApiWorkOrderIncident {
+interface ApiAssignmentIncident {
   title: string;
 }
 
-interface ApiWorkOrder {
+interface ApiAssignment {
   id: string;
-  status?: ApiWorkOrderStatus | null;
-  incident?: ApiWorkOrderIncident | null;
+  status?: ApiAssignmentStatus | null;
+  incident?: ApiAssignmentIncident | null;
 }
 
-interface ApiWorkActivity {
+interface ApiAssignmentActivity {
   id: string;
   description: string;
 }
 
 interface ApiWorkPart {
   id: string;
-  workOrderId?: string | null;
+  assignmentId?: string | null;
   partId: string;
   quantity: number;
   price?: number | null;
@@ -45,8 +45,8 @@ interface ApiWorkPart {
   active: boolean;
   createdAt: string | Date;
   part?: ApiPart | null;
-  workOrder?: ApiWorkOrder | null;
-  workActivity?: ApiWorkActivity | null;
+  assignment?: ApiAssignment | null;
+  activity?: ApiAssignmentActivity | null;
 }
 
 // Table component types (required fields for display)
@@ -60,7 +60,7 @@ interface TableWorkPart {
   quantity: number;
   description?: string;
   price: number;
-  workOrder?: {
+  assignment?: {
     id: string;
     status?: {
       name: string;
@@ -69,7 +69,7 @@ interface TableWorkPart {
       title: string;
     };
   };
-  workActivity?: {
+  assignmentActivity?: {
     id: string;
     description: string;
   };
@@ -92,14 +92,14 @@ function transformWorkPart(wp: ApiWorkPart): TableWorkPart | null {
     quantity: wp.quantity,
     description: wp.description ?? undefined,
     price: wp.price ?? 0,
-    workOrder: wp.workOrder?.incident
+    assignment: wp.assignment?.incident
       ? {
-          id: wp.workOrder.id,
-          status: wp.workOrder.status ?? undefined,
-          incident: { title: wp.workOrder.incident.title },
+          id: wp.assignment.id,
+          status: wp.assignment.status ?? undefined,
+          incident: { title: wp.assignment.incident.title },
         }
       : undefined,
-    workActivity: wp.workActivity ?? undefined,
+    assignmentActivity: wp.activity ?? undefined,
     createdAt:
       typeof wp.createdAt === "string"
         ? wp.createdAt
@@ -138,7 +138,7 @@ export default function WorkPartsPage() {
   const handleFiltersChange = (filters: {
     search: string;
     partId: string;
-    workOrderStatus: string;
+    assignmentStatus: string;
     active: string;
   }) => {
     let filtered = workParts;
@@ -155,9 +155,9 @@ export default function WorkPartsPage() {
       filtered = filtered.filter((wp) => wp.part.id === filters.partId);
     }
 
-    if (filters.workOrderStatus) {
+    if (filters.assignmentStatus) {
       filtered = filtered.filter(
-        (wp) => wp.workOrder?.status?.name === filters.workOrderStatus,
+        (wp) => wp.assignment?.status?.name === filters.assignmentStatus,
       );
     }
 
@@ -177,7 +177,7 @@ export default function WorkPartsPage() {
   const handleDelete = async (id: string) => {
     if (
       confirm(
-        "Are you sure you want to delete this work part? Stock will be restored.",
+        "¿Estás seguro de que deseas eliminar esta refacción? El stock será restaurado.",
       )
     ) {
       try {
@@ -189,7 +189,9 @@ export default function WorkPartsPage() {
       } catch (error) {
         console.error("Error deleting work part:", error);
         alert(
-          error instanceof Error ? error.message : "Failed to delete work part",
+          error instanceof Error
+            ? error.message
+            : "Error al eliminar la refacción",
         );
       }
     }
@@ -202,7 +204,7 @@ export default function WorkPartsPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Spinner size="lg" text="Loading work parts..." />
+        <Spinner size="lg" text="Cargando refacciones..." />
       </div>
     );
   }
@@ -211,14 +213,14 @@ export default function WorkPartsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Work Parts</h1>
+          <h1 className="text-3xl font-bold">Refacciones Usadas</h1>
           <p className="text-muted-foreground">
-            Track parts usage in work orders and activities
+            Seguimiento del uso de refacciones en órdenes y actividades
           </p>
         </div>
         <Button onClick={() => router.push("/admin/work-parts/new")}>
           <Plus className="mr-2 h-4 w-4" />
-          Add Work Part
+          Agregar Refacción
         </Button>
       </div>
 

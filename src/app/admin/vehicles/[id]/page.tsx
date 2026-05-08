@@ -55,7 +55,7 @@ export default async function VehicleDetailPage({
         <Button asChild className="w-full sm:w-auto flex-shrink-0">
           <Link href={`/admin/vehicles/${id}/edit`}>
             <Pencil className="h-4 w-4 mr-2" />
-            Edit Vehicle
+            Editar Vehículo
           </Link>
         </Button>
       </div>
@@ -67,19 +67,19 @@ export default async function VehicleDetailPage({
           </CardHeader>
           <CardContent className="space-y-3">
             <div>
-              <div className="text-sm text-muted-foreground">Make</div>
+              <div className="text-sm text-muted-foreground">Marca</div>
               <div className="font-medium">{vehicle.make}</div>
             </div>
             <div>
-              <div className="text-sm text-muted-foreground">Model</div>
+              <div className="text-sm text-muted-foreground">Modelo</div>
               <div className="font-medium">{vehicle.model}</div>
             </div>
             <div>
-              <div className="text-sm text-muted-foreground">Year</div>
+              <div className="text-sm text-muted-foreground">Año</div>
               <div className="font-medium">{vehicle.year}</div>
             </div>
             <div>
-              <div className="text-sm text-muted-foreground">License Plate</div>
+              <div className="text-sm text-muted-foreground">Placa</div>
               <div className="font-medium">{vehicle.licensePlate}</div>
             </div>
             {vehicle.vin && (
@@ -95,7 +95,7 @@ export default async function VehicleDetailPage({
               </div>
             )}
             <div>
-              <div className="text-sm text-muted-foreground">Status</div>
+              <div className="text-sm text-muted-foreground">Estado</div>
               <VehicleStatusBadge status={vehicle.status} />
             </div>
           </CardContent>
@@ -107,7 +107,7 @@ export default async function VehicleDetailPage({
           </CardHeader>
           <CardContent className="space-y-3">
             <div>
-              <div className="text-sm text-muted-foreground">Assigned FSR</div>
+              <div className="text-sm text-muted-foreground">FSR Asignado</div>
               {vehicle.assignedFsr ? (
                 <div className="flex items-center gap-2 mt-1">
                   <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
@@ -124,19 +124,21 @@ export default async function VehicleDetailPage({
                 </div>
               ) : (
                 <div className="text-muted-foreground italic">
-                  No FSR assigned
+                  Sin FSR asignado
                 </div>
               )}
             </div>
             <div>
-              <div className="text-sm text-muted-foreground">Total Trips</div>
+              <div className="text-sm text-muted-foreground">
+                Viajes Totales
+              </div>
               <div className="text-2xl font-bold">
                 {vehicle._count?.trips || 0}
               </div>
             </div>
             {vehicle.notes && (
               <div>
-                <div className="text-sm text-muted-foreground">Notes</div>
+                <div className="text-sm text-muted-foreground">Notas</div>
                 <div className="text-sm">{vehicle.notes}</div>
               </div>
             )}

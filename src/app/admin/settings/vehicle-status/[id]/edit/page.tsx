@@ -23,7 +23,7 @@ export default async function EditVehicleStatusPage({
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Edit Vehicle Status</h1>
+        <h1 className="text-3xl font-bold">Editar Estado de Vehículo</h1>
         <p className="text-muted-foreground">
           Update vehicle status information
         </p>

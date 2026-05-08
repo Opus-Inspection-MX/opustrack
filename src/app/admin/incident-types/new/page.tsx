@@ -8,7 +8,7 @@ export default async function NewIncidentTypePage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Create Incident Type</h1>
+        <h1 className="text-3xl font-bold">Crear Tipo de Incidente</h1>
         <p className="text-muted-foreground">Add a new incident type</p>
       </div>
 

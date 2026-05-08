@@ -57,13 +57,15 @@ export default function IncidentTypesPage() {
   };
 
   const handleDelete = async (id: number) => {
-    if (confirm("Are you sure you want to delete this incident type?")) {
+    if (
+      confirm("¿Estás seguro de que deseas eliminar este tipo de incidente?")
+    ) {
       try {
         await deleteIncidentType(id);
         await fetchData();
       } catch (error) {
         console.error("Error deleting incident type:", error);
-        alert("Failed to delete incident type");
+        alert("Error al eliminar el tipo de incidente");
       }
     }
   };
@@ -80,7 +82,7 @@ export default function IncidentTypesPage() {
   if (isLoading && incidentTypes.length === 0) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Spinner size="lg" text="Loading incident types..." />
+        <Spinner size="lg" text="Cargando tipos de incidente..." />
       </div>
     );
   }
@@ -89,14 +91,14 @@ export default function IncidentTypesPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Incident Types</h1>
+          <h1 className="text-3xl font-bold">Tipos de Incidente</h1>
           <p className="text-muted-foreground">
-            Manage incident categories and their configurations
+            Gestionar categorías de incidentes y sus configuraciones
           </p>
         </div>
         <Button onClick={() => router.push("/admin/incident-types/new")}>
           <Plus className="mr-2 h-4 w-4" />
-          New Incident Type
+          Nuevo Tipo de Incidente
         </Button>
       </div>
 

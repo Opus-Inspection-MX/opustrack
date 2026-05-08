@@ -101,7 +101,9 @@ export default function AdminProfilePage() {
       console.error("Error updating profile:", error);
       setErrors({
         submit:
-          error instanceof Error ? error.message : "Error al actualizar el perfil",
+          error instanceof Error
+            ? error.message
+            : "Error al actualizar el perfil",
       });
     } finally {
       setIsSaving(false);
@@ -123,7 +125,8 @@ export default function AdminProfilePage() {
       if (!passwordData.newPassword) {
         newErrors.newPassword = "La nueva contraseña es requerida";
       } else if (passwordData.newPassword.length < 8) {
-        newErrors.newPassword = "La contraseña debe tener al menos 8 caracteres";
+        newErrors.newPassword =
+          "La contraseña debe tener al menos 8 caracteres";
       }
 
       if (passwordData.newPassword !== passwordData.confirmPassword) {
@@ -152,7 +155,9 @@ export default function AdminProfilePage() {
       console.error("Error changing password:", error);
       setErrors({
         submit:
-          error instanceof Error ? error.message : "Error al cambiar la contraseña",
+          error instanceof Error
+            ? error.message
+            : "Error al cambiar la contraseña",
       });
     } finally {
       setIsSaving(false);
@@ -339,7 +344,9 @@ export default function AdminProfilePage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="emergencyContact">Contacto de Emergencia</Label>
+                  <Label htmlFor="emergencyContact">
+                    Contacto de Emergencia
+                  </Label>
                   <Input
                     id="emergencyContact"
                     value={formData.emergencyContact}
@@ -501,7 +508,8 @@ export default function AdminProfilePage() {
 
               <div className="space-y-2">
                 <Label htmlFor="confirmPassword">
-                  Confirmar Nueva Contraseña <span className="text-red-500">*</span>
+                  Confirmar Nueva Contraseña{" "}
+                  <span className="text-red-500">*</span>
                 </Label>
                 <Input
                   id="confirmPassword"

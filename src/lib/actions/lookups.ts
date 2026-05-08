@@ -499,26 +499,26 @@ export async function deleteIncidentStatus(id: number) {
   redirect("/admin/incident-status");
 }
 
-// ==================== WORK ORDER STATUS ====================
+// ==================== ASSIGNMENT STATUS ====================
 
-export type WorkOrderStatusFormData = {
+export type AssignmentStatusFormData = {
   name: string;
   color?: string;
   active?: boolean;
 };
 
-export async function getWorkOrderStatuses(params?: {
+export async function getAssignmentStatuses(params?: {
   page?: number;
   limit?: number;
   search?: string;
 }) {
-  await requirePermission("work-order-status:read");
+  await requirePermission("assignment-status:read");
 
   const page = params?.page || 1;
   const limit = params?.limit || 10;
   const skip = (page - 1) * limit;
 
-  const where: Prisma.WorkOrderStatusWhereInput = {
+  const where: Prisma.AssignmentStatusWhereInput = {
     active: true,
   };
 
@@ -526,13 +526,13 @@ export async function getWorkOrderStatuses(params?: {
     where.name = { contains: params.search, mode: "insensitive" };
   }
 
-  const total = await prisma.workOrderStatus.count({ where });
+  const total = await prisma.assignmentStatus.count({ where });
 
-  const statuses = await prisma.workOrderStatus.findMany({
+  const statuses = await prisma.assignmentStatus.findMany({
     where,
     include: {
       _count: {
-        select: { workOrders: true },
+        select: { assignments: true },
       },
     },
     orderBy: { name: "asc" },
@@ -545,7 +545,7 @@ export async function getWorkOrderStatuses(params?: {
     name: status.name,
     color: status.color,
     active: status.active,
-    _count: { workOrders: status._count.workOrders },
+    _count: { assignments: status._count.assignments },
   }));
 
   return {
@@ -559,14 +559,14 @@ export async function getWorkOrderStatuses(params?: {
   };
 }
 
-export async function getWorkOrderStatusById(id: number) {
-  await requirePermission("work-order-status:read");
+export async function getAssignmentStatusById(id: number) {
+  await requirePermission("assignment-status:read");
 
-  const status = await prisma.workOrderStatus.findUnique({
+  const status = await prisma.assignmentStatus.findUnique({
     where: { id },
     include: {
       _count: {
-        select: { workOrders: true },
+        select: { assignments: true },
       },
     },
   });
@@ -574,10 +574,10 @@ export async function getWorkOrderStatusById(id: number) {
   return status;
 }
 
-export async function createWorkOrderStatus(data: WorkOrderStatusFormData) {
-  await requirePermission("work-order-status:create");
+export async function createAssignmentStatus(data: AssignmentStatusFormData) {
+  await requirePermission("assignment-status:create");
 
-  const status = await prisma.workOrderStatus.create({
+  const status = await prisma.assignmentStatus.create({
     data: {
       name: data.name,
       color: data.color || "#6B7280",
@@ -585,17 +585,17 @@ export async function createWorkOrderStatus(data: WorkOrderStatusFormData) {
     },
   });
 
-  revalidatePath("/admin/settings/work-order-status");
+  revalidatePath("/admin/settings/assignment-status");
   return { success: true, data: status };
 }
 
-export async function updateWorkOrderStatus(
+export async function updateAssignmentStatus(
   id: number,
-  data: WorkOrderStatusFormData,
+  data: AssignmentStatusFormData,
 ) {
-  await requirePermission("work-order-status:update");
+  await requirePermission("assignment-status:update");
 
-  const status = await prisma.workOrderStatus.update({
+  const status = await prisma.assignmentStatus.update({
     where: { id },
     data: {
       name: data.name,
@@ -604,31 +604,31 @@ export async function updateWorkOrderStatus(
     },
   });
 
-  revalidatePath("/admin/settings/work-order-status");
-  revalidatePath(`/admin/settings/work-order-status/${id}`);
+  revalidatePath("/admin/settings/assignment-status");
+  revalidatePath(`/admin/settings/assignment-status/${id}`);
   return { success: true, data: status };
 }
 
-export async function deleteWorkOrderStatus(id: number) {
-  await requirePermission("work-order-status:delete");
+export async function deleteAssignmentStatus(id: number) {
+  await requirePermission("assignment-status:delete");
 
-  const workOrderCount = await prisma.workOrder.count({
+  const assignmentCount = await prisma.assignment.count({
     where: { statusId: id, active: true },
   });
 
-  if (workOrderCount > 0) {
+  if (assignmentCount > 0) {
     throw new Error(
-      `Cannot delete status. ${workOrderCount} work order(s) have this status.`,
+      `Cannot delete status. ${assignmentCount} assignment(s) have this status.`,
     );
   }
 
-  await prisma.workOrderStatus.update({
+  await prisma.assignmentStatus.update({
     where: { id },
     data: { active: false },
   });
 
-  revalidatePath("/admin/settings/work-order-status");
-  redirect("/admin/settings/work-order-status");
+  revalidatePath("/admin/settings/assignment-status");
+  redirect("/admin/settings/assignment-status");
 }
 
 // ==================== LINE STATUS ====================

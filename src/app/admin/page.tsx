@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getDashboardStats } from "@/lib/actions/dashboard";
 
 export default async function AdminDashboard() {
-  const { stats, recentIncidents, pendingWorkOrders } =
+  const { stats, recentIncidents, pendingAssignments } =
     await getDashboardStats();
 
   const statCards = [
@@ -26,12 +26,12 @@ export default async function AdminDashboard() {
       href: "/admin/incidents",
     },
     {
-      title: "Órdenes de Trabajo Abiertas",
-      value: stats.openWorkOrders.toString(),
+      title: "Asignaciones Abiertas",
+      value: stats.openAssignments.toString(),
       icon: Wrench,
       description: "Requieren atención",
       color: "text-orange-600",
-      href: "/admin/work-orders",
+      href: "/admin/assignments",
     },
     {
       title: "Tareas Programadas",
@@ -119,19 +119,19 @@ export default async function AdminDashboard() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Órdenes de Trabajo Pendientes</CardTitle>
+            <CardTitle>Asignaciones Pendientes</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {pendingWorkOrders.length === 0 ? (
+              {pendingAssignments.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-4">
                   No hay órdenes pendientes
                 </p>
               ) : (
-                pendingWorkOrders.map((wo) => (
+                pendingAssignments.map((wo) => (
                   <Link
                     key={wo.id}
-                    href={`/admin/work-orders/${wo.id}`}
+                    href={`/admin/assignments/${wo.id}`}
                     className="block"
                   >
                     <div className="flex items-center justify-between py-2 border-b last:border-0 hover:bg-muted/50 px-2 rounded transition-colors">

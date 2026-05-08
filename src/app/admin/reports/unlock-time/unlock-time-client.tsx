@@ -24,14 +24,14 @@ import { getUnlockTimeData } from "@/lib/actions/reports";
 
 interface UnlockTimeClientProps {
   initialData: {
-    workOrders: UnlockTimeData[];
+    assignments: UnlockTimeData[];
     summary: UnlockTimeSummary;
   };
 }
 
 export function UnlockTimeClient({ initialData }: UnlockTimeClientProps) {
   const [isPending, startTransition] = useTransition();
-  const [data, setData] = useState(initialData.workOrders);
+  const [data, setData] = useState(initialData.assignments);
   const [summary, setSummary] = useState(initialData.summary);
 
   // Date range state
@@ -53,7 +53,7 @@ export function UnlockTimeClient({ initialData }: UnlockTimeClientProps) {
         startDate: newStartDate,
         endDate: newEndDate,
       });
-      setData(result.workOrders);
+      setData(result.assignments);
       setSummary(result.summary);
     });
   };
@@ -114,7 +114,7 @@ export function UnlockTimeClient({ initialData }: UnlockTimeClientProps) {
           </h1>
           <p className="text-muted-foreground mt-1">
             Analisis del tiempo que toman los FSR en reconocer y desbloquear
-            ordenes de trabajo.
+            asignaciones.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -147,7 +147,7 @@ export function UnlockTimeClient({ initialData }: UnlockTimeClientProps) {
         <StatCard
           title="Desbloqueados"
           value={summary.unlockedCount}
-          description={`de ${summary.totalWorkOrders} ordenes`}
+          description={`de ${summary.totalAssignments} asignaciones`}
           icon={LockOpen}
         />
         <StatCard
@@ -174,8 +174,8 @@ export function UnlockTimeClient({ initialData }: UnlockTimeClientProps) {
                 Ordenes Pendientes de Desbloqueo
               </h3>
               <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
-                Hay {summary.pendingUnlockCount} ordenes de trabajo que aun no
-                han sido reconocidas por los FSR asignados.
+                Hay {summary.pendingUnlockCount} asignaciones que aun no han
+                sido reconocidas por los FSR asignados.
               </p>
             </div>
           </div>
@@ -186,7 +186,7 @@ export function UnlockTimeClient({ initialData }: UnlockTimeClientProps) {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <ChartCard
           title="Estado de Desbloqueo"
-          description="Distribucion de ordenes desbloqueadas vs pendientes"
+          description="Distribucion de asignaciones desbloqueadas vs pendientes"
         >
           {unlockDistribution.length > 0 ? (
             <PieChart
@@ -301,7 +301,7 @@ export function UnlockTimeClient({ initialData }: UnlockTimeClientProps) {
       {/* Detailed Data Table */}
       <ChartCard
         title="Detalle de Ordenes"
-        description="Todas las ordenes con su tiempo de desbloqueo"
+        description="Todas las asignaciones con su tiempo de desbloqueo"
       >
         <div className="overflow-x-auto">
           <Table>
@@ -318,9 +318,9 @@ export function UnlockTimeClient({ initialData }: UnlockTimeClientProps) {
             </TableHeader>
             <TableBody>
               {data.map((wo) => (
-                <TableRow key={wo.workOrderId}>
+                <TableRow key={wo.assignmentId}>
                   <TableCell className="font-mono text-sm">
-                    {wo.folio || `#${wo.workOrderId.slice(0, 8)}`}
+                    AS-{wo.folio}
                   </TableCell>
                   <TableCell className="font-medium max-w-[200px] truncate">
                     {wo.incidentTitle}
@@ -361,7 +361,7 @@ export function UnlockTimeClient({ initialData }: UnlockTimeClientProps) {
                     colSpan={7}
                     className="text-center py-8 text-muted-foreground"
                   >
-                    No hay ordenes de trabajo para el periodo seleccionado
+                    No hay asignaciones para el periodo seleccionado
                   </TableCell>
                 </TableRow>
               )}

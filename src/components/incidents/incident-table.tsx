@@ -42,21 +42,21 @@ const statusColors: Record<string, string> = {
   Cerrado: "bg-gray-100 text-gray-800",
 };
 
-const workOrderStatusColors: Record<string, string> = {
+const assignmentStatusColors: Record<string, string> = {
   PENDING: "bg-gray-100 text-gray-800",
   IN_PROGRESS: "bg-blue-100 text-blue-800",
   COMPLETED: "bg-green-100 text-green-800",
   CANCELLED: "bg-red-100 text-red-800",
 };
 
-const workOrderStatusLabels: Record<string, string> = {
+const assignmentStatusLabels: Record<string, string> = {
   PENDING: "Pendiente",
   IN_PROGRESS: "En Progreso",
   COMPLETED: "Completado",
   CANCELLED: "Cancelado",
 };
 
-interface WorkOrderStatus {
+interface AssignmentStatus {
   name: string;
 }
 
@@ -64,9 +64,9 @@ interface AssignedUser {
   name: string;
 }
 
-interface TableWorkOrder {
+interface TableAssignment {
   id: string;
-  status?: WorkOrderStatus | null;
+  status?: AssignmentStatus | null;
   assignedTo: AssignedUser;
   startedAt?: string | null;
   finishedAt?: string | null;
@@ -100,7 +100,7 @@ interface TableIncident {
   reportedBy: ReportedByUser;
   reportedAt: string;
   sla: number;
-  workOrders: TableWorkOrder[];
+  assignments: TableAssignment[];
 }
 
 interface IncidentTableProps {
@@ -126,8 +126,8 @@ export function IncidentTable({ incidents, onDelete }: IncidentTableProps) {
     router.push(`/admin/incidents/${incident.id}/edit`);
   };
 
-  const handleCreateWorkOrder = (incident: TableIncident) => {
-    router.push(`/admin/work-orders/new?incidentId=${incident.id}`);
+  const handleCreateAssignment = (incident: TableIncident) => {
+    router.push(`/admin/assignments/new?incidentId=${incident.id}`);
   };
 
   const formatDate = (dateString: string) => {
@@ -144,6 +144,7 @@ export function IncidentTable({ incidents, onDelete }: IncidentTableProps) {
         <TableHeader>
           <TableRow>
             <TableHead className="w-10"></TableHead>
+            <TableHead>Folio</TableHead>
             <TableHead>Título</TableHead>
             <TableHead>Prioridad</TableHead>
             <TableHead>Status</TableHead>
@@ -152,7 +153,7 @@ export function IncidentTable({ incidents, onDelete }: IncidentTableProps) {
             <TableHead>Reportado Por</TableHead>
             <TableHead>Reportado El</TableHead>
             <TableHead>SLA (hrs)</TableHead>
-            <TableHead>Órdenes de Trabajo</TableHead>
+            <TableHead>Asignaciones</TableHead>
             <TableHead className="w-10"></TableHead>
           </TableRow>
         </TableHeader>
@@ -174,6 +175,9 @@ export function IncidentTable({ incidents, onDelete }: IncidentTableProps) {
                       <ChevronRight className="h-4 w-4" />
                     )}
                   </Button>
+                </TableCell>
+                <TableCell className="font-mono text-sm whitespace-nowrap">
+                  INC-{incident.id}
                 </TableCell>
                 <TableCell>
                   <div>
@@ -222,12 +226,12 @@ export function IncidentTable({ incidents, onDelete }: IncidentTableProps) {
                 <TableCell>
                   <div className="flex items-center gap-2">
                     <Badge variant="outline">
-                      {incident.workOrders.length} OT
+                      {incident.assignments.length} OT
                     </Badge>
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => handleCreateWorkOrder(incident)}
+                      onClick={() => handleCreateAssignment(incident)}
                       type="button"
                     >
                       <Plus className="h-3 w-3 mr-1" />
@@ -266,55 +270,55 @@ export function IncidentTable({ incidents, onDelete }: IncidentTableProps) {
               </TableRow>
               {expandedRows.has(incident.id) && (
                 <TableRow>
-                  <TableCell colSpan={11} className="bg-muted/30">
+                  <TableCell colSpan={12} className="bg-muted/30">
                     <div className="p-4">
                       <h4 className="font-semibold mb-3 flex items-center gap-2">
                         <FileText className="h-4 w-4" />
-                        Órdenes de Trabajo ({incident.workOrders.length})
+                        Asignaciones ({incident.assignments.length})
                       </h4>
-                      {incident.workOrders.length > 0 ? (
+                      {incident.assignments.length > 0 ? (
                         <div className="space-y-2">
-                          {incident.workOrders.map(
-                            (workOrder: TableWorkOrder) => (
+                          {incident.assignments.map(
+                            (assignment: TableAssignment) => (
                               <div
-                                key={workOrder.id}
+                                key={assignment.id}
                                 className="flex items-center justify-between p-3 bg-background rounded-lg border"
                               >
                                 <div className="flex items-center gap-4">
                                   <Badge
                                     className={
-                                      (workOrder.status?.name &&
-                                        workOrderStatusColors[
-                                          workOrder.status.name
+                                      (assignment.status?.name &&
+                                        assignmentStatusColors[
+                                          assignment.status.name
                                         ]) ||
                                       "bg-gray-100 text-gray-800"
                                     }
                                   >
-                                    {workOrder.status?.name
-                                      ? workOrderStatusLabels[
-                                          workOrder.status.name
-                                        ] || workOrder.status.name
+                                    {assignment.status?.name
+                                      ? assignmentStatusLabels[
+                                          assignment.status.name
+                                        ] || assignment.status.name
                                       : "Sin estado"}
                                   </Badge>
                                   <div>
                                     <div className="font-medium">
-                                      OT #{workOrder.id}
+                                      OT #{assignment.id}
                                     </div>
                                     <div className="text-sm text-muted-foreground">
-                                      Asignado a: {workOrder.assignedTo.name}
+                                      Asignado a: {assignment.assignedTo.name}
                                     </div>
                                   </div>
                                   <div className="text-sm">
-                                    {workOrder.startedAt && (
+                                    {assignment.startedAt && (
                                       <div>
                                         Iniciado:{" "}
-                                        {formatDate(workOrder.startedAt)}
+                                        {formatDate(assignment.startedAt)}
                                       </div>
                                     )}
-                                    {workOrder.finishedAt && (
+                                    {assignment.finishedAt && (
                                       <div>
                                         Finalizado:{" "}
-                                        {formatDate(workOrder.finishedAt)}
+                                        {formatDate(assignment.finishedAt)}
                                       </div>
                                     )}
                                   </div>
@@ -340,16 +344,16 @@ export function IncidentTable({ incidents, onDelete }: IncidentTableProps) {
                                     <DropdownMenuItem
                                       onClick={() =>
                                         router.push(
-                                          `/admin/work-orders/${workOrder.id}/edit`,
+                                          `/admin/assignments/${assignment.id}/edit`,
                                         )
                                       }
                                     >
                                       <Edit className="h-4 w-4 mr-2" />
-                                      Editar Orden de Trabajo
+                                      Editar Asignación
                                     </DropdownMenuItem>
                                     <DropdownMenuItem className="text-destructive">
                                       <Trash2 className="h-4 w-4 mr-2" />
-                                      Eliminar Orden de Trabajo
+                                      Eliminar Asignación
                                     </DropdownMenuItem>
                                   </DropdownMenuContent>
                                 </DropdownMenu>
@@ -359,7 +363,7 @@ export function IncidentTable({ incidents, onDelete }: IncidentTableProps) {
                         </div>
                       ) : (
                         <p className="text-muted-foreground">
-                          No se han creado órdenes de trabajo aún.
+                          No se han creado asignaciones aún.
                         </p>
                       )}
                     </div>

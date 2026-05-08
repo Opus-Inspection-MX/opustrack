@@ -18,7 +18,7 @@ interface WorkPartFiltersProps {
   onFiltersChange: (filters: {
     search: string;
     partId: string;
-    workOrderStatus: string;
+    assignmentStatus: string;
     active: string;
   }) => void;
 }
@@ -26,7 +26,7 @@ interface WorkPartFiltersProps {
 export function WorkPartFilters({ onFiltersChange }: WorkPartFiltersProps) {
   const [search, setSearch] = useState("");
   const [partId, setPartId] = useState("all");
-  const [workOrderStatus, setWorkOrderStatus] = useState("all");
+  const [assignmentStatus, setAssignmentStatus] = useState("all");
   const [active, setActive] = useState("all");
 
   const mockParts = [
@@ -36,7 +36,7 @@ export function WorkPartFilters({ onFiltersChange }: WorkPartFiltersProps) {
     { id: "part_004", name: "Spark Plugs" },
   ];
 
-  const workOrderStatuses = [
+  const assignmentStatuses = [
     { value: "pending", label: "Pending" },
     { value: "in_progress", label: "In Progress" },
     { value: "completed", label: "Completed" },
@@ -47,7 +47,7 @@ export function WorkPartFilters({ onFiltersChange }: WorkPartFiltersProps) {
     onFiltersChange({
       search,
       partId,
-      workOrderStatus,
+      assignmentStatus,
       active,
     });
   };
@@ -55,12 +55,12 @@ export function WorkPartFilters({ onFiltersChange }: WorkPartFiltersProps) {
   const clearAllFilters = () => {
     setSearch("");
     setPartId("all");
-    setWorkOrderStatus("all");
+    setAssignmentStatus("all");
     setActive("all");
     onFiltersChange({
       search: "",
       partId: "all",
-      workOrderStatus: "all",
+      assignmentStatus: "all",
       active: "all",
     });
   };
@@ -69,7 +69,7 @@ export function WorkPartFilters({ onFiltersChange }: WorkPartFiltersProps) {
     let count = 0;
     if (search) count++;
     if (partId !== "all") count++;
-    if (workOrderStatus !== "all") count++;
+    if (assignmentStatus !== "all") count++;
     if (active !== "all") count++;
     return count;
   };
@@ -129,11 +129,11 @@ export function WorkPartFilters({ onFiltersChange }: WorkPartFiltersProps) {
           </div>
 
           <div className="space-y-2">
-            <span className="text-sm font-medium">Work Order Status</span>
+            <span className="text-sm font-medium">Assignment Status</span>
             <Select
-              value={workOrderStatus}
+              value={assignmentStatus}
               onValueChange={(value) => {
-                setWorkOrderStatus(value);
+                setAssignmentStatus(value);
                 handleFiltersChange();
               }}
             >
@@ -142,7 +142,7 @@ export function WorkPartFilters({ onFiltersChange }: WorkPartFiltersProps) {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All statuses</SelectItem>
-                {workOrderStatuses.map((status) => (
+                {assignmentStatuses.map((status) => (
                   <SelectItem key={status.value} value={status.value}>
                     {status.label}
                   </SelectItem>

@@ -30,9 +30,10 @@ interface NotificationItemProps {
 }
 
 const typeIcons: Record<string, React.ElementType> = {
-  work_order_assigned: ClipboardList,
-  work_order_updated: ClipboardList,
-  work_order_completed: CheckCircle,
+  assignment_assigned: ClipboardList,
+  assignment_updated: ClipboardList,
+  assignment_completed: CheckCircle,
+  assignment_reopened: ClipboardList,
   incident_created: AlertCircle,
   incident_updated: AlertCircle,
   incident_closed: CheckCircle,

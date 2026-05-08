@@ -46,8 +46,8 @@ export default async function GuestDashboard() {
               <p className="text-sm text-muted-foreground">
                 Las cuentas de invitados actualmente están limitadas solo a la
                 gestión de perfil. Si necesitas acceso adicional para ver
-                incidentes, órdenes de trabajo u otros recursos, por favor
-                contacta a tu administrador del sistema.
+                incidentes, asignaciones u otros recursos, por favor contacta a
+                tu administrador del sistema.
               </p>
             </div>
 
@@ -80,7 +80,7 @@ export default async function GuestDashboard() {
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-red-500 mt-1">✗</span>
-                  <span>Acceder a órdenes de trabajo</span>
+                  <span>Acceder a asignaciones</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-red-500 mt-1">✗</span>

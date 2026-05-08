@@ -84,7 +84,7 @@ export default function ViewSchedulePage({
     return (
       <div className="container mx-auto p-6">
         <div className="flex items-center justify-center min-h-[400px]">
-          <Spinner size="lg" text="Loading schedule..." />
+          <Spinner size="lg" text="Cargando horario..." />
         </div>
       </div>
     );
@@ -96,9 +96,11 @@ export default function ViewSchedulePage({
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <AlertCircle className="h-12 w-12 text-muted-foreground mb-4" />
-            <p className="text-lg text-muted-foreground">Schedule not found</p>
+            <p className="text-lg text-muted-foreground">
+              Horario no encontrado
+            </p>
             <Link href="/admin/schedules">
-              <Button className="mt-4">Back to Schedules</Button>
+              <Button className="mt-4">Volver a Horarios</Button>
             </Link>
           </CardContent>
         </Card>
@@ -112,19 +114,19 @@ export default function ViewSchedulePage({
 
     if (scheduleDate < now) {
       return {
-        label: "Past",
+        label: "Pasado",
         variant: "secondary" as const,
         color: "text-gray-600",
       };
     } else if (scheduleDate.toDateString() === now.toDateString()) {
       return {
-        label: "Today",
+        label: "Hoy",
         variant: "default" as const,
         color: "text-blue-600",
       };
     } else {
       return {
-        label: "Upcoming",
+        label: "Próximo",
         variant: "outline" as const,
         color: "text-green-600",
       };
@@ -146,18 +148,18 @@ export default function ViewSchedulePage({
           <Link href="/admin/schedules">
             <Button variant="outline" size="sm">
               <ArrowLeft className="h-4 w-4 mr-2" />
-              Back
+              Regresar
             </Button>
           </Link>
           <div>
-            <h1 className="text-3xl font-bold">Schedule Details</h1>
-            <p className="text-muted-foreground">View schedule information</p>
+            <h1 className="text-3xl font-bold">Detalles del Horario</h1>
+            <p className="text-muted-foreground">Ver información del horario</p>
           </div>
         </div>
         <Link href={`/admin/schedules/${schedule.id}/edit`}>
           <Button>
             <Edit className="h-4 w-4 mr-2" />
-            Edit Schedule
+            Editar Horario
           </Button>
         </Link>
       </div>
@@ -167,19 +169,21 @@ export default function ViewSchedulePage({
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Calendar className="h-5 w-5" />
-              Basic Information
+              Información Básica
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <p className="text-sm font-medium text-muted-foreground">Title</p>
+              <p className="text-sm font-medium text-muted-foreground">
+                Título
+              </p>
               <p className="text-lg font-semibold">{schedule.title}</p>
             </div>
 
             {schedule.description && (
               <div>
                 <p className="text-sm font-medium text-muted-foreground">
-                  Description
+                  Descripción
                 </p>
                 <p className="text-sm">{schedule.description}</p>
               </div>
@@ -187,12 +191,12 @@ export default function ViewSchedulePage({
 
             <div>
               <p className="text-sm font-medium text-muted-foreground">
-                Status
+                Estado
               </p>
               <div className="flex items-center gap-2 mt-1">
                 <Badge variant={status.variant}>{status.label}</Badge>
                 <Badge variant={schedule.active ? "default" : "secondary"}>
-                  {schedule.active ? "Active" : "Inactive"}
+                  {schedule.active ? "Activo" : "Inactivo"}
                 </Badge>
               </div>
             </div>
@@ -203,22 +207,22 @@ export default function ViewSchedulePage({
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Clock className="h-5 w-5" />
-              Schedule Information
+              Información del Horario
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
               <p className="text-sm font-medium text-muted-foreground">
-                Scheduled Date & Time
+                Fecha y Hora Programada
               </p>
               <p className="text-lg font-semibold">
-                {new Date(schedule.scheduledAt).toLocaleString()}
+                {new Date(schedule.scheduledAt).toLocaleString("es-MX")}
               </p>
             </div>
 
             <div>
               <p className="text-sm font-medium text-muted-foreground">
-                VIC Center
+                Centro VIC
               </p>
               <div className="flex items-center gap-2 mt-1">
                 <Building2 className="h-4 w-4 text-muted-foreground" />
@@ -231,7 +235,7 @@ export default function ViewSchedulePage({
 
             <div>
               <p className="text-sm font-medium text-muted-foreground">
-                Related Incidents
+                Incidentes Relacionados
               </p>
               <p className="text-lg font-semibold">
                 {schedule.incidents?.length || 0}
@@ -242,23 +246,23 @@ export default function ViewSchedulePage({
 
         <Card className="md:col-span-2">
           <CardHeader>
-            <CardTitle>Timestamps</CardTitle>
+            <CardTitle>Fechas de Registro</CardTitle>
           </CardHeader>
           <CardContent className="grid md:grid-cols-2 gap-4">
             <div>
               <p className="text-sm font-medium text-muted-foreground">
-                Created At
+                Creado El
               </p>
               <p className="text-sm">
-                {new Date(schedule.createdAt).toLocaleString()}
+                {new Date(schedule.createdAt).toLocaleString("es-MX")}
               </p>
             </div>
             <div>
               <p className="text-sm font-medium text-muted-foreground">
-                Last Updated
+                Última Actualización
               </p>
               <p className="text-sm">
-                {new Date(schedule.updatedAt).toLocaleString()}
+                {new Date(schedule.updatedAt).toLocaleString("es-MX")}
               </p>
             </div>
           </CardContent>
@@ -271,7 +275,7 @@ export default function ViewSchedulePage({
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2">
               <FileText className="h-5 w-5" />
-              Scheduled Incidents ({schedule.incidents?.length || 0})
+              Incidentes Programados ({schedule.incidents?.length || 0})
             </CardTitle>
           </div>
         </CardHeader>
@@ -281,17 +285,17 @@ export default function ViewSchedulePage({
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Title</TableHead>
-                    <TableHead className="hidden md:table-cell">Type</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Priority</TableHead>
+                    <TableHead>Título</TableHead>
+                    <TableHead className="hidden md:table-cell">Tipo</TableHead>
+                    <TableHead>Estado</TableHead>
+                    <TableHead>Prioridad</TableHead>
                     <TableHead className="hidden lg:table-cell">
-                      Reported By
+                      Reportado Por
                     </TableHead>
                     <TableHead className="hidden sm:table-cell">
-                      Reported At
+                      Fecha de Reporte
                     </TableHead>
-                    <TableHead className="w-[70px]">Action</TableHead>
+                    <TableHead className="w-[70px]">Acción</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -346,7 +350,9 @@ export default function ViewSchedulePage({
                         )}
                       </TableCell>
                       <TableCell className="hidden sm:table-cell text-sm text-muted-foreground">
-                        {new Date(incident.reportedAt).toLocaleDateString()}
+                        {new Date(incident.reportedAt).toLocaleDateString(
+                          "es-MX",
+                        )}
                       </TableCell>
                       <TableCell>
                         <Link href={`/admin/incidents/${incident.id}`}>
@@ -363,7 +369,7 @@ export default function ViewSchedulePage({
           ) : (
             <div className="text-center py-8 text-muted-foreground">
               <FileText className="h-12 w-12 mx-auto mb-3 opacity-50" />
-              <p>No incidents scheduled for this date</p>
+              <p>No hay incidentes programados para esta fecha</p>
             </div>
           )}
         </CardContent>

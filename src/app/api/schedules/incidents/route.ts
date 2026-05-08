@@ -94,7 +94,7 @@ export const GET = withPermission("schedules:read", async (request, _user) => {
             name: true,
           },
         },
-        workOrders: {
+        assignments: {
           where: {
             active: true,
           },

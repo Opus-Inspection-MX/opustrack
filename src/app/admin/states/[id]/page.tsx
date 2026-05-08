@@ -55,7 +55,7 @@ export default function StateDetailPage({
   const handleDelete = async () => {
     if (
       !confirm(
-        "Are you sure you want to delete this state? This action cannot be undone.",
+        "¿Estás seguro de que deseas eliminar este estado? Esta acción no se puede deshacer.",
       )
     ) {
       return;
@@ -67,7 +67,9 @@ export default function StateDetailPage({
       router.push("/admin/states");
     } catch (error) {
       console.error("Error deleting state:", error);
-      alert(error instanceof Error ? error.message : "Failed to delete state");
+      alert(
+        error instanceof Error ? error.message : "Error al eliminar el estado",
+      );
       setIsDeleting(false);
     }
   };
@@ -75,7 +77,7 @@ export default function StateDetailPage({
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Spinner size="lg" text="Loading state..." />
+        <Spinner size="lg" text="Cargando estado..." />
       </div>
     );
   }
@@ -88,7 +90,7 @@ export default function StateDetailPage({
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>
-            <h1 className="text-3xl font-bold">State Not Found</h1>
+            <h1 className="text-3xl font-bold">Estado No Encontrado</h1>
           </div>
         </div>
       </div>
@@ -104,7 +106,9 @@ export default function StateDetailPage({
           </Button>
           <div>
             <h1 className="text-3xl font-bold">{state.name}</h1>
-            <p className="text-muted-foreground">State details and VICs</p>
+            <p className="text-muted-foreground">
+              Detalles del estado y centros VIC
+            </p>
           </div>
         </div>
         <div className="flex gap-2">
@@ -113,7 +117,7 @@ export default function StateDetailPage({
             onClick={() => router.push(`/admin/states/${id}/edit`)}
           >
             <Edit className="mr-2 h-4 w-4" />
-            Edit
+            Editar
           </Button>
           <Button
             variant="destructive"
@@ -121,7 +125,7 @@ export default function StateDetailPage({
             disabled={isDeleting}
           >
             <Trash2 className="mr-2 h-4 w-4" />
-            {isDeleting ? "Deleting..." : "Delete"}
+            {isDeleting ? "Eliminando..." : "Eliminar"}
           </Button>
         </div>
       </div>
@@ -130,37 +134,37 @@ export default function StateDetailPage({
         {/* State Information */}
         <Card>
           <CardHeader>
-            <CardTitle>State Information</CardTitle>
+            <CardTitle>Información del Estado</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">
-                  State ID
+                  ID del Estado
                 </p>
                 <p className="text-sm">{state.id}</p>
               </div>
               <div>
                 <p className="text-sm font-medium text-muted-foreground">
-                  State Code
+                  Código del Estado
                 </p>
                 <p className="text-sm font-mono">{state.code}</p>
               </div>
               <div>
                 <p className="text-sm font-medium text-muted-foreground">
-                  State Name
+                  Nombre del Estado
                 </p>
                 <p className="text-sm font-medium">{state.name}</p>
               </div>
               <div>
                 <p className="text-sm font-medium text-muted-foreground">
-                  Status
+                  Estado
                 </p>
                 <p className="text-sm">
                   {state.active ? (
-                    <span className="text-green-600">Active</span>
+                    <span className="text-green-600">Activo</span>
                   ) : (
-                    <span className="text-red-600">Inactive</span>
+                    <span className="text-red-600">Inactivo</span>
                   )}
                 </p>
               </div>
@@ -175,7 +179,7 @@ export default function StateDetailPage({
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Building2 className="h-5 w-5" />
-                  Vehicle Inspection Centers (
+                  Centros de Inspección Vehicular (
                   {state.vehicleInspectionCenters.length})
                 </CardTitle>
               </CardHeader>
@@ -193,7 +197,7 @@ export default function StateDetailPage({
                       <div>
                         <p className="font-medium">{vic.name}</p>
                         <p className="text-sm text-muted-foreground">
-                          Code: {vic.code}
+                          Código: {vic.code}
                         </p>
                         {vic.address && (
                           <p className="text-sm text-muted-foreground">
@@ -209,7 +213,7 @@ export default function StateDetailPage({
                         )}
                         {vic.lines && (
                           <p className="text-sm font-medium">
-                            {vic.lines} lines
+                            {vic.lines} líneas
                           </p>
                         )}
                       </div>
@@ -227,19 +231,19 @@ export default function StateDetailPage({
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Building2 className="h-5 w-5" />
-                Vehicle Inspection Centers
+                Centros de Inspección Vehicular
               </CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground">
-                No VICs are currently registered in this state.
+                No hay centros VIC registrados en este estado.
               </p>
               <Button
                 variant="link"
                 className="mt-2 p-0 h-auto"
                 onClick={() => router.push("/admin/vic-centers/new")}
               >
-                Create a new VIC
+                Crear un nuevo centro VIC
               </Button>
             </CardContent>
           </Card>

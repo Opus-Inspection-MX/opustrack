@@ -60,13 +60,15 @@ export default function IncidentStatusPage() {
   };
 
   const handleDelete = async (id: number) => {
-    if (confirm("Are you sure you want to delete this incident status?")) {
+    if (
+      confirm("¿Estás seguro de que deseas eliminar este estado de incidente?")
+    ) {
       try {
         await deleteIncidentStatus(id);
         await fetchData();
       } catch (error) {
         console.error("Error deleting incident status:", error);
-        alert("Failed to delete incident status");
+        alert("Error al eliminar el estado de incidente");
       }
     }
   };
@@ -83,7 +85,7 @@ export default function IncidentStatusPage() {
   if (isLoading && statuses.length === 0) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Spinner size="lg" text="Loading incident statuses..." />
+        <Spinner size="lg" text="Cargando estados de incidente..." />
       </div>
     );
   }
@@ -92,14 +94,14 @@ export default function IncidentStatusPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold">Incident Status</h1>
+          <h1 className="text-3xl font-bold">Estado de Incidente</h1>
           <p className="text-muted-foreground">
-            Manage incident status types and their configurations
+            Gestionar tipos de estado de incidente y sus configuraciones
           </p>
         </div>
         <Button onClick={() => router.push("/admin/incident-status/new")}>
           <Plus className="mr-2 h-4 w-4" />
-          New Status
+          Nuevo Estado
         </Button>
       </div>
 

@@ -187,7 +187,7 @@ export default async function ClientDashboard() {
                     {/* Badges */}
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-mono text-sm text-muted-foreground">
-                        #{incident.id}
+                        INC-{incident.id}
                       </span>
                       {getPriorityBadge(incident.priority)}
                       {getStatusBadge(incident.status)}
@@ -211,10 +211,10 @@ export default async function ClientDashboard() {
                         {new Date(incident.reportedAt).toLocaleDateString()}
                       </span>
                       <span>SLA: {incident.sla}h</span>
-                      {incident._count?.workOrders &&
-                        incident._count.workOrders > 0 && (
+                      {incident._count?.assignments &&
+                        incident._count.assignments > 0 && (
                           <span>
-                            Órdenes de Trabajo: {incident._count.workOrders}
+                            Asignaciones: {incident._count.assignments}
                           </span>
                         )}
                     </div>

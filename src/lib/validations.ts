@@ -47,8 +47,8 @@ export const incidentSchema = z.object({
 
 export type IncidentFormData = z.infer<typeof incidentSchema>;
 
-// Work Order validation
-export const workOrderSchema = z.object({
+// Assignment validation
+export const assignmentSchema = z.object({
   incidentId: z.string().min(1, "Incident is required"),
   assignedToId: z.string().min(1, "Assignee is required"),
   status: z.enum(["PENDING", "IN_PROGRESS", "COMPLETED", "CANCELLED"]),
@@ -60,7 +60,7 @@ export const workOrderSchema = z.object({
   finishedAt: z.string().optional(),
 });
 
-export type WorkOrderFormData = z.infer<typeof workOrderSchema>;
+export type AssignmentFormData = z.infer<typeof assignmentSchema>;
 
 // Permission validation
 export const permissionSchema = z.object({

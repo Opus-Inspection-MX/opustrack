@@ -33,11 +33,11 @@ export const PartDeleteSchema = z.object({
 });
 
 /**
- * Schema for creating a work part (linking part to work order)
+ * Schema for creating a work part (linking part to assignment or activity)
  */
 export const WorkPartCreateSchema = z.object({
-  workOrderId: cuidSchema.optional(),
-  workActivityId: cuidSchema.optional(),
+  assignmentId: cuidSchema.optional(),
+  activityId: cuidSchema.optional(),
   partId: cuidSchema,
   quantity: z.number().int().positive("Quantity must be at least 1"),
   description: z

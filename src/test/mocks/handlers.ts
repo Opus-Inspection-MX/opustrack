@@ -42,12 +42,12 @@ export const handlers = [
     });
   }),
 
-  // Example: Mock work orders API
-  http.get("/api/work-orders", () => {
+  // Example: Mock asignacións API
+  http.get("/api/assignments", () => {
     return HttpResponse.json([
       {
         id: "1",
-        folio: "WO-001",
+        folio: 1,
         status: "PENDING",
         createdAt: new Date().toISOString(),
       },

@@ -248,7 +248,7 @@ export default async function VICDetailPage({
                     <TableHead>Nombre</TableHead>
                     <TableHead>Correo Electrónico</TableHead>
                     <TableHead>Rol</TableHead>
-                    <TableHead>Status</TableHead>
+                    <TableHead>Estado</TableHead>
                     <TableHead className="text-right">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -402,7 +402,7 @@ export default async function VICDetailPage({
                   {vic.incidents.map((incident) => (
                     <TableRow key={incident.id}>
                       <TableCell className="font-mono text-sm">
-                        #{incident.id}
+                        INC-{incident.id}
                       </TableCell>
                       <TableCell className="font-medium max-w-xs truncate">
                         {incident.title}

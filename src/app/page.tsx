@@ -44,9 +44,8 @@ export default function HomePage() {
           </h1>
 
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Optimiza la gestión de incidentes, órdenes de trabajo y coordinación
-            de equipos con la plataforma integral de seguimiento de
-            OpusInspection.
+            Optimiza la gestión de incidentes, asignaciones y coordinación de
+            equipos con la plataforma integral de seguimiento de OpusInspection.
           </p>
         </div>
       </section>
@@ -142,11 +141,9 @@ export default function HomePage() {
               <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
                 <Wrench className="h-6 w-6 text-primary" />
               </div>
-              <h3 className="font-semibold text-lg">
-                Gestión de Órdenes de Trabajo
-              </h3>
+              <h3 className="font-semibold text-lg">Gestión de Asignaciones</h3>
               <p className="text-sm text-muted-foreground">
-                Crea, asigna y completa órdenes de trabajo eficientemente con
+                Crea, asigna y completa asignaciones eficientemente con
                 programación integrada y seguimiento de partes.
               </p>
             </CardContent>

@@ -56,7 +56,9 @@ export default function EditTripPage({
         });
       } catch (err) {
         setError(
-          err instanceof Error ? err.message : "Error al cargar los datos del viaje",
+          err instanceof Error
+            ? err.message
+            : "Error al cargar los datos del viaje",
         );
       } finally {
         setLoading(false);
@@ -80,7 +82,9 @@ export default function EditTripPage({
 
       router.push(`/fsr/vehicle-trips/${resolvedParams.id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error al actualizar el viaje");
+      setError(
+        err instanceof Error ? err.message : "Error al actualizar el viaje",
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -133,8 +137,8 @@ export default function EditTripPage({
         <CardHeader>
           <CardTitle>Actualizar Información del Viaje</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Puedes actualizar notas y direcciones. Las lecturas del odómetro y las fotos
-            no pueden modificarse.
+            Puedes actualizar notas y direcciones. Las lecturas del odómetro y
+            las fotos no pueden modificarse.
           </p>
         </CardHeader>
         <CardContent>

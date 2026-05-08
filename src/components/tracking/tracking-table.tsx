@@ -46,22 +46,22 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { createAssignment } from "@/lib/actions/assignments";
 import { getEquipmentsByLineId } from "@/lib/actions/equipments";
 import { getLinesByVicId } from "@/lib/actions/lines";
 import {
+  updateAssignmentDetails,
   updateIncidentDetails,
-  updateWorkOrderDetails,
 } from "@/lib/actions/tracking";
-import { createWorkOrder } from "@/lib/actions/work-orders";
 
-const workOrderStatusLabels: Record<string, string> = {
+const assignmentStatusLabels: Record<string, string> = {
   PENDING: "Pendiente",
   IN_PROGRESS: "En Progreso",
   COMPLETED: "Completado",
   CANCELLED: "Cancelado",
 };
 
-const workOrderStatusColors: Record<string, string> = {
+const assignmentStatusColors: Record<string, string> = {
   PENDING: "bg-gray-100 text-gray-800",
   IN_PROGRESS: "bg-blue-100 text-blue-800",
   COMPLETED: "bg-green-100 text-green-800",
@@ -76,13 +76,13 @@ const hexToRgba = (hex: string, opacity: number) => {
   return `rgba(${r}, ${g}, ${b}, ${opacity})`;
 };
 
-interface TrackingWorkOrder {
+interface TrackingAssignment {
   id: string;
   status?: { id: number; name: string } | null;
   statusId?: number | null;
   assignedTo?: { id: string; name: string } | null;
   assignedToId?: string;
-  folio?: string | null;
+  folio?: number | null;
   notes?: string | null;
   lineId?: number | null;
   equipmentId?: number | null;
@@ -106,7 +106,7 @@ interface TrackingIncident {
   type?: { id: number; name: string } | null;
   vic?: { id: string; name: string; code: string } | null;
   reportedBy?: { id: string; name: string } | null;
-  workOrders: TrackingWorkOrder[];
+  assignments: TrackingAssignment[];
   lineId?: number | null;
   equipmentId?: number | null;
   line?: { id: number; name: string } | null;
@@ -124,9 +124,8 @@ interface IncidentEditForm {
   resolvedAt?: string | null;
 }
 
-interface WorkOrderEditForm {
+interface AssignmentEditForm {
   assignedToId?: string;
-  folio?: string;
   notes?: string;
   statusId?: number | string;
   lineId?: number;
@@ -160,22 +159,22 @@ export function TrackingTable({
 }: TrackingTableProps) {
   const _router = useRouter();
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
-  const [editingWorkOrder, setEditingWorkOrder] = useState<string | null>(null);
-  const [workOrderEditForm, setWorkOrderEditForm] = useState<WorkOrderEditForm>(
-    {},
+  const [editingAssignment, setEditingAssignment] = useState<string | null>(
+    null,
   );
-  const [savingWorkOrder, setSavingWorkOrder] = useState<string | null>(null);
+  const [assignmentEditForm, setAssignmentEditForm] =
+    useState<AssignmentEditForm>({});
+  const [savingAssignment, setSavingAssignment] = useState<string | null>(null);
   const [editingIncident, setEditingIncident] = useState<number | null>(null);
   const [editForm, setEditForm] = useState<IncidentEditForm>({});
   const [savingIncident, setSavingIncident] = useState(false);
   const [sorting, setSorting] = useState<SortingState>([]);
-  const [creatingWorkOrder, setCreatingWorkOrder] = useState<number | null>(
+  const [creatingAssignment, setCreatingAssignment] = useState<number | null>(
     null,
   );
-  const [newWorkOrderForm, setNewWorkOrderForm] = useState<WorkOrderEditForm>(
-    {},
-  );
-  const [savingNewWorkOrder, setSavingNewWorkOrder] = useState(false);
+  const [newAssignmentForm, setNewAssignmentForm] =
+    useState<AssignmentEditForm>({});
+  const [savingNewAssignment, setSavingNewAssignment] = useState(false);
   const [linesForEdit, setLinesForEdit] = useState<LineOption[]>([]);
   const [equipmentsForEdit, setEquipmentsForEdit] = useState<EquipmentOption[]>(
     [],
@@ -262,61 +261,59 @@ export function TrackingTable({
     setExpandedRows(newExpanded);
   };
 
-  const handleEditWorkOrder = (workOrder: TrackingWorkOrder) => {
-    setEditingWorkOrder(workOrder.id);
+  const handleEditAssignment = (assignment: TrackingAssignment) => {
+    setEditingAssignment(assignment.id);
     // Format datetime for datetime-local input (YYYY-MM-DDTHH:mm)
-    const startedDateTime = workOrder.startedAt
-      ? new Date(workOrder.startedAt).toISOString().slice(0, 16)
+    const startedDateTime = assignment.startedAt
+      ? new Date(assignment.startedAt).toISOString().slice(0, 16)
       : "";
-    const finishedDateTime = workOrder.finishedAt
-      ? new Date(workOrder.finishedAt).toISOString().slice(0, 16)
+    const finishedDateTime = assignment.finishedAt
+      ? new Date(assignment.finishedAt).toISOString().slice(0, 16)
       : "";
-    setWorkOrderEditForm({
-      assignedToId: workOrder.assignedTo?.id || "",
-      statusId: workOrder.status?.id,
+    setAssignmentEditForm({
+      assignedToId: assignment.assignedTo?.id || "",
+      statusId: assignment.status?.id,
       startedAt: startedDateTime || undefined,
       finishedAt: finishedDateTime || undefined,
-      folio: workOrder.folio || "",
     });
   };
 
-  const handleCancelWorkOrderEdit = (_workOrderId: string) => {
-    setEditingWorkOrder(null);
-    setWorkOrderEditForm({});
+  const handleCancelAssignmentEdit = (_assignmentId: string) => {
+    setEditingAssignment(null);
+    setAssignmentEditForm({});
   };
 
-  const handleSaveWorkOrder = async (workOrderId: string) => {
-    if (!workOrderEditForm.assignedToId) {
+  const handleSaveAssignment = async (assignmentId: string) => {
+    if (!assignmentEditForm.assignedToId) {
       alert("Por favor selecciona un FSR");
       return;
     }
 
-    setSavingWorkOrder(workOrderId);
+    setSavingAssignment(assignmentId);
     try {
-      const statusIdValue = workOrderEditForm.statusId
-        ? typeof workOrderEditForm.statusId === "string"
-          ? parseInt(workOrderEditForm.statusId, 10)
-          : workOrderEditForm.statusId
+      const statusIdValue = assignmentEditForm.statusId
+        ? typeof assignmentEditForm.statusId === "string"
+          ? parseInt(assignmentEditForm.statusId, 10)
+          : assignmentEditForm.statusId
         : null;
 
-      await updateWorkOrderDetails(workOrderId, {
-        assignedToId: workOrderEditForm.assignedToId,
+      await updateAssignmentDetails(assignmentId, {
+        assignedToId: assignmentEditForm.assignedToId,
         statusId: statusIdValue,
-        startedAt: workOrderEditForm.startedAt || null,
-        finishedAt: workOrderEditForm.finishedAt || null,
-        folio: workOrderEditForm.folio || null,
+        startedAt: assignmentEditForm.startedAt || null,
+        finishedAt: assignmentEditForm.finishedAt || null,
       });
-      setEditingWorkOrder(null);
-      setWorkOrderEditForm({});
+      setEditingAssignment(null);
+      setAssignmentEditForm({});
       // Reload the incidents data to reflect the change
       if (onDataChange) {
         onDataChange();
       }
     } catch (error) {
-      console.error("Error updating work order:", error);
-      alert("Error al actualizar orden de trabajo");
+      console.error("Error updating asignación:", error);
+      alert("Error al actualizar asignación");
     } finally {
-      setSavingWorkOrder(null);
+      setSavingAssignment(null);
     }
   };
 
@@ -386,53 +383,51 @@ export function TrackingTable({
     }
   };
 
-  const handleStartCreateWorkOrder = (incidentId: number) => {
-    setCreatingWorkOrder(incidentId);
-    setNewWorkOrderForm({
+  const handleStartCreateAssignment = (incidentId: number) => {
+    setCreatingAssignment(incidentId);
+    setNewAssignmentForm({
       assignedToId: "",
       notes: "",
-      folio: "",
     });
   };
 
-  const handleCancelCreateWorkOrder = () => {
-    setCreatingWorkOrder(null);
-    setNewWorkOrderForm({});
+  const handleCancelCreateAssignment = () => {
+    setCreatingAssignment(null);
+    setNewAssignmentForm({});
   };
 
-  const handleCreateWorkOrder = async (incidentId: number) => {
-    if (!newWorkOrderForm.assignedToId) {
+  const handleCreateAssignment = async (incidentId: number) => {
+    if (!newAssignmentForm.assignedToId) {
       alert("Por favor selecciona un FSR");
       return;
     }
 
-    setSavingNewWorkOrder(true);
+    setSavingNewAssignment(true);
     try {
       // Find ABIERTO status
       const abiertoStatus = incidentStatuses.find(
         (status) => status.name === "ABIERTO",
       );
 
-      await createWorkOrder({
+      await createAssignment({
         incidentId,
-        assignedToId: newWorkOrderForm.assignedToId || "",
-        notes: newWorkOrderForm.notes || undefined,
+        assignedToId: newAssignmentForm.assignedToId || "",
+        notes: newAssignmentForm.notes || undefined,
         statusId: abiertoStatus?.id || null,
-        folio: newWorkOrderForm.folio || null,
         startedAt: null,
         finishedAt: null,
       });
-      setCreatingWorkOrder(null);
-      setNewWorkOrderForm({});
+      setCreatingAssignment(null);
+      setNewAssignmentForm({});
       // Reload the incidents data to reflect the change
       if (onDataChange) {
         onDataChange();
       }
     } catch (error) {
-      console.error("Error creating work order:", error);
-      alert("Error al crear la orden de trabajo");
+      console.error("Error creating asignación:", error);
+      alert("Error al crear la asignación");
     } finally {
-      setSavingNewWorkOrder(false);
+      setSavingNewAssignment(false);
     }
   };
 
@@ -498,10 +493,10 @@ export function TrackingTable({
   const getAssignedFSRs = (
     incident: TrackingIncident,
   ): Array<{ id: string; name: string }> => {
-    if (incident.workOrders && incident.workOrders.length > 0) {
-      // Get unique FSRs from all work orders
-      const fsrs = incident.workOrders
-        .map((wo: TrackingWorkOrder) => wo.assignedTo)
+    if (incident.assignments && incident.assignments.length > 0) {
+      // Get unique FSRs from all asignacións
+      const fsrs = incident.assignments
+        .map((wo: TrackingAssignment) => wo.assignedTo)
         .filter(
           (fsr): fsr is { id: string; name: string } =>
             fsr !== null && fsr !== undefined,
@@ -541,9 +536,10 @@ export function TrackingTable({
                 {getSortIcon("incidente")}
               </Button>
             </TableHead>
+            <TableHead>Folio</TableHead>
             <TableHead>Línea</TableHead>
             <TableHead>FSR Asignado</TableHead>
-            <TableHead>Folio ODT</TableHead>
+            <TableHead>Folio Asignaciones</TableHead>
             <TableHead>
               <Button
                 variant="ghost"
@@ -593,7 +589,7 @@ export function TrackingTable({
           {sortedIncidents.length === 0 ? (
             <TableRow>
               <TableCell
-                colSpan={13}
+                colSpan={14}
                 className="text-center py-8 text-muted-foreground"
               >
                 No se encontraron incidentes
@@ -643,6 +639,12 @@ export function TrackingTable({
                     <TableCell onClick={() => toggleRowExpansion(incident.id)}>
                       <div className="font-medium">{incident.title}</div>
                     </TableCell>
+                    <TableCell
+                      onClick={() => toggleRowExpansion(incident.id)}
+                      className="font-mono text-sm whitespace-nowrap"
+                    >
+                      INC-{incident.id}
+                    </TableCell>
                     <TableCell onClick={() => toggleRowExpansion(incident.id)}>
                       {incident.line?.name ? (
                         <span className="text-sm">{incident.line.name}</span>
@@ -670,16 +672,17 @@ export function TrackingTable({
                       )}
                     </TableCell>
                     <TableCell onClick={() => toggleRowExpansion(incident.id)}>
-                      {incident.workOrders && incident.workOrders.length > 0 ? (
+                      {incident.assignments &&
+                      incident.assignments.length > 0 ? (
                         <div className="flex flex-col gap-1">
-                          {incident.workOrders.map((wo: TrackingWorkOrder) =>
+                          {incident.assignments.map((wo: TrackingAssignment) =>
                             wo.folio ? (
                               <Badge
                                 key={wo.id}
                                 variant="outline"
                                 className="text-xs"
                               >
-                                {wo.folio}
+                                AS-{wo.folio}
                               </Badge>
                             ) : null,
                           )}
@@ -729,7 +732,7 @@ export function TrackingTable({
 
                   {isExpanded && (
                     <TableRow>
-                      <TableCell colSpan={12} className="bg-muted/30">
+                      <TableCell colSpan={14} className="bg-muted/30">
                         <div className="p-4 space-y-4">
                           {/* Actions Menu */}
                           <div className="flex items-center justify-between pb-4 border-b">
@@ -976,26 +979,28 @@ export function TrackingTable({
                                 </div>
                               </div>
 
-                              {/* Create Work Order in Edit Mode */}
+                              {/* Create Assignment in Edit Mode */}
                               <div className="p-4 bg-muted/50 rounded-lg border border-dashed space-y-4">
                                 <div className="flex items-center justify-between">
                                   <h5 className="font-semibold">
-                                    Crear Orden de Trabajo
+                                    Crear Asignación
                                   </h5>
                                   <Button
                                     variant="outline"
                                     size="sm"
                                     onClick={() =>
-                                      handleStartCreateWorkOrder(incident.id)
+                                      handleStartCreateAssignment(incident.id)
                                     }
-                                    disabled={creatingWorkOrder === incident.id}
+                                    disabled={
+                                      creatingAssignment === incident.id
+                                    }
                                   >
                                     <Plus className="h-4 w-4 mr-2" />
                                     Nueva Orden
                                   </Button>
                                 </div>
 
-                                {creatingWorkOrder === incident.id && (
+                                {creatingAssignment === incident.id && (
                                   <div className="p-4 bg-background rounded-lg border space-y-4">
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                       <div className="space-y-2">
@@ -1005,10 +1010,10 @@ export function TrackingTable({
                                           FSR Asignado *
                                         </Label>
                                         <Select
-                                          value={newWorkOrderForm.assignedToId}
+                                          value={newAssignmentForm.assignedToId}
                                           onValueChange={(value) =>
-                                            setNewWorkOrderForm({
-                                              ...newWorkOrderForm,
+                                            setNewAssignmentForm({
+                                              ...newAssignmentForm,
                                               assignedToId: value,
                                             })
                                           }
@@ -1049,24 +1054,6 @@ export function TrackingTable({
                                           </p>
                                         )}
                                       </div>
-                                      <div className="space-y-2">
-                                        <Label
-                                          htmlFor={`edit-mode-folio-${incident.id}`}
-                                        >
-                                          Folio ODT
-                                        </Label>
-                                        <Input
-                                          id={`edit-mode-folio-${incident.id}`}
-                                          value={newWorkOrderForm.folio}
-                                          onChange={(e) =>
-                                            setNewWorkOrderForm({
-                                              ...newWorkOrderForm,
-                                              folio: e.target.value,
-                                            })
-                                          }
-                                          placeholder="Folio opcional..."
-                                        />
-                                      </div>
                                     </div>
                                     <div className="space-y-2">
                                       <Label
@@ -1076,10 +1063,10 @@ export function TrackingTable({
                                       </Label>
                                       <Textarea
                                         id={`edit-mode-notes-${incident.id}`}
-                                        value={newWorkOrderForm.notes}
+                                        value={newAssignmentForm.notes}
                                         onChange={(e) =>
-                                          setNewWorkOrderForm({
-                                            ...newWorkOrderForm,
+                                          setNewAssignmentForm({
+                                            ...newAssignmentForm,
                                             notes: e.target.value,
                                           })
                                         }
@@ -1091,8 +1078,8 @@ export function TrackingTable({
                                       <Button
                                         variant="outline"
                                         size="sm"
-                                        onClick={handleCancelCreateWorkOrder}
-                                        disabled={savingNewWorkOrder}
+                                        onClick={handleCancelCreateAssignment}
+                                        disabled={savingNewAssignment}
                                       >
                                         <XIcon className="h-4 w-4 mr-2" />
                                         Cancelar
@@ -1100,12 +1087,12 @@ export function TrackingTable({
                                       <Button
                                         size="sm"
                                         onClick={() =>
-                                          handleCreateWorkOrder(incident.id)
+                                          handleCreateAssignment(incident.id)
                                         }
-                                        disabled={savingNewWorkOrder}
+                                        disabled={savingNewAssignment}
                                       >
                                         <Save className="h-4 w-4 mr-2" />
-                                        {savingNewWorkOrder
+                                        {savingNewAssignment
                                           ? "Guardando..."
                                           : "Crear Orden"}
                                       </Button>
@@ -1173,17 +1160,15 @@ export function TrackingTable({
                             </div>
                           )}
 
-                          {/* Work Orders Section */}
+                          {/* Assignments Section */}
                           <div>
                             <div className="flex items-center justify-between mb-3">
-                              <h4 className="font-semibold">
-                                Órdenes de Trabajo
-                              </h4>
-                              {creatingWorkOrder !== incident.id && (
+                              <h4 className="font-semibold">Asignaciones</h4>
+                              {creatingAssignment !== incident.id && (
                                 <Button
                                   size="sm"
                                   onClick={() =>
-                                    handleStartCreateWorkOrder(incident.id)
+                                    handleStartCreateAssignment(incident.id)
                                   }
                                   disabled={editingIncident === incident.id}
                                 >
@@ -1193,11 +1178,11 @@ export function TrackingTable({
                               )}
                             </div>
 
-                            {/* Create Work Order Form */}
-                            {creatingWorkOrder === incident.id && (
+                            {/* Create Assignment Form */}
+                            {creatingAssignment === incident.id && (
                               <div className="p-4 bg-background rounded-lg border space-y-4 mb-3">
                                 <h5 className="font-medium">
-                                  Nueva Orden de Trabajo
+                                  Nueva Asignación
                                 </h5>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                   <div className="space-y-2">
@@ -1205,10 +1190,10 @@ export function TrackingTable({
                                       FSR Asignado *
                                     </Label>
                                     <Select
-                                      value={newWorkOrderForm.assignedToId}
+                                      value={newAssignmentForm.assignedToId}
                                       onValueChange={(value) =>
-                                        setNewWorkOrderForm({
-                                          ...newWorkOrderForm,
+                                        setNewAssignmentForm({
+                                          ...newAssignmentForm,
                                           assignedToId: value,
                                         })
                                       }
@@ -1245,22 +1230,6 @@ export function TrackingTable({
                                       </p>
                                     )}
                                   </div>
-                                  <div className="space-y-2">
-                                    <Label htmlFor={`new-folio-${incident.id}`}>
-                                      Folio ODT
-                                    </Label>
-                                    <Input
-                                      id={`new-folio-${incident.id}`}
-                                      value={newWorkOrderForm.folio}
-                                      onChange={(e) =>
-                                        setNewWorkOrderForm({
-                                          ...newWorkOrderForm,
-                                          folio: e.target.value,
-                                        })
-                                      }
-                                      placeholder="Folio opcional..."
-                                    />
-                                  </div>
                                 </div>
                                 <div className="space-y-2">
                                   <Label htmlFor={`new-notes-${incident.id}`}>
@@ -1268,10 +1237,10 @@ export function TrackingTable({
                                   </Label>
                                   <Textarea
                                     id={`new-notes-${incident.id}`}
-                                    value={newWorkOrderForm.notes}
+                                    value={newAssignmentForm.notes}
                                     onChange={(e) =>
-                                      setNewWorkOrderForm({
-                                        ...newWorkOrderForm,
+                                      setNewAssignmentForm({
+                                        ...newAssignmentForm,
                                         notes: e.target.value,
                                       })
                                     }
@@ -1283,8 +1252,8 @@ export function TrackingTable({
                                   <Button
                                     variant="outline"
                                     size="sm"
-                                    onClick={handleCancelCreateWorkOrder}
-                                    disabled={savingNewWorkOrder}
+                                    onClick={handleCancelCreateAssignment}
+                                    disabled={savingNewAssignment}
                                   >
                                     <XIcon className="h-4 w-4 mr-2" />
                                     Cancelar
@@ -1292,12 +1261,12 @@ export function TrackingTable({
                                   <Button
                                     size="sm"
                                     onClick={() =>
-                                      handleCreateWorkOrder(incident.id)
+                                      handleCreateAssignment(incident.id)
                                     }
-                                    disabled={savingNewWorkOrder}
+                                    disabled={savingNewAssignment}
                                   >
                                     <Save className="h-4 w-4 mr-2" />
-                                    {savingNewWorkOrder
+                                    {savingNewAssignment
                                       ? "Guardando..."
                                       : "Crear Orden"}
                                   </Button>
@@ -1305,37 +1274,38 @@ export function TrackingTable({
                               </div>
                             )}
 
-                            {/* Existing Work Orders */}
-                            {incident.workOrders &&
-                              incident.workOrders.length > 0 && (
+                            {/* Existing Assignments */}
+                            {incident.assignments &&
+                              incident.assignments.length > 0 && (
                                 <div className="space-y-3">
-                                  {incident.workOrders.map(
-                                    (workOrder: TrackingWorkOrder) => (
+                                  {incident.assignments.map(
+                                    (assignment: TrackingAssignment) => (
                                       <div
-                                        key={workOrder.id}
+                                        key={assignment.id}
                                         className="p-4 bg-background rounded-lg border space-y-3"
                                       >
                                         <div className="flex items-start justify-between gap-4">
                                           <div className="flex-1 space-y-2">
-                                            {editingWorkOrder !==
-                                              workOrder.id && (
+                                            {editingAssignment !==
+                                              assignment.id && (
                                               <div className="flex items-center gap-2 flex-wrap">
                                                 <Badge
                                                   className={
-                                                    (workOrder.status?.name &&
-                                                      workOrderStatusColors[
-                                                        workOrder.status.name
+                                                    (assignment.status?.name &&
+                                                      assignmentStatusColors[
+                                                        assignment.status.name
                                                       ]) ||
                                                     "bg-gray-100 text-gray-800"
                                                   }
                                                 >
-                                                  {workOrder.status?.name
-                                                    ? workOrderStatusLabels[
-                                                        workOrder.status.name
-                                                      ] || workOrder.status.name
+                                                  {assignment.status?.name
+                                                    ? assignmentStatusLabels[
+                                                        assignment.status.name
+                                                      ] ||
+                                                      assignment.status.name
                                                     : "Sin estado"}
                                                 </Badge>
-                                                {workOrder.unlockedAt ? (
+                                                {assignment.unlockedAt ? (
                                                   <Badge
                                                     variant="outline"
                                                     className="bg-green-50 text-green-700 border-green-300"
@@ -1352,31 +1322,31 @@ export function TrackingTable({
                                                     No Desbloqueado
                                                   </Badge>
                                                 )}
-                                                {workOrder.createdAt && (
+                                                {assignment.createdAt && (
                                                   <span className="text-sm text-muted-foreground">
                                                     Creado:{" "}
                                                     {formatDate(
-                                                      workOrder.createdAt,
+                                                      assignment.createdAt,
                                                     )}{" "}
                                                     -{" "}
                                                     {formatTime(
-                                                      workOrder.createdAt,
+                                                      assignment.createdAt,
                                                     )}
                                                   </span>
                                                 )}
                                               </div>
                                             )}
 
-                                            {editingWorkOrder !==
-                                              workOrder.id && (
+                                            {editingAssignment !==
+                                              assignment.id && (
                                               <>
                                                 <div className="flex items-center gap-2">
                                                   <span className="text-sm font-medium min-w-[100px]">
                                                     Fecha Inicio:
                                                   </span>
                                                   <span className="text-sm text-muted-foreground">
-                                                    {workOrder.startedAt
-                                                      ? `${formatDate(workOrder.startedAt)} - ${formatTime(workOrder.startedAt)}`
+                                                    {assignment.startedAt
+                                                      ? `${formatDate(assignment.startedAt)} - ${formatTime(assignment.startedAt)}`
                                                       : "-"}
                                                   </span>
                                                 </div>
@@ -1386,68 +1356,68 @@ export function TrackingTable({
                                                     Fecha Fin:
                                                   </span>
                                                   <span className="text-sm text-muted-foreground">
-                                                    {workOrder.finishedAt
-                                                      ? `${formatDate(workOrder.finishedAt)} - ${formatTime(workOrder.finishedAt)}`
+                                                    {assignment.finishedAt
+                                                      ? `${formatDate(assignment.finishedAt)} - ${formatTime(assignment.finishedAt)}`
                                                       : "-"}
                                                   </span>
                                                 </div>
                                               </>
                                             )}
 
-                                            {workOrder.folio && (
+                                            {assignment.folio && (
                                               <div className="flex items-center gap-2">
                                                 <span className="text-sm font-medium min-w-[100px]">
-                                                  Folio ODT:
+                                                  Folio:
                                                 </span>
                                                 <Badge
                                                   variant="outline"
                                                   className="text-sm"
                                                 >
-                                                  {workOrder.folio}
+                                                  AS-{assignment.folio}
                                                 </Badge>
                                               </div>
                                             )}
 
-                                            {editingWorkOrder !==
-                                              workOrder.id && (
+                                            {editingAssignment !==
+                                              assignment.id && (
                                               <div className="flex items-center gap-2">
                                                 <span className="text-sm font-medium min-w-[100px]">
                                                   FSR Asignado:
                                                 </span>
                                                 <span className="text-sm">
                                                   <User className="h-4 w-4 inline mr-2" />
-                                                  {workOrder.assignedTo?.name ||
-                                                    "Sin asignar"}
+                                                  {assignment.assignedTo
+                                                    ?.name || "Sin asignar"}
                                                 </span>
                                               </div>
                                             )}
 
-                                            {editingWorkOrder ===
-                                              workOrder.id && (
+                                            {editingAssignment ===
+                                              assignment.id && (
                                               <div className="space-y-3 pt-3 border-t">
                                                 <h5 className="font-semibold text-sm">
-                                                  Editar Orden de Trabajo
+                                                  Editar Asignación
                                                 </h5>
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                                   <div className="space-y-2">
                                                     <Label
-                                                      htmlFor={`wo-fsr-${workOrder.id}`}
+                                                      htmlFor={`wo-fsr-${assignment.id}`}
                                                     >
                                                       FSR Asignado
                                                     </Label>
                                                     <Select
                                                       value={
-                                                        workOrderEditForm.assignedToId
+                                                        assignmentEditForm.assignedToId
                                                       }
                                                       onValueChange={(value) =>
-                                                        setWorkOrderEditForm({
-                                                          ...workOrderEditForm,
+                                                        setAssignmentEditForm({
+                                                          ...assignmentEditForm,
                                                           assignedToId: value,
                                                         })
                                                       }
                                                     >
                                                       <SelectTrigger
-                                                        id={`wo-fsr-${workOrder.id}`}
+                                                        id={`wo-fsr-${assignment.id}`}
                                                       >
                                                         <SelectValue placeholder="Seleccionar FSR" />
                                                       </SelectTrigger>
@@ -1467,24 +1437,24 @@ export function TrackingTable({
                                                   </div>
                                                   <div className="space-y-2">
                                                     <Label
-                                                      htmlFor={`wo-status-${workOrder.id}`}
+                                                      htmlFor={`wo-status-${assignment.id}`}
                                                     >
                                                       Estado
                                                     </Label>
                                                     <Select
                                                       value={
-                                                        workOrderEditForm.statusId?.toString() ||
+                                                        assignmentEditForm.statusId?.toString() ||
                                                         ""
                                                       }
                                                       onValueChange={(value) =>
-                                                        setWorkOrderEditForm({
-                                                          ...workOrderEditForm,
+                                                        setAssignmentEditForm({
+                                                          ...assignmentEditForm,
                                                           statusId: value,
                                                         })
                                                       }
                                                     >
                                                       <SelectTrigger
-                                                        id={`wo-status-${workOrder.id}`}
+                                                        id={`wo-status-${assignment.id}`}
                                                       >
                                                         <SelectValue placeholder="Seleccionar estado" />
                                                       </SelectTrigger>
@@ -1504,40 +1474,19 @@ export function TrackingTable({
                                                   </div>
                                                   <div className="space-y-2">
                                                     <Label
-                                                      htmlFor={`wo-folio-${workOrder.id}`}
-                                                    >
-                                                      Folio ODT
-                                                    </Label>
-                                                    <Input
-                                                      id={`wo-folio-${workOrder.id}`}
-                                                      type="text"
-                                                      placeholder="Número de folio..."
-                                                      value={
-                                                        workOrderEditForm.folio
-                                                      }
-                                                      onChange={(e) =>
-                                                        setWorkOrderEditForm({
-                                                          ...workOrderEditForm,
-                                                          folio: e.target.value,
-                                                        })
-                                                      }
-                                                    />
-                                                  </div>
-                                                  <div className="space-y-2">
-                                                    <Label
-                                                      htmlFor={`wo-started-${workOrder.id}`}
+                                                      htmlFor={`wo-started-${assignment.id}`}
                                                     >
                                                       Fecha y Hora de Inicio
                                                     </Label>
                                                     <Input
-                                                      id={`wo-started-${workOrder.id}`}
+                                                      id={`wo-started-${assignment.id}`}
                                                       type="datetime-local"
                                                       value={
-                                                        workOrderEditForm.startedAt
+                                                        assignmentEditForm.startedAt
                                                       }
                                                       onChange={(e) =>
-                                                        setWorkOrderEditForm({
-                                                          ...workOrderEditForm,
+                                                        setAssignmentEditForm({
+                                                          ...assignmentEditForm,
                                                           startedAt:
                                                             e.target.value,
                                                         })
@@ -1546,19 +1495,19 @@ export function TrackingTable({
                                                   </div>
                                                   <div className="space-y-2">
                                                     <Label
-                                                      htmlFor={`wo-finished-${workOrder.id}`}
+                                                      htmlFor={`wo-finished-${assignment.id}`}
                                                     >
                                                       Fecha y Hora de Fin
                                                     </Label>
                                                     <Input
-                                                      id={`wo-finished-${workOrder.id}`}
+                                                      id={`wo-finished-${assignment.id}`}
                                                       type="datetime-local"
                                                       value={
-                                                        workOrderEditForm.finishedAt
+                                                        assignmentEditForm.finishedAt
                                                       }
                                                       onChange={(e) =>
-                                                        setWorkOrderEditForm({
-                                                          ...workOrderEditForm,
+                                                        setAssignmentEditForm({
+                                                          ...assignmentEditForm,
                                                           finishedAt:
                                                             e.target.value,
                                                         })
@@ -1571,20 +1520,20 @@ export function TrackingTable({
                                           </div>
 
                                           <div className="flex items-center gap-2">
-                                            {editingWorkOrder ===
-                                            workOrder.id ? (
+                                            {editingAssignment ===
+                                            assignment.id ? (
                                               <>
                                                 <Button
                                                   variant="outline"
                                                   size="sm"
                                                   onClick={() =>
-                                                    handleCancelWorkOrderEdit(
-                                                      workOrder.id,
+                                                    handleCancelAssignmentEdit(
+                                                      assignment.id,
                                                     )
                                                   }
                                                   disabled={
-                                                    savingWorkOrder ===
-                                                    workOrder.id
+                                                    savingAssignment ===
+                                                    assignment.id
                                                   }
                                                 >
                                                   <XIcon className="h-4 w-4 mr-2" />
@@ -1593,18 +1542,18 @@ export function TrackingTable({
                                                 <Button
                                                   size="sm"
                                                   onClick={() =>
-                                                    handleSaveWorkOrder(
-                                                      workOrder.id,
+                                                    handleSaveAssignment(
+                                                      assignment.id,
                                                     )
                                                   }
                                                   disabled={
-                                                    savingWorkOrder ===
-                                                    workOrder.id
+                                                    savingAssignment ===
+                                                    assignment.id
                                                   }
                                                 >
                                                   <Save className="h-4 w-4 mr-2" />
-                                                  {savingWorkOrder ===
-                                                  workOrder.id
+                                                  {savingAssignment ===
+                                                  assignment.id
                                                     ? "Guardando..."
                                                     : "Guardar"}
                                                 </Button>
@@ -1615,8 +1564,8 @@ export function TrackingTable({
                                                   variant="outline"
                                                   size="sm"
                                                   onClick={() =>
-                                                    handleEditWorkOrder(
-                                                      workOrder,
+                                                    handleEditAssignment(
+                                                      assignment,
                                                     )
                                                   }
                                                 >
@@ -1635,7 +1584,7 @@ export function TrackingTable({
                                                   <DropdownMenuContent align="end">
                                                     <DropdownMenuItem asChild>
                                                       <Link
-                                                        href={`/admin/work-orders/${workOrder.id}`}
+                                                        href={`/admin/assignments/${assignment.id}`}
                                                       >
                                                         <Eye className="h-4 w-4 mr-2" />
                                                         Ver Orden
@@ -1643,7 +1592,7 @@ export function TrackingTable({
                                                     </DropdownMenuItem>
                                                     <DropdownMenuItem asChild>
                                                       <Link
-                                                        href={`/admin/work-orders/${workOrder.id}/edit`}
+                                                        href={`/admin/assignments/${assignment.id}/edit`}
                                                       >
                                                         <Edit className="h-4 w-4 mr-2" />
                                                         Edición Completa
@@ -1656,12 +1605,12 @@ export function TrackingTable({
                                           </div>
                                         </div>
 
-                                        {workOrder.notes && (
+                                        {assignment.notes && (
                                           <div className="text-sm pt-2 border-t">
                                             <span className="font-medium">
                                               Notas:
                                             </span>{" "}
-                                            {workOrder.notes}
+                                            {assignment.notes}
                                           </div>
                                         )}
                                       </div>

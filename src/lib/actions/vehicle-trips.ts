@@ -8,7 +8,7 @@ import { deleteFile, uploadFile } from "@/lib/storage/file-storage";
 
 export type TripStartData = {
   vehicleId: string;
-  workOrderId?: string | null;
+  assignmentId?: string | null;
   startOdometer: number;
   startPhotoFilename: string;
   startPhotoBase64: string;
@@ -57,7 +57,7 @@ export async function getMyVehicleTrips(range?: {
     },
     include: {
       vehicle: true,
-      workOrder: {
+      assignment: {
         select: {
           id: true,
           folio: true,
@@ -98,7 +98,7 @@ export async function getAllVehicleTrips() {
       fsr: {
         select: { id: true, name: true, email: true },
       },
-      workOrder: {
+      assignment: {
         select: {
           id: true,
           folio: true,
@@ -134,7 +134,7 @@ export async function getVehicleTripById(id: string) {
       fsr: {
         select: { id: true, name: true, email: true },
       },
-      workOrder: {
+      assignment: {
         select: {
           id: true,
           folio: true,
@@ -213,7 +213,7 @@ export async function startVehicleTrip(data: TripStartData) {
     data: {
       vehicleId: data.vehicleId,
       fsrId: user.id,
-      workOrderId: data.workOrderId || null,
+      assignmentId: data.assignmentId || null,
       startOdometer: data.startOdometer,
       startPhotoUrl: startPhotoResult.url,
       startPhotoProvider: startPhotoResult.provider,
@@ -225,7 +225,7 @@ export async function startVehicleTrip(data: TripStartData) {
     },
     include: {
       vehicle: true,
-      workOrder: true,
+      assignment: true,
     },
   });
 
@@ -313,7 +313,7 @@ export async function endVehicleTrip(id: string, data: TripEndData) {
     },
     include: {
       vehicle: true,
-      workOrder: true,
+      assignment: true,
     },
   });
 
@@ -347,16 +347,15 @@ export async function getAvailableVehicles() {
 }
 
 /**
- * Get my assigned work orders (for trip linking)
+ * Get my active assignments (for trip linking)
  */
-export async function getMyWorkOrdersForTrips() {
+export async function getMyAssignmentsForTrips() {
   const user = await requireAuth();
 
-  const workOrders = await prisma.workOrder.findMany({
+  const assignments = await prisma.assignment.findMany({
     where: {
       assignedToId: user.id,
       active: true,
-      // Filter out completed/cancelled work orders using status relation
       status: {
         name: {
           notIn: ["COMPLETED", "CANCELLED", "COMPLETADA", "CANCELADA"],
@@ -369,18 +368,17 @@ export async function getMyWorkOrdersForTrips() {
       },
     },
     orderBy: { createdAt: "desc" },
-    take: 20, // Recent 20 active work orders
+    take: 20,
   });
 
-  // Serialize dates
-  return workOrders.map((wo) => ({
-    id: wo.id,
-    folio: wo.folio,
-    incident: wo.incident,
-    createdAt: wo.createdAt.toISOString(),
-    updatedAt: wo.updatedAt.toISOString(),
-    startedAt: wo.startedAt?.toISOString() || null,
-    finishedAt: wo.finishedAt?.toISOString() || null,
+  return assignments.map((a) => ({
+    id: a.id,
+    folio: a.folio,
+    incident: a.incident,
+    createdAt: a.createdAt.toISOString(),
+    updatedAt: a.updatedAt.toISOString(),
+    startedAt: a.startedAt?.toISOString() || null,
+    finishedAt: a.finishedAt?.toISOString() || null,
   }));
 }
 

@@ -37,7 +37,7 @@ interface WorkPart {
   quantity: number;
   description?: string;
   price: number;
-  workOrder?: {
+  assignment?: {
     id: string;
     status?: {
       name: string;
@@ -46,7 +46,7 @@ interface WorkPart {
       title: string;
     };
   };
-  workActivity?: {
+  assignmentActivity?: {
     id: string;
     description: string;
   };
@@ -113,7 +113,7 @@ export function WorkPartTable({
               <TableHead>Cantidad</TableHead>
               <TableHead>Precio Unitario</TableHead>
               <TableHead>Total</TableHead>
-              <TableHead>Orden de Trabajo</TableHead>
+              <TableHead>Asignación</TableHead>
               <TableHead>Actividad</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="w-[70px]">Acciones</TableHead>
@@ -145,21 +145,21 @@ export function WorkPartTable({
                   {formatPrice(workPart.quantity * workPart.price)}
                 </TableCell>
                 <TableCell>
-                  {workPart.workOrder ? (
+                  {workPart.assignment ? (
                     <div className="flex items-center gap-1">
                       <Wrench className="h-4 w-4 text-muted-foreground" />
                       <div>
                         <div className="text-sm font-medium">
-                          {workPart.workOrder.incident.title}
+                          {workPart.assignment.incident.title}
                         </div>
-                        {workPart.workOrder.status ? (
+                        {workPart.assignment.status ? (
                           <Badge
                             className={getStatusColor(
-                              workPart.workOrder.status.name,
+                              workPart.assignment.status.name,
                             )}
                             variant="secondary"
                           >
-                            {workPart.workOrder.status.name}
+                            {workPart.assignment.status.name}
                           </Badge>
                         ) : (
                           <Badge
@@ -176,11 +176,11 @@ export function WorkPartTable({
                   )}
                 </TableCell>
                 <TableCell>
-                  {workPart.workActivity ? (
+                  {workPart.assignmentActivity ? (
                     <div className="text-sm">
-                      {workPart.workActivity.description.length > 30
-                        ? `${workPart.workActivity.description.substring(0, 30)}...`
-                        : workPart.workActivity.description}
+                      {workPart.assignmentActivity.description.length > 30
+                        ? `${workPart.assignmentActivity.description.substring(0, 30)}...`
+                        : workPart.assignmentActivity.description}
                     </div>
                   ) : (
                     <span className="text-muted-foreground">-</span>

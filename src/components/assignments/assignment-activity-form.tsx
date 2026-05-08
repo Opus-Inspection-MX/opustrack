@@ -1,0 +1,149 @@
+"use client";
+
+import { Plus, Save } from "lucide-react";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { FileUpload } from "@/components/ui/file-upload";
+import { FormError } from "@/components/ui/form-error";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { createAssignmentActivity } from "@/lib/actions/assignment-activities";
+import { uploadAssignmentAttachment } from "@/lib/actions/assignments";
+import { fileToBase64, normalizeMimeType } from "@/lib/upload";
+
+type AssignmentActivityFormProps = {
+  assignmentId: string;
+  onSuccess?: () => void;
+  onCancel?: () => void;
+};
+
+export function AssignmentActivityForm({
+  assignmentId,
+  onSuccess,
+  onCancel,
+}: AssignmentActivityFormProps) {
+  const [description, setDescription] = useState("");
+  const [files, setFiles] = useState<File[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+
+    try {
+      // Validate description
+      if (!description.trim()) {
+        setError("La descripción es requerida");
+        setLoading(false);
+        return;
+      }
+
+      // Create work activity
+      const result = await createAssignmentActivity({
+        assignmentId,
+        description: description.trim(),
+        performedAt: new Date(),
+      });
+
+      if (!result.success) {
+        throw new Error("Failed to create work activity");
+      }
+
+      // Upload files if any
+      if (files.length > 0) {
+        const uploadPromises = files.map(async (file) => {
+          const base64Data = await fileToBase64(file);
+          const normalizedMimeType = normalizeMimeType(file);
+          return uploadAssignmentAttachment(assignmentId, {
+            filename: file.name,
+            base64Data,
+            mimetype: normalizedMimeType,
+            size: file.size,
+            description: `Attached to activity: ${description.substring(0, 50)}`,
+          });
+        });
+
+        await Promise.all(uploadPromises);
+      }
+
+      // Reset form
+      setDescription("");
+      setFiles([]);
+
+      if (onSuccess) {
+        onSuccess();
+      }
+    } catch (err) {
+      console.error("Error creating work activity:", err);
+      setError((err as Error).message || "Error al crear la actividad");
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Plus className="h-5 w-5" />
+          Agregar Actividad
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {error && <FormError message={error} />}
+
+          <div className="space-y-2">
+            <Label htmlFor="description">
+              Descripción <span className="text-red-500">*</span>
+            </Label>
+            <Textarea
+              id="description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Describe el trabajo realizado..."
+              rows={4}
+              required
+            />
+            <p className="text-xs text-muted-foreground">
+              Proporciona una descripción detallada del trabajo realizado
+            </p>
+          </div>
+
+          <FileUpload
+            onFilesSelected={setFiles}
+            maxFiles={10}
+            maxSizeMB={10}
+            label="Archivos de Evidencia (Fotos, Videos, Documentos)"
+            showCamera={true}
+          />
+
+          <div className="flex justify-end gap-2 pt-4">
+            {onCancel && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onCancel}
+                disabled={loading}
+              >
+                Cancelar
+              </Button>
+            )}
+            <Button type="submit" disabled={loading}>
+              {loading ? (
+                "Guardando..."
+              ) : (
+                <>
+                  <Save className="mr-2 h-4 w-4" />
+                  Guardar Actividad
+                </>
+              )}
+            </Button>
+          </div>
+        </form>
+      </CardContent>
+    </Card>
+  );
+}

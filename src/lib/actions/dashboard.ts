@@ -10,10 +10,10 @@ export async function getDashboardStats() {
   const [
     totalUsers,
     activeIncidents,
-    openWorkOrders,
+    openAssignments,
     scheduledTasks,
     recentIncidents,
-    pendingWorkOrders,
+    pendingAssignments,
   ] = await Promise.all([
     // Total users
     prisma.user.count({
@@ -30,8 +30,8 @@ export async function getDashboardStats() {
       },
     }),
 
-    // Open work orders
-    prisma.workOrder.count({
+    // Open assignments
+    prisma.assignment.count({
       where: {
         active: true,
         status: {
@@ -62,8 +62,8 @@ export async function getDashboardStats() {
       take: 5,
     }),
 
-    // Pending work orders (last 5)
-    prisma.workOrder.findMany({
+    // Pending assignments (last 5)
+    prisma.assignment.findMany({
       where: {
         active: true,
         status: {
@@ -101,11 +101,11 @@ export async function getDashboardStats() {
     stats: {
       totalUsers,
       activeIncidents,
-      openWorkOrders,
+      openAssignments,
       scheduledTasks,
       criticalIncidents,
     },
     recentIncidents,
-    pendingWorkOrders,
+    pendingAssignments,
   };
 }

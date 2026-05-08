@@ -70,7 +70,7 @@ export default async function FSRIncidentDetailPage({
         </Button>
         <div>
           <h1 className="text-3xl font-bold">{incident.title}</h1>
-          <p className="text-muted-foreground mt-1">Incidente #{incident.id}</p>
+          <p className="text-muted-foreground mt-1">Folio: INC-{incident.id}</p>
         </div>
       </div>
 
@@ -146,26 +146,26 @@ export default async function FSRIncidentDetailPage({
         </CardContent>
       </Card>
 
-      {/* Work Orders */}
+      {/* Assignments */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Wrench className="h-5 w-5" />
-            Ordenes de Trabajo ({incident.workOrders?.length || 0})
+            Asignaciones ({incident.assignments?.length || 0})
           </CardTitle>
           <CardDescription>
-            Ordenes de trabajo asociadas a este incidente
+            Asignaciones asociadas a este incidente
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {!incident.workOrders || incident.workOrders.length === 0 ? (
+          {!incident.assignments || incident.assignments.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <AlertTriangle className="mx-auto h-8 w-8 mb-2 opacity-50" />
-              <p>No hay ordenes de trabajo para este incidente</p>
+              <p>No hay asignaciones para este incidente</p>
             </div>
           ) : (
             <div className="space-y-3">
-              {incident.workOrders.map((wo) => (
+              {incident.assignments.map((wo) => (
                 <div
                   key={wo.id}
                   className="border rounded-lg p-4 hover:bg-accent/50 transition-colors"
@@ -176,11 +176,9 @@ export default async function FSRIncidentDetailPage({
                         {wo.status && (
                           <Badge variant="secondary">{wo.status.name}</Badge>
                         )}
-                        {wo.folio && (
-                          <span className="text-sm text-muted-foreground">
-                            Folio: {wo.folio}
-                          </span>
-                        )}
+                        <span className="text-sm text-muted-foreground">
+                          Folio: AS-{wo.folio}
+                        </span>
                       </div>
                       {wo.assignedTo && (
                         <div className="text-sm text-muted-foreground">
@@ -189,13 +187,13 @@ export default async function FSRIncidentDetailPage({
                       )}
                       <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
                         <span>
-                          Actividades: {wo._count?.workActivities || 0}
+                          Actividades: {wo._count?.assignmentActivities || 0}
                         </span>
                         <span>Partes: {wo._count?.workParts || 0}</span>
                       </div>
                     </div>
                     <Button asChild size="sm">
-                      <Link href={`/fsr/work-orders/${wo.id}`}>Ver Orden</Link>
+                      <Link href={`/fsr/assignments/${wo.id}`}>Ver Orden</Link>
                     </Button>
                   </div>
                 </div>

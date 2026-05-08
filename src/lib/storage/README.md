@@ -26,12 +26,12 @@ const result = await uploadFile(
   "photo.jpg",           // filename
   base64Data,            // base64 encoded file data
   "image/jpeg",          // mimetype
-  { subfolder: "work-orders" }  // optional: only used for filesystem storage
+  { subfolder: "assignments" }  // optional: only used for filesystem storage
 );
 
 console.log(result);
 // {
-//   url: "https://..." or "/uploads/work-orders/...",
+//   url: "https://..." or "/uploads/assignments/...",
 //   filename: "photo.jpg",
 //   size: 12345,
 //   mimetype: "image/jpeg",
@@ -81,12 +81,12 @@ const displayUrl = getFileUrl(
 
 ## Database Integration
 
-The `WorkOrderAttachment` model stores the provider type:
+The `AssignmentAttachment` model stores the provider type:
 
 ```prisma
-model WorkOrderAttachment {
-  id          String   @id @default(cuid())
-  workOrderId String
+model AssignmentAttachment {
+  id           String   @id @default(cuid())
+  assignmentId String
   filename    String
   filepath    String   // Full URL for vercel-blob, relative path for filesystem
   mimetype    String

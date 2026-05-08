@@ -1,0 +1,365 @@
+import {
+  AlertTriangle,
+  ArrowLeft,
+  Calendar,
+  CheckCircle,
+  ExternalLink,
+  Lock,
+  Paperclip,
+  User,
+} from "lucide-react";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { AttachmentPreview } from "@/components/assignments/attachment-preview";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { getAssignmentActivities } from "@/lib/actions/assignment-activities";
+import { getAssignmentById } from "@/lib/actions/assignments";
+import { getWorkParts } from "@/lib/actions/work-parts";
+
+interface Attachment {
+  id: string;
+  filename: string;
+  filepath: string;
+  mimetype: string;
+  size: number;
+  uploadedAt: Date;
+  description?: string | null;
+  provider?: string | null;
+}
+
+export default async function AssignmentDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  const [assignment, activities, workParts] = await Promise.all([
+    getAssignmentById(id),
+    getAssignmentActivities(id),
+    getWorkParts(id),
+  ]);
+
+  if (!assignment) notFound();
+
+  // Helper to calculate time-to-unlock
+  const formatTimeDifference = (
+    start: Date | string | null,
+    end: Date | string | null,
+  ): string => {
+    if (!start || !end) return "-";
+    const diffMs = new Date(end).getTime() - new Date(start).getTime();
+    const diffMins = Math.floor(diffMs / (1000 * 60));
+    if (diffMins < 60) return `${diffMins}m`;
+    const hours = Math.floor(diffMins / 60);
+    const mins = diffMins % 60;
+    if (hours < 24) return `${hours}h ${mins}m`;
+    const days = Math.floor(hours / 24);
+    const remainingHours = hours % 24;
+    return `${days}d ${remainingHours}h`;
+  };
+
+  const _getStatusColor = (status: string) => {
+    switch (status) {
+      case "COMPLETADO":
+        return "default";
+      case "EN_PROGRESO":
+        return "secondary";
+      default:
+        return "outline";
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-4">
+        <Button variant="ghost" size="icon" asChild>
+          <Link href="/admin/assignments">
+            <ArrowLeft className="h-4 w-4" />
+          </Link>
+        </Button>
+        <div className="flex-1">
+          <h1 className="text-3xl font-bold">Asignación</h1>
+          <p className="text-muted-foreground">{assignment.incident.title}</p>
+        </div>
+        <Button variant="outline" asChild>
+          <Link href={`/admin/assignments/${id}/edit`}>Editar</Link>
+        </Button>
+      </div>
+
+      {/* Parent Incident Link */}
+      <Card className="bg-muted/30">
+        <CardContent className="flex items-center justify-between py-4">
+          <div className="flex items-center gap-3">
+            <AlertTriangle className="h-5 w-5 text-primary" />
+            <div>
+              <p className="text-sm text-muted-foreground">Parent Incident</p>
+              <p className="font-medium">{assignment.incident.title}</p>
+              <p className="text-xs text-muted-foreground">
+                Priority: {assignment.incident.priority}/10 • Status:{" "}
+                {assignment.incident.status?.name}
+              </p>
+            </div>
+          </div>
+          <Button variant="outline" size="sm" asChild>
+            <Link href={`/admin/incidents/${assignment.incident.id}`}>
+              <ExternalLink className="mr-2 h-4 w-4" />
+              View Incident
+            </Link>
+          </Button>
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-6 md:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Detalles de la Orden</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center gap-3">
+              <AlertTriangle className="h-5 w-5 text-muted-foreground" />
+              <div>
+                <p className="text-sm text-muted-foreground">Incidente</p>
+                <p className="font-medium">{assignment.incident.title}</p>
+                {assignment.incident.type && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Tipo: {assignment.incident.type.name}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <User className="h-5 w-5 text-muted-foreground" />
+              <div>
+                <p className="text-sm text-muted-foreground">Asignado a</p>
+                <p className="font-medium">{assignment.assignedTo.name}</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <Calendar className="h-5 w-5 text-muted-foreground" />
+              <div>
+                <p className="text-sm text-muted-foreground">Estado</p>
+                {assignment.status ? (
+                  <Badge variant="secondary">{assignment.status.name}</Badge>
+                ) : (
+                  <span className="text-sm text-muted-foreground">
+                    Sin estado
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {assignment.notes && (
+              <div>
+                <p className="text-sm text-muted-foreground">Notas</p>
+                <p className="text-sm mt-1">{assignment.notes}</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Resumen</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-sm text-muted-foreground">Actividades</p>
+                <p className="text-2xl font-bold">{activities.length}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Partes Usadas</p>
+                <p className="text-2xl font-bold">{workParts.length}</p>
+              </div>
+            </div>
+
+            <div>
+              <p className="text-sm text-muted-foreground">Fecha de Creacion</p>
+              <p className="font-medium">
+                {new Date(assignment.createdAt).toLocaleString("es-MX")}
+              </p>
+            </div>
+
+            {assignment.assignedAt && (
+              <div>
+                <p className="text-sm text-muted-foreground">Asignado</p>
+                <p className="font-medium">
+                  {new Date(assignment.assignedAt).toLocaleString("es-MX")}
+                </p>
+              </div>
+            )}
+
+            <div>
+              <p className="text-sm text-muted-foreground">
+                Estado de Desbloqueo
+              </p>
+              {assignment.unlockedAt ? (
+                <div className="mt-1">
+                  <Badge variant="default" className="bg-green-600">
+                    <CheckCircle className="h-3 w-3 mr-1" />
+                    Desbloqueado
+                  </Badge>
+                  <p className="text-sm mt-1">
+                    {new Date(assignment.unlockedAt).toLocaleString("es-MX")}
+                  </p>
+                  {assignment.assignedAt && (
+                    <p className="text-xs text-muted-foreground">
+                      Tiempo hasta desbloqueo:{" "}
+                      {formatTimeDifference(
+                        assignment.assignedAt,
+                        assignment.unlockedAt,
+                      )}
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <Badge
+                  variant="outline"
+                  className="bg-yellow-50 text-yellow-700 border-yellow-300 mt-1"
+                >
+                  <Lock className="h-3 w-3 mr-1" />
+                  No Desbloqueado
+                </Badge>
+              )}
+            </div>
+
+            {assignment.startedAt && (
+              <div>
+                <p className="text-sm text-muted-foreground">Iniciado</p>
+                <p className="font-medium">
+                  {new Date(assignment.startedAt).toLocaleString("es-MX")}
+                </p>
+              </div>
+            )}
+
+            {assignment.finishedAt && (
+              <div>
+                <p className="text-sm text-muted-foreground">Finalizado</p>
+                <p className="font-medium">
+                  {new Date(assignment.finishedAt).toLocaleString("es-MX")}
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Actividades Realizadas</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {activities.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">
+              No hay actividades registradas
+            </p>
+          ) : (
+            <div className="space-y-4">
+              {activities.map((activity) => (
+                <div
+                  key={activity.id}
+                  className="border-l-2 border-primary pl-4 py-2"
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <p className="font-medium">{activity.description}</p>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {new Date(activity.performedAt).toLocaleString("es-MX")}
+                      </p>
+                      {activity.workParts.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {activity.workParts.map((wp) => (
+                            <Badge key={wp.id} variant="outline">
+                              {wp.part.name} x{wp.quantity}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Partes Utilizadas</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {workParts.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">
+              No hay partes registradas
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {workParts.map((wp) => (
+                <div
+                  key={wp.id}
+                  className="flex items-center justify-between py-2 border-b last:border-0"
+                >
+                  <div className="flex-1">
+                    <p className="font-medium">{wp.part.name}</p>
+                    {wp.description && (
+                      <p className="text-sm text-muted-foreground">
+                        {wp.description}
+                      </p>
+                    )}
+                  </div>
+                  <div className="text-right">
+                    <Badge variant="outline">x{wp.quantity}</Badge>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      ${(wp.part.price * wp.quantity).toFixed(2)}
+                    </p>
+                  </div>
+                </div>
+              ))}
+              <div className="pt-4 text-right">
+                <p className="text-sm text-muted-foreground">Total</p>
+                <p className="text-xl font-bold">
+                  $
+                  {workParts
+                    .reduce((sum, wp) => sum + wp.part.price * wp.quantity, 0)
+                    .toFixed(2)}
+                </p>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Attachments */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Paperclip className="h-5 w-5" />
+            Adjuntos ({assignment.attachments?.length || 0})
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {!assignment.attachments || assignment.attachments.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">
+              No hay archivos adjuntos
+            </p>
+          ) : (
+            <div className="grid grid-cols-1 gap-3">
+              {assignment.attachments.map((attachment: Attachment) => (
+                <AttachmentPreview
+                  key={attachment.id}
+                  attachment={attachment}
+                  readOnly={true}
+                />
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

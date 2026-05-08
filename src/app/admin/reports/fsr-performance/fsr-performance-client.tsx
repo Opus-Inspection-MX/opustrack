@@ -58,12 +58,12 @@ export function FSRPerformanceClient({
   };
 
   // Calculate totals
-  const totalWorkOrders = data.reduce(
-    (sum, fsr) => sum + fsr.totalWorkOrders,
+  const totalAssignments = data.reduce(
+    (sum, fsr) => sum + fsr.totalAssignments,
     0,
   );
   const totalCompleted = data.reduce(
-    (sum, fsr) => sum + fsr.completedWorkOrders,
+    (sum, fsr) => sum + fsr.completedAssignments,
     0,
   );
   const totalKm = data.reduce((sum, fsr) => sum + fsr.totalKmDriven, 0);
@@ -76,8 +76,8 @@ export function FSRPerformanceClient({
   // Prepare chart data
   const chartData = data.map((fsr) => ({
     name: fsr.fsrName.split(" ")[0], // First name only for chart
-    "Ordenes Completadas": fsr.completedWorkOrders,
-    "Ordenes Totales": fsr.totalWorkOrders,
+    "Asignaciones Completadas": fsr.completedAssignments,
+    "Ordenes Totales": fsr.totalAssignments,
     Viajes: fsr.totalTrips,
   }));
 
@@ -126,14 +126,14 @@ export function FSRPerformanceClient({
           icon={Users}
         />
         <StatCard
-          title="Ordenes Completadas"
+          title="Asignaciones Completadas"
           value={totalCompleted}
-          description={`de ${totalWorkOrders} totales (${totalWorkOrders > 0 ? Math.round((totalCompleted / totalWorkOrders) * 100) : 0}%)`}
+          description={`de ${totalAssignments} totales (${totalAssignments > 0 ? Math.round((totalCompleted / totalAssignments) * 100) : 0}%)`}
         />
         <StatCard
           title="Tiempo Promedio"
           value={`${avgCompletionTime.toFixed(1)}h`}
-          description="Para completar ordenes"
+          description="Para completar asignaciones"
         />
         <StatCard
           title="Total Kilometros"
@@ -145,8 +145,8 @@ export function FSRPerformanceClient({
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <ChartCard
-          title="Ordenes de Trabajo por FSR"
-          description="Comparativa de ordenes asignadas vs completadas"
+          title="Asignaciones por FSR"
+          description="Comparativa de asignaciones asignadas vs completadas"
         >
           {data.length > 0 ? (
             <BarChart
@@ -159,8 +159,8 @@ export function FSRPerformanceClient({
                   color: "#94A3B8",
                 },
                 {
-                  dataKey: "Ordenes Completadas",
-                  name: "Ordenes Completadas",
+                  dataKey: "Asignaciones Completadas",
+                  name: "Asignaciones Completadas",
                   color: "#3B82F6",
                 },
               ]}
@@ -223,15 +223,16 @@ export function FSRPerformanceClient({
                 <TableRow key={fsr.fsrId}>
                   <TableCell className="font-medium">{fsr.fsrName}</TableCell>
                   <TableCell className="text-right">
-                    {fsr.totalWorkOrders}
+                    {fsr.totalAssignments}
                   </TableCell>
                   <TableCell className="text-right">
-                    {fsr.completedWorkOrders}
+                    {fsr.completedAssignments}
                   </TableCell>
                   <TableCell className="text-right">
-                    {fsr.totalWorkOrders > 0
+                    {fsr.totalAssignments > 0
                       ? Math.round(
-                          (fsr.completedWorkOrders / fsr.totalWorkOrders) * 100,
+                          (fsr.completedAssignments / fsr.totalAssignments) *
+                            100,
                         )
                       : 0}
                     %

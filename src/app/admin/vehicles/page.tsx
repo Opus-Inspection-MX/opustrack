@@ -50,7 +50,7 @@ export default function VehiclesPage() {
   }, [loadVehicles]);
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this vehicle?")) {
+    if (!confirm("¿Estás seguro de que deseas eliminar este vehículo?")) {
       return;
     }
 
@@ -60,7 +60,9 @@ export default function VehiclesPage() {
       loadVehicles();
     } catch (error) {
       alert(
-        error instanceof Error ? error.message : "Failed to delete vehicle",
+        error instanceof Error
+          ? error.message
+          : "Error al eliminar el vehículo",
       );
     }
   };
@@ -69,27 +71,27 @@ export default function VehiclesPage() {
     <div className="container mx-auto py-6 space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold">Vehicles</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold">Vehículos</h1>
           <p className="text-sm sm:text-base text-muted-foreground">
-            Manage company vehicle fleet
+            Gestionar flota vehicular de la empresa
           </p>
         </div>
         <Button asChild className="w-full sm:w-auto">
           <Link href="/admin/vehicles/new">
             <Plus className="h-4 w-4 mr-2" />
-            Add Vehicle
+            Agregar Vehículo
           </Link>
         </Button>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>All Vehicles</CardTitle>
+          <CardTitle>Todos los Vehículos</CardTitle>
         </CardHeader>
         <CardContent>
           {loading ? (
             <div className="text-center py-8 text-muted-foreground">
-              Loading vehicles...
+              Cargando vehículos...
             </div>
           ) : (
             <VehicleTable vehicles={vehicles} onDelete={handleDelete} />

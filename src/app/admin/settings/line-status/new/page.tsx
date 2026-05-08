@@ -8,7 +8,7 @@ export default async function NewLineStatusPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Create Line Status</h1>
+        <h1 className="text-3xl font-bold">Crear Estado de Línea</h1>
         <p className="text-muted-foreground">
           Add a new verification line status type
         </p>

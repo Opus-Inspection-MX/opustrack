@@ -8,7 +8,7 @@ export default async function NewUserStatusPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Create User Status</h1>
+        <h1 className="text-3xl font-bold">Crear Estado de Usuario</h1>
         <p className="text-muted-foreground">Add a new user status type</p>
       </div>
 

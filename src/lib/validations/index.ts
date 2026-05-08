@@ -1,8 +1,8 @@
 // Common schemas and types
-export * from "./common";
 
+export * from "./assignments";
+export * from "./common";
 // Domain-specific schemas
 export * from "./incidents";
 export * from "./parts";
 export * from "./schedules";
-export * from "./work-orders";

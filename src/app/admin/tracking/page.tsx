@@ -36,13 +36,13 @@ interface FSR {
   email: string;
 }
 
-interface TrackingWorkOrder {
+interface TrackingAssignment {
   id: string;
   status?: { id: number; name: string } | null;
   statusId?: number | null;
   assignedTo?: { id: string; name: string } | null;
   assignedToId?: string;
-  folio?: string | null;
+  folio?: number | null;
   notes?: string | null;
   lineId?: number | null;
   equipmentId?: number | null;
@@ -66,7 +66,7 @@ interface TrackingIncident {
   type?: { id: number; name: string } | null;
   vic?: { id: string; name: string; code: string } | null;
   reportedBy?: { id: string; name: string } | null;
-  workOrders: TrackingWorkOrder[];
+  assignments: TrackingAssignment[];
   lineId?: number | null;
   equipmentId?: number | null;
   line?: { id: number; name: string } | null;

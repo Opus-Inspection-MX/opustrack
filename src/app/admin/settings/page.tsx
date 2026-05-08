@@ -22,36 +22,36 @@ export default async function SettingsPage() {
 
   const statusCategories = [
     {
-      title: "Line Status",
-      description: "Manage verification line statuses",
+      title: "Estado de Línea",
+      description: "Gestionar estados de línea de verificación",
       icon: Layers,
       href: "/admin/settings/line-status",
       color: "text-blue-600",
     },
     {
-      title: "Equipment Status",
-      description: "Manage equipment statuses",
+      title: "Estado de Equipo",
+      description: "Gestionar estados de equipo",
       icon: Wrench,
       href: "/admin/settings/equipment-status",
       color: "text-green-600",
     },
     {
-      title: "Vehicle Status",
-      description: "Manage vehicle statuses",
+      title: "Estado de Vehículo",
+      description: "Gestionar estados de vehículo",
       icon: Truck,
       href: "/admin/settings/vehicle-status",
       color: "text-orange-600",
     },
     {
-      title: "Work Order Status",
-      description: "Manage work order statuses",
+      title: "Estado de Asignación",
+      description: "Gestionar estados de asignación",
       icon: ClipboardList,
-      href: "/admin/settings/work-order-status",
+      href: "/admin/settings/assignment-status",
       color: "text-amber-600",
     },
     {
-      title: "Vehicle Trip Status",
-      description: "Manage vehicle trip statuses",
+      title: "Estado de Viaje Vehicular",
+      description: "Gestionar estados de viaje vehicular",
       icon: Route,
       href: "/admin/settings/vehicle-trip-status",
       color: "text-purple-600",
@@ -63,9 +63,9 @@ export default async function SettingsPage() {
       <div className="flex items-center gap-3">
         <Settings2 className="h-8 w-8" />
         <div>
-          <h1 className="text-3xl font-bold">Settings</h1>
+          <h1 className="text-3xl font-bold">Configuración</h1>
           <p className="text-muted-foreground">
-            Manage system configuration and lookup tables
+            Gestionar configuración del sistema y tablas de referencia
           </p>
         </div>
       </div>
@@ -85,7 +85,7 @@ export default async function SettingsPage() {
                 </CardHeader>
                 <CardContent>
                   <Button variant="ghost" className="w-full">
-                    Manage →
+                    Gestionar →
                   </Button>
                 </CardContent>
               </Card>

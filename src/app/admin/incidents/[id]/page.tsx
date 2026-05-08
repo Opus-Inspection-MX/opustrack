@@ -70,7 +70,7 @@ export default async function IncidentDetailPage({
               <AlertTriangle className="h-6 w-6 text-destructive" />
             )}
           </div>
-          <p className="text-muted-foreground">Incident #{incident.id}</p>
+          <p className="text-muted-foreground">Folio: INC-{incident.id}</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" asChild>
@@ -195,38 +195,38 @@ export default async function IncidentDetailPage({
 
       <Separator />
 
-      {/* Work Orders Section */}
+      {/* Assignments Section */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-2xl font-bold flex items-center gap-2">
               <Wrench className="h-6 w-6" />
-              Work Orders ({incident.workOrders?.length || 0})
+              Assignments ({incident.assignments?.length || 0})
             </h2>
             <p className="text-sm text-muted-foreground">
-              All work orders assigned to this incident
+              All asignacións assigned to this incident
             </p>
           </div>
           <Button asChild>
-            <Link href={`/admin/work-orders/new?incidentId=${incident.id}`}>
+            <Link href={`/admin/assignments/new?incidentId=${incident.id}`}>
               <Plus className="mr-2 h-4 w-4" />
-              Create Work Order
+              Create Assignment
             </Link>
           </Button>
         </div>
 
-        {!incident.workOrders || incident.workOrders.length === 0 ? (
+        {!incident.assignments || incident.assignments.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center text-muted-foreground">
               <Wrench className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p className="text-lg font-medium mb-2">No Work Orders Yet</p>
+              <p className="text-lg font-medium mb-2">No Assignments Yet</p>
               <p className="text-sm mb-4">
-                Create a work order to start tracking work on this incident
+                Create a asignación to start tracking work on this incident
               </p>
               <Button asChild variant="outline">
-                <Link href={`/admin/work-orders/new?incidentId=${incident.id}`}>
+                <Link href={`/admin/assignments/new?incidentId=${incident.id}`}>
                   <Plus className="mr-2 h-4 w-4" />
-                  Create First Work Order
+                  Create First Assignment
                 </Link>
               </Button>
             </CardContent>
@@ -237,7 +237,7 @@ export default async function IncidentDetailPage({
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Status</TableHead>
+                    <TableHead>Estado</TableHead>
                     <TableHead>Assigned To</TableHead>
                     <TableHead>Activities</TableHead>
                     <TableHead>Parts</TableHead>
@@ -247,7 +247,7 @@ export default async function IncidentDetailPage({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {incident.workOrders?.map((wo) => (
+                  {incident.assignments?.map((wo) => (
                     <TableRow key={wo.id}>
                       <TableCell>
                         <Badge variant={getStatusColor(wo.status?.name || "")}>
@@ -264,7 +264,7 @@ export default async function IncidentDetailPage({
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline">
-                          {wo._count?.workActivities || 0}
+                          {wo._count?.assignmentActivities || 0}
                         </Badge>
                       </TableCell>
                       <TableCell>
@@ -283,12 +283,12 @@ export default async function IncidentDetailPage({
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
                           <Button variant="ghost" size="sm" asChild>
-                            <Link href={`/admin/work-orders/${wo.id}`}>
+                            <Link href={`/admin/assignments/${wo.id}`}>
                               View
                             </Link>
                           </Button>
                           <Button variant="outline" size="sm" asChild>
-                            <Link href={`/admin/work-orders/${wo.id}/edit`}>
+                            <Link href={`/admin/assignments/${wo.id}/edit`}>
                               <EditIcon className="mr-2 h-4 w-4" />
                               Edit
                             </Link>

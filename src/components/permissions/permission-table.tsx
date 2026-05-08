@@ -54,7 +54,7 @@ export function PermissionTable({
     const colors: Record<string, string> = {
       user: "bg-blue-100 text-blue-800",
       incident: "bg-red-100 text-red-800",
-      workorder: "bg-green-100 text-green-800",
+      assignment: "bg-green-100 text-green-800",
       vic: "bg-purple-100 text-purple-800",
       part: "bg-yellow-100 text-yellow-800",
       admin: "bg-gray-100 text-gray-800",

@@ -23,8 +23,8 @@ interface Trip {
   };
   startOdometer: number;
   startedAt: string;
-  workOrder?: {
-    folio: string | null;
+  assignment?: {
+    folio: number;
     incident: {
       title: string;
     };
@@ -111,7 +111,9 @@ export function TripEndForm({ trip }: TripEndFormProps) {
 
       router.push("/fsr/vehicle-trips");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error al finalizar el viaje");
+      setError(
+        err instanceof Error ? err.message : "Error al finalizar el viaje",
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -137,14 +139,14 @@ export function TripEndForm({ trip }: TripEndFormProps) {
                 </div>
               </div>
 
-              {trip.workOrder && (
+              {trip.assignment && (
                 <div>
                   <div className="text-sm text-muted-foreground">
-                    Orden de Trabajo
+                    Asignación
                   </div>
                   <div className="font-medium">
-                    {trip.workOrder.folio ? `#${trip.workOrder.folio}` : "N/A"}{" "}
-                    - {trip.workOrder.incident.title}
+                    AS-{trip.assignment.folio} -{" "}
+                    {trip.assignment.incident.title}
                   </div>
                 </div>
               )}

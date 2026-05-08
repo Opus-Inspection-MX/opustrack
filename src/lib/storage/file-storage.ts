@@ -78,7 +78,7 @@ async function uploadToFilesystem(
   filename: string,
   buffer: Buffer,
   mimetype: string,
-  subfolder: string = "work-orders",
+  subfolder: string = "assignments",
 ): Promise<FileUploadResult> {
   const fs = await import("node:fs/promises");
   const path = await import("node:path");

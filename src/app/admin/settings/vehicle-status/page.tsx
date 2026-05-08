@@ -52,13 +52,15 @@ export default function VehicleStatusPage() {
   };
 
   const handleDelete = async (id: number) => {
-    if (confirm("Are you sure you want to delete this vehicle status?")) {
+    if (
+      confirm("¿Estás seguro de que deseas eliminar este estado de vehículo?")
+    ) {
       try {
         await deleteVehicleStatus(id);
         await fetchData();
       } catch (error) {
         console.error("Error deleting vehicle status:", error);
-        alert("Failed to delete vehicle status");
+        alert("Error al eliminar el estado de vehículo");
       }
     }
   };
@@ -75,7 +77,7 @@ export default function VehicleStatusPage() {
   if (isLoading && statuses.length === 0) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Spinner size="lg" text="Loading vehicle statuses..." />
+        <Spinner size="lg" text="Cargando estados de vehículo..." />
       </div>
     );
   }
@@ -84,24 +86,26 @@ export default function VehicleStatusPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold">Vehicle Status</h1>
-          <p className="text-muted-foreground">Manage vehicle status types</p>
+          <h1 className="text-3xl font-bold">Estado de Vehículo</h1>
+          <p className="text-muted-foreground">
+            Gestionar tipos de estado de vehículo
+          </p>
         </div>
         <Button
           onClick={() => router.push("/admin/settings/vehicle-status/new")}
         >
           <Plus className="mr-2 h-4 w-4" />
-          New Status
+          Nuevo Estado
         </Button>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="space-y-2">
-          <Label className="text-xs font-medium">Search</Label>
+          <Label className="text-xs font-medium">Buscar</Label>
           <div className="relative">
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search by name..."
+              placeholder="Buscar por nombre..."
               value={searchQuery}
               onChange={(e) => handleSearch(e.target.value)}
               className="pl-8"
@@ -115,7 +119,7 @@ export default function VehicleStatusPage() {
         onEdit={handleEdit}
         onDelete={handleDelete}
         onView={handleView}
-        countLabel="Vehicles Using"
+        countLabel="Vehículos con este estado"
       />
 
       {totalItems > 0 && (

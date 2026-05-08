@@ -106,11 +106,11 @@ export default function RoleDetailPage() {
             onClick={() => router.push(`/admin/roles/${role.id}/permissions`)}
           >
             <Shield className="h-4 w-4 mr-2" />
-            Manage Permissions
+            Gestionar Permisos
           </Button>
           <Button onClick={() => router.push(`/admin/roles/${role.id}/edit`)}>
             <Edit className="h-4 w-4 mr-2" />
-            Edit Role
+            Editar Rol
           </Button>
         </div>
       </div>

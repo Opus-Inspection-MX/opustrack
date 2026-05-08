@@ -44,7 +44,7 @@ type Incident = {
     name: string;
   } | null;
   _count: {
-    workOrders: number;
+    assignments: number;
   };
 };
 
@@ -127,7 +127,7 @@ export function IncidentsTable({ incidents }: { incidents: Incident[] }) {
                         </Badge>
                       )}
                       <Badge variant="outline" className="text-xs">
-                        {incident._count.workOrders} ordenes
+                        {incident._count.assignments} asignaciones
                       </Badge>
                     </div>
                   </div>
@@ -174,7 +174,7 @@ export function IncidentsTable({ incidents }: { incidents: Incident[] }) {
                   )}
                 </TableCell>
                 <TableCell className="hidden sm:table-cell">
-                  <Badge variant="outline">{incident._count.workOrders}</Badge>
+                  <Badge variant="outline">{incident._count.assignments}</Badge>
                 </TableCell>
                 <TableCell className="hidden md:table-cell text-sm text-muted-foreground">
                   {new Date(incident.reportedAt).toLocaleDateString()}

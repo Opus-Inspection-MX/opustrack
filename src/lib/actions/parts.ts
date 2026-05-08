@@ -43,7 +43,7 @@ export async function getPartById(id: string) {
       workParts: {
         where: { active: true },
         include: {
-          workOrder: {
+          assignment: {
             include: {
               incident: true,
             },

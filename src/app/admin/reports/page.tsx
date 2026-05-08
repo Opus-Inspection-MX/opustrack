@@ -18,16 +18,16 @@ const reports = [
   {
     title: "Rendimiento de FSR",
     description:
-      "Analiza el desempeno de los Field Service Representatives: ordenes completadas, tiempos de respuesta y kilometraje.",
+      "Analiza el desempeno de los Field Service Representatives: asignaciones completadas, tiempos de respuesta y kilometraje.",
     href: "/admin/reports/fsr-performance",
     icon: Users,
     color: "bg-blue-500",
   },
   {
-    title: "Estado de Ordenes de Trabajo",
+    title: "Estado de Asignaciones",
     description:
-      "Distribucion de ordenes por estado, tendencias y metricas de completitud.",
-    href: "/admin/reports/work-orders",
+      "Distribucion de asignaciones por estado, tendencias y metricas de completitud.",
+    href: "/admin/reports/assignments",
     icon: ClipboardList,
     color: "bg-emerald-500",
   },

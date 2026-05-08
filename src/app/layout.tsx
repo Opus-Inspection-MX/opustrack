@@ -10,7 +10,7 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: "OpusTrack - OpusInspection",
   description:
-    "Sistema profesional de gestión de incidentes y seguimiento de órdenes de trabajo",
+    "Sistema profesional de gestión de incidentes y seguimiento de asignaciones",
   generator: "v0.app",
 };
 

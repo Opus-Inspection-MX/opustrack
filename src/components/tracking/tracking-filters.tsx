@@ -308,13 +308,13 @@ export function TrackingFilters({
                 />
               </div>
 
-              {/* Folio ODT Filter */}
+              {/* Folio Filter */}
               <div className="space-y-2">
-                <Label htmlFor="folio">Folio ODT</Label>
+                <Label htmlFor="folio">Folio</Label>
                 <Input
                   id="folio"
                   type="text"
-                  placeholder="Buscar por folio..."
+                  placeholder="Ej: INC-123, AS-45 o número..."
                   value={filters.folio}
                   onChange={(e) => handleFilterChange("folio", e.target.value)}
                 />

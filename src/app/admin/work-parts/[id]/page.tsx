@@ -16,7 +16,7 @@ interface Part {
   description?: string | null;
 }
 
-interface WorkOrderStatus {
+interface AssignmentStatus {
   name: string;
 }
 
@@ -24,28 +24,28 @@ interface AssignedUser {
   name: string;
 }
 
-interface WorkOrder {
+interface Assignment {
   id: string;
-  status?: WorkOrderStatus | null;
+  status?: AssignmentStatus | null;
   assignedTo?: AssignedUser | null;
 }
 
-interface WorkActivity {
+interface AssignmentActivity {
   id: string;
   description: string;
 }
 
 interface WorkPart {
   id: string;
-  workOrderId?: string | null;
+  assignmentId?: string | null;
   partId: string;
   quantity: number;
   price?: number | null;
   description?: string | null;
   createdAt: Date | string;
   part?: Part | null;
-  workOrder?: WorkOrder | null;
-  workActivity?: WorkActivity | null;
+  assignment?: Assignment | null;
+  assignmentActivity?: AssignmentActivity | null;
 }
 
 export default function WorkPartDetailPage({
@@ -77,7 +77,7 @@ export default function WorkPartDetailPage({
   const handleDelete = async () => {
     if (
       !confirm(
-        "Are you sure you want to delete this work part? Stock will be restored.",
+        "¿Estás seguro de que deseas eliminar esta refacción? El stock será restaurado.",
       )
     ) {
       return;
@@ -85,15 +85,19 @@ export default function WorkPartDetailPage({
 
     setIsDeleting(true);
     try {
-      const workOrderId = workPart?.workOrderId;
+      const assignmentId = workPart?.assignmentId;
       await deleteWorkPart(id);
       router.push(
-        workOrderId ? `/admin/work-orders/${workOrderId}` : "/admin/work-parts",
+        assignmentId
+          ? `/admin/assignments/${assignmentId}`
+          : "/admin/work-parts",
       );
     } catch (error) {
       console.error("Error deleting work part:", error);
       alert(
-        error instanceof Error ? error.message : "Failed to delete work part",
+        error instanceof Error
+          ? error.message
+          : "Error al eliminar la refacción",
       );
       setIsDeleting(false);
     }
@@ -102,7 +106,7 @@ export default function WorkPartDetailPage({
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Spinner size="lg" text="Loading work part..." />
+        <Spinner size="lg" text="Cargando refacción..." />
       </div>
     );
   }
@@ -115,7 +119,7 @@ export default function WorkPartDetailPage({
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>
-            <h1 className="text-3xl font-bold">Work Part Not Found</h1>
+            <h1 className="text-3xl font-bold">Refacción No Encontrada</h1>
           </div>
         </div>
       </div>
@@ -130,8 +134,10 @@ export default function WorkPartDetailPage({
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>
-            <h1 className="text-3xl font-bold">Work Part Details</h1>
-            <p className="text-muted-foreground">View work part information</p>
+            <h1 className="text-3xl font-bold">Detalles de Refacción</h1>
+            <p className="text-muted-foreground">
+              Ver información de la refacción
+            </p>
           </div>
         </div>
         <div className="flex gap-2">
@@ -140,7 +146,7 @@ export default function WorkPartDetailPage({
             onClick={() => router.push(`/admin/work-parts/${id}/edit`)}
           >
             <Edit className="mr-2 h-4 w-4" />
-            Edit
+            Editar
           </Button>
           <Button
             variant="destructive"
@@ -148,7 +154,7 @@ export default function WorkPartDetailPage({
             disabled={isDeleting}
           >
             <Trash2 className="mr-2 h-4 w-4" />
-            {isDeleting ? "Deleting..." : "Delete"}
+            {isDeleting ? "Eliminando..." : "Eliminar"}
           </Button>
         </div>
       </div>
@@ -157,31 +163,31 @@ export default function WorkPartDetailPage({
         {/* Work Part Information */}
         <Card>
           <CardHeader>
-            <CardTitle>Part Information</CardTitle>
+            <CardTitle>Información de la Refacción</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">
-                  Work Part ID
+                  ID de Refacción
                 </p>
                 <p className="text-sm">{workPart.id}</p>
               </div>
               <div>
                 <p className="text-sm font-medium text-muted-foreground">
-                  Part Name
+                  Nombre de la Pieza
                 </p>
                 <p className="text-sm">{workPart.part?.name || "N/A"}</p>
               </div>
               <div>
                 <p className="text-sm font-medium text-muted-foreground">
-                  Quantity
+                  Cantidad
                 </p>
                 <p className="text-sm">{workPart.quantity}</p>
               </div>
               <div>
                 <p className="text-sm font-medium text-muted-foreground">
-                  Price (at time of use)
+                  Precio (al momento de uso)
                 </p>
                 <p className="text-sm">
                   ${workPart.price?.toFixed(2) || "0.00"}
@@ -189,7 +195,7 @@ export default function WorkPartDetailPage({
               </div>
               <div>
                 <p className="text-sm font-medium text-muted-foreground">
-                  Total Cost
+                  Costo Total
                 </p>
                 <p className="text-sm font-bold">
                   $
@@ -200,10 +206,10 @@ export default function WorkPartDetailPage({
               </div>
               <div>
                 <p className="text-sm font-medium text-muted-foreground">
-                  Added On
+                  Agregado El
                 </p>
                 <p className="text-sm">
-                  {new Date(workPart.createdAt).toLocaleString()}
+                  {new Date(workPart.createdAt).toLocaleString("es-MX")}
                 </p>
               </div>
             </div>
@@ -211,7 +217,7 @@ export default function WorkPartDetailPage({
             {workPart.description && (
               <div>
                 <p className="text-sm font-medium text-muted-foreground">
-                  Description
+                  Descripción
                 </p>
                 <p className="text-sm whitespace-pre-wrap">
                   {workPart.description}
@@ -225,25 +231,25 @@ export default function WorkPartDetailPage({
         {workPart.part && (
           <Card>
             <CardHeader>
-              <CardTitle>Part Details</CardTitle>
+              <CardTitle>Detalles de la Pieza</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">
-                    Part ID
+                    ID de Pieza
                   </p>
                   <p className="text-sm">{workPart.part.id}</p>
                 </div>
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">
-                    Current Stock
+                    Stock Actual
                   </p>
                   <p className="text-sm">{workPart.part.stock}</p>
                 </div>
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">
-                    Current Price
+                    Precio Actual
                   </p>
                   <p className="text-sm">
                     ${workPart.part.price?.toFixed(2) || "0.00"}
@@ -253,7 +259,7 @@ export default function WorkPartDetailPage({
               {workPart.part.description && (
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">
-                    Part Description
+                    Descripción de la Pieza
                   </p>
                   <p className="text-sm">{workPart.part.description}</p>
                 </div>
@@ -262,42 +268,42 @@ export default function WorkPartDetailPage({
           </Card>
         )}
 
-        {/* Work Order Information */}
-        {workPart.workOrder && (
+        {/* Assignment Information */}
+        {workPart.assignment && (
           <Card>
             <CardHeader>
-              <CardTitle>Work Order Information</CardTitle>
+              <CardTitle>Información de la Asignación</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">
-                    Work Order ID
+                    ID Asignación
                   </p>
                   <Button
                     variant="link"
                     className="h-auto p-0 text-sm"
                     onClick={() =>
-                      router.push(`/admin/work-orders/${workPart.workOrderId}`)
+                      router.push(`/admin/assignments/${workPart.assignmentId}`)
                     }
                   >
-                    {workPart.workOrderId}
+                    {workPart.assignmentId}
                   </Button>
                 </div>
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">
-                    Status
+                    Estado
                   </p>
                   <p className="text-sm">
-                    {workPart.workOrder.status?.name || "N/A"}
+                    {workPart.assignment.status?.name || "N/A"}
                   </p>
                 </div>
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">
-                    Assigned To
+                    Asignado A
                   </p>
                   <p className="text-sm">
-                    {workPart.workOrder.assignedTo?.name || "N/A"}
+                    {workPart.assignment.assignedTo?.name || "N/A"}
                   </p>
                 </div>
               </div>
@@ -306,17 +312,19 @@ export default function WorkPartDetailPage({
         )}
 
         {/* Work Activity Information */}
-        {workPart.workActivity && (
+        {workPart.assignmentActivity && (
           <Card>
             <CardHeader>
-              <CardTitle>Work Activity</CardTitle>
+              <CardTitle>Actividad de Trabajo</CardTitle>
             </CardHeader>
             <CardContent>
               <div>
                 <p className="text-sm font-medium text-muted-foreground">
-                  Activity Description
+                  Descripción de la Actividad
                 </p>
-                <p className="text-sm">{workPart.workActivity.description}</p>
+                <p className="text-sm">
+                  {workPart.assignmentActivity.description}
+                </p>
               </div>
             </CardContent>
           </Card>

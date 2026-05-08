@@ -100,8 +100,8 @@ export function IncidentForm({ incident, onClose }: IncidentFormProps) {
     // Mock success
     alert(
       incident
-        ? "Incident updated successfully!"
-        : "Incident created successfully!",
+        ? "¡Incidente actualizado exitosamente!"
+        : "¡Incidente creado exitosamente!",
     );
 
     // Navigate back to incidents list
@@ -270,10 +270,10 @@ export function IncidentForm({ incident, onClose }: IncidentFormProps) {
                 onClose ? onClose() : router.push("/admin/incidents")
               }
             >
-              Cancel
+              Cancelar
             </Button>
             <Button type="submit">
-              {incident ? "Update Incident" : "Create Incident"}
+              {incident ? "Actualizar Incidente" : "Crear Incidente"}
             </Button>
           </div>
         </form>

@@ -61,8 +61,8 @@ const mockPermissions: Permission[] = [
   },
   {
     id: 7,
-    name: "workorder.create",
-    description: "Create new work orders",
+    name: "assignment.create",
+    description: "Create new asignacións",
     active: true,
     roleCount: 3,
   },
@@ -92,14 +92,14 @@ export default function PermissionsPage() {
   const handleDelete = (permission: Permission) => {
     if (permission.roleCount > 0) {
       alert(
-        `Cannot delete permission "${permission.name}" because it is assigned to ${permission.roleCount} role(s).`,
+        `No se puede eliminar el permiso "${permission.name}" porque está asignado a ${permission.roleCount} rol(es).`,
       );
       return;
     }
 
     if (
       confirm(
-        `Are you sure you want to delete the permission "${permission.name}"?`,
+        `¿Estás seguro de que deseas eliminar el permiso "${permission.name}"?`,
       )
     ) {
       console.log("Deleting permission:", permission.id);
@@ -116,12 +116,14 @@ export default function PermissionsPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold">Permissions</h1>
-          <p className="text-muted-foreground">Manage system permissions</p>
+          <h1 className="text-3xl font-bold">Permisos</h1>
+          <p className="text-muted-foreground">
+            Gestionar permisos del sistema
+          </p>
         </div>
         <Button onClick={() => router.push("/admin/permissions/new")}>
           <Plus className="mr-2 h-4 w-4" />
-          Add Permission
+          Agregar Permiso
         </Button>
       </div>
 
@@ -129,7 +131,7 @@ export default function PermissionsPage() {
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search permissions..."
+            placeholder="Buscar permisos..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-8"

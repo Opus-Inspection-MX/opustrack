@@ -14,8 +14,8 @@ interface VehicleTrip {
     model: string;
     licensePlate: string;
   };
-  workOrder?: {
-    folio: string | null;
+  assignment?: {
+    folio: number;
     incident: { title: string };
   } | null;
 }

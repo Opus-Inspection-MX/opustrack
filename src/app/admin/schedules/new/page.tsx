@@ -52,7 +52,7 @@ export default function NewSchedulePage() {
         setVicCenters(vics);
       } catch (error) {
         console.error("Error fetching VIC centers:", error);
-        setErrors({ submit: "Failed to load VIC centers" });
+        setErrors({ submit: "Error al cargar los centros VIC" });
       } finally {
         setIsLoading(false);
       }
@@ -91,7 +91,8 @@ export default function NewSchedulePage() {
       const startDate = new Date(formData.scheduledAt);
       const endDate = new Date(formData.endDate);
       if (endDate <= startDate) {
-        newErrors.endDate = "End date must be after start date";
+        newErrors.endDate =
+          "La fecha de fin debe ser posterior a la fecha de inicio";
       }
     }
 
@@ -129,7 +130,7 @@ export default function NewSchedulePage() {
         submit:
           error instanceof Error
             ? error.message
-            : "Failed to create schedule. Please try again.",
+            : "Error al crear el horario. Por favor intenta de nuevo.",
       });
     } finally {
       setIsSubmitting(false);
@@ -140,7 +141,7 @@ export default function NewSchedulePage() {
     return (
       <div className="container mx-auto p-6">
         <div className="flex items-center justify-center min-h-[400px]">
-          <Spinner size="lg" text="Loading..." />
+          <Spinner size="lg" text="Cargando..." />
         </div>
       </div>
     );
@@ -156,7 +157,7 @@ export default function NewSchedulePage() {
           </Button>
         </Link>
         <div>
-          <h1 className="text-3xl font-bold">Create New Schedule</h1>
+          <h1 className="text-3xl font-bold">Crear Nuevo Horario</h1>
           <p className="text-muted-foreground">
             Schedule a maintenance or inspection activity
           </p>
@@ -279,7 +280,7 @@ export default function NewSchedulePage() {
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 )}
                 <Save className="mr-2 h-4 w-4" />
-                {isSubmitting ? "Creating..." : "Create Schedule"}
+                {isSubmitting ? "Creando..." : "Crear Horario"}
               </Button>
               <Button
                 type="button"
@@ -287,7 +288,7 @@ export default function NewSchedulePage() {
                 onClick={() => router.push("/admin/schedules")}
                 disabled={isSubmitting}
               >
-                Cancel
+                Cancelar
               </Button>
             </div>
           </form>

@@ -8,8 +8,8 @@ interface WorkPartFormData {
   quantity: number;
   description?: string;
   price: number;
-  workOrderId?: string;
-  workActivityId?: string;
+  assignmentId?: string;
+  activityId?: string;
   active: boolean;
 }
 
@@ -20,8 +20,8 @@ const mockWorkPart = {
   quantity: 2,
   description: "Replaced worn brake pads on inspection line 1",
   price: 89.99,
-  workOrderId: "wo_001",
-  workActivityId: "wa_001",
+  assignmentId: "wo_001",
+  activityId: "wa_001",
   active: true,
 };
 
@@ -49,7 +49,7 @@ const mockParts = [
   },
 ];
 
-const mockWorkOrders = [
+const mockAssignments = [
   {
     id: "wo_001",
     status: { name: "In Progress" },
@@ -62,16 +62,16 @@ const mockWorkOrders = [
   },
 ];
 
-const mockWorkActivities = [
+const mockAssignmentActivities = [
   {
     id: "wa_001",
     description: "Brake pad replacement and system check",
-    workOrderId: "wo_001",
+    assignmentId: "wo_001",
   },
   {
     id: "wa_002",
     description: "Oil change and filter replacement",
-    workOrderId: "wo_002",
+    assignmentId: "wo_002",
   },
 ];
 
@@ -85,21 +85,21 @@ export default function EditWorkPartPage({
     console.log("Updating work part:", resolvedParams.id, data);
     // Simulate API call
     await new Promise((resolve) => setTimeout(resolve, 1000));
-    alert("Work part updated successfully!");
+    alert("¡Refacción actualizada exitosamente!");
   };
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Edit Work Part</h1>
+        <h1 className="text-3xl font-bold">Editar Refacción</h1>
         <p className="text-muted-foreground">Update work part information</p>
       </div>
 
       <WorkPartForm
         workPart={mockWorkPart}
         parts={mockParts}
-        workOrders={mockWorkOrders}
-        workActivities={mockWorkActivities}
+        assignments={mockAssignments}
+        assignmentActivities={mockAssignmentActivities}
         onSubmit={handleSubmit}
       />
     </div>

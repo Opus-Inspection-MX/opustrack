@@ -28,7 +28,7 @@ const mockUserProfile = {
   address: "123 Main St, City, State 12345",
   bio: "Experienced technician with 5+ years in vehicle inspection systems.",
   role: { name: "Admin" },
-  userStatus: { name: "Active" },
+  userEstado: { name: "Active" },
   vic: { name: "VIC Centro", code: "VIC001" },
   createdAt: "2024-01-15T10:30:00Z",
   lastLogin: "2024-01-20T14:22:00Z",
@@ -116,12 +116,12 @@ export default function UserProfilePage({
       <div className="flex items-center gap-4">
         <Button variant="outline" size="sm" onClick={() => router.back()}>
           <ArrowLeft className="h-4 w-4 mr-2" />
-          Back
+          Regresar
         </Button>
         <div>
-          <h1 className="text-3xl font-bold">User Profile</h1>
+          <h1 className="text-3xl font-bold">Perfil de Usuario</h1>
           <p className="text-muted-foreground">
-            View and manage user profile information
+            Ver y gestionar información del perfil de usuario
           </p>
         </div>
       </div>
@@ -138,7 +138,7 @@ export default function UserProfilePage({
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Role:</span>
+              <span className="text-sm font-medium">Rol:</span>
               <Badge
                 variant="outline"
                 className="bg-purple-100 text-purple-800"
@@ -147,7 +147,7 @@ export default function UserProfilePage({
               </Badge>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Status:</span>
+              <span className="text-sm font-medium">Estado:</span>
               <Badge
                 variant="outline"
                 className={getStatusColor(mockUserProfile.userStatus.name)}
@@ -157,7 +157,7 @@ export default function UserProfilePage({
             </div>
             {mockUserProfile.vic && (
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">VIC Center:</span>
+                <span className="text-sm font-medium">Centro VIC:</span>
                 <div className="text-right text-sm">
                   <div className="font-medium">{mockUserProfile.vic.name}</div>
                   <div className="text-muted-foreground">
@@ -186,15 +186,17 @@ export default function UserProfilePage({
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
-                <CardTitle>Profile Information</CardTitle>
+                <CardTitle>Información del Perfil</CardTitle>
                 <CardDescription>
                   {isEditing
-                    ? "Update your profile information"
-                    : "Your personal information"}
+                    ? "Actualizar tu información de perfil"
+                    : "Tu información personal"}
                 </CardDescription>
               </div>
               {!isEditing && (
-                <Button onClick={() => setIsEditing(true)}>Edit Profile</Button>
+                <Button onClick={() => setIsEditing(true)}>
+                  Editar Perfil
+                </Button>
               )}
             </CardHeader>
             <CardContent>
@@ -202,20 +204,20 @@ export default function UserProfilePage({
                 <form onSubmit={handleSubmit} className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
-                      <Label htmlFor="name">Full Name *</Label>
+                      <Label htmlFor="name">Nombre Completo *</Label>
                       <Input
                         id="name"
                         value={formData.name}
                         onChange={(e) =>
                           handleInputChange("name", e.target.value)
                         }
-                        placeholder="Enter full name"
+                        placeholder="Ingresa el nombre completo"
                       />
                       {errors.name && <FormError message={errors.name} />}
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="email">Email Address *</Label>
+                      <Label htmlFor="email">Correo Electrónico *</Label>
                       <Input
                         id="email"
                         type="email"
@@ -223,32 +225,32 @@ export default function UserProfilePage({
                         onChange={(e) =>
                           handleInputChange("email", e.target.value)
                         }
-                        placeholder="Enter email address"
+                        placeholder="Ingresa el correo electrónico"
                       />
                       {errors.email && <FormError message={errors.email} />}
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="phone">Phone Number</Label>
+                      <Label htmlFor="phone">Número de Teléfono</Label>
                       <Input
                         id="phone"
                         value={formData.phone}
                         onChange={(e) =>
                           handleInputChange("phone", e.target.value)
                         }
-                        placeholder="Enter phone number"
+                        placeholder="Ingresa el número de teléfono"
                       />
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="address">Address</Label>
+                      <Label htmlFor="address">Dirección</Label>
                       <Input
                         id="address"
                         value={formData.address}
                         onChange={(e) =>
                           handleInputChange("address", e.target.value)
                         }
-                        placeholder="Enter address"
+                        placeholder="Ingresa la dirección"
                       />
                     </div>
                   </div>
@@ -259,7 +261,7 @@ export default function UserProfilePage({
                       id="bio"
                       value={formData.bio}
                       onChange={(e) => handleInputChange("bio", e.target.value)}
-                      placeholder="Tell us about yourself"
+                      placeholder="Cuéntanos sobre ti"
                       rows={4}
                     />
                   </div>
@@ -270,11 +272,11 @@ export default function UserProfilePage({
                       variant="outline"
                       onClick={() => setIsEditing(false)}
                     >
-                      Cancel
+                      Cancelar
                     </Button>
                     <Button type="submit" disabled={isLoading}>
                       {isLoading && <Spinner size="sm" className="mr-2" />}
-                      Save Changes
+                      Guardar Cambios
                     </Button>
                   </div>
                 </form>
@@ -284,7 +286,7 @@ export default function UserProfilePage({
                     <div className="space-y-2">
                       <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
                         <User className="h-4 w-4" />
-                        Full Name
+                        Nombre Completo
                       </div>
                       <p className="text-sm">{mockUserProfile.name}</p>
                     </div>
@@ -292,7 +294,7 @@ export default function UserProfilePage({
                     <div className="space-y-2">
                       <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
                         <Mail className="h-4 w-4" />
-                        Email Address
+                        Email Dirección
                       </div>
                       <p className="text-sm">{mockUserProfile.email}</p>
                     </div>
@@ -300,7 +302,7 @@ export default function UserProfilePage({
                     <div className="space-y-2">
                       <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
                         <Phone className="h-4 w-4" />
-                        Phone Number
+                        Número de Teléfono
                       </div>
                       <p className="text-sm">{mockUserProfile.phone}</p>
                     </div>
@@ -308,7 +310,7 @@ export default function UserProfilePage({
                     <div className="space-y-2">
                       <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
                         <MapPin className="h-4 w-4" />
-                        Address
+                        Dirección
                       </div>
                       <p className="text-sm">{mockUserProfile.address}</p>
                     </div>

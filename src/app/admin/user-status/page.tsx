@@ -50,13 +50,15 @@ export default function UserStatusPage() {
   };
 
   const handleDelete = async (id: number) => {
-    if (confirm("Are you sure you want to delete this user status?")) {
+    if (
+      confirm("¿Estás seguro de que deseas eliminar este estado de usuario?")
+    ) {
       try {
         await deleteUserStatus(id);
         await fetchData();
       } catch (error) {
         console.error("Error deleting user status:", error);
-        alert("Failed to delete user status");
+        alert("Error al eliminar el estado de usuario");
       }
     }
   };
@@ -73,7 +75,7 @@ export default function UserStatusPage() {
   if (isLoading && statuses.length === 0) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Spinner size="lg" text="Loading user statuses..." />
+        <Spinner size="lg" text="Cargando estados de usuario..." />
       </div>
     );
   }
@@ -82,22 +84,24 @@ export default function UserStatusPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold">User Status</h1>
-          <p className="text-muted-foreground">Manage user status types</p>
+          <h1 className="text-3xl font-bold">Estado de Usuario</h1>
+          <p className="text-muted-foreground">
+            Gestionar tipos de estado de usuario
+          </p>
         </div>
         <Button onClick={() => router.push("/admin/user-status/new")}>
           <Plus className="mr-2 h-4 w-4" />
-          New Status
+          Nuevo Estado
         </Button>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="space-y-2">
-          <Label className="text-xs font-medium">Search</Label>
+          <Label className="text-xs font-medium">Buscar</Label>
           <div className="relative">
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search by name..."
+              placeholder="Buscar por nombre..."
               value={searchQuery}
               onChange={(e) => handleSearch(e.target.value)}
               className="pl-8"
@@ -111,7 +115,7 @@ export default function UserStatusPage() {
         onEdit={handleEdit}
         onDelete={handleDelete}
         onView={handleView}
-        countLabel="Users Using"
+        countLabel="Usuarios con este estado"
       />
 
       {totalItems > 0 && (

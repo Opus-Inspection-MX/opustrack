@@ -55,13 +55,13 @@ export default function LineStatusPage() {
   };
 
   const handleDelete = async (id: number) => {
-    if (confirm("Are you sure you want to delete this line status?")) {
+    if (confirm("¿Estás seguro de que deseas eliminar este estado de línea?")) {
       try {
         await deleteLineStatus(id);
         await fetchData();
       } catch (error) {
         console.error("Error deleting line status:", error);
-        alert("Failed to delete line status");
+        alert("Error al eliminar el estado de línea");
       }
     }
   };
@@ -78,7 +78,7 @@ export default function LineStatusPage() {
   if (isLoading && statuses.length === 0) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Spinner size="lg" text="Loading line statuses..." />
+        <Spinner size="lg" text="Cargando estados de línea..." />
       </div>
     );
   }
@@ -87,25 +87,25 @@ export default function LineStatusPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold">Line Status</h1>
+          <h1 className="text-3xl font-bold">Estado de Línea</h1>
           <p className="text-muted-foreground">
-            Manage verification line status types
+            Gestionar tipos de estado de línea de verificación
           </p>
         </div>
         <Button onClick={() => router.push("/admin/settings/line-status/new")}>
           <Plus className="mr-2 h-4 w-4" />
-          New Status
+          Nuevo Estado
         </Button>
       </div>
 
       {/* Search */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="space-y-2">
-          <Label className="text-xs font-medium">Search</Label>
+          <Label className="text-xs font-medium">Buscar</Label>
           <div className="relative">
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search by name..."
+              placeholder="Buscar por nombre..."
               value={searchQuery}
               onChange={(e) => handleSearch(e.target.value)}
               className="pl-8"
@@ -119,7 +119,7 @@ export default function LineStatusPage() {
         onEdit={handleEdit}
         onDelete={handleDelete}
         onView={handleView}
-        countLabel="Lines Using"
+        countLabel="Líneas con este estado"
       />
 
       {totalItems > 0 && (

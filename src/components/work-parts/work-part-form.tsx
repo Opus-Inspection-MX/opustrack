@@ -42,8 +42,8 @@ const workPartSchema = z.object({
     .number()
     .min(0, "Price must be positive")
     .max(999999, "Price too high"),
-  workOrderId: z.string().optional(),
-  workActivityId: z.string().optional(),
+  assignmentId: z.string().optional(),
+  activityId: z.string().optional(),
   active: z.boolean(),
 });
 
@@ -56,7 +56,7 @@ interface Part {
   stock: number;
 }
 
-interface WorkOrder {
+interface Assignment {
   id: string;
   status?: {
     name: string;
@@ -66,10 +66,10 @@ interface WorkOrder {
   };
 }
 
-interface WorkActivity {
+interface AssignmentActivity {
   id: string;
   description: string;
-  workOrderId: string;
+  assignmentId: string;
 }
 
 interface WorkPartFormProps {
@@ -79,28 +79,28 @@ interface WorkPartFormProps {
     quantity: number;
     description?: string;
     price: number;
-    workOrderId?: string;
-    workActivityId?: string;
+    assignmentId?: string;
+    activityId?: string;
     active: boolean;
   };
   parts: Part[];
-  workOrders: WorkOrder[];
-  workActivities: WorkActivity[];
+  assignments: Assignment[];
+  assignmentActivities: AssignmentActivity[];
   onSubmit: (data: WorkPartFormData) => Promise<void>;
 }
 
 export function WorkPartForm({
   workPart,
   parts,
-  workOrders,
-  workActivities,
+  assignments,
+  assignmentActivities,
   onSubmit,
 }: WorkPartFormProps) {
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedWorkOrder, setSelectedWorkOrder] = useState<string>("");
-  const [filteredActivities, setFilteredActivities] = useState<WorkActivity[]>(
-    [],
-  );
+  const [selectedAssignment, setSelectedAssignment] = useState<string>("");
+  const [filteredActivities, setFilteredActivities] = useState<
+    AssignmentActivity[]
+  >([]);
   const router = useRouter();
 
   const form = useForm<WorkPartFormData>({
@@ -110,14 +110,14 @@ export function WorkPartForm({
       quantity: workPart?.quantity || 1,
       description: workPart?.description || "",
       price: workPart?.price || 0,
-      workOrderId: workPart?.workOrderId || "defaultWorkOrderId",
-      workActivityId: workPart?.workActivityId || "defaultWorkActivityId",
+      assignmentId: workPart?.assignmentId || "defaultAssignmentId",
+      activityId: workPart?.activityId || "defaultActivityId",
       active: workPart?.active ?? true,
     },
   });
 
   const watchedPartId = form.watch("partId");
-  const watchedWorkOrderId = form.watch("workOrderId");
+  const watchedAssignmentId = form.watch("assignmentId");
 
   // Update price when part is selected
   useEffect(() => {
@@ -129,19 +129,19 @@ export function WorkPartForm({
     }
   }, [watchedPartId, parts, form]);
 
-  // Filter activities by work order
+  // Filter activities by asignación
   useEffect(() => {
-    if (watchedWorkOrderId) {
-      const filtered = workActivities.filter(
-        (activity) => activity.workOrderId === watchedWorkOrderId,
+    if (watchedAssignmentId) {
+      const filtered = assignmentActivities.filter(
+        (activity) => activity.assignmentId === watchedAssignmentId,
       );
       setFilteredActivities(filtered);
-      setSelectedWorkOrder(watchedWorkOrderId);
+      setSelectedAssignment(watchedAssignmentId);
     } else {
       setFilteredActivities([]);
-      setSelectedWorkOrder("");
+      setSelectedAssignment("");
     }
-  }, [watchedWorkOrderId, workActivities]);
+  }, [watchedAssignmentId, assignmentActivities]);
 
   const handleSubmit = async (data: WorkPartFormData) => {
     setIsLoading(true);
@@ -294,29 +294,29 @@ export function WorkPartForm({
 
             <FormField
               control={form.control}
-              name="workOrderId"
+              name="assignmentId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Work Order (Optional)</FormLabel>
+                  <FormLabel>Assignment (Optional)</FormLabel>
                   <Select
                     onValueChange={field.onChange}
                     defaultValue={field.value}
                   >
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select work order" />
+                        <SelectValue placeholder="Select asignación" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="defaultWorkOrderId">
-                        No work order
+                      <SelectItem value="defaultAssignmentId">
+                        No asignación
                       </SelectItem>
-                      {workOrders.map((workOrder) => (
-                        <SelectItem key={workOrder.id} value={workOrder.id}>
+                      {assignments.map((assignment) => (
+                        <SelectItem key={assignment.id} value={assignment.id}>
                           <div className="flex flex-col">
-                            <span>{workOrder.incident.title}</span>
+                            <span>{assignment.incident.title}</span>
                             <span className="text-sm text-muted-foreground">
-                              Status: {workOrder.status?.name || "N/A"}
+                              Status: {assignment.status?.name || "N/A"}
                             </span>
                           </div>
                         </SelectItem>
@@ -328,10 +328,10 @@ export function WorkPartForm({
               )}
             />
 
-            {selectedWorkOrder && (
+            {selectedAssignment && (
               <FormField
                 control={form.control}
-                name="workActivityId"
+                name="activityId"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Work Activity (Optional)</FormLabel>
@@ -345,7 +345,7 @@ export function WorkPartForm({
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="defaultWorkActivityId">
+                        <SelectItem value="defaultActivityId">
                           No specific activity
                         </SelectItem>
                         {filteredActivities.map((activity) => (
