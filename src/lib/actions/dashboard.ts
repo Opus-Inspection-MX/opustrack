@@ -76,8 +76,11 @@ export async function getDashboardStats() {
             title: true,
           },
         },
-        assignedTo: {
-          select: { name: true },
+        assignees: {
+          where: { active: true },
+          include: {
+            user: { select: { name: true } },
+          },
         },
         status: true,
       },

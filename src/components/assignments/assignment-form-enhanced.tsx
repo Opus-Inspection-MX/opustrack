@@ -25,7 +25,7 @@ import { type AssignmentFormData, assignmentSchema } from "@/lib/validations";
 interface EnhancedAssignmentData {
   id?: string;
   incidentId?: string;
-  assignedToId?: string;
+  assigneeIds?: string[];
   status?: string;
   notes?: string;
   startedAt?: string;
@@ -75,7 +75,7 @@ export function AssignmentFormEnhanced({
 }: AssignmentFormEnhancedProps) {
   const [formData, setFormData] = useState<AssignmentFormData>({
     incidentId: "",
-    assignedToId: "",
+    assigneeIds: [],
     status: "PENDING",
     notes: "",
     startedAt: "",
@@ -116,7 +116,7 @@ export function AssignmentFormEnhanced({
     if (assignment) {
       setFormData({
         incidentId: assignment.incidentId || "",
-        assignedToId: assignment.assignedToId || "",
+        assigneeIds: assignment.assigneeIds || [],
         status:
           (assignment.status as
             | "PENDING"
@@ -331,7 +331,7 @@ export function AssignmentFormEnhanced({
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="assignedToId" className="text-sm">
+                  <Label htmlFor="assigneeIds" className="text-sm">
                     Asignar a *
                   </Label>
                   <SearchableSelect
@@ -339,16 +339,19 @@ export function AssignmentFormEnhanced({
                       value: user.id,
                       label: `${user.name} - ${user.role}`,
                     }))}
-                    value={formData.assignedToId}
+                    value={formData.assigneeIds?.[0] || ""}
                     onValueChange={(value) =>
-                      handleChange("assignedToId", value)
+                      setFormData((prev) => ({
+                        ...prev,
+                        assigneeIds: [value],
+                      }))
                     }
                     placeholder="Seleccionar técnico"
                     searchPlaceholder="Buscar técnico..."
                     emptyMessage="No se encontraron técnicos."
-                    className={errors.assignedToId ? "border-destructive" : ""}
+                    className={errors.assigneeIds ? "border-destructive" : ""}
                   />
-                  <FormError message={errors.assignedToId} />
+                  <FormError message={errors.assigneeIds} />
                 </div>
 
                 <div className="space-y-2">

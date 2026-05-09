@@ -150,7 +150,10 @@ export async function getAssignmentActivityById(id: string) {
       assignment: {
         include: {
           incident: true,
-          assignedTo: true,
+          assignees: {
+            where: { active: true },
+            include: { user: true },
+          },
         },
       },
       workParts: {

@@ -354,7 +354,9 @@ export async function getMyAssignmentsForTrips() {
 
   const assignments = await prisma.assignment.findMany({
     where: {
-      assignedToId: user.id,
+      assignees: {
+        some: { userId: user.id, active: true },
+      },
       active: true,
       status: {
         name: {

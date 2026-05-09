@@ -58,10 +58,10 @@ interface Assignment {
   id: string;
   statusId: number | null;
   status?: AssignmentStatus | null;
-  assignedToId: string;
-  assignedTo: { id: string; name: string };
+  assignees: Array<{ user: { id: string; name: string } }>;
   notes: string | null;
   folio: number;
+  odtFolio: string | null;
   finishedAt: Date | null;
   incident?: AssignmentIncident | null;
   attachments?: Attachment[];

@@ -1,10 +1,17 @@
 "use client";
 
+import { Check, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import {
   Select,
@@ -24,7 +31,7 @@ type AssignmentFormProps = {
   assignment?: {
     id: string;
     incidentId: number;
-    assignedToId: string;
+    assigneeIds: string[];
     notes: string | null;
     statusId?: number | null;
   };
@@ -52,6 +59,7 @@ export function AssignmentForm({
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   // Find PENDIENTE status as default
   const pendienteStatus = assignmentStatuses.find(
@@ -60,7 +68,7 @@ export function AssignmentForm({
 
   const [formData, setFormData] = useState<AssignmentFormData>({
     incidentId: assignment?.incidentId || incidents[0]?.id || 0,
-    assignedToId: assignment?.assignedToId || users[0]?.id || "",
+    assigneeIds: assignment?.assigneeIds || [],
     statusId: assignment?.statusId || pendienteStatus?.id || null,
     notes: assignment?.notes || "",
   });
@@ -73,6 +81,19 @@ export function AssignmentForm({
   const filteredUsers = selectedVicId
     ? users.filter((user) => user.vicIds?.includes(selectedVicId))
     : users;
+
+  const toggleAssignee = (userId: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      assigneeIds: prev.assigneeIds.includes(userId)
+        ? prev.assigneeIds.filter((id) => id !== userId)
+        : [...prev.assigneeIds, userId],
+    }));
+  };
+
+  const selectedUsers = users.filter((u) =>
+    formData.assigneeIds.includes(u.id),
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -124,24 +145,58 @@ export function AssignmentForm({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="assignedToId">Asignado A *</Label>
-            <SearchableSelect
-              options={filteredUsers.map((user) => ({
-                value: user.id,
-                label: user.name,
-              }))}
-              value={formData.assignedToId}
-              onValueChange={(value) =>
-                setFormData({ ...formData, assignedToId: value })
-              }
-              placeholder="Seleccionar usuario"
-              searchPlaceholder="Buscar usuario..."
-              emptyMessage="No se encontraron usuarios."
-            />
-            {filteredUsers.length === 0 && selectedIncident?.vicId && (
-              <p className="text-xs text-muted-foreground">
-                No FSRs assigned to this VIC
-              </p>
+            <Label>Asignados *</Label>
+            <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full justify-start font-normal"
+                >
+                  {selectedUsers.length === 0
+                    ? "Seleccionar técnicos"
+                    : `${selectedUsers.length} seleccionado(s)`}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                <div className="max-h-72 overflow-y-auto">
+                  {filteredUsers.map((user) => {
+                    const checked = formData.assigneeIds.includes(user.id);
+                    return (
+                      <button
+                        key={user.id}
+                        type="button"
+                        onClick={() => toggleAssignee(user.id)}
+                        className="flex w-full items-center justify-between px-3 py-2 text-sm hover:bg-muted text-left"
+                      >
+                        <span>{user.name}</span>
+                        {checked && <Check className="h-4 w-4" />}
+                      </button>
+                    );
+                  })}
+                  {filteredUsers.length === 0 && (
+                    <p className="px-3 py-2 text-sm text-muted-foreground">
+                      {selectedIncident?.vicId
+                        ? "No FSRs assigned to this VIC"
+                        : "No hay usuarios disponibles"}
+                    </p>
+                  )}
+                </div>
+              </PopoverContent>
+            </Popover>
+            {selectedUsers.length > 0 && (
+              <div className="flex flex-wrap gap-1 pt-1">
+                {selectedUsers.map((u) => (
+                  <Badge
+                    key={u.id}
+                    variant="secondary"
+                    className="cursor-pointer"
+                    onClick={() => toggleAssignee(u.id)}
+                  >
+                    {u.name} <X className="ml-1 h-3 w-3" />
+                  </Badge>
+                ))}
+              </div>
             )}
           </div>
 

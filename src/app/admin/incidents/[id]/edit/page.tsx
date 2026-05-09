@@ -166,7 +166,11 @@ export default function EditIncidentPage({
                   <CardHeader>
                     <div className="flex items-center justify-between">
                       <div>
-                        <CardTitle>Asignación - {wo.assignedTo.name}</CardTitle>
+                        <CardTitle>
+                          Asignación -{" "}
+                          {wo.assignees.map((a) => a.user.name).join(", ") ||
+                            "Sin asignar"}
+                        </CardTitle>
                         <p className="text-sm text-muted-foreground mt-1">
                           Estado: {wo.status?.name || "Sin estado"} •{" "}
                           {wo._count?.assignmentActivities || 0} actividades

@@ -27,7 +27,7 @@ model User {
   vicAssignments    UserVicAssignment[] // VIC assignments for this user
   createdAt         DateTime                 @default(now())
   updatedAt         DateTime                 @updatedAt
-  assignments       Assignment[]
+  assignmentAssignees AssignmentAssignee[] // Assignments this user is assigned to (M-N)
   reportedIncidents Incident[]               @relation("IncidentReporter")
   incidents         Incident[]               @relation("IncidentUser") // relación opcional si usas userId en Incident
   vehicleTrips      VehicleTrip[] // Vehicle trips driven by this FSR
@@ -272,12 +272,12 @@ model Assignment {
   id                   String                 @id @default(cuid())
   incidentId           Int
   incident             Incident               @relation(fields: [incidentId], references: [id])
-  assignedToId         String
-  assignedTo           User                   @relation(fields: [assignedToId], references: [id])
+  assignees            AssignmentAssignee[] // Multiple FSRs per assignment (M-N)
   statusId             Int?
   status               AssignmentStatus?      @relation(fields: [statusId], references: [id])
   notes                String?
   folio                Int       @unique @default(dbgenerated("nextval('assignment_folio_seq')")) // Auto-generated numeric folio
+  odtFolio             String? // ODT folio captured from external system (RF-010)
   startedAt            DateTime?
   finishedAt           DateTime?
   unlockedAt           DateTime? // When FSR acknowledged/unlocked the assignment
@@ -291,11 +291,26 @@ model Assignment {
   active               Boolean                @default(true)
 
   @@index([incidentId])
-  @@index([assignedToId])
   @@index([statusId])
-  @@index([active, assignedToId]) // Compound index for FSR filtering
   @@index([active, createdAt]) // Compound index for active assignments ordered by date
   @@index([unlockedAt]) // Optimize filtering by unlock status
+}
+
+model AssignmentAssignee {
+  id           String     @id @default(cuid())
+  assignmentId String
+  userId       String
+  assignedAt   DateTime   @default(now())
+  active       Boolean    @default(true)
+
+  assignment Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id])
+
+  @@unique([assignmentId, userId])
+  @@index([userId])
+  @@index([assignmentId])
+  @@index([active, userId])
+  @@map("assignment_assignees")
 }
 
 model AssignmentActivity {

@@ -1,6 +1,7 @@
 "use client";
 
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -52,6 +53,7 @@ export function ScheduleCalendar({
   dateRange,
   onDateRangeChange,
 }: ScheduleCalendarProps) {
+  const router = useRouter();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<"day" | "week" | "month" | "custom">(
     dateRange.type,
@@ -486,16 +488,20 @@ export function ScheduleCalendar({
                 ))}
                 {/* Show real scheduled incidents */}
                 {incidentsByHour[hour]?.map((incident) => (
-                  <div
+                  <button
+                    type="button"
                     key={incident.id}
-                    className="bg-blue-500/10 border-l-4 border-blue-500 p-2 rounded mb-2"
+                    onClick={() =>
+                      router.push(`/admin/incidents/${incident.id}/edit`)
+                    }
+                    className="bg-blue-500/10 border-l-4 border-blue-500 p-2 rounded mb-2 w-full text-left hover:bg-blue-500/20 transition-colors cursor-pointer"
                   >
                     <div className="font-medium text-sm">{incident.title}</div>
                     <div className="text-xs text-muted-foreground">
                       Prioridad: {incident.priority}
                       {incident.status && ` • ${incident.status.name}`}
                     </div>
-                  </div>
+                  </button>
                 ))}
               </div>
             </div>
@@ -601,9 +607,13 @@ export function ScheduleCalendar({
             ) : (
               <div className="space-y-2 max-h-96 overflow-y-auto">
                 {incidents.map((incident) => (
-                  <div
+                  <button
+                    type="button"
                     key={incident.id}
-                    className="p-3 border rounded-lg hover:bg-accent transition-colors"
+                    onClick={() =>
+                      router.push(`/admin/incidents/${incident.id}/edit`)
+                    }
+                    className="p-3 border rounded-lg hover:bg-accent transition-colors w-full text-left cursor-pointer"
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
@@ -626,7 +636,7 @@ export function ScheduleCalendar({
                         Prioridad: {incident.priority}
                       </Badge>
                     </div>
-                  </div>
+                  </button>
                 ))}
               </div>
             )}

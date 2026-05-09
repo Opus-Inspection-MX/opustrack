@@ -50,6 +50,7 @@ import { createAssignment } from "@/lib/actions/assignments";
 import { getEquipmentsByLineId } from "@/lib/actions/equipments";
 import { getLinesByVicId } from "@/lib/actions/lines";
 import {
+  updateAssignmentAssignees,
   updateAssignmentDetails,
   updateIncidentDetails,
 } from "@/lib/actions/tracking";
@@ -80,8 +81,9 @@ interface TrackingAssignment {
   id: string;
   status?: { id: number; name: string } | null;
   statusId?: number | null;
-  assignedTo?: { id: string; name: string } | null;
-  assignedToId?: string;
+  assignees?: Array<{
+    user: { id: string; name: string; email?: string };
+  }>;
   folio?: number | null;
   notes?: string | null;
   lineId?: number | null;
@@ -271,7 +273,7 @@ export function TrackingTable({
       ? new Date(assignment.finishedAt).toISOString().slice(0, 16)
       : "";
     setAssignmentEditForm({
-      assignedToId: assignment.assignedTo?.id || "",
+      assignedToId: assignment.assignees?.[0]?.user.id || "",
       statusId: assignment.status?.id,
       startedAt: startedDateTime || undefined,
       finishedAt: finishedDateTime || undefined,
@@ -298,11 +300,15 @@ export function TrackingTable({
         : null;
 
       await updateAssignmentDetails(assignmentId, {
-        assignedToId: assignmentEditForm.assignedToId,
         statusId: statusIdValue,
         startedAt: assignmentEditForm.startedAt || null,
         finishedAt: assignmentEditForm.finishedAt || null,
       });
+      if (assignmentEditForm.assignedToId) {
+        await updateAssignmentAssignees(assignmentId, [
+          assignmentEditForm.assignedToId,
+        ]);
+      }
       setEditingAssignment(null);
       setAssignmentEditForm({});
       // Reload the incidents data to reflect the change
@@ -411,7 +417,9 @@ export function TrackingTable({
 
       await createAssignment({
         incidentId,
-        assignedToId: newAssignmentForm.assignedToId || "",
+        assigneeIds: newAssignmentForm.assignedToId
+          ? [newAssignmentForm.assignedToId]
+          : [],
         notes: newAssignmentForm.notes || undefined,
         statusId: abiertoStatus?.id || null,
         startedAt: null,
@@ -494,13 +502,12 @@ export function TrackingTable({
     incident: TrackingIncident,
   ): Array<{ id: string; name: string }> => {
     if (incident.assignments && incident.assignments.length > 0) {
-      // Get unique FSRs from all asignacións
-      const fsrs = incident.assignments
-        .map((wo: TrackingAssignment) => wo.assignedTo)
-        .filter(
-          (fsr): fsr is { id: string; name: string } =>
-            fsr !== null && fsr !== undefined,
-        );
+      // Get unique FSRs from all asignacións (M-N: one assignment can have many)
+      const fsrs = incident.assignments.flatMap(
+        (wo: TrackingAssignment) =>
+          wo.assignees?.map((aa) => ({ id: aa.user.id, name: aa.user.name })) ||
+          [],
+      );
       // Remove duplicates by id
       const uniqueFsrs = fsrs.filter(
         (fsr, index, self) => index === self.findIndex((f) => f.id === fsr.id),
@@ -1386,8 +1393,10 @@ export function TrackingTable({
                                                 </span>
                                                 <span className="text-sm">
                                                   <User className="h-4 w-4 inline mr-2" />
-                                                  {assignment.assignedTo
-                                                    ?.name || "Sin asignar"}
+                                                  {assignment.assignees
+                                                    ?.map((a) => a.user.name)
+                                                    .join(", ") ||
+                                                    "Sin asignar"}
                                                 </span>
                                               </div>
                                             )}

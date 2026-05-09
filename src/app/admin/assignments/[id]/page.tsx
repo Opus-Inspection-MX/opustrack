@@ -133,8 +133,15 @@ export default async function AssignmentDetailPage({
             <div className="flex items-center gap-3">
               <User className="h-5 w-5 text-muted-foreground" />
               <div>
-                <p className="text-sm text-muted-foreground">Asignado a</p>
-                <p className="font-medium">{assignment.assignedTo.name}</p>
+                <p className="text-sm text-muted-foreground">
+                  {assignment.assignees.length > 1
+                    ? "Asignados a"
+                    : "Asignado a"}
+                </p>
+                <p className="font-medium">
+                  {assignment.assignees.map((a) => a.user.name).join(", ") ||
+                    "Sin asignar"}
+                </p>
               </div>
             </div>
 

@@ -59,11 +59,9 @@ export async function getIncidentsForTracking(filters?: {
     if (filters?.startDate || filters?.endDate) {
       where.reportedAt = {};
       if (filters.startDate) {
-        // Set to start of day (00:00:00.000)
         where.reportedAt.gte = new Date(filters.startDate);
       }
       if (filters.endDate) {
-        // Set to end of day (23:59:59.999) to include all incidents from that day
         const endDate = new Date(filters.endDate);
         endDate.setHours(23, 59, 59, 999);
         where.reportedAt.lte = endDate;
@@ -73,7 +71,9 @@ export async function getIncidentsForTracking(filters?: {
     const assignmentsWhere: Prisma.AssignmentWhereInput = { active: true };
 
     if (filters?.assignedFsrId) {
-      assignmentsWhere.assignedToId = filters.assignedFsrId;
+      assignmentsWhere.assignees = {
+        some: { userId: filters.assignedFsrId, active: true },
+      };
     }
 
     if (filters?.folio) {
@@ -155,12 +155,17 @@ export async function getIncidentsForTracking(filters?: {
             startedAt: true,
             finishedAt: true,
             createdAt: true,
-            assignedTo: {
+            assignees: {
+              where: { active: true },
               select: {
-                id: true,
-                name: true,
-                email: true,
-                roleId: true,
+                user: {
+                  select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                    roleId: true,
+                  },
+                },
               },
             },
             status: {
@@ -179,7 +184,6 @@ export async function getIncidentsForTracking(filters?: {
       orderBy: {
         reportedAt: "desc",
       },
-      // Add a reasonable limit to prevent loading thousands of records
       take: 500,
     });
 
@@ -233,10 +237,18 @@ export async function assignFSRToIncident(incidentId: number, fsrId: string) {
     });
 
     if (existingAssignment) {
-      await prisma.assignment.update({
-        where: { id: existingAssignment.id },
-        data: {
-          assignedToId: fsrId,
+      await prisma.assignmentAssignee.upsert({
+        where: {
+          assignmentId_userId: {
+            assignmentId: existingAssignment.id,
+            userId: fsrId,
+          },
+        },
+        update: { active: true },
+        create: {
+          assignmentId: existingAssignment.id,
+          userId: fsrId,
+          active: true,
         },
       });
     } else {
@@ -247,8 +259,10 @@ export async function assignFSRToIncident(incidentId: number, fsrId: string) {
       await prisma.assignment.create({
         data: {
           incidentId,
-          assignedToId: fsrId,
           statusId: pendingStatus?.id,
+          assignees: {
+            create: [{ userId: fsrId }],
+          },
         },
       });
     }
@@ -261,21 +275,58 @@ export async function assignFSRToIncident(incidentId: number, fsrId: string) {
   }
 }
 
-export async function updateAssignmentFSR(assignmentId: string, fsrId: string) {
+export async function updateAssignmentAssignees(
+  assignmentId: string,
+  userIds: string[],
+) {
   try {
     await requirePermission("tracking:update");
 
-    const updatedAssignment = await prisma.assignment.update({
+    const uniqueIds = Array.from(new Set(userIds.filter(Boolean)));
+
+    await prisma.$transaction(async (tx) => {
+      const existing = await tx.assignmentAssignee.findMany({
+        where: { assignmentId },
+        select: { userId: true, active: true },
+      });
+
+      const existingActive = new Set(
+        existing.filter((e) => e.active).map((e) => e.userId),
+      );
+      const requested = new Set(uniqueIds);
+
+      const toRemove = [...existingActive].filter((u) => !requested.has(u));
+      const toAdd = uniqueIds.filter((u) => !existingActive.has(u));
+
+      if (toRemove.length > 0) {
+        await tx.assignmentAssignee.updateMany({
+          where: { assignmentId, userId: { in: toRemove } },
+          data: { active: false },
+        });
+      }
+
+      for (const userId of toAdd) {
+        await tx.assignmentAssignee.upsert({
+          where: { assignmentId_userId: { assignmentId, userId } },
+          update: { active: true },
+          create: { assignmentId, userId, active: true },
+        });
+      }
+    });
+
+    const updatedAssignment = await prisma.assignment.findUnique({
       where: { id: assignmentId },
-      data: {
-        assignedToId: fsrId,
-      },
       include: {
-        assignedTo: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
+        assignees: {
+          where: { active: true },
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
           },
         },
       },
@@ -284,8 +335,8 @@ export async function updateAssignmentFSR(assignmentId: string, fsrId: string) {
     revalidatePath("/admin/tracking");
     return { success: true, assignment: updatedAssignment };
   } catch (error) {
-    console.error("Error updating assignment FSR:", error);
-    throw new Error("Failed to update assignment FSR");
+    console.error("Error updating assignment assignees:", error);
+    throw new Error("Failed to update assignment assignees");
   }
 }
 
@@ -328,7 +379,6 @@ export async function updateIncidentDetails(
 export async function updateAssignmentDetails(
   assignmentId: string,
   data: {
-    assignedToId: string;
     statusId?: number | null;
     startedAt?: string | null;
     finishedAt?: string | null;
@@ -340,7 +390,6 @@ export async function updateAssignmentDetails(
     await prisma.assignment.update({
       where: { id: assignmentId },
       data: {
-        assignedToId: data.assignedToId,
         statusId: data.statusId || null,
         startedAt: data.startedAt ? new Date(data.startedAt) : null,
         finishedAt: data.finishedAt ? new Date(data.finishedAt) : null,

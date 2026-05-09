@@ -180,9 +180,10 @@ export default async function FSRIncidentDetailPage({
                           Folio: AS-{wo.folio}
                         </span>
                       </div>
-                      {wo.assignedTo && (
+                      {wo.assignees && wo.assignees.length > 0 && (
                         <div className="text-sm text-muted-foreground">
-                          Asignado a: {wo.assignedTo.name}
+                          Asignado a:{" "}
+                          {wo.assignees.map((a) => a.user.name).join(", ")}
                         </div>
                       )}
                       <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">

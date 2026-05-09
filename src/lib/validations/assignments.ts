@@ -6,11 +6,16 @@ import { baseQuerySchema, cuidSchema, intIdSchema } from "./common";
  */
 export const AssignmentCreateSchema = z.object({
   incidentId: intIdSchema,
-  assignedToId: cuidSchema,
+  assigneeIds: z.array(cuidSchema).min(1, "At least one assignee is required"),
   statusId: intIdSchema.nullable().optional(),
   notes: z
     .string()
     .max(2000, "Notes must be at most 2000 characters")
+    .optional(),
+  odtFolio: z
+    .string()
+    .max(100, "ODT folio must be at most 100 characters")
+    .nullable()
     .optional(),
   startedAt: z.date().nullable().optional(),
   finishedAt: z.date().nullable().optional(),
@@ -21,6 +26,8 @@ export const AssignmentCreateSchema = z.object({
  */
 export const AssignmentUpdateSchema = AssignmentCreateSchema.partial().extend({
   id: cuidSchema,
+  // RF-013: update may unassign all (0 assignees allowed)
+  assigneeIds: z.array(cuidSchema).optional(),
 });
 
 /**
@@ -73,7 +80,7 @@ export const AssignmentAttachmentSchema = z.object({
  */
 export const AssignmentQuerySchema = baseQuerySchema.extend({
   statusId: z.coerce.number().int().positive().optional(),
-  assignedToId: z.string().cuid().optional(),
+  assigneeId: z.string().cuid().optional(),
   incidentId: z.coerce.number().int().positive().optional(),
   sortBy: z
     .enum(["createdAt", "startedAt", "finishedAt", "updatedAt"])

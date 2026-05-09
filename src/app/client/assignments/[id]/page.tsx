@@ -132,26 +132,32 @@ export default async function ClientAssignmentDetailPage({
         </CardContent>
       </Card>
 
-      {/* Assigned FSR */}
-      {assignment.assignedTo && (
+      {/* Assigned FSRs */}
+      {assignment.assignees && assignment.assignees.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <User className="h-5 w-5" />
-              Tecnico Asignado
+              {assignment.assignees.length === 1
+                ? "Tecnico Asignado"
+                : "Tecnicos Asignados"}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                <User className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <p className="font-medium">{assignment.assignedTo.name}</p>
-                <p className="text-sm text-muted-foreground">
-                  {assignment.assignedTo.email}
-                </p>
-              </div>
+            <div className="space-y-3">
+              {assignment.assignees.map((aa) => (
+                <div key={aa.user.id} className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                    <User className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="font-medium">{aa.user.name}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {aa.user.email}
+                    </p>
+                  </div>
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>

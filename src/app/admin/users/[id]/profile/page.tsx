@@ -150,9 +150,9 @@ export default function UserProfilePage({
               <span className="text-sm font-medium">Estado:</span>
               <Badge
                 variant="outline"
-                className={getStatusColor(mockUserProfile.userStatus.name)}
+                className={getStatusColor(mockUserProfile.userEstado.name)}
               >
-                {mockUserProfile.userStatus.name}
+                {mockUserProfile.userEstado.name}
               </Badge>
             </div>
             {mockUserProfile.vic && (

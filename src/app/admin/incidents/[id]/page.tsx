@@ -255,11 +255,21 @@ export default async function IncidentDetailPage({
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <div>
-                          <p className="font-medium">{wo.assignedTo.name}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {wo.assignedTo.email}
-                          </p>
+                        <div className="space-y-1">
+                          {wo.assignees.length === 0 ? (
+                            <p className="text-xs text-muted-foreground">
+                              Sin asignar
+                            </p>
+                          ) : (
+                            wo.assignees.map((aa) => (
+                              <div key={aa.user.id}>
+                                <p className="font-medium">{aa.user.name}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {aa.user.email}
+                                </p>
+                              </div>
+                            ))
+                          )}
                         </div>
                       </TableCell>
                       <TableCell>

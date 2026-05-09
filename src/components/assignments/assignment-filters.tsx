@@ -120,9 +120,7 @@ export function AssignmentFilters({
                 <SelectItem value="incident.title-asc">
                   Incidente A-Z
                 </SelectItem>
-                <SelectItem value="assignedTo.name-asc">
-                  Asignado A-Z
-                </SelectItem>
+                <SelectItem value="assignees-asc">Asignado A-Z</SelectItem>
               </SelectContent>
             </Select>
           </div>

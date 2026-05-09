@@ -140,7 +140,9 @@ export default async function AdminDashboard() {
                           {wo.incident.title}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          Asignado a {wo.assignedTo.name}
+                          Asignado a{" "}
+                          {wo.assignees.map((a) => a.user.name).join(", ") ||
+                            "—"}
                         </p>
                       </div>
                       <Badge variant="outline">

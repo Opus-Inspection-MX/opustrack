@@ -99,7 +99,9 @@ export async function getFSRPerformanceData(
     fsrUsers.map(async (fsr) => {
       const assignments = await prisma.assignment.findMany({
         where: {
-          assignedToId: fsr.id,
+          assignees: {
+            some: { userId: fsr.id, active: true },
+          },
           active: true,
           createdAt: {
             gte: startDate,
@@ -775,8 +777,11 @@ export async function getAssignmentAgingData(): Promise<{
       incident: {
         select: { title: true },
       },
-      assignedTo: {
-        select: { name: true },
+      assignees: {
+        where: { active: true },
+        include: {
+          user: { select: { name: true } },
+        },
       },
       status: true,
       assignmentActivities: {
@@ -815,7 +820,8 @@ export async function getAssignmentAgingData(): Promise<{
       assignmentId: a.id,
       folio: a.folio,
       incidentTitle: a.incident.title,
-      assignedTo: a.assignedTo.name,
+      assignedTo:
+        a.assignees.map((aa) => aa.user.name).join(", ") || "Sin asignar",
       status: a.status?.name || "Sin Estado",
       createdAt: a.createdAt.toISOString(),
       ageInDays,
@@ -897,8 +903,11 @@ export async function getUnlockTimeData(
       incident: {
         select: { title: true },
       },
-      assignedTo: {
-        select: { id: true, name: true },
+      assignees: {
+        where: { active: true },
+        include: {
+          user: { select: { id: true, name: true } },
+        },
       },
       status: true,
     },
@@ -911,17 +920,9 @@ export async function getUnlockTimeData(
     { name: string; total: number; unlocked: number; totalTime: number }
   > = {};
 
-  const unlockData: UnlockTimeData[] = assignments.map((a) => {
-    const fsrId = a.assignedToId;
-    if (!fsrStats[fsrId]) {
-      fsrStats[fsrId] = {
-        name: a.assignedTo.name,
-        total: 0,
-        unlocked: 0,
-        totalTime: 0,
-      };
-    }
-    fsrStats[fsrId].total++;
+  const unlockData: UnlockTimeData[] = assignments.flatMap((a) => {
+    const activeAssignees = a.assignees;
+    if (activeAssignees.length === 0) return [];
 
     let timeToUnlockMinutes: number | null = null;
     const isUnlocked = a.unlockedAt !== null;
@@ -930,22 +931,38 @@ export async function getUnlockTimeData(
       timeToUnlockMinutes = Math.round(
         (a.unlockedAt.getTime() - a.assignedAt.getTime()) / (1000 * 60),
       );
-      unlockTimes.push(timeToUnlockMinutes);
-      fsrStats[fsrId].unlocked++;
-      fsrStats[fsrId].totalTime += timeToUnlockMinutes;
     }
 
-    return {
-      assignmentId: a.id,
-      folio: a.folio,
-      incidentTitle: a.incident.title,
-      fsrName: a.assignedTo.name,
-      assignedAt: a.assignedAt?.toISOString() || null,
-      unlockedAt: a.unlockedAt?.toISOString() || null,
-      timeToUnlockMinutes,
-      status: a.status?.name || "Sin Estado",
-      isUnlocked,
-    };
+    return activeAssignees.map((aa) => {
+      const fsrId = aa.user.id;
+      if (!fsrStats[fsrId]) {
+        fsrStats[fsrId] = {
+          name: aa.user.name,
+          total: 0,
+          unlocked: 0,
+          totalTime: 0,
+        };
+      }
+      fsrStats[fsrId].total++;
+
+      if (timeToUnlockMinutes !== null) {
+        unlockTimes.push(timeToUnlockMinutes);
+        fsrStats[fsrId].unlocked++;
+        fsrStats[fsrId].totalTime += timeToUnlockMinutes;
+      }
+
+      return {
+        assignmentId: a.id,
+        folio: a.folio,
+        incidentTitle: a.incident.title,
+        fsrName: aa.user.name,
+        assignedAt: a.assignedAt?.toISOString() || null,
+        unlockedAt: a.unlockedAt?.toISOString() || null,
+        timeToUnlockMinutes,
+        status: a.status?.name || "Sin Estado",
+        isUnlocked,
+      };
+    });
   });
 
   // Calculate median

@@ -61,7 +61,9 @@ export async function getMyIncidents() {
       active: true,
       assignments: {
         some: {
-          assignedToId: user.id,
+          assignees: {
+            some: { userId: user.id, active: true },
+          },
           active: true,
         },
       },
@@ -112,11 +114,16 @@ export async function getIncidentById(id: number) {
       assignments: {
         where: { active: true },
         include: {
-          assignedTo: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
+          assignees: {
+            where: { active: true },
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                },
+              },
             },
           },
           status: true,
@@ -437,102 +444,6 @@ export async function changeIncidentStatus(id: number, statusId: number) {
   revalidatePath(`/admin/incidents/${id}`);
   revalidatePath("/fsr/incidents");
   return { success: true, data: incident };
-}
-
-/**
- * Assign incident to FSR
- * Verifies user has access to the incident's VIC before assigning
- * Uses transaction to ensure atomicity when creating work order and updating incident
- * Creates notification for the FSR
- */
-export async function assignIncidentToFSR(
-  incidentId: number,
-  fsrUserId: string,
-) {
-  const user = await requirePermission("incidents:assign");
-
-  // Verify access to incident
-  const incident = await prisma.incident.findUnique({
-    where: { id: incidentId },
-    select: { vicId: true, title: true },
-  });
-
-  if (!incident) {
-    throw new Error("Incident not found");
-  }
-
-  assertVicAccess(user, incident.vicId);
-
-  // Verify the user is an FSR
-  const fsr = await prisma.user.findUnique({
-    where: { id: fsrUserId },
-    include: { role: true },
-  });
-
-  if (!fsr || fsr.role.name !== "FSR") {
-    throw new Error("El usuario seleccionado no es un FSR");
-  }
-
-  // Use transaction to create assignment, update incident, and create notification
-  const assignment = await prisma.$transaction(async (tx) => {
-    // Create assignment for the incident
-    const a = await tx.assignment.create({
-      data: {
-        incidentId,
-        assignedToId: fsrUserId,
-        notes: "Asignación creada automáticamente",
-      },
-      include: {
-        assignedTo: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-      },
-    });
-
-    // Update incident status to EN_PROGRESO
-    const inProgressStatus = await tx.incidentStatus.findFirst({
-      where: { name: "EN_PROGRESO" },
-    });
-
-    if (inProgressStatus) {
-      await tx.incident.update({
-        where: { id: incidentId },
-        data: { statusId: inProgressStatus.id },
-      });
-    }
-
-    // Create notification for the FSR
-    await tx.notification.create({
-      data: {
-        userId: fsrUserId,
-        title: "Nueva Asignación",
-        message: `Se le ha asignado una asignación para el incidente: ${incident.title}`,
-        type: "assignment_assigned",
-        entityType: "assignment",
-        entityId: a.id,
-        actionUrl: `/fsr/assignments/${a.id}`,
-        priority: 2, // Medium priority
-        metadata: {
-          incidentId,
-          incidentTitle: incident.title,
-          assignedBy: user.name,
-          assignedById: user.id,
-        },
-      },
-    });
-
-    return a;
-  });
-
-  revalidatePath("/admin/incidents");
-  revalidatePath(`/admin/incidents/${incidentId}`);
-  revalidatePath("/fsr/incidents");
-  revalidatePath("/fsr/assignments");
-  return { success: true, data: assignment };
 }
 
 /**

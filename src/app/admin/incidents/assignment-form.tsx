@@ -20,7 +20,7 @@ import { Textarea } from "@/components/ui/textarea";
 
 interface AssignmentData {
   incidentId?: string;
-  assignedToId?: string;
+  assigneeId?: string;
   status?: string;
   notes?: string;
   startedAt?: string | Date;
@@ -49,7 +49,7 @@ export function AssignmentForm({
 }: AssignmentFormProps) {
   const [formData, setFormData] = useState({
     incidentId: "",
-    assignedToId: "",
+    assigneeId: "",
     status: "PENDING",
     notes: "",
     startedAt: "",
@@ -77,7 +77,7 @@ export function AssignmentForm({
     if (assignment) {
       setFormData({
         incidentId: assignment.incidentId || "",
-        assignedToId: assignment.assignedToId || "",
+        assigneeId: assignment.assigneeId || "",
         status: assignment.status || "PENDING",
         notes: assignment.notes || "",
         startedAt: assignment.startedAt
@@ -154,10 +154,10 @@ export function AssignmentForm({
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="assignedToId">Assign To *</Label>
+              <Label htmlFor="assigneeId">Assign To *</Label>
               <Select
-                value={formData.assignedToId}
-                onValueChange={(value) => handleChange("assignedToId", value)}
+                value={formData.assigneeId}
+                onValueChange={(value) => handleChange("assigneeId", value)}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select technician" />

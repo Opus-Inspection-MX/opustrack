@@ -23,7 +23,7 @@ import { type AssignmentFormData, assignmentSchema } from "@/lib/validations";
 
 interface AssignmentData {
   incidentId?: string;
-  assignedToId?: string;
+  assigneeIds?: string[];
   status?: { name: string } | null;
   notes?: string;
   startedAt?: string | Date;
@@ -55,7 +55,7 @@ export function AssignmentForm({
 }: AssignmentFormProps) {
   const [formData, setFormData] = useState<AssignmentFormData>({
     incidentId: "",
-    assignedToId: "",
+    assigneeIds: [],
     status: "PENDING",
     notes: "",
     startedAt: "",
@@ -87,7 +87,7 @@ export function AssignmentForm({
     if (assignment) {
       setFormData({
         incidentId: assignment.incidentId || "",
-        assignedToId: assignment.assignedToId || "",
+        assigneeIds: assignment.assigneeIds || [],
         status:
           (assignment.status?.name as
             | "PENDING"
@@ -110,7 +110,7 @@ export function AssignmentForm({
     }
   }, [assignment, incident]);
 
-  const validateField = (field: string, value: string | undefined) => {
+  const validateField = (field: string, value: unknown) => {
     try {
       assignmentSchema
         .pick({ [field]: true } as Record<keyof AssignmentFormData, true>)
@@ -220,20 +220,22 @@ export function AssignmentForm({
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="assignedToId">Asignar A *</Label>
+              <Label htmlFor="assigneeIds">Asignar A *</Label>
               <SearchableSelect
                 options={users.map((user) => ({
                   value: user.id,
                   label: `${user.name} - ${user.role}`,
                 }))}
-                value={formData.assignedToId}
-                onValueChange={(value) => handleChange("assignedToId", value)}
+                value={formData.assigneeIds?.[0] || ""}
+                onValueChange={(value) =>
+                  setFormData((prev) => ({ ...prev, assigneeIds: [value] }))
+                }
                 placeholder="Seleccionar técnico"
                 searchPlaceholder="Buscar técnicos..."
                 emptyMessage="No se encontraron técnicos."
-                className={errors.assignedToId ? "border-destructive" : ""}
+                className={errors.assigneeIds ? "border-destructive" : ""}
               />
-              <FormError message={errors.assignedToId} />
+              <FormError message={errors.assigneeIds} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="status">Estado *</Label>

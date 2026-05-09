@@ -40,8 +40,9 @@ interface TrackingAssignment {
   id: string;
   status?: { id: number; name: string } | null;
   statusId?: number | null;
-  assignedTo?: { id: string; name: string } | null;
-  assignedToId?: string;
+  assignees?: Array<{
+    user: { id: string; name: string; email?: string };
+  }>;
   folio?: number | null;
   notes?: string | null;
   lineId?: number | null;

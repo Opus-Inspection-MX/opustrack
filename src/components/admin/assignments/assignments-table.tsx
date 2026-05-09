@@ -31,9 +31,7 @@ type Assignment = {
     title: string;
     priority: number;
   };
-  assignedTo: {
-    name: string;
-  };
+  assignees: Array<{ user: { name: string } }>;
   _count: {
     assignmentActivities: number;
     workParts: number;
@@ -122,7 +120,10 @@ export function AssignmentsTable({
                   <span className="max-w-xs truncate">{wo.incident.title}</span>
                 </div>
               </TableCell>
-              <TableCell>{wo.assignedTo.name}</TableCell>
+              <TableCell>
+                {wo.assignees.map((a) => a.user.name).join(", ") ||
+                  "Sin asignar"}
+              </TableCell>
               <TableCell>
                 <Badge variant={getStatusColor(wo.status?.name || "")}>
                   {wo.status?.name || "N/A"}

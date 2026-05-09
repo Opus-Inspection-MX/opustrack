@@ -27,7 +27,7 @@ interface AssignedUser {
 interface Assignment {
   id: string;
   status?: AssignmentStatus | null;
-  assignedTo?: AssignedUser | null;
+  assignees?: Array<{ user: AssignedUser }>;
 }
 
 interface AssignmentActivity {
@@ -303,7 +303,9 @@ export default function WorkPartDetailPage({
                     Asignado A
                   </p>
                   <p className="text-sm">
-                    {workPart.assignment.assignedTo?.name || "N/A"}
+                    {workPart.assignment.assignees
+                      ?.map((a) => a.user.name)
+                      .join(", ") || "N/A"}
                   </p>
                 </div>
               </div>

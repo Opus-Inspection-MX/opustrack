@@ -235,7 +235,10 @@ export async function getWorkPartById(id: string) {
         include: {
           status: true,
           incident: true,
-          assignedTo: true,
+          assignees: {
+            where: { active: true },
+            include: { user: true },
+          },
         },
       },
       activity: true,

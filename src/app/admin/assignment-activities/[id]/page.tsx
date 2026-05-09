@@ -33,7 +33,7 @@ interface AssignedUser {
 interface Assignment {
   id: string;
   status?: { name: string } | string | null;
-  assignedTo?: AssignedUser | null;
+  assignees?: Array<{ user: AssignedUser }>;
   incident?: { id: number; title: string } | null;
 }
 
@@ -233,7 +233,9 @@ export default function AssignmentActivityDetailPage({
                     Asignado A
                   </p>
                   <p className="text-sm">
-                    {activity.assignment.assignedTo?.name || "N/A"}
+                    {activity.assignment.assignees
+                      ?.map((a) => a.user.name)
+                      .join(", ") || "N/A"}
                   </p>
                 </div>
               </div>

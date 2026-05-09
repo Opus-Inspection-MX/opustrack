@@ -65,7 +65,7 @@ interface TableAssignment {
     priority: string;
     vic?: { name: string } | null;
   };
-  assignedTo?: { name: string } | null;
+  assignees?: Array<{ user: { name: string } }>;
   startedAt?: string | null;
   finishedAt?: string | null;
   assignmentActivities?: Array<{ id: string }>;
@@ -172,7 +172,9 @@ export function AssignmentTable({
                 <TableCell>
                   <div>
                     <div className="font-medium">
-                      {assignment.assignedTo?.name || "Sin asignar"}
+                      {assignment.assignees
+                        ?.map((a) => a.user.name)
+                        .join(", ") || "Sin asignar"}
                     </div>
                   </div>
                 </TableCell>

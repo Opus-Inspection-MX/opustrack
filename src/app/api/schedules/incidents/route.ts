@@ -101,11 +101,16 @@ export const GET = withPermission("schedules:read", async (request, _user) => {
           select: {
             id: true,
             folio: true,
-            assignedTo: {
+            assignees: {
+              where: { active: true },
               select: {
-                id: true,
-                name: true,
-                email: true,
+                user: {
+                  select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                  },
+                },
               },
             },
             status: true,

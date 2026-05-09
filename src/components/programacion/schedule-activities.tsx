@@ -1,6 +1,7 @@
 "use client";
 
 import { Search } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -81,6 +82,7 @@ export function ScheduleActivities({
   dateRange,
   selectedSchedule,
 }: ScheduleActivitiesProps) {
+  const router = useRouter();
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [incidentTypes, setIncidentTypes] = useState<IncidentType[]>([]);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
@@ -356,6 +358,9 @@ export function ScheduleActivities({
                       <TableRow
                         key={incident.id}
                         className="cursor-pointer hover:bg-muted/50"
+                        onClick={() =>
+                          router.push(`/admin/incidents/${incident.id}/edit`)
+                        }
                       >
                         <TableCell className="font-medium">
                           {incident.title}

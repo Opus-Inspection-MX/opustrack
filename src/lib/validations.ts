@@ -50,11 +50,15 @@ export type IncidentFormData = z.infer<typeof incidentSchema>;
 // Assignment validation
 export const assignmentSchema = z.object({
   incidentId: z.string().min(1, "Incident is required"),
-  assignedToId: z.string().min(1, "Assignee is required"),
+  assigneeIds: z.array(z.string().min(1)).optional(),
   status: z.enum(["PENDING", "IN_PROGRESS", "COMPLETED", "CANCELLED"]),
   notes: z
     .string()
     .max(2000, "Notes must be less than 2000 characters")
+    .optional(),
+  odtFolio: z
+    .string()
+    .max(100, "ODT folio must be at most 100 characters")
     .optional(),
   startedAt: z.string().optional(),
   finishedAt: z.string().optional(),

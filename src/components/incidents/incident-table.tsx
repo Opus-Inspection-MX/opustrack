@@ -67,7 +67,7 @@ interface AssignedUser {
 interface TableAssignment {
   id: string;
   status?: AssignmentStatus | null;
-  assignedTo: AssignedUser;
+  assignees: Array<{ user: AssignedUser }>;
   startedAt?: string | null;
   finishedAt?: string | null;
 }
@@ -305,7 +305,10 @@ export function IncidentTable({ incidents, onDelete }: IncidentTableProps) {
                                       OT #{assignment.id}
                                     </div>
                                     <div className="text-sm text-muted-foreground">
-                                      Asignado a: {assignment.assignedTo.name}
+                                      Asignado a:{" "}
+                                      {assignment.assignees
+                                        .map((a) => a.user.name)
+                                        .join(", ") || "Sin asignar"}
                                     </div>
                                   </div>
                                   <div className="text-sm">

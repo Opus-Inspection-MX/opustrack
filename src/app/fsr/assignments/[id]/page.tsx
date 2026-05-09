@@ -18,6 +18,7 @@ import { useCallback, useEffect, useState } from "react";
 import { AssignmentActivityEdit } from "@/components/assignments/assignment-activity-edit";
 import { AssignmentActivityForm } from "@/components/assignments/assignment-activity-form";
 import { AttachmentPreview } from "@/components/assignments/attachment-preview";
+import { OdtFolioCapture } from "@/components/assignments/odt-folio-capture";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -61,6 +62,7 @@ interface AssignmentIncident {
 interface FSRAssignment {
   id: string;
   folio: number;
+  odtFolio?: string | null;
   notes?: string | null;
   status?: AssignmentStatus | null;
   startedAt?: Date | string | null;
@@ -482,6 +484,17 @@ export default function FSRAssignmentDetailPage({
       </Card>
 
       <Separator />
+
+      {assignmentId && (
+        <OdtFolioCapture
+          assignmentId={assignmentId}
+          initialValue={assignment.odtFolio || null}
+          disabled={isCompleted}
+          onChange={(v) =>
+            setAssignment((prev) => (prev ? { ...prev, odtFolio: v } : prev))
+          }
+        />
+      )}
 
       {/* Work Activities Section */}
       <div className="space-y-4">
