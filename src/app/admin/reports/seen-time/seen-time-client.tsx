@@ -1,6 +1,6 @@
 "use client";
 
-import { Lock, LockOpen, Timer } from "lucide-react";
+import { Eye, EyeOff, Timer } from "lucide-react";
 import { useState, useTransition } from "react";
 import {
   BarChart,
@@ -19,17 +19,17 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import type { UnlockTimeData, UnlockTimeSummary } from "@/lib/actions/reports";
-import { getUnlockTimeData } from "@/lib/actions/reports";
+import type { SeenTimeData, SeenTimeSummary } from "@/lib/actions/reports";
+import { getSeenTimeData } from "@/lib/actions/reports";
 
-interface UnlockTimeClientProps {
+interface SeenTimeClientProps {
   initialData: {
-    assignments: UnlockTimeData[];
-    summary: UnlockTimeSummary;
+    assignments: SeenTimeData[];
+    summary: SeenTimeSummary;
   };
 }
 
-export function UnlockTimeClient({ initialData }: UnlockTimeClientProps) {
+export function SeenTimeClient({ initialData }: SeenTimeClientProps) {
   const [isPending, startTransition] = useTransition();
   const [data, setData] = useState(initialData.assignments);
   const [summary, setSummary] = useState(initialData.summary);
@@ -49,7 +49,7 @@ export function UnlockTimeClient({ initialData }: UnlockTimeClientProps) {
     setEndDate(newEndDate);
 
     startTransition(async () => {
-      const result = await getUnlockTimeData({
+      const result = await getSeenTimeData({
         startDate: newStartDate,
         endDate: newEndDate,
       });
@@ -59,15 +59,15 @@ export function UnlockTimeClient({ initialData }: UnlockTimeClientProps) {
   };
 
   // Prepare chart data
-  const unlockDistribution = [
-    { name: "Desbloqueado", value: summary.unlockedCount },
-    { name: "Pendiente", value: summary.pendingUnlockCount },
+  const seenDistribution = [
+    { name: "Vista", value: summary.seenCount },
+    { name: "Pendiente", value: summary.pendingSeenCount },
   ].filter((d) => d.value > 0);
 
   const fsrChartData = summary.byFSR.map((fsr) => ({
     name: fsr.fsrName.split(" ")[0], // First name only
-    Desbloqueados: fsr.unlocked,
-    Pendientes: fsr.totalAssigned - fsr.unlocked,
+    Vistas: fsr.seen,
+    Pendientes: fsr.totalAssigned - fsr.seen,
     "Tiempo Promedio": fsr.avgTimeMinutes,
   }));
 
@@ -110,10 +110,10 @@ export function UnlockTimeClient({ initialData }: UnlockTimeClientProps) {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">
-            Tiempo de Desbloqueo
+            Tiempo de Visualización
           </h1>
           <p className="text-muted-foreground mt-1">
-            Analisis del tiempo que toman los FSR en reconocer y desbloquear
+            Análisis del tiempo que toman los FSR en marcar como vistas las
             asignaciones.
           </p>
         </div>
@@ -124,8 +124,8 @@ export function UnlockTimeClient({ initialData }: UnlockTimeClientProps) {
             onDateChange={handleDateChange}
           />
           <PDFExportButton
-            reportTitle="Tiempo de Desbloqueo"
-            reportId="unlock-time"
+            reportTitle="Tiempo de Visualización"
+            reportId="seen-time"
           />
         </div>
       </div>
@@ -139,43 +139,43 @@ export function UnlockTimeClient({ initialData }: UnlockTimeClientProps) {
       {/* Summary Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
-          title="Tasa de Desbloqueo"
-          value={`${summary.unlockRate.toFixed(1)}%`}
-          description="Ordenes reconocidas"
-          icon={LockOpen}
+          title="Tasa de Visualización"
+          value={`${summary.seenRate.toFixed(1)}%`}
+          description="Asignaciones vistas"
+          icon={Eye}
         />
         <StatCard
-          title="Desbloqueados"
-          value={summary.unlockedCount}
+          title="Vistas"
+          value={summary.seenCount}
           description={`de ${summary.totalAssignments} asignaciones`}
-          icon={LockOpen}
+          icon={Eye}
         />
         <StatCard
           title="Tiempo Promedio"
-          value={formatTime(summary.avgTimeToUnlock)}
-          description="Para desbloquear"
+          value={formatTime(summary.avgTimeToSeen)}
+          description="Para visualizar"
           icon={Timer}
         />
         <StatCard
           title="Tiempo Mediana"
-          value={formatTime(summary.medianTimeToUnlock)}
+          value={formatTime(summary.medianTimeToSeen)}
           description="Valor central"
           icon={Timer}
         />
       </div>
 
-      {/* Warning for pending unlocks */}
-      {summary.pendingUnlockCount > 0 && (
+      {/* Warning for pending views */}
+      {summary.pendingSeenCount > 0 && (
         <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
           <div className="flex items-start gap-3">
-            <Lock className="h-5 w-5 text-amber-600 mt-0.5" />
+            <EyeOff className="h-5 w-5 text-amber-600 mt-0.5" />
             <div>
               <h3 className="font-semibold text-amber-800 dark:text-amber-200">
-                Ordenes Pendientes de Desbloqueo
+                Asignaciones pendientes de visualizar
               </h3>
               <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
-                Hay {summary.pendingUnlockCount} asignaciones que aun no han
-                sido reconocidas por los FSR asignados.
+                Hay {summary.pendingSeenCount} asignaciones que aún no han sido
+                vistas por los FSR asignados.
               </p>
             </div>
           </div>
@@ -185,12 +185,12 @@ export function UnlockTimeClient({ initialData }: UnlockTimeClientProps) {
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <ChartCard
-          title="Estado de Desbloqueo"
-          description="Distribucion de asignaciones desbloqueadas vs pendientes"
+          title="Estado de visualización"
+          description="Distribución de asignaciones vistas vs pendientes"
         >
-          {unlockDistribution.length > 0 ? (
+          {seenDistribution.length > 0 ? (
             <PieChart
-              data={unlockDistribution}
+              data={seenDistribution}
               nameKey="name"
               valueKey="value"
               height={300}
@@ -203,19 +203,15 @@ export function UnlockTimeClient({ initialData }: UnlockTimeClientProps) {
         </ChartCard>
 
         <ChartCard
-          title="Desbloqueos por FSR"
-          description="Comparativa de desbloqueos por tecnico"
+          title="Visualizaciones por FSR"
+          description="Comparativa de asignaciones vistas por técnico"
         >
           {fsrChartData.length > 0 ? (
             <BarChart
               data={fsrChartData}
               xAxisKey="name"
               bars={[
-                {
-                  dataKey: "Desbloqueados",
-                  name: "Desbloqueados",
-                  color: "#10B981",
-                },
+                { dataKey: "Vistas", name: "Vistas", color: "#10B981" },
                 { dataKey: "Pendientes", name: "Pendientes", color: "#F59E0B" },
               ]}
               height={300}
@@ -231,8 +227,8 @@ export function UnlockTimeClient({ initialData }: UnlockTimeClientProps) {
       {/* FSR Time Comparison */}
       {fsrTimeChartData.length > 0 && (
         <ChartCard
-          title="Tiempo Promedio por FSR"
-          description="Tiempo promedio de desbloqueo por cada tecnico"
+          title="Tiempo promedio por FSR"
+          description="Tiempo promedio para marcar como vista por técnico"
         >
           <BarChart
             data={fsrTimeChartData}
@@ -247,7 +243,7 @@ export function UnlockTimeClient({ initialData }: UnlockTimeClientProps) {
       {/* FSR Summary Table */}
       <ChartCard
         title="Rendimiento por FSR"
-        description="Detalle de tiempos de desbloqueo por tecnico"
+        description="Detalle de tiempos de visualización por técnico"
       >
         <div className="overflow-x-auto">
           <Table>
@@ -255,9 +251,9 @@ export function UnlockTimeClient({ initialData }: UnlockTimeClientProps) {
               <TableRow>
                 <TableHead>FSR</TableHead>
                 <TableHead className="text-right">Asignadas</TableHead>
-                <TableHead className="text-right">Desbloqueadas</TableHead>
-                <TableHead className="text-right">% Desbloqueo</TableHead>
-                <TableHead className="text-right">Tiempo Promedio</TableHead>
+                <TableHead className="text-right">Vistas</TableHead>
+                <TableHead className="text-right">% Vistas</TableHead>
+                <TableHead className="text-right">Tiempo promedio</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -268,11 +264,11 @@ export function UnlockTimeClient({ initialData }: UnlockTimeClientProps) {
                     {fsr.totalAssigned}
                   </TableCell>
                   <TableCell className="text-right text-green-600">
-                    {fsr.unlocked}
+                    {fsr.seen}
                   </TableCell>
                   <TableCell className="text-right font-medium">
                     {fsr.totalAssigned > 0
-                      ? ((fsr.unlocked / fsr.totalAssigned) * 100).toFixed(1)
+                      ? ((fsr.seen / fsr.totalAssigned) * 100).toFixed(1)
                       : 0}
                     %
                   </TableCell>
@@ -300,8 +296,8 @@ export function UnlockTimeClient({ initialData }: UnlockTimeClientProps) {
 
       {/* Detailed Data Table */}
       <ChartCard
-        title="Detalle de Ordenes"
-        description="Todas las asignaciones con su tiempo de desbloqueo"
+        title="Detalle de asignaciones"
+        description="Todas las asignaciones con su tiempo de visualización"
       >
         <div className="overflow-x-auto">
           <Table>
@@ -311,7 +307,7 @@ export function UnlockTimeClient({ initialData }: UnlockTimeClientProps) {
                 <TableHead>Incidente</TableHead>
                 <TableHead>FSR</TableHead>
                 <TableHead>Asignada</TableHead>
-                <TableHead>Desbloqueada</TableHead>
+                <TableHead>Vista</TableHead>
                 <TableHead className="text-right">Tiempo</TableHead>
                 <TableHead>Estado</TableHead>
               </TableRow>
@@ -330,25 +326,25 @@ export function UnlockTimeClient({ initialData }: UnlockTimeClientProps) {
                     {formatDateTime(wo.assignedAt)}
                   </TableCell>
                   <TableCell className="text-sm">
-                    {formatDateTime(wo.unlockedAt)}
+                    {formatDateTime(wo.seenAt)}
                   </TableCell>
                   <TableCell
-                    className={`text-right font-medium ${getTimeColor(wo.timeToUnlockMinutes)}`}
+                    className={`text-right font-medium ${getTimeColor(wo.timeToSeenMinutes)}`}
                   >
-                    {formatTime(wo.timeToUnlockMinutes)}
+                    {formatTime(wo.timeToSeenMinutes)}
                   </TableCell>
                   <TableCell>
-                    {wo.isUnlocked ? (
+                    {wo.isSeen ? (
                       <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
-                        <LockOpen className="h-3 w-3 mr-1" />
-                        Desbloqueado
+                        <Eye className="h-3 w-3 mr-1" />
+                        Vista
                       </Badge>
                     ) : (
                       <Badge
                         variant="outline"
                         className="border-amber-500 text-amber-700 dark:text-amber-300"
                       >
-                        <Lock className="h-3 w-3 mr-1" />
+                        <EyeOff className="h-3 w-3 mr-1" />
                         Pendiente
                       </Badge>
                     )}

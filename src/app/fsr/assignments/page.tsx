@@ -3,7 +3,7 @@ import {
   Calendar,
   CheckCircle,
   Clock,
-  Lock,
+  Eye,
   Wrench,
 } from "lucide-react";
 import Link from "next/link";
@@ -23,7 +23,7 @@ interface Assignment {
   id: string;
   startedAt?: Date | string | null;
   finishedAt?: Date | string | null;
-  unlockedAt?: Date | string | null;
+  seenAt?: Date | string | null;
   assignedAt?: Date | string | null;
   incident?: AssignmentIncident | null;
 }
@@ -35,10 +35,10 @@ export default async function FSRAssignmentsPage() {
   // Calculate stats
   const stats = {
     total: assignments.length,
-    pendingUnlock: assignments.filter((wo) => !wo.unlockedAt && !wo.finishedAt)
+    pendingSeen: assignments.filter((wo) => !wo.seenAt && !wo.finishedAt)
       .length,
     notStarted: assignments.filter(
-      (wo) => wo.unlockedAt && !wo.startedAt && !wo.finishedAt,
+      (wo) => wo.seenAt && !wo.startedAt && !wo.finishedAt,
     ).length,
     inProgress: assignments.filter((wo) => wo.startedAt && !wo.finishedAt)
       .length,
@@ -56,18 +56,17 @@ export default async function FSRAssignmentsPage() {
     if (assignment.startedAt) {
       return <Badge variant="secondary">En Progreso</Badge>;
     }
-    if (!assignment.unlockedAt) {
+    if (!assignment.seenAt) {
       return (
         <Badge
           variant="outline"
-          className="bg-yellow-50 text-yellow-700 border-yellow-300"
+          className="bg-cyan-50 text-cyan-700 border-cyan-300"
         >
-          <Lock className="h-3 w-3 mr-1" />
-          Pendiente de Desbloqueo
+          Pendiente de visualizar
         </Badge>
       );
     }
-    return <Badge variant="outline">No Iniciada</Badge>;
+    return <Badge variant="outline">No iniciada</Badge>;
   };
 
   const getPriorityColor = (priority: number) => {
@@ -101,13 +100,13 @@ export default async function FSRAssignmentsPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
-              Pend. Desbloqueo
+              Por visualizar
             </CardTitle>
-            <Lock className="h-4 w-4 text-yellow-500" />
+            <Eye className="h-4 w-4 text-cyan-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-yellow-600">
-              {stats.pendingUnlock}
+            <div className="text-2xl font-bold text-cyan-600">
+              {stats.pendingSeen}
             </div>
           </CardContent>
         </Card>
@@ -245,16 +244,16 @@ export default async function FSRAssignmentsPage() {
                       <Button
                         asChild
                         className={
-                          !wo.unlockedAt && !wo.finishedAt
-                            ? "bg-yellow-600 hover:bg-yellow-700"
+                          !wo.seenAt && !wo.finishedAt
+                            ? "bg-cyan-600 hover:bg-cyan-700"
                             : ""
                         }
                       >
                         <Link href={`/fsr/assignments/${wo.id}`}>
                           {wo.finishedAt
                             ? "Ver"
-                            : !wo.unlockedAt
-                              ? "Desbloquear"
+                            : !wo.seenAt
+                              ? "Marcar visto"
                               : "Trabajar"}
                         </Link>
                       </Button>

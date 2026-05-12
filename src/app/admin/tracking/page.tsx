@@ -49,7 +49,7 @@ interface TrackingAssignment {
   equipmentId?: number | null;
   startedAt?: Date | string | null;
   finishedAt?: Date | string | null;
-  unlockedAt?: Date | string | null;
+  seenAt?: Date | string | null;
   assignedAt?: Date | string | null;
   createdAt?: Date | string;
 }

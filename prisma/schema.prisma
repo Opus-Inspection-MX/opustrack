@@ -29,6 +29,7 @@ model User {
   updatedAt           DateTime                 @updatedAt
   assignmentAssignees AssignmentAssignee[] // Assignments this user is assigned to (M-N)
   incidentAssignees   IncidentAssignee[] // Incidents this user is enabled to work on (RF-025)
+  assignmentsSeen     Assignment[]             @relation("AssignmentSeenBy") // Assignments first acknowledged ("visto") by this user
   reportedIncidents   Incident[]               @relation("IncidentReporter")
   incidents           Incident[]               @relation("IncidentUser") // relación opcional si usas userId en Incident
   vehicleTrips        VehicleTrip[] // Vehicle trips driven by this FSR
@@ -306,8 +307,19 @@ model Assignment {
   odtFolio             String? // ODT folio captured from external system (RF-010)
   startedAt            DateTime?
   finishedAt           DateTime?
-  unlockedAt           DateTime? // When FSR acknowledged/unlocked the assignment
-  assignedAt           DateTime? // When assignment was assigned (for time-to-unlock calculation)
+  // Renamed from unlockedAt — "Visto" state machine: when FSR first acknowledged.
+  seenAt               DateTime?
+  seenById             String?
+  seenBy               User?                  @relation("AssignmentSeenBy", fields: [seenById], references: [id])
+  assignedAt           DateTime? // When assignment was assigned (for time-to-seen calculation)
+  // GPS captured when transitioning to INICIADO (start of on-site work)
+  startLatitude        Float?
+  startLongitude       Float?
+  startAddress         String?
+  // GPS captured when transitioning to CERRADO (end of on-site work)
+  endLatitude          Float?
+  endLongitude         Float?
+  endAddress           String?
   assignmentActivities AssignmentActivity[]
   attachments          AssignmentAttachment[]
   workParts            WorkPart[]
@@ -319,7 +331,8 @@ model Assignment {
   @@index([incidentId])
   @@index([statusId])
   @@index([active, createdAt]) // Compound index for active assignments ordered by date
-  @@index([unlockedAt]) // Optimize filtering by unlock status
+  @@index([seenAt]) // Optimize filtering by seen status
+  @@index([seenById])
 }
 
 model AssignmentAssignee {

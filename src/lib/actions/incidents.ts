@@ -9,6 +9,7 @@ import {
   getVicWhereClause,
 } from "@/lib/auth/filters";
 import { prisma } from "@/lib/database/prisma.singleton";
+import { INCIDENT_STATE, syncIncidentState } from "@/lib/state-machine";
 import { getPrimaryVicId } from "@/lib/utils/vic-assignments";
 import {
   BulkIncidentRowSchema,
@@ -177,6 +178,18 @@ export async function createIncident(data: unknown) {
   // Validate input
   const validated = IncidentCreateSchema.parse(data);
 
+  // State machine: every new incident starts at ABIERTO. Any caller-provided
+  // statusId is ignored so the flow can't be skipped.
+  const openStatus = await prisma.incidentStatus.findUnique({
+    where: { name: INCIDENT_STATE.ABIERTO },
+    select: { id: true },
+  });
+  if (!openStatus) {
+    throw new Error(
+      `IncidentStatus '${INCIDENT_STATE.ABIERTO}' no existe en el catálogo`,
+    );
+  }
+
   const incident = await prisma.incident.create({
     data: {
       title: validated.title,
@@ -184,11 +197,11 @@ export async function createIncident(data: unknown) {
       priority: validated.priority,
       sla: validated.sla,
       typeId: validated.typeId || null,
-      statusId: validated.statusId || null,
+      statusId: openStatus.id,
       vicId: validated.vicId || null,
       scheduleId: validated.scheduleId || null,
-      reportedById: validated.reportedById || user.id, // Use current user if not specified
-      resolvedAt: validated.resolvedAt || null,
+      reportedById: validated.reportedById || user.id,
+      resolvedAt: null,
     },
     include: {
       type: true,
@@ -225,11 +238,11 @@ export async function createIncidentAsClient(data: unknown) {
 
   // Get ABIERTO status
   const openStatus = await prisma.incidentStatus.findFirst({
-    where: { name: "ABIERTO" },
+    where: { name: INCIDENT_STATE.ABIERTO },
   });
 
   if (!openStatus) {
-    throw new Error("Estado ABIERTO no encontrado");
+    throw new Error(`Estado ${INCIDENT_STATE.ABIERTO} no encontrado`);
   }
 
   // Client must have a VIC assigned
@@ -328,6 +341,7 @@ export async function updateIncident(id: number, data: IncidentFormData) {
 
   assertVicAccess(user, existing.vicId);
 
+  // State machine owns statusId/resolvedAt — ignore any caller-provided values.
   const incident = await prisma.incident.update({
     where: { id },
     data: {
@@ -336,10 +350,8 @@ export async function updateIncident(id: number, data: IncidentFormData) {
       priority: data.priority,
       sla: data.sla,
       typeId: data.typeId || null,
-      statusId: data.statusId || null,
       vicId: data.vicId || null,
       scheduleId: data.scheduleId || null,
-      resolvedAt: data.resolvedAt || null,
     },
     include: {
       type: true,
@@ -442,90 +454,58 @@ export async function deleteIncident(id: number) {
 }
 
 /**
- * Close incident
- * Verifies user has access to the incident's VIC before closing
+ * Recompute and persist this incident's status from its assignments.
+ * Use this from admin UIs (e.g., "refresh status") — the incident state
+ * is always derived, never set manually.
  */
-export async function closeIncident(id: number) {
-  const user = await requirePermission("incidents:close");
-
-  // Verify access before closing
+export async function refreshIncidentStatus(id: number) {
+  const user = await requirePermission("incidents:update");
   const incident = await prisma.incident.findUnique({
     where: { id },
     select: { vicId: true },
   });
-
   if (!incident) {
     throw new Error("Incident not found");
   }
-
   assertVicAccess(user, incident.vicId);
 
-  // Get the CERRADO status
-  const closedStatus = await prisma.incidentStatus.findFirst({
-    where: { name: "CERRADO" },
-  });
-
-  if (!closedStatus) {
-    throw new Error("CERRADO status not found");
-  }
-
-  await prisma.incident.update({
-    where: { id },
-    data: {
-      statusId: closedStatus.id,
-      resolvedAt: new Date(),
-    },
-  });
-
-  revalidatePath("/admin/incidents");
-  revalidatePath(`/admin/incidents/${id}`);
-  return { success: true };
-}
-
-/**
- * Change incident status
- * Verifies user has access to the incident's VIC before changing status
- */
-export async function changeIncidentStatus(id: number, statusId: number) {
-  const user = await requirePermission("incidents:update");
-
-  // Verify access before status change
-  const existing = await prisma.incident.findUnique({
-    where: { id },
-    select: { vicId: true },
-  });
-
-  if (!existing) {
-    throw new Error("Incident not found");
-  }
-
-  assertVicAccess(user, existing.vicId);
-
-  const incident = await prisma.incident.update({
-    where: { id },
-    data: {
-      statusId,
-      resolvedAt: statusId === (await getClosedStatusId()) ? new Date() : null,
-    },
-    include: {
-      status: true,
-    },
-  });
+  const result = await syncIncidentState(id);
 
   revalidatePath("/admin/incidents");
   revalidatePath(`/admin/incidents/${id}`);
   revalidatePath("/fsr/incidents");
-  return { success: true, data: incident };
+  revalidatePath("/client/incidents");
+  return { success: true, before: result.before, after: result.after };
 }
 
 /**
- * Helper to get closed status ID
+ * Force-close an incident. Only succeeds if every assignment is already
+ * CERRADO — otherwise the sync will bring the status back automatically.
  */
-async function getClosedStatusId() {
-  const closedStatus = await prisma.incidentStatus.findFirst({
-    where: { name: "CERRADO" },
+export async function closeIncident(id: number) {
+  const user = await requirePermission("incidents:close");
+
+  const incident = await prisma.incident.findUnique({
+    where: { id },
+    select: { vicId: true },
   });
-  return closedStatus?.id || null;
+  if (!incident) {
+    throw new Error("Incident not found");
+  }
+  assertVicAccess(user, incident.vicId);
+
+  const result = await syncIncidentState(id);
+  if (result.after !== INCIDENT_STATE.CERRADO) {
+    throw new Error(
+      "No se puede cerrar la incidencia: aún tiene asignaciones abiertas",
+    );
+  }
+
+  revalidatePath("/admin/incidents");
+  revalidatePath(`/admin/incidents/${id}`);
+  revalidatePath("/fsr/incidents");
+  revalidatePath("/client/incidents");
+  return { success: true };
 }
 
 /**

@@ -5,6 +5,14 @@ import { redirect } from "next/navigation";
 import { requirePermission } from "@/lib/auth/auth";
 import { getVicWhereClause } from "@/lib/auth/filters";
 import { prisma } from "@/lib/database/prisma.singleton";
+import {
+  ASSIGNMENT_STATE,
+  type AssignmentState,
+  assertAssignmentPreconditions,
+  assertAssignmentTransition,
+  isAssignmentState,
+  syncIncidentState,
+} from "@/lib/state-machine";
 
 export type AssignmentFormData = {
   incidentId: number;
@@ -176,41 +184,80 @@ export async function getAssignmentById(id: string) {
 }
 
 /**
- * Create new assignment
+ * Resolve an AssignmentStatus id by name within a transaction (or default client).
+ * Throws if the catalog row is missing — state-machine code requires the seed
+ * to be present.
+ */
+async function resolveAssignmentStatusId(
+  client:
+    | typeof prisma
+    | Parameters<Parameters<typeof prisma.$transaction>[0]>[0],
+  name: AssignmentState,
+): Promise<number> {
+  const row = await client.assignmentStatus.findUnique({
+    where: { name },
+    select: { id: true },
+  });
+  if (!row) {
+    throw new Error(`AssignmentStatus '${name}' no existe en el catálogo`);
+  }
+  return row.id;
+}
+
+/**
+ * Create new assignment.
+ *
+ * Initial state: PENDIENTE_DE_ASIGNACION if no assignees, ASIGNADO otherwise.
+ * Caller-provided statusId is ignored — the state machine owns it.
  */
 export async function createAssignment(data: AssignmentFormData) {
   await requirePermission("assignments:create");
 
   const uniqueAssignees = Array.from(new Set(data.assigneeIds));
 
-  await assertAssigneesAuthorizedForIncident(data.incidentId, uniqueAssignees);
+  if (uniqueAssignees.length > 0) {
+    await assertAssigneesAuthorizedForIncident(
+      data.incidentId,
+      uniqueAssignees,
+    );
+  }
 
-  const assignment = await prisma.assignment.create({
-    data: {
-      incidentId: data.incidentId,
-      statusId: data.statusId || null,
-      notes: data.notes || null,
-      odtFolio: data.odtFolio?.trim() || null,
-      startedAt: data.startedAt || null,
-      finishedAt: data.finishedAt || null,
-      assignedAt: new Date(),
-      assignees: {
-        create: uniqueAssignees.map((userId) => ({ userId })),
+  const initialState =
+    uniqueAssignees.length === 0
+      ? ASSIGNMENT_STATE.PENDIENTE_DE_ASIGNACION
+      : ASSIGNMENT_STATE.ASIGNADO;
+
+  const assignment = await prisma.$transaction(async (tx) => {
+    const statusId = await resolveAssignmentStatusId(tx, initialState);
+    const created = await tx.assignment.create({
+      data: {
+        incidentId: data.incidentId,
+        statusId,
+        notes: data.notes || null,
+        odtFolio: data.odtFolio?.trim() || null,
+        assignedAt: uniqueAssignees.length > 0 ? new Date() : null,
+        assignees: {
+          create: uniqueAssignees.map((userId) => ({ userId })),
+        },
       },
-    },
-    include: {
-      incident: true,
-      ...assigneesInclude,
-      status: true,
-    },
+      include: {
+        incident: true,
+        ...assigneesInclude,
+        status: true,
+      },
+    });
+    await syncIncidentState(data.incidentId, tx);
+    return created;
   });
 
-  await notifyAssignees(uniqueAssignees, {
-    assignmentId: assignment.id,
-    incidentTitle: assignment.incident?.title,
-    title: "Nueva asignación",
-    message: `Se te ha asignado una nueva asignación${assignment.incident?.title ? ` para el incidente: ${assignment.incident.title}` : ""}`,
-  });
+  if (uniqueAssignees.length > 0) {
+    await notifyAssignees(uniqueAssignees, {
+      assignmentId: assignment.id,
+      incidentTitle: assignment.incident?.title,
+      title: "Nueva asignación",
+      message: `Se te ha asignado una nueva asignación${assignment.incident?.title ? ` para el incidente: ${assignment.incident.title}` : ""}`,
+    });
+  }
 
   revalidatePath("/admin/assignments");
   revalidatePath("/fsr/assignments");
@@ -268,20 +315,49 @@ export async function updateAssignment(id: string, data: AssignmentFormData) {
       });
     }
 
+    // Auto-transition status based on assignee changes (state machine).
+    let nextStatusId: number | undefined;
+    if (isReassignment) {
+      const current = await tx.assignment.findUnique({
+        where: { id },
+        select: { status: { select: { name: true } } },
+      });
+      const currentName = current?.status?.name;
+      const totalActive = existingIds.size + toAdd.length - toRemove.length;
+      if (totalActive === 0) {
+        // Last assignee removed → revert to PENDIENTE_DE_ASIGNACION (only if
+        // the assignment hasn't progressed past ASIGNADO).
+        if (
+          currentName === ASSIGNMENT_STATE.ASIGNADO ||
+          currentName === ASSIGNMENT_STATE.PENDIENTE_DE_ASIGNACION
+        ) {
+          nextStatusId = await resolveAssignmentStatusId(
+            tx,
+            ASSIGNMENT_STATE.PENDIENTE_DE_ASIGNACION,
+          );
+        }
+      } else if (currentName === ASSIGNMENT_STATE.PENDIENTE_DE_ASIGNACION) {
+        nextStatusId = await resolveAssignmentStatusId(
+          tx,
+          ASSIGNMENT_STATE.ASIGNADO,
+        );
+      }
+    }
+
     const assignment = await tx.assignment.update({
       where: { id },
       data: {
-        statusId: data.statusId || null,
         notes: data.notes || null,
         odtFolio:
           data.odtFolio === undefined
             ? undefined
             : data.odtFolio?.trim() || null,
-        startedAt: data.startedAt || null,
-        finishedAt: data.finishedAt || null,
+        ...(nextStatusId !== undefined && { statusId: nextStatusId }),
         ...(isReassignment && {
           assignedAt: new Date(),
-          unlockedAt: null,
+          // Reassignment resets "seen" — the new FSR must acknowledge again.
+          seenAt: null,
+          seenById: null,
         }),
       },
       include: {
@@ -290,6 +366,8 @@ export async function updateAssignment(id: string, data: AssignmentFormData) {
         status: true,
       },
     });
+
+    await syncIncidentState(assignment.incidentId, tx);
 
     return { assignment, toAdd };
   });
@@ -366,278 +444,320 @@ export async function deleteAssignment(id: string) {
   redirect("/admin/assignments");
 }
 
-/**
- * Complete assignment (FSR functionality)
- * Sets status to COMPLETADO and finishedAt timestamp
- * Auto-closes incident when all assignments are complete.
- */
-export async function completeAssignment(id: string, notes?: string) {
-  await requirePermission("assignments:complete");
+// ============================================================================
+// State machine actions
+// ============================================================================
 
-  const result = await prisma.$transaction(async (tx) => {
-    const activityCount = await tx.assignmentActivity.count({
-      where: { assignmentId: id, active: true },
-    });
-
-    if (activityCount === 0) {
-      throw new Error(
-        "No se puede completar la asignación sin actividades de trabajo documentadas",
-      );
-    }
-
-    const current = await tx.assignment.findUnique({
-      where: { id },
-      select: { odtFolio: true },
-    });
-
-    if (!current?.odtFolio?.trim()) {
-      throw new Error(
-        "No se puede finalizar la asignación sin un folio ODT registrado",
-      );
-    }
-
-    const completadoStatus = await tx.assignmentStatus.findFirst({
-      where: { name: "COMPLETADO" },
-    });
-
-    if (!completadoStatus) {
-      throw new Error("COMPLETADO status not found in database");
-    }
-
-    const assignment = await tx.assignment.update({
-      where: { id },
-      data: {
-        finishedAt: new Date(),
-        statusId: completadoStatus.id,
-        notes: notes || null,
-      },
-      include: {
-        incident: true,
-        ...assigneesInclude,
-        status: true,
-      },
-    });
-
-    const incidentAssignments = await tx.assignment.findMany({
-      where: {
-        incidentId: assignment.incidentId,
-        active: true,
-      },
-      include: { status: true },
-    });
-
-    const allCompleted = incidentAssignments.every(
-      (a) => a.finishedAt !== null || a.status?.name === "COMPLETADO",
-    );
-
-    let incidentAutoClosed = false;
-
-    if (allCompleted && incidentAssignments.length > 0) {
-      const cerradoStatus = await tx.incidentStatus.findFirst({
-        where: { name: "CERRADO" },
-      });
-
-      if (!cerradoStatus) {
-        throw new Error("CERRADO incident status not found in database");
-      }
-
-      await tx.incident.update({
-        where: { id: assignment.incidentId },
-        data: {
-          statusId: cerradoStatus.id,
-          resolvedAt: new Date(),
-        },
-      });
-      incidentAutoClosed = true;
-      console.log(
-        `[AUTO-CLOSE] Incident #${assignment.incidentId} auto-closed - all assignments completed`,
-      );
-    }
-
-    return {
-      assignment,
-      incidentAutoClosed,
-      incidentId: assignment.incidentId,
-    };
-  });
-
+function revalidateAssignmentPaths(assignmentId: string, incidentId: number) {
   revalidatePath("/fsr/assignments");
-  revalidatePath(`/fsr/assignments/${id}`);
+  revalidatePath(`/fsr/assignments/${assignmentId}`);
   revalidatePath("/admin/assignments");
-  revalidatePath(`/admin/assignments/${id}`);
-  if (result.incidentAutoClosed) {
-    revalidatePath(`/admin/incidents/${result.incidentId}`);
-    revalidatePath("/admin/incidents");
-    revalidatePath("/client/incidents");
-  }
-  return {
-    success: true,
-    data: result.assignment,
-    incidentAutoClosed: result.incidentAutoClosed,
-  };
+  revalidatePath(`/admin/assignments/${assignmentId}`);
+  revalidatePath(`/admin/incidents/${incidentId}`);
+  revalidatePath("/admin/incidents");
+  revalidatePath("/client/incidents");
+  revalidatePath("/admin/tracking");
 }
 
-/**
- * Start assignment (FSR functionality)
- * Sets status to EN_PROGRESO and startedAt timestamp
- */
-export async function startAssignment(id: string) {
-  await requirePermission("assignments:update");
-
-  const enProgresoStatus = await prisma.assignmentStatus.findFirst({
-    where: { name: "EN_PROGRESO" },
-  });
-
-  if (!enProgresoStatus) {
-    throw new Error("EN_PROGRESO assignment status not found in database");
-  }
-
-  const assignment = await prisma.assignment.update({
-    where: { id },
-    data: {
-      startedAt: new Date(),
-      statusId: enProgresoStatus.id,
-    },
-    include: {
-      incident: true,
-      ...assigneesInclude,
-      status: true,
-    },
-  });
-
-  revalidatePath("/fsr/assignments");
-  revalidatePath(`/fsr/assignments/${id}`);
-  revalidatePath("/admin/assignments");
-  return { success: true, data: assignment };
-}
-
-/**
- * Unlock/Acknowledge assignment (FSR functionality)
- * Any active assignee or admin can unlock.
- */
-export async function unlockAssignment(id: string) {
-  const user = await requirePermission("assignments:update");
-
-  const assignment = await prisma.assignment.findUnique({
+async function loadAssignmentForTransition(
+  client:
+    | typeof prisma
+    | Parameters<Parameters<typeof prisma.$transaction>[0]>[0],
+  id: string,
+) {
+  const assignment = await client.assignment.findUnique({
     where: { id },
     select: {
       id: true,
-      unlockedAt: true,
-      assignees: {
-        where: { active: true },
-        select: { userId: true },
-      },
+      incidentId: true,
+      status: { select: { name: true } },
+      assignees: { where: { active: true }, select: { userId: true } },
     },
   });
-
-  if (!assignment) {
-    throw new Error("Assignment not found");
+  if (!assignment) throw new Error("Asignación no encontrada");
+  if (!assignment.status?.name || !isAssignmentState(assignment.status.name)) {
+    throw new Error(
+      `Estado actual de la asignación inválido: '${assignment.status?.name ?? "(ninguno)"}'`,
+    );
   }
+  return assignment;
+}
 
-  if (assignment.unlockedAt) {
-    return { success: true, alreadyUnlocked: true };
-  }
-
+async function ensureCallerIsAssigneeOrAdmin(
+  callerId: string,
+  assignees: { userId: string }[],
+): Promise<boolean> {
+  const isAssignee = assignees.some((a) => a.userId === callerId);
+  if (isAssignee) return true;
   const userWithRole = await prisma.user.findUnique({
-    where: { id: user.id },
+    where: { id: callerId },
     include: { role: true },
   });
-
-  const isAssignee = assignment.assignees.some((a) => a.userId === user.id);
-  if (userWithRole?.role?.name !== "ADMINISTRADOR" && !isAssignee) {
-    throw new Error("Only an assigned FSR can unlock this assignment");
-  }
-
-  const updatedAssignment = await prisma.assignment.update({
-    where: { id },
-    data: {
-      unlockedAt: new Date(),
-    },
-    include: {
-      incident: true,
-      ...assigneesInclude,
-      status: true,
-    },
-  });
-
-  revalidatePath("/fsr/assignments");
-  revalidatePath(`/fsr/assignments/${id}`);
-  revalidatePath("/admin/assignments");
-  revalidatePath(`/admin/assignments/${id}`);
-  revalidatePath("/admin/tracking");
-
-  return { success: true, data: updatedAssignment };
+  if (userWithRole?.role?.name === "ADMINISTRADOR") return true;
+  throw new Error(
+    "Solo un FSR asignado o un administrador puede ejecutar esta acción",
+  );
 }
 
 /**
- * Reopen assignment (FSR functionality)
- * Sets status to PENDIENTE and clears finishedAt timestamp
- * Also reopens incident if it was auto-closed
+ * Mark assignment as "seen" (replaces the legacy unlock flow).
+ * Sets seenAt + seenById and transitions status to VISTO.
+ */
+export async function markAssignmentSeen(id: string) {
+  const user = await requirePermission("assignments:update");
+
+  const result = await prisma.$transaction(async (tx) => {
+    const current = await loadAssignmentForTransition(tx, id);
+    await ensureCallerIsAssigneeOrAdmin(user.id, current.assignees);
+    const from = current.status?.name as AssignmentState;
+    if (from === ASSIGNMENT_STATE.VISTO) {
+      return { assignment: null, incidentId: current.incidentId, noop: true };
+    }
+    assertAssignmentTransition(from, ASSIGNMENT_STATE.VISTO);
+    const statusId = await resolveAssignmentStatusId(
+      tx,
+      ASSIGNMENT_STATE.VISTO,
+    );
+    const updated = await tx.assignment.update({
+      where: { id },
+      data: {
+        statusId,
+        seenAt: new Date(),
+        seenById: user.id,
+      },
+      include: { incident: true, ...assigneesInclude, status: true },
+    });
+    await syncIncidentState(current.incidentId, tx);
+    return { assignment: updated, incidentId: current.incidentId, noop: false };
+  });
+
+  revalidateAssignmentPaths(id, result.incidentId);
+  return { success: true, data: result.assignment, noop: result.noop };
+}
+
+/**
+ * Start on-site work — transitions VISTO → INICIADO.
+ *
+ * Required FormData fields:
+ *  - assignmentId: string
+ *  - latitude: number
+ *  - longitude: number
+ *  - address: string (optional)
+ */
+export async function startAssignmentWork(formData: FormData) {
+  const user = await requirePermission("assignments:update");
+
+  const id = formData.get("assignmentId");
+  const lat = Number(formData.get("latitude"));
+  const lng = Number(formData.get("longitude"));
+  const address = formData.get("address");
+
+  if (typeof id !== "string" || id.trim() === "") {
+    throw new Error("assignmentId requerido");
+  }
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+    throw new Error("Ubicación GPS inválida");
+  }
+
+  const result = await prisma.$transaction(async (tx) => {
+    const current = await loadAssignmentForTransition(tx, id);
+    await ensureCallerIsAssigneeOrAdmin(user.id, current.assignees);
+    const from = current.status?.name as AssignmentState;
+    assertAssignmentTransition(from, ASSIGNMENT_STATE.INICIADO);
+
+    const now = new Date();
+    assertAssignmentPreconditions(ASSIGNMENT_STATE.INICIADO, {
+      startedAt: now,
+      finishedAt: null,
+      startLatitude: lat,
+      startLongitude: lng,
+      endLatitude: null,
+      endLongitude: null,
+      attachmentCount: 0,
+    });
+
+    const statusId = await resolveAssignmentStatusId(
+      tx,
+      ASSIGNMENT_STATE.INICIADO,
+    );
+    const updated = await tx.assignment.update({
+      where: { id },
+      data: {
+        statusId,
+        startedAt: now,
+        startLatitude: lat,
+        startLongitude: lng,
+        startAddress:
+          typeof address === "string" && address.trim() !== ""
+            ? address.trim()
+            : null,
+      },
+      include: { incident: true, ...assigneesInclude, status: true },
+    });
+    await syncIncidentState(current.incidentId, tx);
+    return { assignment: updated, incidentId: current.incidentId };
+  });
+
+  revalidateAssignmentPaths(id, result.incidentId);
+  return { success: true, data: result.assignment };
+}
+
+/**
+ * INICIADO → PENDIENTE (pause on-site work; awaiting validation or partial).
+ */
+export async function markAssignmentPending(id: string) {
+  const user = await requirePermission("assignments:update");
+  const result = await prisma.$transaction(async (tx) => {
+    const current = await loadAssignmentForTransition(tx, id);
+    await ensureCallerIsAssigneeOrAdmin(user.id, current.assignees);
+    const from = current.status?.name as AssignmentState;
+    assertAssignmentTransition(from, ASSIGNMENT_STATE.PENDIENTE);
+    const statusId = await resolveAssignmentStatusId(
+      tx,
+      ASSIGNMENT_STATE.PENDIENTE,
+    );
+    const updated = await tx.assignment.update({
+      where: { id },
+      data: { statusId },
+      include: { incident: true, ...assigneesInclude, status: true },
+    });
+    await syncIncidentState(current.incidentId, tx);
+    return { assignment: updated, incidentId: current.incidentId };
+  });
+  revalidateAssignmentPaths(id, result.incidentId);
+  return { success: true, data: result.assignment };
+}
+
+/**
+ * PENDIENTE → INICIADO (resume work).
+ */
+export async function markAssignmentInProgress(id: string) {
+  const user = await requirePermission("assignments:update");
+  const result = await prisma.$transaction(async (tx) => {
+    const current = await loadAssignmentForTransition(tx, id);
+    await ensureCallerIsAssigneeOrAdmin(user.id, current.assignees);
+    const from = current.status?.name as AssignmentState;
+    assertAssignmentTransition(from, ASSIGNMENT_STATE.INICIADO);
+    const statusId = await resolveAssignmentStatusId(
+      tx,
+      ASSIGNMENT_STATE.INICIADO,
+    );
+    const updated = await tx.assignment.update({
+      where: { id },
+      data: { statusId },
+      include: { incident: true, ...assigneesInclude, status: true },
+    });
+    await syncIncidentState(current.incidentId, tx);
+    return { assignment: updated, incidentId: current.incidentId };
+  });
+  revalidateAssignmentPaths(id, result.incidentId);
+  return { success: true, data: result.assignment };
+}
+
+/**
+ * Close assignment — transitions INICIADO/PENDIENTE → CERRADO.
+ * Requires: end GPS + at least one active attachment (evidence).
+ * Does NOT require ODT folio (per business rule).
+ *
+ * Required FormData fields:
+ *  - assignmentId: string
+ *  - latitude: number
+ *  - longitude: number
+ *  - address: string (optional)
+ *  - notes: string (optional)
+ */
+export async function closeAssignment(formData: FormData) {
+  const user = await requirePermission("assignments:complete");
+
+  const id = formData.get("assignmentId");
+  const lat = Number(formData.get("latitude"));
+  const lng = Number(formData.get("longitude"));
+  const address = formData.get("address");
+  const notes = formData.get("notes");
+
+  if (typeof id !== "string" || id.trim() === "") {
+    throw new Error("assignmentId requerido");
+  }
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+    throw new Error("Ubicación GPS final inválida");
+  }
+
+  const result = await prisma.$transaction(async (tx) => {
+    const current = await loadAssignmentForTransition(tx, id);
+    await ensureCallerIsAssigneeOrAdmin(user.id, current.assignees);
+    const from = current.status?.name as AssignmentState;
+    assertAssignmentTransition(from, ASSIGNMENT_STATE.CERRADO);
+
+    const attachmentCount = await tx.assignmentAttachment.count({
+      where: { assignmentId: id, active: true },
+    });
+    const now = new Date();
+    assertAssignmentPreconditions(ASSIGNMENT_STATE.CERRADO, {
+      startedAt: null,
+      finishedAt: now,
+      startLatitude: null,
+      startLongitude: null,
+      endLatitude: lat,
+      endLongitude: lng,
+      attachmentCount,
+    });
+
+    const statusId = await resolveAssignmentStatusId(
+      tx,
+      ASSIGNMENT_STATE.CERRADO,
+    );
+    const updated = await tx.assignment.update({
+      where: { id },
+      data: {
+        statusId,
+        finishedAt: now,
+        endLatitude: lat,
+        endLongitude: lng,
+        endAddress:
+          typeof address === "string" && address.trim() !== ""
+            ? address.trim()
+            : null,
+        notes:
+          typeof notes === "string" && notes.trim() !== ""
+            ? notes.trim()
+            : undefined,
+      },
+      include: { incident: true, ...assigneesInclude, status: true },
+    });
+    await syncIncidentState(current.incidentId, tx);
+    return { assignment: updated, incidentId: current.incidentId };
+  });
+
+  revalidateAssignmentPaths(id, result.incidentId);
+  return { success: true, data: result.assignment };
+}
+
+/**
+ * Reopen a closed assignment back to PENDIENTE. Admins only via permission.
  */
 export async function reopenAssignment(id: string) {
   await requirePermission("assignments:update");
-
   const result = await prisma.$transaction(async (tx) => {
-    const pendienteStatus = await tx.assignmentStatus.findFirst({
-      where: { name: "PENDIENTE" },
-    });
-
-    if (!pendienteStatus) {
-      throw new Error("PENDIENTE assignment status not found in database");
-    }
-
-    const enProgresoStatus = await tx.incidentStatus.findFirst({
-      where: { name: "EN_PROGRESO" },
-    });
-
-    const assignment = await tx.assignment.update({
+    const current = await loadAssignmentForTransition(tx, id);
+    const from = current.status?.name as AssignmentState;
+    assertAssignmentTransition(from, ASSIGNMENT_STATE.PENDIENTE);
+    const statusId = await resolveAssignmentStatusId(
+      tx,
+      ASSIGNMENT_STATE.PENDIENTE,
+    );
+    const updated = await tx.assignment.update({
       where: { id },
       data: {
+        statusId,
         finishedAt: null,
-        statusId: pendienteStatus.id,
       },
-      include: {
-        incident: {
-          include: { status: true },
-        },
-        ...assigneesInclude,
-        status: true,
-      },
+      include: { incident: true, ...assigneesInclude, status: true },
     });
-
-    let incidentReopened = false;
-
-    if (assignment.incident.status?.name === "CERRADO" && enProgresoStatus) {
-      await tx.incident.update({
-        where: { id: assignment.incidentId },
-        data: {
-          statusId: enProgresoStatus.id,
-          resolvedAt: null,
-        },
-      });
-      incidentReopened = true;
-      console.log(
-        `[REOPEN] Incident #${assignment.incidentId} reopened - assignment #${id} reopened`,
-      );
-    }
-
-    return { assignment, incidentReopened, incidentId: assignment.incidentId };
+    await syncIncidentState(current.incidentId, tx);
+    return { assignment: updated, incidentId: current.incidentId };
   });
-
-  revalidatePath("/fsr/assignments");
-  revalidatePath(`/fsr/assignments/${id}`);
-  revalidatePath("/admin/assignments");
-  revalidatePath(`/admin/assignments/${id}`);
-  if (result.incidentReopened) {
-    revalidatePath(`/admin/incidents/${result.incidentId}`);
-    revalidatePath("/admin/incidents");
-    revalidatePath("/client/incidents");
-  }
-  return {
-    success: true,
-    data: result.assignment,
-    incidentReopened: result.incidentReopened,
-  };
+  revalidateAssignmentPaths(id, result.incidentId);
+  return { success: true, data: result.assignment };
 }
 
 /**
@@ -872,43 +992,46 @@ export async function updateAssignmentOdtFolio(
 }
 
 /**
- * Update assignment status (FSR functionality)
+ * Generic status update for admin overrides — guarded by the state machine.
+ * Will reject any transition not allowed by assignment-machine.ts.
+ * Does NOT capture GPS — for transitions that require GPS (INICIADO, CERRADO)
+ * use startAssignmentWork() and closeAssignment() instead.
  */
 export async function updateAssignmentStatus(id: string, statusId: number) {
   await requirePermission("assignments:update");
 
-  const targetStatus = await prisma.assignmentStatus.findUnique({
-    where: { id: statusId },
-    select: { name: true },
-  });
-
-  if (targetStatus?.name === "COMPLETADO") {
-    const current = await prisma.assignment.findUnique({
-      where: { id },
-      select: { odtFolio: true },
+  const result = await prisma.$transaction(async (tx) => {
+    const target = await tx.assignmentStatus.findUnique({
+      where: { id: statusId },
+      select: { name: true },
     });
-    if (!current?.odtFolio?.trim()) {
+    if (!target?.name || !isAssignmentState(target.name)) {
       throw new Error(
-        "No se puede finalizar la asignación sin un folio ODT registrado",
+        `AssignmentStatus '${target?.name ?? statusId}' inválido`,
       );
     }
-  }
+    const current = await loadAssignmentForTransition(tx, id);
+    const from = current.status?.name as AssignmentState;
+    const to = target.name as AssignmentState;
+    assertAssignmentTransition(from, to);
 
-  const assignment = await prisma.assignment.update({
-    where: { id },
-    data: {
-      statusId,
-    },
-    include: {
-      incident: true,
-      ...assigneesInclude,
-      status: true,
-    },
+    // For state-machine-managed transitions that require GPS/timestamps,
+    // bail out early to force callers to use the dedicated actions.
+    if (to === ASSIGNMENT_STATE.INICIADO || to === ASSIGNMENT_STATE.CERRADO) {
+      throw new Error(
+        `Para transicionar a ${to} usa la acción dedicada (captura GPS requerida)`,
+      );
+    }
+
+    const updated = await tx.assignment.update({
+      where: { id },
+      data: { statusId },
+      include: { incident: true, ...assigneesInclude, status: true },
+    });
+    await syncIncidentState(current.incidentId, tx);
+    return { assignment: updated, incidentId: current.incidentId };
   });
 
-  revalidatePath("/fsr/assignments");
-  revalidatePath(`/fsr/assignments/${id}`);
-  revalidatePath("/admin/assignments");
-  revalidatePath(`/admin/assignments/${id}`);
-  return { success: true, data: assignment };
+  revalidateAssignmentPaths(id, result.incidentId);
+  return { success: true, data: result.assignment };
 }

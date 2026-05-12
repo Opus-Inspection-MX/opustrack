@@ -90,7 +90,7 @@ interface TrackingAssignment {
   equipmentId?: number | null;
   startedAt?: Date | string | null;
   finishedAt?: Date | string | null;
-  unlockedAt?: Date | string | null;
+  seenAt?: Date | string | null;
   assignedAt?: Date | string | null;
   createdAt?: Date | string;
 }
@@ -1312,7 +1312,7 @@ export function TrackingTable({
                                                       assignment.status.name
                                                     : "Sin estado"}
                                                 </Badge>
-                                                {assignment.unlockedAt ? (
+                                                {assignment.seenAt ? (
                                                   <Badge
                                                     variant="outline"
                                                     className="bg-green-50 text-green-700 border-green-300"

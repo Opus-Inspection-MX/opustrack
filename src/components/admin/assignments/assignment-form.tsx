@@ -13,13 +13,6 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { SearchableSelect } from "@/components/ui/searchable-select";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
   type AssignmentFormData,
@@ -55,22 +48,17 @@ export function AssignmentForm({
   assignment,
   incidents,
   users,
-  assignmentStatuses,
 }: AssignmentFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
 
-  // Find PENDIENTE status as default
-  const pendienteStatus = assignmentStatuses.find(
-    (status) => status.name === "PENDIENTE",
-  );
-
+  // Status is managed by the state machine, not picked here.
   const [formData, setFormData] = useState<AssignmentFormData>({
     incidentId: assignment?.incidentId || incidents[0]?.id || 0,
     assigneeIds: assignment?.assigneeIds || [],
-    statusId: assignment?.statusId || pendienteStatus?.id || null,
+    statusId: assignment?.statusId ?? null,
     notes: assignment?.notes || "",
   });
 
@@ -211,29 +199,12 @@ export function AssignmentForm({
             )}
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="statusId">Estado</Label>
-            <Select
-              value={formData.statusId?.toString() || ""}
-              onValueChange={(value) =>
-                setFormData({
-                  ...formData,
-                  statusId: value ? parseInt(value, 10) : null,
-                })
-              }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Seleccionar estado" />
-              </SelectTrigger>
-              <SelectContent>
-                {assignmentStatuses.map((status) => (
-                  <SelectItem key={status.id} value={status.id.toString()}>
-                    {status.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {/*
+           * Estado: el state machine lo administra automáticamente
+           * (PENDIENTE_DE_ASIGNACION → ASIGNADO al agregar el primer FSR;
+           * VISTO/INICIADO/PENDIENTE/CERRADO desde el detalle del FSR).
+           * No se permite editar manualmente desde aquí.
+           */}
 
           <div className="space-y-2">
             <Label htmlFor="notes">Notas</Label>

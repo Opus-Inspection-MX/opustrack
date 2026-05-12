@@ -30,12 +30,20 @@ export async function getDashboardStats() {
       },
     }),
 
-    // Open assignments
+    // Open assignments (not CERRADO)
     prisma.assignment.count({
       where: {
         active: true,
         status: {
-          name: { in: ["PENDIENTE", "ASIGNADO", "EN_PROGRESO"] },
+          name: {
+            in: [
+              "PENDIENTE_DE_ASIGNACION",
+              "ASIGNADO",
+              "VISTO",
+              "INICIADO",
+              "PENDIENTE",
+            ],
+          },
         },
       },
     }),
@@ -67,7 +75,7 @@ export async function getDashboardStats() {
       where: {
         active: true,
         status: {
-          name: { in: ["PENDIENTE", "ASIGNADO"] },
+          name: { in: ["PENDIENTE_DE_ASIGNACION", "ASIGNADO"] },
         },
       },
       include: {

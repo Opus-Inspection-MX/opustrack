@@ -962,34 +962,37 @@ async function main() {
       }
       console.log("✅ Seeded IncidentTypes");
 
-      // 8) IncidentStatuses
+      // 8) IncidentStatuses — state machine: ABIERTO → ASIGNADO → VISTO → INICIADO → CERRADO
       const incidentStatuses = [
-        { name: "ABIERTO", color: "#EF4444" }, // Red - requires immediate attention
-        { name: "PENDIENTE", color: "#F59E0B" }, // Amber - waiting/pending
-        { name: "EN_PROGRESO", color: "#3B82F6" }, // Blue - actively being worked on
-        { name: "CERRADO", color: "#10B981" }, // Green - completed
+        { name: "ABIERTO", color: "#94A3B8" }, // Slate - newly reported
+        { name: "ASIGNADO", color: "#8B5CF6" }, // Purple - has at least one assignment
+        { name: "VISTO", color: "#06B6D4" }, // Cyan - any assignment acknowledged
+        { name: "INICIADO", color: "#3B82F6" }, // Blue - work started on site
+        { name: "CERRADO", color: "#10B981" }, // Green - all assignments closed
       ];
       for (const status of incidentStatuses) {
         await tx.incidentStatus.upsert({
           where: { name: status.name },
-          update: { color: status.color },
+          update: { color: status.color, active: true },
           create: { name: status.name, color: status.color },
         });
       }
       console.log("✅ Seeded IncidentStatuses");
 
-      // 8a) AssignmentStatuses - Separate from IncidentStatus
+      // 8a) AssignmentStatuses — state machine:
+      //     PENDIENTE_DE_ASIGNACION → ASIGNADO → VISTO → INICIADO → { PENDIENTE | CERRADO }
       const assignmentStatuses = [
-        { name: "PENDIENTE", color: "#F59E0B" }, // Amber
-        { name: "ASIGNADO", color: "#8B5CF6" }, // Purple
-        { name: "EN_PROGRESO", color: "#3B82F6" }, // Blue
-        { name: "COMPLETADO", color: "#10B981" }, // Green
-        { name: "CANCELADO", color: "#EF4444" }, // Red
+        { name: "PENDIENTE_DE_ASIGNACION", color: "#94A3B8" }, // Slate - created without assignees
+        { name: "ASIGNADO", color: "#8B5CF6" }, // Purple - has assignee(s)
+        { name: "VISTO", color: "#06B6D4" }, // Cyan - FSR acknowledged
+        { name: "INICIADO", color: "#3B82F6" }, // Blue - on-site work in progress
+        { name: "PENDIENTE", color: "#F59E0B" }, // Amber - partial / awaiting validation
+        { name: "CERRADO", color: "#10B981" }, // Green - work finished
       ];
       for (const status of assignmentStatuses) {
         await tx.assignmentStatus.upsert({
           where: { name: status.name },
-          update: { color: status.color },
+          update: { color: status.color, active: true },
           create: { name: status.name, color: status.color },
         });
       }

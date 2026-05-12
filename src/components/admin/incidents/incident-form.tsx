@@ -261,30 +261,10 @@ export function IncidentForm({
               </Select>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="statusId">Estado</Label>
-              <Select
-                value={formData.statusId?.toString() || "none"}
-                onValueChange={(value) =>
-                  setFormData({
-                    ...formData,
-                    statusId: value === "none" ? null : parseInt(value, 10),
-                  })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar estado" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Sin estado</SelectItem>
-                  {statuses.map((status) => (
-                    <SelectItem key={status.id} value={status.id.toString()}>
-                      {status.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {/*
+             * El estado de la incidencia se deriva de sus asignaciones
+             * (state machine). No es editable manualmente desde aquí.
+             */}
 
             <div className="space-y-2">
               <Label htmlFor="vicId">Centro de Verificacion</Label>

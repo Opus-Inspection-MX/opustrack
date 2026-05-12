@@ -260,9 +260,9 @@ export default function EditAssignmentPage({
         </div>
         <Badge
           variant={
-            assignment.status?.name === "COMPLETADO"
+            assignment.status?.name === "CERRADO"
               ? "default"
-              : assignment.status?.name === "EN_PROGRESO"
+              : assignment.status?.name === "INICIADO"
                 ? "secondary"
                 : "outline"
           }

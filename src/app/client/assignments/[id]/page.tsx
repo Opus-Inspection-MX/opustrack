@@ -115,13 +115,13 @@ export default async function ClientAssignmentDetailPage({
             )}
             {getTimelineStep(
               "Recibida por FSR",
-              assignment.unlockedAt,
-              !!assignment.assignedAt && !assignment.unlockedAt,
+              assignment.seenAt,
+              !!assignment.assignedAt && !assignment.seenAt,
             )}
             {getTimelineStep(
               "Trabajo iniciado",
               assignment.startedAt,
-              !!assignment.unlockedAt && !assignment.startedAt,
+              !!assignment.seenAt && !assignment.startedAt,
             )}
             {getTimelineStep(
               "Completada",

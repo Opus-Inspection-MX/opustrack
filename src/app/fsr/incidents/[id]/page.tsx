@@ -41,11 +41,13 @@ export default async function FSRIncidentDetailPage({
   const getStatusColor = (statusName: string | undefined) => {
     switch (statusName) {
       case "ABIERTO":
-        return "bg-red-100 text-red-700 border-red-300";
-      case "EN_PROGRESO":
+        return "bg-slate-100 text-slate-700 border-slate-300";
+      case "ASIGNADO":
+        return "bg-purple-100 text-purple-700 border-purple-300";
+      case "VISTO":
+        return "bg-cyan-100 text-cyan-700 border-cyan-300";
+      case "INICIADO":
         return "bg-blue-100 text-blue-700 border-blue-300";
-      case "PENDIENTE":
-        return "bg-yellow-100 text-yellow-700 border-yellow-300";
       case "CERRADO":
         return "bg-green-100 text-green-700 border-green-300";
       default:

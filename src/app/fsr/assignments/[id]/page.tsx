@@ -5,12 +5,14 @@ import {
   AlertTriangle,
   ArrowLeft,
   CheckCircle,
-  Lock,
+  Eye,
+  MapPin,
   Package,
   Paperclip,
+  Pause,
   Play,
+  RotateCw,
   Trash2,
-  Unlock,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -29,12 +31,14 @@ import {
   getAssignmentActivities,
 } from "@/lib/actions/assignment-activities";
 import {
-  completeAssignment,
+  closeAssignment,
   deleteAssignmentAttachment,
   getAssignmentById,
+  markAssignmentInProgress,
+  markAssignmentPending,
+  markAssignmentSeen,
   reopenAssignment,
-  startAssignment,
-  unlockAssignment,
+  startAssignmentWork,
 } from "@/lib/actions/assignments";
 import { getWorkParts } from "@/lib/actions/work-parts";
 
@@ -67,7 +71,14 @@ interface FSRAssignment {
   status?: AssignmentStatus | null;
   startedAt?: Date | string | null;
   finishedAt?: Date | string | null;
-  unlockedAt?: Date | string | null;
+  seenAt?: Date | string | null;
+  seenBy?: { id: string; name: string } | null;
+  startLatitude?: number | null;
+  startLongitude?: number | null;
+  startAddress?: string | null;
+  endLatitude?: number | null;
+  endLongitude?: number | null;
+  endAddress?: string | null;
   assignedAt?: Date | string | null;
   createdAt?: Date | string | null;
   incident?: AssignmentIncident | null;
@@ -192,36 +203,127 @@ export default function FSRAssignmentDetailPage({
     fetchData();
   };
 
-  const handleStartWork = async () => {
-    if (!assignmentId) return;
+  // ---------- State machine handlers ----------
 
+  const captureGps = (): Promise<{
+    latitude: number;
+    longitude: number;
+  }> =>
+    new Promise((resolve, reject) => {
+      if (typeof navigator === "undefined" || !navigator.geolocation) {
+        reject(new Error("Geolocalización no disponible en este dispositivo"));
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(
+        (pos) =>
+          resolve({
+            latitude: pos.coords.latitude,
+            longitude: pos.coords.longitude,
+          }),
+        (err) => {
+          const messages: Record<number, string> = {
+            1: "Permiso de ubicación denegado",
+            2: "Ubicación no disponible",
+            3: "Tiempo de espera agotado al obtener la ubicación",
+          };
+          reject(new Error(messages[err.code] ?? err.message));
+        },
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
+      );
+    });
+
+  const handleMarkSeen = async () => {
+    if (!assignmentId) return;
     try {
       setActionLoading(true);
-      await startAssignment(assignmentId);
+      await markAssignmentSeen(assignmentId);
       await fetchData();
     } catch (error) {
-      console.error("Error starting asignación:", error);
-      alert("Error al iniciar la asignación");
+      console.error("Error marking asignación as seen:", error);
+      alert(
+        `Error al marcar como vista: ${(error as Error).message ?? "desconocido"}`,
+      );
     } finally {
       setActionLoading(false);
     }
   };
 
-  const handleCompleteWork = async () => {
+  const handleStartWork = async () => {
     if (!assignmentId) return;
-    if (
-      !confirm("¿Estás seguro de que deseas marcar esta orden como completada?")
-    )
-      return;
-
     try {
       setActionLoading(true);
-      await completeAssignment(assignmentId);
+      const { latitude, longitude } = await captureGps();
+      const fd = new FormData();
+      fd.append("assignmentId", assignmentId);
+      fd.append("latitude", String(latitude));
+      fd.append("longitude", String(longitude));
+      await startAssignmentWork(fd);
       await fetchData();
-      alert("¡Asignación completada exitosamente!");
     } catch (error) {
-      console.error("Error completing asignación:", error);
-      alert("Error al completar la asignación");
+      console.error("Error starting asignación:", error);
+      alert(
+        `No se pudo iniciar el trabajo: ${(error as Error).message ?? "error desconocido"}`,
+      );
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleMarkPending = async () => {
+    if (!assignmentId) return;
+    try {
+      setActionLoading(true);
+      await markAssignmentPending(assignmentId);
+      await fetchData();
+    } catch (error) {
+      console.error("Error pausing asignación:", error);
+      alert(
+        `Error al marcar como pendiente: ${(error as Error).message ?? "desconocido"}`,
+      );
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleResumeWork = async () => {
+    if (!assignmentId) return;
+    try {
+      setActionLoading(true);
+      await markAssignmentInProgress(assignmentId);
+      await fetchData();
+    } catch (error) {
+      console.error("Error resuming asignación:", error);
+      alert(
+        `Error al retomar el trabajo: ${(error as Error).message ?? "desconocido"}`,
+      );
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleCloseWork = async () => {
+    if (!assignmentId) return;
+    if (
+      !confirm(
+        "¿Cerrar esta asignación? Se capturará tu ubicación actual. Asegúrate de tener al menos una evidencia adjunta.",
+      )
+    )
+      return;
+    try {
+      setActionLoading(true);
+      const { latitude, longitude } = await captureGps();
+      const fd = new FormData();
+      fd.append("assignmentId", assignmentId);
+      fd.append("latitude", String(latitude));
+      fd.append("longitude", String(longitude));
+      await closeAssignment(fd);
+      await fetchData();
+      alert("¡Asignación cerrada exitosamente!");
+    } catch (error) {
+      console.error("Error closing asignación:", error);
+      alert(
+        `No se pudo cerrar la asignación: ${(error as Error).message ?? "error desconocido"}`,
+      );
     } finally {
       setActionLoading(false);
     }
@@ -229,32 +331,15 @@ export default function FSRAssignmentDetailPage({
 
   const handleReopenWork = async () => {
     if (!assignmentId) return;
-    if (!confirm("¿Estás seguro de que deseas reabrir esta asignación?"))
-      return;
-
+    if (!confirm("¿Reabrir esta asignación?")) return;
     try {
       setActionLoading(true);
       await reopenAssignment(assignmentId);
       await fetchData();
-      alert("¡Asignación reabierta exitosamente!");
+      alert("¡Asignación reabierta!");
     } catch (error) {
       console.error("Error reopening asignación:", error);
-      alert("Error al reabrir la asignación");
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const handleUnlock = async () => {
-    if (!assignmentId) return;
-
-    try {
-      setActionLoading(true);
-      await unlockAssignment(assignmentId);
-      await fetchData();
-    } catch (error) {
-      console.error("Error unlocking asignación:", error);
-      alert("Error al desbloquear la asignación");
+      alert(`Error al reabrir: ${(error as Error).message ?? "desconocido"}`);
     } finally {
       setActionLoading(false);
     }
@@ -312,10 +397,15 @@ export default function FSRAssignmentDetailPage({
     0,
   );
 
-  const canComplete = activities.length > 0 && !assignment.finishedAt;
-  const isCompleted = !!assignment.finishedAt;
-  const isStarted = !!assignment.startedAt;
-  const isUnlocked = !!assignment.unlockedAt;
+  const currentStatus = assignment.status?.name ?? "";
+  const isAssigned = currentStatus === "ASIGNADO";
+  const isSeen = currentStatus === "VISTO";
+  const isStarted = currentStatus === "INICIADO";
+  const isPending = currentStatus === "PENDIENTE";
+  const isClosed = currentStatus === "CERRADO";
+  // Activities and attachments are read-only once the assignment is closed.
+  const isCompleted = isClosed;
+  const hasEvidence = (assignment.attachments?.length ?? 0) > 0;
 
   return (
     <div className="space-y-6">
@@ -332,54 +422,96 @@ export default function FSRAssignmentDetailPage({
             {assignment.incident?.title || "Sin incidente"}
           </p>
         </div>
-        <div className="flex gap-2">
-          {/* Unlock Button - Shows when not unlocked */}
-          {!isUnlocked && !isCompleted && (
+        <div className="flex flex-wrap gap-2">
+          {/* ASIGNADO → VISTO */}
+          {isAssigned && (
             <Button
-              onClick={handleUnlock}
+              onClick={handleMarkSeen}
               disabled={actionLoading}
-              className="bg-yellow-600 hover:bg-yellow-700"
+              className="bg-cyan-600 hover:bg-cyan-700"
             >
-              <Unlock className="mr-2 h-4 w-4" />
-              Desbloquear / Confirmar
+              <Eye className="mr-2 h-4 w-4" />
+              Marcar como visto
             </Button>
           )}
-          {/* Start Work Button - Shows after unlock, before start */}
-          {isUnlocked && !isStarted && !isCompleted && (
+          {/* VISTO → INICIADO (GPS) */}
+          {isSeen && (
             <Button
               onClick={handleStartWork}
               disabled={actionLoading}
               variant="secondary"
             >
               <Play className="mr-2 h-4 w-4" />
-              Iniciar Trabajo
+              Iniciar trabajo
             </Button>
           )}
-          {/* Complete Button - Shows after start */}
-          {isStarted && canComplete && (
-            <Button
-              onClick={handleCompleteWork}
-              disabled={actionLoading}
-              className="bg-green-600 hover:bg-green-700"
-            >
-              <CheckCircle className="mr-2 h-4 w-4" />
-              Completar Orden
-            </Button>
+          {/* INICIADO → PENDIENTE | CERRADO */}
+          {isStarted && (
+            <>
+              <Button
+                onClick={handleMarkPending}
+                disabled={actionLoading}
+                variant="outline"
+              >
+                <Pause className="mr-2 h-4 w-4" />
+                Pausar (Pendiente)
+              </Button>
+              <Button
+                onClick={handleCloseWork}
+                disabled={actionLoading || !hasEvidence}
+                title={
+                  !hasEvidence
+                    ? "Sube al menos una evidencia antes de cerrar"
+                    : undefined
+                }
+                className="bg-green-600 hover:bg-green-700"
+              >
+                <CheckCircle className="mr-2 h-4 w-4" />
+                Cerrar trabajo
+              </Button>
+            </>
           )}
-          {/* Completed state */}
-          {isCompleted && (
+          {/* PENDIENTE → INICIADO | CERRADO */}
+          {isPending && (
+            <>
+              <Button
+                onClick={handleResumeWork}
+                disabled={actionLoading}
+                variant="secondary"
+              >
+                <Play className="mr-2 h-4 w-4" />
+                Retomar
+              </Button>
+              <Button
+                onClick={handleCloseWork}
+                disabled={actionLoading || !hasEvidence}
+                title={
+                  !hasEvidence
+                    ? "Sube al menos una evidencia antes de cerrar"
+                    : undefined
+                }
+                className="bg-green-600 hover:bg-green-700"
+              >
+                <CheckCircle className="mr-2 h-4 w-4" />
+                Cerrar trabajo
+              </Button>
+            </>
+          )}
+          {/* CERRADO */}
+          {isClosed && (
             <>
               <Badge
                 variant="default"
                 className="bg-green-600 text-lg py-2 px-4"
               >
-                Completada
+                Cerrada
               </Badge>
               <Button
                 onClick={handleReopenWork}
                 disabled={actionLoading}
                 variant="outline"
               >
+                <RotateCw className="mr-2 h-4 w-4" />
                 Reabrir
               </Button>
             </>
@@ -448,15 +580,11 @@ export default function FSRAssignmentDetailPage({
                 {new Date(assignment.createdAt).toLocaleString()}
               </div>
             )}
-            {assignment.unlockedAt ? (
+            {assignment.seenAt && (
               <div>
-                <span className="font-medium">Desbloqueada:</span>{" "}
-                {new Date(assignment.unlockedAt).toLocaleString()}
-              </div>
-            ) : (
-              <div className="flex items-center gap-1 text-yellow-600">
-                <Lock className="h-3 w-3" />
-                <span className="font-medium">No Desbloqueada</span>
+                <span className="font-medium">Vista:</span>{" "}
+                {new Date(assignment.seenAt).toLocaleString()}
+                {assignment.seenBy?.name && ` por ${assignment.seenBy.name}`}
               </div>
             )}
             {assignment.startedAt && (
@@ -467,11 +595,64 @@ export default function FSRAssignmentDetailPage({
             )}
             {assignment.finishedAt && (
               <div>
-                <span className="font-medium">Completada:</span>{" "}
+                <span className="font-medium">Cerrada:</span>{" "}
                 {new Date(assignment.finishedAt).toLocaleString()}
               </div>
             )}
           </div>
+          {(assignment.startLatitude != null ||
+            assignment.endLatitude != null) && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm pt-2 border-t">
+              {assignment.startLatitude != null &&
+                assignment.startLongitude != null && (
+                  <a
+                    href={`https://www.google.com/maps?q=${assignment.startLatitude},${assignment.startLongitude}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-start gap-2 text-blue-600 hover:underline"
+                  >
+                    <MapPin className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                    <span>
+                      <span className="font-medium">Inicio:</span>{" "}
+                      {assignment.startLatitude.toFixed(5)},{" "}
+                      {assignment.startLongitude.toFixed(5)}
+                      {assignment.startAddress && (
+                        <>
+                          <br />
+                          <span className="text-muted-foreground">
+                            {assignment.startAddress}
+                          </span>
+                        </>
+                      )}
+                    </span>
+                  </a>
+                )}
+              {assignment.endLatitude != null &&
+                assignment.endLongitude != null && (
+                  <a
+                    href={`https://www.google.com/maps?q=${assignment.endLatitude},${assignment.endLongitude}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-start gap-2 text-blue-600 hover:underline"
+                  >
+                    <MapPin className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                    <span>
+                      <span className="font-medium">Cierre:</span>{" "}
+                      {assignment.endLatitude.toFixed(5)},{" "}
+                      {assignment.endLongitude.toFixed(5)}
+                      {assignment.endAddress && (
+                        <>
+                          <br />
+                          <span className="text-muted-foreground">
+                            {assignment.endAddress}
+                          </span>
+                        </>
+                      )}
+                    </span>
+                  </a>
+                )}
+            </div>
+          )}
           {assignment.notes && (
             <div>
               <p className="font-medium text-sm mb-1">Notas:</p>

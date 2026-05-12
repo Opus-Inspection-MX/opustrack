@@ -33,11 +33,12 @@ function getPriorityColor(priority: number) {
 
 function getStatusColor(status: string) {
   switch (status) {
-    case "COMPLETADO":
+    case "CERRADO":
       return "default";
-    case "EN_PROGRESO":
+    case "INICIADO":
       return "secondary";
-    case "PENDIENTE":
+    case "VISTO":
+    case "ASIGNADO":
       return "outline";
     default:
       return "outline";

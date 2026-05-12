@@ -117,7 +117,7 @@ export async function getFSRPerformanceData(
       });
 
       const completedAssignments = assignments.filter(
-        (a) => a.status?.name === "COMPLETADO" || a.finishedAt,
+        (a) => a.status?.name === "CERRADO" || a.finishedAt,
       );
 
       let totalCompletionTime = 0;
@@ -847,43 +847,43 @@ export async function getAssignmentAgingData(): Promise<{
 }
 
 // ============================================
-// TIME-TO-UNLOCK REPORT
+// TIME-TO-SEEN REPORT  (formerly "unlock" — see state machine v1)
 // ============================================
 
-export type UnlockTimeData = {
+export type SeenTimeData = {
   assignmentId: string;
   folio: number;
   incidentTitle: string;
   fsrName: string;
   assignedAt: string | null;
-  unlockedAt: string | null;
-  timeToUnlockMinutes: number | null;
+  seenAt: string | null;
+  timeToSeenMinutes: number | null;
   status: string;
-  isUnlocked: boolean;
+  isSeen: boolean;
 };
 
-export type UnlockTimeSummary = {
+export type SeenTimeSummary = {
   totalAssignments: number;
-  unlockedCount: number;
-  pendingUnlockCount: number;
-  unlockRate: number;
-  avgTimeToUnlock: number; // in minutes
-  medianTimeToUnlock: number;
+  seenCount: number;
+  pendingSeenCount: number;
+  seenRate: number;
+  avgTimeToSeen: number; // in minutes
+  medianTimeToSeen: number;
   byFSR: Array<{
     fsrId: string;
     fsrName: string;
     totalAssigned: number;
-    unlocked: number;
+    seen: number;
     avgTimeMinutes: number;
   }>;
 };
 
 /**
- * Get Time-to-Unlock Report Data
+ * Get Time-to-Seen Report Data
  */
-export async function getUnlockTimeData(
+export async function getSeenTimeData(
   dateRange?: DateRange,
-): Promise<{ assignments: UnlockTimeData[]; summary: UnlockTimeSummary }> {
+): Promise<{ assignments: SeenTimeData[]; summary: SeenTimeSummary }> {
   await requirePermission("reports:view");
 
   const startDate = dateRange?.startDate
@@ -914,22 +914,22 @@ export async function getUnlockTimeData(
     orderBy: { createdAt: "desc" },
   });
 
-  const unlockTimes: number[] = [];
+  const seenTimes: number[] = [];
   const fsrStats: Record<
     string,
-    { name: string; total: number; unlocked: number; totalTime: number }
+    { name: string; total: number; seen: number; totalTime: number }
   > = {};
 
-  const unlockData: UnlockTimeData[] = assignments.flatMap((a) => {
+  const seenData: SeenTimeData[] = assignments.flatMap((a) => {
     const activeAssignees = a.assignees;
     if (activeAssignees.length === 0) return [];
 
-    let timeToUnlockMinutes: number | null = null;
-    const isUnlocked = a.unlockedAt !== null;
+    let timeToSeenMinutes: number | null = null;
+    const isSeen = a.seenAt !== null;
 
-    if (a.assignedAt && a.unlockedAt) {
-      timeToUnlockMinutes = Math.round(
-        (a.unlockedAt.getTime() - a.assignedAt.getTime()) / (1000 * 60),
+    if (a.assignedAt && a.seenAt) {
+      timeToSeenMinutes = Math.round(
+        (a.seenAt.getTime() - a.assignedAt.getTime()) / (1000 * 60),
       );
     }
 
@@ -939,16 +939,16 @@ export async function getUnlockTimeData(
         fsrStats[fsrId] = {
           name: aa.user.name,
           total: 0,
-          unlocked: 0,
+          seen: 0,
           totalTime: 0,
         };
       }
       fsrStats[fsrId].total++;
 
-      if (timeToUnlockMinutes !== null) {
-        unlockTimes.push(timeToUnlockMinutes);
-        fsrStats[fsrId].unlocked++;
-        fsrStats[fsrId].totalTime += timeToUnlockMinutes;
+      if (timeToSeenMinutes !== null) {
+        seenTimes.push(timeToSeenMinutes);
+        fsrStats[fsrId].seen++;
+        fsrStats[fsrId].totalTime += timeToSeenMinutes;
       }
 
       return {
@@ -957,16 +957,16 @@ export async function getUnlockTimeData(
         incidentTitle: a.incident.title,
         fsrName: aa.user.name,
         assignedAt: a.assignedAt?.toISOString() || null,
-        unlockedAt: a.unlockedAt?.toISOString() || null,
-        timeToUnlockMinutes,
+        seenAt: a.seenAt?.toISOString() || null,
+        timeToSeenMinutes,
         status: a.status?.name || "Sin Estado",
-        isUnlocked,
+        isSeen,
       };
     });
   });
 
   // Calculate median
-  const sortedTimes = [...unlockTimes].sort((a, b) => a - b);
+  const sortedTimes = [...seenTimes].sort((a, b) => a - b);
   const medianTime =
     sortedTimes.length > 0
       ? sortedTimes.length % 2 === 0
@@ -976,35 +976,35 @@ export async function getUnlockTimeData(
         : sortedTimes[Math.floor(sortedTimes.length / 2)]
       : 0;
 
-  const unlockedCount = unlockTimes.length;
+  const seenCount = seenTimes.length;
   const avgTime =
-    unlockedCount > 0
-      ? Math.round(unlockTimes.reduce((a, b) => a + b, 0) / unlockedCount)
+    seenCount > 0
+      ? Math.round(seenTimes.reduce((a, b) => a + b, 0) / seenCount)
       : 0;
 
-  const summary: UnlockTimeSummary = {
+  const summary: SeenTimeSummary = {
     totalAssignments: assignments.length,
-    unlockedCount,
-    pendingUnlockCount: assignments.length - unlockedCount,
-    unlockRate:
+    seenCount,
+    pendingSeenCount: assignments.length - seenCount,
+    seenRate:
       assignments.length > 0
-        ? Math.round((unlockedCount / assignments.length) * 100)
+        ? Math.round((seenCount / assignments.length) * 100)
         : 0,
-    avgTimeToUnlock: avgTime,
-    medianTimeToUnlock: Math.round(medianTime),
+    avgTimeToSeen: avgTime,
+    medianTimeToSeen: Math.round(medianTime),
     byFSR: Object.entries(fsrStats)
       .map(([fsrId, stats]) => ({
         fsrId,
         fsrName: stats.name,
         totalAssigned: stats.total,
-        unlocked: stats.unlocked,
+        seen: stats.seen,
         avgTimeMinutes:
-          stats.unlocked > 0 ? Math.round(stats.totalTime / stats.unlocked) : 0,
+          stats.seen > 0 ? Math.round(stats.totalTime / stats.seen) : 0,
       }))
       .sort((a, b) => a.avgTimeMinutes - b.avgTimeMinutes),
   };
 
-  return { assignments: unlockData, summary };
+  return { assignments: seenData, summary };
 }
 
 // ============================================

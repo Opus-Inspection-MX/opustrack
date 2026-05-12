@@ -25,7 +25,7 @@ type Assignment = {
   } | null;
   notes: string | null;
   createdAt: Date;
-  unlockedAt: Date | null;
+  seenAt: Date | null;
   assignedAt: Date | null;
   incident: {
     title: string;
@@ -77,11 +77,14 @@ export function AssignmentsTable({
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "COMPLETADO":
+      case "CERRADO":
         return "default";
-      case "EN_PROGRESO":
+      case "INICIADO":
         return "secondary";
       case "PENDIENTE":
+      case "VISTO":
+      case "ASIGNADO":
+      case "PENDIENTE_DE_ASIGNACION":
         return "outline";
       default:
         return "outline";
@@ -130,7 +133,7 @@ export function AssignmentsTable({
                 </Badge>
               </TableCell>
               <TableCell>
-                {wo.unlockedAt ? (
+                {wo.seenAt ? (
                   <div className="flex flex-col gap-1">
                     <Badge
                       variant="default"
@@ -140,12 +143,11 @@ export function AssignmentsTable({
                       Desbloqueado
                     </Badge>
                     <span className="text-xs text-muted-foreground">
-                      {new Date(wo.unlockedAt).toLocaleDateString()}
+                      {new Date(wo.seenAt).toLocaleDateString()}
                     </span>
                     {wo.assignedAt && (
                       <span className="text-xs text-muted-foreground">
-                        TTU:{" "}
-                        {formatTimeDifference(wo.assignedAt, wo.unlockedAt)}
+                        TTU: {formatTimeDifference(wo.assignedAt, wo.seenAt)}
                       </span>
                     )}
                   </div>

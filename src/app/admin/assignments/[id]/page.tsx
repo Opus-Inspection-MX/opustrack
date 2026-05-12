@@ -62,9 +62,9 @@ export default async function AssignmentDetailPage({
 
   const _getStatusColor = (status: string) => {
     switch (status) {
-      case "COMPLETADO":
+      case "CERRADO":
         return "default";
-      case "EN_PROGRESO":
+      case "INICIADO":
         return "secondary";
       default:
         return "outline";
@@ -204,21 +204,21 @@ export default async function AssignmentDetailPage({
               <p className="text-sm text-muted-foreground">
                 Estado de Desbloqueo
               </p>
-              {assignment.unlockedAt ? (
+              {assignment.seenAt ? (
                 <div className="mt-1">
                   <Badge variant="default" className="bg-green-600">
                     <CheckCircle className="h-3 w-3 mr-1" />
                     Desbloqueado
                   </Badge>
                   <p className="text-sm mt-1">
-                    {new Date(assignment.unlockedAt).toLocaleString("es-MX")}
+                    {new Date(assignment.seenAt).toLocaleString("es-MX")}
                   </p>
                   {assignment.assignedAt && (
                     <p className="text-xs text-muted-foreground">
                       Tiempo hasta desbloqueo:{" "}
                       {formatTimeDifference(
                         assignment.assignedAt,
-                        assignment.unlockedAt,
+                        assignment.seenAt,
                       )}
                     </p>
                   )}

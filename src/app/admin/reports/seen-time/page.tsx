@@ -1,10 +1,10 @@
 "use server";
 
-import { getUnlockTimeData } from "@/lib/actions/reports";
+import { getSeenTimeData } from "@/lib/actions/reports";
 import { requireRouteAccess } from "@/lib/auth/auth";
-import { UnlockTimeClient } from "./unlock-time-client";
+import { SeenTimeClient } from "./seen-time-client";
 
-export default async function UnlockTimePage() {
+export default async function SeenTimePage() {
   await requireRouteAccess("/admin/reports");
 
   // Default: last 30 days
@@ -12,10 +12,10 @@ export default async function UnlockTimePage() {
   const thirtyDaysAgo = new Date(today);
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-  const initialData = await getUnlockTimeData({
+  const initialData = await getSeenTimeData({
     startDate: thirtyDaysAgo.toISOString().split("T")[0],
     endDate: today.toISOString().split("T")[0],
   });
 
-  return <UnlockTimeClient initialData={initialData} />;
+  return <SeenTimeClient initialData={initialData} />;
 }

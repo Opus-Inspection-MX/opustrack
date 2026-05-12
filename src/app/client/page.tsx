@@ -33,8 +33,8 @@ export default async function ClientDashboard() {
   // Calculate stats
   const stats = {
     open: incidents.filter((i) => i.status?.name === "ABIERTO").length,
-    inProgress: incidents.filter(
-      (i) => i.status?.name === "EN_PROGRESO" || i.status?.name === "PENDIENTE",
+    inProgress: incidents.filter((i) =>
+      ["ASIGNADO", "VISTO", "INICIADO"].includes(i.status?.name ?? ""),
     ).length,
     closed: incidents.filter((i) => i.status?.name === "CERRADO").length,
     total: incidents.length,
