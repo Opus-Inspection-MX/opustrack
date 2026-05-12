@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { endVehicleTrip } from "@/lib/actions/vehicle-trips";
-import { fileToBase64, normalizeMimeType } from "@/lib/upload";
+import { normalizeMimeType } from "@/lib/upload";
 import { GPSLocationCapture } from "./gps-location-capture";
 
 interface Trip {
@@ -93,21 +93,19 @@ export function TripEndForm({ trip }: TripEndFormProps) {
     setIsSubmitting(true);
 
     try {
-      // Convert photo to base64
-      const photoBase64 = await fileToBase64(photo);
-      const photoMimetype = normalizeMimeType(photo);
+      const fd = new FormData();
+      fd.append("tripId", trip.id);
+      fd.append("endOdometer", String(endOdometer));
+      fd.append("photo", photo);
+      fd.append("photoMimetype", normalizeMimeType(photo));
+      if (formData.latitude !== undefined)
+        fd.append("endLatitude", String(formData.latitude));
+      if (formData.longitude !== undefined)
+        fd.append("endLongitude", String(formData.longitude));
+      if (formData.address) fd.append("endAddress", formData.address);
+      if (formData.notes) fd.append("notes", formData.notes);
 
-      // End trip
-      await endVehicleTrip(trip.id, {
-        endOdometer,
-        endPhotoFilename: photo.name,
-        endPhotoBase64: photoBase64,
-        endPhotoMimetype: photoMimetype,
-        endLatitude: formData.latitude,
-        endLongitude: formData.longitude,
-        endAddress: formData.address || undefined,
-        notes: formData.notes || undefined,
-      });
+      await endVehicleTrip(fd);
 
       router.push("/fsr/vehicle-trips");
     } catch (err) {

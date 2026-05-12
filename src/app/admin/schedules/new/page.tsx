@@ -35,9 +35,18 @@ export default function NewSchedulePage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [vicCenters, setVicCenters] = useState<VicCenter[]>([]);
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    title: string;
+    description: string;
+    type: "DIARIA" | "MENSUAL";
+    scheduledAt: string;
+    endDate: string;
+    vicId: string;
+    active: boolean;
+  }>({
     title: "",
     description: "",
+    type: "DIARIA",
     scheduledAt: "",
     endDate: "",
     vicId: "",
@@ -117,6 +126,7 @@ export default function NewSchedulePage() {
       await createSchedule({
         title: formData.title.trim(),
         description: formData.description?.trim() || undefined,
+        type: formData.type,
         scheduledAt: new Date(formData.scheduledAt),
         endDate: formData.endDate ? new Date(formData.endDate) : undefined,
         vicId: formData.vicId,
@@ -130,7 +140,7 @@ export default function NewSchedulePage() {
         submit:
           error instanceof Error
             ? error.message
-            : "Error al crear el horario. Por favor intenta de nuevo.",
+            : "Error al crear la programación. Por favor intenta de nuevo.",
       });
     } finally {
       setIsSubmitting(false);
@@ -157,16 +167,16 @@ export default function NewSchedulePage() {
           </Button>
         </Link>
         <div>
-          <h1 className="text-3xl font-bold">Crear Nuevo Horario</h1>
+          <h1 className="text-3xl font-bold">Crear Nueva Programación</h1>
           <p className="text-muted-foreground">
-            Schedule a maintenance or inspection activity
+            Programa una actividad de mantenimiento o inspección
           </p>
         </div>
       </div>
 
       <Card className="max-w-2xl">
         <CardHeader>
-          <CardTitle>Schedule Details</CardTitle>
+          <CardTitle>Detalles de la Programación</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -205,6 +215,28 @@ export default function NewSchedulePage() {
               )}
               <p className="text-sm text-muted-foreground">
                 {formData.description.length}/1000
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="type">
+                Tipo de Programación <span className="text-red-500">*</span>
+              </Label>
+              <Select
+                value={formData.type}
+                onValueChange={(value) => handleChange("type", value)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="DIARIA">Diaria</SelectItem>
+                  <SelectItem value="MENSUAL">Mensual</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-sm text-muted-foreground">
+                Diaria: actividad programada para un día específico. Mensual:
+                actividad recurrente o de alcance mensual.
               </p>
             </div>
 
@@ -280,7 +312,7 @@ export default function NewSchedulePage() {
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 )}
                 <Save className="mr-2 h-4 w-4" />
-                {isSubmitting ? "Creando..." : "Crear Horario"}
+                {isSubmitting ? "Creando..." : "Crear Programación"}
               </Button>
               <Button
                 type="button"

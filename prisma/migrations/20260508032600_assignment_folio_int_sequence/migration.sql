@@ -1,4 +1,5 @@
--- Replace Assignment.folio (String? "ODT folio") with an auto-generated Int sequence.
+-- Replace Assignment.folio (String? "ODT folio") with an auto-incrementing Int.
+-- Uses Postgres SERIAL so Prisma can manage it natively via @default(autoincrement()).
 
 -- 1. Drop the old folio index (created with @@index([folio]) on the String column)
 DROP INDEX IF EXISTS "Assignment_folio_idx";
@@ -6,15 +7,9 @@ DROP INDEX IF EXISTS "Assignment_folio_idx";
 -- 2. Drop the old String folio column
 ALTER TABLE "Assignment" DROP COLUMN "folio";
 
--- 3. Create the sequence used to generate folios
-CREATE SEQUENCE IF NOT EXISTS "assignment_folio_seq";
+-- 3. Add the new auto-incrementing Int folio column. SERIAL creates the
+--    sequence "Assignment_folio_seq" and ties it to the column via OWNED BY.
+ALTER TABLE "Assignment" ADD COLUMN "folio" SERIAL NOT NULL;
 
--- 4. Add the new Int folio column with the sequence as default; backfill with sequence values for existing rows
-ALTER TABLE "Assignment"
-  ADD COLUMN "folio" INTEGER NOT NULL DEFAULT nextval('assignment_folio_seq');
-
--- 5. Enforce uniqueness (also creates the index)
+-- 4. Enforce uniqueness (also creates the index Prisma expects for @unique)
 CREATE UNIQUE INDEX "Assignment_folio_key" ON "Assignment"("folio");
-
--- 6. Tie the sequence's ownership to the column so it's dropped if the column ever is
-ALTER SEQUENCE "assignment_folio_seq" OWNED BY "Assignment"."folio";

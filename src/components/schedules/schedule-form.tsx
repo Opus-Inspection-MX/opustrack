@@ -96,7 +96,7 @@ export function ScheduleForm({
     <Card className="w-full max-w-2xl">
       <CardHeader>
         <CardTitle>
-          {initialData ? "Edit Schedule" : "Create Schedule"}
+          {initialData ? "Editar Programación" : "Crear Programación"}
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -200,7 +200,7 @@ export function ScheduleForm({
           <div className="flex gap-4 pt-4">
             <Button type="submit" disabled={isLoading}>
               {isLoading && <Spinner size="sm" />}
-              {initialData ? "Update Schedule" : "Create Schedule"}
+              {initialData ? "Actualizar Programación" : "Crear Programación"}
             </Button>
             <Button type="button" variant="outline" onClick={onCancel}>
               Cancel

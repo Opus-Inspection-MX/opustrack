@@ -4,31 +4,41 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireAuth, requirePermission } from "@/lib/auth/auth";
 import { prisma } from "@/lib/database/prisma.singleton";
-import { deleteFile, uploadFile } from "@/lib/storage/file-storage";
+import {
+  assertAllowedUpload,
+  deleteFile,
+  uploadFileFromBuffer,
+} from "@/lib/storage/file-storage";
 
-export type TripStartData = {
-  vehicleId: string;
-  assignmentId?: string | null;
-  startOdometer: number;
-  startPhotoFilename: string;
-  startPhotoBase64: string;
-  startPhotoMimetype: string;
-  startLatitude?: number;
-  startLongitude?: number;
-  startAddress?: string;
-  notes?: string;
-};
+function getString(formData: FormData, key: string): string | undefined {
+  const v = formData.get(key);
+  if (typeof v !== "string") return undefined;
+  const trimmed = v.trim();
+  return trimmed === "" ? undefined : trimmed;
+}
 
-export type TripEndData = {
-  endOdometer: number;
-  endPhotoFilename: string;
-  endPhotoBase64: string;
-  endPhotoMimetype: string;
-  endLatitude?: number;
-  endLongitude?: number;
-  endAddress?: string;
-  notes?: string;
-};
+function getNumber(formData: FormData, key: string): number | undefined {
+  const v = getString(formData, key);
+  if (v === undefined) return undefined;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : undefined;
+}
+
+function requireInt(formData: FormData, key: string, label: string): number {
+  const n = getNumber(formData, key);
+  if (n === undefined || !Number.isInteger(n)) {
+    throw new Error(`${label} es requerido`);
+  }
+  return n;
+}
+
+function requireFile(formData: FormData, key: string, label: string): File {
+  const f = formData.get(key);
+  if (!(f instanceof File) || f.size === 0) {
+    throw new Error(`${label} es requerida`);
+  }
+  return f;
+}
 
 /**
  * Get trips for current FSR. Optional date range filters by startedAt.
@@ -171,56 +181,94 @@ export async function getVehicleTripById(id: string) {
 }
 
 /**
- * Start a trip
+ * Start a trip (multipart FormData).
+ *
+ * Expected FormData fields:
+ *  - vehicleId: string (required)
+ *  - assignmentId: string (optional)
+ *  - startOdometer: integer (required)
+ *  - photo: File (required) — odometer photo
+ *  - photoMimetype: string (optional; client-normalized override)
+ *  - startLatitude / startLongitude / startAddress / notes (optional)
  */
-export async function startVehicleTrip(data: TripStartData) {
+export async function startVehicleTrip(formData: FormData) {
   const user = await requirePermission("vehicle-trips:create");
 
-  // Enforce 10MB file size limit (base64 is ~33% larger than raw)
-  const MAX_FILE_SIZE = 10 * 1024 * 1024;
-  const estimatedSize = Math.ceil(data.startPhotoBase64.length * 0.75);
-  if (estimatedSize > MAX_FILE_SIZE) {
-    throw new Error("La foto es demasiado grande. Tamaño máximo: 10MB");
+  const vehicleId = getString(formData, "vehicleId");
+  if (!vehicleId) throw new Error("vehicleId requerido");
+  const assignmentId = getString(formData, "assignmentId") ?? null;
+  const startOdometer = requireInt(formData, "startOdometer", "startOdometer");
+  const photo = requireFile(formData, "photo", "Foto del odómetro");
+  const photoMimetype =
+    getString(formData, "photoMimetype") ||
+    photo.type ||
+    "application/octet-stream";
+
+  assertAllowedUpload(photoMimetype, photo.size);
+
+  // Validate vehicle exists and is selectable. If the user is not admin, the
+  // vehicle must be currently AVAILABLE (the same constraint exposed by
+  // getAvailableVehicles).
+  const vehicle = await prisma.vehicle.findUnique({
+    where: { id: vehicleId },
+    select: { id: true, status: { select: { name: true } } },
+  });
+  if (!vehicle) throw new Error("Vehículo no encontrado");
+  if (
+    user.role.name !== "ADMINISTRADOR" &&
+    vehicle.status?.name !== "AVAILABLE"
+  ) {
+    throw new Error("Vehículo no disponible");
   }
 
-  // Upload start photo
-  const startPhotoResult = await uploadFile(
-    data.startPhotoFilename,
-    data.startPhotoBase64,
-    data.startPhotoMimetype,
+  // If linked to an assignment, ensure the caller is actually an assignee
+  // (an FSR shouldn't be able to start a trip against someone else's work).
+  if (assignmentId && user.role.name !== "ADMINISTRADOR") {
+    const isAssignee = await prisma.assignmentAssignee.findFirst({
+      where: { assignmentId, userId: user.id, active: true },
+      select: { id: true },
+    });
+    if (!isAssignee) {
+      throw new Error("No estás asignado a esta asignación");
+    }
+  }
+
+  const arrayBuffer = await photo.arrayBuffer();
+  const buffer = Buffer.from(arrayBuffer);
+  const startPhotoResult = await uploadFileFromBuffer(
+    photo.name,
+    buffer,
+    photoMimetype,
     { subfolder: "vehicle-trips" },
   );
 
-  // Get the vehicle status for IN_USE
   const inUseStatus = await prisma.vehicleStatus.findUnique({
     where: { name: "IN_USE" },
   });
   if (!inUseStatus) throw new Error("Vehicle status IN_USE not found");
 
-  // Get the trip status for IN_PROGRESS
   const inProgressStatus = await prisma.vehicleTripStatus.findUnique({
     where: { name: "IN_PROGRESS" },
   });
   if (!inProgressStatus) throw new Error("Trip status IN_PROGRESS not found");
 
-  // Update vehicle status to IN_USE
   await prisma.vehicle.update({
-    where: { id: data.vehicleId },
+    where: { id: vehicleId },
     data: { statusId: inUseStatus.id },
   });
 
   const trip = await prisma.vehicleTrip.create({
     data: {
-      vehicleId: data.vehicleId,
+      vehicleId,
       fsrId: user.id,
-      assignmentId: data.assignmentId || null,
-      startOdometer: data.startOdometer,
+      assignmentId,
+      startOdometer,
       startPhotoUrl: startPhotoResult.url,
       startPhotoProvider: startPhotoResult.provider,
-      startLatitude: data.startLatitude || null,
-      startLongitude: data.startLongitude || null,
-      startAddress: data.startAddress || null,
-      notes: data.notes || null,
+      startLatitude: getNumber(formData, "startLatitude") ?? null,
+      startLongitude: getNumber(formData, "startLongitude") ?? null,
+      startAddress: getString(formData, "startAddress") ?? null,
+      notes: getString(formData, "notes") ?? null,
       statusId: inProgressStatus.id,
     },
     include: {
@@ -235,10 +283,28 @@ export async function startVehicleTrip(data: TripStartData) {
 }
 
 /**
- * End a trip
+ * End a trip (multipart FormData).
+ *
+ * Expected FormData fields:
+ *  - tripId: string (required) — the trip to end
+ *  - endOdometer: integer (required)
+ *  - photo: File (required) — odometer photo
+ *  - photoMimetype: string (optional)
+ *  - endLatitude / endLongitude / endAddress / notes (optional)
  */
-export async function endVehicleTrip(id: string, data: TripEndData) {
+export async function endVehicleTrip(formData: FormData) {
   const user = await requirePermission("vehicle-trips:update");
+
+  const id = getString(formData, "tripId");
+  if (!id) throw new Error("tripId requerido");
+  const endOdometer = requireInt(formData, "endOdometer", "endOdometer");
+  const photo = requireFile(formData, "photo", "Foto del odómetro");
+  const photoMimetype =
+    getString(formData, "photoMimetype") ||
+    photo.type ||
+    "application/octet-stream";
+
+  assertAllowedUpload(photoMimetype, photo.size);
 
   const trip = await prisma.vehicleTrip.findUnique({
     where: { id },
@@ -263,12 +329,10 @@ export async function endVehicleTrip(id: string, data: TripEndData) {
     throw new Error("Trip is already completed or cancelled");
   }
 
-  // Validate odometer reading
-  if (data.endOdometer < trip.startOdometer) {
+  if (endOdometer < trip.startOdometer) {
     throw new Error("End odometer reading cannot be less than start reading");
   }
 
-  // Get the statuses we need
   const completedStatus = await prisma.vehicleTripStatus.findUnique({
     where: { name: "COMPLETED" },
   });
@@ -279,37 +343,30 @@ export async function endVehicleTrip(id: string, data: TripEndData) {
   });
   if (!availableStatus) throw new Error("Vehicle status AVAILABLE not found");
 
-  // Enforce 10MB file size limit
-  const MAX_FILE_SIZE = 10 * 1024 * 1024;
-  const estimatedEndSize = Math.ceil(data.endPhotoBase64.length * 0.75);
-  if (estimatedEndSize > MAX_FILE_SIZE) {
-    throw new Error("La foto es demasiado grande. Tamaño máximo: 10MB");
-  }
-
-  // Upload end photo
-  const endPhotoResult = await uploadFile(
-    data.endPhotoFilename,
-    data.endPhotoBase64,
-    data.endPhotoMimetype,
+  const arrayBuffer = await photo.arrayBuffer();
+  const buffer = Buffer.from(arrayBuffer);
+  const endPhotoResult = await uploadFileFromBuffer(
+    photo.name,
+    buffer,
+    photoMimetype,
     { subfolder: "vehicle-trips" },
   );
 
-  // Calculate kilometers driven
-  const kmDriven = data.endOdometer - trip.startOdometer;
+  const kmDriven = endOdometer - trip.startOdometer;
 
   const updatedTrip = await prisma.vehicleTrip.update({
     where: { id },
     data: {
-      endOdometer: data.endOdometer,
+      endOdometer,
       endPhotoUrl: endPhotoResult.url,
       endPhotoProvider: endPhotoResult.provider,
-      endLatitude: data.endLatitude || null,
-      endLongitude: data.endLongitude || null,
-      endAddress: data.endAddress || null,
+      endLatitude: getNumber(formData, "endLatitude") ?? null,
+      endLongitude: getNumber(formData, "endLongitude") ?? null,
+      endAddress: getString(formData, "endAddress") ?? null,
       endedAt: new Date(),
       kmDriven,
       statusId: completedStatus.id,
-      notes: data.notes,
+      notes: getString(formData, "notes") ?? null,
     },
     include: {
       vehicle: true,
@@ -317,7 +374,6 @@ export async function endVehicleTrip(id: string, data: TripEndData) {
     },
   });
 
-  // Update vehicle status back to AVAILABLE
   await prisma.vehicle.update({
     where: { id: trip.vehicleId },
     data: { statusId: availableStatus.id },

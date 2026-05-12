@@ -1,4 +1,4 @@
-import { Plus } from "lucide-react";
+import { Plus, Upload } from "lucide-react";
 import Link from "next/link";
 import { IncidentsTable } from "@/components/admin/incidents/incidents-table";
 import { Button } from "@/components/ui/button";
@@ -16,12 +16,20 @@ export default async function IncidentsPage() {
             Administre los incidentes reportados en el sistema
           </p>
         </div>
-        <Button asChild>
-          <Link href="/admin/incidents/new">
-            <Plus className="mr-2 h-4 w-4" />
-            Agregar Incidente
-          </Link>
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" asChild>
+            <Link href="/admin/incidents/bulk">
+              <Upload className="mr-2 h-4 w-4" />
+              Carga masiva
+            </Link>
+          </Button>
+          <Button asChild>
+            <Link href="/admin/incidents/new">
+              <Plus className="mr-2 h-4 w-4" />
+              Agregar Incidente
+            </Link>
+          </Button>
+        </div>
       </div>
 
       <IncidentsTable incidents={incidents} />

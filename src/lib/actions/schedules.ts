@@ -9,6 +9,7 @@ import { prisma } from "@/lib/database/prisma.singleton";
 export type ScheduleFormData = {
   title: string;
   description?: string;
+  type?: "DIARIA" | "MENSUAL";
   scheduledAt: Date;
   endDate?: Date;
   vicId: string;
@@ -135,6 +136,7 @@ export async function createSchedule(data: ScheduleFormData) {
     data: {
       title: data.title,
       description: data.description || null,
+      type: data.type || "DIARIA",
       scheduledAt: data.scheduledAt,
       endDate: data.endDate || null,
       vicId: data.vicId,
@@ -159,6 +161,7 @@ export async function updateSchedule(id: string, data: ScheduleFormData) {
     data: {
       title: data.title,
       description: data.description || null,
+      ...(data.type ? { type: data.type } : {}),
       scheduledAt: data.scheduledAt,
       endDate: data.endDate || null,
       vicId: data.vicId,

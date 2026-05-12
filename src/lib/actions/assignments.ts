@@ -32,6 +32,22 @@ const assigneesInclude = {
   },
 } as const;
 
+async function assertAssigneesAuthorizedForIncident(
+  incidentId: number,
+  userIds: string[],
+) {
+  if (userIds.length === 0) return;
+  const authorized = await prisma.incidentAssignee.findMany({
+    where: { incidentId, active: true, userId: { in: userIds } },
+    select: { userId: true },
+  });
+  const authorizedSet = new Set(authorized.map((a) => a.userId));
+  const unauthorized = userIds.filter((u) => !authorizedSet.has(u));
+  if (unauthorized.length > 0) {
+    throw new Error("Solo se pueden asignar FSRs habilitados en la incidencia");
+  }
+}
+
 async function notifyAssignees(
   userIds: string[],
   payload: {
@@ -167,6 +183,8 @@ export async function createAssignment(data: AssignmentFormData) {
 
   const uniqueAssignees = Array.from(new Set(data.assigneeIds));
 
+  await assertAssigneesAuthorizedForIncident(data.incidentId, uniqueAssignees);
+
   const assignment = await prisma.assignment.create({
     data: {
       incidentId: data.incidentId,
@@ -207,6 +225,16 @@ export async function updateAssignment(id: string, data: AssignmentFormData) {
   await requirePermission("assignments:update");
 
   const uniqueAssignees = Array.from(new Set(data.assigneeIds));
+
+  const existingAssignment = await prisma.assignment.findUnique({
+    where: { id },
+    select: { incidentId: true },
+  });
+  if (!existingAssignment) throw new Error("Assignment not found");
+  await assertAssigneesAuthorizedForIncident(
+    existingAssignment.incidentId,
+    uniqueAssignees,
+  );
 
   const result = await prisma.$transaction(async (tx) => {
     const existing = await tx.assignmentAssignee.findMany({
@@ -659,6 +687,10 @@ export async function getAssignmentFormOptions() {
         type: true,
         status: true,
         vic: true,
+        assignees: {
+          where: { active: true },
+          select: { userId: true },
+        },
       },
       orderBy: { reportedAt: "desc" },
     }),
@@ -687,39 +719,79 @@ export async function getAssignmentFormOptions() {
     vicIds: user.vicAssignments.map((va) => va.vicId),
   }));
 
-  return { incidents, users: usersWithVicIds, assignmentStatuses };
+  const incidentsWithAssigneeIds = incidents.map((inc) => ({
+    ...inc,
+    assigneeIds: inc.assignees.map((a) => a.userId),
+  }));
+
+  return {
+    incidents: incidentsWithAssigneeIds,
+    users: usersWithVicIds,
+    assignmentStatuses,
+  };
 }
 
 /**
- * Upload attachment for assignment
+ * Upload attachment for assignment (multipart FormData).
+ * Avoids base64 inflation so high-res phone photos don't exceed the Server
+ * Actions body limit.
+ *
+ * Expected FormData fields:
+ *  - assignmentId: string (required)
+ *  - file: File (required)
+ *  - mimetype: string (optional; client-normalized override for File.type)
+ *  - description: string (optional)
  */
-export async function uploadAssignmentAttachment(
-  assignmentId: string,
-  fileData: {
-    filename: string;
-    base64Data: string;
-    mimetype: string;
-    size: number;
-    description?: string;
-  },
-) {
+export async function uploadAssignmentAttachment(formData: FormData) {
   await requirePermission("assignments:update");
 
-  const MAX_FILE_SIZE = 10 * 1024 * 1024;
-  if (fileData.size > MAX_FILE_SIZE) {
-    throw new Error(
-      `El archivo es demasiado grande. Tamaño máximo: 10MB, Tamaño del archivo: ${(fileData.size / (1024 * 1024)).toFixed(1)}MB`,
-    );
+  const assignmentId = formData.get("assignmentId");
+  const file = formData.get("file");
+  const mimetypeField = formData.get("mimetype");
+  const descriptionField = formData.get("description");
+
+  if (typeof assignmentId !== "string" || assignmentId.trim() === "") {
+    throw new Error("assignmentId requerido");
+  }
+  if (!(file instanceof File)) {
+    throw new Error("Archivo inválido");
   }
 
-  const { uploadFile } = await import("@/lib/storage/file-storage");
+  const mimetype =
+    (typeof mimetypeField === "string" && mimetypeField.trim()) ||
+    file.type ||
+    "application/octet-stream";
 
-  const uploadResult = await uploadFile(
-    fileData.filename,
-    fileData.base64Data,
-    fileData.mimetype,
-    { subfolder: "assignments" },
+  const { assertAllowedUpload, uploadFileFromBuffer } = await import(
+    "@/lib/storage/file-storage"
   );
+  assertAllowedUpload(mimetype, file.size);
+
+  // Verify the assignment exists and the caller can reach its VIC
+  const assignment = await prisma.assignment.findUnique({
+    where: { id: assignmentId },
+    select: { incident: { select: { vicId: true } } },
+  });
+  if (!assignment) {
+    throw new Error("Asignación no encontrada");
+  }
+  if (assignment.incident?.vicId) {
+    const { assertVicAccess } = await import("@/lib/auth/filters");
+    const { requireAuth } = await import("@/lib/auth/auth");
+    const user = await requireAuth();
+    assertVicAccess(user, assignment.incident.vicId);
+  }
+
+  const arrayBuffer = await file.arrayBuffer();
+  const buffer = Buffer.from(arrayBuffer);
+  const uploadResult = await uploadFileFromBuffer(file.name, buffer, mimetype, {
+    subfolder: "assignments",
+  });
+
+  const description =
+    typeof descriptionField === "string" && descriptionField.trim() !== ""
+      ? descriptionField.trim()
+      : null;
 
   const attachment = await prisma.assignmentAttachment.create({
     data: {
@@ -728,7 +800,7 @@ export async function uploadAssignmentAttachment(
       filepath: uploadResult.url,
       mimetype: uploadResult.mimetype,
       size: uploadResult.size,
-      description: fileData.description || null,
+      description,
       provider: uploadResult.provider,
     },
   });

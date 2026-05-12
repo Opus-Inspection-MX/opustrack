@@ -131,7 +131,10 @@ export default function EditIncidentPage({
       </div>
 
       <IncidentForm
-        incident={incident}
+        incident={{
+          ...incident,
+          assigneeIds: incident.assignees?.map((a) => a.user.id) ?? [],
+        }}
         types={formOptions.types}
         statuses={formOptions.statuses}
         vics={formOptions.vics}

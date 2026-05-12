@@ -4,7 +4,9 @@ const nextConfig: NextConfig = {
   /* config options here */
   experimental: {
     serverActions: {
-      bodySizeLimit: "10mb", // Or any desired limit like '1000kb', '2mb', etc.
+      // 10MB per-file cap is enforced in actions; allow headroom for multipart
+      // boundaries + other form fields so a max-size file still fits.
+      bodySizeLimit: "12mb",
     },
   },
   images: {

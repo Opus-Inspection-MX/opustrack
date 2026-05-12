@@ -111,7 +111,79 @@ async function uploadToFilesystem(
 }
 
 /**
- * Upload file using configured storage provider
+ * Server-side defense-in-depth: enforce MIME allowlist before writing storage.
+ * Client validation can be tampered; this runs after auth checks in actions.
+ */
+const ALLOWED_MIMETYPES = new Set([
+  // Images
+  "image/jpeg",
+  "image/png",
+  "image/gif",
+  "image/webp",
+  "image/bmp",
+  "image/tiff",
+  "image/svg+xml",
+  "image/heic",
+  "image/heif",
+  // Video
+  "video/mp4",
+  "video/quicktime",
+  "video/webm",
+  "video/x-msvideo",
+  "video/3gpp",
+  "video/x-matroska",
+  // Docs
+  "application/pdf",
+  // Office (assignments may accept these — keep for parity with client)
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "text/plain",
+]);
+
+export function assertAllowedUpload(
+  mimetype: string,
+  size: number,
+  options?: { maxBytes?: number },
+): void {
+  const maxBytes = options?.maxBytes ?? 10 * 1024 * 1024;
+  if (!Number.isFinite(size) || size <= 0) {
+    throw new Error("Archivo vacío o tamaño inválido");
+  }
+  if (size > maxBytes) {
+    throw new Error(
+      `El archivo es demasiado grande. Tamaño máximo: ${(maxBytes / (1024 * 1024)).toFixed(0)}MB, Tamaño del archivo: ${(size / (1024 * 1024)).toFixed(1)}MB`,
+    );
+  }
+  if (!ALLOWED_MIMETYPES.has(mimetype)) {
+    throw new Error(`Tipo de archivo no permitido: ${mimetype}`);
+  }
+}
+
+/**
+ * Upload file using configured storage provider (Buffer-based)
+ * Prefer this over uploadFile() — no base64 inflation in transit.
+ */
+export async function uploadFileFromBuffer(
+  filename: string,
+  buffer: Buffer,
+  mimetype: string,
+  options?: {
+    subfolder?: string;
+    provider?: "vercel-blob" | "filesystem";
+  },
+): Promise<FileUploadResult> {
+  const provider = options?.provider || getStorageProvider();
+
+  if (provider === "vercel-blob") {
+    return uploadToVercelBlob(filename, buffer, mimetype);
+  }
+  return uploadToFilesystem(filename, buffer, mimetype, options?.subfolder);
+}
+
+/**
+ * Upload file using configured storage provider (base64 wrapper)
+ * Kept for callers that already serialize to base64; new code should use
+ * uploadFileFromBuffer to avoid the ~33% inflation.
  */
 export async function uploadFile(
   filename: string,
@@ -122,19 +194,9 @@ export async function uploadFile(
     provider?: "vercel-blob" | "filesystem";
   },
 ): Promise<FileUploadResult> {
-  // Remove base64 prefix and convert to buffer
   const base64Clean = base64Data.replace(/^data:[^;]+;base64,/, "");
   const buffer = Buffer.from(base64Clean, "base64");
-
-  // Determine provider
-  const provider = options?.provider || getStorageProvider();
-
-  // Upload based on provider
-  if (provider === "vercel-blob") {
-    return uploadToVercelBlob(filename, buffer, mimetype);
-  } else {
-    return uploadToFilesystem(filename, buffer, mimetype, options?.subfolder);
-  }
+  return uploadFileFromBuffer(filename, buffer, mimetype, options);
 }
 
 /**

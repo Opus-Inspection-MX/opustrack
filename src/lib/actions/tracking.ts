@@ -229,6 +229,16 @@ export async function assignFSRToIncident(incidentId: number, fsrId: string) {
   try {
     await requirePermission("tracking:update");
 
+    const authorized = await prisma.incidentAssignee.findFirst({
+      where: { incidentId, userId: fsrId, active: true },
+      select: { id: true },
+    });
+    if (!authorized) {
+      throw new Error(
+        "Solo se pueden asignar FSRs habilitados en la incidencia",
+      );
+    }
+
     const existingAssignment = await prisma.assignment.findFirst({
       where: {
         incidentId,
@@ -283,6 +293,29 @@ export async function updateAssignmentAssignees(
     await requirePermission("tracking:update");
 
     const uniqueIds = Array.from(new Set(userIds.filter(Boolean)));
+
+    if (uniqueIds.length > 0) {
+      const assignment = await prisma.assignment.findUnique({
+        where: { id: assignmentId },
+        select: { incidentId: true },
+      });
+      if (!assignment) throw new Error("Assignment not found");
+      const authorized = await prisma.incidentAssignee.findMany({
+        where: {
+          incidentId: assignment.incidentId,
+          active: true,
+          userId: { in: uniqueIds },
+        },
+        select: { userId: true },
+      });
+      const authorizedSet = new Set(authorized.map((a) => a.userId));
+      const unauthorized = uniqueIds.filter((u) => !authorizedSet.has(u));
+      if (unauthorized.length > 0) {
+        throw new Error(
+          "Solo se pueden asignar FSRs habilitados en la incidencia",
+        );
+      }
+    }
 
     await prisma.$transaction(async (tx) => {
       const existing = await tx.assignmentAssignee.findMany({

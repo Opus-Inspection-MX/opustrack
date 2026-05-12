@@ -31,6 +31,7 @@ interface Schedule {
   id: string;
   title: string;
   description?: string;
+  type?: "DIARIA" | "MENSUAL";
   scheduledAt: string;
   endDate?: string | null;
   vicId: string;
@@ -83,6 +84,7 @@ export function ScheduleTable({
             <TableRow>
               <TableHead>Título</TableHead>
               <TableHead>CVV</TableHead>
+              <TableHead>Tipo</TableHead>
               <TableHead>Fecha Programada</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Incidentes</TableHead>
@@ -112,6 +114,11 @@ export function ScheduleTable({
                       <Building2 className="h-4 w-4 text-muted-foreground" />
                       <span>{schedule.vicName}</span>
                     </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline">
+                      {schedule.type === "MENSUAL" ? "Mensual" : "Diaria"}
+                    </Badge>
                   </TableCell>
                   <TableCell>
                     <div className="space-y-1">

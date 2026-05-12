@@ -119,6 +119,9 @@ export default function EditAssignmentPage({
   const [workParts, setWorkParts] = useState<WorkPart[]>([]);
   const [availableParts, setAvailableParts] = useState<Part[]>([]);
   const [availableUsers, setAvailableUsers] = useState<User[]>([]);
+  const [availableIncidents, setAvailableIncidents] = useState<
+    Array<{ id: number; assigneeIds: string[] }>
+  >([]);
   const [availableStatuses, setAvailableStatuses] = useState<
     AssignmentStatus[]
   >([]);
@@ -158,6 +161,12 @@ export default function EditAssignmentPage({
       setWorkParts(partsData);
       setAvailableParts(availablePartsData);
       setAvailableUsers(formOptions.users);
+      setAvailableIncidents(
+        formOptions.incidents.map((i) => ({
+          id: i.id,
+          assigneeIds: i.assigneeIds,
+        })),
+      );
       setAvailableStatuses(statuses.data);
       setAttachments(woData?.attachments || []);
     } catch (error) {
@@ -292,11 +301,12 @@ export default function EditAssignmentPage({
       {/* Assignment Edit Form */}
       <AssignmentEditForm
         assignment={assignment}
-        users={availableUsers.filter((user) =>
-          assignment.incident?.vicId
-            ? user.vicIds?.includes(assignment.incident.vicId)
-            : true,
-        )}
+        users={(() => {
+          const authorized =
+            availableIncidents.find((i) => i.id === assignment.incident?.id)
+              ?.assigneeIds ?? [];
+          return availableUsers.filter((u) => authorized.includes(u.id));
+        })()}
         statuses={availableStatuses}
         onSuccess={fetchData}
       />

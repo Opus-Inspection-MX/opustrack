@@ -21,7 +21,7 @@ import {
   getMyAssignmentsForTrips,
   startVehicleTrip,
 } from "@/lib/actions/vehicle-trips";
-import { fileToBase64, normalizeMimeType } from "@/lib/upload";
+import { normalizeMimeType } from "@/lib/upload";
 import { GPSLocationCapture } from "./gps-location-capture";
 
 interface Vehicle {
@@ -124,22 +124,21 @@ export function TripStartForm() {
     setIsSubmitting(true);
 
     try {
-      // Convert photo to base64
-      const photoBase64 = await fileToBase64(photo);
-      const photoMimetype = normalizeMimeType(photo);
+      const fd = new FormData();
+      fd.append("vehicleId", formData.vehicleId);
+      if (formData.assignmentId)
+        fd.append("assignmentId", formData.assignmentId);
+      fd.append("startOdometer", formData.startOdometer);
+      fd.append("photo", photo);
+      fd.append("photoMimetype", normalizeMimeType(photo));
+      if (formData.latitude !== undefined)
+        fd.append("startLatitude", String(formData.latitude));
+      if (formData.longitude !== undefined)
+        fd.append("startLongitude", String(formData.longitude));
+      if (formData.address) fd.append("startAddress", formData.address);
+      if (formData.notes) fd.append("notes", formData.notes);
 
-      await startVehicleTrip({
-        vehicleId: formData.vehicleId,
-        assignmentId: formData.assignmentId || null,
-        startOdometer: Number.parseInt(formData.startOdometer, 10),
-        startPhotoFilename: photo.name,
-        startPhotoBase64: photoBase64,
-        startPhotoMimetype: photoMimetype,
-        startLatitude: formData.latitude,
-        startLongitude: formData.longitude,
-        startAddress: formData.address || undefined,
-        notes: formData.notes || undefined,
-      });
+      await startVehicleTrip(fd);
 
       router.push("/fsr/vehicle-trips");
     } catch (err) {

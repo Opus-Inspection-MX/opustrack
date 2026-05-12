@@ -44,9 +44,18 @@ export default function EditSchedulePage({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [vicCenters, setVicCenters] = useState<VicCenter[]>([]);
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    title: string;
+    description: string;
+    type: "DIARIA" | "MENSUAL";
+    scheduledAt: string;
+    endDate: string;
+    vicId: string;
+    active: boolean;
+  }>({
     title: "",
     description: "",
+    type: "DIARIA",
     scheduledAt: "",
     endDate: "",
     vicId: "",
@@ -66,6 +75,8 @@ export default function EditSchedulePage({
           setFormData({
             title: schedule.title,
             description: schedule.description || "",
+            type:
+              (schedule as { type?: "DIARIA" | "MENSUAL" }).type || "DIARIA",
             scheduledAt: new Date(schedule.scheduledAt)
               .toISOString()
               .slice(0, 16),
@@ -79,7 +90,7 @@ export default function EditSchedulePage({
         setVicCenters(vics);
       } catch (error) {
         console.error("Error fetching data:", error);
-        setErrors({ submit: "Error al cargar los datos del horario" });
+        setErrors({ submit: "Error al cargar los datos de la programación" });
       } finally {
         setLoading(false);
       }
@@ -143,6 +154,7 @@ export default function EditSchedulePage({
       await updateSchedule(id, {
         title: formData.title.trim(),
         description: formData.description?.trim() || undefined,
+        type: formData.type,
         scheduledAt: new Date(formData.scheduledAt),
         endDate: formData.endDate ? new Date(formData.endDate) : undefined,
         vicId: formData.vicId,
@@ -156,7 +168,7 @@ export default function EditSchedulePage({
         submit:
           error instanceof Error
             ? error.message
-            : "Error al actualizar el horario. Por favor intenta de nuevo.",
+            : "Error al actualizar la programación. Por favor intenta de nuevo.",
       });
     } finally {
       setIsSubmitting(false);
@@ -167,7 +179,7 @@ export default function EditSchedulePage({
     return (
       <div className="container mx-auto p-6">
         <div className="flex items-center justify-center min-h-[400px]">
-          <Spinner size="lg" text="Cargando horario..." />
+          <Spinner size="lg" text="Cargando programación..." />
         </div>
       </div>
     );
@@ -183,16 +195,16 @@ export default function EditSchedulePage({
           </Button>
         </Link>
         <div>
-          <h1 className="text-3xl font-bold">Editar Horario</h1>
+          <h1 className="text-3xl font-bold">Editar Programación</h1>
           <p className="text-muted-foreground">
-            Actualizar información del horario
+            Actualizar información de la programación
           </p>
         </div>
       </div>
 
       <Card className="max-w-2xl">
         <CardHeader>
-          <CardTitle>Detalles del Horario</CardTitle>
+          <CardTitle>Detalles de la Programación</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -233,6 +245,24 @@ export default function EditSchedulePage({
               <p className="text-sm text-muted-foreground">
                 {formData.description.length}/1000
               </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="type">
+                Tipo de Programación <span className="text-red-500">*</span>
+              </Label>
+              <Select
+                value={formData.type}
+                onValueChange={(value) => handleChange("type", value)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="DIARIA">Diaria</SelectItem>
+                  <SelectItem value="MENSUAL">Mensual</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">

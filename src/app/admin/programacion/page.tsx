@@ -39,9 +39,11 @@ export default function ProgramacionPage() {
             <Calendar className="h-5 w-5 text-purple-500" />
           </div>
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold">Programación</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold">
+              Asignación de Programación
+            </h1>
             <p className="text-sm sm:text-base text-muted-foreground hidden sm:block">
-              Gestiona y programa actividades, calibraciones y mantenimientos
+              Asigna incidentes a programaciones, calibraciones y mantenimientos
             </p>
           </div>
         </div>

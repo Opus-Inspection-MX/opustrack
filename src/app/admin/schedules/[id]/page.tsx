@@ -41,6 +41,7 @@ interface Schedule {
   id: string;
   title: string;
   description?: string | null;
+  type?: "DIARIA" | "MENSUAL";
   scheduledAt: Date;
   vicId: string;
   vic: {
@@ -84,7 +85,7 @@ export default function ViewSchedulePage({
     return (
       <div className="container mx-auto p-6">
         <div className="flex items-center justify-center min-h-[400px]">
-          <Spinner size="lg" text="Cargando horario..." />
+          <Spinner size="lg" text="Cargando programación..." />
         </div>
       </div>
     );
@@ -97,10 +98,10 @@ export default function ViewSchedulePage({
           <CardContent className="flex flex-col items-center justify-center py-12">
             <AlertCircle className="h-12 w-12 text-muted-foreground mb-4" />
             <p className="text-lg text-muted-foreground">
-              Horario no encontrado
+              Programación no encontrada
             </p>
             <Link href="/admin/schedules">
-              <Button className="mt-4">Volver a Horarios</Button>
+              <Button className="mt-4">Volver a Programación</Button>
             </Link>
           </CardContent>
         </Card>
@@ -152,14 +153,16 @@ export default function ViewSchedulePage({
             </Button>
           </Link>
           <div>
-            <h1 className="text-3xl font-bold">Detalles del Horario</h1>
-            <p className="text-muted-foreground">Ver información del horario</p>
+            <h1 className="text-3xl font-bold">Detalles de la Programación</h1>
+            <p className="text-muted-foreground">
+              Ver información de la programación
+            </p>
           </div>
         </div>
         <Link href={`/admin/schedules/${schedule.id}/edit`}>
           <Button>
             <Edit className="h-4 w-4 mr-2" />
-            Editar Horario
+            Editar Programación
           </Button>
         </Link>
       </div>
@@ -190,6 +193,13 @@ export default function ViewSchedulePage({
             )}
 
             <div>
+              <p className="text-sm font-medium text-muted-foreground">Tipo</p>
+              <Badge variant="outline" className="mt-1">
+                {schedule.type === "MENSUAL" ? "Mensual" : "Diaria"}
+              </Badge>
+            </div>
+
+            <div>
               <p className="text-sm font-medium text-muted-foreground">
                 Estado
               </p>
@@ -207,7 +217,7 @@ export default function ViewSchedulePage({
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Clock className="h-5 w-5" />
-              Información del Horario
+              Información de la Programación
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">

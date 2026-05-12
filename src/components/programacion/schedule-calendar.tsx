@@ -13,7 +13,9 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 interface ScheduledIncident {
   id: number;
   title: string;
+  reportedAt: string;
   schedule: {
+    id?: string;
     scheduledAt: string;
   } | null;
   priority: number;
@@ -28,12 +30,8 @@ interface ScheduleItem {
   title: string;
   scheduledAt: string;
   endDate: string | null;
-  vic: {
-    name: string;
-  };
-  _count: {
-    incidents: number;
-  };
+  vic: { name: string };
+  _count: { incidents: number };
 }
 
 interface ScheduleCalendarProps {
@@ -86,20 +84,14 @@ export function ScheduleCalendar({
     }
   }, []);
 
-  // Fetch schedules from backend
   const fetchSchedules = useCallback(async (start: Date, end: Date) => {
     try {
       const startStr = start.toISOString().split("T")[0];
       const endStr = end.toISOString().split("T")[0];
-
       const response = await fetch(
         `/api/schedules?startDate=${startStr}&endDate=${endStr}`,
       );
-
-      if (!response.ok) {
-        throw new Error("Error al obtener programaciones");
-      }
-
+      if (!response.ok) throw new Error("Error al obtener programaciones");
       const result = await response.json();
       setSchedules(result.data || []);
     } catch (error) {
@@ -170,26 +162,23 @@ export function ScheduleCalendar({
     return firstDay === 0 ? 6 : firstDay - 1;
   };
 
-  // Get incidents for a specific date
+  // Get incidents for a specific date (scheduled by scheduledAt, otherwise reportedAt)
   const getIncidentsForDate = (date: Date) => {
     const dateStr = date.toISOString().split("T")[0];
     return incidents.filter((incident) => {
-      if (!incident.schedule?.scheduledAt) return false;
-      const incidentDate = new Date(incident.schedule.scheduledAt)
-        .toISOString()
-        .split("T")[0];
+      const dateField = incident.schedule?.scheduledAt || incident.reportedAt;
+      if (!dateField) return false;
+      const incidentDate = new Date(dateField).toISOString().split("T")[0];
       return incidentDate === dateStr;
     });
   };
 
-  // Get schedules for a specific date
   const getSchedulesForDate = (date: Date) => {
     const dateStr = date.toISOString().split("T")[0];
     return schedules.filter((schedule) => {
       const scheduleDate = new Date(schedule.scheduledAt)
         .toISOString()
         .split("T")[0];
-      // If the schedule has an end date, check if the date falls within the range
       if (schedule.endDate) {
         const endDate = new Date(schedule.endDate).toISOString().split("T")[0];
         return dateStr >= scheduleDate && dateStr <= endDate;
@@ -198,12 +187,10 @@ export function ScheduleCalendar({
     });
   };
 
-  // Count incidents by date
   const getIncidentCountForDate = (date: Date) => {
     return getIncidentsForDate(date).length;
   };
 
-  // Count schedules by date
   const getScheduleCountForDate = (date: Date) => {
     return getSchedulesForDate(date).length;
   };
@@ -322,7 +309,6 @@ export function ScheduleCalendar({
         >
           <div className="flex flex-col items-center">
             <span>{day}</span>
-            {/* Show incident and schedule count indicators */}
             <div className="flex gap-1 mt-1">
               {getScheduleCountForDate(date) > 0 && (
                 <div className="text-[10px] bg-orange-500 text-white rounded-full px-1.5 py-0.5">
@@ -382,14 +368,12 @@ export function ScheduleCalendar({
           </div>
           <div className="text-2xl font-bold mt-1">{date.getDate()}</div>
           <div className="mt-2 space-y-1">
-            {/* Show schedules */}
             {daySchedules.length > 0 && (
               <div className="text-xs bg-orange-500/10 text-orange-600 px-2 py-1 rounded">
                 {daySchedules.length} Programación
                 {daySchedules.length !== 1 ? "es" : ""}
               </div>
             )}
-            {/* Show real incidents */}
             {dayIncidents.length > 0 && (
               <div className="text-xs bg-blue-500/10 text-blue-600 px-2 py-1 rounded">
                 {dayIncidents.length} Incidente
@@ -411,25 +395,21 @@ export function ScheduleCalendar({
     const dayIncidents = getIncidentsForDate(currentDate);
     const daySchedules = getSchedulesForDate(currentDate);
 
-    // Group incidents by hour
+    // Group incidents by hour (use scheduledAt if scheduled, else reportedAt)
     const incidentsByHour: { [key: number]: ScheduledIncident[] } = {};
     dayIncidents.forEach((incident) => {
-      if (incident.schedule?.scheduledAt) {
-        const hour = new Date(incident.schedule.scheduledAt).getHours();
-        if (!incidentsByHour[hour]) {
-          incidentsByHour[hour] = [];
-        }
-        incidentsByHour[hour].push(incident);
-      }
+      const dateField = incident.schedule?.scheduledAt || incident.reportedAt;
+      if (!dateField) return;
+      const hour = new Date(dateField).getHours();
+      if (!incidentsByHour[hour]) incidentsByHour[hour] = [];
+      incidentsByHour[hour].push(incident);
     });
 
     // Group schedules by hour
     const schedulesByHour: { [key: number]: ScheduleItem[] } = {};
     daySchedules.forEach((schedule) => {
       const hour = new Date(schedule.scheduledAt).getHours();
-      if (!schedulesByHour[hour]) {
-        schedulesByHour[hour] = [];
-      }
+      if (!schedulesByHour[hour]) schedulesByHour[hour] = [];
       schedulesByHour[hour].push(schedule);
     });
 
@@ -457,7 +437,6 @@ export function ScheduleCalendar({
                 {hour.toString().padStart(2, "0")}:00
               </div>
               <div className="flex-1 border-l-2 pl-4 py-2 min-h-[60px]">
-                {/* Show schedules */}
                 {schedulesByHour[hour]?.map((schedule) => (
                   <div
                     key={schedule.id}
@@ -486,7 +465,6 @@ export function ScheduleCalendar({
                     )}
                   </div>
                 ))}
-                {/* Show real scheduled incidents */}
                 {incidentsByHour[hour]?.map((incident) => (
                   <button
                     type="button"
@@ -500,6 +478,7 @@ export function ScheduleCalendar({
                     <div className="text-xs text-muted-foreground">
                       Prioridad: {incident.priority}
                       {incident.status && ` • ${incident.status.name}`}
+                      {!incident.schedule && " • Sin programación"}
                     </div>
                   </button>
                 ))}

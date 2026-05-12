@@ -36,16 +36,22 @@ export const GET = withPermission("schedules:read", async (request, _user) => {
       );
     }
 
-    // Construir filtro
+    // Construir filtro: incidencias programadas (por scheduledAt) OR
+    // incidencias sin programación (por reportedAt) dentro del rango
     const where: Prisma.IncidentWhereInput = {
       active: true,
-      schedule: {
-        scheduledAt: {
-          gte: start,
-          lte: end,
+      OR: [
+        {
+          schedule: {
+            scheduledAt: { gte: start, lte: end },
+            active: true,
+          },
         },
-        active: true,
-      },
+        {
+          scheduleId: null,
+          reportedAt: { gte: start, lte: end },
+        },
+      ],
     };
 
     // Filtrar por VIC si se proporciona
@@ -120,9 +126,7 @@ export const GET = withPermission("schedules:read", async (request, _user) => {
         },
       },
       orderBy: {
-        schedule: {
-          scheduledAt: "asc",
-        },
+        reportedAt: "asc",
       },
     });
 

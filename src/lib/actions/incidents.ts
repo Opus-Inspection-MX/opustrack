@@ -3,13 +3,19 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requirePermission } from "@/lib/auth/auth";
-import { assertVicAccess, getVicWhereClause } from "@/lib/auth/filters";
+import {
+  assertVicAccess,
+  canAccessVic,
+  getVicWhereClause,
+} from "@/lib/auth/filters";
 import { prisma } from "@/lib/database/prisma.singleton";
 import { getPrimaryVicId } from "@/lib/utils/vic-assignments";
 import {
+  BulkIncidentRowSchema,
   IncidentClientCreateSchema,
   type IncidentCreateInput,
   IncidentCreateSchema,
+  parseAssigneeIds,
 } from "@/lib/validations/incidents";
 
 // Keep legacy type for backward compatibility with existing forms
@@ -111,6 +117,18 @@ export async function getIncidentById(id: number) {
         },
       },
       schedule: true,
+      assignees: {
+        where: { active: true },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+        },
+      },
       assignments: {
         where: { active: true },
         include: {
@@ -179,6 +197,16 @@ export async function createIncident(data: unknown) {
       reportedBy: true,
     },
   });
+
+  if (validated.assigneeIds?.length) {
+    await prisma.incidentAssignee.createMany({
+      data: validated.assigneeIds.map((userId) => ({
+        incidentId: incident.id,
+        userId,
+      })),
+      skipDuplicates: true,
+    });
+  }
 
   revalidatePath("/admin/incidents");
   revalidatePath("/client/incidents");
@@ -320,6 +348,50 @@ export async function updateIncident(id: number, data: IncidentFormData) {
       reportedBy: true,
     },
   });
+
+  if (data.assigneeIds !== undefined) {
+    const desired = new Set(data.assigneeIds);
+    const current = await prisma.incidentAssignee.findMany({
+      where: { incidentId: id, active: true },
+      select: { userId: true },
+    });
+    const currentSet = new Set(current.map((c) => c.userId));
+
+    const toRemove = [...currentSet].filter((u) => !desired.has(u));
+    const toAdd = [...desired].filter((u) => !currentSet.has(u));
+
+    if (toRemove.length) {
+      const inUse = await prisma.assignmentAssignee.findMany({
+        where: {
+          userId: { in: toRemove },
+          active: true,
+          assignment: { incidentId: id, active: true },
+        },
+        select: { userId: true },
+      });
+      if (inUse.length) {
+        const blocked = [...new Set(inUse.map((a) => a.userId))];
+        throw new Error(
+          `No se puede retirar a FSR(s) asignado(s) a una asignación activa: ${blocked.join(", ")}`,
+        );
+      }
+      await prisma.incidentAssignee.updateMany({
+        where: { incidentId: id, userId: { in: toRemove }, active: true },
+        data: { active: false },
+      });
+    }
+
+    if (toAdd.length) {
+      await prisma.incidentAssignee.createMany({
+        data: toAdd.map((userId) => ({ incidentId: id, userId })),
+        skipDuplicates: true,
+      });
+      await prisma.incidentAssignee.updateMany({
+        where: { incidentId: id, userId: { in: toAdd } },
+        data: { active: true },
+      });
+    }
+  }
 
   revalidatePath("/admin/incidents");
   revalidatePath(`/admin/incidents/${id}`);
@@ -544,6 +616,10 @@ export async function getIncidentFormOptions() {
         name: true,
         email: true,
         role: true,
+        vicAssignments: {
+          where: { active: true },
+          select: { vicId: true },
+        },
       },
       orderBy: { name: "asc" },
     }),
@@ -555,5 +631,336 @@ export async function getIncidentFormOptions() {
     }),
   ]);
 
-  return { types, statuses, vics, users, schedules };
+  const usersWithVicIds = users.map((u) => ({
+    id: u.id,
+    name: u.name,
+    email: u.email,
+    role: u.role,
+    roleName: u.role?.name ?? null,
+    vicIds: u.vicAssignments.map((va) => va.vicId),
+  }));
+
+  return { types, statuses, vics, users: usersWithVicIds, schedules };
+}
+
+/**
+ * Catalogs needed to fill the bulk-incident CSV.
+ * Filters by user's VIC access (admin sees all).
+ */
+export async function getBulkIncidentCatalogs() {
+  const user = await requirePermission("incidents:create");
+  const vicFilter = getVicWhereClause(user);
+
+  const isNullFilter =
+    vicFilter.vicId &&
+    typeof vicFilter.vicId === "object" &&
+    "equals" in vicFilter.vicId &&
+    vicFilter.vicId.equals === null;
+  const scheduleWhere: { active: boolean; vicId?: string } = isNullFilter
+    ? { active: true, vicId: "__IMPOSSIBLE_VALUE__" }
+    : {
+        active: true,
+        ...(vicFilter.vicId && typeof vicFilter.vicId === "string"
+          ? { vicId: vicFilter.vicId }
+          : {}),
+      };
+
+  const [types, statuses, vics, schedules, fsrs] = await Promise.all([
+    prisma.incidentType.findMany({
+      where: { active: true },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
+    }),
+    prisma.incidentStatus.findMany({
+      where: { active: true },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true, color: true },
+    }),
+    prisma.vehicleInspectionCenter.findMany({
+      where: { active: true, ...vicFilter },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true, code: true },
+    }),
+    prisma.schedule.findMany({
+      where: scheduleWhere,
+      orderBy: { scheduledAt: "desc" },
+      take: 50,
+      select: {
+        id: true,
+        title: true,
+        type: true,
+        scheduledAt: true,
+        vicId: true,
+      },
+    }),
+    prisma.user.findMany({
+      where: { active: true, role: { name: "FSR" } },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        vicAssignments: {
+          where: { active: true },
+          select: { vicId: true },
+        },
+      },
+      orderBy: { name: "asc" },
+    }),
+  ]);
+
+  const fsrUsers = fsrs.map((f) => ({
+    id: f.id,
+    name: f.name,
+    email: f.email,
+    vicIds: f.vicAssignments.map((va) => va.vicId),
+  }));
+
+  return { types, statuses, vics, schedules, fsrs: fsrUsers };
+}
+
+export type BulkIncidentError = {
+  row: number;
+  field?: string;
+  message: string;
+};
+
+export type BulkIncidentResult =
+  | { ok: true; created: number }
+  | { ok: false; errors: BulkIncidentError[] };
+
+const MAX_BULK_ROWS = 500;
+
+/**
+ * Atomically create many incidents from CSV-parsed rows.
+ * If any row is invalid (schema or cross-validation), no incidents are created.
+ */
+export async function createIncidentsBulk(
+  rawRows: unknown[],
+): Promise<BulkIncidentResult> {
+  const user = await requirePermission("incidents:create");
+
+  if (!Array.isArray(rawRows) || rawRows.length === 0) {
+    return {
+      ok: false,
+      errors: [{ row: 0, message: "No hay filas para procesar" }],
+    };
+  }
+
+  if (rawRows.length > MAX_BULK_ROWS) {
+    return {
+      ok: false,
+      errors: [
+        {
+          row: 0,
+          message: `Máximo ${MAX_BULK_ROWS} filas por carga (recibidas: ${rawRows.length})`,
+        },
+      ],
+    };
+  }
+
+  const errors: BulkIncidentError[] = [];
+  const parsedRows: Array<{
+    title: string;
+    description: string;
+    priority: number;
+    sla: number;
+    typeId?: number;
+    statusId?: number;
+    vicId?: string;
+    scheduleId?: string;
+    assigneeIds: string[];
+  }> = [];
+
+  rawRows.forEach((raw, idx) => {
+    const result = BulkIncidentRowSchema.safeParse(raw);
+    const rowNumber = idx + 2; // +2: header row + 1-based
+    if (!result.success) {
+      for (const issue of result.error.issues) {
+        errors.push({
+          row: rowNumber,
+          field: issue.path.join("."),
+          message: issue.message,
+        });
+      }
+      return;
+    }
+    parsedRows.push({
+      title: result.data.title,
+      description: result.data.description,
+      priority: result.data.priority,
+      sla: result.data.sla,
+      typeId: result.data.typeId,
+      statusId: result.data.statusId,
+      vicId: result.data.vicId,
+      scheduleId: result.data.scheduleId,
+      assigneeIds: parseAssigneeIds(result.data.assigneeIds),
+    });
+  });
+
+  if (errors.length > 0) {
+    return { ok: false, errors };
+  }
+
+  // Cross-validation against catalogs
+  const typeIds = new Set(
+    parsedRows.map((r) => r.typeId).filter((v): v is number => v !== undefined),
+  );
+  const statusIds = new Set(
+    parsedRows
+      .map((r) => r.statusId)
+      .filter((v): v is number => v !== undefined),
+  );
+  const vicIds = new Set(
+    parsedRows.map((r) => r.vicId).filter((v): v is string => v !== undefined),
+  );
+  const scheduleIds = new Set(
+    parsedRows
+      .map((r) => r.scheduleId)
+      .filter((v): v is string => v !== undefined),
+  );
+  const assigneeIds = new Set(parsedRows.flatMap((r) => r.assigneeIds));
+
+  const [
+    existingTypes,
+    existingStatuses,
+    existingVics,
+    existingSchedules,
+    existingFsrs,
+  ] = await Promise.all([
+    typeIds.size
+      ? prisma.incidentType.findMany({
+          where: { id: { in: [...typeIds] }, active: true },
+          select: { id: true },
+        })
+      : Promise.resolve([]),
+    statusIds.size
+      ? prisma.incidentStatus.findMany({
+          where: { id: { in: [...statusIds] }, active: true },
+          select: { id: true },
+        })
+      : Promise.resolve([]),
+    vicIds.size
+      ? prisma.vehicleInspectionCenter.findMany({
+          where: { id: { in: [...vicIds] }, active: true },
+          select: { id: true },
+        })
+      : Promise.resolve([]),
+    scheduleIds.size
+      ? prisma.schedule.findMany({
+          where: { id: { in: [...scheduleIds] }, active: true },
+          select: { id: true, vicId: true },
+        })
+      : Promise.resolve([]),
+    assigneeIds.size
+      ? prisma.user.findMany({
+          where: {
+            id: { in: [...assigneeIds] },
+            active: true,
+            role: { name: "FSR" },
+          },
+          select: { id: true },
+        })
+      : Promise.resolve([]),
+  ]);
+
+  const validTypes = new Set(existingTypes.map((t) => t.id));
+  const validStatuses = new Set(existingStatuses.map((s) => s.id));
+  const validVics = new Set(existingVics.map((v) => v.id));
+  const scheduleVicById = new Map(
+    existingSchedules.map((s) => [s.id, s.vicId]),
+  );
+  const validFsrs = new Set(existingFsrs.map((u) => u.id));
+
+  parsedRows.forEach((row, idx) => {
+    const rowNumber = idx + 2;
+    if (row.typeId !== undefined && !validTypes.has(row.typeId)) {
+      errors.push({
+        row: rowNumber,
+        field: "typeId",
+        message: `Tipo de incidente ${row.typeId} no existe o está inactivo`,
+      });
+    }
+    if (row.statusId !== undefined && !validStatuses.has(row.statusId)) {
+      errors.push({
+        row: rowNumber,
+        field: "statusId",
+        message: `Estado ${row.statusId} no existe o está inactivo`,
+      });
+    }
+    if (row.vicId !== undefined) {
+      if (!validVics.has(row.vicId)) {
+        errors.push({
+          row: rowNumber,
+          field: "vicId",
+          message: `VIC ${row.vicId} no existe o está inactivo`,
+        });
+      } else if (!canAccessVic(user, row.vicId)) {
+        errors.push({
+          row: rowNumber,
+          field: "vicId",
+          message: `Sin acceso al VIC ${row.vicId}`,
+        });
+      }
+    }
+    if (row.scheduleId !== undefined) {
+      const scheduleVic = scheduleVicById.get(row.scheduleId);
+      if (scheduleVic === undefined) {
+        errors.push({
+          row: rowNumber,
+          field: "scheduleId",
+          message: `Programación ${row.scheduleId} no existe o está inactiva`,
+        });
+      } else if (!canAccessVic(user, scheduleVic)) {
+        errors.push({
+          row: rowNumber,
+          field: "scheduleId",
+          message: `Sin acceso a la programación ${row.scheduleId}`,
+        });
+      }
+    }
+    for (const fsrId of row.assigneeIds) {
+      if (!validFsrs.has(fsrId)) {
+        errors.push({
+          row: rowNumber,
+          field: "assigneeIds",
+          message: `FSR ${fsrId} no existe, está inactivo o no tiene rol FSR`,
+        });
+      }
+    }
+  });
+
+  if (errors.length > 0) {
+    return { ok: false, errors };
+  }
+
+  await prisma.$transaction(async (tx) => {
+    for (const row of parsedRows) {
+      const incident = await tx.incident.create({
+        data: {
+          title: row.title,
+          description: row.description,
+          priority: row.priority,
+          sla: row.sla,
+          typeId: row.typeId ?? null,
+          statusId: row.statusId ?? null,
+          vicId: row.vicId ?? null,
+          scheduleId: row.scheduleId ?? null,
+          reportedById: user.id,
+        },
+      });
+      if (row.assigneeIds.length > 0) {
+        await tx.incidentAssignee.createMany({
+          data: row.assigneeIds.map((userId) => ({
+            incidentId: incident.id,
+            userId,
+          })),
+          skipDuplicates: true,
+        });
+      }
+    }
+  });
+
+  revalidatePath("/admin/incidents");
+  revalidatePath("/client/incidents");
+  return { ok: true, created: parsedRows.length };
 }

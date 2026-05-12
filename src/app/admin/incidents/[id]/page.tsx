@@ -190,6 +190,27 @@ export default async function IncidentDetailPage({
               </div>
             </>
           )}
+
+          <Separator />
+          <div>
+            <p className="text-sm text-muted-foreground mb-2">
+              FSRs Habilitados ({incident.assignees?.length || 0})
+            </p>
+            {incident.assignees && incident.assignees.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {incident.assignees.map((a) => (
+                  <Badge key={a.user.id} variant="secondary">
+                    {a.user.name}
+                  </Badge>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Aún no hay FSRs habilitados. Edita la incidencia para asignar
+                FSRs.
+              </p>
+            )}
+          </div>
         </CardContent>
       </Card>
 

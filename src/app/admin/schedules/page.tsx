@@ -33,6 +33,7 @@ interface Schedule {
   id: string;
   title: string;
   description?: string;
+  type?: "DIARIA" | "MENSUAL";
   scheduledAt: string;
   endDate?: string | null;
   vicId: string;
@@ -47,6 +48,7 @@ interface ScheduleApiResponse {
   id: string;
   title: string;
   description?: string | null;
+  type?: "DIARIA" | "MENSUAL";
   scheduledAt: Date | string;
   endDate?: Date | string | null;
   vicId: string;
@@ -119,6 +121,7 @@ export default function SchedulesPage() {
           id: schedule.id,
           title: schedule.title,
           description: schedule.description ?? undefined,
+          type: schedule.type,
           scheduledAt:
             typeof schedule.scheduledAt === "string"
               ? schedule.scheduledAt
@@ -176,7 +179,7 @@ export default function SchedulesPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm("¿Estás seguro de que deseas eliminar este horario?")) {
+    if (confirm("¿Estás seguro de que deseas eliminar esta programación?")) {
       try {
         await deleteSchedule(id);
         await fetchSchedulesData();
@@ -185,7 +188,7 @@ export default function SchedulesPage() {
         alert(
           error instanceof Error
             ? error.message
-            : "Error al eliminar el horario",
+            : "Error al eliminar la programación",
         );
       }
     }
@@ -207,7 +210,7 @@ export default function SchedulesPage() {
   if (isLoading && schedules.length === 0) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Spinner size="lg" text="Cargando horarios..." />
+        <Spinner size="lg" text="Cargando programaciones..." />
       </div>
     );
   }
@@ -216,14 +219,14 @@ export default function SchedulesPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Horarios</h1>
+          <h1 className="text-3xl font-bold">Programación</h1>
           <p className="text-muted-foreground">
-            Gestionar horarios de mantenimiento y actividades planificadas
+            Gestionar programaciones de mantenimiento y actividades planificadas
           </p>
         </div>
         <Button onClick={() => router.push("/admin/schedules/new")}>
           <Plus className="mr-2 h-4 w-4" />
-          Nuevo Horario
+          Nueva Programación
         </Button>
       </div>
 

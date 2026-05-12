@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { createAssignmentActivity } from "@/lib/actions/assignment-activities";
 import { uploadAssignmentAttachment } from "@/lib/actions/assignments";
-import { fileToBase64, normalizeMimeType } from "@/lib/upload";
+import { normalizeMimeType } from "@/lib/upload";
 
 type AssignmentActivityFormProps = {
   assignmentId: string;
@@ -52,21 +52,39 @@ export function AssignmentActivityForm({
         throw new Error("Failed to create work activity");
       }
 
-      // Upload files if any
+      // Upload files if any (multipart, per-file isolated failures)
       if (files.length > 0) {
-        const uploadPromises = files.map(async (file) => {
-          const base64Data = await fileToBase64(file);
-          const normalizedMimeType = normalizeMimeType(file);
-          return uploadAssignmentAttachment(assignmentId, {
-            filename: file.name,
-            base64Data,
-            mimetype: normalizedMimeType,
-            size: file.size,
-            description: `Attached to activity: ${description.substring(0, 50)}`,
-          });
-        });
+        const activityDescription = `Attached to activity: ${description.substring(0, 50)}`;
+        const results = await Promise.allSettled(
+          files.map((file) => {
+            const fd = new FormData();
+            fd.append("assignmentId", assignmentId);
+            fd.append("file", file);
+            fd.append("mimetype", normalizeMimeType(file));
+            fd.append("description", activityDescription);
+            return uploadAssignmentAttachment(fd);
+          }),
+        );
 
-        await Promise.all(uploadPromises);
+        const failures = results
+          .map((r, i) => ({ r, name: files[i].name }))
+          .filter(({ r }) => r.status === "rejected");
+
+        if (failures.length > 0) {
+          const detail = failures
+            .map(({ r, name }) => {
+              const reason = (r as PromiseRejectedResult).reason;
+              const msg =
+                reason instanceof Error
+                  ? reason.message
+                  : String(reason ?? "Error desconocido");
+              return `${name}: ${msg}`;
+            })
+            .join("; ");
+          throw new Error(
+            `Algunos archivos no se pudieron subir (${failures.length}/${files.length}): ${detail}`,
+          );
+        }
       }
 
       // Reset form

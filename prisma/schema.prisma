@@ -11,29 +11,30 @@ datasource db {
 }
 
 model User {
-  id                String                   @id @default(cuid())
-  name              String
-  email             String                   @unique
-  password          String
-  roleId            Int
-  userStatusId      Int                      @default(1)
-  vicId             String? // Deprecated - kept for backward compatibility (use vicAssignments instead)
-  vicIds            String[]                 @default([]) // Deprecated - use vicAssignments instead
-  sessionVersion    Int                      @default(1) // Increment to invalidate all user sessions
-  role              Role                     @relation(fields: [roleId], references: [id])
-  userStatus        UserStatus               @relation(fields: [userStatusId], references: [id])
-  userProfile       UserProfile?
-  vic               VehicleInspectionCenter? @relation(fields: [vicId], references: [id])
-  vicAssignments    UserVicAssignment[] // VIC assignments for this user
-  createdAt         DateTime                 @default(now())
-  updatedAt         DateTime                 @updatedAt
+  id                  String                   @id @default(cuid())
+  name                String
+  email               String                   @unique
+  password            String
+  roleId              Int
+  userStatusId        Int                      @default(1)
+  vicId               String? // Deprecated - kept for backward compatibility (use vicAssignments instead)
+  vicIds              String[]                 @default([]) // Deprecated - use vicAssignments instead
+  sessionVersion      Int                      @default(1) // Increment to invalidate all user sessions
+  role                Role                     @relation(fields: [roleId], references: [id])
+  userStatus          UserStatus               @relation(fields: [userStatusId], references: [id])
+  userProfile         UserProfile?
+  vic                 VehicleInspectionCenter? @relation(fields: [vicId], references: [id])
+  vicAssignments      UserVicAssignment[] // VIC assignments for this user
+  createdAt           DateTime                 @default(now())
+  updatedAt           DateTime                 @updatedAt
   assignmentAssignees AssignmentAssignee[] // Assignments this user is assigned to (M-N)
-  reportedIncidents Incident[]               @relation("IncidentReporter")
-  incidents         Incident[]               @relation("IncidentUser") // relación opcional si usas userId en Incident
-  vehicleTrips      VehicleTrip[] // Vehicle trips driven by this FSR
-  assignedVehicles  Vehicle[]                @relation("AssignedVehicles") // Vehicles assigned to this FSR
-  notifications     Notification[] // User's notifications
-  active            Boolean                  @default(true)
+  incidentAssignees   IncidentAssignee[] // Incidents this user is enabled to work on (RF-025)
+  reportedIncidents   Incident[]               @relation("IncidentReporter")
+  incidents           Incident[]               @relation("IncidentUser") // relación opcional si usas userId en Incident
+  vehicleTrips        VehicleTrip[] // Vehicle trips driven by this FSR
+  assignedVehicles    Vehicle[]                @relation("AssignedVehicles") // Vehicles assigned to this FSR
+  notifications       Notification[] // User's notifications
+  active              Boolean                  @default(true)
 }
 
 model UserVicAssignment {
@@ -147,6 +148,7 @@ model Schedule {
   id          String                  @id @default(cuid())
   title       String
   description String?
+  type        ScheduleType            @default(DIARIA) // RF-024: Diaria | Mensual
   scheduledAt DateTime // Fecha de inicio
   endDate     DateTime? // Fecha de fin (opcional)
   statusId    Int? // Estado del schedule
@@ -161,6 +163,12 @@ model Schedule {
   @@index([statusId])
   @@index([scheduledAt])
   @@index([endDate])
+  @@index([type])
+}
+
+enum ScheduleType {
+  DIARIA
+  MENSUAL
 }
 
 model ScheduleStatus {
@@ -254,9 +262,10 @@ model Incident {
   user   User?   @relation("IncidentUser", fields: [userId], references: [id])
 
   assignments Assignment[]
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-  active      Boolean      @default(true)
+  assignees   IncidentAssignee[] // RF-025: FSRs habilitados para este incidente
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  active      Boolean            @default(true)
 
   @@index([vicId])
   @@index([statusId])
@@ -268,6 +277,23 @@ model Incident {
   @@index([active, reportedAt]) // Compound index for active incidents ordered by date
 }
 
+model IncidentAssignee {
+  id         String   @id @default(cuid())
+  incidentId Int
+  userId     String
+  assignedAt DateTime @default(now())
+  active     Boolean  @default(true)
+
+  incident Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id])
+
+  @@unique([incidentId, userId])
+  @@index([userId])
+  @@index([incidentId])
+  @@index([active, userId])
+  @@map("incident_assignees")
+}
+
 model Assignment {
   id                   String                 @id @default(cuid())
   incidentId           Int
@@ -276,7 +302,7 @@ model Assignment {
   statusId             Int?
   status               AssignmentStatus?      @relation(fields: [statusId], references: [id])
   notes                String?
-  folio                Int       @unique @default(dbgenerated("nextval('assignment_folio_seq')")) // Auto-generated numeric folio
+  folio                Int                    @unique @default(autoincrement()) // Auto-generated numeric folio
   odtFolio             String? // ODT folio captured from external system (RF-010)
   startedAt            DateTime?
   finishedAt           DateTime?
@@ -297,11 +323,11 @@ model Assignment {
 }
 
 model AssignmentAssignee {
-  id           String     @id @default(cuid())
+  id           String   @id @default(cuid())
   assignmentId String
   userId       String
-  assignedAt   DateTime   @default(now())
-  active       Boolean    @default(true)
+  assignedAt   DateTime @default(now())
+  active       Boolean  @default(true)
 
   assignment Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
   user       User       @relation(fields: [userId], references: [id])

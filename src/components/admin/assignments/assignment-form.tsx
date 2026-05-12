@@ -2,7 +2,7 @@
 
 import { Check, X } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -40,6 +40,7 @@ type AssignmentFormProps = {
     title: string;
     priority: number;
     vicId?: string | null;
+    assigneeIds?: string[];
   }>;
   users: Array<{ id: string; name: string; vicIds?: string[] }>;
   assignmentStatuses: Array<{
@@ -73,14 +74,25 @@ export function AssignmentForm({
     notes: assignment?.notes || "",
   });
 
-  // Filter FSRs based on selected incident's VIC
+  // Filter FSRs to those enabled in the selected incident (RF-025)
   const selectedIncident = incidents.find(
     (inc) => inc.id === formData.incidentId,
   );
-  const selectedVicId = selectedIncident?.vicId;
-  const filteredUsers = selectedVicId
-    ? users.filter((user) => user.vicIds?.includes(selectedVicId))
-    : users;
+  const authorizedAssigneeIds = selectedIncident?.assigneeIds ?? [];
+  const filteredUsers = users.filter((user) =>
+    authorizedAssigneeIds.includes(user.id),
+  );
+
+  // When incident changes, drop assignees not authorized in the new incident
+  useEffect(() => {
+    setFormData((prev) => {
+      const filtered = prev.assigneeIds.filter((id) =>
+        authorizedAssigneeIds.includes(id),
+      );
+      if (filtered.length === prev.assigneeIds.length) return prev;
+      return { ...prev, assigneeIds: filtered };
+    });
+  }, [authorizedAssigneeIds]);
 
   const toggleAssignee = (userId: string) => {
     setFormData((prev) => ({
@@ -176,9 +188,8 @@ export function AssignmentForm({
                   })}
                   {filteredUsers.length === 0 && (
                     <p className="px-3 py-2 text-sm text-muted-foreground">
-                      {selectedIncident?.vicId
-                        ? "No FSRs assigned to this VIC"
-                        : "No hay usuarios disponibles"}
+                      Esta incidencia no tiene FSRs habilitados. Asígnalos desde
+                      la incidencia primero.
                     </p>
                   )}
                 </div>
