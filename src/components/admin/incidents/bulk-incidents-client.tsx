@@ -40,9 +40,9 @@ type Catalogs = {
   schedules: Array<{
     id: string;
     title: string;
-    type: string;
     scheduledAt: Date;
-    vicId: string;
+    endDate: Date | null;
+    vicIds: string[];
   }>;
   fsrs: Array<{
     id: string;
@@ -247,18 +247,25 @@ export function BulkIncidentsClient({ catalogs }: { catalogs: Catalogs }) {
   >(new Map());
   const [created, setCreated] = useState<number | null>(null);
   const [defaultFsrIds, setDefaultFsrIds] = useState<string[]>([]);
+  const [defaultVicId, setDefaultVicId] = useState<string>("");
 
   const selectedSchedule = useMemo(
     () => catalogs.schedules.find((s) => s.id === scheduleId) ?? null,
     [catalogs.schedules, scheduleId],
   );
-  const scheduleVicId = selectedSchedule?.vicId ?? null;
-  const scheduleVic = useMemo(
+  const scheduleVicOptions = useMemo(() => {
+    if (!selectedSchedule) return [];
+    const byId = new Map(catalogs.vics.map((v) => [v.id, v] as const));
+    return selectedSchedule.vicIds
+      .map((id) => byId.get(id))
+      .filter((v): v is { id: string; code: string; name: string } => !!v);
+  }, [selectedSchedule, catalogs.vics]);
+  const defaultVic = useMemo(
     () =>
-      scheduleVicId
-        ? (catalogs.vics.find((v) => v.id === scheduleVicId) ?? null)
+      defaultVicId
+        ? (catalogs.vics.find((v) => v.id === defaultVicId) ?? null)
         : null,
-    [catalogs.vics, scheduleVicId],
+    [catalogs.vics, defaultVicId],
   );
 
   // Resolve open/closed status IDs from catalog for snapshot generation.
@@ -272,11 +279,17 @@ export function BulkIncidentsClient({ catalogs }: { catalogs: Catalogs }) {
   const invalidCount = previewRows.length - validCount;
   const canSubmit = previewRows.length > 0 && invalidCount === 0 && !submitting;
 
+  const handleScheduleChange = (newId: string) => {
+    setScheduleId(newId);
+    // Reset default VIC since the new schedule may have a different VIC set.
+    setDefaultVicId("");
+  };
+
   const handleDownloadTemplate = () => {
     downloadCsv(
       "incidentes-plantilla.csv",
       buildLegibleTemplateCsv({
-        vicCode: scheduleVic?.code,
+        vicCode: defaultVic?.code,
         typeNames: catalogs.types.map((t) => t.name),
       }),
     );
@@ -354,12 +367,26 @@ export function BulkIncidentsClient({ catalogs }: { catalogs: Catalogs }) {
       setPreviewRows([]);
       return;
     }
-    // Seed default FSRs into rows that don't already have any (snapshots may).
-    const seeded = result.rows.map((r) =>
-      r.assigneeIds.length === 0 && defaultFsrIds.length > 0
-        ? { ...r, assigneeIds: [...defaultFsrIds] }
-        : r,
-    );
+    // Seed defaults from the page-level controls: VIC into rows without one,
+    // FSRs into rows without any.
+    const defaultVicCode = defaultVicId
+      ? (catalogs.vics.find((v) => v.id === defaultVicId)?.code ?? null)
+      : null;
+    const seeded = result.rows.map((r) => {
+      let next = r;
+      if (!r.vicId && defaultVicId) {
+        next = {
+          ...next,
+          vicId: defaultVicId,
+          vicCodeRaw: r.vicCodeRaw ?? defaultVicCode,
+          vicResolved: true,
+        };
+      }
+      if (next.assigneeIds.length === 0 && defaultFsrIds.length > 0) {
+        next = { ...next, assigneeIds: [...defaultFsrIds] };
+      }
+      return next;
+    });
     setPreviewRows(seeded);
   };
 
@@ -426,7 +453,7 @@ export function BulkIncidentsClient({ catalogs }: { catalogs: Catalogs }) {
       { value: "", label: "— Sin programación —" },
       ...catalogs.schedules.map((s) => ({
         value: s.id,
-        label: `${s.title} · ${s.type} · ${fmt(s.scheduledAt)}`,
+        label: `${s.title} · ${fmt(s.scheduledAt)}${s.endDate ? ` → ${fmt(s.endDate)}` : ""}`,
       })),
     ];
   }, [catalogs.schedules]);
@@ -475,18 +502,34 @@ export function BulkIncidentsClient({ catalogs }: { catalogs: Catalogs }) {
           <SearchableSelect
             options={scheduleOptions}
             value={scheduleId}
-            onValueChange={setScheduleId}
+            onValueChange={handleScheduleChange}
             placeholder="Selecciona una programación o ninguna"
             searchPlaceholder="Buscar programación..."
             emptyMessage="Sin programaciones"
           />
-          {scheduleVic && (
-            <p className="text-sm">
-              VIC de la programación:{" "}
-              <Badge variant="secondary">
-                {scheduleVic.code} — {scheduleVic.name}
-              </Badge>
-            </p>
+          {selectedSchedule && scheduleVicOptions.length > 0 && (
+            <div className="pt-2 space-y-2 border-t">
+              <p className="text-sm font-medium">VIC por defecto (opcional)</p>
+              <p className="text-xs text-muted-foreground">
+                Se asigna a cada fila que llegue sin VIC y se usa para la
+                plantilla descargada. Solo VICs que pertenecen a esta
+                programación.
+              </p>
+              <SearchableSelect
+                options={[
+                  { value: "", label: "— Sin VIC por defecto —" },
+                  ...scheduleVicOptions.map((v) => ({
+                    value: v.id,
+                    label: `${v.code} — ${v.name}`,
+                  })),
+                ]}
+                value={defaultVicId}
+                onValueChange={setDefaultVicId}
+                placeholder="Elige VIC por defecto"
+                searchPlaceholder="Buscar VIC..."
+                emptyMessage="Sin VICs en esta programación"
+              />
+            </div>
           )}
 
           <div className="pt-2 space-y-2 border-t">
@@ -498,7 +541,7 @@ export function BulkIncidentsClient({ catalogs }: { catalogs: Catalogs }) {
             <div className="flex flex-col sm:flex-row gap-2">
               <div className="flex-1">
                 <MultiSelect
-                  options={buildFsrOptions(scheduleVicId)}
+                  options={buildFsrOptions(defaultVicId || null)}
                   value={defaultFsrIds}
                   onValueChange={setDefaultFsrIds}
                   placeholder="Selecciona FSRs"
@@ -610,19 +653,21 @@ export function BulkIncidentsClient({ catalogs }: { catalogs: Catalogs }) {
               <TableHeader>
                 <TableRow>
                   <TableHead>Título</TableHead>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead>Fecha</TableHead>
+                  <TableHead>Fecha inicio</TableHead>
+                  <TableHead>Fecha fin</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {catalogs.schedules.map((s) => (
                   <TableRow key={s.id}>
                     <TableCell>{s.title}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{s.type}</Badge>
-                    </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {new Date(s.scheduledAt).toLocaleDateString("es-MX")}
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {s.endDate
+                        ? new Date(s.endDate).toLocaleDateString("es-MX")
+                        : "—"}
                     </TableCell>
                   </TableRow>
                 ))}

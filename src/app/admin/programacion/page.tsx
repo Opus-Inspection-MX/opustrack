@@ -1,7 +1,7 @@
 "use client";
 
 import { Calendar, ChevronLeft, ChevronRight, Plus } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CreateIncidentDialog } from "@/components/programacion/create-incident-dialog";
 import { CreateProgramDialog } from "@/components/programacion/create-program-dialog";
 import { ScheduleActivities } from "@/components/programacion/schedule-activities";
@@ -9,7 +9,30 @@ import { ScheduleCalendar } from "@/components/programacion/schedule-calendar";
 import { SelectScheduleDialog } from "@/components/programacion/select-schedule-dialog";
 import { Button } from "@/components/ui/button";
 
+interface VicOption {
+  id: string;
+  code: string;
+  name: string;
+}
+
 export default function ProgramacionPage() {
+  const [vics, setVics] = useState<VicOption[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/vics")
+      .then((r) => (r.ok ? r.json() : { data: [] }))
+      .then((res) => {
+        if (cancelled) return;
+        setVics(res.data || []);
+      })
+      .catch(() => {
+        if (!cancelled) setVics([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const [selectedDateRange, setSelectedDateRange] = useState<{
     start: Date;
     end: Date;
@@ -123,6 +146,7 @@ export default function ProgramacionPage() {
           <ScheduleCalendar
             dateRange={selectedDateRange}
             onDateRangeChange={setSelectedDateRange}
+            vics={vics}
           />
         </div>
 

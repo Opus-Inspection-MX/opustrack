@@ -4,19 +4,57 @@ import type { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requirePermission } from "@/lib/auth/auth";
+import { canAccessVic, getVicWhereClause } from "@/lib/auth/filters";
 import { prisma } from "@/lib/database/prisma.singleton";
 
 export type ScheduleFormData = {
   title: string;
   description?: string;
-  type?: "DIARIA" | "MENSUAL";
   scheduledAt: Date;
-  endDate?: Date;
-  vicId: string;
+  endDate?: Date | null;
+  statusId?: number | null;
+  vicIds: string[];
 };
 
+export type ScheduleQuickUpdateData = {
+  vicIds: string[];
+  scheduledAt: Date;
+  endDate?: Date | null;
+};
+
+const scheduleInclude = {
+  vics: {
+    where: { active: true },
+    include: {
+      vic: { select: { id: true, code: true, name: true } },
+    },
+  },
+  _count: { select: { incidents: true } },
+} satisfies Prisma.ScheduleInclude;
+
 /**
- * Get all schedules with pagination, search, and filters
+ * Build a Prisma where filter that returns schedules whose [scheduledAt, endDate]
+ * overlaps the [from, to] window. Schedules without endDate are treated as
+ * point-in-time on scheduledAt.
+ */
+function overlapWhere(from?: Date, to?: Date): Prisma.ScheduleWhereInput {
+  if (!from && !to) return {};
+  const conditions: Prisma.ScheduleWhereInput[] = [];
+  if (to) conditions.push({ scheduledAt: { lte: to } });
+  if (from) {
+    conditions.push({
+      OR: [
+        { endDate: { gte: from } },
+        { endDate: null, scheduledAt: { gte: from } },
+      ],
+    });
+  }
+  return { AND: conditions };
+}
+
+/**
+ * Get all schedules with pagination, search, and filters.
+ * `activeFrom`/`activeTo` filter by overlap with [scheduledAt, endDate].
  */
 export async function getSchedules(params?: {
   page?: number;
@@ -24,8 +62,8 @@ export async function getSchedules(params?: {
   search?: string;
   vicId?: string;
   statusId?: number;
-  startDate?: string;
-  endDate?: string;
+  activeFrom?: Date;
+  activeTo?: Date;
 }) {
   await requirePermission("schedules:read");
 
@@ -33,12 +71,11 @@ export async function getSchedules(params?: {
   const limit = params?.limit || 10;
   const skip = (page - 1) * limit;
 
-  // Build where clause
   const where: Prisma.ScheduleWhereInput = {
     active: true,
+    ...overlapWhere(params?.activeFrom, params?.activeTo),
   };
 
-  // Search by title or description
   if (params?.search) {
     where.OR = [
       { title: { contains: params.search, mode: "insensitive" } },
@@ -46,39 +83,19 @@ export async function getSchedules(params?: {
     ];
   }
 
-  // Filter by VIC
   if (params?.vicId) {
-    where.vicId = params.vicId;
+    where.vics = { some: { vicId: params.vicId, active: true } };
   }
 
-  // Filter by status
   if (params?.statusId) {
     where.statusId = params.statusId;
   }
 
-  // Filter by date range
-  if (params?.startDate || params?.endDate) {
-    where.scheduledAt = {};
-    if (params.startDate) {
-      where.scheduledAt.gte = new Date(params.startDate);
-    }
-    if (params.endDate) {
-      where.scheduledAt.lte = new Date(params.endDate);
-    }
-  }
-
-  // Get total count
   const total = await prisma.schedule.count({ where });
 
-  // Get paginated schedules
   const schedules = await prisma.schedule.findMany({
     where,
-    include: {
-      vic: true,
-      _count: {
-        select: { incidents: true },
-      },
-    },
+    include: scheduleInclude,
     orderBy: { scheduledAt: "desc" },
     skip,
     take: limit,
@@ -104,7 +121,12 @@ export async function getScheduleById(id: string) {
   const schedule = await prisma.schedule.findUnique({
     where: { id },
     include: {
-      vic: true,
+      vics: {
+        where: { active: true },
+        include: {
+          vic: { select: { id: true, code: true, name: true } },
+        },
+      },
       incidents: {
         where: { active: true },
         include: {
@@ -126,54 +148,166 @@ export async function getScheduleById(id: string) {
   return schedule;
 }
 
+async function assertAllVicAccess(
+  user: Awaited<ReturnType<typeof requirePermission>>,
+  vicIds: string[],
+) {
+  for (const v of vicIds) {
+    if (!canAccessVic(user, v)) {
+      throw new Error(`Sin acceso al VIC ${v}`);
+    }
+  }
+}
+
 /**
  * Create new schedule
  */
 export async function createSchedule(data: ScheduleFormData) {
-  await requirePermission("schedules:create");
+  const user = await requirePermission("schedules:create");
+  const vicIds = [...new Set(data.vicIds)];
+  if (vicIds.length === 0) {
+    throw new Error("Selecciona al menos un VIC");
+  }
+  await assertAllVicAccess(user, vicIds);
 
-  const schedule = await prisma.schedule.create({
-    data: {
-      title: data.title,
-      description: data.description || null,
-      type: data.type || "DIARIA",
-      scheduledAt: data.scheduledAt,
-      endDate: data.endDate || null,
-      vicId: data.vicId,
-    },
-    include: {
-      vic: true,
-    },
+  const schedule = await prisma.$transaction(async (tx) => {
+    const created = await tx.schedule.create({
+      data: {
+        title: data.title,
+        description: data.description || null,
+        scheduledAt: data.scheduledAt,
+        endDate: data.endDate || null,
+        statusId: data.statusId ?? null,
+      },
+    });
+    await tx.scheduleVic.createMany({
+      data: vicIds.map((vicId) => ({ scheduleId: created.id, vicId })),
+      skipDuplicates: true,
+    });
+    return tx.schedule.findUnique({
+      where: { id: created.id },
+      include: scheduleInclude,
+    });
   });
 
   revalidatePath("/admin/schedules");
+  revalidatePath("/admin/programacion");
   return { success: true, data: schedule };
+}
+
+async function syncScheduleVics(
+  tx: Prisma.TransactionClient,
+  scheduleId: string,
+  vicIds: string[],
+) {
+  const current = await tx.scheduleVic.findMany({
+    where: { scheduleId },
+    select: { vicId: true, active: true },
+  });
+  const desired = new Set(vicIds);
+  const currentActive = new Set(
+    current.filter((c) => c.active).map((c) => c.vicId),
+  );
+  const currentInactive = new Set(
+    current.filter((c) => !c.active).map((c) => c.vicId),
+  );
+
+  const toDeactivate = [...currentActive].filter((v) => !desired.has(v));
+  const toActivate = [...desired].filter((v) => currentInactive.has(v));
+  const toCreate = [...desired].filter(
+    (v) => !currentActive.has(v) && !currentInactive.has(v),
+  );
+
+  if (toDeactivate.length) {
+    await tx.scheduleVic.updateMany({
+      where: { scheduleId, vicId: { in: toDeactivate } },
+      data: { active: false },
+    });
+  }
+  if (toActivate.length) {
+    await tx.scheduleVic.updateMany({
+      where: { scheduleId, vicId: { in: toActivate } },
+      data: { active: true },
+    });
+  }
+  if (toCreate.length) {
+    await tx.scheduleVic.createMany({
+      data: toCreate.map((vicId) => ({ scheduleId, vicId })),
+      skipDuplicates: true,
+    });
+  }
 }
 
 /**
  * Update existing schedule
  */
 export async function updateSchedule(id: string, data: ScheduleFormData) {
-  await requirePermission("schedules:update");
+  const user = await requirePermission("schedules:update");
+  const vicIds = [...new Set(data.vicIds)];
+  if (vicIds.length === 0) {
+    throw new Error("Selecciona al menos un VIC");
+  }
+  await assertAllVicAccess(user, vicIds);
 
-  const schedule = await prisma.schedule.update({
-    where: { id },
-    data: {
-      title: data.title,
-      description: data.description || null,
-      ...(data.type ? { type: data.type } : {}),
-      scheduledAt: data.scheduledAt,
-      endDate: data.endDate || null,
-      vicId: data.vicId,
-    },
-    include: {
-      vic: true,
-    },
+  const schedule = await prisma.$transaction(async (tx) => {
+    await tx.schedule.update({
+      where: { id },
+      data: {
+        title: data.title,
+        description: data.description || null,
+        scheduledAt: data.scheduledAt,
+        endDate: data.endDate || null,
+        statusId: data.statusId ?? null,
+      },
+    });
+    await syncScheduleVics(tx, id, vicIds);
+    return tx.schedule.findUnique({
+      where: { id },
+      include: scheduleInclude,
+    });
   });
 
   revalidatePath("/admin/schedules");
   revalidatePath(`/admin/schedules/${id}`);
+  revalidatePath("/admin/programacion");
   return { success: true, data: schedule };
+}
+
+/**
+ * Lightweight update used from list/calendar quick-edit dialog.
+ * Only touches VICs + date range.
+ */
+export async function quickUpdateSchedule(
+  id: string,
+  data: ScheduleQuickUpdateData,
+) {
+  const user = await requirePermission("schedules:update");
+  const vicIds = [...new Set(data.vicIds)];
+  if (vicIds.length === 0) {
+    throw new Error("Selecciona al menos un VIC");
+  }
+  if (data.endDate && data.endDate < data.scheduledAt) {
+    throw new Error(
+      "La fecha de fin no puede ser anterior a la fecha de inicio",
+    );
+  }
+  await assertAllVicAccess(user, vicIds);
+
+  await prisma.$transaction(async (tx) => {
+    await tx.schedule.update({
+      where: { id },
+      data: {
+        scheduledAt: data.scheduledAt,
+        endDate: data.endDate ?? null,
+      },
+    });
+    await syncScheduleVics(tx, id, vicIds);
+  });
+
+  revalidatePath("/admin/schedules");
+  revalidatePath(`/admin/schedules/${id}`);
+  revalidatePath("/admin/programacion");
+  return { success: true };
 }
 
 /**
@@ -182,7 +316,6 @@ export async function updateSchedule(id: string, data: ScheduleFormData) {
 export async function deleteSchedule(id: string) {
   await requirePermission("schedules:delete");
 
-  // Check if schedule has incidents
   const incidentCount = await prisma.incident.count({
     where: { scheduleId: id, active: true },
   });
@@ -203,13 +336,13 @@ export async function deleteSchedule(id: string) {
 }
 
 /**
- * Get VICs for schedule form
+ * Get VICs for schedule form. Filtered by the caller's accessible VICs.
  */
 export async function getVICsForSchedules() {
-  await requirePermission("schedules:read");
+  const user = await requirePermission("schedules:read");
 
   const vics = await prisma.vehicleInspectionCenter.findMany({
-    where: { active: true },
+    where: { active: true, ...getVicWhereClause(user) },
     orderBy: { name: "asc" },
   });
 

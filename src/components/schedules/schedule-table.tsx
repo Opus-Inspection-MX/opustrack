@@ -6,6 +6,7 @@ import {
   Edit,
   Eye,
   MoreHorizontal,
+  Pencil,
   Trash2,
 } from "lucide-react";
 import { useState } from "react";
@@ -31,11 +32,9 @@ interface Schedule {
   id: string;
   title: string;
   description?: string;
-  type?: "DIARIA" | "MENSUAL";
   scheduledAt: string;
   endDate?: string | null;
-  vicId: string;
-  vicName: string;
+  vics: Array<{ id: string; code: string; name: string }>;
   incidentCount: number;
   active: boolean;
   createdAt: string;
@@ -47,6 +46,7 @@ interface ScheduleTableProps {
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
   onView: (id: string) => void;
+  onQuickEdit?: (id: string) => void;
 }
 
 export function ScheduleTable({
@@ -54,6 +54,7 @@ export function ScheduleTable({
   onEdit,
   onDelete,
   onView,
+  onQuickEdit,
 }: ScheduleTableProps) {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
@@ -83,13 +84,12 @@ export function ScheduleTable({
           <TableHeader>
             <TableRow>
               <TableHead>Título</TableHead>
-              <TableHead>CVV</TableHead>
-              <TableHead>Tipo</TableHead>
+              <TableHead>CVVs</TableHead>
               <TableHead>Fecha Programada</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Incidentes</TableHead>
               <TableHead>Activo</TableHead>
-              <TableHead className="w-[70px]">Acciones</TableHead>
+              <TableHead className="w-[120px]">Acciones</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -110,15 +110,35 @@ export function ScheduleTable({
                     </div>
                   </TableCell>
                   <TableCell>
-                    <div className="flex items-center gap-1">
-                      <Building2 className="h-4 w-4 text-muted-foreground" />
-                      <span>{schedule.vicName}</span>
+                    <div className="flex flex-wrap gap-1 max-w-[220px]">
+                      {schedule.vics.length === 0 ? (
+                        <span className="text-sm text-muted-foreground">
+                          Sin VICs
+                        </span>
+                      ) : (
+                        <>
+                          <Badge
+                            variant="secondary"
+                            className="gap-1"
+                            title={schedule.vics[0].name}
+                          >
+                            <Building2 className="h-3 w-3" />
+                            {schedule.vics[0].code}
+                          </Badge>
+                          {schedule.vics.length > 1 && (
+                            <Badge
+                              variant="outline"
+                              title={schedule.vics
+                                .slice(1)
+                                .map((v) => `${v.code} — ${v.name}`)
+                                .join("\n")}
+                            >
+                              +{schedule.vics.length - 1} más
+                            </Badge>
+                          )}
+                        </>
+                      )}
                     </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline">
-                      {schedule.type === "MENSUAL" ? "Mensual" : "Diaria"}
-                    </Badge>
                   </TableCell>
                   <TableCell>
                     <div className="space-y-1">
@@ -191,31 +211,44 @@ export function ScheduleTable({
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => onView(schedule.id)}>
-                          <Eye className="mr-2 h-4 w-4" />
-                          Ver
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => onEdit(schedule.id)}>
-                          <Edit className="mr-2 h-4 w-4" />
-                          Editar
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => onDelete(schedule.id)}
-                          disabled={schedule.incidentCount > 0}
-                          className="text-red-600"
+                    <div className="flex items-center gap-1">
+                      {onQuickEdit && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => onQuickEdit(schedule.id)}
+                          title="Edición rápida (VICs y fechas)"
                         >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Eliminar
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      )}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" className="h-8 w-8 p-0">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => onView(schedule.id)}>
+                            <Eye className="mr-2 h-4 w-4" />
+                            Ver
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => onEdit(schedule.id)}>
+                            <Edit className="mr-2 h-4 w-4" />
+                            Editar
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => onDelete(schedule.id)}
+                            disabled={schedule.incidentCount > 0}
+                            className="text-red-600"
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Eliminar
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                   </TableCell>
                 </TableRow>
               );

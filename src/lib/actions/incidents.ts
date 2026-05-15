@@ -557,19 +557,25 @@ export async function getIncidentFormOptions() {
   const user = await requirePermission("incidents:read");
   const vicFilter = getVicWhereClause(user);
 
-  // Schedule.vicId is required (not nullable), so handle vicFilter specially
-  // If user has no VIC (vicFilter tries to match null), return impossible value to get empty result
+  // Filter schedules by VICs the user can access (M:N relationship).
   const isNullFilter =
     vicFilter.vicId &&
     typeof vicFilter.vicId === "object" &&
     "equals" in vicFilter.vicId &&
     vicFilter.vicId.equals === null;
-  const scheduleWhere: { active: boolean; vicId?: string } = isNullFilter
-    ? { active: true, vicId: "__IMPOSSIBLE_VALUE__" }
+  const scheduleWhere = isNullFilter
+    ? {
+        active: true,
+        vics: { some: { vicId: "__IMPOSSIBLE_VALUE__", active: true } },
+      }
     : {
         active: true,
         ...(vicFilter.vicId && typeof vicFilter.vicId === "string"
-          ? { vicId: vicFilter.vicId }
+          ? {
+              vics: {
+                some: { vicId: vicFilter.vicId, active: true },
+              },
+            }
           : {}),
       };
 
@@ -582,7 +588,6 @@ export async function getIncidentFormOptions() {
       where: { active: true },
       orderBy: { name: "asc" },
     }),
-    // Filter VICs by user's access
     prisma.vehicleInspectionCenter.findMany({
       where: {
         active: true,
@@ -590,7 +595,6 @@ export async function getIncidentFormOptions() {
       },
       orderBy: { name: "asc" },
     }),
-    // Users not filtered by VIC (may need to see reporters from other VICs)
     prisma.user.findMany({
       where: { active: true },
       select: {
@@ -605,7 +609,6 @@ export async function getIncidentFormOptions() {
       },
       orderBy: { name: "asc" },
     }),
-    // Filter schedules by VIC (Schedule.vicId is required, so handle null case specially)
     prisma.schedule.findMany({
       where: scheduleWhere,
       orderBy: { scheduledAt: "desc" },
@@ -638,12 +641,17 @@ export async function getBulkIncidentCatalogs() {
     typeof vicFilter.vicId === "object" &&
     "equals" in vicFilter.vicId &&
     vicFilter.vicId.equals === null;
-  const scheduleWhere: { active: boolean; vicId?: string } = isNullFilter
-    ? { active: true, vicId: "__IMPOSSIBLE_VALUE__" }
+  const scheduleWhere = isNullFilter
+    ? {
+        active: true,
+        vics: { some: { vicId: "__IMPOSSIBLE_VALUE__", active: true } },
+      }
     : {
         active: true,
         ...(vicFilter.vicId && typeof vicFilter.vicId === "string"
-          ? { vicId: vicFilter.vicId }
+          ? {
+              vics: { some: { vicId: vicFilter.vicId, active: true } },
+            }
           : {}),
       };
 
@@ -670,9 +678,12 @@ export async function getBulkIncidentCatalogs() {
       select: {
         id: true,
         title: true,
-        type: true,
         scheduledAt: true,
-        vicId: true,
+        endDate: true,
+        vics: {
+          where: { active: true },
+          select: { vicId: true },
+        },
       },
     }),
     prisma.user.findMany({
@@ -697,7 +708,21 @@ export async function getBulkIncidentCatalogs() {
     vicIds: f.vicAssignments.map((va) => va.vicId),
   }));
 
-  return { types, statuses, vics, schedules, fsrs: fsrUsers };
+  const schedulesWithVicIds = schedules.map((s) => ({
+    id: s.id,
+    title: s.title,
+    scheduledAt: s.scheduledAt,
+    endDate: s.endDate,
+    vicIds: s.vics.map((v) => v.vicId),
+  }));
+
+  return {
+    types,
+    statuses,
+    vics,
+    schedules: schedulesWithVicIds,
+    fsrs: fsrUsers,
+  };
 }
 
 export type BulkIncidentError = {
@@ -774,11 +799,18 @@ export async function resolveBulkIncidentRows(
     };
   }
 
-  // Validate schedule access early (single value).
+  // Validate schedule access early. Caller must have access to at least one
+  // of the schedule's VICs.
   if (scheduleId) {
     const sched = await prisma.schedule.findFirst({
       where: { id: scheduleId, active: true },
-      select: { id: true, vicId: true },
+      select: {
+        id: true,
+        vics: {
+          where: { active: true },
+          select: { vicId: true },
+        },
+      },
     });
     if (!sched) {
       return {
@@ -791,7 +823,8 @@ export async function resolveBulkIncidentRows(
         ],
       };
     }
-    if (!canAccessVic(user, sched.vicId)) {
+    const accessible = sched.vics.some((v) => canAccessVic(user, v.vicId));
+    if (!accessible) {
       return {
         ok: false,
         errors: [
@@ -1073,12 +1106,18 @@ export async function createIncidentsFromPreview(
     };
   }
 
-  // Validate schedule + collect its VIC for cross-check.
-  let scheduleVicId: string | null = null;
+  // Validate schedule + collect its VICs for per-row cross-check.
+  let scheduleVicIds: Set<string> | null = null;
   if (scheduleId) {
     const sched = await prisma.schedule.findFirst({
       where: { id: scheduleId, active: true },
-      select: { id: true, vicId: true },
+      select: {
+        id: true,
+        vics: {
+          where: { active: true },
+          select: { vicId: true },
+        },
+      },
     });
     if (!sched) {
       return {
@@ -1091,7 +1130,8 @@ export async function createIncidentsFromPreview(
         ],
       };
     }
-    if (!canAccessVic(user, sched.vicId)) {
+    const accessible = sched.vics.some((v) => canAccessVic(user, v.vicId));
+    if (!accessible) {
       return {
         ok: false,
         errors: [
@@ -1099,7 +1139,7 @@ export async function createIncidentsFromPreview(
         ],
       };
     }
-    scheduleVicId = sched.vicId;
+    scheduleVicIds = new Set(sched.vics.map((v) => v.vicId));
   }
 
   // Catalogs for re-validation.
@@ -1189,12 +1229,12 @@ export async function createIncidentsFromPreview(
         field: "vicId",
         message: "Sin acceso al VIC seleccionado",
       });
-    } else if (scheduleVicId && row.vicId !== scheduleVicId) {
+    } else if (scheduleVicIds && !scheduleVicIds.has(row.vicId)) {
       errors.push({
         row: row.rowNumber,
         field: "vicId",
         message:
-          "El VIC de esta fila no coincide con el VIC de la programación seleccionada",
+          "El VIC de esta fila no está incluido en los VICs de la programación seleccionada",
       });
     }
     if (row.typeId !== null && !validTypes.has(row.typeId)) {

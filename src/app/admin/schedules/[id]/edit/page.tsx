@@ -10,13 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FormError } from "@/components/ui/form-error";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { MultiSelect } from "@/components/ui/multi-select";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
@@ -47,18 +41,16 @@ export default function EditSchedulePage({
   const [formData, setFormData] = useState<{
     title: string;
     description: string;
-    type: "DIARIA" | "MENSUAL";
     scheduledAt: string;
     endDate: string;
-    vicId: string;
+    vicIds: string[];
     active: boolean;
   }>({
     title: "",
     description: "",
-    type: "DIARIA",
     scheduledAt: "",
     endDate: "",
-    vicId: "",
+    vicIds: [],
     active: true,
   });
 
@@ -75,15 +67,15 @@ export default function EditSchedulePage({
           setFormData({
             title: schedule.title,
             description: schedule.description || "",
-            type:
-              (schedule as { type?: "DIARIA" | "MENSUAL" }).type || "DIARIA",
             scheduledAt: new Date(schedule.scheduledAt)
               .toISOString()
               .slice(0, 16),
             endDate: schedule.endDate
               ? new Date(schedule.endDate).toISOString().slice(0, 16)
               : "",
-            vicId: schedule.vicId,
+            vicIds: schedule.vics
+              .filter((sv) => sv.active)
+              .map((sv) => sv.vicId),
             active: schedule.active,
           });
         }
@@ -99,7 +91,7 @@ export default function EditSchedulePage({
     fetchData();
   }, [id]);
 
-  const handleChange = (field: string, value: string | boolean) => {
+  const handleChange = (field: string, value: string | boolean | string[]) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     if (errors[field]) {
       setErrors((prev) => ({ ...prev, [field]: "" }));
@@ -133,8 +125,8 @@ export default function EditSchedulePage({
       }
     }
 
-    if (!formData.vicId) {
-      newErrors.vicId = "El Centro VIC es requerido";
+    if (formData.vicIds.length === 0) {
+      newErrors.vicIds = "Selecciona al menos un VIC";
     }
 
     setErrors(newErrors);
@@ -154,10 +146,9 @@ export default function EditSchedulePage({
       await updateSchedule(id, {
         title: formData.title.trim(),
         description: formData.description?.trim() || undefined,
-        type: formData.type,
         scheduledAt: new Date(formData.scheduledAt),
         endDate: formData.endDate ? new Date(formData.endDate) : undefined,
-        vicId: formData.vicId,
+        vicIds: formData.vicIds,
       });
 
       router.push(`/admin/schedules/${id}`);
@@ -248,24 +239,6 @@ export default function EditSchedulePage({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="type">
-                Tipo de Programación <span className="text-red-500">*</span>
-              </Label>
-              <Select
-                value={formData.type}
-                onValueChange={(value) => handleChange("type", value)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="DIARIA">Diaria</SelectItem>
-                  <SelectItem value="MENSUAL">Mensual</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
               <Label htmlFor="scheduledAt">
                 Fecha y Hora de Inicio <span className="text-red-500">*</span>
               </Label>
@@ -300,27 +273,26 @@ export default function EditSchedulePage({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="vicId">
-                VIC Center <span className="text-red-500">*</span>
+              <Label htmlFor="vicIds">
+                VICs <span className="text-red-500">*</span>
               </Label>
-              <Select
-                value={formData.vicId}
-                onValueChange={(value) => handleChange("vicId", value)}
-              >
-                <SelectTrigger className={errors.vicId ? "border-red-500" : ""}>
-                  <SelectValue placeholder="Seleccionar Centro VIC" />
-                </SelectTrigger>
-                <SelectContent>
-                  {vicCenters.map((vic) => (
-                    <SelectItem key={vic.id} value={vic.id}>
-                      {vic.code} - {vic.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {errors.vicId && (
-                <p className="text-sm text-red-500">{errors.vicId}</p>
+              <MultiSelect
+                options={vicCenters.map((vic) => ({
+                  value: vic.id,
+                  label: `${vic.code} — ${vic.name}`,
+                }))}
+                value={formData.vicIds}
+                onValueChange={(ids) => handleChange("vicIds", ids)}
+                placeholder="Selecciona uno o varios VICs"
+                searchPlaceholder="Buscar VIC..."
+                emptyMessage="Sin VICs disponibles"
+              />
+              {errors.vicIds && (
+                <p className="text-sm text-red-500">{errors.vicIds}</p>
               )}
+              <p className="text-sm text-muted-foreground">
+                Puedes asignar la programación a varios CVVs.
+              </p>
             </div>
 
             <div className="flex items-center space-x-2">

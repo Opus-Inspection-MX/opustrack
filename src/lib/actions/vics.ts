@@ -121,7 +121,7 @@ export async function getVICById(id: string) {
         select: {
           users: true,
           incidents: true,
-          schedules: true,
+          scheduleVics: true,
           lines: true,
         },
       },

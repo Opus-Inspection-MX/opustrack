@@ -1,8 +1,9 @@
 "use client";
 
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Pencil } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import { QuickEditScheduleDialog } from "@/components/admin/schedules/quick-edit-schedule-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,8 +31,18 @@ interface ScheduleItem {
   title: string;
   scheduledAt: string;
   endDate: string | null;
-  vic: { name: string };
+  vics: Array<{
+    vicId: string;
+    active: boolean;
+    vic: { id: string; code: string; name: string };
+  }>;
   _count: { incidents: number };
+}
+
+interface VicOption {
+  id: string;
+  code: string;
+  name: string;
 }
 
 interface ScheduleCalendarProps {
@@ -45,11 +56,14 @@ interface ScheduleCalendarProps {
     end: Date;
     type: "day" | "week" | "month" | "custom";
   }) => void;
+  /** All VICs accessible by the user — needed for the quick-edit dialog. */
+  vics?: VicOption[];
 }
 
 export function ScheduleCalendar({
   dateRange,
   onDateRangeChange,
+  vics = [],
 }: ScheduleCalendarProps) {
   const router = useRouter();
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -61,6 +75,11 @@ export function ScheduleCalendar({
   const [loading, setLoading] = useState(false);
   const [customStartDate, setCustomStartDate] = useState<Date>(new Date());
   const [customEndDate, setCustomEndDate] = useState<Date>(new Date());
+  const [quickEditId, setQuickEditId] = useState<string | null>(null);
+
+  // Reload schedules + incidents (used by the dialog after saving).
+  const [reloadKey, setReloadKey] = useState(0);
+  const triggerReload = useCallback(() => setReloadKey((k) => k + 1), []);
 
   // Fetch incidents from backend
   const fetchIncidents = useCallback(async (start: Date, end: Date) => {
@@ -117,6 +136,7 @@ export function ScheduleCalendar({
   }, []);
 
   // Load incidents and schedules when date range changes
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reloadKey is a reload trigger
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
@@ -149,7 +169,14 @@ export function ScheduleCalendar({
     };
 
     fetchData();
-  }, [currentDate, viewMode, fetchIncidents, fetchSchedules, getWeekRange]);
+  }, [
+    currentDate,
+    viewMode,
+    fetchIncidents,
+    fetchSchedules,
+    getWeekRange,
+    reloadKey,
+  ]);
 
   // Helper functions
   const getDaysInMonth = (date: Date) => {
@@ -437,34 +464,58 @@ export function ScheduleCalendar({
                 {hour.toString().padStart(2, "0")}:00
               </div>
               <div className="flex-1 border-l-2 pl-4 py-2 min-h-[60px]">
-                {schedulesByHour[hour]?.map((schedule) => (
-                  <div
-                    key={schedule.id}
-                    className="bg-orange-500/10 border-l-4 border-orange-500 p-2 rounded mb-2"
-                  >
-                    <div className="font-medium text-sm">{schedule.title}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {schedule.vic.name} • {schedule._count.incidents}{" "}
-                      incidente(s)
-                    </div>
-                    <div className="text-xs text-muted-foreground mt-1">
-                      <span className="font-medium">Inicio:</span>{" "}
-                      {new Date(schedule.scheduledAt).toLocaleString("es-MX", {
-                        dateStyle: "short",
-                        timeStyle: "short",
-                      })}
-                    </div>
-                    {schedule.endDate && (
-                      <div className="text-xs text-muted-foreground">
-                        <span className="font-medium">Fin:</span>{" "}
-                        {new Date(schedule.endDate).toLocaleString("es-MX", {
-                          dateStyle: "short",
-                          timeStyle: "short",
-                        })}
+                {schedulesByHour[hour]?.map((schedule) => {
+                  const activeVics = schedule.vics.filter((sv) => sv.active);
+                  return (
+                    <div
+                      key={schedule.id}
+                      className="bg-orange-500/10 border-l-4 border-orange-500 p-2 rounded mb-2"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="font-medium text-sm">
+                          {schedule.title}
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 shrink-0"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setQuickEditId(schedule.id);
+                          }}
+                          title="Edición rápida"
+                        >
+                          <Pencil className="h-3 w-3" />
+                        </Button>
                       </div>
-                    )}
-                  </div>
-                ))}
+                      <div className="text-xs text-muted-foreground">
+                        {activeVics.length === 0
+                          ? "Sin VICs"
+                          : activeVics.map((sv) => sv.vic.code).join(", ")}{" "}
+                        • {schedule._count.incidents} incidente(s)
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        <span className="font-medium">Inicio:</span>{" "}
+                        {new Date(schedule.scheduledAt).toLocaleString(
+                          "es-MX",
+                          {
+                            dateStyle: "short",
+                            timeStyle: "short",
+                          },
+                        )}
+                      </div>
+                      {schedule.endDate && (
+                        <div className="text-xs text-muted-foreground">
+                          <span className="font-medium">Fin:</span>{" "}
+                          {new Date(schedule.endDate).toLocaleString("es-MX", {
+                            dateStyle: "short",
+                            timeStyle: "short",
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
                 {incidentsByHour[hour]?.map((incident) => (
                   <button
                     type="button"
@@ -491,154 +542,171 @@ export function ScheduleCalendar({
   };
 
   return (
-    <Card className="h-full">
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle className="capitalize">
-            {getMonthName(currentDate)}
-          </CardTitle>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => handleNavigate("prev")}
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handleDateClick(new Date())}
-            >
-              Hoy
-            </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => handleNavigate("next")}
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
+    <>
+      <Card className="h-full">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="capitalize">
+              {getMonthName(currentDate)}
+            </CardTitle>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => handleNavigate("prev")}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleDateClick(new Date())}
+              >
+                Hoy
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => handleNavigate("next")}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
-        </div>
-        <Tabs
-          value={viewMode}
-          onValueChange={handleViewModeChange}
-          className="mt-4"
-        >
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="month">Mes</TabsTrigger>
-            <TabsTrigger value="week">Semana</TabsTrigger>
-            <TabsTrigger value="day">Día</TabsTrigger>
-            <TabsTrigger value="custom">Rango</TabsTrigger>
-          </TabsList>
-        </Tabs>
-      </CardHeader>
-      <CardContent>
-        {viewMode === "month" && renderMonthView()}
-        {viewMode === "week" && renderWeekView()}
-        {viewMode === "day" && renderDayView()}
-        {viewMode === "custom" && (
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Fecha Inicio</Label>
-                <Input
-                  type="date"
-                  value={customStartDate.toISOString().split("T")[0]}
-                  onChange={(e) => setCustomStartDate(new Date(e.target.value))}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Fecha Fin</Label>
-                <Input
-                  type="date"
-                  value={customEndDate.toISOString().split("T")[0]}
-                  onChange={(e) => setCustomEndDate(new Date(e.target.value))}
-                />
-              </div>
-            </div>
-            <Button onClick={handleCustomDateChange} className="w-full">
-              Aplicar Rango de Fechas
-            </Button>
-            <div className="text-sm text-muted-foreground text-center">
-              Mostrando incidentes del{" "}
-              {customStartDate.toLocaleDateString("es-MX", {
-                day: "numeric",
-                month: "short",
-                year: "numeric",
-              })}{" "}
-              al{" "}
-              {customEndDate.toLocaleDateString("es-MX", {
-                day: "numeric",
-                month: "short",
-                year: "numeric",
-              })}
-            </div>
-            {loading ? (
-              <div className="text-center py-8 text-muted-foreground">
-                Cargando incidentes...
-              </div>
-            ) : incidents.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                No hay incidentes programados en este rango
-              </div>
-            ) : (
-              <div className="space-y-2 max-h-96 overflow-y-auto">
-                {incidents.map((incident) => (
-                  <button
-                    type="button"
-                    key={incident.id}
-                    onClick={() =>
-                      router.push(`/admin/incidents/${incident.id}/edit`)
+          <Tabs
+            value={viewMode}
+            onValueChange={handleViewModeChange}
+            className="mt-4"
+          >
+            <TabsList className="grid w-full grid-cols-4">
+              <TabsTrigger value="month">Mes</TabsTrigger>
+              <TabsTrigger value="week">Semana</TabsTrigger>
+              <TabsTrigger value="day">Día</TabsTrigger>
+              <TabsTrigger value="custom">Rango</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </CardHeader>
+        <CardContent>
+          {viewMode === "month" && renderMonthView()}
+          {viewMode === "week" && renderWeekView()}
+          {viewMode === "day" && renderDayView()}
+          {viewMode === "custom" && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Fecha Inicio</Label>
+                  <Input
+                    type="date"
+                    value={customStartDate.toISOString().split("T")[0]}
+                    onChange={(e) =>
+                      setCustomStartDate(new Date(e.target.value))
                     }
-                    className="p-3 border rounded-lg hover:bg-accent transition-colors w-full text-left cursor-pointer"
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <h4 className="font-medium">{incident.title}</h4>
-                        <div className="text-sm text-muted-foreground mt-1">
-                          {incident.schedule?.scheduledAt &&
-                            new Date(
-                              incident.schedule.scheduledAt,
-                            ).toLocaleString("es-MX", {
-                              dateStyle: "medium",
-                              timeStyle: "short",
-                            })}
-                        </div>
-                      </div>
-                      <Badge
-                        variant={
-                          incident.priority >= 8 ? "destructive" : "default"
-                        }
-                      >
-                        Prioridad: {incident.priority}
-                      </Badge>
-                    </div>
-                  </button>
-                ))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Fecha Fin</Label>
+                  <Input
+                    type="date"
+                    value={customEndDate.toISOString().split("T")[0]}
+                    onChange={(e) => setCustomEndDate(new Date(e.target.value))}
+                  />
+                </div>
               </div>
-            )}
-          </div>
-        )}
+              <Button onClick={handleCustomDateChange} className="w-full">
+                Aplicar Rango de Fechas
+              </Button>
+              <div className="text-sm text-muted-foreground text-center">
+                Mostrando incidentes del{" "}
+                {customStartDate.toLocaleDateString("es-MX", {
+                  day: "numeric",
+                  month: "short",
+                  year: "numeric",
+                })}{" "}
+                al{" "}
+                {customEndDate.toLocaleDateString("es-MX", {
+                  day: "numeric",
+                  month: "short",
+                  year: "numeric",
+                })}
+              </div>
+              {loading ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  Cargando incidentes...
+                </div>
+              ) : incidents.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  No hay incidentes programados en este rango
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-96 overflow-y-auto">
+                  {incidents.map((incident) => (
+                    <button
+                      type="button"
+                      key={incident.id}
+                      onClick={() =>
+                        router.push(`/admin/incidents/${incident.id}/edit`)
+                      }
+                      className="p-3 border rounded-lg hover:bg-accent transition-colors w-full text-left cursor-pointer"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <h4 className="font-medium">{incident.title}</h4>
+                          <div className="text-sm text-muted-foreground mt-1">
+                            {incident.schedule?.scheduledAt &&
+                              new Date(
+                                incident.schedule.scheduledAt,
+                              ).toLocaleString("es-MX", {
+                                dateStyle: "medium",
+                                timeStyle: "short",
+                              })}
+                          </div>
+                        </div>
+                        <Badge
+                          variant={
+                            incident.priority >= 8 ? "destructive" : "default"
+                          }
+                        >
+                          Prioridad: {incident.priority}
+                        </Badge>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
-        {/* Legend */}
-        <div className="mt-6 pt-4 border-t space-y-2">
-          <div className="text-xs font-medium text-muted-foreground">
-            Leyenda
-          </div>
-          <div className="flex flex-wrap gap-3">
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-orange-500" />
-              <span className="text-xs">Programaciones</span>
+          {/* Legend */}
+          <div className="mt-6 pt-4 border-t space-y-2">
+            <div className="text-xs font-medium text-muted-foreground">
+              Leyenda
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-blue-500" />
-              <span className="text-xs">Incidentes</span>
+            <div className="flex flex-wrap gap-3">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-orange-500" />
+                <span className="text-xs">Programaciones</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-blue-500" />
+                <span className="text-xs">Incidentes</span>
+              </div>
             </div>
           </div>
-        </div>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+
+      <QuickEditScheduleDialog
+        scheduleId={quickEditId}
+        vics={vics}
+        open={quickEditId !== null}
+        onOpenChange={(open) => {
+          if (!open) setQuickEditId(null);
+        }}
+        onSaved={() => {
+          setQuickEditId(null);
+          triggerReload();
+        }}
+      />
+    </>
   );
 }

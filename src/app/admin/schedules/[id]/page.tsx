@@ -41,14 +41,13 @@ interface Schedule {
   id: string;
   title: string;
   description?: string | null;
-  type?: "DIARIA" | "MENSUAL";
   scheduledAt: Date;
-  vicId: string;
-  vic: {
-    id: string;
-    name: string;
-    code: string;
-  };
+  endDate?: Date | null;
+  vics: Array<{
+    vicId: string;
+    active: boolean;
+    vic: { id: string; name: string; code: string };
+  }>;
   incidents: ScheduleIncident[];
   active: boolean;
   createdAt: Date;
@@ -193,13 +192,6 @@ export default function ViewSchedulePage({
             )}
 
             <div>
-              <p className="text-sm font-medium text-muted-foreground">Tipo</p>
-              <Badge variant="outline" className="mt-1">
-                {schedule.type === "MENSUAL" ? "Mensual" : "Diaria"}
-              </Badge>
-            </div>
-
-            <div>
               <p className="text-sm font-medium text-muted-foreground">
                 Estado
               </p>
@@ -232,14 +224,38 @@ export default function ViewSchedulePage({
 
             <div>
               <p className="text-sm font-medium text-muted-foreground">
-                Centro VIC
+                Fecha de fin
               </p>
-              <div className="flex items-center gap-2 mt-1">
-                <Building2 className="h-4 w-4 text-muted-foreground" />
-                <span className="font-medium">{schedule.vic.code}</span>
-                <span className="text-sm text-muted-foreground">
-                  - {schedule.vic.name}
-                </span>
+              <p className="text-sm">
+                {schedule.endDate
+                  ? new Date(schedule.endDate).toLocaleString("es-MX")
+                  : "Sin fecha de fin"}
+              </p>
+            </div>
+
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">
+                VICs asignados
+              </p>
+              <div className="flex flex-wrap gap-2 mt-1">
+                {schedule.vics.filter((sv) => sv.active).length === 0 ? (
+                  <span className="text-sm text-muted-foreground">
+                    Sin VICs
+                  </span>
+                ) : (
+                  schedule.vics
+                    .filter((sv) => sv.active)
+                    .map((sv) => (
+                      <Badge
+                        key={sv.vicId}
+                        variant="secondary"
+                        className="gap-1"
+                      >
+                        <Building2 className="h-3 w-3" />
+                        {sv.vic.code} — {sv.vic.name}
+                      </Badge>
+                    ))
+                )}
               </div>
             </div>
 

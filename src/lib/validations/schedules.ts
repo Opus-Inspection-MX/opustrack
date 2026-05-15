@@ -16,7 +16,16 @@ export const ScheduleCreateSchema = z.object({
   scheduledAt: z.date({ message: "Scheduled date is required" }),
   endDate: z.date().optional().nullable(),
   statusId: intIdSchema.optional().nullable(),
-  vicId: cuidSchema,
+  vicIds: z.array(cuidSchema).min(1, "Selecciona al menos un VIC"),
+});
+
+/**
+ * Lightweight schema for the quick-edit dialog (VICs + date range only).
+ */
+export const ScheduleQuickUpdateSchema = z.object({
+  vicIds: z.array(cuidSchema).min(1, "Selecciona al menos un VIC"),
+  scheduledAt: z.date({ message: "Scheduled date is required" }),
+  endDate: z.date().optional().nullable(),
 });
 
 /**
@@ -60,3 +69,6 @@ export type ScheduleChangeStatusInput = z.infer<
   typeof ScheduleChangeStatusSchema
 >;
 export type ScheduleQueryInput = z.infer<typeof ScheduleQuerySchema>;
+export type ScheduleQuickUpdateInput = z.infer<
+  typeof ScheduleQuickUpdateSchema
+>;

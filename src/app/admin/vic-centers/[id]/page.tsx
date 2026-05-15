@@ -113,7 +113,7 @@ export default async function VICDetailPage({
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{vic._count.schedules}</div>
+            <div className="text-2xl font-bold">{vic._count.scheduleVics}</div>
             <p className="text-xs text-muted-foreground">
               Total de calendarios
             </p>

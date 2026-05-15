@@ -3,6 +3,7 @@
 import { Calendar, Plus, Search } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import { QuickEditScheduleDialog } from "@/components/admin/schedules/quick-edit-schedule-dialog";
 import { ScheduleTable } from "@/components/schedules/schedule-table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,11 +34,9 @@ interface Schedule {
   id: string;
   title: string;
   description?: string;
-  type?: "DIARIA" | "MENSUAL";
   scheduledAt: string;
   endDate?: string | null;
-  vicId: string;
-  vicName: string;
+  vics: Array<{ id: string; code: string; name: string }>;
   incidentCount: number;
   active: boolean;
   createdAt: string;
@@ -48,11 +47,13 @@ interface ScheduleApiResponse {
   id: string;
   title: string;
   description?: string | null;
-  type?: "DIARIA" | "MENSUAL";
   scheduledAt: Date | string;
   endDate?: Date | string | null;
-  vicId: string;
-  vic?: { name: string };
+  vics?: Array<{
+    vicId: string;
+    active: boolean;
+    vic: { id: string; code: string; name: string };
+  }>;
   _count?: { incidents: number };
   active: boolean;
   createdAt: Date | string;
@@ -78,6 +79,9 @@ export default function SchedulesPage() {
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+
+  // Quick-edit dialog state
+  const [quickEditId, setQuickEditId] = useState<string | null>(null);
 
   const fetchVics = useCallback(async () => {
     try {
@@ -111,17 +115,15 @@ export default function SchedulesPage() {
         vicId: selectedVic !== "all" ? selectedVic : undefined,
         statusId:
           selectedStatus !== "all" ? parseInt(selectedStatus, 10) : undefined,
-        startDate: startDate || undefined,
-        endDate: endDate || undefined,
+        activeFrom: startDate ? new Date(startDate) : undefined,
+        activeTo: endDate ? new Date(endDate) : undefined,
       });
 
-      // Transform data to match table expectations
       const transformed: Schedule[] = result.data.map(
         (schedule: ScheduleApiResponse) => ({
           id: schedule.id,
           title: schedule.title,
           description: schedule.description ?? undefined,
-          type: schedule.type,
           scheduledAt:
             typeof schedule.scheduledAt === "string"
               ? schedule.scheduledAt
@@ -131,8 +133,9 @@ export default function SchedulesPage() {
               ? schedule.endDate
               : new Date(schedule.endDate).toISOString()
             : null,
-          vicId: schedule.vicId,
-          vicName: schedule.vic?.name || "Unknown VIC",
+          vics: (schedule.vics ?? [])
+            .filter((sv) => sv.active)
+            .map((sv) => sv.vic),
           incidentCount: schedule._count?.incidents || 0,
           active: schedule.active,
           createdAt:
@@ -327,6 +330,20 @@ export default function SchedulesPage() {
         onEdit={handleEdit}
         onDelete={handleDelete}
         onView={handleView}
+        onQuickEdit={(id) => setQuickEditId(id)}
+      />
+
+      <QuickEditScheduleDialog
+        scheduleId={quickEditId}
+        vics={vics}
+        open={quickEditId !== null}
+        onOpenChange={(open) => {
+          if (!open) setQuickEditId(null);
+        }}
+        onSaved={() => {
+          setQuickEditId(null);
+          fetchSchedulesData();
+        }}
       />
 
       {totalItems > 0 && (

@@ -123,7 +123,7 @@ export function CreateProgramDialog({
           scheduledAt: scheduledDateTime.toISOString(),
           endDate: endDateTime?.toISOString() || null,
           statusId: formData.statusId ? parseInt(formData.statusId, 10) : null,
-          vicId: formData.vicId,
+          vicIds: formData.vicId ? [formData.vicId] : [],
         }),
       });
 

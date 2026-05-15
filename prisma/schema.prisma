@@ -129,7 +129,7 @@ model VehicleInspectionCenter {
   updatedAt       DateTime            @updatedAt
   users           User[] // Deprecated - use userAssignments instead
   userAssignments UserVicAssignment[] // User assignments for this VIC
-  schedules       Schedule[]
+  scheduleVics    ScheduleVic[]
   incidents       Incident[]
   lines           Line[]
   active          Boolean             @default(true)
@@ -146,30 +146,35 @@ model State {
 }
 
 model Schedule {
-  id          String                  @id @default(cuid())
+  id          String          @id @default(cuid())
   title       String
   description String?
-  type        ScheduleType            @default(DIARIA) // RF-024: Diaria | Mensual
   scheduledAt DateTime // Fecha de inicio
   endDate     DateTime? // Fecha de fin (opcional)
   statusId    Int? // Estado del schedule
-  status      ScheduleStatus?         @relation(fields: [statusId], references: [id])
-  vicId       String
-  vic         VehicleInspectionCenter @relation(fields: [vicId], references: [id])
+  status      ScheduleStatus? @relation(fields: [statusId], references: [id])
+  vics        ScheduleVic[]
   incidents   Incident[]
-  createdAt   DateTime                @default(now())
-  updatedAt   DateTime                @updatedAt
-  active      Boolean                 @default(true)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  active      Boolean         @default(true)
 
   @@index([statusId])
   @@index([scheduledAt])
   @@index([endDate])
-  @@index([type])
 }
 
-enum ScheduleType {
-  DIARIA
-  MENSUAL
+model ScheduleVic {
+  scheduleId String
+  vicId      String
+  schedule   Schedule                @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  vic        VehicleInspectionCenter @relation(fields: [vicId], references: [id])
+  active     Boolean                 @default(true)
+  createdAt  DateTime                @default(now())
+
+  @@id([scheduleId, vicId])
+  @@index([vicId])
+  @@index([scheduleId])
 }
 
 model ScheduleStatus {

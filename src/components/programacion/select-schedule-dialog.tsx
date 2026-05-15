@@ -21,11 +21,11 @@ interface Schedule {
   description: string | null;
   scheduledAt: string;
   endDate: string | null;
-  vic: {
-    id: string;
-    name: string;
-    code: string;
-  };
+  vics: Array<{
+    vicId: string;
+    active: boolean;
+    vic: { id: string; name: string; code: string };
+  }>;
   _count?: {
     incidents: number;
   };
@@ -72,12 +72,16 @@ export function SelectScheduleDialog({
     }
   }, [open, fetchSchedules]);
 
-  const filteredSchedules = schedules.filter(
-    (schedule) =>
-      schedule.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      schedule.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      schedule.vic.name.toLowerCase().includes(searchQuery.toLowerCase()),
-  );
+  const filteredSchedules = schedules.filter((schedule) => {
+    const q = searchQuery.toLowerCase();
+    if (schedule.title.toLowerCase().includes(q)) return true;
+    if (schedule.description?.toLowerCase().includes(q)) return true;
+    return schedule.vics.some(
+      (sv) =>
+        sv.vic.name.toLowerCase().includes(q) ||
+        sv.vic.code.toLowerCase().includes(q),
+    );
+  });
 
   const handleSelect = () => {
     if (selectedSchedule && onSelectSchedule) {
@@ -122,7 +126,7 @@ export function SelectScheduleDialog({
                 <TableRow>
                   <TableHead className="w-12"></TableHead>
                   <TableHead>Título</TableHead>
-                  <TableHead>VIC</TableHead>
+                  <TableHead>VICs</TableHead>
                   <TableHead>Fecha Programada</TableHead>
                   <TableHead>Incidentes</TableHead>
                 </TableRow>
@@ -154,7 +158,15 @@ export function SelectScheduleDialog({
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline">{schedule.vic.name}</Badge>
+                      <div className="flex flex-wrap gap-1">
+                        {schedule.vics
+                          .filter((sv) => sv.active)
+                          .map((sv) => (
+                            <Badge key={sv.vicId} variant="outline">
+                              {sv.vic.code}
+                            </Badge>
+                          ))}
+                      </div>
                     </TableCell>
                     <TableCell>
                       <div className="space-y-1">

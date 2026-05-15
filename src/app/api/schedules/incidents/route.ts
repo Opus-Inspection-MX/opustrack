@@ -36,15 +36,20 @@ export const GET = withPermission("schedules:read", async (request, _user) => {
       );
     }
 
-    // Construir filtro: incidencias programadas (por scheduledAt) OR
-    // incidencias sin programación (por reportedAt) dentro del rango
+    // Construir filtro: incidencias cuyo schedule se solapa con el rango
+    // (scheduledAt <= end AND (endDate ?? scheduledAt) >= start), OR
+    // incidencias sin programación reportadas dentro del rango.
     const where: Prisma.IncidentWhereInput = {
       active: true,
       OR: [
         {
           schedule: {
-            scheduledAt: { gte: start, lte: end },
             active: true,
+            scheduledAt: { lte: end },
+            OR: [
+              { endDate: { gte: start } },
+              { endDate: null, scheduledAt: { gte: start } },
+            ],
           },
         },
         {
