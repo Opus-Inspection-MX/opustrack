@@ -64,8 +64,9 @@ export function MultiSelect({
     }
   };
 
-  const removeChip = (val: string, e: React.MouseEvent) => {
+  const removeChip = (val: string, e: React.SyntheticEvent) => {
     e.stopPropagation();
+    e.preventDefault();
     onValueChange(value.filter((v) => v !== val));
   };
 
@@ -102,14 +103,21 @@ export function MultiSelect({
                     className="gap-1 pr-1"
                   >
                     <span className="truncate max-w-[140px]">{o.label}</span>
-                    <button
-                      type="button"
-                      onClick={(e) => removeChip(o.value, e)}
-                      className="hover:bg-muted-foreground/20 rounded-sm"
+                    {/* biome-ignore lint/a11y/useSemanticElements: cannot nest <button> inside the Popover trigger button */}
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      onPointerDown={(e) => removeChip(o.value, e)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          removeChip(o.value, e);
+                        }
+                      }}
+                      className="hover:bg-muted-foreground/20 rounded-sm cursor-pointer inline-flex"
                       aria-label={`Quitar ${o.label}`}
                     >
                       <X className="h-3 w-3" />
-                    </button>
+                    </span>
                   </Badge>
                 ))}
                 {overflow > 0 && (

@@ -3,6 +3,8 @@
 import {
   AlertCircle,
   CheckCircle2,
+  ChevronDown,
+  ChevronRight,
   Download,
   Save,
   Upload,
@@ -89,28 +91,28 @@ function downloadCsv(filename: string, content: string) {
   URL.revokeObjectURL(url);
 }
 
+function formatSampleDate(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 function buildLegibleTemplateCsv(opts: {
-  scheduleTitle?: string;
   vicCode?: string;
+  typeNames: string[];
 }): string {
+  const sampleType = opts.typeNames[0] ?? "Mantenimiento";
   const sample = [
     "Falla en cámara de inspección",
     "Cámara 3 no enciende en el turno matutino, requiere revisión",
     "7",
     "24",
-    "",
-    "",
+    sampleType,
+    formatSampleDate(new Date()),
     opts.vicCode ?? "",
   ];
-  const meta = opts.scheduleTitle
-    ? `# Programación: ${opts.scheduleTitle}\n`
-    : "";
-  return (
-    meta +
-    Papa.unparse(
-      { fields: [...TEMPLATE_HEADERS], data: [sample] },
-      { quotes: true, newline: "\r\n" },
-    )
+  return Papa.unparse(
+    { fields: [...TEMPLATE_HEADERS], data: [sample] },
+    { quotes: true, newline: "\r\n" },
   );
 }
 
@@ -146,6 +148,33 @@ function detectMode(headers: string[]): "template" | "snapshot" | "unknown" {
   return "unknown";
 }
 
+/**
+ * Trim arbitrary preamble lines (filenames, titles, notes) before the real
+ * CSV header row. Returns the text starting from the first plausible header,
+ * or null if no header is found in the first 20 lines.
+ */
+function stripLeadingNonHeaderLines(text: string): string | null {
+  // Drop UTF-8 BOM if present.
+  const noBom = text.replace(/^﻿/, "");
+  const lines = noBom.split(/\r?\n/);
+  const MAX_SCAN = 20;
+  for (let i = 0; i < Math.min(lines.length, MAX_SCAN); i++) {
+    const lower = lines[i].toLowerCase();
+    const looksLikeTemplate =
+      lower.includes("titulo") &&
+      lower.includes("descripcion") &&
+      lower.includes("vic");
+    const looksLikeSnapshot =
+      lower.includes("title") &&
+      lower.includes("description") &&
+      lower.includes("vicid");
+    if (looksLikeTemplate || looksLikeSnapshot) {
+      return lines.slice(i).join("\n");
+    }
+  }
+  return null;
+}
+
 function toLocalDatetimeInput(iso: string | null): string {
   if (!iso) return "";
   const d = new Date(iso);
@@ -159,6 +188,42 @@ function fromLocalDatetimeInput(v: string): string | null {
   const d = new Date(v);
   if (Number.isNaN(d.getTime())) return null;
   return d.toISOString();
+}
+
+function CollapsibleCard({
+  title,
+  count,
+  children,
+}: {
+  title: string;
+  count: number;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Card>
+      <CardHeader>
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          className="flex items-center gap-2 text-left w-full"
+        >
+          {open ? (
+            <ChevronDown className="h-4 w-4" />
+          ) : (
+            <ChevronRight className="h-4 w-4" />
+          )}
+          <CardTitle className="text-base">
+            {title}{" "}
+            <Badge variant="secondary" className="ml-1">
+              {count}
+            </Badge>
+          </CardTitle>
+        </button>
+      </CardHeader>
+      {open && <CardContent>{children}</CardContent>}
+    </Card>
+  );
 }
 
 function rowIsValid(row: EditablePreviewRow): boolean {
@@ -181,6 +246,7 @@ export function BulkIncidentsClient({ catalogs }: { catalogs: Catalogs }) {
     Map<number, Map<string, string>>
   >(new Map());
   const [created, setCreated] = useState<number | null>(null);
+  const [defaultFsrIds, setDefaultFsrIds] = useState<string[]>([]);
 
   const selectedSchedule = useMemo(
     () => catalogs.schedules.find((s) => s.id === scheduleId) ?? null,
@@ -210,13 +276,13 @@ export function BulkIncidentsClient({ catalogs }: { catalogs: Catalogs }) {
     downloadCsv(
       "incidentes-plantilla.csv",
       buildLegibleTemplateCsv({
-        scheduleTitle: selectedSchedule?.title,
         vicCode: scheduleVic?.code,
+        typeNames: catalogs.types.map((t) => t.name),
       }),
     );
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setParseError(null);
@@ -224,46 +290,77 @@ export function BulkIncidentsClient({ catalogs }: { catalogs: Catalogs }) {
     setRowErrorsByRowNumber(new Map());
     setCreated(null);
 
-    Papa.parse<Record<string, string>>(file, {
+    let text: string;
+    try {
+      text = await file.text();
+    } catch (err) {
+      setParseError(`Error al leer el archivo: ${(err as Error).message}`);
+      setPreviewRows([]);
+      return;
+    }
+
+    // Strip leading garbage lines (filenames, titles, notes) before the
+    // real header row. Find the first line that looks like our header.
+    const cleaned = stripLeadingNonHeaderLines(text);
+    if (!cleaned) {
+      setParseError(
+        "No se encontró una fila de encabezados válida. Usa la plantilla descargada (encabezados: titulo, descripcion, prioridad, sla, tipo, fecha_inicio, vic) o un snapshot previamente descargado.",
+      );
+      setPreviewRows([]);
+      return;
+    }
+
+    const res = Papa.parse<Record<string, string>>(cleaned, {
       header: true,
       skipEmptyLines: true,
       transformHeader: (h) => h.trim(),
       comments: "#",
-      complete: async (res) => {
-        if (res.errors.length > 0) {
-          setParseError(
-            `Error al parsear CSV: ${res.errors[0].message} (fila ${res.errors[0].row ?? "?"})`,
-          );
-          setPreviewRows([]);
-          return;
-        }
-        const headers = res.meta.fields ?? [];
-        const mode = detectMode(headers);
-        if (mode === "unknown") {
-          setParseError(
-            "Formato no reconocido. Usa la plantilla legible (encabezados en español) o un snapshot previamente descargado.",
-          );
-          setPreviewRows([]);
-          return;
-        }
-
-        const result = await resolveBulkIncidentRows(
-          res.data,
-          scheduleId || null,
-          mode,
-        );
-        if (!result.ok) {
-          setGeneralErrors(result.errors.map((e) => e.message));
-          setPreviewRows([]);
-          return;
-        }
-        setPreviewRows(result.rows);
-      },
-      error: (err) => {
-        setParseError(`Error al leer el archivo: ${err.message}`);
-        setPreviewRows([]);
-      },
     });
+
+    if (res.errors.length > 0) {
+      setParseError(
+        `Error al parsear CSV: ${res.errors[0].message} (fila ${res.errors[0].row ?? "?"})`,
+      );
+      setPreviewRows([]);
+      return;
+    }
+    const headers = res.meta.fields ?? [];
+    const mode = detectMode(headers);
+    if (mode === "unknown") {
+      setParseError(
+        "Formato no reconocido. Usa la plantilla legible (encabezados en español) o un snapshot previamente descargado.",
+      );
+      setPreviewRows([]);
+      return;
+    }
+
+    const result = await resolveBulkIncidentRows(
+      res.data,
+      scheduleId || null,
+      mode,
+    );
+    if (!result.ok) {
+      setGeneralErrors(
+        result.errors.map((er) => {
+          if (er.row > 0) {
+            const where = er.field
+              ? `Fila ${er.row}, columna ${er.field}`
+              : `Fila ${er.row}`;
+            return `${where}: ${er.message}`;
+          }
+          return er.message;
+        }),
+      );
+      setPreviewRows([]);
+      return;
+    }
+    // Seed default FSRs into rows that don't already have any (snapshots may).
+    const seeded = result.rows.map((r) =>
+      r.assigneeIds.length === 0 && defaultFsrIds.length > 0
+        ? { ...r, assigneeIds: [...defaultFsrIds] }
+        : r,
+    );
+    setPreviewRows(seeded);
   };
 
   const updateRow = (rowNumber: number, patch: Partial<EditablePreviewRow>) => {
@@ -313,6 +410,12 @@ export function BulkIncidentsClient({ catalogs }: { catalogs: Catalogs }) {
     downloadCsv(
       `incidentes-snapshot-${new Date().toISOString().slice(0, 10)}.csv`,
       buildSnapshotCsv(previewRows, scheduleId || null, statusIds),
+    );
+  };
+
+  const applyDefaultFsrsToAll = () => {
+    setPreviewRows((prev) =>
+      prev.map((r) => ({ ...r, assigneeIds: [...defaultFsrIds] })),
     );
   };
 
@@ -385,6 +488,33 @@ export function BulkIncidentsClient({ catalogs }: { catalogs: Catalogs }) {
               </Badge>
             </p>
           )}
+
+          <div className="pt-2 space-y-2 border-t">
+            <p className="text-sm font-medium">FSRs por defecto (opcional)</p>
+            <p className="text-xs text-muted-foreground">
+              Se asignan automáticamente a cada fila al subir el CSV. También
+              puedes aplicarlos retroactivamente a todas las filas con el botón.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <div className="flex-1">
+                <MultiSelect
+                  options={buildFsrOptions(scheduleVicId)}
+                  value={defaultFsrIds}
+                  onValueChange={setDefaultFsrIds}
+                  placeholder="Selecciona FSRs"
+                  searchPlaceholder="Buscar FSR por nombre o email..."
+                />
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={applyDefaultFsrsToAll}
+                disabled={previewRows.length === 0}
+              >
+                Aplicar a todas las filas ({previewRows.length})
+              </Button>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
@@ -401,8 +531,14 @@ export function BulkIncidentsClient({ catalogs }: { catalogs: Catalogs }) {
             </code>
             .
             <br />
-            Acepta texto largo, comas y caracteres especiales (UTF-8). Guarda
-            como CSV UTF-8 al editar en Excel/LibreOffice/Numbers.
+            <strong>tipo</strong>: nombre del tipo de incidente (ej.{" "}
+            <code className="text-xs">
+              {catalogs.types[0]?.name ?? "Mantenimiento"}
+            </code>
+            ). <strong>fecha_inicio</strong>: formato{" "}
+            <code className="text-xs">YYYY-MM-DD HH:mm</code>.{" "}
+            <strong>vic</strong>: código del CVV. Acepta texto largo, comas y
+            caracteres especiales (UTF-8).
           </p>
           <Button onClick={handleDownloadTemplate}>
             <Download className="mr-2 h-4 w-4" />
@@ -410,6 +546,112 @@ export function BulkIncidentsClient({ catalogs }: { catalogs: Catalogs }) {
           </Button>
         </CardContent>
       </Card>
+
+      {/* Catálogos de referencia */}
+      <div className="space-y-3">
+        <div>
+          <h2 className="text-lg font-semibold">Catálogos de referencia</h2>
+          <p className="text-sm text-muted-foreground">
+            Usa estas listas para llenar las columnas{" "}
+            <code className="text-xs">tipo</code> y{" "}
+            <code className="text-xs">vic</code> en tu CSV.
+          </p>
+        </div>
+
+        <CollapsibleCard
+          title="Tipos de incidente"
+          count={catalogs.types.length}
+        >
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Nombre (escribir en columna tipo)</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {catalogs.types.map((t) => (
+                <TableRow key={t.id}>
+                  <TableCell>{t.name}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CollapsibleCard>
+
+        <CollapsibleCard title="CVVs (VIC)" count={catalogs.vics.length}>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Código (escribir en columna vic)</TableHead>
+                <TableHead>Nombre</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {catalogs.vics.map((v) => (
+                <TableRow key={v.id}>
+                  <TableCell className="font-mono">{v.code}</TableCell>
+                  <TableCell>{v.name}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CollapsibleCard>
+
+        <CollapsibleCard
+          title="Programaciones"
+          count={catalogs.schedules.length}
+        >
+          {catalogs.schedules.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No hay programaciones disponibles.
+            </p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Título</TableHead>
+                  <TableHead>Tipo</TableHead>
+                  <TableHead>Fecha</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {catalogs.schedules.map((s) => (
+                  <TableRow key={s.id}>
+                    <TableCell>{s.title}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{s.type}</Badge>
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {new Date(s.scheduledAt).toLocaleDateString("es-MX")}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CollapsibleCard>
+
+        <CollapsibleCard title="FSRs" count={catalogs.fsrs.length}>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Nombre</TableHead>
+                <TableHead>Email</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {catalogs.fsrs.map((f) => (
+                <TableRow key={f.id}>
+                  <TableCell>{f.name}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {f.email}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CollapsibleCard>
+      </div>
 
       {/* Step 3: upload */}
       <Card>

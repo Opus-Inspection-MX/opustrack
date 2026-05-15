@@ -1,18 +1,12 @@
 "use client";
 
-import { Check, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { MultiSelect } from "@/components/ui/multi-select";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import {
   Select,
@@ -94,8 +88,6 @@ export function IncidentForm({
       : "",
   );
 
-  const [assigneePickerOpen, setAssigneePickerOpen] = useState(false);
-
   const fsrCandidates = users.filter((u) => {
     const isFsr = u.roleName === "FSR";
     if (!isFsr) return false;
@@ -117,22 +109,6 @@ export function IncidentForm({
       return { ...prev, assigneeIds: filtered };
     });
   }, [formData.vicId, users]);
-
-  const toggleAssignee = (userId: string) => {
-    setFormData((prev) => {
-      const current = prev.assigneeIds ?? [];
-      return {
-        ...prev,
-        assigneeIds: current.includes(userId)
-          ? current.filter((id) => id !== userId)
-          : [...current, userId],
-      };
-    });
-  };
-
-  const selectedAssignees = users.filter((u) =>
-    (formData.assigneeIds ?? []).includes(u.id),
-  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -346,63 +322,28 @@ export function IncidentForm({
 
           <div className="space-y-2">
             <Label>FSRs Habilitados</Label>
-            <Popover
-              open={assigneePickerOpen}
-              onOpenChange={setAssigneePickerOpen}
-            >
-              <PopoverTrigger asChild>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full justify-start font-normal"
-                >
-                  {selectedAssignees.length === 0
-                    ? "Seleccionar FSRs habilitados"
-                    : `${selectedAssignees.length} seleccionado(s)`}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                <div className="max-h-72 overflow-y-auto">
-                  {fsrCandidates.map((user) => {
-                    const checked = (formData.assigneeIds ?? []).includes(
-                      user.id,
-                    );
-                    return (
-                      <button
-                        key={user.id}
-                        type="button"
-                        onClick={() => toggleAssignee(user.id)}
-                        className="flex w-full items-center justify-between px-3 py-2 text-sm hover:bg-muted text-left"
-                      >
-                        <span>{user.name}</span>
-                        {checked && <Check className="h-4 w-4" />}
-                      </button>
-                    );
-                  })}
-                  {fsrCandidates.length === 0 && (
-                    <p className="px-3 py-2 text-sm text-muted-foreground">
-                      {formData.vicId
-                        ? "No hay FSRs disponibles para este CVV"
-                        : "Selecciona un CVV para listar FSRs"}
-                    </p>
-                  )}
-                </div>
-              </PopoverContent>
-            </Popover>
-            {selectedAssignees.length > 0 && (
-              <div className="flex flex-wrap gap-1 pt-1">
-                {selectedAssignees.map((u) => (
-                  <Badge
-                    key={u.id}
-                    variant="secondary"
-                    className="cursor-pointer"
-                    onClick={() => toggleAssignee(u.id)}
-                  >
-                    {u.name} <X className="ml-1 h-3 w-3" />
-                  </Badge>
-                ))}
-              </div>
-            )}
+            <MultiSelect
+              options={fsrCandidates.map((u) => ({
+                value: u.id,
+                label: u.name,
+              }))}
+              value={formData.assigneeIds ?? []}
+              onValueChange={(ids) =>
+                setFormData({ ...formData, assigneeIds: ids })
+              }
+              placeholder={
+                formData.vicId
+                  ? "Seleccionar FSRs habilitados"
+                  : "Selecciona un CVV para listar FSRs"
+              }
+              searchPlaceholder="Buscar FSR por nombre..."
+              emptyMessage={
+                formData.vicId
+                  ? "No hay FSRs disponibles para este CVV"
+                  : "Selecciona un CVV primero"
+              }
+              disabled={fsrCandidates.length === 0}
+            />
             <p className="text-xs text-muted-foreground">
               Solo estos FSRs podrán asignarse en órdenes derivadas de este
               incidente.

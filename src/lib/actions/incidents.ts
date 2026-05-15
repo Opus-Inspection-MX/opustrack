@@ -13,7 +13,6 @@ import { INCIDENT_STATE, syncIncidentState } from "@/lib/state-machine";
 import { getPrimaryVicId } from "@/lib/utils/vic-assignments";
 import {
   BulkIncidentSnapshotRowSchema,
-  BulkIncidentTemplateRowSchema,
   IncidentClientCreateSchema,
   type IncidentCreateInput,
   IncidentCreateSchema,
@@ -836,37 +835,87 @@ export async function resolveBulkIncidentRows(
     const fieldErrors: Record<string, string> = {};
 
     if (mode === "template") {
-      const parsed = BulkIncidentTemplateRowSchema.safeParse(raw);
-      if (!parsed.success) {
-        for (const issue of parsed.error.issues) {
-          const field = issue.path.join(".") || "_row";
-          fieldErrors[field] = issue.message;
-          errors.push({ row: rowNumber, field, message: issue.message });
-        }
-        return;
+      // Tolerant per-field parsing: invalid/missing values do NOT discard the
+      // row. They land in the preview marked with fieldErrors so the user can
+      // fix them inline before saving.
+      const obj = (raw ?? {}) as Record<string, unknown>;
+      const getStr = (k: string): string => {
+        const v = obj[k];
+        return v == null ? "" : String(v).trim();
+      };
+
+      const title = getStr("titulo");
+      const description = getStr("descripcion");
+      const prioRaw = getStr("prioridad");
+      const slaRaw = getStr("sla");
+      const tipoRaw = getStr("tipo");
+      const fechaInicioRaw = getStr("fecha_inicio");
+      const vicRaw = getStr("vic");
+
+      if (title.length < 3) {
+        fieldErrors.titulo = "Título debe tener al menos 3 caracteres";
       }
-      const data = parsed.data;
-      const vicCodeRaw = data.vic ?? null;
+      if (description.length < 1) {
+        fieldErrors.descripcion = "Descripción es requerida";
+      }
+
+      let priority = 0;
+      if (prioRaw === "") {
+        fieldErrors.prioridad = "Prioridad es requerida (1-10)";
+      } else {
+        const p = Number(prioRaw);
+        if (!Number.isFinite(p) || p < 1 || p > 10) {
+          fieldErrors.prioridad = `Prioridad inválida: "${prioRaw}"`;
+        } else {
+          priority = Math.floor(p);
+        }
+      }
+
+      let sla = 0;
+      if (slaRaw === "") {
+        fieldErrors.sla = "SLA es requerido (horas)";
+      } else {
+        const s = Number(slaRaw);
+        if (!Number.isFinite(s) || s <= 0) {
+          fieldErrors.sla = `SLA inválido: "${slaRaw}"`;
+        } else {
+          sla = Math.floor(s);
+        }
+      }
+
+      let startedAt: Date | null = null;
+      if (fechaInicioRaw) {
+        const d = new Date(fechaInicioRaw);
+        if (Number.isNaN(d.getTime())) {
+          fieldErrors.fecha_inicio = `Fecha inválida: "${fechaInicioRaw}"`;
+        } else {
+          startedAt = d;
+        }
+      }
+
+      const vicCodeRaw = vicRaw || null;
       const vicId = vicCodeRaw
         ? (vicsByCode.get(vicCodeRaw.toLowerCase()) ?? null)
-        : null;
-      const typeNameRaw = data.tipo ?? null;
-      const typeId = typeNameRaw
-        ? (typesByName.get(typeNameRaw.toLowerCase()) ?? null)
         : null;
       if (vicCodeRaw && !vicId) {
         fieldErrors.vic = `VIC "${vicCodeRaw}" no encontrado — selecciona uno`;
       }
+
+      const typeNameRaw = tipoRaw || null;
+      const typeId = typeNameRaw
+        ? (typesByName.get(typeNameRaw.toLowerCase()) ?? null)
+        : null;
       if (typeNameRaw && !typeId) {
         fieldErrors.tipo = `Tipo "${typeNameRaw}" no encontrado — selecciona uno`;
       }
+
       resolved.push({
         rowNumber,
-        title: data.titulo,
-        description: data.descripcion,
-        priority: data.prioridad,
-        sla: data.sla,
-        startedAt: toIsoOrNull(data.fecha_inicio),
+        title,
+        description,
+        priority,
+        sla,
+        startedAt: toIsoOrNull(startedAt),
         resolvedAt: null,
         vicId,
         vicCodeRaw,
@@ -880,49 +929,91 @@ export async function resolveBulkIncidentRows(
       return;
     }
 
-    // snapshot mode
+    // Snapshot mode — strict integrity check. Any per-field issue is
+    // collected in `errors` and the row is dropped from `resolved`. The
+    // caller short-circuits on first error so the user sees every problem
+    // before anything is loaded into the preview.
     const parsed = BulkIncidentSnapshotRowSchema.safeParse(raw);
     if (!parsed.success) {
       for (const issue of parsed.error.issues) {
         const field = issue.path.join(".") || "_row";
-        fieldErrors[field] = issue.message;
         errors.push({ row: rowNumber, field, message: issue.message });
       }
       return;
     }
     const data = parsed.data;
+    let rowOk = true;
     const vicId = data.vicId ?? null;
-    if (vicId && !vicsById.has(vicId)) {
-      fieldErrors.vicId = `VIC ${vicId} no existe o no accesible`;
+    if (!vicId) {
+      errors.push({
+        row: rowNumber,
+        field: "vicId",
+        message: "vicId requerido en snapshot",
+      });
+      rowOk = false;
+    } else if (!vicsById.has(vicId)) {
+      errors.push({
+        row: rowNumber,
+        field: "vicId",
+        message: `VIC ${vicId} no existe o no accesible`,
+      });
+      rowOk = false;
     }
     const typeId = data.typeId ?? null;
     if (typeId !== null && !typesById.has(typeId)) {
-      fieldErrors.typeId = `Tipo ${typeId} no existe`;
+      errors.push({
+        row: rowNumber,
+        field: "typeId",
+        message: `Tipo ${typeId} no existe`,
+      });
+      rowOk = false;
     }
     const assigneeIds = parseAssigneeIds(data.assigneeIds);
-    const badFsr = assigneeIds.find((id) => !validFsrIds.has(id));
-    if (badFsr) {
-      fieldErrors.assigneeIds = `FSR ${badFsr} no existe o sin rol FSR`;
+    for (const fsrId of assigneeIds) {
+      if (!validFsrIds.has(fsrId)) {
+        errors.push({
+          row: rowNumber,
+          field: "assigneeIds",
+          message: `FSR ${fsrId} no existe o sin rol FSR`,
+        });
+        rowOk = false;
+      }
     }
-    resolved.push({
-      rowNumber,
-      title: data.title,
-      description: data.description,
-      priority: data.priority,
-      sla: data.sla,
-      startedAt: toIsoOrNull(data.startedAt),
-      resolvedAt: toIsoOrNull(data.resolvedAt),
-      vicId,
-      vicCodeRaw: null,
-      vicResolved: vicId !== null && vicsById.has(vicId),
-      typeId,
-      typeNameRaw: null,
-      typeResolved: typeId === null || typesById.has(typeId),
-      assigneeIds,
-      fieldErrors,
-    });
+    if (data.startedAt && data.resolvedAt) {
+      if (data.resolvedAt.getTime() < data.startedAt.getTime()) {
+        errors.push({
+          row: rowNumber,
+          field: "resolvedAt",
+          message: "resolvedAt no puede ser anterior a startedAt",
+        });
+        rowOk = false;
+      }
+    }
+    if (rowOk) {
+      resolved.push({
+        rowNumber,
+        title: data.title,
+        description: data.description,
+        priority: data.priority,
+        sla: data.sla,
+        startedAt: toIsoOrNull(data.startedAt),
+        resolvedAt: toIsoOrNull(data.resolvedAt),
+        vicId,
+        vicCodeRaw: null,
+        vicResolved: true,
+        typeId,
+        typeNameRaw: null,
+        typeResolved: true,
+        assigneeIds,
+        fieldErrors,
+      });
+    }
   });
 
+  // Snapshot is strict: any error blocks the preview entirely.
+  if (mode === "snapshot" && errors.length > 0) {
+    return { ok: false, errors };
+  }
   if (errors.length > 0 && resolved.length === 0) {
     return { ok: false, errors };
   }
