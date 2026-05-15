@@ -12,7 +12,8 @@ import { prisma } from "@/lib/database/prisma.singleton";
 import { INCIDENT_STATE, syncIncidentState } from "@/lib/state-machine";
 import { getPrimaryVicId } from "@/lib/utils/vic-assignments";
 import {
-  BulkIncidentRowSchema,
+  BulkIncidentSnapshotRowSchema,
+  BulkIncidentTemplateRowSchema,
   IncidentClientCreateSchema,
   type IncidentCreateInput,
   IncidentCreateSchema,
@@ -201,6 +202,7 @@ export async function createIncident(data: unknown) {
       vicId: validated.vicId || null,
       scheduleId: validated.scheduleId || null,
       reportedById: validated.reportedById || user.id,
+      startedAt: validated.startedAt ?? null,
       resolvedAt: null,
     },
     include: {
@@ -352,6 +354,7 @@ export async function updateIncident(id: number, data: IncidentFormData) {
       typeId: data.typeId || null,
       vicId: data.vicId || null,
       scheduleId: data.scheduleId || null,
+      startedAt: data.startedAt ?? null,
     },
     include: {
       type: true,
@@ -711,12 +714,47 @@ export type BulkIncidentResult =
 const MAX_BULK_ROWS = 500;
 
 /**
- * Atomically create many incidents from CSV-parsed rows.
- * If any row is invalid (schema or cross-validation), no incidents are created.
+ * One row in the editable preview UI. Dates are ISO strings to survive the
+ * client/server boundary cleanly. FK references carry both the raw text from
+ * the CSV (for display when unresolved) and the resolved id (when found).
  */
-export async function createIncidentsBulk(
+export type EditablePreviewRow = {
+  rowNumber: number;
+  title: string;
+  description: string;
+  priority: number;
+  sla: number;
+  startedAt: string | null;
+  resolvedAt: string | null;
+  vicId: string | null;
+  vicCodeRaw: string | null;
+  vicResolved: boolean;
+  typeId: number | null;
+  typeNameRaw: string | null;
+  typeResolved: boolean;
+  assigneeIds: string[];
+  fieldErrors: Record<string, string>;
+};
+
+export type ResolveBulkResult =
+  | { ok: true; rows: EditablePreviewRow[] }
+  | { ok: false; errors: BulkIncidentError[] };
+
+function toIsoOrNull(d: Date | undefined | null): string | null {
+  if (!d) return null;
+  return d.toISOString();
+}
+
+/**
+ * Validate + resolve raw CSV rows into editable preview rows.
+ * Accepts either the legible "template" format (Spanish headers, vic code, type name)
+ * or the machine "snapshot" format (English headers, IDs). Does NOT write to DB.
+ */
+export async function resolveBulkIncidentRows(
   rawRows: unknown[],
-): Promise<BulkIncidentResult> {
+  scheduleId: string | null,
+  mode: "template" | "snapshot",
+): Promise<ResolveBulkResult> {
   const user = await requirePermission("incidents:create");
 
   if (!Array.isArray(rawRows) || rawRows.length === 0) {
@@ -725,7 +763,6 @@ export async function createIncidentsBulk(
       errors: [{ row: 0, message: "No hay filas para procesar" }],
     };
   }
-
   if (rawRows.length > MAX_BULK_ROWS) {
     return {
       ok: false,
@@ -738,103 +775,270 @@ export async function createIncidentsBulk(
     };
   }
 
+  // Validate schedule access early (single value).
+  if (scheduleId) {
+    const sched = await prisma.schedule.findFirst({
+      where: { id: scheduleId, active: true },
+      select: { id: true, vicId: true },
+    });
+    if (!sched) {
+      return {
+        ok: false,
+        errors: [
+          {
+            row: 0,
+            message: `Programación ${scheduleId} no existe o está inactiva`,
+          },
+        ],
+      };
+    }
+    if (!canAccessVic(user, sched.vicId)) {
+      return {
+        ok: false,
+        errors: [
+          { row: 0, message: "Sin acceso a la programación seleccionada" },
+        ],
+      };
+    }
+  }
+
+  // Catalogs for resolution.
+  const [allTypes, allVics, allFsrs] = await Promise.all([
+    prisma.incidentType.findMany({
+      where: { active: true },
+      select: { id: true, name: true },
+    }),
+    prisma.vehicleInspectionCenter.findMany({
+      where: { active: true, ...getVicWhereClause(user) },
+      select: { id: true, code: true },
+    }),
+    prisma.user.findMany({
+      where: { active: true, role: { name: "FSR" } },
+      select: { id: true },
+    }),
+  ]);
+
+  const typesByName = new Map(
+    allTypes.map((t) => [t.name.toLowerCase(), t.id] as const),
+  );
+  const typesById = new Map(allTypes.map((t) => [t.id, t.name] as const));
+  const vicsByCode = new Map(
+    allVics.map((v) => [v.code.toLowerCase(), v.id] as const),
+  );
+  const vicsById = new Set(allVics.map((v) => v.id));
+  const validFsrIds = new Set(allFsrs.map((u) => u.id));
+
   const errors: BulkIncidentError[] = [];
-  const parsedRows: Array<{
-    title: string;
-    description: string;
-    priority: number;
-    sla: number;
-    typeId?: number;
-    statusId?: number;
-    vicId?: string;
-    scheduleId?: string;
-    assigneeIds: string[];
-  }> = [];
+  const resolved: EditablePreviewRow[] = [];
 
   rawRows.forEach((raw, idx) => {
-    const result = BulkIncidentRowSchema.safeParse(raw);
-    const rowNumber = idx + 2; // +2: header row + 1-based
-    if (!result.success) {
-      for (const issue of result.error.issues) {
-        errors.push({
-          row: rowNumber,
-          field: issue.path.join("."),
-          message: issue.message,
-        });
+    const rowNumber = idx + 2;
+    const fieldErrors: Record<string, string> = {};
+
+    if (mode === "template") {
+      const parsed = BulkIncidentTemplateRowSchema.safeParse(raw);
+      if (!parsed.success) {
+        for (const issue of parsed.error.issues) {
+          const field = issue.path.join(".") || "_row";
+          fieldErrors[field] = issue.message;
+          errors.push({ row: rowNumber, field, message: issue.message });
+        }
+        return;
+      }
+      const data = parsed.data;
+      const vicCodeRaw = data.vic ?? null;
+      const vicId = vicCodeRaw
+        ? (vicsByCode.get(vicCodeRaw.toLowerCase()) ?? null)
+        : null;
+      const typeNameRaw = data.tipo ?? null;
+      const typeId = typeNameRaw
+        ? (typesByName.get(typeNameRaw.toLowerCase()) ?? null)
+        : null;
+      if (vicCodeRaw && !vicId) {
+        fieldErrors.vic = `VIC "${vicCodeRaw}" no encontrado — selecciona uno`;
+      }
+      if (typeNameRaw && !typeId) {
+        fieldErrors.tipo = `Tipo "${typeNameRaw}" no encontrado — selecciona uno`;
+      }
+      resolved.push({
+        rowNumber,
+        title: data.titulo,
+        description: data.descripcion,
+        priority: data.prioridad,
+        sla: data.sla,
+        startedAt: toIsoOrNull(data.fecha_inicio),
+        resolvedAt: null,
+        vicId,
+        vicCodeRaw,
+        vicResolved: vicId !== null,
+        typeId,
+        typeNameRaw,
+        typeResolved: typeId !== null || typeNameRaw === null,
+        assigneeIds: [],
+        fieldErrors,
+      });
+      return;
+    }
+
+    // snapshot mode
+    const parsed = BulkIncidentSnapshotRowSchema.safeParse(raw);
+    if (!parsed.success) {
+      for (const issue of parsed.error.issues) {
+        const field = issue.path.join(".") || "_row";
+        fieldErrors[field] = issue.message;
+        errors.push({ row: rowNumber, field, message: issue.message });
       }
       return;
     }
-    parsedRows.push({
-      title: result.data.title,
-      description: result.data.description,
-      priority: result.data.priority,
-      sla: result.data.sla,
-      typeId: result.data.typeId,
-      statusId: result.data.statusId,
-      vicId: result.data.vicId,
-      scheduleId: result.data.scheduleId,
-      assigneeIds: parseAssigneeIds(result.data.assigneeIds),
+    const data = parsed.data;
+    const vicId = data.vicId ?? null;
+    if (vicId && !vicsById.has(vicId)) {
+      fieldErrors.vicId = `VIC ${vicId} no existe o no accesible`;
+    }
+    const typeId = data.typeId ?? null;
+    if (typeId !== null && !typesById.has(typeId)) {
+      fieldErrors.typeId = `Tipo ${typeId} no existe`;
+    }
+    const assigneeIds = parseAssigneeIds(data.assigneeIds);
+    const badFsr = assigneeIds.find((id) => !validFsrIds.has(id));
+    if (badFsr) {
+      fieldErrors.assigneeIds = `FSR ${badFsr} no existe o sin rol FSR`;
+    }
+    resolved.push({
+      rowNumber,
+      title: data.title,
+      description: data.description,
+      priority: data.priority,
+      sla: data.sla,
+      startedAt: toIsoOrNull(data.startedAt),
+      resolvedAt: toIsoOrNull(data.resolvedAt),
+      vicId,
+      vicCodeRaw: null,
+      vicResolved: vicId !== null && vicsById.has(vicId),
+      typeId,
+      typeNameRaw: null,
+      typeResolved: typeId === null || typesById.has(typeId),
+      assigneeIds,
+      fieldErrors,
     });
   });
 
-  if (errors.length > 0) {
+  if (errors.length > 0 && resolved.length === 0) {
     return { ok: false, errors };
   }
+  return { ok: true, rows: resolved };
+}
 
-  // Cross-validation against catalogs
-  const typeIds = new Set(
-    parsedRows.map((r) => r.typeId).filter((v): v is number => v !== undefined),
-  );
-  const statusIds = new Set(
-    parsedRows
-      .map((r) => r.statusId)
-      .filter((v): v is number => v !== undefined),
-  );
-  const vicIds = new Set(
-    parsedRows.map((r) => r.vicId).filter((v): v is string => v !== undefined),
-  );
-  const scheduleIds = new Set(
-    parsedRows
-      .map((r) => r.scheduleId)
-      .filter((v): v is string => v !== undefined),
-  );
-  const assigneeIds = new Set(parsedRows.flatMap((r) => r.assigneeIds));
+/**
+ * Persist the edited preview rows. Each row is validated again server-side.
+ * scheduleId comes from the page-level selector — applied to every row.
+ * Rows with resolvedAt populated are created as CERRADO (historical import);
+ * otherwise ABIERTO (state machine default).
+ */
+export async function createIncidentsFromPreview(
+  rows: EditablePreviewRow[],
+  scheduleId: string | null,
+): Promise<BulkIncidentResult> {
+  const user = await requirePermission("incidents:create");
 
-  const [
-    existingTypes,
-    existingStatuses,
-    existingVics,
-    existingSchedules,
-    existingFsrs,
-  ] = await Promise.all([
-    typeIds.size
-      ? prisma.incidentType.findMany({
-          where: { id: { in: [...typeIds] }, active: true },
-          select: { id: true },
-        })
-      : Promise.resolve([]),
-    statusIds.size
-      ? prisma.incidentStatus.findMany({
-          where: { id: { in: [...statusIds] }, active: true },
-          select: { id: true },
-        })
-      : Promise.resolve([]),
-    vicIds.size
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return {
+      ok: false,
+      errors: [{ row: 0, message: "No hay filas para guardar" }],
+    };
+  }
+  if (rows.length > MAX_BULK_ROWS) {
+    return {
+      ok: false,
+      errors: [
+        {
+          row: 0,
+          message: `Máximo ${MAX_BULK_ROWS} filas (recibidas: ${rows.length})`,
+        },
+      ],
+    };
+  }
+
+  // Resolve open/closed status IDs once.
+  const [openStatus, closedStatus] = await Promise.all([
+    prisma.incidentStatus.findUnique({
+      where: { name: INCIDENT_STATE.ABIERTO },
+      select: { id: true },
+    }),
+    prisma.incidentStatus.findUnique({
+      where: { name: INCIDENT_STATE.CERRADO },
+      select: { id: true },
+    }),
+  ]);
+  if (!openStatus || !closedStatus) {
+    return {
+      ok: false,
+      errors: [
+        {
+          row: 0,
+          message: "Estados ABIERTO/CERRADO no existen en el catálogo",
+        },
+      ],
+    };
+  }
+
+  // Validate schedule + collect its VIC for cross-check.
+  let scheduleVicId: string | null = null;
+  if (scheduleId) {
+    const sched = await prisma.schedule.findFirst({
+      where: { id: scheduleId, active: true },
+      select: { id: true, vicId: true },
+    });
+    if (!sched) {
+      return {
+        ok: false,
+        errors: [
+          {
+            row: 0,
+            message: `Programación ${scheduleId} no existe o está inactiva`,
+          },
+        ],
+      };
+    }
+    if (!canAccessVic(user, sched.vicId)) {
+      return {
+        ok: false,
+        errors: [
+          { row: 0, message: "Sin acceso a la programación seleccionada" },
+        ],
+      };
+    }
+    scheduleVicId = sched.vicId;
+  }
+
+  // Catalogs for re-validation.
+  const vicIds = [
+    ...new Set(rows.map((r) => r.vicId).filter((v): v is string => !!v)),
+  ];
+  const typeIds = [
+    ...new Set(
+      rows.map((r) => r.typeId).filter((v): v is number => v !== null),
+    ),
+  ];
+  const assigneeIds = [...new Set(rows.flatMap((r) => r.assigneeIds))];
+
+  const [vicsExisting, typesExisting, fsrsExisting] = await Promise.all([
+    vicIds.length
       ? prisma.vehicleInspectionCenter.findMany({
-          where: { id: { in: [...vicIds] }, active: true },
+          where: { id: { in: vicIds }, active: true },
           select: { id: true },
         })
       : Promise.resolve([]),
-    scheduleIds.size
-      ? prisma.schedule.findMany({
-          where: { id: { in: [...scheduleIds] }, active: true },
-          select: { id: true, vicId: true },
+    typeIds.length
+      ? prisma.incidentType.findMany({
+          where: { id: { in: typeIds }, active: true },
+          select: { id: true },
         })
       : Promise.resolve([]),
-    assigneeIds.size
+    assigneeIds.length
       ? prisma.user.findMany({
           where: {
-            id: { in: [...assigneeIds] },
+            id: { in: assigneeIds },
             active: true,
             role: { name: "FSR" },
           },
@@ -842,68 +1046,91 @@ export async function createIncidentsBulk(
         })
       : Promise.resolve([]),
   ]);
+  const validVics = new Set(vicsExisting.map((v) => v.id));
+  const validTypes = new Set(typesExisting.map((t) => t.id));
+  const validFsrs = new Set(fsrsExisting.map((u) => u.id));
 
-  const validTypes = new Set(existingTypes.map((t) => t.id));
-  const validStatuses = new Set(existingStatuses.map((s) => s.id));
-  const validVics = new Set(existingVics.map((v) => v.id));
-  const scheduleVicById = new Map(
-    existingSchedules.map((s) => [s.id, s.vicId]),
-  );
-  const validFsrs = new Set(existingFsrs.map((u) => u.id));
-
-  parsedRows.forEach((row, idx) => {
-    const rowNumber = idx + 2;
-    if (row.typeId !== undefined && !validTypes.has(row.typeId)) {
+  const errors: BulkIncidentError[] = [];
+  rows.forEach((row) => {
+    if (row.title.trim().length < 3) {
       errors.push({
-        row: rowNumber,
+        row: row.rowNumber,
+        field: "title",
+        message: "Título debe tener al menos 3 caracteres",
+      });
+    }
+    if (row.description.trim().length < 1) {
+      errors.push({
+        row: row.rowNumber,
+        field: "description",
+        message: "Descripción es requerida",
+      });
+    }
+    if (row.priority < 1 || row.priority > 10) {
+      errors.push({
+        row: row.rowNumber,
+        field: "priority",
+        message: "Prioridad debe estar entre 1 y 10",
+      });
+    }
+    if (row.sla <= 0) {
+      errors.push({
+        row: row.rowNumber,
+        field: "sla",
+        message: "SLA debe ser positivo",
+      });
+    }
+    if (!row.vicId) {
+      errors.push({
+        row: row.rowNumber,
+        field: "vicId",
+        message: "Selecciona un VIC para esta fila",
+      });
+    } else if (!validVics.has(row.vicId)) {
+      errors.push({
+        row: row.rowNumber,
+        field: "vicId",
+        message: `VIC ${row.vicId} no existe o inactivo`,
+      });
+    } else if (!canAccessVic(user, row.vicId)) {
+      errors.push({
+        row: row.rowNumber,
+        field: "vicId",
+        message: "Sin acceso al VIC seleccionado",
+      });
+    } else if (scheduleVicId && row.vicId !== scheduleVicId) {
+      errors.push({
+        row: row.rowNumber,
+        field: "vicId",
+        message:
+          "El VIC de esta fila no coincide con el VIC de la programación seleccionada",
+      });
+    }
+    if (row.typeId !== null && !validTypes.has(row.typeId)) {
+      errors.push({
+        row: row.rowNumber,
         field: "typeId",
-        message: `Tipo de incidente ${row.typeId} no existe o está inactivo`,
+        message: `Tipo ${row.typeId} no existe o inactivo`,
       });
-    }
-    if (row.statusId !== undefined && !validStatuses.has(row.statusId)) {
-      errors.push({
-        row: rowNumber,
-        field: "statusId",
-        message: `Estado ${row.statusId} no existe o está inactivo`,
-      });
-    }
-    if (row.vicId !== undefined) {
-      if (!validVics.has(row.vicId)) {
-        errors.push({
-          row: rowNumber,
-          field: "vicId",
-          message: `VIC ${row.vicId} no existe o está inactivo`,
-        });
-      } else if (!canAccessVic(user, row.vicId)) {
-        errors.push({
-          row: rowNumber,
-          field: "vicId",
-          message: `Sin acceso al VIC ${row.vicId}`,
-        });
-      }
-    }
-    if (row.scheduleId !== undefined) {
-      const scheduleVic = scheduleVicById.get(row.scheduleId);
-      if (scheduleVic === undefined) {
-        errors.push({
-          row: rowNumber,
-          field: "scheduleId",
-          message: `Programación ${row.scheduleId} no existe o está inactiva`,
-        });
-      } else if (!canAccessVic(user, scheduleVic)) {
-        errors.push({
-          row: rowNumber,
-          field: "scheduleId",
-          message: `Sin acceso a la programación ${row.scheduleId}`,
-        });
-      }
     }
     for (const fsrId of row.assigneeIds) {
       if (!validFsrs.has(fsrId)) {
         errors.push({
-          row: rowNumber,
+          row: row.rowNumber,
           field: "assigneeIds",
-          message: `FSR ${fsrId} no existe, está inactivo o no tiene rol FSR`,
+          message: `FSR ${fsrId} no existe o sin rol FSR`,
+        });
+      }
+    }
+    if (row.startedAt && row.resolvedAt) {
+      const start = new Date(row.startedAt).getTime();
+      const end = new Date(row.resolvedAt).getTime();
+      if (Number.isFinite(start) && Number.isFinite(end) && end < start) {
+        errors.push({
+          row: row.rowNumber,
+          field: "resolvedAt",
+          message:
+            "Fecha de resolución no puede ser anterior a fecha de inicio",
         });
       }
     }
@@ -914,18 +1141,20 @@ export async function createIncidentsBulk(
   }
 
   await prisma.$transaction(async (tx) => {
-    for (const row of parsedRows) {
+    for (const row of rows) {
       const incident = await tx.incident.create({
         data: {
-          title: row.title,
-          description: row.description,
+          title: row.title.trim(),
+          description: row.description.trim(),
           priority: row.priority,
           sla: row.sla,
-          typeId: row.typeId ?? null,
-          statusId: row.statusId ?? null,
-          vicId: row.vicId ?? null,
-          scheduleId: row.scheduleId ?? null,
+          typeId: row.typeId,
+          statusId: row.resolvedAt ? closedStatus.id : openStatus.id,
+          vicId: row.vicId,
+          scheduleId,
           reportedById: user.id,
+          startedAt: row.startedAt ? new Date(row.startedAt) : null,
+          resolvedAt: row.resolvedAt ? new Date(row.resolvedAt) : null,
         },
       });
       if (row.assigneeIds.length > 0) {
@@ -942,5 +1171,5 @@ export async function createIncidentsBulk(
 
   revalidatePath("/admin/incidents");
   revalidatePath("/client/incidents");
-  return { ok: true, created: parsedRows.length };
+  return { ok: true, created: rows.length };
 }

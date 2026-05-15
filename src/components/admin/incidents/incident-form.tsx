@@ -40,6 +40,7 @@ type IncidentFormProps = {
     vicId: string | null;
     scheduleId: string | null;
     reportedById: string | null;
+    startedAt: Date | null;
     resolvedAt: Date | null;
     assigneeIds?: string[];
   };
@@ -77,10 +78,16 @@ export function IncidentForm({
     vicId: incident?.vicId || null,
     scheduleId: incident?.scheduleId || null,
     reportedById: incident?.reportedById || null,
+    startedAt: incident?.startedAt || null,
     resolvedAt: incident?.resolvedAt || null,
     assigneeIds: incident?.assigneeIds || [],
   });
 
+  const [startedAtString, setStartedAtString] = useState<string>(
+    incident?.startedAt
+      ? new Date(incident.startedAt).toISOString().slice(0, 16)
+      : "",
+  );
   const [resolvedAtString, setResolvedAtString] = useState<string>(
     incident?.resolvedAt
       ? new Date(incident.resolvedAt).toISOString().slice(0, 16)
@@ -135,6 +142,7 @@ export function IncidentForm({
     try {
       const submitData = {
         ...formData,
+        startedAt: startedAtString ? new Date(startedAtString) : null,
         resolvedAt: resolvedAtString ? new Date(resolvedAtString) : null,
       };
 
@@ -401,14 +409,25 @@ export function IncidentForm({
             </p>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="resolvedAt">Fecha de Resolucion</Label>
-            <Input
-              id="resolvedAt"
-              type="datetime-local"
-              value={resolvedAtString}
-              onChange={(e) => setResolvedAtString(e.target.value)}
-            />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="startedAt">Fecha de Inicio</Label>
+              <Input
+                id="startedAt"
+                type="datetime-local"
+                value={startedAtString}
+                onChange={(e) => setStartedAtString(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="resolvedAt">Fecha de Resolucion</Label>
+              <Input
+                id="resolvedAt"
+                type="datetime-local"
+                value={resolvedAtString}
+                onChange={(e) => setResolvedAtString(e.target.value)}
+              />
+            </div>
           </div>
         </CardContent>
       </Card>

@@ -246,6 +246,7 @@ model Incident {
   statusId     Int?
   status       IncidentStatus?          @relation(fields: [statusId], references: [id])
   reportedAt   DateTime                 @default(now())
+  startedAt    DateTime?
   resolvedAt   DateTime?
   vicId        String?
   vic          VehicleInspectionCenter? @relation(fields: [vicId], references: [id])

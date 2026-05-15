@@ -3,10 +3,8 @@
 import {
   AlertCircle,
   CheckCircle2,
-  ChevronDown,
-  ChevronRight,
   Download,
-  ExternalLink,
+  Save,
   Upload,
 } from "lucide-react";
 import Link from "next/link";
@@ -16,6 +14,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { MultiSelect } from "@/components/ui/multi-select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import {
   Table,
   TableBody,
@@ -24,11 +24,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
 import {
-  type BulkIncidentError,
-  createIncidentsBulk,
+  createIncidentsFromPreview,
+  type EditablePreviewRow,
+  resolveBulkIncidentRows,
 } from "@/lib/actions/incidents";
-import { BulkIncidentRowSchema } from "@/lib/validations/incidents";
 
 type Catalogs = {
   types: Array<{ id: number; name: string }>;
@@ -49,13 +50,18 @@ type Catalogs = {
   }>;
 };
 
-type ParsedRow = {
-  raw: Record<string, string>;
-  rowNumber: number;
-  fieldErrors: Map<string, string[]>;
-};
+const TEMPLATE_HEADERS = [
+  "titulo",
+  "descripcion",
+  "prioridad",
+  "sla",
+  "tipo",
+  "fecha_inicio",
+  "vic",
+] as const;
 
-const CSV_HEADERS = [
+const SNAPSHOT_HEADERS = [
+  "rowNumber",
   "title",
   "description",
   "priority",
@@ -64,30 +70,17 @@ const CSV_HEADERS = [
   "statusId",
   "vicId",
   "scheduleId",
+  "startedAt",
+  "resolvedAt",
   "assigneeIds",
 ] as const;
 
-const SAMPLE_ROW = [
-  "Falla en cámara de inspección",
-  "La cámara 3 no enciende durante el turno matutino",
-  "7",
-  "24",
-  "",
-  "",
-  "",
-  "",
-  "",
-];
-
-function buildTemplateCsv(): string {
-  return Papa.unparse({
-    fields: [...CSV_HEADERS],
-    data: [SAMPLE_ROW],
-  });
-}
+const UTF8_BOM = "﻿";
 
 function downloadCsv(filename: string, content: string) {
-  const blob = new Blob([content], { type: "text/csv;charset=utf-8;" });
+  const blob = new Blob([UTF8_BOM + content], {
+    type: "text/csv;charset=utf-8;",
+  });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
@@ -96,154 +89,320 @@ function downloadCsv(filename: string, content: string) {
   URL.revokeObjectURL(url);
 }
 
-function CollapsibleCard({
-  title,
-  count,
-  action,
-  children,
-  defaultOpen = false,
-}: {
-  title: string;
-  count: number;
-  action?: React.ReactNode;
-  children: React.ReactNode;
-  defaultOpen?: boolean;
-}) {
-  const [open, setOpen] = useState(defaultOpen);
+function buildLegibleTemplateCsv(opts: {
+  scheduleTitle?: string;
+  vicCode?: string;
+}): string {
+  const sample = [
+    "Falla en cámara de inspección",
+    "Cámara 3 no enciende en el turno matutino, requiere revisión",
+    "7",
+    "24",
+    "",
+    "",
+    opts.vicCode ?? "",
+  ];
+  const meta = opts.scheduleTitle
+    ? `# Programación: ${opts.scheduleTitle}\n`
+    : "";
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <button
-            type="button"
-            onClick={() => setOpen((v) => !v)}
-            className="flex items-center gap-2 text-left"
-          >
-            {open ? (
-              <ChevronDown className="h-4 w-4" />
-            ) : (
-              <ChevronRight className="h-4 w-4" />
-            )}
-            <CardTitle>
-              {title}{" "}
-              <Badge variant="secondary" className="ml-2">
-                {count}
-              </Badge>
-            </CardTitle>
-          </button>
-          {action}
-        </div>
-      </CardHeader>
-      {open && <CardContent>{children}</CardContent>}
-    </Card>
+    meta +
+    Papa.unparse(
+      { fields: [...TEMPLATE_HEADERS], data: [sample] },
+      { quotes: true, newline: "\r\n" },
+    )
   );
+}
+
+function buildSnapshotCsv(
+  rows: EditablePreviewRow[],
+  scheduleId: string | null,
+  statusIds: { open: number; closed: number },
+): string {
+  const data = rows.map((r) => [
+    r.rowNumber,
+    r.title,
+    r.description,
+    r.priority,
+    r.sla,
+    r.typeId ?? "",
+    r.resolvedAt ? statusIds.closed : statusIds.open,
+    r.vicId ?? "",
+    scheduleId ?? "",
+    r.startedAt ?? "",
+    r.resolvedAt ?? "",
+    r.assigneeIds.join(","),
+  ]);
+  return Papa.unparse(
+    { fields: [...SNAPSHOT_HEADERS], data },
+    { quotes: true, newline: "\r\n" },
+  );
+}
+
+function detectMode(headers: string[]): "template" | "snapshot" | "unknown" {
+  const lower = headers.map((h) => h.trim().toLowerCase());
+  if (lower.includes("titulo") && lower.includes("vic")) return "template";
+  if (lower.includes("title") && lower.includes("vicid")) return "snapshot";
+  return "unknown";
+}
+
+function toLocalDatetimeInput(iso: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function fromLocalDatetimeInput(v: string): string | null {
+  if (!v) return null;
+  const d = new Date(v);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toISOString();
+}
+
+function rowIsValid(row: EditablePreviewRow): boolean {
+  if (row.title.trim().length < 3) return false;
+  if (row.description.trim().length < 1) return false;
+  if (row.priority < 1 || row.priority > 10) return false;
+  if (row.sla <= 0) return false;
+  if (!row.vicId) return false;
+  return true;
 }
 
 export function BulkIncidentsClient({ catalogs }: { catalogs: Catalogs }) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const [parsedRows, setParsedRows] = useState<ParsedRow[]>([]);
+  const [scheduleId, setScheduleId] = useState<string>("");
+  const [previewRows, setPreviewRows] = useState<EditablePreviewRow[]>([]);
   const [parseError, setParseError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [serverErrors, setServerErrors] = useState<BulkIncidentError[]>([]);
+  const [generalErrors, setGeneralErrors] = useState<string[]>([]);
+  const [rowErrorsByRowNumber, setRowErrorsByRowNumber] = useState<
+    Map<number, Map<string, string>>
+  >(new Map());
   const [created, setCreated] = useState<number | null>(null);
 
-  const totalErrors = useMemo(
-    () =>
-      parsedRows.reduce((acc, r) => acc + r.fieldErrors.size, 0) +
-      serverErrors.length,
-    [parsedRows, serverErrors],
+  const selectedSchedule = useMemo(
+    () => catalogs.schedules.find((s) => s.id === scheduleId) ?? null,
+    [catalogs.schedules, scheduleId],
   );
-  const validCount = parsedRows.filter((r) => r.fieldErrors.size === 0).length;
+  const scheduleVicId = selectedSchedule?.vicId ?? null;
+  const scheduleVic = useMemo(
+    () =>
+      scheduleVicId
+        ? (catalogs.vics.find((v) => v.id === scheduleVicId) ?? null)
+        : null,
+    [catalogs.vics, scheduleVicId],
+  );
+
+  // Resolve open/closed status IDs from catalog for snapshot generation.
+  const statusIds = useMemo(() => {
+    const open = catalogs.statuses.find((s) => s.name === "ABIERTO")?.id ?? 0;
+    const closed = catalogs.statuses.find((s) => s.name === "CERRADO")?.id ?? 0;
+    return { open, closed };
+  }, [catalogs.statuses]);
+
+  const validCount = previewRows.filter(rowIsValid).length;
+  const invalidCount = previewRows.length - validCount;
+  const canSubmit = previewRows.length > 0 && invalidCount === 0 && !submitting;
 
   const handleDownloadTemplate = () => {
-    downloadCsv("incidentes-plantilla.csv", buildTemplateCsv());
+    downloadCsv(
+      "incidentes-plantilla.csv",
+      buildLegibleTemplateCsv({
+        scheduleTitle: selectedSchedule?.title,
+        vicCode: scheduleVic?.code,
+      }),
+    );
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setParseError(null);
-    setServerErrors([]);
+    setGeneralErrors([]);
+    setRowErrorsByRowNumber(new Map());
     setCreated(null);
 
     Papa.parse<Record<string, string>>(file, {
       header: true,
       skipEmptyLines: true,
       transformHeader: (h) => h.trim(),
-      complete: (res) => {
+      comments: "#",
+      complete: async (res) => {
         if (res.errors.length > 0) {
           setParseError(
             `Error al parsear CSV: ${res.errors[0].message} (fila ${res.errors[0].row ?? "?"})`,
           );
-          setParsedRows([]);
+          setPreviewRows([]);
           return;
         }
-        const rows: ParsedRow[] = res.data.map((raw, idx) => {
-          const fieldErrors = new Map<string, string[]>();
-          const result = BulkIncidentRowSchema.safeParse(raw);
-          if (!result.success) {
-            for (const issue of result.error.issues) {
-              const key = issue.path.join(".") || "_row";
-              const arr = fieldErrors.get(key) ?? [];
-              arr.push(issue.message);
-              fieldErrors.set(key, arr);
-            }
-          }
-          return { raw, rowNumber: idx + 2, fieldErrors };
-        });
-        setParsedRows(rows);
+        const headers = res.meta.fields ?? [];
+        const mode = detectMode(headers);
+        if (mode === "unknown") {
+          setParseError(
+            "Formato no reconocido. Usa la plantilla legible (encabezados en español) o un snapshot previamente descargado.",
+          );
+          setPreviewRows([]);
+          return;
+        }
+
+        const result = await resolveBulkIncidentRows(
+          res.data,
+          scheduleId || null,
+          mode,
+        );
+        if (!result.ok) {
+          setGeneralErrors(result.errors.map((e) => e.message));
+          setPreviewRows([]);
+          return;
+        }
+        setPreviewRows(result.rows);
       },
       error: (err) => {
         setParseError(`Error al leer el archivo: ${err.message}`);
-        setParsedRows([]);
+        setPreviewRows([]);
       },
     });
   };
 
+  const updateRow = (rowNumber: number, patch: Partial<EditablePreviewRow>) => {
+    setPreviewRows((prev) =>
+      prev.map((r) => (r.rowNumber === rowNumber ? { ...r, ...patch } : r)),
+    );
+  };
+
   const handleSubmit = async () => {
     setSubmitting(true);
-    setServerErrors([]);
+    setGeneralErrors([]);
+    setRowErrorsByRowNumber(new Map());
     setCreated(null);
     try {
-      const payload = parsedRows.map((r) => r.raw);
-      const result = await createIncidentsBulk(payload);
+      const result = await createIncidentsFromPreview(
+        previewRows,
+        scheduleId || null,
+      );
       if (result.ok) {
         setCreated(result.created);
-        setParsedRows([]);
+        setPreviewRows([]);
         if (fileInputRef.current) fileInputRef.current.value = "";
       } else {
-        setServerErrors(result.errors);
+        const general: string[] = [];
+        const byRow = new Map<number, Map<string, string>>();
+        for (const e of result.errors) {
+          if (e.row === 0 || !e.field) {
+            general.push(e.message);
+            continue;
+          }
+          if (!byRow.has(e.row)) byRow.set(e.row, new Map());
+          byRow.get(e.row)?.set(e.field, e.message);
+        }
+        setGeneralErrors(general);
+        setRowErrorsByRowNumber(byRow);
       }
     } catch (err) {
-      setServerErrors([
-        {
-          row: 0,
-          message: (err as Error).message ?? "Error desconocido al crear",
-        },
+      setGeneralErrors([
+        (err as Error).message ?? "Error desconocido al guardar",
       ]);
     } finally {
       setSubmitting(false);
     }
   };
 
-  const canSubmit =
-    parsedRows.length > 0 && validCount === parsedRows.length && !submitting;
+  const handleDownloadSnapshot = () => {
+    downloadCsv(
+      `incidentes-snapshot-${new Date().toISOString().slice(0, 10)}.csv`,
+      buildSnapshotCsv(previewRows, scheduleId || null, statusIds),
+    );
+  };
+
+  // Schedule options for the SearchableSelect.
+  const scheduleOptions = useMemo(() => {
+    const fmt = (d: Date) => new Date(d).toLocaleDateString("es-MX");
+    return [
+      { value: "", label: "— Sin programación —" },
+      ...catalogs.schedules.map((s) => ({
+        value: s.id,
+        label: `${s.title} · ${s.type} · ${fmt(s.scheduledAt)}`,
+      })),
+    ];
+  }, [catalogs.schedules]);
+
+  const typeOptions = useMemo(
+    () => [
+      { value: "", label: "— Sin tipo —" },
+      ...catalogs.types.map((t) => ({
+        value: String(t.id),
+        label: t.name,
+      })),
+    ],
+    [catalogs.types],
+  );
+
+  const vicOptions = useMemo(
+    () =>
+      catalogs.vics.map((v) => ({
+        value: v.id,
+        label: `${v.code} — ${v.name}`,
+      })),
+    [catalogs.vics],
+  );
+
+  const buildFsrOptions = (rowVicId: string | null) =>
+    catalogs.fsrs.map((f) => ({
+      value: f.id,
+      label: f.name,
+      sublabel: f.email,
+      badge:
+        rowVicId && f.vicIds.includes(rowVicId) ? "VIC asignado" : undefined,
+    }));
 
   return (
     <div className="space-y-6">
+      {/* Step 1: schedule */}
       <Card>
         <CardHeader>
-          <CardTitle>1. Descarga la plantilla</CardTitle>
+          <CardTitle>1. Programación</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
           <p className="text-sm text-muted-foreground">
-            Columnas: <code className="text-xs">{CSV_HEADERS.join(", ")}</code>.
+            Asocia los incidentes a una programación (opcional). El VIC asociado
+            se preselecciona en la plantilla.
+          </p>
+          <SearchableSelect
+            options={scheduleOptions}
+            value={scheduleId}
+            onValueChange={setScheduleId}
+            placeholder="Selecciona una programación o ninguna"
+            searchPlaceholder="Buscar programación..."
+            emptyMessage="Sin programaciones"
+          />
+          {scheduleVic && (
+            <p className="text-sm">
+              VIC de la programación:{" "}
+              <Badge variant="secondary">
+                {scheduleVic.code} — {scheduleVic.name}
+              </Badge>
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Step 2: download template */}
+      <Card>
+        <CardHeader>
+          <CardTitle>2. Descarga la plantilla</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <p className="text-sm text-muted-foreground">
+            Columnas:{" "}
+            <code className="text-xs">
+              titulo, descripcion, prioridad, sla, tipo, fecha_inicio, vic
+            </code>
+            .
             <br />
-            <strong>title</strong>, <strong>description</strong>,{" "}
-            <strong>priority</strong> (1-10) y <strong>sla</strong> (horas) son
-            obligatorios. <strong>assigneeIds</strong> es una lista separada por
-            coma de IDs de FSR. Deja en blanco lo que no aplique. Guarda como{" "}
-            <strong>UTF-8</strong>.
+            Acepta texto largo, comas y caracteres especiales (UTF-8). Guarda
+            como CSV UTF-8 al editar en Excel/LibreOffice/Numbers.
           </p>
           <Button onClick={handleDownloadTemplate}>
             <Download className="mr-2 h-4 w-4" />
@@ -252,161 +411,7 @@ export function BulkIncidentsClient({ catalogs }: { catalogs: Catalogs }) {
         </CardContent>
       </Card>
 
-      <div className="space-y-3">
-        <div>
-          <h2 className="text-xl font-semibold">2. Catálogos de referencia</h2>
-          <p className="text-sm text-muted-foreground">
-            Copia los IDs que necesites en tu CSV.
-          </p>
-        </div>
-
-        <CollapsibleCard
-          title="Tipos de incidente"
-          count={catalogs.types.length}
-        >
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-32">id</TableHead>
-                <TableHead>name</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {catalogs.types.map((t) => (
-                <TableRow key={t.id}>
-                  <TableCell className="font-mono">{t.id}</TableCell>
-                  <TableCell>{t.name}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CollapsibleCard>
-
-        <CollapsibleCard
-          title="Estados de incidente"
-          count={catalogs.statuses.length}
-        >
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-32">id</TableHead>
-                <TableHead>name</TableHead>
-                <TableHead>color</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {catalogs.statuses.map((s) => (
-                <TableRow key={s.id}>
-                  <TableCell className="font-mono">{s.id}</TableCell>
-                  <TableCell>{s.name}</TableCell>
-                  <TableCell>
-                    <span
-                      className="inline-block w-4 h-4 rounded-full mr-2 align-middle"
-                      style={{ backgroundColor: s.color }}
-                    />
-                    <span className="text-xs text-muted-foreground">
-                      {s.color}
-                    </span>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CollapsibleCard>
-
-        <CollapsibleCard title="VICs" count={catalogs.vics.length}>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>id</TableHead>
-                <TableHead>code</TableHead>
-                <TableHead>name</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {catalogs.vics.map((v) => (
-                <TableRow key={v.id}>
-                  <TableCell className="font-mono text-xs">{v.id}</TableCell>
-                  <TableCell>{v.code}</TableCell>
-                  <TableCell>{v.name}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CollapsibleCard>
-
-        <CollapsibleCard
-          title="Programaciones (Schedules)"
-          count={catalogs.schedules.length}
-          action={
-            <Button variant="outline" size="sm" asChild>
-              <Link href="/admin/schedules/new" target="_blank">
-                <ExternalLink className="mr-2 h-4 w-4" />
-                Crear nueva programación
-              </Link>
-            </Button>
-          }
-        >
-          {catalogs.schedules.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              No hay programaciones. Crea una y luego refresca la página.
-            </p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>id</TableHead>
-                  <TableHead>title</TableHead>
-                  <TableHead>type</TableHead>
-                  <TableHead>scheduledAt</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {catalogs.schedules.map((s) => (
-                  <TableRow key={s.id}>
-                    <TableCell className="font-mono text-xs">{s.id}</TableCell>
-                    <TableCell>{s.title}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{s.type}</Badge>
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {new Date(s.scheduledAt).toLocaleDateString()}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CollapsibleCard>
-
-        <CollapsibleCard title="FSRs" count={catalogs.fsrs.length}>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>id</TableHead>
-                <TableHead>name</TableHead>
-                <TableHead>email</TableHead>
-                <TableHead>VICs</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {catalogs.fsrs.map((f) => (
-                <TableRow key={f.id}>
-                  <TableCell className="font-mono text-xs">{f.id}</TableCell>
-                  <TableCell>{f.name}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {f.email}
-                  </TableCell>
-                  <TableCell className="text-xs text-muted-foreground">
-                    {f.vicIds.length === 0 ? "—" : f.vicIds.length}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CollapsibleCard>
-      </div>
-
+      {/* Step 3: upload */}
       <Card>
         <CardHeader>
           <CardTitle>3. Subir CSV</CardTitle>
@@ -418,31 +423,47 @@ export function BulkIncidentsClient({ catalogs }: { catalogs: Catalogs }) {
             accept=".csv,text/csv"
             onChange={handleFileChange}
           />
+          <p className="text-xs text-muted-foreground">
+            Se acepta la plantilla legible o un snapshot previamente descargado.
+          </p>
           {parseError && (
             <div className="flex items-center gap-2 text-sm text-destructive">
               <AlertCircle className="h-4 w-4" />
               {parseError}
             </div>
           )}
+          {generalErrors.length > 0 && (
+            <div className="rounded-md border border-destructive/50 bg-destructive/5 p-3 text-sm">
+              <p className="font-medium text-destructive mb-1">Errores:</p>
+              <ul className="list-disc pl-5 space-y-1">
+                {generalErrors.map((m) => (
+                  <li key={m}>{m}</li>
+                ))}
+              </ul>
+            </div>
+          )}
         </CardContent>
       </Card>
 
-      {parsedRows.length > 0 && (
+      {/* Step 4: editable preview */}
+      {previewRows.length > 0 && (
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle>
-                4. Previsualización ({parsedRows.length} filas)
+                4. Previsualización ({previewRows.length} filas)
               </CardTitle>
               <div className="flex items-center gap-3 text-sm">
                 <span className="text-emerald-600">
                   <CheckCircle2 className="inline h-4 w-4 mr-1" />
                   {validCount} válidas
                 </span>
-                <span className="text-destructive">
-                  <AlertCircle className="inline h-4 w-4 mr-1" />
-                  {parsedRows.length - validCount} inválidas
-                </span>
+                {invalidCount > 0 && (
+                  <span className="text-destructive">
+                    <AlertCircle className="inline h-4 w-4 mr-1" />
+                    {invalidCount} con pendientes
+                  </span>
+                )}
               </div>
             </div>
           </CardHeader>
@@ -452,61 +473,191 @@ export function BulkIncidentsClient({ catalogs }: { catalogs: Catalogs }) {
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-12">#</TableHead>
-                    <TableHead className="w-12">Estado</TableHead>
-                    {CSV_HEADERS.map((h) => (
-                      <TableHead key={h}>{h}</TableHead>
-                    ))}
+                    <TableHead className="w-24">Estado</TableHead>
+                    <TableHead className="min-w-[180px]">Título</TableHead>
+                    <TableHead className="min-w-[240px]">Descripción</TableHead>
+                    <TableHead className="w-20">Prio</TableHead>
+                    <TableHead className="w-20">SLA (h)</TableHead>
+                    <TableHead className="min-w-[180px]">Tipo</TableHead>
+                    <TableHead className="min-w-[200px]">VIC</TableHead>
+                    <TableHead className="min-w-[220px]">FSRs</TableHead>
+                    <TableHead className="min-w-[180px]">
+                      Fecha inicio
+                    </TableHead>
+                    <TableHead className="min-w-[180px]">
+                      Fecha resolución
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {parsedRows.map((row) => {
-                    const ok = row.fieldErrors.size === 0;
-                    const serverRowErrors = serverErrors.filter(
-                      (e) => e.row === row.rowNumber,
-                    );
+                  {previewRows.map((row) => {
+                    const ok = rowIsValid(row);
+                    const serverErrs = rowErrorsByRowNumber.get(row.rowNumber);
+                    const allErrs = new Map<string, string>();
+                    for (const [k, v] of Object.entries(row.fieldErrors))
+                      allErrs.set(k, v);
+                    if (serverErrs)
+                      for (const [k, v] of serverErrs) allErrs.set(k, v);
                     return (
                       <TableRow
                         key={row.rowNumber}
-                        className={
-                          !ok || serverRowErrors.length
-                            ? "bg-destructive/5"
-                            : ""
-                        }
+                        className={!ok ? "bg-destructive/5" : ""}
                       >
-                        <TableCell className="text-xs text-muted-foreground">
+                        <TableCell className="text-xs text-muted-foreground align-top pt-3">
                           {row.rowNumber}
                         </TableCell>
-                        <TableCell>
-                          {ok && serverRowErrors.length === 0 ? (
-                            <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                        <TableCell className="align-top pt-3">
+                          {ok ? (
+                            <Badge variant="default" className="bg-emerald-600">
+                              OK
+                            </Badge>
+                          ) : !row.vicId ? (
+                            <Badge variant="destructive">VIC pendiente</Badge>
                           ) : (
-                            <span title="Ver errores debajo">
-                              <AlertCircle className="h-4 w-4 text-destructive" />
-                            </span>
+                            <Badge variant="destructive">Pendiente</Badge>
                           )}
                         </TableCell>
-                        {CSV_HEADERS.map((h) => {
-                          const errs = row.fieldErrors.get(h) ?? [];
-                          const sErrs = serverRowErrors
-                            .filter((e) => e.field === h)
-                            .map((e) => e.message);
-                          const allErrs = [...errs, ...sErrs];
-                          return (
-                            <TableCell key={h} className="text-xs align-top">
-                              <div className="font-mono whitespace-pre-wrap break-all max-w-[200px]">
-                                {row.raw[h] ?? ""}
-                              </div>
-                              {allErrs.map((e) => (
-                                <div
-                                  key={e}
-                                  className="text-destructive text-[10px] mt-1"
-                                >
-                                  {e}
-                                </div>
-                              ))}
-                            </TableCell>
-                          );
-                        })}
+                        <TableCell className="align-top">
+                          <Input
+                            value={row.title}
+                            onChange={(e) =>
+                              updateRow(row.rowNumber, {
+                                title: e.target.value,
+                              })
+                            }
+                            className={
+                              allErrs.has("title") || allErrs.has("titulo")
+                                ? "border-destructive"
+                                : ""
+                            }
+                          />
+                        </TableCell>
+                        <TableCell className="align-top">
+                          <Textarea
+                            value={row.description}
+                            onChange={(e) =>
+                              updateRow(row.rowNumber, {
+                                description: e.target.value,
+                              })
+                            }
+                            rows={2}
+                            className={
+                              allErrs.has("description") ||
+                              allErrs.has("descripcion")
+                                ? "border-destructive"
+                                : ""
+                            }
+                          />
+                        </TableCell>
+                        <TableCell className="align-top">
+                          <Input
+                            type="number"
+                            min={1}
+                            max={10}
+                            value={row.priority}
+                            onChange={(e) =>
+                              updateRow(row.rowNumber, {
+                                priority: Number(e.target.value),
+                              })
+                            }
+                            className="w-16"
+                          />
+                        </TableCell>
+                        <TableCell className="align-top">
+                          <Input
+                            type="number"
+                            min={1}
+                            value={row.sla}
+                            onChange={(e) =>
+                              updateRow(row.rowNumber, {
+                                sla: Number(e.target.value),
+                              })
+                            }
+                            className="w-20"
+                          />
+                        </TableCell>
+                        <TableCell className="align-top">
+                          {row.typeNameRaw && !row.typeResolved && (
+                            <div className="text-[10px] text-destructive mb-1">
+                              CSV: "{row.typeNameRaw}" (no encontrado)
+                            </div>
+                          )}
+                          <SearchableSelect
+                            options={typeOptions}
+                            value={row.typeId ? String(row.typeId) : ""}
+                            onValueChange={(v) =>
+                              updateRow(row.rowNumber, {
+                                typeId: v ? Number(v) : null,
+                                typeResolved: true,
+                                typeNameRaw: null,
+                              })
+                            }
+                            placeholder="Sin tipo"
+                            searchPlaceholder="Buscar tipo..."
+                          />
+                        </TableCell>
+                        <TableCell className="align-top">
+                          {row.vicCodeRaw && !row.vicResolved && (
+                            <div className="text-[10px] text-destructive mb-1">
+                              CSV: "{row.vicCodeRaw}" (no encontrado)
+                            </div>
+                          )}
+                          <SearchableSelect
+                            options={vicOptions}
+                            value={row.vicId ?? ""}
+                            onValueChange={(v) =>
+                              updateRow(row.rowNumber, {
+                                vicId: v || null,
+                                vicResolved: !!v,
+                                vicCodeRaw: null,
+                              })
+                            }
+                            placeholder="Selecciona VIC"
+                            searchPlaceholder="Buscar VIC..."
+                          />
+                        </TableCell>
+                        <TableCell className="align-top">
+                          <MultiSelect
+                            options={buildFsrOptions(row.vicId)}
+                            value={row.assigneeIds}
+                            onValueChange={(v) =>
+                              updateRow(row.rowNumber, { assigneeIds: v })
+                            }
+                            placeholder="Selecciona FSRs"
+                            searchPlaceholder="Buscar FSR..."
+                          />
+                        </TableCell>
+                        <TableCell className="align-top">
+                          <Input
+                            type="datetime-local"
+                            value={toLocalDatetimeInput(row.startedAt)}
+                            onChange={(e) =>
+                              updateRow(row.rowNumber, {
+                                startedAt: fromLocalDatetimeInput(
+                                  e.target.value,
+                                ),
+                              })
+                            }
+                          />
+                        </TableCell>
+                        <TableCell className="align-top">
+                          <Input
+                            type="datetime-local"
+                            value={toLocalDatetimeInput(row.resolvedAt)}
+                            onChange={(e) =>
+                              updateRow(row.rowNumber, {
+                                resolvedAt: fromLocalDatetimeInput(
+                                  e.target.value,
+                                ),
+                              })
+                            }
+                            className={
+                              allErrs.has("resolvedAt")
+                                ? "border-destructive"
+                                : ""
+                            }
+                          />
+                        </TableCell>
                       </TableRow>
                     );
                   })}
@@ -514,39 +665,33 @@ export function BulkIncidentsClient({ catalogs }: { catalogs: Catalogs }) {
               </Table>
             </div>
 
-            {serverErrors.filter((e) => !e.field || e.row === 0).length > 0 && (
-              <div className="rounded-md border border-destructive/50 bg-destructive/5 p-3 text-sm">
-                <p className="font-medium text-destructive mb-1">
-                  Errores generales del servidor:
-                </p>
-                <ul className="list-disc pl-5 space-y-1">
-                  {serverErrors
-                    .filter((e) => !e.field || e.row === 0)
-                    .map((e, i) => (
-                      <li key={`${e.row}-${i}`}>
-                        {e.row > 0 && (
-                          <span className="text-muted-foreground">
-                            fila {e.row}:{" "}
-                          </span>
-                        )}
-                        {e.message}
-                      </li>
-                    ))}
-                </ul>
-              </div>
-            )}
-
-            <div className="flex justify-end">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <Button
+                variant="outline"
+                onClick={handleDownloadSnapshot}
+                disabled={previewRows.length === 0}
+              >
+                <Download className="mr-2 h-4 w-4" />
+                Descargar copia editada
+              </Button>
               <Button onClick={handleSubmit} disabled={!canSubmit} size="lg">
-                <Upload className="mr-2 h-4 w-4" />
-                {submitting
-                  ? "Creando..."
-                  : `Crear ${parsedRows.length} incidentes`}
+                {submitting ? (
+                  <>
+                    <Upload className="mr-2 h-4 w-4 animate-pulse" />
+                    Guardando...
+                  </>
+                ) : (
+                  <>
+                    <Save className="mr-2 h-4 w-4" />
+                    Guardar {previewRows.length} incidente
+                    {previewRows.length === 1 ? "" : "s"}
+                  </>
+                )}
               </Button>
             </div>
-            {totalErrors > 0 && validCount !== parsedRows.length && (
+            {invalidCount > 0 && (
               <p className="text-sm text-muted-foreground text-right">
-                Corrige los errores y vuelve a subir el CSV antes de crear.
+                Resuelve las filas pendientes antes de guardar.
               </p>
             )}
           </CardContent>
@@ -560,7 +705,8 @@ export function BulkIncidentsClient({ catalogs }: { catalogs: Catalogs }) {
               <CheckCircle2 className="h-6 w-6 text-emerald-600" />
               <div>
                 <p className="font-medium">
-                  Se crearon {created} incidentes correctamente.
+                  Se crearon {created} incidente{created === 1 ? "" : "s"}{" "}
+                  correctamente.
                 </p>
                 <p className="text-sm text-muted-foreground">
                   Puedes verlos en el listado de incidentes.

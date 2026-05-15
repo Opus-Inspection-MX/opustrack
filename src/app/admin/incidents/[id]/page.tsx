@@ -166,6 +166,20 @@ export default async function IncidentDetailPage({
               </div>
             </div>
 
+            {incident.startedAt && (
+              <div className="flex items-start gap-3">
+                <Calendar className="h-5 w-5 text-muted-foreground mt-0.5" />
+                <div>
+                  <p className="text-sm text-muted-foreground">
+                    Fecha de inicio
+                  </p>
+                  <p className="font-medium">
+                    {new Date(incident.startedAt).toLocaleString()}
+                  </p>
+                </div>
+              </div>
+            )}
+
             {incident.resolvedAt && (
               <div className="flex items-start gap-3">
                 <Calendar className="h-5 w-5 text-muted-foreground mt-0.5" />

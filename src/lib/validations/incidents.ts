@@ -23,6 +23,7 @@ export const IncidentCreateSchema = z.object({
   vicId: cuidSchema.nullable().optional(),
   scheduleId: cuidSchema.nullable().optional(),
   reportedById: cuidSchema.nullable().optional(),
+  startedAt: z.date().nullable().optional(),
   resolvedAt: z.date().nullable().optional(),
   assigneeIds: z.array(cuidSchema).optional(),
 });
@@ -86,8 +87,7 @@ export const IncidentQuerySchema = baseQuerySchema.extend({
 });
 
 /**
- * Schema for a single row of the bulk-incident-creation CSV.
- * Accepts raw string values (from Papa.parse) and coerces numbers; treats "" as omitted.
+ * Common CSV helpers: coerce strings, treat "" as omitted.
  */
 const optionalIntFromCsv = z
   .union([z.literal(""), z.coerce.number().int()])
@@ -99,7 +99,28 @@ const optionalStringFromCsv = z
   .optional()
   .transform((v) => (v && v.trim() !== "" ? v.trim() : undefined));
 
-export const BulkIncidentRowSchema = z.object({
+const optionalDateFromCsv = z
+  .string()
+  .optional()
+  .transform((v, ctx) => {
+    if (!v || v.trim() === "") return undefined;
+    const trimmed = v.trim();
+    const d = new Date(trimmed);
+    if (Number.isNaN(d.getTime())) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `Fecha inválida: "${trimmed}". Usa formato YYYY-MM-DD o YYYY-MM-DD HH:mm.`,
+      });
+      return z.NEVER;
+    }
+    return d;
+  });
+
+/**
+ * SNAPSHOT row schema — what `buildSnapshotCsv` produces and what the app
+ * re-ingests. All FKs are IDs already resolved. Not user-friendly.
+ */
+export const BulkIncidentSnapshotRowSchema = z.object({
   title: z
     .string()
     .min(3, "Título debe tener al menos 3 caracteres")
@@ -115,10 +136,39 @@ export const BulkIncidentRowSchema = z.object({
   statusId: optionalIntFromCsv,
   vicId: optionalStringFromCsv,
   scheduleId: optionalStringFromCsv,
+  startedAt: optionalDateFromCsv,
+  resolvedAt: optionalDateFromCsv,
   assigneeIds: optionalStringFromCsv,
 });
 
-export type BulkIncidentRowInput = z.infer<typeof BulkIncidentRowSchema>;
+export type BulkIncidentSnapshotRowInput = z.infer<
+  typeof BulkIncidentSnapshotRowSchema
+>;
+
+/**
+ * TEMPLATE row schema — human-readable plantilla the admin fills.
+ * vic = VIC.code, tipo = IncidentType.name. scheduleId comes from the page-level selector.
+ */
+export const BulkIncidentTemplateRowSchema = z.object({
+  titulo: z
+    .string()
+    .min(3, "Título debe tener al menos 3 caracteres")
+    .max(200, "Título debe tener máximo 200 caracteres"),
+  descripcion: z.string().min(1, "Descripción es requerida"),
+  prioridad: z.coerce
+    .number()
+    .int()
+    .min(1, "Prioridad mínima 1")
+    .max(10, "Prioridad máxima 10"),
+  sla: z.coerce.number().int().positive("SLA debe ser un entero positivo"),
+  tipo: optionalStringFromCsv,
+  fecha_inicio: optionalDateFromCsv,
+  vic: optionalStringFromCsv,
+});
+
+export type BulkIncidentTemplateRowInput = z.infer<
+  typeof BulkIncidentTemplateRowSchema
+>;
 
 export function parseAssigneeIds(raw?: string): string[] {
   if (!raw) return [];

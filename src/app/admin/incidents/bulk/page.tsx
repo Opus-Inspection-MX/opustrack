@@ -20,8 +20,8 @@ export default async function BulkIncidentsPage() {
         <div>
           <h1 className="text-3xl font-bold">Carga masiva de incidentes</h1>
           <p className="text-muted-foreground">
-            Descarga la plantilla, llénala y súbela para crear muchos incidentes
-            a la vez (programación mensual)
+            Selecciona programación, descarga la plantilla, súbela y edita el
+            resultado antes de guardar.
           </p>
         </div>
       </div>
