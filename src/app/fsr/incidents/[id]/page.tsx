@@ -130,13 +130,15 @@ export default async function FSRIncidentDetailPage({
               <span className="font-medium">Fecha:</span>
               <span>{new Date(incident.reportedAt).toLocaleString()}</span>
             </div>
-            {incident.sla && (
-              <div className="flex items-center gap-2">
-                <Clock className="h-4 w-4 text-muted-foreground" />
-                <span className="font-medium">SLA:</span>
-                <span>{incident.sla} horas</span>
-              </div>
-            )}
+            <div className="flex items-center gap-2">
+              <Clock className="h-4 w-4 text-muted-foreground" />
+              <span className="font-medium">SLA:</span>
+              <span>
+                {incident.type?.sla != null
+                  ? `${incident.type.sla} horas`
+                  : "Sin SLA"}
+              </span>
+            </div>
             {incident.resolvedAt && (
               <div className="flex items-center gap-2">
                 <Clock className="h-4 w-4 text-green-500" />
@@ -196,7 +198,9 @@ export default async function FSRIncidentDetailPage({
                       </div>
                     </div>
                     <Button asChild size="sm">
-                      <Link href={`/fsr/assignments/${wo.id}`}>Ver Orden</Link>
+                      <Link href={`/fsr/assignments/${wo.id}`}>
+                        Ver Asignación
+                      </Link>
                     </Button>
                   </div>
                 </div>

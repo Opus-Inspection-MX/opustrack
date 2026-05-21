@@ -56,7 +56,6 @@ const TEMPLATE_HEADERS = [
   "titulo",
   "descripcion",
   "prioridad",
-  "sla",
   "tipo",
   "fecha_inicio",
   "vic",
@@ -67,7 +66,6 @@ const SNAPSHOT_HEADERS = [
   "title",
   "description",
   "priority",
-  "sla",
   "typeId",
   "statusId",
   "vicId",
@@ -105,7 +103,6 @@ function buildLegibleTemplateCsv(opts: {
     "Falla en cámara de inspección",
     "Cámara 3 no enciende en el turno matutino, requiere revisión",
     "7",
-    "24",
     sampleType,
     formatSampleDate(new Date()),
     opts.vicCode ?? "",
@@ -126,7 +123,6 @@ function buildSnapshotCsv(
     r.title,
     r.description,
     r.priority,
-    r.sla,
     r.typeId ?? "",
     r.resolvedAt ? statusIds.closed : statusIds.open,
     r.vicId ?? "",
@@ -230,7 +226,6 @@ function rowIsValid(row: EditablePreviewRow): boolean {
   if (row.title.trim().length < 3) return false;
   if (row.description.trim().length < 1) return false;
   if (row.priority < 1 || row.priority > 10) return false;
-  if (row.sla <= 0) return false;
   if (!row.vicId) return false;
   return true;
 }
@@ -317,7 +312,7 @@ export function BulkIncidentsClient({ catalogs }: { catalogs: Catalogs }) {
     const cleaned = stripLeadingNonHeaderLines(text);
     if (!cleaned) {
       setParseError(
-        "No se encontró una fila de encabezados válida. Usa la plantilla descargada (encabezados: titulo, descripcion, prioridad, sla, tipo, fecha_inicio, vic) o un snapshot previamente descargado.",
+        "No se encontró una fila de encabezados válida. Usa la plantilla descargada (encabezados: titulo, descripcion, prioridad, tipo, fecha_inicio, vic) o un snapshot previamente descargado.",
       );
       setPreviewRows([]);
       return;
@@ -570,7 +565,7 @@ export function BulkIncidentsClient({ catalogs }: { catalogs: Catalogs }) {
           <p className="text-sm text-muted-foreground">
             Columnas:{" "}
             <code className="text-xs">
-              titulo, descripcion, prioridad, sla, tipo, fecha_inicio, vic
+              titulo, descripcion, prioridad, tipo, fecha_inicio, vic
             </code>
             .
             <br />
@@ -578,7 +573,11 @@ export function BulkIncidentsClient({ catalogs }: { catalogs: Catalogs }) {
             <code className="text-xs">
               {catalogs.types[0]?.name ?? "Mantenimiento"}
             </code>
-            ). <strong>fecha_inicio</strong>: formato{" "}
+            ). El SLA se hereda del tipo. Si dejas{" "}
+            <code className="text-xs">tipo</code> vacío o no encuentra el
+            nombre, el sistema asigna{" "}
+            <code className="text-xs">Desconocido</code>.{" "}
+            <strong>fecha_inicio</strong>: formato{" "}
             <code className="text-xs">YYYY-MM-DD HH:mm</code>.{" "}
             <strong>vic</strong>: código del CVV. Acepta texto largo, comas y
             caracteres especiales (UTF-8).
@@ -764,7 +763,6 @@ export function BulkIncidentsClient({ catalogs }: { catalogs: Catalogs }) {
                     <TableHead className="min-w-[180px]">Título</TableHead>
                     <TableHead className="min-w-[240px]">Descripción</TableHead>
                     <TableHead className="w-20">Prio</TableHead>
-                    <TableHead className="w-20">SLA (h)</TableHead>
                     <TableHead className="min-w-[180px]">Tipo</TableHead>
                     <TableHead className="min-w-[200px]">VIC</TableHead>
                     <TableHead className="min-w-[220px]">FSRs</TableHead>
@@ -851,22 +849,9 @@ export function BulkIncidentsClient({ catalogs }: { catalogs: Catalogs }) {
                           />
                         </TableCell>
                         <TableCell className="align-top">
-                          <Input
-                            type="number"
-                            min={1}
-                            value={row.sla}
-                            onChange={(e) =>
-                              updateRow(row.rowNumber, {
-                                sla: Number(e.target.value),
-                              })
-                            }
-                            className="w-20"
-                          />
-                        </TableCell>
-                        <TableCell className="align-top">
-                          {row.typeNameRaw && !row.typeResolved && (
-                            <div className="text-[10px] text-destructive mb-1">
-                              CSV: "{row.typeNameRaw}" (no encontrado)
+                          {row.typeNameRaw && !row.typeId && (
+                            <div className="text-[10px] text-amber-600 mb-1">
+                              CSV: "{row.typeNameRaw}" → fallback "Desconocido"
                             </div>
                           )}
                           <SearchableSelect

@@ -210,7 +210,12 @@ export default async function ClientDashboard() {
                         Reportado:{" "}
                         {new Date(incident.reportedAt).toLocaleDateString()}
                       </span>
-                      <span>SLA: {incident.sla}h</span>
+                      <span>
+                        SLA:{" "}
+                        {incident.type?.sla != null
+                          ? `${incident.type.sla}h`
+                          : "Sin SLA"}
+                      </span>
                       {incident._count?.assignments &&
                         incident._count.assignments > 0 && (
                           <span>

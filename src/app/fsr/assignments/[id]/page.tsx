@@ -551,7 +551,7 @@ export default function FSRAssignmentDetailPage({
       {/* Assignment Details */}
       <Card>
         <CardHeader>
-          <CardTitle>Detalles de la Orden</CardTitle>
+          <CardTitle>Detalles de la Asignación</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div>

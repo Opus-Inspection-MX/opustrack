@@ -102,6 +102,27 @@ export default function AssignmentStatusPage() {
         </Button>
       </div>
 
+      <div className="rounded-md border border-amber-500/40 bg-amber-500/5 px-4 py-3 text-sm">
+        <p className="font-medium text-amber-700 dark:text-amber-300">Aviso</p>
+        <p className="text-muted-foreground mt-1">
+          Estos estados están vinculados al state machine de asignaciones. Los
+          estados <code className="text-xs">PENDIENTE_DE_ASIGNACION</code>,{" "}
+          <code className="text-xs">ASIGNADO</code>,{" "}
+          <code className="text-xs">VISTO</code>,{" "}
+          <code className="text-xs">INICIADO</code>,{" "}
+          <code className="text-xs">PENDIENTE</code> y{" "}
+          <code className="text-xs">CERRADO</code> son referenciados por nombre.
+          Renombrar o eliminar uno puede romper el flujo. Consulta el{" "}
+          <a
+            href="/admin/lifecycle"
+            className="underline text-amber-700 dark:text-amber-300"
+          >
+            Ciclo de Vida
+          </a>{" "}
+          antes de modificar.
+        </p>
+      </div>
+
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="space-y-2">
           <Label className="text-xs font-medium">Buscar</Label>

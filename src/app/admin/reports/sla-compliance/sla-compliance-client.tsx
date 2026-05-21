@@ -274,7 +274,7 @@ export function SLAComplianceClient({ initialData }: SLAComplianceClientProps) {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
-                    {incident.slaHours}h
+                    {incident.slaHours > 0 ? `${incident.slaHours}h` : "—"}
                   </TableCell>
                   <TableCell className="text-right">
                     {formatHours(incident.actualHours)}

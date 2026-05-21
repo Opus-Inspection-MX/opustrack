@@ -317,7 +317,7 @@ export function AssignmentForm({
               {isSubmitting && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               )}
-              {assignment ? "Actualizar Orden" : "Crear Orden"}
+              {assignment ? "Actualizar Asignación" : "Crear Asignación"}
             </Button>
           </div>
         </form>

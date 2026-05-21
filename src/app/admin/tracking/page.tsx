@@ -59,7 +59,6 @@ interface TrackingIncident {
   title: string;
   description?: string | null;
   priority: number;
-  sla: number;
   reportedAt: Date | string;
   resolvedAt?: Date | string | null;
   statusId?: number | null;

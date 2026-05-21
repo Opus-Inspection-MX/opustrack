@@ -24,6 +24,7 @@ interface IncidentType {
   id: number;
   name: string;
   description?: string;
+  sla?: number | null;
   active: boolean;
   incidentCount: number;
   createdAt: string;
@@ -59,6 +60,7 @@ export function IncidentTypeTable({
             <TableRow>
               <TableHead>Nombre</TableHead>
               <TableHead>Descripción</TableHead>
+              <TableHead>SLA</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Incidentes</TableHead>
               <TableHead>Creado</TableHead>
@@ -79,6 +81,15 @@ export function IncidentTypeTable({
                   ) : (
                     <span className="text-sm text-muted-foreground italic">
                       Sin descripción
+                    </span>
+                  )}
+                </TableCell>
+                <TableCell>
+                  {type.sla != null ? (
+                    <Badge variant="outline">{type.sla}h</Badge>
+                  ) : (
+                    <span className="text-sm text-muted-foreground italic">
+                      Sin SLA
                     </span>
                   )}
                 </TableCell>

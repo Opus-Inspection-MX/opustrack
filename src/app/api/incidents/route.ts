@@ -1,5 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
+import { FALLBACK_INCIDENT_TYPE_NAME } from "@/lib/constants/incident-type";
 import { withPermission } from "@/lib/auth/auth";
 import { prisma } from "@/lib/database/prisma.singleton";
 
@@ -16,7 +17,6 @@ export const POST = withPermission(
         title,
         description,
         priority,
-        sla,
         typeId,
         statusId,
         vicId,
@@ -33,14 +33,29 @@ export const POST = withPermission(
         );
       }
 
+      // typeId NOT NULL — fallback al tipo "Desconocido" si no viene.
+      let resolvedTypeId: number | null = typeId ? parseInt(typeId, 10) : null;
+      if (!resolvedTypeId) {
+        const fallback = await prisma.incidentType.findUnique({
+          where: { name: FALLBACK_INCIDENT_TYPE_NAME },
+          select: { id: true },
+        });
+        if (!fallback) {
+          return NextResponse.json(
+            { error: "Falta tipo 'Desconocido' en el catálogo" },
+            { status: 500 },
+          );
+        }
+        resolvedTypeId = fallback.id;
+      }
+
       // Crear incidente
       const incident = await prisma.incident.create({
         data: {
           title,
           description,
           priority: parseInt(priority, 10),
-          sla: sla ? parseInt(sla, 10) : 24,
-          typeId: typeId ? parseInt(typeId, 10) : null,
+          typeId: resolvedTypeId,
           statusId: statusId ? parseInt(statusId, 10) : null,
           vicId: vicId || null,
           scheduleId: scheduleId || null,

@@ -1,10 +1,14 @@
 "use client";
 
-import { Search } from "lucide-react";
+import { Search, X } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { BulkAssignDialog } from "@/components/admin/incidents/bulk-assign-dialog";
+import { QuickEditFsrsPopover } from "@/components/admin/incidents/quick-edit-fsrs-popover";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SearchableSelect } from "@/components/ui/searchable-select";
@@ -23,6 +27,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { getFsrsForAssignment } from "@/lib/actions/incidents";
 
 interface Incident {
   id: number;
@@ -34,19 +39,11 @@ interface Incident {
     scheduledAt: string;
     endDate: string | null;
   } | null;
-  status: {
-    id: number;
-    name: string;
-    color: string;
-  } | null;
-  type: {
-    id: number;
-    name: string;
-  } | null;
-  vic: {
-    id: string;
-    name: string;
-  } | null;
+  status: { id: number; name: string; color: string } | null;
+  type: { id: number; name: string } | null;
+  vic: { id: string; name: string; code?: string } | null;
+  assignees: Array<{ user: { id: string; name: string; email: string } }>;
+  _count: { assignees: number };
   assignments: Array<{ id: string; status?: { name: string } | null }>;
 }
 
@@ -55,7 +52,7 @@ interface IncidentType {
   name: string;
 }
 
-interface Schedule {
+interface ScheduleOption {
   id: string;
   title: string;
 }
@@ -64,6 +61,13 @@ interface VIC {
   id: string;
   name: string;
   code: string;
+}
+
+interface FsrOption {
+  id: string;
+  name: string;
+  email: string;
+  vicIds: string[];
 }
 
 interface ScheduleActivitiesProps {
@@ -85,8 +89,9 @@ export function ScheduleActivities({
   const router = useRouter();
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [incidentTypes, setIncidentTypes] = useState<IncidentType[]>([]);
-  const [schedules, setSchedules] = useState<Schedule[]>([]);
+  const [schedules, setSchedules] = useState<ScheduleOption[]>([]);
   const [vics, setVics] = useState<VIC[]>([]);
+  const [fsrs, setFsrs] = useState<FsrOption[]>([]);
   const [loading, setLoading] = useState(false);
 
   const [selectedVic, setSelectedVic] = useState<string>("all");
@@ -95,7 +100,9 @@ export function ScheduleActivities({
     useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Sincronizar filtro de schedule con selección
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [bulkOpen, setBulkOpen] = useState(false);
+
   useEffect(() => {
     if (selectedSchedule) {
       setSelectedScheduleFilter(selectedSchedule.id);
@@ -132,7 +139,6 @@ export function ScheduleActivities({
     try {
       const response = await fetch("/api/incident-types");
       if (!response.ok) return;
-
       const result = await response.json();
       setIncidentTypes(result.data || []);
     } catch (error) {
@@ -144,7 +150,6 @@ export function ScheduleActivities({
     try {
       const response = await fetch("/api/schedules");
       if (!response.ok) return;
-
       const result = await response.json();
       setSchedules(result.data || []);
     } catch (error) {
@@ -156,7 +161,6 @@ export function ScheduleActivities({
     try {
       const response = await fetch("/api/vics");
       if (!response.ok) return;
-
       const result = await response.json();
       setVics(result.data || []);
     } catch (error) {
@@ -164,57 +168,113 @@ export function ScheduleActivities({
     }
   }, []);
 
-  // Cargar incidentes cuando cambia el rango de fechas
+  const fetchFsrs = useCallback(async () => {
+    try {
+      const result = await getFsrsForAssignment();
+      setFsrs(result);
+    } catch (error) {
+      console.error("Error fetching FSRs:", error);
+    }
+  }, []);
+
   useEffect(() => {
     fetchIncidents();
   }, [fetchIncidents]);
 
-  // Cargar tipos, schedules y vics al montar
   useEffect(() => {
     fetchIncidentTypes();
     fetchSchedules();
     fetchVics();
-  }, [fetchIncidentTypes, fetchSchedules, fetchVics]);
+    fetchFsrs();
+  }, [fetchIncidentTypes, fetchSchedules, fetchVics, fetchFsrs]);
 
-  // Filtrar incidentes
-  const filteredIncidents = incidents.filter((incident) => {
-    // Filtro por VIC
-    if (selectedVic !== "all" && incident.vic?.id !== selectedVic) {
-      return false;
-    }
+  // Filtrar + ordenar: incidentes sin FSRs habilitados arriba.
+  const filteredIncidents = useMemo(() => {
+    const filtered = incidents.filter((incident) => {
+      if (selectedVic !== "all" && incident.vic?.id !== selectedVic) {
+        return false;
+      }
+      if (
+        selectedType !== "all" &&
+        incident.type?.id.toString() !== selectedType
+      ) {
+        return false;
+      }
+      if (
+        selectedScheduleFilter !== "all" &&
+        incident.schedule?.id !== selectedScheduleFilter
+      ) {
+        return false;
+      }
+      if (
+        searchQuery &&
+        !incident.title.toLowerCase().includes(searchQuery.toLowerCase())
+      ) {
+        return false;
+      }
+      return true;
+    });
+    return filtered.sort((a, b) => {
+      const aHas = (a._count?.assignees ?? 0) > 0 ? 1 : 0;
+      const bHas = (b._count?.assignees ?? 0) > 0 ? 1 : 0;
+      if (aHas !== bHas) return aHas - bHas; // 0 first (no FSRs)
+      if (a.priority !== b.priority) return b.priority - a.priority; // priority desc
+      return 0;
+    });
+  }, [
+    incidents,
+    selectedVic,
+    selectedType,
+    selectedScheduleFilter,
+    searchQuery,
+  ]);
 
-    // Filtro por tipo
-    if (
-      selectedType !== "all" &&
-      incident.type?.id.toString() !== selectedType
-    ) {
-      return false;
-    }
+  const allVisibleSelected =
+    filteredIncidents.length > 0 &&
+    filteredIncidents.every((i) => selectedIds.has(i.id));
+  const someVisibleSelected =
+    filteredIncidents.some((i) => selectedIds.has(i.id)) && !allVisibleSelected;
 
-    // Filtro por schedule
-    if (
-      selectedScheduleFilter !== "all" &&
-      incident.schedule?.id !== selectedScheduleFilter
-    ) {
-      return false;
-    }
+  const toggleAll = () => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (allVisibleSelected) {
+        for (const i of filteredIncidents) next.delete(i.id);
+      } else {
+        for (const i of filteredIncidents) next.add(i.id);
+      }
+      return next;
+    });
+  };
 
-    // Filtro por búsqueda
-    if (
-      searchQuery &&
-      !incident.title.toLowerCase().includes(searchQuery.toLowerCase())
-    ) {
-      return false;
-    }
-
-    return true;
-  });
+  const toggleOne = (id: number) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   const getPriorityColor = (priority: number) => {
     if (priority >= 8) return "destructive";
     if (priority >= 6) return "default";
     return "secondary";
   };
+
+  const vicOptions = vics.map((v) => ({
+    value: v.id,
+    label: `${v.code} — ${v.name}`,
+  }));
+  const scheduleOptionsForBulk = schedules.map((s) => ({
+    value: s.id,
+    label: s.title,
+  }));
+  const fsrOptionsForBulk = fsrs.map((f) => ({
+    value: f.id,
+    label: f.name,
+    sublabel: f.email,
+  }));
 
   return (
     <Card className="flex flex-col">
@@ -241,7 +301,6 @@ export function ScheduleActivities({
           })}
         </div>
 
-        {/* Filters */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-4">
           <div className="space-y-2">
             <Label className="text-xs font-medium">Tipo de Incidente</Label>
@@ -284,10 +343,7 @@ export function ScheduleActivities({
             <SearchableSelect
               options={[
                 { value: "all", label: "Todos los VICs" },
-                ...vics.map((vic) => ({
-                  value: vic.id,
-                  label: `${vic.name} (${vic.code})`,
-                })),
+                ...vicOptions,
               ]}
               value={selectedVic}
               onValueChange={setSelectedVic}
@@ -321,47 +377,102 @@ export function ScheduleActivities({
           </div>
         </div>
 
+        {/* Bulk selection bar */}
+        {selectedIds.size > 0 && (
+          <div className="mb-3 flex items-center justify-between rounded-md border bg-muted/40 px-3 py-2 text-sm">
+            <span>
+              <strong>{selectedIds.size}</strong> seleccionado
+              {selectedIds.size === 1 ? "" : "s"}
+            </span>
+            <div className="flex items-center gap-2">
+              <Button size="sm" onClick={() => setBulkOpen(true)}>
+                Asignar en masa
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSelectedIds(new Set())}
+              >
+                <X className="mr-1 h-3 w-3" />
+                Limpiar selección
+              </Button>
+            </div>
+          </div>
+        )}
+
         {loading ? (
           <div className="text-center py-8 text-muted-foreground">
             Cargando incidentes...
           </div>
         ) : (
-          <div>
-            {/* Incidents Table */}
-            <div className="border rounded-lg">
-              <Table>
-                <TableHeader>
+          <div className="border rounded-lg">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-10">
+                    <Checkbox
+                      checked={
+                        allVisibleSelected
+                          ? true
+                          : someVisibleSelected
+                            ? "indeterminate"
+                            : false
+                      }
+                      onCheckedChange={toggleAll}
+                      aria-label="Seleccionar todos"
+                    />
+                  </TableHead>
+                  <TableHead>Título</TableHead>
+                  <TableHead>Tipo</TableHead>
+                  <TableHead>Programación</TableHead>
+                  <TableHead>VIC</TableHead>
+                  <TableHead>FSRs</TableHead>
+                  <TableHead>Prioridad</TableHead>
+                  <TableHead>Estado</TableHead>
+                  <TableHead className="w-10" />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredIncidents.length === 0 ? (
                   <TableRow>
-                    <TableHead>Título</TableHead>
-                    <TableHead>Tipo</TableHead>
-                    <TableHead>Programación</TableHead>
-                    <TableHead>VIC</TableHead>
-                    <TableHead>Fecha/Hora</TableHead>
-                    <TableHead>Prioridad</TableHead>
-                    <TableHead>Estado</TableHead>
+                    <TableCell
+                      colSpan={9}
+                      className="text-center text-muted-foreground py-8"
+                    >
+                      {loading
+                        ? "Cargando incidentes..."
+                        : "No hay incidentes que coincidan con los filtros"}
+                    </TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredIncidents.length === 0 ? (
-                    <TableRow>
-                      <TableCell
-                        colSpan={7}
-                        className="text-center text-muted-foreground py-8"
-                      >
-                        {loading
-                          ? "Cargando incidentes..."
-                          : "No hay incidentes que coincidan con los filtros"}
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    filteredIncidents.map((incident) => (
+                ) : (
+                  filteredIncidents.map((incident) => {
+                    const isSelected = selectedIds.has(incident.id);
+                    const fsrCount = incident._count?.assignees ?? 0;
+                    return (
                       <TableRow
                         key={incident.id}
-                        className="cursor-pointer hover:bg-muted/50"
-                        onClick={() =>
-                          router.push(`/admin/incidents/${incident.id}/edit`)
-                        }
+                        className={`cursor-pointer hover:bg-muted/50 ${
+                          isSelected ? "bg-muted/30" : ""
+                        }`}
+                        onClick={(e) => {
+                          if (
+                            (e.target as HTMLElement).closest(
+                              "[data-no-row-nav]",
+                            )
+                          ) {
+                            return;
+                          }
+                          router.push(`/admin/incidents/${incident.id}/edit`);
+                        }}
                       >
+                        <TableCell data-no-row-nav>
+                          <Checkbox
+                            checked={isSelected}
+                            onCheckedChange={() => toggleOne(incident.id)}
+                            onClick={(e) => e.stopPropagation()}
+                            aria-label={`Seleccionar incidente ${incident.id}`}
+                          />
+                        </TableCell>
                         <TableCell className="font-medium">
                           {incident.title}
                         </TableCell>
@@ -381,50 +492,13 @@ export function ScheduleActivities({
                           </div>
                         </TableCell>
                         <TableCell>
-                          <div className="text-sm">
-                            {incident.schedule?.scheduledAt ? (
-                              <>
-                                <div className="font-medium text-xs text-muted-foreground mb-1">
-                                  Inicio:
-                                </div>
-                                <div>
-                                  {new Date(
-                                    incident.schedule.scheduledAt,
-                                  ).toLocaleDateString("es-MX")}
-                                </div>
-                                <div className="text-muted-foreground text-xs">
-                                  {new Date(
-                                    incident.schedule.scheduledAt,
-                                  ).toLocaleTimeString("es-MX", {
-                                    hour: "2-digit",
-                                    minute: "2-digit",
-                                  })}
-                                </div>
-                                {incident.schedule?.endDate && (
-                                  <>
-                                    <div className="font-medium text-xs text-muted-foreground mt-2 mb-1">
-                                      Fin:
-                                    </div>
-                                    <div>
-                                      {new Date(
-                                        incident.schedule.endDate,
-                                      ).toLocaleDateString("es-MX")}
-                                    </div>
-                                    <div className="text-muted-foreground text-xs">
-                                      {new Date(
-                                        incident.schedule.endDate,
-                                      ).toLocaleTimeString("es-MX", {
-                                        hour: "2-digit",
-                                        minute: "2-digit",
-                                      })}
-                                    </div>
-                                  </>
-                                )}
-                              </>
-                            ) : (
-                              "Sin fecha"
-                            )}
-                          </div>
+                          {fsrCount === 0 ? (
+                            <Badge variant="destructive">Sin FSRs</Badge>
+                          ) : (
+                            <Badge variant="secondary">
+                              {fsrCount} FSR{fsrCount === 1 ? "" : "s"}
+                            </Badge>
+                          )}
                         </TableCell>
                         <TableCell>
                           <Badge variant={getPriorityColor(incident.priority)}>
@@ -436,15 +510,39 @@ export function ScheduleActivities({
                             {incident.status?.name || "Sin estado"}
                           </Badge>
                         </TableCell>
+                        <TableCell data-no-row-nav>
+                          <QuickEditFsrsPopover
+                            incidentId={incident.id}
+                            incidentVicId={incident.vic?.id ?? null}
+                            initialFsrIds={incident.assignees.map(
+                              (a) => a.user.id,
+                            )}
+                            allFsrs={fsrs}
+                            onSaved={fetchIncidents}
+                          />
+                        </TableCell>
                       </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
+                    );
+                  })
+                )}
+              </TableBody>
+            </Table>
           </div>
         )}
       </CardContent>
+
+      <BulkAssignDialog
+        incidentIds={[...selectedIds]}
+        vics={vicOptions}
+        schedules={scheduleOptionsForBulk}
+        fsrs={fsrOptionsForBulk}
+        open={bulkOpen}
+        onOpenChange={setBulkOpen}
+        onSaved={() => {
+          setSelectedIds(new Set());
+          fetchIncidents();
+        }}
+      />
     </Card>
   );
 }

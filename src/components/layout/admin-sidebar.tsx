@@ -29,6 +29,7 @@ import {
   User,
   UserCheck,
   Users,
+  Workflow,
   Wrench,
 } from "lucide-react";
 import Link from "next/link";
@@ -74,18 +75,12 @@ const menuSections = [
       },
       { title: "Programación", url: "/admin/schedules", icon: Calendar },
       { title: "Incidentes", url: "/admin/incidents", icon: AlertTriangle },
-      { title: "Tipos de Incidente", url: "/admin/incident-types", icon: Tag },
-      {
-        title: "Estado de Incidente",
-        url: "/admin/incident-status",
-        icon: FileText,
-      },
+      { title: "Asignaciones", url: "/admin/assignments", icon: Wrench },
     ],
   },
   {
     title: "Gestión de Trabajo",
     items: [
-      { title: "Asignaciones", url: "/admin/assignments", icon: Wrench },
       {
         title: "Actividades de Trabajo",
         url: "/admin/assignment-activities",
@@ -163,16 +158,23 @@ const menuSections = [
       { title: "Usuarios", url: "/admin/users", icon: Users },
       { title: "Roles", url: "/admin/roles", icon: Shield },
       { title: "Permisos", url: "/admin/permissions", icon: Settings },
-      {
-        title: "Estado de Usuario",
-        url: "/admin/user-status",
-        icon: UserCheck,
-      },
     ],
   },
   {
     title: "Configuración",
     items: [
+      { title: "Ciclo de Vida", url: "/admin/lifecycle", icon: Workflow },
+      { title: "Tipos de Incidente", url: "/admin/incident-types", icon: Tag },
+      {
+        title: "Estado de Incidente",
+        url: "/admin/incident-status",
+        icon: FileText,
+      },
+      {
+        title: "Estado de Asignación",
+        url: "/admin/settings/assignment-status",
+        icon: Wrench,
+      },
       {
         title: "Estado de Línea",
         url: "/admin/settings/line-status",
@@ -192,6 +194,11 @@ const menuSections = [
         title: "Estado de Viaje",
         url: "/admin/settings/vehicle-trip-status",
         icon: Activity,
+      },
+      {
+        title: "Estado de Usuario",
+        url: "/admin/user-status",
+        icon: UserCheck,
       },
     ],
   },

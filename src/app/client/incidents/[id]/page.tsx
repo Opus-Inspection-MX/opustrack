@@ -132,15 +132,17 @@ export default async function ClientIncidentDetailPage({
               </div>
             </div>
 
-            {incident.sla && (
-              <div className="flex items-start gap-3">
-                <Calendar className="h-5 w-5 text-muted-foreground mt-0.5" />
-                <div>
-                  <p className="text-sm text-muted-foreground">SLA</p>
-                  <p className="font-medium">{incident.sla} horas</p>
-                </div>
+            <div className="flex items-start gap-3">
+              <Calendar className="h-5 w-5 text-muted-foreground mt-0.5" />
+              <div>
+                <p className="text-sm text-muted-foreground">SLA</p>
+                <p className="font-medium">
+                  {incident.type?.sla != null
+                    ? `${incident.type.sla} horas`
+                    : "Sin SLA"}
+                </p>
               </div>
-            )}
+            </div>
 
             <div className="flex items-start gap-3">
               <Building className="h-5 w-5 text-muted-foreground mt-0.5" />

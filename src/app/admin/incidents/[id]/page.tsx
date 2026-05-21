@@ -130,7 +130,11 @@ export default async function IncidentDetailPage({
               <Calendar className="h-5 w-5 text-muted-foreground mt-0.5" />
               <div>
                 <p className="text-sm text-muted-foreground">SLA</p>
-                <p className="font-medium">{incident.sla} hours</p>
+                <p className="font-medium">
+                  {incident.type?.sla != null
+                    ? `${incident.type.sla} hours`
+                    : "Sin SLA"}
+                </p>
               </div>
             </div>
 

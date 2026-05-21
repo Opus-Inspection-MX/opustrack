@@ -74,6 +74,7 @@ interface TableAssignment {
 
 interface IncidentType {
   name: string;
+  sla?: number | null;
 }
 
 interface IncidentStatus {
@@ -99,7 +100,6 @@ interface TableIncident {
   vic: VIC;
   reportedBy: ReportedByUser;
   reportedAt: string;
-  sla: number;
   assignments: TableAssignment[];
 }
 
@@ -211,17 +211,21 @@ export function IncidentTable({ incidents, onDelete }: IncidentTableProps) {
                   {formatDate(incident.reportedAt)}
                 </TableCell>
                 <TableCell>
-                  <Badge
-                    variant={
-                      incident.sla <= 4
-                        ? "destructive"
-                        : incident.sla <= 24
-                          ? "default"
-                          : "secondary"
-                    }
-                  >
-                    {incident.sla}h
-                  </Badge>
+                  {incident.type?.sla != null ? (
+                    <Badge
+                      variant={
+                        incident.type.sla <= 4
+                          ? "destructive"
+                          : incident.type.sla <= 24
+                            ? "default"
+                            : "secondary"
+                      }
+                    >
+                      {incident.type.sla}h
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline">Sin SLA</Badge>
+                  )}
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2">

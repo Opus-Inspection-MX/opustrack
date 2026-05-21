@@ -108,7 +108,6 @@ export async function getIncidentsForTracking(filters?: {
         title: true,
         description: true,
         priority: true,
-        sla: true,
         reportedAt: true,
         resolvedAt: true,
         lineId: true,
@@ -144,6 +143,18 @@ export async function getIncidentsForTracking(filters?: {
           select: {
             id: true,
             name: true,
+          },
+        },
+        assignees: {
+          where: { active: true },
+          select: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
           },
         },
         assignments: {

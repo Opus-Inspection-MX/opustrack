@@ -28,7 +28,6 @@ type Incident = {
   title: string;
   description: string;
   priority: number;
-  sla: number;
   reportedAt: Date;
   type: {
     name: string;

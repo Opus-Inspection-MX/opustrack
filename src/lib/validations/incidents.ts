@@ -4,11 +4,12 @@ import {
   cuidSchema,
   intIdSchema,
   prioritySchema,
-  slaSchema,
 } from "./common";
 
 /**
- * Schema for creating an incident
+ * Schema for creating an incident. typeId is optional at the validation
+ * layer because the server falls back to the "Desconocido" type when not
+ * provided; the UI should still treat it as required.
  */
 export const IncidentCreateSchema = z.object({
   title: z
@@ -17,7 +18,6 @@ export const IncidentCreateSchema = z.object({
     .max(200, "Title must be at most 200 characters"),
   description: z.string().min(1, "Description is required"),
   priority: prioritySchema,
-  sla: slaSchema,
   typeId: intIdSchema.nullable().optional(),
   statusId: intIdSchema.nullable().optional(),
   vicId: cuidSchema.nullable().optional(),
@@ -29,7 +29,8 @@ export const IncidentCreateSchema = z.object({
 });
 
 /**
- * Schema for creating an incident as a client
+ * Schema for creating an incident as a client. SLA is implicit (lives on the
+ * IncidentType). typeId optional → server falls back to "Desconocido".
  */
 export const IncidentClientCreateSchema = z.object({
   title: z
@@ -131,7 +132,6 @@ export const BulkIncidentSnapshotRowSchema = z.object({
     .int()
     .min(1, "Prioridad mínima 1")
     .max(10, "Prioridad máxima 10"),
-  sla: z.coerce.number().int().positive("SLA debe ser un entero positivo"),
   typeId: optionalIntFromCsv,
   statusId: optionalIntFromCsv,
   vicId: optionalStringFromCsv,
@@ -160,7 +160,6 @@ export const BulkIncidentTemplateRowSchema = z.object({
     .int()
     .min(1, "Prioridad mínima 1")
     .max(10, "Prioridad máxima 10"),
-  sla: z.coerce.number().int().positive("SLA debe ser un entero positivo"),
   tipo: optionalStringFromCsv,
   fecha_inicio: optionalDateFromCsv,
   vic: optionalStringFromCsv,

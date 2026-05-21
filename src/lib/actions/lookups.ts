@@ -4,6 +4,7 @@ import type { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requirePermission } from "@/lib/auth/auth";
+import { FALLBACK_INCIDENT_TYPE_NAME } from "@/lib/constants/incident-type";
 import { prisma } from "@/lib/database/prisma.singleton";
 
 // ==================== STATES ====================
@@ -223,6 +224,7 @@ export async function deleteUserStatus(id: number) {
 export type IncidentTypeFormData = {
   name: string;
   description?: string;
+  sla?: number | null;
   active?: boolean;
 };
 
@@ -271,6 +273,7 @@ export async function getIncidentTypes(params?: {
     id: type.id,
     name: type.name,
     description: type.description ?? undefined,
+    sla: type.sla,
     active: type.active,
     incidentCount: type._count.incidents,
     createdAt: new Date().toISOString(), // IncidentType doesn't have createdAt
@@ -310,6 +313,7 @@ export async function createIncidentType(data: IncidentTypeFormData) {
     data: {
       name: data.name,
       description: data.description || null,
+      sla: data.sla ?? null,
       ...(data.active !== undefined && { active: data.active }),
     },
   });
@@ -329,6 +333,7 @@ export async function updateIncidentType(
     data: {
       name: data.name,
       description: data.description || null,
+      sla: data.sla ?? null,
       ...(data.active !== undefined && { active: data.active }),
     },
   });
@@ -340,6 +345,16 @@ export async function updateIncidentType(
 
 export async function deleteIncidentType(id: number) {
   await requirePermission("incident-types:delete");
+
+  const existing = await prisma.incidentType.findUnique({
+    where: { id },
+    select: { name: true },
+  });
+  if (existing?.name === FALLBACK_INCIDENT_TYPE_NAME) {
+    throw new Error(
+      `El tipo "${FALLBACK_INCIDENT_TYPE_NAME}" es del sistema y no se puede eliminar.`,
+    );
+  }
 
   const incidentCount = await prisma.incident.count({
     where: { typeId: id, active: true },

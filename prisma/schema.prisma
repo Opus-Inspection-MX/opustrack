@@ -192,6 +192,7 @@ model IncidentType {
   id          Int        @id @default(autoincrement())
   name        String     @unique
   description String?
+  sla         Int? // SLA en horas; null = "Sin SLA definido"
   incidents   Incident[]
   active      Boolean    @default(true)
 }
@@ -245,9 +246,8 @@ model Incident {
   title        String
   description  String
   priority     Int
-  sla          Int
-  typeId       Int?
-  type         IncidentType?            @relation(fields: [typeId], references: [id])
+  typeId       Int
+  type         IncidentType             @relation(fields: [typeId], references: [id])
   statusId     Int?
   status       IncidentStatus?          @relation(fields: [statusId], references: [id])
   reportedAt   DateTime                 @default(now())

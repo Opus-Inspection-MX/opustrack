@@ -947,16 +947,89 @@ async function main() {
       }
       console.log("✅ Seeded Users with Profiles and VIC Assignments");
 
-      // 7) IncidentTypes
-      const incidentTypes = [
-        { name: "REPARACION", description: "Incident requiring repair" },
-        { name: "MANTENIMIENTO", description: "Maintenance incident" },
-        { name: "OTROS", description: "Other type of incident" },
+      // 7) IncidentTypes (con SLA por tipo).
+      // El tipo "Desconocido" es del sistema — se usa como fallback cuando un
+      // incidente se crea sin tipo. NO debe eliminarse (deleteIncidentType lo
+      // blinda por nombre).
+      const incidentTypes: Array<{
+        name: string;
+        description: string;
+        sla: number | null;
+      }> = [
+        {
+          name: "Desconocido",
+          description:
+            "Tipo por defecto cuando no se clasifica. NO eliminar — usado como fallback del sistema.",
+          sla: null,
+        },
+        {
+          name: "Falla Eléctrica",
+          description: "Cortocircuitos, fallas de tablero, iluminación",
+          sla: 4,
+        },
+        {
+          name: "Falla Mecánica",
+          description: "Equipos hidráulicos, neumáticos, ejes",
+          sla: 8,
+        },
+        {
+          name: "Falla de Software",
+          description: "Sistema de inspección, base de datos, integraciones",
+          sla: 12,
+        },
+        {
+          name: "Falla de Cámaras",
+          description: "Cámaras de inspección OCR, lectores de placa",
+          sla: 6,
+        },
+        {
+          name: "Falla de Báscula",
+          description: "Sistema de pesaje",
+          sla: 8,
+        },
+        {
+          name: "Falla de Diagnóstico",
+          description: "Equipos de gases, frenómetro, alineadora",
+          sla: 8,
+        },
+        {
+          name: "Falla de Red",
+          description: "Conectividad, switches, WiFi",
+          sla: 4,
+        },
+        {
+          name: "Mantenimiento Preventivo",
+          description: "Mantenimiento programado",
+          sla: 48,
+        },
+        {
+          name: "Mantenimiento Correctivo",
+          description: "Reparación tras falla",
+          sla: 24,
+        },
+        {
+          name: "Calibración",
+          description: "Ajuste y calibración de equipos",
+          sla: 48,
+        },
+        {
+          name: "Limpieza / Acondicionamiento",
+          description: "Higiene, orden, acondicionamiento del CVV",
+          sla: 72,
+        },
+        {
+          name: "Suministro",
+          description: "Faltante de consumibles o refacciones",
+          sla: 24,
+        },
       ];
       for (const it of incidentTypes) {
         await tx.incidentType.upsert({
           where: { name: it.name },
-          update: {},
+          update: {
+            description: it.description,
+            sla: it.sla,
+          },
           create: it,
         });
       }

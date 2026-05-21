@@ -132,7 +132,7 @@ export function AssignmentEditForm({
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
-          <CardTitle>Detalles de la Orden</CardTitle>
+          <CardTitle>Detalles de la Asignación</CardTitle>
           {!isEditing && (
             <Button
               variant="outline"

@@ -28,7 +28,6 @@ type IncidentFormProps = {
     title: string;
     description: string;
     priority: number;
-    sla: number;
     typeId: number | null;
     statusId: number | null;
     vicId: string | null;
@@ -38,7 +37,7 @@ type IncidentFormProps = {
     resolvedAt: Date | null;
     assigneeIds?: string[];
   };
-  types: Array<{ id: number; name: string }>;
+  types: Array<{ id: number; name: string; sla?: number | null }>;
   statuses: Array<{ id: number; name: string }>;
   vics: Array<{ id: string; name: string; code: string }>;
   users: Array<{
@@ -66,7 +65,6 @@ export function IncidentForm({
     title: incident?.title || "",
     description: incident?.description || "",
     priority: incident?.priority || 5,
-    sla: incident?.sla || 24,
     typeId: incident?.typeId || types[0]?.id || null,
     statusId: incident?.statusId || statuses[0]?.id || null,
     vicId: incident?.vicId || null,
@@ -175,41 +173,25 @@ export function IncidentForm({
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="priority">Prioridad (1-10) *</Label>
-              <Input
-                id="priority"
-                type="number"
-                min={1}
-                max={10}
-                value={formData.priority}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    priority: parseInt(e.target.value, 10) || 5,
-                  })
-                }
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="sla">SLA (horas) *</Label>
-              <Input
-                id="sla"
-                type="number"
-                min={1}
-                value={formData.sla}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    sla: parseInt(e.target.value, 10) || 24,
-                  })
-                }
-                required
-              />
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="priority">Prioridad (1-10) *</Label>
+            <Input
+              id="priority"
+              type="number"
+              min={1}
+              max={10}
+              value={formData.priority}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  priority: parseInt(e.target.value, 10) || 5,
+                })
+              }
+              required
+            />
+            <p className="text-xs text-muted-foreground">
+              El SLA se hereda del tipo de incidente seleccionado.
+            </p>
           </div>
         </CardContent>
       </Card>
@@ -221,13 +203,15 @@ export function IncidentForm({
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="typeId">Tipo</Label>
+              <Label htmlFor="typeId">
+                Tipo <span className="text-red-500">*</span>
+              </Label>
               <Select
-                value={formData.typeId?.toString() || "none"}
+                value={formData.typeId?.toString() || ""}
                 onValueChange={(value) =>
                   setFormData({
                     ...formData,
-                    typeId: value === "none" ? null : parseInt(value, 10),
+                    typeId: value ? parseInt(value, 10) : null,
                   })
                 }
               >
@@ -235,14 +219,17 @@ export function IncidentForm({
                   <SelectValue placeholder="Seleccionar tipo" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">Sin tipo</SelectItem>
                   {types.map((type) => (
                     <SelectItem key={type.id} value={type.id.toString()}>
                       {type.name}
+                      {type.sla != null ? ` · SLA ${type.sla}h` : " · Sin SLA"}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              <p className="text-xs text-muted-foreground">
+                El SLA del incidente se hereda del tipo seleccionado.
+              </p>
             </div>
 
             {/*

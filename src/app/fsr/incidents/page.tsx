@@ -123,10 +123,13 @@ export default async function FSRIncidentsPage() {
                       </div>
 
                       <div className="text-xs text-muted-foreground">
-                        {incident._count.assignments} orden(es) de trabajo
-                        {incident.sla && (
-                          <span className="ml-4">SLA: {incident.sla}h</span>
-                        )}
+                        {incident._count.assignments} asignación(es)
+                        <span className="ml-4">
+                          SLA:{" "}
+                          {incident.type?.sla != null
+                            ? `${incident.type.sla}h`
+                            : "Sin SLA"}
+                        </span>
                       </div>
                     </div>
 

@@ -124,7 +124,7 @@ export function AssignmentForm({
 
       <Card>
         <CardHeader>
-          <CardTitle>Detalles de la Orden</CardTitle>
+          <CardTitle>Detalles de la Asignación</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
@@ -234,8 +234,8 @@ export function AssignmentForm({
           {loading
             ? "Guardando..."
             : assignment
-              ? "Actualizar Orden"
-              : "Crear Orden"}
+              ? "Actualizar Asignación"
+              : "Crear Asignación"}
         </Button>
       </div>
     </form>

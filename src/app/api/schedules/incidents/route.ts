@@ -129,6 +129,19 @@ export const GET = withPermission("schedules:read", async (request, _user) => {
             finishedAt: true,
           },
         },
+        assignees: {
+          where: { active: true },
+          select: {
+            user: {
+              select: { id: true, name: true, email: true },
+            },
+          },
+        },
+        _count: {
+          select: {
+            assignees: { where: { active: true } },
+          },
+        },
       },
       orderBy: {
         reportedAt: "asc",

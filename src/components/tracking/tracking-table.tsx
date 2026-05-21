@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { MultiSelect } from "@/components/ui/multi-select";
 import {
   Select,
   SelectContent,
@@ -48,6 +49,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { createAssignment } from "@/lib/actions/assignments";
 import { getEquipmentsByLineId } from "@/lib/actions/equipments";
+import { updateIncidentFsrs } from "@/lib/actions/incidents";
 import { getLinesByVicId } from "@/lib/actions/lines";
 import {
   updateAssignmentAssignees,
@@ -100,7 +102,6 @@ interface TrackingIncident {
   title: string;
   description?: string | null;
   priority: number;
-  sla: number;
   reportedAt: Date | string;
   resolvedAt?: Date | string | null;
   statusId?: number | null;
@@ -108,6 +109,7 @@ interface TrackingIncident {
   type?: { id: number; name: string } | null;
   vic?: { id: string; name: string; code: string } | null;
   reportedBy?: { id: string; name: string } | null;
+  assignees?: Array<{ user: { id: string; name: string; email?: string } }>;
   assignments: TrackingAssignment[];
   lineId?: number | null;
   equipmentId?: number | null;
@@ -124,6 +126,7 @@ interface IncidentEditForm {
   equipmentId?: number | string;
   reportedAt?: string;
   resolvedAt?: string | null;
+  assigneeIds?: string[];
 }
 
 interface AssignmentEditForm {
@@ -340,6 +343,7 @@ export function TrackingTable({
       statusId: incident.status?.id || "",
       lineId: incident.lineId || "",
       equipmentId: incident.equipmentId || "",
+      assigneeIds: incident.assignees?.map((a) => a.user.id) ?? [],
     });
 
     // Load lines for the incident's VIC
@@ -403,25 +407,18 @@ export function TrackingTable({
   };
 
   const handleCreateAssignment = async (incidentId: number) => {
-    if (!newAssignmentForm.assignedToId) {
-      alert("Por favor selecciona un FSR");
-      return;
-    }
-
+    // FSR es opcional al crear: el state machine pone PENDIENTE_DE_ASIGNACION
+    // si no hay FSR o ASIGNADO si se eligió uno. El statusId lo decide el
+    // server, por eso no lo enviamos.
     setSavingNewAssignment(true);
     try {
-      // Find ABIERTO status
-      const abiertoStatus = incidentStatuses.find(
-        (status) => status.name === "ABIERTO",
-      );
-
       await createAssignment({
         incidentId,
         assigneeIds: newAssignmentForm.assignedToId
           ? [newAssignmentForm.assignedToId]
           : [],
         notes: newAssignmentForm.notes || undefined,
-        statusId: abiertoStatus?.id || null,
+        statusId: null,
         startedAt: null,
         finishedAt: null,
       });
@@ -467,6 +464,9 @@ export function TrackingTable({
         lineId: lineIdValue,
         equipmentId: equipmentIdValue,
       });
+      if (editForm.assigneeIds !== undefined) {
+        await updateIncidentFsrs(incidentId, editForm.assigneeIds);
+      }
       setEditingIncident(null);
       setEditForm({});
       setLinesForEdit([]);
@@ -500,21 +500,25 @@ export function TrackingTable({
 
   const getAssignedFSRs = (
     incident: TrackingIncident,
-  ): Array<{ id: string; name: string }> => {
-    if (incident.assignments && incident.assignments.length > 0) {
-      // Get unique FSRs from all asignacións (M-N: one assignment can have many)
-      const fsrs = incident.assignments.flatMap(
-        (wo: TrackingAssignment) =>
-          wo.assignees?.map((aa) => ({ id: aa.user.id, name: aa.user.name })) ||
-          [],
-      );
-      // Remove duplicates by id
-      const uniqueFsrs = fsrs.filter(
-        (fsr, index, self) => index === self.findIndex((f) => f.id === fsr.id),
-      );
-      return uniqueFsrs;
-    }
-    return [];
+  ): Array<{ id: string; name: string; fromAssignment: boolean }> => {
+    const fromWorkOrders = (incident.assignments ?? []).flatMap(
+      (wo: TrackingAssignment) =>
+        wo.assignees?.map((aa) => ({
+          id: aa.user.id,
+          name: aa.user.name,
+          fromAssignment: true,
+        })) ?? [],
+    );
+    const fromIncident = (incident.assignees ?? []).map((a) => ({
+      id: a.user.id,
+      name: a.user.name,
+      fromAssignment: false,
+    }));
+    // Work-order FSRs (actively working) win over habilitados — dedupe by id.
+    const merged = [...fromWorkOrders, ...fromIncident];
+    return merged.filter(
+      (fsr, index, self) => index === self.findIndex((f) => f.id === fsr.id),
+    );
   };
 
   return (
@@ -666,9 +670,22 @@ export function TrackingTable({
                             <div
                               key={fsr.id}
                               className="flex items-center gap-2"
+                              title={
+                                fsr.fromAssignment
+                                  ? "Asignado a una orden"
+                                  : "Habilitado, sin orden todavía"
+                              }
                             >
                               <User className="h-3 w-3" />
                               <span className="text-sm">{fsr.name}</span>
+                              {!fsr.fromAssignment && (
+                                <Badge
+                                  variant="outline"
+                                  className="text-[10px] px-1 py-0"
+                                >
+                                  Habilitado
+                                </Badge>
+                              )}
                             </div>
                           ))}
                         </div>
@@ -935,6 +952,41 @@ export function TrackingTable({
                                       </SelectContent>
                                     </Select>
                                   </div>
+                                  <div className="space-y-2 md:col-span-2">
+                                    <Label htmlFor={`fsrs-${incident.id}`}>
+                                      FSRs habilitados
+                                    </Label>
+                                    <MultiSelect
+                                      options={availableFSRs.map((f) => ({
+                                        value: f.id,
+                                        label: f.name,
+                                        sublabel: f.email,
+                                      }))}
+                                      value={editForm.assigneeIds ?? []}
+                                      onValueChange={(ids) =>
+                                        setEditForm({
+                                          ...editForm,
+                                          assigneeIds: ids,
+                                        })
+                                      }
+                                      placeholder={
+                                        incident.vic?.id
+                                          ? "Seleccionar FSRs habilitados"
+                                          : "Sin CVV — no se pueden listar FSRs"
+                                      }
+                                      searchPlaceholder="Buscar FSR..."
+                                      emptyMessage={
+                                        availableFSRs.length === 0
+                                          ? "No hay FSRs disponibles para este CVV"
+                                          : "Sin resultados"
+                                      }
+                                      disabled={!incident.vic?.id}
+                                    />
+                                    <p className="text-xs text-muted-foreground">
+                                      Solo estos FSRs podrán tomar la asignación
+                                      generada de este incidente.
+                                    </p>
+                                  </div>
                                   <div className="space-y-2">
                                     <Label htmlFor="reportedAt">
                                       Fecha y Hora de Inicio
@@ -1003,7 +1055,7 @@ export function TrackingTable({
                                     }
                                   >
                                     <Plus className="h-4 w-4 mr-2" />
-                                    Nueva Orden
+                                    Nueva Asignación
                                   </Button>
                                 </div>
 
@@ -1101,7 +1153,7 @@ export function TrackingTable({
                                         <Save className="h-4 w-4 mr-2" />
                                         {savingNewAssignment
                                           ? "Guardando..."
-                                          : "Crear Orden"}
+                                          : "Crear Asignación"}
                                       </Button>
                                     </div>
                                   </div>
@@ -1180,7 +1232,7 @@ export function TrackingTable({
                                   disabled={editingIncident === incident.id}
                                 >
                                   <Plus className="h-4 w-4 mr-2" />
-                                  Crear Orden
+                                  Crear Asignación
                                 </Button>
                               )}
                             </div>
@@ -1275,7 +1327,7 @@ export function TrackingTable({
                                     <Save className="h-4 w-4 mr-2" />
                                     {savingNewAssignment
                                       ? "Guardando..."
-                                      : "Crear Orden"}
+                                      : "Crear Asignación"}
                                   </Button>
                                 </div>
                               </div>
@@ -1596,7 +1648,7 @@ export function TrackingTable({
                                                         href={`/admin/assignments/${assignment.id}`}
                                                       >
                                                         <Eye className="h-4 w-4 mr-2" />
-                                                        Ver Orden
+                                                        Ver Asignación
                                                       </Link>
                                                     </DropdownMenuItem>
                                                     <DropdownMenuItem asChild>

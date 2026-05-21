@@ -235,7 +235,7 @@ export function AssignmentForm({
               Cancelar
             </Button>
             <Button type="submit">
-              {assignment ? "Actualizar Orden" : "Crear Orden"}
+              {assignment ? "Actualizar Asignación" : "Crear Asignación"}
             </Button>
           </div>
         </form>

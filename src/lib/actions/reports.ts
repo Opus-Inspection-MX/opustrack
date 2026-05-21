@@ -609,6 +609,7 @@ export async function getSLAComplianceData(
     },
     include: {
       status: true,
+      type: { select: { id: true, name: true, sla: true } },
     },
     orderBy: { reportedAt: "desc" },
   });
@@ -627,7 +628,8 @@ export async function getSLAComplianceData(
   > = {};
 
   const incidentData: SLAComplianceData[] = incidents.map((incident) => {
-    const slaHours = incident.sla;
+    // SLA ahora vive en el tipo. null = "Sin SLA definido" → no se mide.
+    const slaHours = incident.type?.sla ?? null;
     let actualHours: number | null = null;
     let isCompliant = false;
 
@@ -641,7 +643,11 @@ export async function getSLAComplianceData(
     }
     priorityStats[incident.priority].total++;
 
-    if (incident.resolvedAt) {
+    if (slaHours === null) {
+      // Tipo sin SLA definido — excluir del cálculo de cumplimiento.
+      pendingCount++;
+      isCompliant = false;
+    } else if (incident.resolvedAt) {
       // Incident is resolved - calculate actual time
       actualHours =
         (incident.resolvedAt.getTime() - incident.reportedAt.getTime()) /
@@ -679,7 +685,7 @@ export async function getSLAComplianceData(
       incidentId: incident.id,
       title: incident.title,
       priority: incident.priority,
-      slaHours,
+      slaHours: slaHours ?? 0,
       actualHours:
         actualHours !== null ? Math.round(actualHours * 10) / 10 : null,
       isCompliant,

@@ -114,7 +114,7 @@ export default async function AssignmentDetailPage({
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Detalles de la Orden</CardTitle>
+            <CardTitle>Detalles de la Asignación</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center gap-3">

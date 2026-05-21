@@ -23,6 +23,12 @@ const incidentTypeSchema = z.object({
     .string()
     .max(500, "Description must be less than 500 characters")
     .optional(),
+  sla: z
+    .number()
+    .int()
+    .min(1, "SLA mínimo 1 hora")
+    .max(720, "SLA máximo 720 horas (30 días)")
+    .nullable(),
   active: z.boolean(),
 });
 
@@ -58,6 +64,7 @@ export function IncidentTypeForm({
     defaultValues: {
       name: initialData?.name || "",
       description: initialData?.description || "",
+      sla: initialData?.sla ?? null,
       active: initialData?.active ?? true,
     },
   });
@@ -130,6 +137,29 @@ export function IncidentTypeForm({
                 {descriptionValue?.length || 0}/500
               </p>
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="sla">SLA (horas)</Label>
+            <Input
+              id="sla"
+              type="number"
+              min={1}
+              max={720}
+              {...register("sla", {
+                setValueAs: (v) =>
+                  v === "" || v === null || v === undefined ? null : Number(v),
+              })}
+              placeholder="Ej. 24 (deja vacío para 'Sin SLA')"
+              className={errors.sla ? "border-red-500" : ""}
+            />
+            {errors.sla && (
+              <p className="text-sm text-red-500">{errors.sla.message}</p>
+            )}
+            <p className="text-xs text-muted-foreground">
+              Tiempo objetivo de resolución para incidentes de este tipo. Deja
+              vacío si este tipo no tiene SLA medible.
+            </p>
           </div>
 
           {isEdit && (

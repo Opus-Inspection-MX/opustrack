@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { FALLBACK_INCIDENT_TYPE_NAME } from "@/lib/constants/incident-type";
 import { requirePermission } from "@/lib/auth/auth";
 import {
   assertVicAccess,
@@ -21,6 +22,26 @@ import {
 
 // Keep legacy type for backward compatibility with existing forms
 export type IncidentFormData = IncidentCreateInput;
+
+/**
+ * Resolve `typeId` ensuring there is always a non-null value. Falls back to
+ * the system `Desconocido` type so incidents always satisfy `typeId NOT NULL`.
+ */
+async function resolveTypeIdOrFallback(
+  typeId: number | null | undefined,
+): Promise<number> {
+  if (typeId) return typeId;
+  const fallback = await prisma.incidentType.findUnique({
+    where: { name: FALLBACK_INCIDENT_TYPE_NAME },
+    select: { id: true },
+  });
+  if (!fallback) {
+    throw new Error(
+      `Falta el tipo de incidente "${FALLBACK_INCIDENT_TYPE_NAME}" en el catálogo. Corre el seed.`,
+    );
+  }
+  return fallback.id;
+}
 
 /**
  * Get all incidents with relations
@@ -190,13 +211,14 @@ export async function createIncident(data: unknown) {
     );
   }
 
+  const typeId = await resolveTypeIdOrFallback(validated.typeId);
+
   const incident = await prisma.incident.create({
     data: {
       title: validated.title,
       description: validated.description,
       priority: validated.priority,
-      sla: validated.sla,
-      typeId: validated.typeId || null,
+      typeId,
       statusId: openStatus.id,
       vicId: validated.vicId || null,
       scheduleId: validated.scheduleId || null,
@@ -252,13 +274,14 @@ export async function createIncidentAsClient(data: unknown) {
     throw new Error("El usuario no tiene un VIC asignado");
   }
 
+  const typeId = await resolveTypeIdOrFallback(validated.typeId);
+
   const incident = await prisma.incident.create({
     data: {
       title: validated.title,
       description: validated.description,
       priority: validated.priority,
-      sla: 24, // Default SLA for client incidents
-      typeId: validated.typeId || null,
+      typeId,
       statusId: openStatus.id,
       vicId: userVicId,
       reportedById: user.id,
@@ -327,6 +350,58 @@ export async function getClientIncidents() {
  * Update existing incident
  * Verifies user has access to the incident's VIC before updating
  */
+/**
+ * Reconcile the active set of IncidentAssignee rows for an incident.
+ * Throws if removing an FSR that is currently active on an Assignment of
+ * this incident (would orphan the work order).
+ */
+async function syncIncidentAssignees(
+  incidentId: number,
+  desiredIds: string[],
+): Promise<void> {
+  const desired = new Set(desiredIds);
+  const current = await prisma.incidentAssignee.findMany({
+    where: { incidentId, active: true },
+    select: { userId: true },
+  });
+  const currentSet = new Set(current.map((c) => c.userId));
+
+  const toRemove = [...currentSet].filter((u) => !desired.has(u));
+  const toAdd = [...desired].filter((u) => !currentSet.has(u));
+
+  if (toRemove.length) {
+    const inUse = await prisma.assignmentAssignee.findMany({
+      where: {
+        userId: { in: toRemove },
+        active: true,
+        assignment: { incidentId, active: true },
+      },
+      select: { userId: true },
+    });
+    if (inUse.length) {
+      const blocked = [...new Set(inUse.map((a) => a.userId))];
+      throw new Error(
+        `No se puede retirar a FSR(s) asignado(s) a una asignación activa: ${blocked.join(", ")}`,
+      );
+    }
+    await prisma.incidentAssignee.updateMany({
+      where: { incidentId, userId: { in: toRemove }, active: true },
+      data: { active: false },
+    });
+  }
+
+  if (toAdd.length) {
+    await prisma.incidentAssignee.createMany({
+      data: toAdd.map((userId) => ({ incidentId, userId })),
+      skipDuplicates: true,
+    });
+    await prisma.incidentAssignee.updateMany({
+      where: { incidentId, userId: { in: toAdd } },
+      data: { active: true },
+    });
+  }
+}
+
 export async function updateIncident(id: number, data: IncidentFormData) {
   const user = await requirePermission("incidents:update");
 
@@ -342,6 +417,11 @@ export async function updateIncident(id: number, data: IncidentFormData) {
 
   assertVicAccess(user, existing.vicId);
 
+  // typeId NOT NULL en BD. Si el caller intenta poner null/undefined, fallback.
+  const typeId = data.typeId
+    ? data.typeId
+    : await resolveTypeIdOrFallback(null);
+
   // State machine owns statusId/resolvedAt — ignore any caller-provided values.
   const incident = await prisma.incident.update({
     where: { id },
@@ -349,8 +429,7 @@ export async function updateIncident(id: number, data: IncidentFormData) {
       title: data.title,
       description: data.description,
       priority: data.priority,
-      sla: data.sla,
-      typeId: data.typeId || null,
+      typeId,
       vicId: data.vicId || null,
       scheduleId: data.scheduleId || null,
       startedAt: data.startedAt ?? null,
@@ -364,52 +443,53 @@ export async function updateIncident(id: number, data: IncidentFormData) {
   });
 
   if (data.assigneeIds !== undefined) {
-    const desired = new Set(data.assigneeIds);
-    const current = await prisma.incidentAssignee.findMany({
-      where: { incidentId: id, active: true },
-      select: { userId: true },
-    });
-    const currentSet = new Set(current.map((c) => c.userId));
-
-    const toRemove = [...currentSet].filter((u) => !desired.has(u));
-    const toAdd = [...desired].filter((u) => !currentSet.has(u));
-
-    if (toRemove.length) {
-      const inUse = await prisma.assignmentAssignee.findMany({
-        where: {
-          userId: { in: toRemove },
-          active: true,
-          assignment: { incidentId: id, active: true },
-        },
-        select: { userId: true },
-      });
-      if (inUse.length) {
-        const blocked = [...new Set(inUse.map((a) => a.userId))];
-        throw new Error(
-          `No se puede retirar a FSR(s) asignado(s) a una asignación activa: ${blocked.join(", ")}`,
-        );
-      }
-      await prisma.incidentAssignee.updateMany({
-        where: { incidentId: id, userId: { in: toRemove }, active: true },
-        data: { active: false },
-      });
-    }
-
-    if (toAdd.length) {
-      await prisma.incidentAssignee.createMany({
-        data: toAdd.map((userId) => ({ incidentId: id, userId })),
-        skipDuplicates: true,
-      });
-      await prisma.incidentAssignee.updateMany({
-        where: { incidentId: id, userId: { in: toAdd } },
-        data: { active: true },
-      });
-    }
+    await syncIncidentAssignees(id, data.assigneeIds);
   }
 
   revalidatePath("/admin/incidents");
   revalidatePath(`/admin/incidents/${id}`);
+  revalidatePath("/admin/programacion");
   return { success: true, data: incident };
+}
+
+/**
+ * Lightweight server action used by quick-edit popovers in lists/calendars.
+ * Only touches IncidentAssignee — no other incident fields.
+ */
+export async function updateIncidentFsrs(
+  incidentId: number,
+  fsrIds: string[],
+): Promise<{ success: true }> {
+  const user = await requirePermission("incidents:update");
+  const incident = await prisma.incident.findUnique({
+    where: { id: incidentId },
+    select: { vicId: true },
+  });
+  if (!incident) {
+    throw new Error("Incidente no encontrado");
+  }
+  assertVicAccess(user, incident.vicId);
+
+  // Validate every FSR exists, is an FSR, and is accessible.
+  if (fsrIds.length) {
+    const fsrs = await prisma.user.findMany({
+      where: {
+        id: { in: fsrIds },
+        active: true,
+        role: { name: "FSR" },
+      },
+      select: { id: true },
+    });
+    if (fsrs.length !== new Set(fsrIds).size) {
+      throw new Error("Uno o más FSR no existen o no tienen rol FSR");
+    }
+  }
+
+  await syncIncidentAssignees(incidentId, fsrIds);
+  revalidatePath("/admin/incidents");
+  revalidatePath(`/admin/incidents/${incidentId}`);
+  revalidatePath("/admin/programacion");
+  return { success: true };
 }
 
 /**
@@ -514,6 +594,33 @@ export async function closeIncident(id: number) {
  * Get FSR users for assignment
  * Filtered by user's VIC (except ADMINISTRADOR who sees all FSRs)
  */
+/**
+ * FSRs list with their VIC assignments, used by bulk/quick edit dialogs.
+ * Requires `incidents:update` since the caller will modify IncidentAssignee.
+ */
+export async function getFsrsForAssignment() {
+  await requirePermission("incidents:update");
+  const fsrs = await prisma.user.findMany({
+    where: { active: true, role: { name: "FSR" } },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      vicAssignments: {
+        where: { active: true },
+        select: { vicId: true },
+      },
+    },
+    orderBy: { name: "asc" },
+  });
+  return fsrs.map((f) => ({
+    id: f.id,
+    name: f.name,
+    email: f.email,
+    vicIds: f.vicAssignments.map((va) => va.vicId),
+  }));
+}
+
 export async function getFSRUsers() {
   const user = await requirePermission("incidents:assign");
   const vicFilter = getVicWhereClause(user);
@@ -659,7 +766,7 @@ export async function getBulkIncidentCatalogs() {
     prisma.incidentType.findMany({
       where: { active: true },
       orderBy: { name: "asc" },
-      select: { id: true, name: true },
+      select: { id: true, name: true, sla: true },
     }),
     prisma.incidentStatus.findMany({
       where: { active: true },
@@ -747,7 +854,6 @@ export type EditablePreviewRow = {
   title: string;
   description: string;
   priority: number;
-  sla: number;
   startedAt: string | null;
   resolvedAt: string | null;
   vicId: string | null;
@@ -880,7 +986,6 @@ export async function resolveBulkIncidentRows(
       const title = getStr("titulo");
       const description = getStr("descripcion");
       const prioRaw = getStr("prioridad");
-      const slaRaw = getStr("sla");
       const tipoRaw = getStr("tipo");
       const fechaInicioRaw = getStr("fecha_inicio");
       const vicRaw = getStr("vic");
@@ -904,18 +1009,6 @@ export async function resolveBulkIncidentRows(
         }
       }
 
-      let sla = 0;
-      if (slaRaw === "") {
-        fieldErrors.sla = "SLA es requerido (horas)";
-      } else {
-        const s = Number(slaRaw);
-        if (!Number.isFinite(s) || s <= 0) {
-          fieldErrors.sla = `SLA inválido: "${slaRaw}"`;
-        } else {
-          sla = Math.floor(s);
-        }
-      }
-
       let startedAt: Date | null = null;
       if (fechaInicioRaw) {
         const d = new Date(fechaInicioRaw);
@@ -934,20 +1027,19 @@ export async function resolveBulkIncidentRows(
         fieldErrors.vic = `VIC "${vicCodeRaw}" no encontrado — selecciona uno`;
       }
 
+      // tipo es opcional: si no resuelve, el server hará fallback a
+      // "Desconocido". Conservamos el texto crudo para que el usuario lo vea
+      // y pueda corregirlo en el preview si quiere.
       const typeNameRaw = tipoRaw || null;
       const typeId = typeNameRaw
         ? (typesByName.get(typeNameRaw.toLowerCase()) ?? null)
         : null;
-      if (typeNameRaw && !typeId) {
-        fieldErrors.tipo = `Tipo "${typeNameRaw}" no encontrado — selecciona uno`;
-      }
 
       resolved.push({
         rowNumber,
         title,
         description,
         priority,
-        sla,
         startedAt: toIsoOrNull(startedAt),
         resolvedAt: null,
         vicId,
@@ -955,7 +1047,9 @@ export async function resolveBulkIncidentRows(
         vicResolved: vicId !== null,
         typeId,
         typeNameRaw,
-        typeResolved: typeId !== null || typeNameRaw === null,
+        // Tipo no encontrado o no especificado: el server hará fallback a
+        // "Desconocido" al guardar — no marcar la fila como inválida.
+        typeResolved: true,
         assigneeIds: [],
         fieldErrors,
       });
@@ -1028,7 +1122,6 @@ export async function resolveBulkIncidentRows(
         title: data.title,
         description: data.description,
         priority: data.priority,
-        sla: data.sla,
         startedAt: toIsoOrNull(data.startedAt),
         resolvedAt: toIsoOrNull(data.resolvedAt),
         vicId,
@@ -1204,13 +1297,6 @@ export async function createIncidentsFromPreview(
         message: "Prioridad debe estar entre 1 y 10",
       });
     }
-    if (row.sla <= 0) {
-      errors.push({
-        row: row.rowNumber,
-        field: "sla",
-        message: "SLA debe ser positivo",
-      });
-    }
     if (!row.vicId) {
       errors.push({
         row: row.rowNumber,
@@ -1271,6 +1357,9 @@ export async function createIncidentsFromPreview(
     return { ok: false, errors };
   }
 
+  // Pre-resuelve el typeId fallback una sola vez para todas las filas sin tipo.
+  const fallbackTypeId = await resolveTypeIdOrFallback(null);
+
   await prisma.$transaction(async (tx) => {
     for (const row of rows) {
       const incident = await tx.incident.create({
@@ -1278,8 +1367,7 @@ export async function createIncidentsFromPreview(
           title: row.title.trim(),
           description: row.description.trim(),
           priority: row.priority,
-          sla: row.sla,
-          typeId: row.typeId,
+          typeId: row.typeId ?? fallbackTypeId,
           statusId: row.resolvedAt ? closedStatus.id : openStatus.id,
           vicId: row.vicId,
           scheduleId,
@@ -1303,4 +1391,204 @@ export async function createIncidentsFromPreview(
   revalidatePath("/admin/incidents");
   revalidatePath("/client/incidents");
   return { ok: true, created: rows.length };
+}
+
+export type BulkAssignChanges = {
+  /** undefined = no tocar; null = quitar la programación */
+  scheduleId?: string | null;
+  /** undefined = no tocar */
+  vicId?: string;
+  /** undefined = no tocar */
+  fsrIds?: { ids: string[]; mode: "replace" | "append" };
+};
+
+export type BulkAssignResult =
+  | { ok: true; updated: number }
+  | {
+      ok: false;
+      errors: Array<{ incidentId: number; message: string }>;
+    };
+
+/**
+ * Bulk-update a set of incidents in one call. Each change field is optional;
+ * pass only what you want to modify. Validates everything per-row and rejects
+ * the whole batch (transaction) if any row fails.
+ */
+export async function bulkAssignIncidents(
+  incidentIds: number[],
+  changes: BulkAssignChanges,
+): Promise<BulkAssignResult> {
+  const user = await requirePermission("incidents:update");
+
+  if (!Array.isArray(incidentIds) || incidentIds.length === 0) {
+    return {
+      ok: false,
+      errors: [{ incidentId: 0, message: "No hay incidentes seleccionados" }],
+    };
+  }
+  if (
+    changes.scheduleId === undefined &&
+    changes.vicId === undefined &&
+    changes.fsrIds === undefined
+  ) {
+    return {
+      ok: false,
+      errors: [{ incidentId: 0, message: "Nada que modificar" }],
+    };
+  }
+
+  const incidents = await prisma.incident.findMany({
+    where: { id: { in: incidentIds }, active: true },
+    select: { id: true, vicId: true },
+  });
+  const found = new Set(incidents.map((i) => i.id));
+  const errors: Array<{ incidentId: number; message: string }> = [];
+
+  for (const id of incidentIds) {
+    if (!found.has(id)) {
+      errors.push({ incidentId: id, message: "Incidente no encontrado" });
+    }
+  }
+
+  // Per-incident access check based on current VIC.
+  for (const inc of incidents) {
+    if (!canAccessVic(user, inc.vicId)) {
+      errors.push({
+        incidentId: inc.id,
+        message: "Sin acceso al VIC actual del incidente",
+      });
+    }
+  }
+
+  // Validate target VIC (single value, applies to all selected).
+  if (changes.vicId !== undefined) {
+    const targetVic = await prisma.vehicleInspectionCenter.findFirst({
+      where: { id: changes.vicId, active: true },
+      select: { id: true },
+    });
+    if (!targetVic) {
+      return {
+        ok: false,
+        errors: [{ incidentId: 0, message: `VIC ${changes.vicId} no existe` }],
+      };
+    }
+    if (!canAccessVic(user, changes.vicId)) {
+      return {
+        ok: false,
+        errors: [{ incidentId: 0, message: "Sin acceso al VIC destino" }],
+      };
+    }
+  }
+
+  // Validate target schedule and its VICs.
+  let scheduleVicIds: Set<string> | null = null;
+  if (changes.scheduleId !== undefined && changes.scheduleId !== null) {
+    const sched = await prisma.schedule.findFirst({
+      where: { id: changes.scheduleId, active: true },
+      select: {
+        id: true,
+        vics: { where: { active: true }, select: { vicId: true } },
+      },
+    });
+    if (!sched) {
+      return {
+        ok: false,
+        errors: [
+          {
+            incidentId: 0,
+            message: `Programación ${changes.scheduleId} no existe`,
+          },
+        ],
+      };
+    }
+    scheduleVicIds = new Set(sched.vics.map((v) => v.vicId));
+  }
+
+  // Validate FSRs if any.
+  if (changes.fsrIds && changes.fsrIds.ids.length > 0) {
+    const fsrs = await prisma.user.findMany({
+      where: {
+        id: { in: changes.fsrIds.ids },
+        active: true,
+        role: { name: "FSR" },
+      },
+      select: { id: true },
+    });
+    if (fsrs.length !== new Set(changes.fsrIds.ids).size) {
+      return {
+        ok: false,
+        errors: [
+          { incidentId: 0, message: "Uno o más FSR no existen o no son FSR" },
+        ],
+      };
+    }
+  }
+
+  // Per-incident validation: schedule↔VIC consistency.
+  for (const inc of incidents) {
+    const effectiveVic = changes.vicId ?? inc.vicId;
+    if (scheduleVicIds && effectiveVic && !scheduleVicIds.has(effectiveVic)) {
+      errors.push({
+        incidentId: inc.id,
+        message:
+          "El VIC del incidente no está incluido en la programación seleccionada",
+      });
+    }
+  }
+
+  if (errors.length > 0) {
+    return { ok: false, errors };
+  }
+
+  // Apply changes in a single transaction.
+  await prisma.$transaction(async (tx) => {
+    const updateData: Record<string, unknown> = {};
+    if (changes.scheduleId !== undefined) {
+      updateData.scheduleId = changes.scheduleId;
+    }
+    if (changes.vicId !== undefined) {
+      updateData.vicId = changes.vicId;
+    }
+    if (Object.keys(updateData).length > 0) {
+      await tx.incident.updateMany({
+        where: { id: { in: [...found] } },
+        data: updateData,
+      });
+    }
+  });
+
+  // FSR sync runs outside the transaction to keep behavior identical to
+  // updateIncident (and to surface per-incident retire-blocked errors).
+  if (changes.fsrIds) {
+    const failures: Array<{ incidentId: number; message: string }> = [];
+    for (const id of found) {
+      try {
+        if (changes.fsrIds.mode === "replace") {
+          await syncIncidentAssignees(id, changes.fsrIds.ids);
+        } else {
+          const current = await prisma.incidentAssignee.findMany({
+            where: { incidentId: id, active: true },
+            select: { userId: true },
+          });
+          const merged = new Set([
+            ...current.map((c) => c.userId),
+            ...changes.fsrIds.ids,
+          ]);
+          await syncIncidentAssignees(id, [...merged]);
+        }
+      } catch (e) {
+        failures.push({
+          incidentId: id,
+          message: e instanceof Error ? e.message : "Error al actualizar FSRs",
+        });
+      }
+    }
+    if (failures.length > 0) {
+      return { ok: false, errors: failures };
+    }
+  }
+
+  revalidatePath("/admin/incidents");
+  revalidatePath("/admin/programacion");
+  return { ok: true, updated: found.size };
 }
