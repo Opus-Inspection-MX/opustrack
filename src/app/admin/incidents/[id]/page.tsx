@@ -10,6 +10,7 @@ import {
   Wrench,
 } from "lucide-react";
 import Link from "next/link";
+import { CancelIncidentButton } from "@/components/admin/incidents/cancel-incident-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,7 +23,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { CancelIncidentButton } from "@/components/admin/incidents/cancel-incident-button";
 import { getIncidentById } from "@/lib/actions/incidents";
 import { requireRouteAccess } from "@/lib/auth/auth";
 

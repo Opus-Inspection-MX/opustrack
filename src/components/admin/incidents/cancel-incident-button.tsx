@@ -36,7 +36,9 @@ export function CancelIncidentButton({ incidentId, disabled }: Props) {
       setOpen(false);
       router.refresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Error al cancelar la incidencia");
+      setError(
+        e instanceof Error ? e.message : "Error al cancelar la incidencia",
+      );
     } finally {
       setLoading(false);
     }
@@ -59,9 +61,10 @@ export function CancelIncidentButton({ incidentId, disabled }: Props) {
           <DialogHeader>
             <DialogTitle>Cancelar incidencia</DialogTitle>
             <DialogDescription>
-              Al cancelar la incidencia, se marcará como <strong>CANCELADA</strong>{" "}
-              y todas sus asignaciones quedarán bloqueadas. Esta acción no
-              requiere folio ODT. No se puede deshacer.
+              Al cancelar la incidencia, se marcará como{" "}
+              <strong>CANCELADA</strong> y todas sus asignaciones quedarán
+              bloqueadas. Esta acción no requiere folio ODT. No se puede
+              deshacer.
             </DialogDescription>
           </DialogHeader>
 

@@ -132,15 +132,14 @@ export default async function LifecyclePage() {
             <strong>Incidente.</strong> Su estado se <strong>deriva</strong> del
             estado más avanzado de sus asignaciones — nunca se cambia
             manualmente, excepto la cancelación admin. Un incidente sin
-            asignaciones queda en{" "}
-            <code className="text-xs">ABIERTO</code>.
+            asignaciones queda en <code className="text-xs">ABIERTO</code>.
           </p>
           <p>
             <strong>Asignación.</strong> Las transiciones son estrictas: para
             pasar a <code className="text-xs">INICIADO</code> se requiere
             captura de GPS y hora de inicio; para llegar a{" "}
-            <code className="text-xs">CERRADO</code> se requiere GPS final,
-            hora de cierre, al menos una evidencia adjunta{" "}
+            <code className="text-xs">CERRADO</code> se requiere GPS final, hora
+            de cierre, al menos una evidencia adjunta{" "}
             <strong>y folio ODT registrado</strong>.
           </p>
           <p>

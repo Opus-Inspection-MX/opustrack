@@ -2,13 +2,13 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { FALLBACK_INCIDENT_TYPE_NAME } from "@/lib/constants/incident-type";
 import { requirePermission } from "@/lib/auth/auth";
 import {
   assertVicAccess,
   canAccessVic,
   getVicWhereClause,
 } from "@/lib/auth/filters";
+import { FALLBACK_INCIDENT_TYPE_NAME } from "@/lib/constants/incident-type";
 import { prisma } from "@/lib/database/prisma.singleton";
 import { INCIDENT_STATE, syncIncidentState } from "@/lib/state-machine";
 import { getPrimaryVicId } from "@/lib/utils/vic-assignments";
@@ -864,7 +864,16 @@ export type EditablePreviewRow = {
   typeResolved: boolean;
   assigneeIds: string[];
   fieldErrors: Record<string, string>;
+  warnings?: Record<string, string>;
 };
+
+/**
+ * Accent-fold + lowercase a string for forgiving lookup.
+ * "Cénac" → "cenac", "Mantenimiento" → "mantenimiento".
+ */
+function normalizeForMatch(s: string): string {
+  return s.normalize("NFD").replace(/[̀-ͯ]/g, "").trim().toLowerCase();
+}
 
 export type ResolveBulkResult =
   | { ok: true; rows: EditablePreviewRow[] }
@@ -957,11 +966,11 @@ export async function resolveBulkIncidentRows(
   ]);
 
   const typesByName = new Map(
-    allTypes.map((t) => [t.name.toLowerCase(), t.id] as const),
+    allTypes.map((t) => [normalizeForMatch(t.name), t.id] as const),
   );
   const typesById = new Map(allTypes.map((t) => [t.id, t.name] as const));
   const vicsByCode = new Map(
-    allVics.map((v) => [v.code.toLowerCase(), v.id] as const),
+    allVics.map((v) => [normalizeForMatch(v.code), v.id] as const),
   );
   const vicsById = new Set(allVics.map((v) => v.id));
   const validFsrIds = new Set(allFsrs.map((u) => u.id));
@@ -972,6 +981,7 @@ export async function resolveBulkIncidentRows(
   rawRows.forEach((raw, idx) => {
     const rowNumber = idx + 2;
     const fieldErrors: Record<string, string> = {};
+    const warnings: Record<string, string> = {};
 
     if (mode === "template") {
       // Tolerant per-field parsing: invalid/missing values do NOT discard the
@@ -989,6 +999,18 @@ export async function resolveBulkIncidentRows(
       const tipoRaw = getStr("tipo");
       const fechaInicioRaw = getStr("fecha_inicio");
       const vicRaw = getStr("vic");
+
+      // Skip rows that look completely empty (typical trailing rows in Excel).
+      if (
+        title === "" &&
+        description === "" &&
+        prioRaw === "" &&
+        tipoRaw === "" &&
+        fechaInicioRaw === "" &&
+        vicRaw === ""
+      ) {
+        return;
+      }
 
       if (title.length < 3) {
         fieldErrors.titulo = "Título debe tener al menos 3 caracteres";
@@ -1021,7 +1043,7 @@ export async function resolveBulkIncidentRows(
 
       const vicCodeRaw = vicRaw || null;
       const vicId = vicCodeRaw
-        ? (vicsByCode.get(vicCodeRaw.toLowerCase()) ?? null)
+        ? (vicsByCode.get(normalizeForMatch(vicCodeRaw)) ?? null)
         : null;
       if (vicCodeRaw && !vicId) {
         fieldErrors.vic = `VIC "${vicCodeRaw}" no encontrado — selecciona uno`;
@@ -1032,8 +1054,11 @@ export async function resolveBulkIncidentRows(
       // y pueda corregirlo en el preview si quiere.
       const typeNameRaw = tipoRaw || null;
       const typeId = typeNameRaw
-        ? (typesByName.get(typeNameRaw.toLowerCase()) ?? null)
+        ? (typesByName.get(normalizeForMatch(typeNameRaw)) ?? null)
         : null;
+      if (typeNameRaw && !typeId) {
+        warnings.tipo = `Tipo "${typeNameRaw}" no reconocido — se usará "Desconocido"`;
+      }
 
       resolved.push({
         rowNumber,
@@ -1052,6 +1077,7 @@ export async function resolveBulkIncidentRows(
         typeResolved: true,
         assigneeIds: [],
         fieldErrors,
+        warnings: Object.keys(warnings).length > 0 ? warnings : undefined,
       });
       return;
     }

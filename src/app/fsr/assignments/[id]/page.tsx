@@ -394,13 +394,14 @@ export default function FSRAssignmentDetailPage({
   const isCompleted = isClosed || incidentLocked;
   const hasEvidence = (assignment.attachments?.length ?? 0) > 0;
   const hasOdt = Boolean(assignment.odtFolio?.trim());
-  const closeDisabledReason = !hasOdt && !hasEvidence
-    ? "Captura el folio ODT y sube al menos una evidencia antes de cerrar"
-    : !hasOdt
-      ? "Captura el folio ODT antes de cerrar"
-      : !hasEvidence
-        ? "Sube al menos una evidencia antes de cerrar"
-        : undefined;
+  const closeDisabledReason =
+    !hasOdt && !hasEvidence
+      ? "Captura el folio ODT y sube al menos una evidencia antes de cerrar"
+      : !hasOdt
+        ? "Captura el folio ODT antes de cerrar"
+        : !hasEvidence
+          ? "Sube al menos una evidencia antes de cerrar"
+          : undefined;
   const closeDisabled = actionLoading || !hasEvidence || !hasOdt;
 
   return (
@@ -429,7 +430,8 @@ export default function FSRAssignmentDetailPage({
               }
             >
               <Lock className="mr-2 h-4 w-4" />
-              Incidencia {incidentStatus === "CANCELADA" ? "cancelada" : "cerrada"}
+              Incidencia{" "}
+              {incidentStatus === "CANCELADA" ? "cancelada" : "cerrada"}
             </Badge>
           ) : (
             <>

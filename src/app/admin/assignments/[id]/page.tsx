@@ -94,9 +94,7 @@ export default async function AssignmentDetailPage({
           <div className="flex items-center gap-3">
             <AlertTriangle className="h-5 w-5 text-primary" />
             <div>
-              <p className="text-sm text-muted-foreground">
-                Incidencia padre
-              </p>
+              <p className="text-sm text-muted-foreground">Incidencia padre</p>
               <p className="font-medium">{assignment.incident.title}</p>
               <p className="text-xs text-muted-foreground">
                 Prioridad: {assignment.incident.priority}/10 • Estado:{" "}

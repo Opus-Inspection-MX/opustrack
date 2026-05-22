@@ -1154,8 +1154,8 @@ async function main() {
       console.log("✅ Seeded ScheduleStatuses");
     },
     {
-      maxWait: 20000, // Maximum time to wait for a transaction slot (20 seconds)
-      timeout: 60000, // Maximum time for transaction to complete (60 seconds)
+      maxWait: 30000, // Maximum time to wait for a transaction slot (30 seconds)
+      timeout: 180000, // Maximum time for transaction to complete (3 minutes)
     },
   );
 

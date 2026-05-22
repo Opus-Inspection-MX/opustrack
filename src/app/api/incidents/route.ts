@@ -1,7 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
-import { FALLBACK_INCIDENT_TYPE_NAME } from "@/lib/constants/incident-type";
 import { withPermission } from "@/lib/auth/auth";
+import { FALLBACK_INCIDENT_TYPE_NAME } from "@/lib/constants/incident-type";
 import { prisma } from "@/lib/database/prisma.singleton";
 
 /**

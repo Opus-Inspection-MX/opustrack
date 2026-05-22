@@ -10,7 +10,6 @@ import {
   Upload,
 } from "lucide-react";
 import Link from "next/link";
-import Papa from "papaparse";
 import { useMemo, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -60,6 +59,7 @@ const TEMPLATE_HEADERS = [
   "fecha_inicio",
   "vic",
 ] as const;
+type TemplateHeader = (typeof TEMPLATE_HEADERS)[number];
 
 const SNAPSHOT_HEADERS = [
   "rowNumber",
@@ -75,12 +75,15 @@ const SNAPSHOT_HEADERS = [
   "assigneeIds",
 ] as const;
 
-const UTF8_BOM = "﻿";
+const XLSX_MIME =
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
-function downloadCsv(filename: string, content: string) {
-  const blob = new Blob([UTF8_BOM + content], {
-    type: "text/csv;charset=utf-8;",
-  });
+/** Accent-fold + lowercase a header for forgiving matching. */
+function normalizeHeader(s: string): string {
+  return s.normalize("NFD").replace(/[̀-ͯ]/g, "").trim().toLowerCase();
+}
+
+function downloadBlob(filename: string, blob: Blob) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
@@ -94,81 +97,323 @@ function formatSampleDate(d: Date): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-function buildLegibleTemplateCsv(opts: {
-  vicCode?: string;
-  typeNames: string[];
-}): string {
-  const sampleType = opts.typeNames[0] ?? "Mantenimiento";
-  const sample = [
-    "Falla en cámara de inspección",
-    "Cámara 3 no enciende en el turno matutino, requiere revisión",
-    "7",
-    sampleType,
-    formatSampleDate(new Date()),
-    opts.vicCode ?? "",
-  ];
-  return Papa.unparse(
-    { fields: [...TEMPLATE_HEADERS], data: [sample] },
-    { quotes: true, newline: "\r\n" },
-  );
+/**
+ * Convert an exceljs cell value to a plain string for downstream Zod schemas.
+ * Dates → "YYYY-MM-DD HH:mm"; numbers → "123"; rich text → concatenated runs.
+ */
+function cellToString(value: unknown): string {
+  if (value == null) return "";
+  if (value instanceof Date) return formatSampleDate(value);
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+  if (typeof value === "string") return value;
+  // Rich text object: { richText: [{ text: "..." }] }
+  if (typeof value === "object" && value !== null) {
+    const obj = value as {
+      richText?: Array<{ text?: string }>;
+      text?: unknown;
+      result?: unknown;
+    };
+    if (Array.isArray(obj.richText)) {
+      return obj.richText.map((r) => r.text ?? "").join("");
+    }
+    // Hyperlink cell: { text, hyperlink }
+    if (typeof obj.text === "string") return obj.text;
+    // Formula cell: { formula, result }
+    if (obj.result != null) return cellToString(obj.result);
+  }
+  return String(value);
 }
 
-function buildSnapshotCsv(
+async function buildTemplateWorkbook(opts: {
+  catalogs: Catalogs;
+  defaultVicCode: string | null;
+}): Promise<Blob> {
+  const ExcelJS = (await import("exceljs")).default;
+  const wb = new ExcelJS.Workbook();
+  wb.creator = "OpusTrack";
+  wb.created = new Date();
+
+  // Sheet 1: Incidencias
+  const ws = wb.addWorksheet("Incidencias", {
+    views: [{ state: "frozen", ySplit: 1 }],
+  });
+  const HEADER_LABELS: Record<TemplateHeader, string> = {
+    titulo: "titulo",
+    descripcion: "descripcion",
+    prioridad: "prioridad",
+    tipo: "tipo",
+    fecha_inicio: "fecha_inicio",
+    vic: "vic",
+  };
+  ws.columns = TEMPLATE_HEADERS.map((h) => ({
+    header: HEADER_LABELS[h],
+    key: h,
+    width:
+      h === "descripcion"
+        ? 50
+        : h === "titulo"
+          ? 30
+          : h === "fecha_inicio"
+            ? 22
+            : h === "tipo"
+              ? 22
+              : 14,
+  }));
+  const headerRow = ws.getRow(1);
+  headerRow.font = { bold: true, color: { argb: "FFFFFFFF" } };
+  headerRow.fill = {
+    type: "pattern",
+    pattern: "solid",
+    fgColor: { argb: "FF1E40AF" },
+  };
+  headerRow.alignment = { vertical: "middle", horizontal: "left" };
+  headerRow.height = 22;
+
+  // Sample row
+  const sampleType = opts.catalogs.types[0]?.name ?? "Mantenimiento";
+  ws.addRow({
+    titulo: "Falla en cámara de inspección",
+    descripcion: "Cámara 3 no enciende en el turno matutino, requiere revisión",
+    prioridad: 7,
+    tipo: sampleType,
+    fecha_inicio: new Date(2026, 0, 15, 9, 0),
+    vic: opts.defaultVicCode ?? opts.catalogs.vics[0]?.code ?? "",
+  });
+
+  // Format the fecha_inicio column as date
+  ws.getColumn("fecha_inicio").numFmt = "yyyy-mm-dd hh:mm";
+  // Format the prioridad column as integer
+  ws.getColumn("prioridad").numFmt = "0";
+
+  // Data validations apply to a fixed range of rows (header in row 1, data 2..501).
+  const DATA_RANGE_END = 501;
+  // Prioridad: integer 1–10
+  for (let r = 2; r <= DATA_RANGE_END; r++) {
+    ws.getCell(`C${r}`).dataValidation = {
+      type: "whole",
+      operator: "between",
+      allowBlank: true,
+      formulae: [1, 10],
+      showErrorMessage: true,
+      errorTitle: "Prioridad inválida",
+      error: "Debe ser un entero entre 1 y 10.",
+    };
+  }
+  // Tipo dropdown (from Catálogos!$A$2:$A$N)
+  const tipoEnd = 1 + opts.catalogs.types.length;
+  const tipoFormula = `=Catálogos!$A$2:$A$${Math.max(tipoEnd, 2)}`;
+  for (let r = 2; r <= DATA_RANGE_END; r++) {
+    ws.getCell(`D${r}`).dataValidation = {
+      type: "list",
+      allowBlank: true,
+      formulae: [tipoFormula],
+      showErrorMessage: false, // soft: server falls back to "Desconocido"
+    };
+  }
+  // VIC dropdown (from Catálogos!$C$2:$C$N)
+  const vicEnd = 1 + opts.catalogs.vics.length;
+  const vicFormula = `=Catálogos!$C$2:$C$${Math.max(vicEnd, 2)}`;
+  for (let r = 2; r <= DATA_RANGE_END; r++) {
+    ws.getCell(`F${r}`).dataValidation = {
+      type: "list",
+      allowBlank: true,
+      formulae: [vicFormula],
+      showErrorMessage: true,
+      errorTitle: "VIC inválido",
+      error: "Selecciona un código del catálogo.",
+    };
+  }
+
+  // Sheet 2: Instrucciones
+  const instr = wb.addWorksheet("Instrucciones");
+  instr.columns = [
+    { header: "Columna", key: "col", width: 18 },
+    { header: "Descripción", key: "desc", width: 80 },
+  ];
+  instr.getRow(1).font = { bold: true };
+  instr.addRows([
+    {
+      col: "titulo",
+      desc: "Título corto (3–200 caracteres). Requerido.",
+    },
+    {
+      col: "descripcion",
+      desc: "Descripción detallada de la incidencia. Requerido.",
+    },
+    {
+      col: "prioridad",
+      desc: "Entero entre 1 y 10. 8–10 = crítica, 5–7 = media, 1–4 = baja.",
+    },
+    {
+      col: "tipo",
+      desc: 'Nombre exacto de un tipo (ver hoja "Catálogos"). Si lo dejas vacío o no coincide, se asigna "Desconocido".',
+    },
+    {
+      col: "fecha_inicio",
+      desc: "Fecha y hora (formato yyyy-mm-dd hh:mm). Opcional. Vacío = la incidencia se registra como abierta sin fecha de inicio.",
+    },
+    {
+      col: "vic",
+      desc: 'Código del Centro de Verificación Vehicular (ver hoja "Catálogos"). Requerido para guardar.',
+    },
+  ]);
+  instr.getColumn("desc").alignment = { wrapText: true, vertical: "top" };
+
+  // Sheet 3: Catálogos
+  const cat = wb.addWorksheet("Catálogos");
+  cat.columns = [
+    { header: "tipo", key: "tipo", width: 24 },
+    { header: "", key: "sep1", width: 4 },
+    { header: "vic_codigo", key: "vic", width: 14 },
+    { header: "vic_nombre", key: "vicName", width: 36 },
+  ];
+  cat.getRow(1).font = { bold: true };
+  const maxRows = Math.max(
+    opts.catalogs.types.length,
+    opts.catalogs.vics.length,
+  );
+  for (let i = 0; i < maxRows; i++) {
+    cat.addRow({
+      tipo: opts.catalogs.types[i]?.name ?? "",
+      vic: opts.catalogs.vics[i]?.code ?? "",
+      vicName: opts.catalogs.vics[i]?.name ?? "",
+    });
+  }
+
+  const buffer = await wb.xlsx.writeBuffer();
+  return new Blob([buffer], { type: XLSX_MIME });
+}
+
+async function buildSnapshotWorkbook(
   rows: EditablePreviewRow[],
   scheduleId: string | null,
   statusIds: { open: number; closed: number },
-): string {
-  const data = rows.map((r) => [
-    r.rowNumber,
-    r.title,
-    r.description,
-    r.priority,
-    r.typeId ?? "",
-    r.resolvedAt ? statusIds.closed : statusIds.open,
-    r.vicId ?? "",
-    scheduleId ?? "",
-    r.startedAt ?? "",
-    r.resolvedAt ?? "",
-    r.assigneeIds.join(","),
-  ]);
-  return Papa.unparse(
-    { fields: [...SNAPSHOT_HEADERS], data },
-    { quotes: true, newline: "\r\n" },
-  );
+): Promise<Blob> {
+  const ExcelJS = (await import("exceljs")).default;
+  const wb = new ExcelJS.Workbook();
+  wb.creator = "OpusTrack";
+  wb.created = new Date();
+  const ws = wb.addWorksheet("Snapshot");
+  ws.columns = SNAPSHOT_HEADERS.map((h) => ({
+    header: h,
+    key: h,
+    width: 18,
+  }));
+  ws.getRow(1).font = { bold: true };
+  for (const r of rows) {
+    ws.addRow({
+      rowNumber: r.rowNumber,
+      title: r.title,
+      description: r.description,
+      priority: r.priority,
+      typeId: r.typeId ?? "",
+      statusId: r.resolvedAt ? statusIds.closed : statusIds.open,
+      vicId: r.vicId ?? "",
+      scheduleId: scheduleId ?? "",
+      startedAt: r.startedAt ?? "",
+      resolvedAt: r.resolvedAt ?? "",
+      assigneeIds: r.assigneeIds.join(","),
+    });
+  }
+  const buffer = await wb.xlsx.writeBuffer();
+  return new Blob([buffer], { type: XLSX_MIME });
 }
 
-function detectMode(headers: string[]): "template" | "snapshot" | "unknown" {
-  const lower = headers.map((h) => h.trim().toLowerCase());
-  if (lower.includes("titulo") && lower.includes("vic")) return "template";
-  if (lower.includes("title") && lower.includes("vicid")) return "snapshot";
-  return "unknown";
-}
+type ParseExcelResult =
+  | {
+      ok: true;
+      mode: "template" | "snapshot";
+      rows: Array<Record<string, string>>;
+    }
+  | { ok: false; error: string };
 
 /**
- * Trim arbitrary preamble lines (filenames, titles, notes) before the real
- * CSV header row. Returns the text starting from the first plausible header,
- * or null if no header is found in the first 20 lines.
+ * Read an .xlsx file and emit string-keyed row objects matching the canonical
+ * header names ("titulo"/"vic" for template, "title"/"vicId" for snapshot).
+ * Tolerates preamble rows above the header and accent-insensitive headers.
  */
-function stripLeadingNonHeaderLines(text: string): string | null {
-  // Drop UTF-8 BOM if present.
-  const noBom = text.replace(/^﻿/, "");
-  const lines = noBom.split(/\r?\n/);
+async function parseExcelFile(file: File): Promise<ParseExcelResult> {
+  const ExcelJS = (await import("exceljs")).default;
+  const wb = new ExcelJS.Workbook();
+  try {
+    const buf = await file.arrayBuffer();
+    await wb.xlsx.load(buf);
+  } catch (err) {
+    return {
+      ok: false,
+      error: `Error al leer el archivo Excel: ${(err as Error).message ?? "desconocido"}`,
+    };
+  }
+  // Prefer a worksheet named "Incidencias" / "Snapshot", else the first one.
+  const ws =
+    wb.getWorksheet("Incidencias") ??
+    wb.getWorksheet("Snapshot") ??
+    wb.worksheets[0];
+  if (!ws) {
+    return { ok: false, error: "El archivo Excel no contiene hojas." };
+  }
+
+  const TEMPLATE_SET = new Set<string>(
+    TEMPLATE_HEADERS.map((h) => normalizeHeader(h)),
+  );
+  const SNAPSHOT_SET = new Set<string>(
+    SNAPSHOT_HEADERS.map((h) => normalizeHeader(h)),
+  );
+
+  // Find the header row: first row within the first 20 rows where at least 3
+  // cells normalize to known canonical headers.
   const MAX_SCAN = 20;
-  for (let i = 0; i < Math.min(lines.length, MAX_SCAN); i++) {
-    const lower = lines[i].toLowerCase();
-    const looksLikeTemplate =
-      lower.includes("titulo") &&
-      lower.includes("descripcion") &&
-      lower.includes("vic");
-    const looksLikeSnapshot =
-      lower.includes("title") &&
-      lower.includes("description") &&
-      lower.includes("vicid");
-    if (looksLikeTemplate || looksLikeSnapshot) {
-      return lines.slice(i).join("\n");
+  let headerRowNumber = -1;
+  let mode: "template" | "snapshot" | null = null;
+  let headerMap: Record<string, number> = {}; // canonical → column number
+
+  for (let r = 1; r <= Math.min(ws.rowCount, MAX_SCAN); r++) {
+    const row = ws.getRow(r);
+    const matchesTemplate: Record<string, number> = {};
+    const matchesSnapshot: Record<string, number> = {};
+    row.eachCell({ includeEmpty: false }, (cell, col) => {
+      const norm = normalizeHeader(cellToString(cell.value));
+      if (!norm) return;
+      if (TEMPLATE_SET.has(norm)) matchesTemplate[norm] = col;
+      if (SNAPSHOT_SET.has(norm)) matchesSnapshot[norm] = col;
+    });
+    if (Object.keys(matchesTemplate).length >= 3) {
+      headerRowNumber = r;
+      mode = "template";
+      headerMap = matchesTemplate;
+      break;
+    }
+    if (Object.keys(matchesSnapshot).length >= 3) {
+      headerRowNumber = r;
+      mode = "snapshot";
+      headerMap = matchesSnapshot;
+      break;
     }
   }
-  return null;
+
+  if (headerRowNumber < 0 || !mode) {
+    return {
+      ok: false,
+      error:
+        "No se encontró una fila de encabezados válida. Descarga la plantilla desde esta página y úsala como base.",
+    };
+  }
+
+  // Read data rows below the header.
+  const rows: Array<Record<string, string>> = [];
+  for (let r = headerRowNumber + 1; r <= ws.rowCount; r++) {
+    const row = ws.getRow(r);
+    const obj: Record<string, string> = {};
+    for (const [canonical, colNumber] of Object.entries(headerMap)) {
+      const cell = row.getCell(colNumber);
+      obj[canonical] = cellToString(cell.value).trim();
+    }
+    rows.push(obj);
+  }
+
+  return { ok: true, mode, rows };
 }
 
 function toLocalDatetimeInput(iso: string | null): string {
@@ -280,14 +525,18 @@ export function BulkIncidentsClient({ catalogs }: { catalogs: Catalogs }) {
     setDefaultVicId("");
   };
 
-  const handleDownloadTemplate = () => {
-    downloadCsv(
-      "incidentes-plantilla.csv",
-      buildLegibleTemplateCsv({
-        vicCode: defaultVic?.code,
-        typeNames: catalogs.types.map((t) => t.name),
-      }),
-    );
+  const handleDownloadTemplate = async () => {
+    try {
+      const blob = await buildTemplateWorkbook({
+        catalogs,
+        defaultVicCode: defaultVic?.code ?? null,
+      });
+      downloadBlob("incidentes-plantilla.xlsx", blob);
+    } catch (err) {
+      setParseError(
+        `Error al generar la plantilla: ${(err as Error).message ?? "desconocido"}`,
+      );
+    }
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -298,54 +547,26 @@ export function BulkIncidentsClient({ catalogs }: { catalogs: Catalogs }) {
     setRowErrorsByRowNumber(new Map());
     setCreated(null);
 
-    let text: string;
-    try {
-      text = await file.text();
-    } catch (err) {
-      setParseError(`Error al leer el archivo: ${(err as Error).message}`);
-      setPreviewRows([]);
-      return;
-    }
-
-    // Strip leading garbage lines (filenames, titles, notes) before the
-    // real header row. Find the first line that looks like our header.
-    const cleaned = stripLeadingNonHeaderLines(text);
-    if (!cleaned) {
+    const lowerName = file.name.toLowerCase();
+    if (!lowerName.endsWith(".xlsx")) {
       setParseError(
-        "No se encontró una fila de encabezados válida. Usa la plantilla descargada (encabezados: titulo, descripcion, prioridad, tipo, fecha_inicio, vic) o un snapshot previamente descargado.",
+        "Sólo se acepta Excel (.xlsx). Si tienes un archivo .csv o .xls, ábrelo y guárdalo como .xlsx.",
       );
       setPreviewRows([]);
       return;
     }
 
-    const res = Papa.parse<Record<string, string>>(cleaned, {
-      header: true,
-      skipEmptyLines: true,
-      transformHeader: (h) => h.trim(),
-      comments: "#",
-    });
-
-    if (res.errors.length > 0) {
-      setParseError(
-        `Error al parsear CSV: ${res.errors[0].message} (fila ${res.errors[0].row ?? "?"})`,
-      );
-      setPreviewRows([]);
-      return;
-    }
-    const headers = res.meta.fields ?? [];
-    const mode = detectMode(headers);
-    if (mode === "unknown") {
-      setParseError(
-        "Formato no reconocido. Usa la plantilla legible (encabezados en español) o un snapshot previamente descargado.",
-      );
+    const parsed = await parseExcelFile(file);
+    if (!parsed.ok) {
+      setParseError(parsed.error);
       setPreviewRows([]);
       return;
     }
 
     const result = await resolveBulkIncidentRows(
-      res.data,
+      parsed.rows,
       scheduleId || null,
-      mode,
+      parsed.mode,
     );
     if (!result.ok) {
       setGeneralErrors(
@@ -428,11 +649,22 @@ export function BulkIncidentsClient({ catalogs }: { catalogs: Catalogs }) {
     }
   };
 
-  const handleDownloadSnapshot = () => {
-    downloadCsv(
-      `incidentes-snapshot-${new Date().toISOString().slice(0, 10)}.csv`,
-      buildSnapshotCsv(previewRows, scheduleId || null, statusIds),
-    );
+  const handleDownloadSnapshot = async () => {
+    try {
+      const blob = await buildSnapshotWorkbook(
+        previewRows,
+        scheduleId || null,
+        statusIds,
+      );
+      downloadBlob(
+        `incidentes-snapshot-${new Date().toISOString().slice(0, 10)}.xlsx`,
+        blob,
+      );
+    } catch (err) {
+      setParseError(
+        `Error al exportar snapshot: ${(err as Error).message ?? "desconocido"}`,
+      );
+    }
   };
 
   const applyDefaultFsrsToAll = () => {
@@ -530,8 +762,9 @@ export function BulkIncidentsClient({ catalogs }: { catalogs: Catalogs }) {
           <div className="pt-2 space-y-2 border-t">
             <p className="text-sm font-medium">FSRs por defecto (opcional)</p>
             <p className="text-xs text-muted-foreground">
-              Se asignan automáticamente a cada fila al subir el CSV. También
-              puedes aplicarlos retroactivamente a todas las filas con el botón.
+              Se asignan automáticamente a cada fila al subir el archivo.
+              También puedes aplicarlos retroactivamente a todas las filas con
+              el botón.
             </p>
             <div className="flex flex-col sm:flex-row gap-2">
               <div className="flex-1">
@@ -563,28 +796,20 @@ export function BulkIncidentsClient({ catalogs }: { catalogs: Catalogs }) {
         </CardHeader>
         <CardContent className="space-y-2">
           <p className="text-sm text-muted-foreground">
-            Columnas:{" "}
-            <code className="text-xs">
-              titulo, descripcion, prioridad, tipo, fecha_inicio, vic
-            </code>
-            .
-            <br />
-            <strong>tipo</strong>: nombre del tipo de incidente (ej.{" "}
-            <code className="text-xs">
-              {catalogs.types[0]?.name ?? "Mantenimiento"}
-            </code>
-            ). El SLA se hereda del tipo. Si dejas{" "}
-            <code className="text-xs">tipo</code> vacío o no encuentra el
-            nombre, el sistema asigna{" "}
-            <code className="text-xs">Desconocido</code>.{" "}
-            <strong>fecha_inicio</strong>: formato{" "}
-            <code className="text-xs">YYYY-MM-DD HH:mm</code>.{" "}
-            <strong>vic</strong>: código del CVV. Acepta texto largo, comas y
-            caracteres especiales (UTF-8).
+            La plantilla viene con tres hojas: <strong>Incidencias</strong>{" "}
+            (encabezados y celdas con validación),{" "}
+            <strong>Instrucciones</strong> (descripción de cada columna) y{" "}
+            <strong>Catálogos</strong> (tipos y VICs válidos). Las columnas{" "}
+            <code className="text-xs">tipo</code> y{" "}
+            <code className="text-xs">vic</code> son listas desplegables; la
+            prioridad acepta sólo enteros 1–10;{" "}
+            <code className="text-xs">fecha_inicio</code> es una celda de fecha.
+            Si dejas <code className="text-xs">tipo</code> vacío o no coincide,
+            el sistema asigna <code className="text-xs">Desconocido</code>.
           </p>
           <Button onClick={handleDownloadTemplate}>
             <Download className="mr-2 h-4 w-4" />
-            Descargar plantilla CSV
+            Descargar plantilla Excel
           </Button>
         </CardContent>
       </Card>
@@ -596,7 +821,7 @@ export function BulkIncidentsClient({ catalogs }: { catalogs: Catalogs }) {
           <p className="text-sm text-muted-foreground">
             Usa estas listas para llenar las columnas{" "}
             <code className="text-xs">tipo</code> y{" "}
-            <code className="text-xs">vic</code> en tu CSV.
+            <code className="text-xs">vic</code> en tu archivo.
           </p>
         </div>
 
@@ -700,17 +925,18 @@ export function BulkIncidentsClient({ catalogs }: { catalogs: Catalogs }) {
       {/* Step 3: upload */}
       <Card>
         <CardHeader>
-          <CardTitle>3. Subir CSV</CardTitle>
+          <CardTitle>3. Subir archivo Excel</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <Input
             ref={fileInputRef}
             type="file"
-            accept=".csv,text/csv"
+            accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             onChange={handleFileChange}
           />
           <p className="text-xs text-muted-foreground">
-            Se acepta la plantilla legible o un snapshot previamente descargado.
+            Sólo archivos .xlsx. Acepta la plantilla descargada o un snapshot
+            previamente exportado.
           </p>
           {parseError && (
             <div className="flex items-center gap-2 text-sm text-destructive">
@@ -849,24 +1075,42 @@ export function BulkIncidentsClient({ catalogs }: { catalogs: Catalogs }) {
                           />
                         </TableCell>
                         <TableCell className="align-top">
-                          {row.typeNameRaw && !row.typeId && (
-                            <div className="text-[10px] text-amber-600 mb-1">
-                              CSV: "{row.typeNameRaw}" → fallback "Desconocido"
+                          {row.warnings?.tipo && (
+                            <div
+                              className="text-[10px] text-amber-700 mb-1"
+                              title={row.warnings.tipo}
+                            >
+                              ⚠ {row.warnings.tipo}
                             </div>
                           )}
-                          <SearchableSelect
-                            options={typeOptions}
-                            value={row.typeId ? String(row.typeId) : ""}
-                            onValueChange={(v) =>
-                              updateRow(row.rowNumber, {
-                                typeId: v ? Number(v) : null,
-                                typeResolved: true,
-                                typeNameRaw: null,
-                              })
+                          <div
+                            className={
+                              row.warnings?.tipo
+                                ? "ring-1 ring-amber-400 rounded-md"
+                                : ""
                             }
-                            placeholder="Sin tipo"
-                            searchPlaceholder="Buscar tipo..."
-                          />
+                          >
+                            <SearchableSelect
+                              options={typeOptions}
+                              value={row.typeId ? String(row.typeId) : ""}
+                              onValueChange={(v) =>
+                                updateRow(row.rowNumber, {
+                                  typeId: v ? Number(v) : null,
+                                  typeResolved: true,
+                                  typeNameRaw: null,
+                                  warnings: row.warnings?.tipo
+                                    ? Object.fromEntries(
+                                        Object.entries(row.warnings).filter(
+                                          ([k]) => k !== "tipo",
+                                        ),
+                                      )
+                                    : row.warnings,
+                                })
+                              }
+                              placeholder="Sin tipo"
+                              searchPlaceholder="Buscar tipo..."
+                            />
+                          </div>
                         </TableCell>
                         <TableCell className="align-top">
                           {row.vicCodeRaw && !row.vicResolved && (
