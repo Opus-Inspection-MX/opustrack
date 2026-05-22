@@ -12,6 +12,24 @@ import {
 // Keep legacy type for backward compatibility
 export type WorkPartFormData = WorkPartCreateInput;
 
+async function assertAssignmentEditable(
+  assignmentId: string | null | undefined,
+): Promise<void> {
+  if (!assignmentId) return;
+  const row = await prisma.assignment.findUnique({
+    where: { id: assignmentId },
+    select: { incident: { select: { status: { select: { name: true } } } } },
+  });
+  const name = row?.incident?.status?.name;
+  if (name === "CERRADO" || name === "CANCELADA") {
+    throw new Error(
+      name === "CANCELADA"
+        ? "La incidencia está cancelada. No se pueden hacer cambios."
+        : "La incidencia está cerrada. No se pueden hacer cambios.",
+    );
+  }
+}
+
 /**
  * Get all work parts
  * Filtered by user's VIC (except ADMINISTRADOR who sees all)
@@ -75,6 +93,7 @@ export async function createWorkPart(data: unknown) {
   await requirePermission("assignments:update");
 
   const validated = WorkPartCreateSchema.parse(data);
+  await assertAssignmentEditable(validated.assignmentId);
 
   const workPart = await prisma.$transaction(async (tx) => {
     const part = await tx.part.findUnique({
@@ -127,6 +146,12 @@ export async function updateWorkPart(
   data: Partial<WorkPartFormData>,
 ) {
   await requirePermission("assignments:update");
+
+  const existingForGuard = await prisma.workPart.findUnique({
+    where: { id },
+    select: { assignmentId: true },
+  });
+  await assertAssignmentEditable(existingForGuard?.assignmentId);
 
   const result = await prisma.$transaction(async (tx) => {
     const existingWorkPart = await tx.workPart.findUnique({
@@ -190,6 +215,12 @@ export async function updateWorkPart(
  */
 export async function deleteWorkPart(id: string) {
   await requirePermission("assignments:delete");
+
+  const existingForGuard = await prisma.workPart.findUnique({
+    where: { id },
+    select: { assignmentId: true },
+  });
+  await assertAssignmentEditable(existingForGuard?.assignmentId);
 
   const result = await prisma.$transaction(async (tx) => {
     const workPart = await tx.workPart.findUnique({

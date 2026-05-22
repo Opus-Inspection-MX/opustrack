@@ -202,7 +202,7 @@ export function AssignmentForm({
           {/*
            * Estado: el state machine lo administra automáticamente
            * (PENDIENTE_DE_ASIGNACION → ASIGNADO al agregar el primer FSR;
-           * VISTO/INICIADO/PENDIENTE/CERRADO desde el detalle del FSR).
+           * VISTO/INICIADO/EN_PROGRESO/CERRADO desde el detalle del FSR).
            * No se permite editar manualmente desde aquí.
            */}
 

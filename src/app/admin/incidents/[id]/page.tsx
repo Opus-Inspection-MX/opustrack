@@ -22,6 +22,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { CancelIncidentButton } from "@/components/admin/incidents/cancel-incident-button";
 import { getIncidentById } from "@/lib/actions/incidents";
 import { requireRouteAccess } from "@/lib/auth/auth";
 
@@ -74,23 +75,58 @@ export default async function IncidentDetailPage({
           <p className="text-muted-foreground">Folio: INC-{incident.id}</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" asChild>
-            <Link href={`/admin/incidents/${incident.id}/edit`}>
-              <EditIcon className="mr-2 h-4 w-4" />
-              Edit Incident
-            </Link>
-          </Button>
+          {incident.status?.name !== "CERRADO" &&
+            incident.status?.name !== "CANCELADA" && (
+              <>
+                <Button variant="outline" asChild>
+                  <Link href={`/admin/incidents/${incident.id}/edit`}>
+                    <EditIcon className="mr-2 h-4 w-4" />
+                    Editar incidencia
+                  </Link>
+                </Button>
+                <CancelIncidentButton incidentId={incident.id} />
+              </>
+            )}
           <Badge
             variant={getPriorityColor(incident.priority)}
             className="h-9 px-3"
           >
-            Priority: {incident.priority}/10
+            Prioridad: {incident.priority}/10
           </Badge>
-          <Badge variant="secondary" className="h-9 px-3">
-            {incident.status?.name || "No Status"}
+          <Badge
+            variant="secondary"
+            className={
+              incident.status?.name === "CANCELADA"
+                ? "h-9 px-3 bg-red-600 text-white"
+                : "h-9 px-3"
+            }
+          >
+            {incident.status?.name || "Sin estado"}
           </Badge>
         </div>
       </div>
+
+      {incident.status?.name === "CANCELADA" && incident.cancellationReason && (
+        <Card className="border-red-300 bg-red-50 dark:bg-red-950/30">
+          <CardHeader>
+            <CardTitle className="text-red-700 dark:text-red-300">
+              Incidencia cancelada
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm">
+              <span className="font-medium">Razón:</span>{" "}
+              {incident.cancellationReason}
+            </p>
+            {incident.cancelledAt && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Cancelada el{" "}
+                {new Date(incident.cancelledAt).toLocaleString("es-MX")}
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Incident Details Card */}
       <Card>

@@ -110,7 +110,7 @@ export default function AssignmentStatusPage() {
           <code className="text-xs">ASIGNADO</code>,{" "}
           <code className="text-xs">VISTO</code>,{" "}
           <code className="text-xs">INICIADO</code>,{" "}
-          <code className="text-xs">PENDIENTE</code> y{" "}
+          <code className="text-xs">EN_PROGRESO</code> y{" "}
           <code className="text-xs">CERRADO</code> son referenciados por nombre.
           Renombrar o eliminar uno puede romper el flujo. Consulta el{" "}
           <a

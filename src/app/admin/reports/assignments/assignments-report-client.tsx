@@ -34,7 +34,7 @@ const statusColors: Record<string, string> = {
   ASIGNADO: "bg-purple-100 text-purple-800",
   VISTO: "bg-cyan-100 text-cyan-800",
   INICIADO: "bg-blue-100 text-blue-800",
-  PENDIENTE: "bg-amber-100 text-amber-800",
+  EN_PROGRESO: "bg-amber-100 text-amber-800",
   CERRADO: "bg-green-100 text-green-800",
   "Sin Estado": "bg-gray-100 text-gray-800",
 };
@@ -80,9 +80,10 @@ export function AssignmentsReportClient({
   const pendingCount =
     (data.find((d) => d.status === "PENDIENTE_DE_ASIGNACION")?.count || 0) +
     (data.find((d) => d.status === "ASIGNADO")?.count || 0) +
-    (data.find((d) => d.status === "VISTO")?.count || 0) +
-    (data.find((d) => d.status === "PENDIENTE")?.count || 0);
-  const inProgressCount = data.find((d) => d.status === "INICIADO")?.count || 0;
+    (data.find((d) => d.status === "VISTO")?.count || 0);
+  const inProgressCount =
+    (data.find((d) => d.status === "INICIADO")?.count || 0) +
+    (data.find((d) => d.status === "EN_PROGRESO")?.count || 0);
 
   // Prepare chart data
   const chartData = data.map((d) => ({

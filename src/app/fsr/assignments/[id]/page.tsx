@@ -6,12 +6,12 @@ import {
   ArrowLeft,
   CheckCircle,
   Eye,
+  Lock,
   MapPin,
   Package,
   Paperclip,
   Pause,
   Play,
-  RotateCw,
   Trash2,
 } from "lucide-react";
 import Link from "next/link";
@@ -34,10 +34,9 @@ import {
   closeAssignment,
   deleteAssignmentAttachment,
   getAssignmentById,
-  markAssignmentInProgress,
-  markAssignmentPending,
   markAssignmentSeen,
-  reopenAssignment,
+  pauseAssignment,
+  resumeAssignment,
   startAssignmentWork,
 } from "@/lib/actions/assignments";
 import { getWorkParts } from "@/lib/actions/work-parts";
@@ -269,16 +268,16 @@ export default function FSRAssignmentDetailPage({
     }
   };
 
-  const handleMarkPending = async () => {
+  const handlePauseWork = async () => {
     if (!assignmentId) return;
     try {
       setActionLoading(true);
-      await markAssignmentPending(assignmentId);
+      await pauseAssignment(assignmentId);
       await fetchData();
     } catch (error) {
       console.error("Error pausing asignación:", error);
       alert(
-        `Error al marcar como pendiente: ${(error as Error).message ?? "desconocido"}`,
+        `Error al pausar la asignación: ${(error as Error).message ?? "desconocido"}`,
       );
     } finally {
       setActionLoading(false);
@@ -289,7 +288,7 @@ export default function FSRAssignmentDetailPage({
     if (!assignmentId) return;
     try {
       setActionLoading(true);
-      await markAssignmentInProgress(assignmentId);
+      await resumeAssignment(assignmentId);
       await fetchData();
     } catch (error) {
       console.error("Error resuming asignación:", error);
@@ -305,7 +304,7 @@ export default function FSRAssignmentDetailPage({
     if (!assignmentId) return;
     if (
       !confirm(
-        "¿Cerrar esta asignación? Se capturará tu ubicación actual. Asegúrate de tener al menos una evidencia adjunta.",
+        "¿Cerrar esta asignación? Se capturará tu ubicación actual. Asegúrate de haber capturado el folio ODT y subido al menos una evidencia.",
       )
     )
       return;
@@ -324,22 +323,6 @@ export default function FSRAssignmentDetailPage({
       alert(
         `No se pudo cerrar la asignación: ${(error as Error).message ?? "error desconocido"}`,
       );
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const handleReopenWork = async () => {
-    if (!assignmentId) return;
-    if (!confirm("¿Reabrir esta asignación?")) return;
-    try {
-      setActionLoading(true);
-      await reopenAssignment(assignmentId);
-      await fetchData();
-      alert("¡Asignación reabierta!");
-    } catch (error) {
-      console.error("Error reopening asignación:", error);
-      alert(`Error al reabrir: ${(error as Error).message ?? "desconocido"}`);
     } finally {
       setActionLoading(false);
     }
@@ -401,11 +384,24 @@ export default function FSRAssignmentDetailPage({
   const isAssigned = currentStatus === "ASIGNADO";
   const isSeen = currentStatus === "VISTO";
   const isStarted = currentStatus === "INICIADO";
-  const isPending = currentStatus === "PENDIENTE";
+  const isInProgress = currentStatus === "EN_PROGRESO";
   const isClosed = currentStatus === "CERRADO";
-  // Activities and attachments are read-only once the assignment is closed.
-  const isCompleted = isClosed;
+  const incidentStatus = assignment.incident?.status?.name ?? "";
+  const incidentLocked =
+    incidentStatus === "CERRADO" || incidentStatus === "CANCELADA";
+  // Activities and attachments are read-only once the assignment is closed or
+  // the parent incident is in a terminal state.
+  const isCompleted = isClosed || incidentLocked;
   const hasEvidence = (assignment.attachments?.length ?? 0) > 0;
+  const hasOdt = Boolean(assignment.odtFolio?.trim());
+  const closeDisabledReason = !hasOdt && !hasEvidence
+    ? "Captura el folio ODT y sube al menos una evidencia antes de cerrar"
+    : !hasOdt
+      ? "Captura el folio ODT antes de cerrar"
+      : !hasEvidence
+        ? "Sube al menos una evidencia antes de cerrar"
+        : undefined;
+  const closeDisabled = actionLoading || !hasEvidence || !hasOdt;
 
   return (
     <div className="space-y-6">
@@ -423,101 +419,118 @@ export default function FSRAssignmentDetailPage({
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          {/* ASIGNADO → VISTO */}
-          {isAssigned && (
-            <Button
-              onClick={handleMarkSeen}
-              disabled={actionLoading}
-              className="bg-cyan-600 hover:bg-cyan-700"
+          {incidentLocked ? (
+            <Badge
+              variant="default"
+              className={
+                incidentStatus === "CANCELADA"
+                  ? "bg-red-600 text-base py-2 px-4"
+                  : "bg-green-600 text-base py-2 px-4"
+              }
             >
-              <Eye className="mr-2 h-4 w-4" />
-              Marcar como visto
-            </Button>
-          )}
-          {/* VISTO → INICIADO (GPS) */}
-          {isSeen && (
-            <Button
-              onClick={handleStartWork}
-              disabled={actionLoading}
-              variant="secondary"
-            >
-              <Play className="mr-2 h-4 w-4" />
-              Iniciar trabajo
-            </Button>
-          )}
-          {/* INICIADO → PENDIENTE | CERRADO */}
-          {isStarted && (
+              <Lock className="mr-2 h-4 w-4" />
+              Incidencia {incidentStatus === "CANCELADA" ? "cancelada" : "cerrada"}
+            </Badge>
+          ) : (
             <>
-              <Button
-                onClick={handleMarkPending}
-                disabled={actionLoading}
-                variant="outline"
-              >
-                <Pause className="mr-2 h-4 w-4" />
-                Pausar (Pendiente)
-              </Button>
-              <Button
-                onClick={handleCloseWork}
-                disabled={actionLoading || !hasEvidence}
-                title={
-                  !hasEvidence
-                    ? "Sube al menos una evidencia antes de cerrar"
-                    : undefined
-                }
-                className="bg-green-600 hover:bg-green-700"
-              >
-                <CheckCircle className="mr-2 h-4 w-4" />
-                Cerrar trabajo
-              </Button>
-            </>
-          )}
-          {/* PENDIENTE → INICIADO | CERRADO */}
-          {isPending && (
-            <>
-              <Button
-                onClick={handleResumeWork}
-                disabled={actionLoading}
-                variant="secondary"
-              >
-                <Play className="mr-2 h-4 w-4" />
-                Retomar
-              </Button>
-              <Button
-                onClick={handleCloseWork}
-                disabled={actionLoading || !hasEvidence}
-                title={
-                  !hasEvidence
-                    ? "Sube al menos una evidencia antes de cerrar"
-                    : undefined
-                }
-                className="bg-green-600 hover:bg-green-700"
-              >
-                <CheckCircle className="mr-2 h-4 w-4" />
-                Cerrar trabajo
-              </Button>
-            </>
-          )}
-          {/* CERRADO */}
-          {isClosed && (
-            <>
-              <Badge
-                variant="default"
-                className="bg-green-600 text-lg py-2 px-4"
-              >
-                Cerrada
-              </Badge>
-              <Button
-                onClick={handleReopenWork}
-                disabled={actionLoading}
-                variant="outline"
-              >
-                <RotateCw className="mr-2 h-4 w-4" />
-                Reabrir
-              </Button>
+              {/* ASIGNADO → VISTO */}
+              {isAssigned && (
+                <Button
+                  onClick={handleMarkSeen}
+                  disabled={actionLoading}
+                  className="bg-cyan-600 hover:bg-cyan-700"
+                >
+                  <Eye className="mr-2 h-4 w-4" />
+                  Marcar como visto
+                </Button>
+              )}
+              {/* VISTO → INICIADO (GPS) */}
+              {isSeen && (
+                <Button
+                  onClick={handleStartWork}
+                  disabled={actionLoading}
+                  variant="secondary"
+                >
+                  <Play className="mr-2 h-4 w-4" />
+                  Iniciar trabajo
+                </Button>
+              )}
+              {/* INICIADO → EN_PROGRESO | CERRADO */}
+              {isStarted && (
+                <>
+                  <Button
+                    onClick={handlePauseWork}
+                    disabled={actionLoading}
+                    variant="outline"
+                  >
+                    <Pause className="mr-2 h-4 w-4" />
+                    Pausar (En progreso)
+                  </Button>
+                  <Button
+                    onClick={handleCloseWork}
+                    disabled={closeDisabled}
+                    title={closeDisabledReason}
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    <CheckCircle className="mr-2 h-4 w-4" />
+                    Cerrar trabajo
+                  </Button>
+                </>
+              )}
+              {/* EN_PROGRESO → INICIADO | CERRADO */}
+              {isInProgress && (
+                <>
+                  <Button
+                    onClick={handleResumeWork}
+                    disabled={actionLoading}
+                    variant="secondary"
+                  >
+                    <Play className="mr-2 h-4 w-4" />
+                    Retomar
+                  </Button>
+                  <Button
+                    onClick={handleCloseWork}
+                    disabled={closeDisabled}
+                    title={closeDisabledReason}
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    <CheckCircle className="mr-2 h-4 w-4" />
+                    Cerrar trabajo
+                  </Button>
+                </>
+              )}
+              {/* CERRADO (asignación cerrada, sin reapertura por FSR) */}
+              {isClosed && (
+                <Badge
+                  variant="default"
+                  className="bg-green-600 text-lg py-2 px-4"
+                >
+                  Cerrada
+                </Badge>
+              )}
             </>
           )}
         </div>
       </div>
+
+      {incidentLocked && (
+        <Card
+          className={
+            incidentStatus === "CANCELADA"
+              ? "border-red-500 bg-red-50 dark:bg-red-950/30"
+              : "border-green-500 bg-green-50 dark:bg-green-950/30"
+          }
+        >
+          <CardContent className="py-3 flex items-center gap-3">
+            <Lock className="h-5 w-5" />
+            <p className="text-sm">
+              {incidentStatus === "CANCELADA"
+                ? "La incidencia padre está cancelada. No puedes hacer cambios en esta asignación."
+                : "La incidencia padre está cerrada. No puedes hacer cambios en esta asignación."}
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Parent Incident Info */}
       {assignment.incident && (

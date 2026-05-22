@@ -500,6 +500,30 @@ async function ensureCallerIsAssigneeOrAdmin(
 }
 
 /**
+ * Throws if the parent incident is in a terminal state (CERRADO/CANCELADA).
+ * Use to block FSR mutations on assignments whose incident is no longer editable.
+ */
+async function assertIncidentEditable(
+  client:
+    | typeof prisma
+    | Parameters<Parameters<typeof prisma.$transaction>[0]>[0],
+  incidentId: number,
+): Promise<void> {
+  const incident = await client.incident.findUnique({
+    where: { id: incidentId },
+    select: { status: { select: { name: true } } },
+  });
+  const name = incident?.status?.name;
+  if (name === "CERRADO" || name === "CANCELADA") {
+    throw new Error(
+      name === "CANCELADA"
+        ? "La incidencia está cancelada. No se pueden hacer cambios."
+        : "La incidencia está cerrada. No se pueden hacer cambios.",
+    );
+  }
+}
+
+/**
  * Mark assignment as "seen" (replaces the legacy unlock flow).
  * Sets seenAt + seenById and transitions status to VISTO.
  */
@@ -509,6 +533,7 @@ export async function markAssignmentSeen(id: string) {
   const result = await prisma.$transaction(async (tx) => {
     const current = await loadAssignmentForTransition(tx, id);
     await ensureCallerIsAssigneeOrAdmin(user.id, current.assignees);
+    await assertIncidentEditable(tx, current.incidentId);
     const from = current.status?.name as AssignmentState;
     if (from === ASSIGNMENT_STATE.VISTO) {
       return { assignment: null, incidentId: current.incidentId, noop: true };
@@ -562,6 +587,7 @@ export async function startAssignmentWork(formData: FormData) {
   const result = await prisma.$transaction(async (tx) => {
     const current = await loadAssignmentForTransition(tx, id);
     await ensureCallerIsAssigneeOrAdmin(user.id, current.assignees);
+    await assertIncidentEditable(tx, current.incidentId);
     const from = current.status?.name as AssignmentState;
     assertAssignmentTransition(from, ASSIGNMENT_STATE.INICIADO);
 
@@ -574,6 +600,7 @@ export async function startAssignmentWork(formData: FormData) {
       endLatitude: null,
       endLongitude: null,
       attachmentCount: 0,
+      odtFolio: null,
     });
 
     const statusId = await resolveAssignmentStatusId(
@@ -603,18 +630,19 @@ export async function startAssignmentWork(formData: FormData) {
 }
 
 /**
- * INICIADO → PENDIENTE (pause on-site work; awaiting validation or partial).
+ * INICIADO → EN_PROGRESO (paused on-site / work continues but not yet closed).
  */
-export async function markAssignmentPending(id: string) {
+export async function pauseAssignment(id: string) {
   const user = await requirePermission("assignments:update");
   const result = await prisma.$transaction(async (tx) => {
     const current = await loadAssignmentForTransition(tx, id);
     await ensureCallerIsAssigneeOrAdmin(user.id, current.assignees);
+    await assertIncidentEditable(tx, current.incidentId);
     const from = current.status?.name as AssignmentState;
-    assertAssignmentTransition(from, ASSIGNMENT_STATE.PENDIENTE);
+    assertAssignmentTransition(from, ASSIGNMENT_STATE.EN_PROGRESO);
     const statusId = await resolveAssignmentStatusId(
       tx,
-      ASSIGNMENT_STATE.PENDIENTE,
+      ASSIGNMENT_STATE.EN_PROGRESO,
     );
     const updated = await tx.assignment.update({
       where: { id },
@@ -629,13 +657,14 @@ export async function markAssignmentPending(id: string) {
 }
 
 /**
- * PENDIENTE → INICIADO (resume work).
+ * EN_PROGRESO → INICIADO (resume on-site work).
  */
-export async function markAssignmentInProgress(id: string) {
+export async function resumeAssignment(id: string) {
   const user = await requirePermission("assignments:update");
   const result = await prisma.$transaction(async (tx) => {
     const current = await loadAssignmentForTransition(tx, id);
     await ensureCallerIsAssigneeOrAdmin(user.id, current.assignees);
+    await assertIncidentEditable(tx, current.incidentId);
     const from = current.status?.name as AssignmentState;
     assertAssignmentTransition(from, ASSIGNMENT_STATE.INICIADO);
     const statusId = await resolveAssignmentStatusId(
@@ -655,9 +684,8 @@ export async function markAssignmentInProgress(id: string) {
 }
 
 /**
- * Close assignment — transitions INICIADO/PENDIENTE → CERRADO.
- * Requires: end GPS + at least one active attachment (evidence).
- * Does NOT require ODT folio (per business rule).
+ * Close assignment — transitions INICIADO/EN_PROGRESO → CERRADO.
+ * Requires: end GPS + at least one active attachment (evidence) + ODT folio.
  *
  * Required FormData fields:
  *  - assignmentId: string
@@ -685,11 +713,16 @@ export async function closeAssignment(formData: FormData) {
   const result = await prisma.$transaction(async (tx) => {
     const current = await loadAssignmentForTransition(tx, id);
     await ensureCallerIsAssigneeOrAdmin(user.id, current.assignees);
+    await assertIncidentEditable(tx, current.incidentId);
     const from = current.status?.name as AssignmentState;
     assertAssignmentTransition(from, ASSIGNMENT_STATE.CERRADO);
 
     const attachmentCount = await tx.assignmentAttachment.count({
       where: { assignmentId: id, active: true },
+    });
+    const odtRow = await tx.assignment.findUnique({
+      where: { id },
+      select: { odtFolio: true },
     });
     const now = new Date();
     assertAssignmentPreconditions(ASSIGNMENT_STATE.CERRADO, {
@@ -700,6 +733,7 @@ export async function closeAssignment(formData: FormData) {
       endLatitude: lat,
       endLongitude: lng,
       attachmentCount,
+      odtFolio: odtRow?.odtFolio ?? null,
     });
 
     const statusId = await resolveAssignmentStatusId(
@@ -733,17 +767,17 @@ export async function closeAssignment(formData: FormData) {
 }
 
 /**
- * Reopen a closed assignment back to PENDIENTE. Admins only via permission.
+ * Reopen a closed assignment back to EN_PROGRESO. Admins only.
  */
 export async function reopenAssignment(id: string) {
-  await requirePermission("assignments:update");
+  await requirePermission("assignments:reopen");
   const result = await prisma.$transaction(async (tx) => {
     const current = await loadAssignmentForTransition(tx, id);
     const from = current.status?.name as AssignmentState;
-    assertAssignmentTransition(from, ASSIGNMENT_STATE.PENDIENTE);
+    assertAssignmentTransition(from, ASSIGNMENT_STATE.EN_PROGRESO);
     const statusId = await resolveAssignmentStatusId(
       tx,
-      ASSIGNMENT_STATE.PENDIENTE,
+      ASSIGNMENT_STATE.EN_PROGRESO,
     );
     const updated = await tx.assignment.update({
       where: { id },
@@ -890,11 +924,12 @@ export async function uploadAssignmentAttachment(formData: FormData) {
   // Verify the assignment exists and the caller can reach its VIC
   const assignment = await prisma.assignment.findUnique({
     where: { id: assignmentId },
-    select: { incident: { select: { vicId: true } } },
+    select: { incidentId: true, incident: { select: { vicId: true } } },
   });
   if (!assignment) {
     throw new Error("Asignación no encontrada");
   }
+  await assertIncidentEditable(prisma, assignment.incidentId);
   if (assignment.incident?.vicId) {
     const { assertVicAccess } = await import("@/lib/auth/filters");
     const { requireAuth } = await import("@/lib/auth/auth");
@@ -939,11 +974,14 @@ export async function deleteAssignmentAttachment(id: string) {
 
   const attachment = await prisma.assignmentAttachment.findUnique({
     where: { id },
+    include: { assignment: { select: { incidentId: true } } },
   });
 
   if (!attachment) {
     throw new Error("Attachment not found");
   }
+
+  await assertIncidentEditable(prisma, attachment.assignment.incidentId);
 
   await prisma.assignmentAttachment.update({
     where: { id },
@@ -977,6 +1015,13 @@ export async function updateAssignmentOdtFolio(
   await requirePermission("assignments:update");
 
   const trimmed = odtFolio?.trim() || null;
+
+  const existing = await prisma.assignment.findUnique({
+    where: { id },
+    select: { incidentId: true },
+  });
+  if (!existing) throw new Error("Asignación no encontrada");
+  await assertIncidentEditable(prisma, existing.incidentId);
 
   const assignment = await prisma.assignment.update({
     where: { id },

@@ -41,7 +41,7 @@ export async function getDashboardStats() {
               "ASIGNADO",
               "VISTO",
               "INICIADO",
-              "PENDIENTE",
+              "EN_PROGRESO",
             ],
           },
         },

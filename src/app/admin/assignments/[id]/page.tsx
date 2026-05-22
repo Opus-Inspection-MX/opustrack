@@ -94,10 +94,12 @@ export default async function AssignmentDetailPage({
           <div className="flex items-center gap-3">
             <AlertTriangle className="h-5 w-5 text-primary" />
             <div>
-              <p className="text-sm text-muted-foreground">Parent Incident</p>
+              <p className="text-sm text-muted-foreground">
+                Incidencia padre
+              </p>
               <p className="font-medium">{assignment.incident.title}</p>
               <p className="text-xs text-muted-foreground">
-                Priority: {assignment.incident.priority}/10 • Status:{" "}
+                Prioridad: {assignment.incident.priority}/10 • Estado:{" "}
                 {assignment.incident.status?.name}
               </p>
             </div>
@@ -105,7 +107,7 @@ export default async function AssignmentDetailPage({
           <Button variant="outline" size="sm" asChild>
             <Link href={`/admin/incidents/${assignment.incident.id}`}>
               <ExternalLink className="mr-2 h-4 w-4" />
-              View Incident
+              Ver incidencia
             </Link>
           </Button>
         </CardContent>

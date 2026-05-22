@@ -13,60 +13,55 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getMyAssignments } from "@/lib/actions/assignments";
 import { requireRouteAccess } from "@/lib/auth/auth";
 
-interface AssignmentIncident {
-  id: number;
-  title: string;
-  priority: number;
-}
+type AssignmentStatusRef = {
+  name: string;
+  color?: string | null;
+} | null;
 
-interface Assignment {
-  id: string;
-  startedAt?: Date | string | null;
-  finishedAt?: Date | string | null;
-  seenAt?: Date | string | null;
-  assignedAt?: Date | string | null;
-  incident?: AssignmentIncident | null;
-}
+const STATUS_LABELS: Record<string, string> = {
+  PENDIENTE_DE_ASIGNACION: "Pendiente de asignación",
+  ASIGNADO: "Asignada",
+  VISTO: "Vista",
+  INICIADO: "En sitio",
+  EN_PROGRESO: "En progreso",
+  CERRADO: "Cerrada",
+};
+
+const STATUS_BADGE_CLASS: Record<string, string> = {
+  ASIGNADO: "bg-cyan-50 text-cyan-700 border-cyan-300",
+  VISTO: "bg-cyan-100 text-cyan-800 border-cyan-400",
+  INICIADO: "bg-blue-100 text-blue-800 border-blue-400",
+  EN_PROGRESO: "bg-amber-100 text-amber-800 border-amber-400",
+  CERRADO: "bg-green-600 text-white",
+};
 
 export default async function FSRAssignmentsPage() {
   await requireRouteAccess("/fsr");
   const assignments = await getMyAssignments();
 
-  // Calculate stats
+  // Calculate stats by actual status name (from DB), not derived from dates.
+  const byStatus = (name: string) =>
+    assignments.filter((wo) => wo.status?.name === name).length;
   const stats = {
     total: assignments.length,
-    pendingSeen: assignments.filter((wo) => !wo.seenAt && !wo.finishedAt)
-      .length,
-    notStarted: assignments.filter(
-      (wo) => wo.seenAt && !wo.startedAt && !wo.finishedAt,
-    ).length,
-    inProgress: assignments.filter((wo) => wo.startedAt && !wo.finishedAt)
-      .length,
-    completed: assignments.filter((wo) => wo.finishedAt).length,
+    pendingSeen: byStatus("ASIGNADO"),
+    notStarted: byStatus("VISTO"),
+    inProgress: byStatus("INICIADO") + byStatus("EN_PROGRESO"),
+    completed: byStatus("CERRADO"),
   };
 
-  const getStatusBadge = (assignment: Assignment) => {
-    if (assignment.finishedAt) {
-      return (
-        <Badge variant="default" className="bg-green-600">
-          Completada
-        </Badge>
-      );
+  const getStatusBadge = (status: AssignmentStatusRef) => {
+    const name = status?.name ?? "";
+    const label = STATUS_LABELS[name] ?? name ?? "Sin estado";
+    const cls = STATUS_BADGE_CLASS[name] ?? "";
+    if (name === "CERRADO") {
+      return <Badge className="bg-green-600 text-white">{label}</Badge>;
     }
-    if (assignment.startedAt) {
-      return <Badge variant="secondary">En Progreso</Badge>;
-    }
-    if (!assignment.seenAt) {
-      return (
-        <Badge
-          variant="outline"
-          className="bg-cyan-50 text-cyan-700 border-cyan-300"
-        >
-          Pendiente de visualizar
-        </Badge>
-      );
-    }
-    return <Badge variant="outline">No iniciada</Badge>;
+    return (
+      <Badge variant="outline" className={cls}>
+        {label}
+      </Badge>
+    );
   };
 
   const getPriorityColor = (priority: number) => {
@@ -164,7 +159,7 @@ export default async function FSRAssignmentsPage() {
                     <div className="flex-1 space-y-3">
                       {/* Status and Priority */}
                       <div className="flex items-center gap-2 flex-wrap">
-                        {getStatusBadge(wo)}
+                        {getStatusBadge(wo.status ?? null)}
                         <Badge
                           variant="outline"
                           className={getPriorityColor(
@@ -177,9 +172,6 @@ export default async function FSRAssignmentsPage() {
                           <Badge variant="outline">
                             {wo.incident.type.name}
                           </Badge>
-                        )}
-                        {wo.status && (
-                          <Badge variant="secondary">{wo.status.name}</Badge>
                         )}
                       </div>
 
@@ -244,15 +236,15 @@ export default async function FSRAssignmentsPage() {
                       <Button
                         asChild
                         className={
-                          !wo.seenAt && !wo.finishedAt
+                          wo.status?.name === "ASIGNADO"
                             ? "bg-cyan-600 hover:bg-cyan-700"
                             : ""
                         }
                       >
                         <Link href={`/fsr/assignments/${wo.id}`}>
-                          {wo.finishedAt
+                          {wo.status?.name === "CERRADO"
                             ? "Ver"
-                            : !wo.seenAt
+                            : wo.status?.name === "ASIGNADO"
                               ? "Marcar visto"
                               : "Trabajar"}
                         </Link>

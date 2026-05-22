@@ -273,14 +273,15 @@ export async function assignFSRToIncident(incidentId: number, fsrId: string) {
         },
       });
     } else {
-      const pendingStatus = await prisma.assignmentStatus.findFirst({
-        where: { name: "PENDIENTE" },
+      const initialStatus = await prisma.assignmentStatus.findFirst({
+        where: { name: "ASIGNADO" },
       });
 
       await prisma.assignment.create({
         data: {
           incidentId,
-          statusId: pendingStatus?.id,
+          statusId: initialStatus?.id,
+          assignedAt: new Date(),
           assignees: {
             create: [{ userId: fsrId }],
           },

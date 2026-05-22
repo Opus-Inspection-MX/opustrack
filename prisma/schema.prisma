@@ -253,6 +253,8 @@ model Incident {
   reportedAt   DateTime                 @default(now())
   startedAt    DateTime?
   resolvedAt   DateTime?
+  cancelledAt  DateTime?
+  cancellationReason String?
   vicId        String?
   vic          VehicleInspectionCenter? @relation(fields: [vicId], references: [id])
   reportedById String?

@@ -1592,3 +1592,64 @@ export async function bulkAssignIncidents(
   revalidatePath("/admin/programacion");
   return { ok: true, updated: found.size };
 }
+
+/**
+ * Cancel an incident. Admin-only terminal action that does not require ODT.
+ * Sets statusId to CANCELADA and records cancelledAt + cancellationReason.
+ * Once cancelled, all child assignment mutations are blocked.
+ */
+export async function cancelIncident(incidentId: number, reason?: string) {
+  await requirePermission("incidents:cancel");
+
+  const result = await prisma.$transaction(async (tx) => {
+    const incident = await tx.incident.findUnique({
+      where: { id: incidentId },
+      select: { id: true, status: { select: { name: true } } },
+    });
+    if (!incident) throw new Error("Incidencia no encontrada");
+
+    const currentStatus = incident.status?.name;
+    if (currentStatus === INCIDENT_STATE.CANCELADA) {
+      throw new Error("La incidencia ya está cancelada");
+    }
+    if (currentStatus === INCIDENT_STATE.CERRADO) {
+      throw new Error("No se puede cancelar una incidencia cerrada");
+    }
+
+    const cancelledStatus = await tx.incidentStatus.findUnique({
+      where: { name: INCIDENT_STATE.CANCELADA },
+      select: { id: true },
+    });
+    if (!cancelledStatus) {
+      throw new Error(
+        "IncidentStatus 'CANCELADA' no existe en el catálogo. Re-ejecuta el seed.",
+      );
+    }
+
+    const now = new Date();
+    const trimmedReason = reason?.trim() || null;
+
+    const updated = await tx.incident.update({
+      where: { id: incidentId },
+      data: {
+        statusId: cancelledStatus.id,
+        cancelledAt: now,
+        cancellationReason: trimmedReason,
+        resolvedAt: now,
+      },
+    });
+
+    return updated;
+  });
+
+  revalidatePath("/admin/incidents");
+  revalidatePath(`/admin/incidents/${incidentId}`);
+  revalidatePath("/admin/assignments");
+  revalidatePath("/fsr/assignments");
+  revalidatePath("/fsr/incidents");
+  revalidatePath(`/fsr/incidents/${incidentId}`);
+  revalidatePath("/client");
+  revalidatePath(`/client/incidents/${incidentId}`);
+
+  return { success: true, data: result };
+}

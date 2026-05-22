@@ -5,8 +5,6 @@ import { INCIDENT_STATE, type IncidentState } from "./incident-machine";
 
 /**
  * Map a single assignment state to the incident state it contributes.
- * PENDIENTE assignments are treated as INICIADO for incident purposes
- * (the work was already begun, just paused).
  */
 function assignmentToIncidentContribution(
   assignment: AssignmentState,
@@ -19,8 +17,9 @@ function assignmentToIncidentContribution(
     case ASSIGNMENT_STATE.VISTO:
       return INCIDENT_STATE.VISTO;
     case ASSIGNMENT_STATE.INICIADO:
-    case ASSIGNMENT_STATE.PENDIENTE:
       return INCIDENT_STATE.INICIADO;
+    case ASSIGNMENT_STATE.EN_PROGRESO:
+      return INCIDENT_STATE.EN_PROGRESO;
     case ASSIGNMENT_STATE.CERRADO:
       return INCIDENT_STATE.CERRADO;
   }
@@ -31,7 +30,9 @@ const RANK: Record<IncidentState, number> = {
   [INCIDENT_STATE.ASIGNADO]: 1,
   [INCIDENT_STATE.VISTO]: 2,
   [INCIDENT_STATE.INICIADO]: 3,
-  [INCIDENT_STATE.CERRADO]: 4,
+  [INCIDENT_STATE.EN_PROGRESO]: 4,
+  [INCIDENT_STATE.CERRADO]: 5,
+  [INCIDENT_STATE.CANCELADA]: 6,
 };
 
 export function computeIncidentStateFromAssignmentStates(
@@ -55,11 +56,24 @@ type TxClient = Prisma.TransactionClient | typeof prisma;
 /**
  * Recompute the incident's status from its active assignments and persist if
  * different. Safe to call after any assignment status mutation. Idempotent.
+ *
+ * Short-circuits when the incident is in CANCELADA — that terminal state is
+ * set directly by admin and must never be overwritten by sync.
  */
 export async function syncIncidentState(
   incidentId: number,
   client: TxClient = prisma,
-): Promise<{ before: string | null; after: IncidentState }> {
+): Promise<{ before: string | null; after: IncidentState | null }> {
+  const incident = await client.incident.findUnique({
+    where: { id: incidentId },
+    select: { status: { select: { name: true } } },
+  });
+  const before = incident?.status?.name ?? null;
+
+  if (before === INCIDENT_STATE.CANCELADA) {
+    return { before, after: INCIDENT_STATE.CANCELADA };
+  }
+
   const assignments = await client.assignment.findMany({
     where: { incidentId, active: true },
     select: { status: { select: { name: true } } },
@@ -70,12 +84,6 @@ export async function syncIncidentState(
     .filter((n): n is AssignmentState => Boolean(n)) as AssignmentState[];
 
   const target = computeIncidentStateFromAssignmentStates(states);
-
-  const incident = await client.incident.findUnique({
-    where: { id: incidentId },
-    select: { status: { select: { name: true } } },
-  });
-  const before = incident?.status?.name ?? null;
 
   if (before === target) return { before, after: target };
 

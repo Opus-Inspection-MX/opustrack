@@ -21,16 +21,31 @@ import {
  * cuando se cambien los estados en `src/lib/state-machine`.
  */
 function buildMermaid(): string {
+  // Incident: linear forward chain (ABIERTO → ... → CERRADO) plus CANCELADA
+  // branches from any non-terminal state.
+  const linearIncidentStates = INCIDENT_STATE_ORDER.filter(
+    (s) => s !== INCIDENT_STATE.CANCELADA,
+  );
   const incidentChain = INCIDENT_STATE_ORDER.map((s) => `I_${s}((${s}))`).join(
     "\n    ",
   );
-  const incidentEdges = INCIDENT_STATE_ORDER.slice(0, -1)
-    .map((s, idx) => `I_${s} --> I_${INCIDENT_STATE_ORDER[idx + 1]}`)
+  const incidentForwardEdges = linearIncidentStates
+    .slice(0, -1)
+    .map((s, idx) => `I_${s} --> I_${linearIncidentStates[idx + 1]}`)
+    .join("\n    ");
+  const incidentCancelEdges = linearIncidentStates
+    .filter((s) => s !== INCIDENT_STATE.CERRADO)
+    .map((s) => `I_${s} -.->|admin| I_${INCIDENT_STATE.CANCELADA}`)
     .join("\n    ");
 
   const assignmentNodes = ASSIGNMENT_STATE_ORDER.map(
     (s) => `A_${s}((${s}))`,
   ).join("\n    ");
+
+  const incidentNodeList = INCIDENT_STATE_ORDER.map((s) => `I_${s}`).join(",");
+  const assignmentNodeList = ASSIGNMENT_STATE_ORDER.map((s) => `A_${s}`).join(
+    ",",
+  );
 
   return `flowchart TB
   subgraph Programación["📅 Programación (Schedule)"]
@@ -42,28 +57,31 @@ function buildMermaid(): string {
   subgraph Incidente["🚨 Incidente"]
     direction LR
     ${incidentChain}
-    ${incidentEdges}
+    ${incidentForwardEdges}
+    ${incidentCancelEdges}
   end
 
-  subgraph Asignación["🔧 Asignación (Work order)"]
+  subgraph Asignación["🔧 Asignación"]
     direction LR
     ${assignmentNodes}
     A_${ASSIGNMENT_STATE.PENDIENTE_DE_ASIGNACION} --> A_${ASSIGNMENT_STATE.ASIGNADO}
     A_${ASSIGNMENT_STATE.ASIGNADO} --> A_${ASSIGNMENT_STATE.VISTO}
     A_${ASSIGNMENT_STATE.VISTO} --> A_${ASSIGNMENT_STATE.INICIADO}
-    A_${ASSIGNMENT_STATE.INICIADO} --> A_${ASSIGNMENT_STATE.CERRADO}
-    A_${ASSIGNMENT_STATE.INICIADO} --> A_${ASSIGNMENT_STATE.PENDIENTE}
-    A_${ASSIGNMENT_STATE.PENDIENTE} --> A_${ASSIGNMENT_STATE.INICIADO}
-    A_${ASSIGNMENT_STATE.PENDIENTE} --> A_${ASSIGNMENT_STATE.CERRADO}
+    A_${ASSIGNMENT_STATE.INICIADO} --> A_${ASSIGNMENT_STATE.EN_PROGRESO}
+    A_${ASSIGNMENT_STATE.EN_PROGRESO} --> A_${ASSIGNMENT_STATE.INICIADO}
+    A_${ASSIGNMENT_STATE.INICIADO} -->|ODT + evidencia| A_${ASSIGNMENT_STATE.CERRADO}
+    A_${ASSIGNMENT_STATE.EN_PROGRESO} -->|ODT + evidencia| A_${ASSIGNMENT_STATE.CERRADO}
   end
 
   Programación -. contiene .-> Incidente
   Incidente -. deriva estado de .-> Asignación
 
   classDef stateNode fill:#f0f9ff,stroke:#0284c7,color:#0c4a6e,font-weight:bold;
-  class I_${INCIDENT_STATE.ABIERTO},I_${INCIDENT_STATE.ASIGNADO},I_${INCIDENT_STATE.VISTO},I_${INCIDENT_STATE.INICIADO},I_${INCIDENT_STATE.CERRADO} stateNode;
+  classDef cancelNode fill:#fee2e2,stroke:#dc2626,color:#7f1d1d,font-weight:bold;
+  class ${incidentNodeList} stateNode;
+  class I_${INCIDENT_STATE.CANCELADA} cancelNode;
   classDef asgNode fill:#fef3c7,stroke:#d97706,color:#78350f,font-weight:bold;
-  class A_${ASSIGNMENT_STATE.PENDIENTE_DE_ASIGNACION},A_${ASSIGNMENT_STATE.ASIGNADO},A_${ASSIGNMENT_STATE.VISTO},A_${ASSIGNMENT_STATE.INICIADO},A_${ASSIGNMENT_STATE.PENDIENTE},A_${ASSIGNMENT_STATE.CERRADO} asgNode;
+  class ${assignmentNodeList} asgNode;
 `;
 }
 
@@ -113,30 +131,40 @@ export default async function LifecyclePage() {
           <p>
             <strong>Incidente.</strong> Su estado se <strong>deriva</strong> del
             estado más avanzado de sus asignaciones — nunca se cambia
-            manualmente. Un incidente sin asignaciones queda en{" "}
+            manualmente, excepto la cancelación admin. Un incidente sin
+            asignaciones queda en{" "}
             <code className="text-xs">ABIERTO</code>.
           </p>
           <p>
-            <strong>Asignación.</strong> El estado real lo lleva la asignación
-            (work order). Las transiciones son estrictas: para pasar a{" "}
-            <code className="text-xs">INICIADO</code> se requiere captura de GPS
-            y hora de inicio; para llegar a{" "}
-            <code className="text-xs">CERRADO</code> se requiere GPS final, hora
-            de cierre y al menos una evidencia adjunta.
+            <strong>Asignación.</strong> Las transiciones son estrictas: para
+            pasar a <code className="text-xs">INICIADO</code> se requiere
+            captura de GPS y hora de inicio; para llegar a{" "}
+            <code className="text-xs">CERRADO</code> se requiere GPS final,
+            hora de cierre, al menos una evidencia adjunta{" "}
+            <strong>y folio ODT registrado</strong>.
           </p>
           <p>
             <strong>
-              Estado <code className="text-xs">PENDIENTE</code>.
+              Estado <code className="text-xs">EN_PROGRESO</code>.
             </strong>{" "}
-            Pausa temporal después de iniciar. Se puede retomar a{" "}
+            Pausa o continuación después de iniciar. Se puede retomar a{" "}
             <code className="text-xs">INICIADO</code> o avanzar a{" "}
-            <code className="text-xs">CERRADO</code>.
+            <code className="text-xs">CERRADO</code> (siempre con ODT).
           </p>
           <p>
             <strong>Reapertura.</strong> Una asignación{" "}
             <code className="text-xs">CERRADO</code> sólo regresa a{" "}
-            <code className="text-xs">PENDIENTE</code> (acción de
-            administrador).
+            <code className="text-xs">EN_PROGRESO</code> y únicamente por un{" "}
+            <strong>administrador</strong>.
+          </p>
+          <p>
+            <strong>
+              Cancelación (<code className="text-xs">CANCELADA</code>).
+            </strong>{" "}
+            Estado terminal exclusivo de la incidencia, ejecutado por el
+            administrador <strong>sin necesidad de ODT</strong>. Cancelar una
+            incidencia congela todas sus asignaciones: ningún FSR puede editar
+            actividades, evidencias ni transicionar estados después.
           </p>
         </CardContent>
       </Card>

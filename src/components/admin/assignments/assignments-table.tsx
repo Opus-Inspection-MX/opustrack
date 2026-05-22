@@ -81,7 +81,7 @@ export function AssignmentsTable({
         return "default";
       case "INICIADO":
         return "secondary";
-      case "PENDIENTE":
+      case "EN_PROGRESO":
       case "VISTO":
       case "ASIGNADO":
       case "PENDIENTE_DE_ASIGNACION":

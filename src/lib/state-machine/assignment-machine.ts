@@ -2,9 +2,10 @@
  * Assignment state machine.
  *
  * Flow:
- *   PENDIENTE_DE_ASIGNACION → ASIGNADO → VISTO → INICIADO → { PENDIENTE | CERRADO }
- *   PENDIENTE ↔ INICIADO (resume)
- *   CERRADO → PENDIENTE (reopen, admin)
+ *   PENDIENTE_DE_ASIGNACION → ASIGNADO → VISTO → INICIADO ↔ EN_PROGRESO → CERRADO
+ *   CERRADO → EN_PROGRESO (reopen, admin)
+ *
+ * CERRADO requiere: GPS final, evidencia (≥1 adjunto) y folio ODT.
  */
 
 export const ASSIGNMENT_STATE = {
@@ -12,7 +13,7 @@ export const ASSIGNMENT_STATE = {
   ASIGNADO: "ASIGNADO",
   VISTO: "VISTO",
   INICIADO: "INICIADO",
-  PENDIENTE: "PENDIENTE",
+  EN_PROGRESO: "EN_PROGRESO",
   CERRADO: "CERRADO",
 } as const;
 
@@ -25,7 +26,7 @@ export const ASSIGNMENT_STATE_ORDER: AssignmentState[] = [
   ASSIGNMENT_STATE.ASIGNADO,
   ASSIGNMENT_STATE.VISTO,
   ASSIGNMENT_STATE.INICIADO,
-  ASSIGNMENT_STATE.PENDIENTE,
+  ASSIGNMENT_STATE.EN_PROGRESO,
   ASSIGNMENT_STATE.CERRADO,
 ];
 
@@ -45,17 +46,17 @@ const ALLOWED: Record<AssignmentState, ReadonlySet<AssignmentState>> = {
   ]),
   [ASSIGNMENT_STATE.INICIADO]: new Set([
     ASSIGNMENT_STATE.INICIADO,
-    ASSIGNMENT_STATE.PENDIENTE,
+    ASSIGNMENT_STATE.EN_PROGRESO,
     ASSIGNMENT_STATE.CERRADO,
   ]),
-  [ASSIGNMENT_STATE.PENDIENTE]: new Set([
-    ASSIGNMENT_STATE.PENDIENTE,
-    ASSIGNMENT_STATE.INICIADO, // resume
+  [ASSIGNMENT_STATE.EN_PROGRESO]: new Set([
+    ASSIGNMENT_STATE.EN_PROGRESO,
+    ASSIGNMENT_STATE.INICIADO, // resume on-site work
     ASSIGNMENT_STATE.CERRADO,
   ]),
   [ASSIGNMENT_STATE.CERRADO]: new Set([
     ASSIGNMENT_STATE.CERRADO,
-    ASSIGNMENT_STATE.PENDIENTE, // reopen
+    ASSIGNMENT_STATE.EN_PROGRESO, // admin reopen
   ]),
 };
 
@@ -88,6 +89,7 @@ export type AssignmentPreconditionCtx = {
   endLatitude: number | null | undefined;
   endLongitude: number | null | undefined;
   attachmentCount: number; // active assignment attachments
+  odtFolio: string | null | undefined;
 };
 
 export function assertAssignmentPreconditions(
@@ -118,6 +120,11 @@ export function assertAssignmentPreconditions(
     if (ctx.attachmentCount <= 0) {
       throw new Error(
         "No se puede cerrar la asignación sin al menos una evidencia",
+      );
+    }
+    if (!ctx.odtFolio || ctx.odtFolio.trim() === "") {
+      throw new Error(
+        "No se puede cerrar la asignación sin folio ODT registrado",
       );
     }
   }

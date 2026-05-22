@@ -161,6 +161,12 @@ async function main() {
           resource: "incidents",
           action: "close",
         },
+        {
+          name: "incidents:cancel",
+          description: "Cancel incidents (admin terminal action without ODT)",
+          resource: "incidents",
+          action: "cancel",
+        },
 
         // User management permissions
         {
@@ -264,6 +270,12 @@ async function main() {
           description: "Complete assignments",
           resource: "assignments",
           action: "complete",
+        },
+        {
+          name: "assignments:reopen",
+          description: "Reopen closed assignments (admin only)",
+          resource: "assignments",
+          action: "reopen",
         },
 
         // Assignment activity permissions
@@ -1035,13 +1047,17 @@ async function main() {
       }
       console.log("✅ Seeded IncidentTypes");
 
-      // 8) IncidentStatuses — state machine: ABIERTO → ASIGNADO → VISTO → INICIADO → CERRADO
+      // 8) IncidentStatuses — state machine:
+      //     ABIERTO → ASIGNADO → VISTO → INICIADO → EN_PROGRESO → CERRADO
+      //     (any non-terminal) → CANCELADA (admin terminal action)
       const incidentStatuses = [
         { name: "ABIERTO", color: "#94A3B8" }, // Slate - newly reported
         { name: "ASIGNADO", color: "#8B5CF6" }, // Purple - has at least one assignment
         { name: "VISTO", color: "#06B6D4" }, // Cyan - any assignment acknowledged
         { name: "INICIADO", color: "#3B82F6" }, // Blue - work started on site
+        { name: "EN_PROGRESO", color: "#F59E0B" }, // Amber - work paused / continuing
         { name: "CERRADO", color: "#10B981" }, // Green - all assignments closed
+        { name: "CANCELADA", color: "#EF4444" }, // Red - admin cancelled without ODT
       ];
       for (const status of incidentStatuses) {
         await tx.incidentStatus.upsert({
@@ -1053,13 +1069,13 @@ async function main() {
       console.log("✅ Seeded IncidentStatuses");
 
       // 8a) AssignmentStatuses — state machine:
-      //     PENDIENTE_DE_ASIGNACION → ASIGNADO → VISTO → INICIADO → { PENDIENTE | CERRADO }
+      //     PENDIENTE_DE_ASIGNACION → ASIGNADO → VISTO → INICIADO ↔ EN_PROGRESO → CERRADO
       const assignmentStatuses = [
         { name: "PENDIENTE_DE_ASIGNACION", color: "#94A3B8" }, // Slate - created without assignees
         { name: "ASIGNADO", color: "#8B5CF6" }, // Purple - has assignee(s)
         { name: "VISTO", color: "#06B6D4" }, // Cyan - FSR acknowledged
         { name: "INICIADO", color: "#3B82F6" }, // Blue - on-site work in progress
-        { name: "PENDIENTE", color: "#F59E0B" }, // Amber - partial / awaiting validation
+        { name: "EN_PROGRESO", color: "#F59E0B" }, // Amber - paused / continuing on-site
         { name: "CERRADO", color: "#10B981" }, // Green - work finished
       ];
       for (const status of assignmentStatuses) {
@@ -1067,6 +1083,30 @@ async function main() {
           where: { name: status.name },
           update: { color: status.color, active: true },
           create: { name: status.name, color: status.color },
+        });
+      }
+
+      // Data migration: any existing rows still pointing to the legacy
+      // PENDIENTE assignment status are moved to EN_PROGRESO, then the legacy
+      // status row is soft-deactivated so future seeds don't reintroduce it.
+      const legacyPendiente = await tx.assignmentStatus.findUnique({
+        where: { name: "PENDIENTE" },
+        select: { id: true },
+      });
+      if (legacyPendiente) {
+        const enProgreso = await tx.assignmentStatus.findUnique({
+          where: { name: "EN_PROGRESO" },
+          select: { id: true },
+        });
+        if (enProgreso) {
+          await tx.assignment.updateMany({
+            where: { statusId: legacyPendiente.id },
+            data: { statusId: enProgreso.id },
+          });
+        }
+        await tx.assignmentStatus.update({
+          where: { id: legacyPendiente.id },
+          data: { active: false },
         });
       }
       console.log("✅ Seeded AssignmentStatuses");

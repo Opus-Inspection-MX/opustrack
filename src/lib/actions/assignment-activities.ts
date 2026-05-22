@@ -10,6 +10,21 @@ export type AssignmentActivityFormData = {
   performedAt?: Date;
 };
 
+async function assertAssignmentEditable(assignmentId: string): Promise<void> {
+  const row = await prisma.assignment.findUnique({
+    where: { id: assignmentId },
+    select: { incident: { select: { status: { select: { name: true } } } } },
+  });
+  const name = row?.incident?.status?.name;
+  if (name === "CERRADO" || name === "CANCELADA") {
+    throw new Error(
+      name === "CANCELADA"
+        ? "La incidencia está cancelada. No se pueden hacer cambios."
+        : "La incidencia está cerrada. No se pueden hacer cambios.",
+    );
+  }
+}
+
 /**
  * Get all assignment activities (admin view)
  */
@@ -72,6 +87,7 @@ export async function createAssignmentActivity(
   data: AssignmentActivityFormData,
 ) {
   await requirePermission("assignments:update");
+  await assertAssignmentEditable(data.assignmentId);
 
   const activity = await prisma.assignmentActivity.create({
     data: {
@@ -93,6 +109,12 @@ export async function updateAssignmentActivity(
   data: Partial<AssignmentActivityFormData>,
 ) {
   await requirePermission("assignments:update");
+
+  const ref0 = await prisma.assignmentActivity.findUnique({
+    where: { id },
+    select: { assignmentId: true },
+  });
+  if (ref0) await assertAssignmentEditable(ref0.assignmentId);
 
   const activity = await prisma.assignmentActivity.update({
     where: { id },
@@ -124,6 +146,8 @@ export async function deleteAssignmentActivity(id: string) {
     where: { id },
     select: { assignmentId: true },
   });
+
+  if (activity) await assertAssignmentEditable(activity.assignmentId);
 
   await prisma.assignmentActivity.update({
     where: { id },
