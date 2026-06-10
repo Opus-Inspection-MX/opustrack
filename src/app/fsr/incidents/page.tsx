@@ -16,12 +16,6 @@ export default async function FSRIncidentsPage() {
   await requireRouteAccess("/fsr");
   const incidents = await getMyIncidents();
 
-  const getPriorityColor = (priority: number) => {
-    if (priority >= 8) return "text-red-600 font-bold";
-    if (priority >= 5) return "text-orange-600 font-semibold";
-    return "text-blue-600";
-  };
-
   const getStatusColor = (statusName: string | undefined) => {
     switch (statusName) {
       case "ABIERTO":
@@ -79,12 +73,6 @@ export default async function FSRIncidentsPage() {
                             {incident.status.name}
                           </Badge>
                         )}
-                        <Badge
-                          variant="outline"
-                          className={getPriorityColor(incident.priority)}
-                        >
-                          Prioridad: {incident.priority}/10
-                        </Badge>
                         {incident.type && (
                           <Badge variant="outline">{incident.type.name}</Badge>
                         )}
@@ -102,10 +90,10 @@ export default async function FSRIncidentsPage() {
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm text-muted-foreground">
-                        {incident.vic && (
+                        {incident.cliente && (
                           <div className="flex items-center gap-1">
                             <Building2 className="h-3 w-3" />
-                            <span>{incident.vic.name}</span>
+                            <span>{incident.cliente.name}</span>
                           </div>
                         )}
                         {incident.reportedBy && (
@@ -124,12 +112,6 @@ export default async function FSRIncidentsPage() {
 
                       <div className="text-xs text-muted-foreground">
                         {incident._count.assignments} asignación(es)
-                        <span className="ml-4">
-                          SLA:{" "}
-                          {incident.type?.sla != null
-                            ? `${incident.type.sla}h`
-                            : "Sin SLA"}
-                        </span>
                       </div>
                     </div>
 

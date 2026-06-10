@@ -281,10 +281,10 @@ export default function AdminProfilePage() {
                 <div className="flex items-center gap-3">
                   <Building className="h-5 w-5 text-muted-foreground" />
                   <div>
-                    <p className="text-sm text-muted-foreground">VIC</p>
+                    <p className="text-sm text-muted-foreground">Cliente</p>
                     <p className="font-medium">
-                      {user.vic
-                        ? `${user.vic.name} (${user.vic.code})`
+                      {user.cliente
+                        ? `${user.cliente.name} (${user.cliente.code})`
                         : "Sin asignar"}
                     </p>
                   </div>

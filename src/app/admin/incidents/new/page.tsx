@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { getIncidentFormOptions } from "@/lib/actions/incidents";
 
 export default async function NewIncidentPage() {
-  const { types, statuses, vics, users, schedules } =
+  const { types, statuses, clientes, users, schedules } =
     await getIncidentFormOptions();
 
   return (
@@ -27,7 +27,7 @@ export default async function NewIncidentPage() {
       <IncidentForm
         types={types}
         statuses={statuses}
-        vics={vics}
+        clientes={clientes}
         users={users}
         schedules={schedules}
       />

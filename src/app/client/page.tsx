@@ -40,23 +40,6 @@ export default async function ClientDashboard() {
     total: incidents.length,
   };
 
-  const getPriorityBadge = (priority: number) => {
-    if (priority >= 8) {
-      return <Badge variant="destructive">Crítica</Badge>;
-    }
-    if (priority >= 5) {
-      return (
-        <Badge variant="default" className="bg-orange-500">
-          Alta
-        </Badge>
-      );
-    }
-    if (priority >= 3) {
-      return <Badge variant="secondary">Media</Badge>;
-    }
-    return <Badge variant="outline">Baja</Badge>;
-  };
-
   const getStatusBadge = (status: IncidentStatus | null | undefined) => {
     if (!status) {
       return <Badge variant="outline">Desconocido</Badge>;
@@ -79,7 +62,7 @@ export default async function ClientDashboard() {
         <div>
           <h1 className="text-3xl font-bold">Mis Incidentes</h1>
           <p className="text-muted-foreground mt-2">
-            Rastrea y reporta incidentes para tu CVV
+            Rastrea y reporta incidentes para tu Cliente
           </p>
         </div>
         <Button asChild>
@@ -90,16 +73,16 @@ export default async function ClientDashboard() {
         </Button>
       </div>
 
-      {/* VIC Info */}
-      {user?.vic && (
+      {/* Cliente Info */}
+      {user?.cliente && (
         <Card className="bg-muted/30">
           <CardContent className="py-4">
             <div className="flex items-center gap-3">
               <Building className="h-5 w-5 text-primary" />
               <div>
-                <p className="text-sm text-muted-foreground">Tu CVV</p>
+                <p className="text-sm text-muted-foreground">Tu Cliente</p>
                 <p className="font-medium">
-                  {user.vic.name} ({user.vic.code})
+                  {user.cliente.name} ({user.cliente.code})
                 </p>
               </div>
             </div>
@@ -189,7 +172,6 @@ export default async function ClientDashboard() {
                       <span className="font-mono text-sm text-muted-foreground">
                         INC-{incident.id}
                       </span>
-                      {getPriorityBadge(incident.priority)}
                       {getStatusBadge(incident.status)}
                       {incident.type && (
                         <Badge variant="outline">{incident.type.name}</Badge>
@@ -209,12 +191,6 @@ export default async function ClientDashboard() {
                       <span>
                         Reportado:{" "}
                         {new Date(incident.reportedAt).toLocaleDateString()}
-                      </span>
-                      <span>
-                        SLA:{" "}
-                        {incident.type?.sla != null
-                          ? `${incident.type.sla}h`
-                          : "Sin SLA"}
                       </span>
                       {incident._count?.assignments &&
                         incident._count.assignments > 0 && (

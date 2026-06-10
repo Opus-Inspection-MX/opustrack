@@ -7,10 +7,10 @@ import { requirePermission } from "@/lib/auth/auth";
 import { prisma } from "@/lib/database/prisma.singleton";
 import { hashPassword } from "@/lib/security/hash";
 import {
-  assignUserToVic,
-  getPrimaryVicId,
-  removeUserFromVic,
-} from "@/lib/utils/vic-assignments";
+  assignUserToCliente,
+  getPrimaryClienteId,
+  removeUserFromCliente,
+} from "@/lib/utils/cliente-assignments";
 
 export type UserFormData = {
   name: string;
@@ -18,7 +18,7 @@ export type UserFormData = {
   password?: string;
   roleId: number;
   userStatusId: number;
-  vicId?: string | null;
+  clienteId?: string | null;
   telephone?: string;
   secondaryTelephone?: string;
   emergencyContact?: string;
@@ -36,7 +36,7 @@ export async function getUsers() {
     include: {
       role: true,
       userStatus: true,
-      vic: true,
+      cliente: true,
       userProfile: true,
     },
     orderBy: { createdAt: "desc" },
@@ -56,7 +56,7 @@ export async function getUserById(id: string) {
     include: {
       role: true,
       userStatus: true,
-      vic: true,
+      cliente: true,
       userProfile: true,
     },
   });
@@ -95,14 +95,14 @@ export async function createUser(data: UserFormData) {
     include: {
       role: true,
       userStatus: true,
-      vic: true,
+      cliente: true,
       userProfile: true,
     },
   });
 
-  // Assign VIC via UserVicAssignment if provided
-  if (data.vicId) {
-    await assignUserToVic(user.id, data.vicId, true);
+  // Assign Cliente via UserClienteAssignment if provided
+  if (data.clienteId) {
+    await assignUserToCliente(user.id, data.clienteId, true);
   }
 
   revalidatePath("/admin/users");
@@ -139,22 +139,22 @@ export async function updateUser(id: string, data: UserFormData) {
     include: {
       role: true,
       userStatus: true,
-      vic: true,
+      cliente: true,
       userProfile: true,
     },
   });
 
-  // Manage VIC assignment via UserVicAssignment
-  const currentVicId = await getPrimaryVicId(id);
-  if (data.vicId && data.vicId !== currentVicId) {
-    // VIC changed: remove old, assign new
-    if (currentVicId) {
-      await removeUserFromVic(id, currentVicId);
+  // Manage Cliente assignment via UserClienteAssignment
+  const currentClienteId = await getPrimaryClienteId(id);
+  if (data.clienteId && data.clienteId !== currentClienteId) {
+    // Cliente changed: remove old, assign new
+    if (currentClienteId) {
+      await removeUserFromCliente(id, currentClienteId);
     }
-    await assignUserToVic(id, data.vicId, true);
-  } else if (!data.vicId && currentVicId) {
-    // VIC cleared: remove old
-    await removeUserFromVic(id, currentVicId);
+    await assignUserToCliente(id, data.clienteId, true);
+  } else if (!data.clienteId && currentClienteId) {
+    // Cliente cleared: remove old
+    await removeUserFromCliente(id, currentClienteId);
   }
 
   // Update or create user profile
@@ -214,12 +214,12 @@ export async function deleteUser(id: string) {
 }
 
 /**
- * Get form options (roles, statuses, VICs)
+ * Get form options (roles, statuses, Clientes)
  */
 export async function getUserFormOptions() {
   await requirePermission("users:read");
 
-  const [roles, statuses, vics] = await Promise.all([
+  const [roles, statuses, clientes] = await Promise.all([
     prisma.role.findMany({
       where: { active: true },
       orderBy: { name: "asc" },
@@ -228,13 +228,13 @@ export async function getUserFormOptions() {
       where: { active: true },
       orderBy: { name: "asc" },
     }),
-    prisma.vehicleInspectionCenter.findMany({
+    prisma.cliente.findMany({
       where: { active: true },
       orderBy: { name: "asc" },
     }),
   ]);
 
-  return { roles, statuses, vics };
+  return { roles, statuses, clientes };
 }
 
 /**
@@ -249,7 +249,7 @@ export async function getMyProfile() {
     include: {
       role: true,
       userStatus: true,
-      vic: true,
+      cliente: true,
       userProfile: true,
     },
   });

@@ -82,9 +82,9 @@ export default async function EquipmentDetailPage({
             <div className="flex items-start gap-3">
               <Wrench className="h-5 w-5 text-muted-foreground mt-0.5" />
               <div className="flex-1">
-                <p className="text-sm text-muted-foreground">CVV</p>
+                <p className="text-sm text-muted-foreground">Cliente</p>
                 <p className="font-medium">
-                  {equipment.line.vic.name} ({equipment.line.vic.code})
+                  {equipment.line.cliente.name} ({equipment.line.cliente.code})
                 </p>
               </div>
             </div>

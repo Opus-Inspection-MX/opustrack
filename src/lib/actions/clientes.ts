@@ -4,9 +4,9 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requirePermission } from "@/lib/auth/auth";
 import { prisma } from "@/lib/database/prisma.singleton";
-import { assignUserToVic } from "@/lib/utils/vic-assignments";
+import { assignUserToCliente } from "@/lib/utils/cliente-assignments";
 
-export type VICFormData = {
+export type ClienteFormData = {
   code: string;
   name: string;
   address?: string;
@@ -21,12 +21,12 @@ export type VICFormData = {
 };
 
 /**
- * Get all VICs with relations
+ * Get all Clientes with relations
  */
-export async function getVICs() {
-  await requirePermission("vics:read");
+export async function getClientes() {
+  await requirePermission("clientes:read");
 
-  const vics = await prisma.vehicleInspectionCenter.findMany({
+  const clientes = await prisma.cliente.findMany({
     where: { active: true },
     include: {
       state: true,
@@ -57,37 +57,37 @@ export async function getVICs() {
     where: { name: "FSR" },
   });
 
-  // For each VIC, count how many FSRs have this VIC in their vicIds array
-  const vicsWithFSRCount = await Promise.all(
-    vics.map(async (vic) => {
+  // For each Cliente, count how many FSRs have this Cliente in their clienteIds array
+  const clientesWithFSRCount = await Promise.all(
+    clientes.map(async (cliente) => {
       if (!fsrRole) {
-        return { ...vic, fsrCount: 0 };
+        return { ...cliente, fsrCount: 0 };
       }
 
       const fsrCount = await prisma.user.count({
         where: {
           roleId: fsrRole.id,
           active: true,
-          vicAssignments: {
-            some: { vicId: vic.id, active: true },
+          clienteAssignments: {
+            some: { clienteId: cliente.id, active: true },
           },
         },
       });
 
-      return { ...vic, fsrCount };
+      return { ...cliente, fsrCount };
     }),
   );
 
-  return vicsWithFSRCount;
+  return clientesWithFSRCount;
 }
 
 /**
- * Get single VIC by ID
+ * Get single Cliente by ID
  */
-export async function getVICById(id: string) {
-  await requirePermission("vics:read");
+export async function getClienteById(id: string) {
+  await requirePermission("clientes:read");
 
-  const vic = await prisma.vehicleInspectionCenter.findUnique({
+  const cliente = await prisma.cliente.findUnique({
     where: { id },
     include: {
       state: true,
@@ -121,23 +121,23 @@ export async function getVICById(id: string) {
         select: {
           users: true,
           incidents: true,
-          scheduleVics: true,
+          scheduleClientes: true,
           lines: true,
         },
       },
     },
   });
 
-  return vic;
+  return cliente;
 }
 
 /**
- * Create new VIC
+ * Create new Cliente
  */
-export async function createVIC(data: VICFormData) {
-  await requirePermission("vics:create");
+export async function createCliente(data: ClienteFormData) {
+  await requirePermission("clientes:create");
 
-  const vic = await prisma.vehicleInspectionCenter.create({
+  const cliente = await prisma.cliente.create({
     data: {
       code: data.code,
       name: data.name,
@@ -154,35 +154,35 @@ export async function createVIC(data: VICFormData) {
     },
   });
 
-  // Assign FSRs to this VIC if provided
+  // Assign FSRs to this Cliente if provided
   if (data.fsrIds && data.fsrIds.length > 0) {
     for (const fsrId of data.fsrIds) {
-      await prisma.userVicAssignment.upsert({
-        where: { userId_vicId: { userId: fsrId, vicId: vic.id } },
+      await prisma.userClienteAssignment.upsert({
+        where: { userId_clienteId: { userId: fsrId, clienteId: cliente.id } },
         update: { active: true },
-        create: { userId: fsrId, vicId: vic.id, isPrimary: false },
+        create: { userId: fsrId, clienteId: cliente.id, isPrimary: false },
       });
     }
   }
 
-  // Assign CLIENT users to this VIC if provided
+  // Assign CLIENT users to this Cliente if provided
   if (data.clientIds && data.clientIds.length > 0) {
     for (const clientId of data.clientIds) {
-      await assignUserToVic(clientId, vic.id, true);
+      await assignUserToCliente(clientId, cliente.id, true);
     }
   }
 
-  revalidatePath("/admin/vic-centers");
-  return { success: true, data: vic };
+  revalidatePath("/admin/clientes");
+  return { success: true, data: cliente };
 }
 
 /**
- * Update existing VIC
+ * Update existing Cliente
  */
-export async function updateVIC(id: string, data: VICFormData) {
-  await requirePermission("vics:update");
+export async function updateCliente(id: string, data: ClienteFormData) {
+  await requirePermission("clientes:update");
 
-  const vic = await prisma.vehicleInspectionCenter.update({
+  const cliente = await prisma.cliente.update({
     where: { id },
     data: {
       code: data.code,
@@ -209,8 +209,8 @@ export async function updateVIC(id: string, data: VICFormData) {
 
     if (fsrRole) {
       // Get currently assigned FSRs via junction table
-      const currentAssignments = await prisma.userVicAssignment.findMany({
-        where: { vicId: id, active: true, user: { roleId: fsrRole.id } },
+      const currentAssignments = await prisma.userClienteAssignment.findMany({
+        where: { clienteId: id, active: true, user: { roleId: fsrRole.id } },
         select: { userId: true },
       });
 
@@ -229,24 +229,24 @@ export async function updateVIC(id: string, data: VICFormData) {
 
       // Unassign FSRs - soft delete the assignment
       if (fsrsToUnassign.length > 0) {
-        await prisma.userVicAssignment.updateMany({
-          where: { vicId: id, userId: { in: fsrsToUnassign } },
+        await prisma.userClienteAssignment.updateMany({
+          where: { clienteId: id, userId: { in: fsrsToUnassign } },
           data: { active: false },
         });
       }
 
       // Assign new FSRs - upsert assignments
       for (const fsrId of fsrsToAssign) {
-        await prisma.userVicAssignment.upsert({
-          where: { userId_vicId: { userId: fsrId, vicId: id } },
+        await prisma.userClienteAssignment.upsert({
+          where: { userId_clienteId: { userId: fsrId, clienteId: id } },
           update: { active: true },
-          create: { userId: fsrId, vicId: id, isPrimary: false },
+          create: { userId: fsrId, clienteId: id, isPrimary: false },
         });
       }
     }
   }
 
-  // Handle CLIENT user reassignment via UserVicAssignment
+  // Handle CLIENT user reassignment via UserClienteAssignment
   if (data.clientIds !== undefined) {
     // Get CLIENT role
     const clientRole = await prisma.role.findFirst({
@@ -255,9 +255,9 @@ export async function updateVIC(id: string, data: VICFormData) {
 
     if (clientRole) {
       // Get currently assigned CLIENT users via junction table
-      const currentAssignments = await prisma.userVicAssignment.findMany({
+      const currentAssignments = await prisma.userClienteAssignment.findMany({
         where: {
-          vicId: id,
+          clienteId: id,
           active: true,
           user: { roleId: clientRole.id },
         },
@@ -279,55 +279,55 @@ export async function updateVIC(id: string, data: VICFormData) {
 
       // Unassign CLIENTs - soft delete the assignment
       if (clientsToUnassign.length > 0) {
-        await prisma.userVicAssignment.updateMany({
-          where: { vicId: id, userId: { in: clientsToUnassign } },
+        await prisma.userClienteAssignment.updateMany({
+          where: { clienteId: id, userId: { in: clientsToUnassign } },
           data: { active: false },
         });
       }
 
       // Assign new CLIENTs
       for (const clientId of clientsToAssign) {
-        await assignUserToVic(clientId, id, true);
+        await assignUserToCliente(clientId, id, true);
       }
     }
   }
 
-  revalidatePath("/admin/vic-centers");
-  revalidatePath(`/admin/vic-centers/${id}`);
-  return { success: true, data: vic };
+  revalidatePath("/admin/clientes");
+  revalidatePath(`/admin/clientes/${id}`);
+  return { success: true, data: cliente };
 }
 
 /**
- * Delete VIC (soft delete)
+ * Delete Cliente (soft delete)
  */
-export async function deleteVIC(id: string) {
-  await requirePermission("vics:delete");
+export async function deleteCliente(id: string) {
+  await requirePermission("clientes:delete");
 
-  // Check if VIC has active user assignments
-  const userCount = await prisma.userVicAssignment.count({
-    where: { vicId: id, active: true },
+  // Check if Cliente has active user assignments
+  const userCount = await prisma.userClienteAssignment.count({
+    where: { clienteId: id, active: true },
   });
 
   if (userCount > 0) {
     throw new Error(
-      `Cannot delete VIC. ${userCount} active user(s) are assigned to this center.`,
+      `Cannot delete Cliente. ${userCount} active user(s) are assigned to this center.`,
     );
   }
 
-  await prisma.vehicleInspectionCenter.update({
+  await prisma.cliente.update({
     where: { id },
     data: { active: false },
   });
 
-  revalidatePath("/admin/vic-centers");
-  redirect("/admin/vic-centers");
+  revalidatePath("/admin/clientes");
+  redirect("/admin/clientes");
 }
 
 /**
- * Get all states for VIC form
+ * Get all states for Cliente form
  */
 export async function getStates() {
-  await requirePermission("vics:read");
+  await requirePermission("clientes:read");
 
   const states = await prisma.state.findMany({
     where: { active: true },
@@ -361,18 +361,18 @@ export async function getFSRUsers() {
       id: true,
       name: true,
       email: true,
-      vicAssignments: {
+      clienteAssignments: {
         where: { active: true },
-        select: { vicId: true },
+        select: { clienteId: true },
       },
     },
     orderBy: { name: "asc" },
   });
 
-  // Map vicAssignments to vicIds for backward compatibility with consumers
+  // Map clienteAssignments to clienteIds for backward compatibility with consumers
   return fsrUsers.map((user) => ({
     ...user,
-    vicIds: user.vicAssignments.map((va) => va.vicId),
+    clienteIds: user.clienteAssignments.map((va) => va.clienteId),
   }));
 }
 
@@ -400,17 +400,17 @@ export async function getClientUsers() {
       id: true,
       name: true,
       email: true,
-      vicAssignments: {
+      clienteAssignments: {
         where: { active: true, isPrimary: true },
-        select: { vicId: true },
+        select: { clienteId: true },
       },
     },
     orderBy: { name: "asc" },
   });
 
-  // Map vicAssignments to vicId for backward compatibility
+  // Map clienteAssignments to clienteId for backward compatibility
   return clientUsers.map((user) => ({
     ...user,
-    vicId: user.vicAssignments[0]?.vicId ?? null,
+    clienteId: user.clienteAssignments[0]?.clienteId ?? null,
   }));
 }

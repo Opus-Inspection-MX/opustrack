@@ -16,10 +16,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { createVIC, updateVIC, type VICFormData } from "@/lib/actions/vics";
+import {
+  type ClienteFormData,
+  createCliente,
+  updateCliente,
+} from "@/lib/actions/clientes";
 
-type VICFormProps = {
-  vic?: {
+type ClienteFormProps = {
+  cliente?: {
     id: string;
     code: string;
     name: string;
@@ -41,30 +45,37 @@ type VICFormProps = {
     id: string;
     name: string;
     email: string;
-    vicIds: string[];
+    clienteIds: string[];
   }>;
   clientUsers: Array<{
     id: string;
     name: string;
     email: string;
-    vicId: string | null;
+    clienteId: string | null;
   }>;
 };
 
-export function VICForm({ vic, states, fsrUsers, clientUsers }: VICFormProps) {
+export function ClienteForm({
+  cliente,
+  states,
+  fsrUsers,
+  clientUsers,
+}: ClienteFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Get currently assigned FSR IDs (FSRs that have this VIC in their vicIds array)
-  const assignedFSRIds = vic
-    ? fsrUsers.filter((fsr) => fsr.vicIds.includes(vic.id)).map((fsr) => fsr.id)
+  // Get currently assigned FSR IDs (FSRs that have this Cliente in their clienteIds array)
+  const assignedFSRIds = cliente
+    ? fsrUsers
+        .filter((fsr) => fsr.clienteIds.includes(cliente.id))
+        .map((fsr) => fsr.id)
     : [];
 
   // Get currently assigned CLIENT user IDs
-  const assignedClientIds = vic
+  const assignedClientIds = cliente
     ? clientUsers
-        .filter((client) => client.vicId === vic.id)
+        .filter((client) => client.clienteId === cliente.id)
         .map((client) => client.id)
     : [];
 
@@ -74,16 +85,16 @@ export function VICForm({ vic, states, fsrUsers, clientUsers }: VICFormProps) {
   const [fsrSearchQuery, setFsrSearchQuery] = useState("");
   const [clientSearchQuery, setClientSearchQuery] = useState("");
 
-  const [formData, setFormData] = useState<VICFormData>({
-    code: vic?.code || "",
-    name: vic?.name || "",
-    address: vic?.address || "",
-    rfc: vic?.rfc || "",
-    companyName: vic?.companyName || "",
-    phone: vic?.phone || "",
-    contact: vic?.contact || "",
-    email: vic?.email || "",
-    stateId: vic?.stateId || states[0]?.id || 0,
+  const [formData, setFormData] = useState<ClienteFormData>({
+    code: cliente?.code || "",
+    name: cliente?.name || "",
+    address: cliente?.address || "",
+    rfc: cliente?.rfc || "",
+    companyName: cliente?.companyName || "",
+    phone: cliente?.phone || "",
+    contact: cliente?.contact || "",
+    email: cliente?.email || "",
+    stateId: cliente?.stateId || states[0]?.id || 0,
   });
 
   // Filter FSRs based on search query
@@ -136,12 +147,12 @@ export function VICForm({ vic, states, fsrUsers, clientUsers }: VICFormProps) {
         clientIds: selectedClients,
       };
 
-      if (vic) {
-        await updateVIC(vic.id, dataWithUsers);
+      if (cliente) {
+        await updateCliente(cliente.id, dataWithUsers);
       } else {
-        await createVIC(dataWithUsers);
+        await createCliente(dataWithUsers);
       }
-      router.push("/admin/vic-centers");
+      router.push("/admin/clientes");
       router.refresh();
     } catch (err) {
       setError((err as Error).message);
@@ -171,7 +182,7 @@ export function VICForm({ vic, states, fsrUsers, clientUsers }: VICFormProps) {
                 onChange={(e) =>
                   setFormData({ ...formData, code: e.target.value })
                 }
-                placeholder="Ej: VIC001"
+                placeholder="Ej: Cliente001"
                 required
               />
             </div>
@@ -365,8 +376,8 @@ export function VICForm({ vic, states, fsrUsers, clientUsers }: VICFormProps) {
                 <div className="divide-y">
                   {filteredFSRs.map((fsr) => {
                     const isSelected = selectedFSRs.includes(fsr.id);
-                    const otherVicsCount = fsr.vicIds.filter(
-                      (vicId) => vicId !== vic?.id,
+                    const otherClientesCount = fsr.clienteIds.filter(
+                      (clienteId) => clienteId !== cliente?.id,
                     ).length;
 
                     return (
@@ -381,10 +392,10 @@ export function VICForm({ vic, states, fsrUsers, clientUsers }: VICFormProps) {
                           <p className="text-xs text-muted-foreground">
                             {fsr.email}
                           </p>
-                          {otherVicsCount > 0 && (
+                          {otherClientesCount > 0 && (
                             <p className="text-xs text-blue-600 mt-1">
-                              Asignado a {otherVicsCount} otro
-                              {otherVicsCount > 1 ? "s" : ""} CVV
+                              Asignado a {otherClientesCount} otro
+                              {otherClientesCount > 1 ? "s" : ""} Cliente
                             </p>
                           )}
                         </div>
@@ -474,7 +485,7 @@ export function VICForm({ vic, states, fsrUsers, clientUsers }: VICFormProps) {
                   {filteredClients.map((client) => {
                     const isSelected = selectedClients.includes(client.id);
                     const isAssignedToOther =
-                      client.vicId && client.vicId !== vic?.id;
+                      client.clienteId && client.clienteId !== cliente?.id;
 
                     return (
                       <button
@@ -490,7 +501,7 @@ export function VICForm({ vic, states, fsrUsers, clientUsers }: VICFormProps) {
                           </p>
                           {isAssignedToOther && (
                             <p className="text-xs text-blue-600 mt-1">
-                              Ya asignado a otro CVV
+                              Ya asignado a otro Cliente
                             </p>
                           )}
                         </div>
@@ -525,7 +536,11 @@ export function VICForm({ vic, states, fsrUsers, clientUsers }: VICFormProps) {
           Cancelar
         </Button>
         <Button type="submit" disabled={loading}>
-          {loading ? "Guardando..." : vic ? "Actualizar VIC" : "Crear VIC"}
+          {loading
+            ? "Guardando..."
+            : cliente
+              ? "Actualizar Cliente"
+              : "Crear Cliente"}
         </Button>
       </div>
     </form>

@@ -13,7 +13,7 @@ declare module "next-auth" {
       defaultPath: string;
     };
     sessionVersion?: number;
-    vicId?: string | null;
+    clienteId?: string | null;
   }
 
   interface Session {
@@ -25,7 +25,7 @@ declare module "next-auth" {
       roleName?: string;
       defaultPath?: string;
       sessionVersion?: number;
-      vicId?: string;
+      clienteId?: string;
     };
   }
 }
@@ -39,6 +39,6 @@ declare module "next-auth/jwt" {
     roleName?: string;
     defaultPath?: string;
     sessionVersion?: number;
-    vicId?: string;
+    clienteId?: string;
   }
 }

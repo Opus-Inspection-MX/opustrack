@@ -23,9 +23,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { getClientes } from "@/lib/actions/clientes";
 import { createEquipment, updateEquipment } from "@/lib/actions/equipments";
-import { getLinesByVicId } from "@/lib/actions/lines";
-import { getVICs } from "@/lib/actions/vics";
+import { getLinesByClienteId } from "@/lib/actions/lines";
 
 interface EquipmentFormProps {
   equipment?: {
@@ -34,13 +34,13 @@ interface EquipmentFormProps {
     description?: string | null;
     lineId: number;
     line?: {
-      vicId: string;
+      clienteId: string;
     };
   };
   mode: "create" | "edit";
 }
 
-interface VIC {
+interface Cliente {
   id: string;
   name: string;
   code: string;
@@ -55,7 +55,7 @@ export function EquipmentForm({ equipment, mode }: EquipmentFormProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [vics, setVics] = useState<VIC[]>([]);
+  const [clientes, setClientes] = useState<Cliente[]>([]);
   const [lines, setLines] = useState<Line[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingLines, setLoadingLines] = useState(false);
@@ -63,26 +63,26 @@ export function EquipmentForm({ equipment, mode }: EquipmentFormProps) {
   const [formData, setFormData] = useState({
     name: equipment?.name || "",
     description: equipment?.description || "",
-    vicId: equipment?.line?.vicId || "",
+    clienteId: equipment?.line?.clienteId || "",
     lineId: equipment?.lineId?.toString() || "",
   });
 
-  const loadVics = useCallback(async () => {
+  const loadClientes = useCallback(async () => {
     try {
-      const data = await getVICs();
-      setVics(data);
+      const data = await getClientes();
+      setClientes(data);
     } catch (error) {
-      console.error("Error loading VICs:", error);
-      setErrors({ general: "Error al cargar los CVV" });
+      console.error("Error loading Clientes:", error);
+      setErrors({ general: "Error al cargar los Cliente" });
     } finally {
       setLoading(false);
     }
   }, []);
 
-  const loadLinesByVic = useCallback(async (vicId: string) => {
+  const loadLinesByCliente = useCallback(async (clienteId: string) => {
     setLoadingLines(true);
     try {
-      const data = await getLinesByVicId(vicId);
+      const data = await getLinesByClienteId(clienteId);
       setLines(data);
     } catch (error) {
       console.error("Error loading lines:", error);
@@ -93,20 +93,20 @@ export function EquipmentForm({ equipment, mode }: EquipmentFormProps) {
   }, []);
 
   useEffect(() => {
-    loadVics();
-  }, [loadVics]);
+    loadClientes();
+  }, [loadClientes]);
 
   useEffect(() => {
-    if (formData.vicId) {
-      loadLinesByVic(formData.vicId);
+    if (formData.clienteId) {
+      loadLinesByCliente(formData.clienteId);
     } else {
       setLines([]);
     }
-  }, [formData.vicId, loadLinesByVic]);
+  }, [formData.clienteId, loadLinesByCliente]);
 
   const handleChange = (field: string, value: string) => {
-    // If VIC changes, reset line selection
-    if (field === "vicId") {
+    // If Cliente changes, reset line selection
+    if (field === "clienteId") {
       setFormData((prev) => ({ ...prev, [field]: value, lineId: "" }));
     } else {
       setFormData((prev) => ({ ...prev, [field]: value }));
@@ -124,8 +124,8 @@ export function EquipmentForm({ equipment, mode }: EquipmentFormProps) {
       newErrors.name = "El nombre es requerido";
     }
 
-    if (!formData.vicId) {
-      newErrors.vicId = "El CVV es requerido";
+    if (!formData.clienteId) {
+      newErrors.clienteId = "El Cliente es requerido";
     }
 
     if (!formData.lineId) {
@@ -224,22 +224,22 @@ export function EquipmentForm({ equipment, mode }: EquipmentFormProps) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="vicId">
-              CVV <span className="text-red-500">*</span>
+            <Label htmlFor="clienteId">
+              Cliente <span className="text-red-500">*</span>
             </Label>
             <SearchableSelect
-              options={vics.map((vic) => ({
-                value: vic.id,
-                label: `${vic.name} (${vic.code})`,
+              options={clientes.map((cliente) => ({
+                value: cliente.id,
+                label: `${cliente.name} (${cliente.code})`,
               }))}
-              value={formData.vicId}
-              onValueChange={(value) => handleChange("vicId", value)}
-              placeholder="Seleccionar CVV"
-              searchPlaceholder="Buscar CVV..."
-              emptyMessage="No se encontraron CVV."
-              className={errors.vicId ? "border-red-500" : ""}
+              value={formData.clienteId}
+              onValueChange={(value) => handleChange("clienteId", value)}
+              placeholder="Seleccionar Cliente"
+              searchPlaceholder="Buscar Cliente..."
+              emptyMessage="No se encontraron Cliente."
+              className={errors.clienteId ? "border-red-500" : ""}
             />
-            {errors.vicId && <FormError message={errors.vicId} />}
+            {errors.clienteId && <FormError message={errors.clienteId} />}
           </div>
 
           <div className="space-y-2">
@@ -249,13 +249,13 @@ export function EquipmentForm({ equipment, mode }: EquipmentFormProps) {
             <Select
               value={formData.lineId}
               onValueChange={(value) => handleChange("lineId", value)}
-              disabled={!formData.vicId || loadingLines}
+              disabled={!formData.clienteId || loadingLines}
             >
               <SelectTrigger className={errors.lineId ? "border-red-500" : ""}>
                 <SelectValue
                   placeholder={
-                    !formData.vicId
-                      ? "Primero selecciona un CVV"
+                    !formData.clienteId
+                      ? "Primero selecciona un Cliente"
                       : loadingLines
                         ? "Cargando líneas..."
                         : "Seleccionar Línea"
@@ -263,9 +263,9 @@ export function EquipmentForm({ equipment, mode }: EquipmentFormProps) {
                 />
               </SelectTrigger>
               <SelectContent>
-                {lines.length === 0 && formData.vicId && !loadingLines ? (
+                {lines.length === 0 && formData.clienteId && !loadingLines ? (
                   <div className="px-2 py-1.5 text-sm text-muted-foreground">
-                    No hay líneas disponibles para este CVV
+                    No hay líneas disponibles para este Cliente
                   </div>
                 ) : (
                   lines.map((line) => (

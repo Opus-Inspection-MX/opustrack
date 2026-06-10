@@ -30,7 +30,6 @@ moment.locale("es");
 interface AssignmentIncident {
   id: number;
   title: string;
-  priority: number;
 }
 
 interface Assignment {
@@ -57,9 +56,9 @@ export default async function FSRDashboardPage() {
     completed: assignments.filter((wo) => wo.finishedAt).length,
   };
 
-  // Get urgent asignacións (high priority and not completed)
+  // Get pending asignacións (not completed)
   const urgentAssignments = assignments
-    .filter((wo) => !wo.finishedAt && (wo.incident?.priority || 0) >= 7)
+    .filter((wo) => !wo.finishedAt)
     .slice(0, 5);
 
   const getStatusBadge = (assignment: Assignment) => {
@@ -74,12 +73,6 @@ export default async function FSRDashboardPage() {
       return <Badge variant="secondary">En Progreso</Badge>;
     }
     return <Badge variant="outline">No Iniciado</Badge>;
-  };
-
-  const getPriorityColor = (priority: number) => {
-    if (priority >= 8) return "text-red-600 font-bold";
-    if (priority >= 5) return "text-orange-600 font-semibold";
-    return "text-blue-600";
   };
 
   return (
@@ -233,21 +226,13 @@ export default async function FSRDashboardPage() {
                     <div className="flex-1 space-y-2">
                       <div className="flex items-center gap-2 flex-wrap">
                         {getStatusBadge(wo)}
-                        <Badge
-                          variant="outline"
-                          className={getPriorityColor(
-                            wo.incident?.priority || 0,
-                          )}
-                        >
-                          Prioridad: {wo.incident?.priority || 0}/10
-                        </Badge>
                       </div>
                       <h3 className="font-semibold">
                         {wo.incident?.title || "Sin incidente"}
                       </h3>
                       <div className="text-sm text-muted-foreground">
-                        {wo.incident?.vic && (
-                          <span>CVV: {wo.incident.vic.name}</span>
+                        {wo.incident?.cliente && (
+                          <span>Cliente: {wo.incident.cliente.name}</span>
                         )}
                       </div>
                     </div>
@@ -292,14 +277,6 @@ export default async function FSRDashboardPage() {
                     <div className="flex-1 space-y-2">
                       <div className="flex items-center gap-2 flex-wrap">
                         {getStatusBadge(wo)}
-                        <Badge
-                          variant="outline"
-                          className={getPriorityColor(
-                            wo.incident?.priority || 0,
-                          )}
-                        >
-                          Prioridad: {wo.incident?.priority || 0}/10
-                        </Badge>
                         {wo.incident?.type && (
                           <Badge variant="outline">
                             {wo.incident.type.name}
@@ -310,10 +287,10 @@ export default async function FSRDashboardPage() {
                         {wo.incident?.title || "Sin incidente"}
                       </h3>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm text-muted-foreground">
-                        {wo.incident?.vic && (
+                        {wo.incident?.cliente && (
                           <div>
-                            <span className="font-medium">CVV:</span>{" "}
-                            {wo.incident.vic.name}
+                            <span className="font-medium">Cliente:</span>{" "}
+                            {wo.incident.cliente.name}
                           </div>
                         )}
                         <div>

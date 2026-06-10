@@ -15,12 +15,10 @@ interface FsrOption {
   id: string;
   name: string;
   email: string;
-  vicIds: string[];
 }
 
 interface QuickEditFsrsPopoverProps {
   incidentId: number;
-  incidentVicId: string | null;
   initialFsrIds: string[];
   allFsrs: FsrOption[];
   onSaved?: () => void;
@@ -28,7 +26,6 @@ interface QuickEditFsrsPopoverProps {
 
 export function QuickEditFsrsPopover({
   incidentId,
-  incidentVicId,
   initialFsrIds,
   allFsrs,
   onSaved,
@@ -38,14 +35,12 @@ export function QuickEditFsrsPopover({
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string[]>(initialFsrIds);
 
-  // Filter FSRs by the incident's VIC. If incident has no VIC, show all.
-  const fsrOptions = allFsrs
-    .filter((f) => !incidentVicId || f.vicIds.includes(incidentVicId))
-    .map((f) => ({
-      value: f.id,
-      label: f.name,
-      sublabel: f.email,
-    }));
+  // FSR assignment is independent of the incident's Cliente — show all FSRs.
+  const fsrOptions = allFsrs.map((f) => ({
+    value: f.id,
+    label: f.name,
+    sublabel: f.email,
+  }));
 
   const handleSave = async () => {
     setError(null);
@@ -92,9 +87,7 @@ export function QuickEditFsrsPopover({
           <div>
             <p className="text-sm font-medium">Editar FSRs habilitados</p>
             <p className="text-xs text-muted-foreground">
-              {incidentVicId
-                ? "FSRs filtrados por el VIC del incidente."
-                : "Sin VIC en el incidente — se muestran todos los FSRs."}
+              Selecciona uno o varios FSR (búsqueda incluida).
             </p>
           </div>
           <MultiSelect

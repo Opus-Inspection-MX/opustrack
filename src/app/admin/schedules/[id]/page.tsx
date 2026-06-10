@@ -30,7 +30,6 @@ import { getScheduleById } from "@/lib/actions/schedules";
 interface ScheduleIncident {
   id: number;
   title: string;
-  priority: number;
   type?: { name: string } | null;
   status?: { name: string } | null;
   reportedAt: Date | string;
@@ -43,10 +42,10 @@ interface Schedule {
   description?: string | null;
   scheduledAt: Date;
   endDate?: Date | null;
-  vics: Array<{
-    vicId: string;
+  clientes: Array<{
+    clienteId: string;
     active: boolean;
-    vic: { id: string; name: string; code: string };
+    cliente: { id: string; name: string; code: string };
   }>;
   incidents: ScheduleIncident[];
   active: boolean;
@@ -134,12 +133,6 @@ export default function ViewSchedulePage({
   };
 
   const status = getScheduleStatus();
-
-  const getPriorityColor = (priority: number) => {
-    if (priority >= 8) return "destructive";
-    if (priority >= 5) return "default";
-    return "secondary";
-  };
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -235,24 +228,24 @@ export default function ViewSchedulePage({
 
             <div>
               <p className="text-sm font-medium text-muted-foreground">
-                VICs asignados
+                Clientes asignados
               </p>
               <div className="flex flex-wrap gap-2 mt-1">
-                {schedule.vics.filter((sv) => sv.active).length === 0 ? (
+                {schedule.clientes.filter((sv) => sv.active).length === 0 ? (
                   <span className="text-sm text-muted-foreground">
-                    Sin VICs
+                    Sin Clientes
                   </span>
                 ) : (
-                  schedule.vics
+                  schedule.clientes
                     .filter((sv) => sv.active)
                     .map((sv) => (
                       <Badge
-                        key={sv.vicId}
+                        key={sv.clienteId}
                         variant="secondary"
                         className="gap-1"
                       >
                         <Building2 className="h-3 w-3" />
-                        {sv.vic.code} — {sv.vic.name}
+                        {sv.cliente.code} — {sv.cliente.name}
                       </Badge>
                     ))
                 )}
@@ -314,7 +307,6 @@ export default function ViewSchedulePage({
                     <TableHead>Título</TableHead>
                     <TableHead className="hidden md:table-cell">Tipo</TableHead>
                     <TableHead>Estado</TableHead>
-                    <TableHead>Prioridad</TableHead>
                     <TableHead className="hidden lg:table-cell">
                       Reportado Por
                     </TableHead>
@@ -358,11 +350,6 @@ export default function ViewSchedulePage({
                             Sin estado
                           </span>
                         )}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={getPriorityColor(incident.priority)}>
-                          {incident.priority}/10
-                        </Badge>
                       </TableCell>
                       <TableCell className="hidden lg:table-cell">
                         {incident.reportedBy ? (

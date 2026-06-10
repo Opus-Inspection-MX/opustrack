@@ -1,5 +1,4 @@
 import {
-  AlertTriangle,
   ArrowLeft,
   Building,
   Calendar,
@@ -25,12 +24,6 @@ import {
 } from "@/components/ui/table";
 import { getIncidentById } from "@/lib/actions/incidents";
 import { requireRouteAccess } from "@/lib/auth/auth";
-
-function getPriorityColor(priority: number) {
-  if (priority >= 8) return "destructive";
-  if (priority >= 5) return "default";
-  return "secondary";
-}
 
 function getStatusColor(status: string) {
   switch (status) {
@@ -68,9 +61,6 @@ export default async function IncidentDetailPage({
         <div className="flex-1">
           <div className="flex items-center gap-3">
             <h1 className="text-3xl font-bold">{incident.title}</h1>
-            {incident.priority >= 8 && (
-              <AlertTriangle className="h-6 w-6 text-destructive" />
-            )}
           </div>
           <p className="text-muted-foreground">Folio: INC-{incident.id}</p>
         </div>
@@ -87,12 +77,6 @@ export default async function IncidentDetailPage({
                 <CancelIncidentButton incidentId={incident.id} />
               </>
             )}
-          <Badge
-            variant={getPriorityColor(incident.priority)}
-            className="h-9 px-3"
-          >
-            Prioridad: {incident.priority}/10
-          </Badge>
           <Badge
             variant="secondary"
             className={
@@ -155,32 +139,12 @@ export default async function IncidentDetailPage({
             </div>
 
             <div className="flex items-start gap-3">
-              <AlertTriangle className="h-5 w-5 text-muted-foreground mt-0.5" />
-              <div>
-                <p className="text-sm text-muted-foreground">Priority</p>
-                <p className="font-medium">{incident.priority}/10</p>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-3">
-              <Calendar className="h-5 w-5 text-muted-foreground mt-0.5" />
-              <div>
-                <p className="text-sm text-muted-foreground">SLA</p>
-                <p className="font-medium">
-                  {incident.type?.sla != null
-                    ? `${incident.type.sla} hours`
-                    : "Sin SLA"}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-3">
               <Building className="h-5 w-5 text-muted-foreground mt-0.5" />
               <div>
-                <p className="text-sm text-muted-foreground">VIC</p>
+                <p className="text-sm text-muted-foreground">Cliente</p>
                 <p className="font-medium">
-                  {incident.vic
-                    ? `${incident.vic.name} (${incident.vic.code})`
+                  {incident.cliente
+                    ? `${incident.cliente.name} (${incident.cliente.code})`
                     : "Not Assigned"}
                 </p>
               </div>

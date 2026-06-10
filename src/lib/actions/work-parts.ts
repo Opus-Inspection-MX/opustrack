@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requirePermission } from "@/lib/auth/auth";
-import { getVicWhereClause } from "@/lib/auth/filters";
+import { getClienteWhereClause } from "@/lib/auth/filters";
 import { prisma } from "@/lib/database/prisma.singleton";
 import {
   type WorkPartCreateInput,
@@ -32,16 +32,16 @@ async function assertAssignmentEditable(
 
 /**
  * Get all work parts
- * Filtered by user's VIC (except ADMINISTRADOR who sees all)
+ * Filtered by user's Cliente (except ADMINISTRADOR who sees all)
  */
 export async function getAllWorkParts() {
   const user = await requirePermission("assignments:read");
-  const vicFilter = getVicWhereClause(user);
+  const clienteFilter = getClienteWhereClause(user);
 
   const workParts = await prisma.workPart.findMany({
     where: {
       active: true,
-      assignment: { incident: { ...vicFilter } },
+      assignment: { incident: { ...clienteFilter } },
     },
     include: {
       part: true,
@@ -282,13 +282,13 @@ export async function getWorkPartById(id: string) {
 /**
  * Get parts available for assignment (for FSR)
  */
-export async function getAvailableParts(vicId?: string) {
+export async function getAvailableParts(clienteId?: string) {
   await requirePermission("parts:read");
 
   const parts = await prisma.part.findMany({
     where: {
       active: true,
-      ...(vicId && { vicId }),
+      ...(clienteId && { clienteId }),
       stock: { gt: 0 },
     },
     orderBy: { name: "asc" },

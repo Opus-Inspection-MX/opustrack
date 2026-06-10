@@ -23,7 +23,7 @@ interface Line {
   id: number;
   name: string;
   description?: string | null;
-  vic: { name: string; code: string };
+  cliente: { name: string; code: string };
   equipments: Array<{ id: number; name: string }>;
   active: boolean;
   createdAt: string;
@@ -63,7 +63,7 @@ export function LineTable({
             <TableRow>
               <TableHead>Nombre</TableHead>
               <TableHead>Descripción</TableHead>
-              <TableHead>CVV</TableHead>
+              <TableHead>Cliente</TableHead>
               <TableHead>Equipos</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="w-10"></TableHead>
@@ -85,7 +85,7 @@ export function LineTable({
                 </TableCell>
                 <TableCell>
                   <Badge variant="outline">
-                    {line.vic.name} ({line.vic.code})
+                    {line.cliente.name} ({line.cliente.code})
                   </Badge>
                 </TableCell>
                 <TableCell>

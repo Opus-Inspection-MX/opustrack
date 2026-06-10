@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 import { deleteState, getStateById } from "@/lib/actions/lookups";
 
-interface VicCenter {
+interface ClienteCenter {
   id: string;
   name: string;
   code: string;
@@ -23,7 +23,7 @@ interface State {
   name: string;
   code: string;
   active: boolean;
-  vehicleInspectionCenters: VicCenter[];
+  clientes: ClienteCenter[];
 }
 
 export default function StateDetailPage({
@@ -107,7 +107,7 @@ export default function StateDetailPage({
           <div>
             <h1 className="text-3xl font-bold">{state.name}</h1>
             <p className="text-muted-foreground">
-              Detalles del estado y centros VIC
+              Detalles del estado y centros Cliente
             </p>
           </div>
         </div>
@@ -172,61 +172,56 @@ export default function StateDetailPage({
           </CardContent>
         </Card>
 
-        {/* VICs in this State */}
-        {state.vehicleInspectionCenters &&
-          state.vehicleInspectionCenters.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Building2 className="h-5 w-5" />
-                  Centros de Inspección Vehicular (
-                  {state.vehicleInspectionCenters.length})
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {state.vehicleInspectionCenters.map((vic: VicCenter) => (
-                    <button
-                      type="button"
-                      key={vic.id}
-                      className="flex justify-between items-center w-full text-left p-4 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
-                      onClick={() =>
-                        router.push(`/admin/vic-centers/${vic.id}`)
-                      }
-                    >
-                      <div>
-                        <p className="font-medium">{vic.name}</p>
+        {/* Clientes in this State */}
+        {state.clientes && state.clientes.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Building2 className="h-5 w-5" />
+                Centros de Inspección Vehicular ({state.clientes.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {state.clientes.map((cliente: ClienteCenter) => (
+                  <button
+                    type="button"
+                    key={cliente.id}
+                    className="flex justify-between items-center w-full text-left p-4 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
+                    onClick={() => router.push(`/admin/clientes/${cliente.id}`)}
+                  >
+                    <div>
+                      <p className="font-medium">{cliente.name}</p>
+                      <p className="text-sm text-muted-foreground">
+                        Código: {cliente.code}
+                      </p>
+                      {cliente.address && (
                         <p className="text-sm text-muted-foreground">
-                          Código: {vic.code}
+                          {cliente.address}
                         </p>
-                        {vic.address && (
-                          <p className="text-sm text-muted-foreground">
-                            {vic.address}
-                          </p>
-                        )}
-                      </div>
-                      <div className="text-right">
-                        {vic.phone && (
-                          <p className="text-sm text-muted-foreground">
-                            {vic.phone}
-                          </p>
-                        )}
-                        {vic.lines && (
-                          <p className="text-sm font-medium">
-                            {vic.lines} líneas
-                          </p>
-                        )}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
+                      )}
+                    </div>
+                    <div className="text-right">
+                      {cliente.phone && (
+                        <p className="text-sm text-muted-foreground">
+                          {cliente.phone}
+                        </p>
+                      )}
+                      {cliente.lines && (
+                        <p className="text-sm font-medium">
+                          {cliente.lines} líneas
+                        </p>
+                      )}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
-        {/* No VICs */}
-        {(!state.vehicleInspectionCenters ||
-          state.vehicleInspectionCenters.length === 0) && (
+        {/* No Clientes */}
+        {(!state.clientes || state.clientes.length === 0) && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -236,14 +231,14 @@ export default function StateDetailPage({
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground">
-                No hay centros VIC registrados en este estado.
+                No hay centros Cliente registrados en este estado.
               </p>
               <Button
                 variant="link"
                 className="mt-2 p-0 h-auto"
-                onClick={() => router.push("/admin/vic-centers/new")}
+                onClick={() => router.push("/admin/clientes/new")}
               >
-                Crear un nuevo centro VIC
+                Crear un nuevo centro Cliente
               </Button>
             </CardContent>
           </Card>

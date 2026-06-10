@@ -97,8 +97,7 @@ export default async function AssignmentDetailPage({
               <p className="text-sm text-muted-foreground">Incidencia padre</p>
               <p className="font-medium">{assignment.incident.title}</p>
               <p className="text-xs text-muted-foreground">
-                Prioridad: {assignment.incident.priority}/10 • Estado:{" "}
-                {assignment.incident.status?.name}
+                Estado: {assignment.incident.status?.name}
               </p>
             </div>
           </div>

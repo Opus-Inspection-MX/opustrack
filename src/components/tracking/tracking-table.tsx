@@ -50,7 +50,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { createAssignment } from "@/lib/actions/assignments";
 import { getEquipmentsByLineId } from "@/lib/actions/equipments";
 import { updateIncidentFsrs } from "@/lib/actions/incidents";
-import { getLinesByVicId } from "@/lib/actions/lines";
+import { getLinesByClienteId } from "@/lib/actions/lines";
 import {
   updateAssignmentAssignees,
   updateAssignmentDetails,
@@ -101,13 +101,12 @@ interface TrackingIncident {
   id: number;
   title: string;
   description?: string | null;
-  priority: number;
   reportedAt: Date | string;
   resolvedAt?: Date | string | null;
   statusId?: number | null;
   status?: { id: number; name: string; color: string } | null;
   type?: { id: number; name: string } | null;
-  vic?: { id: string; name: string; code: string } | null;
+  cliente?: { id: string; name: string; code: string } | null;
   reportedBy?: { id: string; name: string } | null;
   assignees?: Array<{ user: { id: string; name: string; email?: string } }>;
   assignments: TrackingAssignment[];
@@ -120,7 +119,6 @@ interface TrackingIncident {
 interface IncidentEditForm {
   title?: string;
   description?: string | null;
-  priority?: number;
   statusId?: number | string;
   lineId?: number | string;
   equipmentId?: number | string;
@@ -151,14 +149,17 @@ interface EquipmentOption {
 
 interface TrackingTableProps {
   incidents: TrackingIncident[];
-  fsrsByVic: Record<string, Array<{ id: string; name: string; email: string }>>;
+  fsrsByCliente: Record<
+    string,
+    Array<{ id: string; name: string; email: string }>
+  >;
   incidentStatuses: Array<{ id: number; name: string; color: string }>;
   onDataChange?: () => void;
 }
 
 export function TrackingTable({
   incidents,
-  fsrsByVic,
+  fsrsByCliente,
   incidentStatuses,
   onDataChange,
 }: TrackingTableProps) {
@@ -198,8 +199,8 @@ export function TrackingTable({
 
       switch (id) {
         case "cliente":
-          aValue = a.vic?.name || "";
-          bValue = b.vic?.name || "";
+          aValue = a.cliente?.name || "";
+          bValue = b.cliente?.name || "";
           break;
         case "incidente":
           aValue = a.title || "";
@@ -346,10 +347,10 @@ export function TrackingTable({
       assigneeIds: incident.assignees?.map((a) => a.user.id) ?? [],
     });
 
-    // Load lines for the incident's VIC
-    if (incident.vic?.id) {
+    // Load lines for the incident's Cliente
+    if (incident.cliente?.id) {
       try {
-        const lines = await getLinesByVicId(incident.vic.id);
+        const lines = await getLinesByClienteId(incident.cliente.id);
         setLinesForEdit(lines);
 
         // Load equipments for the incident's line
@@ -533,7 +534,7 @@ export function TrackingTable({
                 onClick={() => handleSort("cliente")}
                 className="h-auto p-0 font-semibold hover:bg-transparent"
               >
-                CVV
+                Cliente
                 {getSortIcon("cliente")}
               </Button>
             </TableHead>
@@ -609,8 +610,8 @@ export function TrackingTable({
           ) : (
             sortedIncidents.map((incident) => {
               const assignedFSRs = getAssignedFSRs(incident);
-              const availableFSRs = incident.vic?.id
-                ? fsrsByVic[incident.vic.id] || []
+              const availableFSRs = incident.cliente?.id
+                ? fsrsByCliente[incident.cliente.id] || []
                 : [];
               const isExpanded = expandedRows.has(incident.id);
 
@@ -643,8 +644,8 @@ export function TrackingTable({
                     </TableCell>
                     <TableCell onClick={() => toggleRowExpansion(incident.id)}>
                       <Badge variant="outline">
-                        {incident.vic?.name || "Sin CVV"} (
-                        {incident.vic?.code || "N/A"})
+                        {incident.cliente?.name || "Sin Cliente"} (
+                        {incident.cliente?.code || "N/A"})
                       </Badge>
                     </TableCell>
                     <TableCell onClick={() => toggleRowExpansion(incident.id)}>
@@ -970,17 +971,17 @@ export function TrackingTable({
                                         })
                                       }
                                       placeholder={
-                                        incident.vic?.id
+                                        incident.cliente?.id
                                           ? "Seleccionar FSRs habilitados"
-                                          : "Sin CVV — no se pueden listar FSRs"
+                                          : "Sin Cliente — no se pueden listar FSRs"
                                       }
                                       searchPlaceholder="Buscar FSR..."
                                       emptyMessage={
                                         availableFSRs.length === 0
-                                          ? "No hay FSRs disponibles para este CVV"
+                                          ? "No hay FSRs disponibles para este Cliente"
                                           : "Sin resultados"
                                       }
-                                      disabled={!incident.vic?.id}
+                                      disabled={!incident.cliente?.id}
                                     />
                                     <p className="text-xs text-muted-foreground">
                                       Solo estos FSRs podrán tomar la asignación
@@ -1084,8 +1085,8 @@ export function TrackingTable({
                                           </SelectTrigger>
                                           <SelectContent>
                                             {(
-                                              fsrsByVic[
-                                                incident.vic?.id || ""
+                                              fsrsByCliente[
+                                                incident.cliente?.id || ""
                                               ] || []
                                             ).map(
                                               (fsr: {
@@ -1104,12 +1105,13 @@ export function TrackingTable({
                                           </SelectContent>
                                         </Select>
                                         {(
-                                          fsrsByVic[incident.vic?.id || ""] ||
-                                          []
+                                          fsrsByCliente[
+                                            incident.cliente?.id || ""
+                                          ] || []
                                         ).length === 0 && (
                                           <p className="text-xs text-muted-foreground">
                                             No hay FSRs disponibles para este
-                                            CVV
+                                            Cliente
                                           </p>
                                         )}
                                       </div>
@@ -1264,8 +1266,9 @@ export function TrackingTable({
                                       </SelectTrigger>
                                       <SelectContent>
                                         {(
-                                          fsrsByVic[incident.vic?.id || ""] ||
-                                          []
+                                          fsrsByCliente[
+                                            incident.cliente?.id || ""
+                                          ] || []
                                         ).map(
                                           (fsr: {
                                             id: string;
@@ -1282,10 +1285,14 @@ export function TrackingTable({
                                         )}
                                       </SelectContent>
                                     </Select>
-                                    {(fsrsByVic[incident.vic?.id || ""] || [])
-                                      .length === 0 && (
+                                    {(
+                                      fsrsByCliente[
+                                        incident.cliente?.id || ""
+                                      ] || []
+                                    ).length === 0 && (
                                       <p className="text-xs text-muted-foreground">
-                                        No hay FSRs disponibles para este CVV
+                                        No hay FSRs disponibles para este
+                                        Cliente
                                       </p>
                                     )}
                                   </div>

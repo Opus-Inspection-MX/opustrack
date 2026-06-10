@@ -34,7 +34,7 @@ interface Schedule {
   description?: string;
   scheduledAt: string;
   endDate?: string | null;
-  vics: Array<{ id: string; code: string; name: string }>;
+  clientes: Array<{ id: string; code: string; name: string }>;
   incidentCount: number;
   active: boolean;
   createdAt: string;
@@ -84,7 +84,7 @@ export function ScheduleTable({
           <TableHeader>
             <TableRow>
               <TableHead>Título</TableHead>
-              <TableHead>CVVs</TableHead>
+              <TableHead>Clientes</TableHead>
               <TableHead>Fecha Programada</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Incidentes</TableHead>
@@ -111,29 +111,29 @@ export function ScheduleTable({
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1 max-w-[220px]">
-                      {schedule.vics.length === 0 ? (
+                      {schedule.clientes.length === 0 ? (
                         <span className="text-sm text-muted-foreground">
-                          Sin VICs
+                          Sin Clientes
                         </span>
                       ) : (
                         <>
                           <Badge
                             variant="secondary"
                             className="gap-1"
-                            title={schedule.vics[0].name}
+                            title={schedule.clientes[0].name}
                           >
                             <Building2 className="h-3 w-3" />
-                            {schedule.vics[0].code}
+                            {schedule.clientes[0].code}
                           </Badge>
-                          {schedule.vics.length > 1 && (
+                          {schedule.clientes.length > 1 && (
                             <Badge
                               variant="outline"
-                              title={schedule.vics
+                              title={schedule.clientes
                                 .slice(1)
                                 .map((v) => `${v.code} — ${v.name}`)
                                 .join("\n")}
                             >
-                              +{schedule.vics.length - 1} más
+                              +{schedule.clientes.length - 1} más
                             </Badge>
                           )}
                         </>
@@ -218,7 +218,7 @@ export function ScheduleTable({
                           size="icon"
                           className="h-8 w-8"
                           onClick={() => onQuickEdit(schedule.id)}
-                          title="Edición rápida (VICs y fechas)"
+                          title="Edición rápida (Clientes y fechas)"
                         >
                           <Pencil className="h-4 w-4" />
                         </Button>

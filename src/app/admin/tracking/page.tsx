@@ -6,14 +6,14 @@ import { useCallback, useEffect, useState } from "react";
 import { TrackingFilters } from "@/components/tracking/tracking-filters";
 import { TrackingTable } from "@/components/tracking/tracking-table";
 import { Button } from "@/components/ui/button";
+import { getClientes } from "@/lib/actions/clientes";
 import { getIncidentStatuses, getIncidentTypes } from "@/lib/actions/lookups";
 import {
-  getFSRsByVicId,
+  getFSRsByClienteId,
   getIncidentsForTracking,
 } from "@/lib/actions/tracking";
-import { getVICs } from "@/lib/actions/vics";
 
-interface VIC {
+interface Cliente {
   id: string;
   name: string;
   code: string;
@@ -58,13 +58,12 @@ interface TrackingIncident {
   id: number;
   title: string;
   description?: string | null;
-  priority: number;
   reportedAt: Date | string;
   resolvedAt?: Date | string | null;
   statusId?: number | null;
   status?: { id: number; name: string; color: string } | null;
   type?: { id: number; name: string } | null;
-  vic?: { id: string; name: string; code: string } | null;
+  cliente?: { id: string; name: string; code: string } | null;
   reportedBy?: { id: string; name: string } | null;
   assignments: TrackingAssignment[];
   lineId?: number | null;
@@ -76,7 +75,7 @@ interface TrackingIncident {
 interface TrackingFiltersState {
   startDate?: string;
   endDate?: string;
-  vicId?: string;
+  clienteId?: string;
   typeId?: number;
   statusId?: number;
   fsrId?: string;
@@ -85,13 +84,13 @@ interface TrackingFiltersState {
 
 export default function TrackingPage() {
   const [incidents, setIncidents] = useState<TrackingIncident[]>([]);
-  const [vics, setVics] = useState<VIC[]>([]);
+  const [clientes, setClientes] = useState<Cliente[]>([]);
   const [incidentTypes, setIncidentTypes] = useState<IncidentType[]>([]);
   const [incidentStatuses, setIncidentStatuses] = useState<IncidentStatus[]>(
     [],
   );
   const [allFsrs, setAllFsrs] = useState<FSR[]>([]);
-  const [fsrsByVic, setFsrsByVic] = useState<Record<string, FSR[]>>({});
+  const [fsrsByCliente, setFsrsByCliente] = useState<Record<string, FSR[]>>({});
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState<TrackingFiltersState>({});
 
@@ -109,38 +108,38 @@ export default function TrackingPage() {
 
   const loadInitialData = useCallback(async () => {
     try {
-      const [vicsData, typesResult, statusesResult] = await Promise.all([
-        getVICs(),
+      const [clientesData, typesResult, statusesResult] = await Promise.all([
+        getClientes(),
         getIncidentTypes(),
         getIncidentStatuses(),
       ]);
 
-      setVics(vicsData);
+      setClientes(clientesData);
       setIncidentTypes(typesResult.data);
       setIncidentStatuses(statusesResult.data);
 
-      // Load FSRs for all VICs in parallel (performance optimization)
+      // Load FSRs for all Clientes in parallel (performance optimization)
       const fsrsMap: Record<string, FSR[]> = {};
       const allFsrsArray: FSR[] = [];
 
-      const fsrPromises = vicsData.map(async (vic) => {
+      const fsrPromises = clientesData.map(async (cliente) => {
         try {
-          const vicFsrs = await getFSRsByVicId(vic.id);
-          return { vicId: vic.id, fsrs: vicFsrs };
+          const clienteFsrs = await getFSRsByClienteId(cliente.id);
+          return { clienteId: cliente.id, fsrs: clienteFsrs };
         } catch (error) {
-          console.error(`Error loading FSRs for VIC ${vic.id}:`, error);
-          return { vicId: vic.id, fsrs: [] };
+          console.error(`Error loading FSRs for Cliente ${cliente.id}:`, error);
+          return { clienteId: cliente.id, fsrs: [] };
         }
       });
 
       const fsrResults = await Promise.all(fsrPromises);
 
       for (const result of fsrResults) {
-        fsrsMap[result.vicId] = result.fsrs;
+        fsrsMap[result.clienteId] = result.fsrs;
         allFsrsArray.push(...result.fsrs);
       }
 
-      setFsrsByVic(fsrsMap);
+      setFsrsByCliente(fsrsMap);
       // Remove duplicates from allFsrs
       const uniqueFsrs = allFsrsArray.filter(
         (fsr, index, self) => index === self.findIndex((f) => f.id === fsr.id),
@@ -189,7 +188,7 @@ export default function TrackingPage() {
 
       <div>
         <TrackingFilters
-          vics={vics}
+          clientes={clientes}
           incidentTypes={incidentTypes}
           incidentStatuses={incidentStatuses}
           fsrs={allFsrs}
@@ -217,7 +216,7 @@ export default function TrackingPage() {
       <div>
         <TrackingTable
           incidents={incidents}
-          fsrsByVic={fsrsByVic}
+          fsrsByCliente={fsrsByCliente}
           incidentStatuses={incidentStatuses}
           onDataChange={() => loadIncidents(filters)}
         />

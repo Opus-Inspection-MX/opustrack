@@ -1,11 +1,4 @@
-import {
-  AlertTriangle,
-  ArrowLeft,
-  Building,
-  Calendar,
-  FileText,
-  User,
-} from "lucide-react";
+import { ArrowLeft, Building, Calendar, FileText, User } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,35 +6,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { getIncidentById } from "@/lib/actions/incidents";
 import { requireRouteAccess } from "@/lib/auth/auth";
-
-function getPriorityBadge(priority: number) {
-  if (priority >= 8) {
-    return (
-      <Badge variant="destructive" className="text-lg py-2 px-4">
-        Critica
-      </Badge>
-    );
-  }
-  if (priority >= 5) {
-    return (
-      <Badge variant="default" className="bg-orange-500 text-lg py-2 px-4">
-        Alta
-      </Badge>
-    );
-  }
-  if (priority >= 3) {
-    return (
-      <Badge variant="secondary" className="text-lg py-2 px-4">
-        Media
-      </Badge>
-    );
-  }
-  return (
-    <Badge variant="outline" className="text-lg py-2 px-4">
-      Baja
-    </Badge>
-  );
-}
 
 function getStatusBadge(
   status: { name: string; color?: string | null } | null,
@@ -86,14 +50,10 @@ export default async function ClientIncidentDetailPage({
         <div className="flex-1">
           <div className="flex items-center gap-3">
             <h1 className="text-3xl font-bold">{incident.title}</h1>
-            {incident.priority >= 8 && (
-              <AlertTriangle className="h-6 w-6 text-destructive" />
-            )}
           </div>
           <p className="text-muted-foreground">Folio: INC-{incident.id}</p>
         </div>
         <div className="flex gap-3">
-          <div className="text-xl">{getPriorityBadge(incident.priority)}</div>
           <div className="text-xl">{getStatusBadge(incident.status)}</div>
         </div>
       </div>
@@ -125,32 +85,12 @@ export default async function ClientIncidentDetailPage({
             </div>
 
             <div className="flex items-start gap-3">
-              <AlertTriangle className="h-5 w-5 text-muted-foreground mt-0.5" />
-              <div>
-                <p className="text-sm text-muted-foreground">Prioridad</p>
-                <p className="font-medium">{incident.priority}/10</p>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-3">
-              <Calendar className="h-5 w-5 text-muted-foreground mt-0.5" />
-              <div>
-                <p className="text-sm text-muted-foreground">SLA</p>
-                <p className="font-medium">
-                  {incident.type?.sla != null
-                    ? `${incident.type.sla} horas`
-                    : "Sin SLA"}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-3">
               <Building className="h-5 w-5 text-muted-foreground mt-0.5" />
               <div>
-                <p className="text-sm text-muted-foreground">CVV</p>
+                <p className="text-sm text-muted-foreground">Cliente</p>
                 <p className="font-medium">
-                  {incident.vic
-                    ? `${incident.vic.name} (${incident.vic.code})`
+                  {incident.cliente
+                    ? `${incident.cliente.name} (${incident.cliente.code})`
                     : "No asignado"}
                 </p>
               </div>

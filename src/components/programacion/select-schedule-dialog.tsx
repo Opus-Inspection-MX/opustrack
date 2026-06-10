@@ -21,10 +21,10 @@ interface Schedule {
   description: string | null;
   scheduledAt: string;
   endDate: string | null;
-  vics: Array<{
-    vicId: string;
+  clientes: Array<{
+    clienteId: string;
     active: boolean;
-    vic: { id: string; name: string; code: string };
+    cliente: { id: string; name: string; code: string };
   }>;
   _count?: {
     incidents: number;
@@ -76,10 +76,10 @@ export function SelectScheduleDialog({
     const q = searchQuery.toLowerCase();
     if (schedule.title.toLowerCase().includes(q)) return true;
     if (schedule.description?.toLowerCase().includes(q)) return true;
-    return schedule.vics.some(
+    return schedule.clientes.some(
       (sv) =>
-        sv.vic.name.toLowerCase().includes(q) ||
-        sv.vic.code.toLowerCase().includes(q),
+        sv.cliente.name.toLowerCase().includes(q) ||
+        sv.cliente.code.toLowerCase().includes(q),
     );
   });
 
@@ -126,7 +126,7 @@ export function SelectScheduleDialog({
                 <TableRow>
                   <TableHead className="w-12"></TableHead>
                   <TableHead>Título</TableHead>
-                  <TableHead>VICs</TableHead>
+                  <TableHead>Clientes</TableHead>
                   <TableHead>Fecha Programada</TableHead>
                   <TableHead>Incidentes</TableHead>
                 </TableRow>
@@ -159,11 +159,11 @@ export function SelectScheduleDialog({
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-wrap gap-1">
-                        {schedule.vics
+                        {schedule.clientes
                           .filter((sv) => sv.active)
                           .map((sv) => (
-                            <Badge key={sv.vicId} variant="outline">
-                              {sv.vic.code}
+                            <Badge key={sv.clienteId} variant="outline">
+                              {sv.cliente.code}
                             </Badge>
                           ))}
                       </div>

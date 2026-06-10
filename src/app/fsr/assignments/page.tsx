@@ -64,12 +64,6 @@ export default async function FSRAssignmentsPage() {
     );
   };
 
-  const getPriorityColor = (priority: number) => {
-    if (priority >= 8) return "text-red-600 font-bold";
-    if (priority >= 5) return "text-orange-600 font-semibold";
-    return "text-blue-600";
-  };
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -157,17 +151,9 @@ export default async function FSRAssignmentsPage() {
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 space-y-3">
-                      {/* Status and Priority */}
+                      {/* Status */}
                       <div className="flex items-center gap-2 flex-wrap">
                         {getStatusBadge(wo.status ?? null)}
-                        <Badge
-                          variant="outline"
-                          className={getPriorityColor(
-                            wo.incident?.priority || 0,
-                          )}
-                        >
-                          Prioridad: {wo.incident?.priority || 0}/10
-                        </Badge>
                         {wo.incident?.type && (
                           <Badge variant="outline">
                             {wo.incident.type.name}
@@ -189,10 +175,10 @@ export default async function FSRAssignmentsPage() {
 
                       {/* Details */}
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm text-muted-foreground">
-                        {wo.incident?.vic && (
+                        {wo.incident?.cliente && (
                           <div>
-                            <span className="font-medium">VIC:</span>{" "}
-                            {wo.incident.vic.name}
+                            <span className="font-medium">Cliente:</span>{" "}
+                            {wo.incident.cliente.name}
                           </div>
                         )}
                         <div>

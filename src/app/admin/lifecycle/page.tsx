@@ -51,7 +51,7 @@ function buildMermaid(): string {
   subgraph Programación["📅 Programación (Schedule)"]
     direction LR
     P1["scheduledAt → endDate"]
-    P2["N VICs asignados"]
+    P2["N Clientes asignados"]
   end
 
   subgraph Incidente["🚨 Incidente"]
@@ -125,8 +125,8 @@ export default async function LifecyclePage() {
           <p>
             <strong>Programación.</strong> Contenedor opcional con rango{" "}
             <code className="text-xs">scheduledAt → endDate</code> y uno o más
-            VICs. Una incidencia ligada a una programación debe pertenecer a uno
-            de sus VICs.
+            Clientes. Una incidencia ligada a una programación debe pertenecer a
+            uno de sus Clientes.
           </p>
           <p>
             <strong>Incidente.</strong> Su estado se <strong>deriva</strong> del

@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
-interface VIC {
+interface Cliente {
   id: string;
   name: string;
   code: string;
@@ -45,7 +45,7 @@ export function CreateProgramDialog({
   dateRange,
 }: CreateProgramDialogProps) {
   const router = useRouter();
-  const [vics, setVics] = useState<VIC[]>([]);
+  const [clientes, setClientes] = useState<Cliente[]>([]);
   const [statuses, setStatuses] = useState<IncidentStatus[]>([]);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -56,19 +56,19 @@ export function CreateProgramDialog({
     endDate: "",
     endTime: "17:00",
     statusId: "",
-    vicId: "",
+    clienteId: "",
   });
 
   const fetchData = useCallback(async () => {
     try {
-      const [vicsRes, statusesRes] = await Promise.all([
-        fetch("/api/vics"),
+      const [clientesRes, statusesRes] = await Promise.all([
+        fetch("/api/clientes"),
         fetch("/api/incident-statuses"),
       ]);
 
-      if (vicsRes.ok) {
-        const vicsData = await vicsRes.json();
-        setVics(vicsData.data || []);
+      if (clientesRes.ok) {
+        const clientesData = await clientesRes.json();
+        setClientes(clientesData.data || []);
       }
 
       if (statusesRes.ok) {
@@ -123,7 +123,7 @@ export function CreateProgramDialog({
           scheduledAt: scheduledDateTime.toISOString(),
           endDate: endDateTime?.toISOString() || null,
           statusId: formData.statusId ? parseInt(formData.statusId, 10) : null,
-          vicIds: formData.vicId ? [formData.vicId] : [],
+          clienteIds: formData.clienteId ? [formData.clienteId] : [],
         }),
       });
 
@@ -140,7 +140,7 @@ export function CreateProgramDialog({
         endDate: "",
         endTime: "17:00",
         statusId: "",
-        vicId: "",
+        clienteId: "",
       });
 
       onOpenChange(false);
@@ -192,24 +192,24 @@ export function CreateProgramDialog({
           />
         </div>
 
-        {/* VIC Selection */}
+        {/* Cliente Selection */}
         <div className="space-y-2">
-          <Label htmlFor="vicId">
-            Centro de Verificación (VIC){" "}
+          <Label htmlFor="clienteId">
+            Centro de Verificación (Cliente){" "}
             <span className="text-destructive">*</span>
           </Label>
           <SearchableSelect
-            options={vics.map((vic) => ({
-              value: vic.id,
-              label: `${vic.name} (${vic.code})`,
+            options={clientes.map((cliente) => ({
+              value: cliente.id,
+              label: `${cliente.name} (${cliente.code})`,
             }))}
-            value={formData.vicId}
+            value={formData.clienteId}
             onValueChange={(value) =>
-              setFormData({ ...formData, vicId: value })
+              setFormData({ ...formData, clienteId: value })
             }
-            placeholder="Selecciona un VIC"
-            searchPlaceholder="Buscar VIC..."
-            emptyMessage="No se encontraron VICs."
+            placeholder="Selecciona un Cliente"
+            searchPlaceholder="Buscar Cliente..."
+            emptyMessage="No se encontraron Clientes."
           />
         </div>
 

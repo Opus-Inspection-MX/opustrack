@@ -4,14 +4,15 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requirePermission } from "@/lib/auth/auth";
 import {
-  assertVicAccess,
-  canAccessVic,
-  getVicWhereClause,
+  assertClienteAccess,
+  canAccessCliente,
+  getClienteWhereClause,
 } from "@/lib/auth/filters";
 import { FALLBACK_INCIDENT_TYPE_NAME } from "@/lib/constants/incident-type";
 import { prisma } from "@/lib/database/prisma.singleton";
 import { INCIDENT_STATE, syncIncidentState } from "@/lib/state-machine";
-import { getPrimaryVicId } from "@/lib/utils/vic-assignments";
+import { getPrimaryClienteId } from "@/lib/utils/cliente-assignments";
+import { parseMxDateTime } from "@/lib/utils/datetime";
 import {
   BulkIncidentSnapshotRowSchema,
   IncidentClientCreateSchema,
@@ -45,21 +46,21 @@ async function resolveTypeIdOrFallback(
 
 /**
  * Get all incidents with relations
- * Filtered by user's VIC (except ADMINISTRADOR who sees all)
+ * Filtered by user's Cliente (except ADMINISTRADOR who sees all)
  */
 export async function getIncidents() {
   const user = await requirePermission("incidents:read");
-  const vicFilter = getVicWhereClause(user);
+  const clienteFilter = getClienteWhereClause(user);
 
   const incidents = await prisma.incident.findMany({
     where: {
       active: true,
-      ...vicFilter, // Apply VIC filter
+      ...clienteFilter, // Apply Cliente filter
     },
     include: {
       type: true,
       status: true,
-      vic: true,
+      cliente: true,
       reportedBy: {
         select: {
           id: true,
@@ -99,7 +100,7 @@ export async function getMyIncidents() {
     include: {
       type: true,
       status: true,
-      vic: true,
+      cliente: true,
       reportedBy: {
         select: {
           id: true,
@@ -119,7 +120,7 @@ export async function getMyIncidents() {
 
 /**
  * Get single incident by ID
- * Verifies user has access to the incident's VIC
+ * Verifies user has access to the incident's Cliente
  */
 export async function getIncidentById(id: number) {
   const user = await requirePermission("incidents:read");
@@ -129,7 +130,7 @@ export async function getIncidentById(id: number) {
     include: {
       type: true,
       status: true,
-      vic: true,
+      cliente: true,
       reportedBy: {
         select: {
           id: true,
@@ -183,8 +184,8 @@ export async function getIncidentById(id: number) {
     throw new Error("Incident not found");
   }
 
-  // Verify user has access to this incident's VIC
-  assertVicAccess(user, incident.vicId);
+  // Verify user has access to this incident's Cliente
+  assertClienteAccess(user, incident.clienteId);
 
   return incident;
 }
@@ -201,11 +202,11 @@ export async function createIncident(data: unknown) {
 
   // State machine: every new incident starts at ABIERTO. Any caller-provided
   // statusId is ignored so the flow can't be skipped.
-  const openStatus = await prisma.incidentStatus.findUnique({
+  const initialStatus = await prisma.incidentStatus.findUnique({
     where: { name: INCIDENT_STATE.ABIERTO },
     select: { id: true },
   });
-  if (!openStatus) {
+  if (!initialStatus) {
     throw new Error(
       `IncidentStatus '${INCIDENT_STATE.ABIERTO}' no existe en el catálogo`,
     );
@@ -217,10 +218,9 @@ export async function createIncident(data: unknown) {
     data: {
       title: validated.title,
       description: validated.description,
-      priority: validated.priority,
       typeId,
-      statusId: openStatus.id,
-      vicId: validated.vicId || null,
+      statusId: initialStatus.id,
+      clienteId: validated.clienteId || null,
       scheduleId: validated.scheduleId || null,
       reportedById: validated.reportedById || user.id,
       startedAt: validated.startedAt ?? null,
@@ -229,7 +229,7 @@ export async function createIncident(data: unknown) {
     include: {
       type: true,
       status: true,
-      vic: true,
+      cliente: true,
       reportedBy: true,
     },
   });
@@ -259,19 +259,19 @@ export async function createIncidentAsClient(data: unknown) {
   // Validate input
   const validated = IncidentClientCreateSchema.parse(data);
 
-  // Get ABIERTO status
-  const openStatus = await prisma.incidentStatus.findFirst({
+  // Get initial status: new incidents start at ABIERTO.
+  const initialStatus = await prisma.incidentStatus.findFirst({
     where: { name: INCIDENT_STATE.ABIERTO },
   });
 
-  if (!openStatus) {
+  if (!initialStatus) {
     throw new Error(`Estado ${INCIDENT_STATE.ABIERTO} no encontrado`);
   }
 
-  // Client must have a VIC assigned
-  const userVicId = await getPrimaryVicId(user.id);
-  if (!userVicId) {
-    throw new Error("El usuario no tiene un VIC asignado");
+  // Client must have a Cliente assigned
+  const userClienteId = await getPrimaryClienteId(user.id);
+  if (!userClienteId) {
+    throw new Error("El usuario no tiene un Cliente asignado");
   }
 
   const typeId = await resolveTypeIdOrFallback(validated.typeId);
@@ -280,10 +280,9 @@ export async function createIncidentAsClient(data: unknown) {
     data: {
       title: validated.title,
       description: validated.description,
-      priority: validated.priority,
       typeId,
-      statusId: openStatus.id,
-      vicId: userVicId,
+      statusId: initialStatus.id,
+      clienteId: userClienteId,
       reportedById: user.id,
       lineId: validated.lineId || null,
       equipmentId: validated.equipmentId || null,
@@ -291,7 +290,7 @@ export async function createIncidentAsClient(data: unknown) {
     include: {
       type: true,
       status: true,
-      vic: true,
+      cliente: true,
       reportedBy: {
         select: {
           id: true,
@@ -308,13 +307,13 @@ export async function createIncidentAsClient(data: unknown) {
 }
 
 /**
- * Get incidents for client (only their VIC)
+ * Get incidents for client (only their Cliente)
  */
 export async function getClientIncidents() {
   const user = await requirePermission("incidents:read");
 
-  const userVicId = await getPrimaryVicId(user.id);
-  if (!userVicId) {
+  const userClienteId = await getPrimaryClienteId(user.id);
+  if (!userClienteId) {
     return [];
   }
 
@@ -322,13 +321,13 @@ export async function getClientIncidents() {
   const incidents = await prisma.incident.findMany({
     where: {
       reportedById: user.id, // Filter by the user who reported it
-      vicId: userVicId, // Also ensure it's from their VIC
+      clienteId: userClienteId, // Also ensure it's from their Cliente
       active: true,
     },
     include: {
       type: true,
       status: true,
-      vic: true,
+      cliente: true,
       reportedBy: {
         select: {
           id: true,
@@ -348,7 +347,7 @@ export async function getClientIncidents() {
 
 /**
  * Update existing incident
- * Verifies user has access to the incident's VIC before updating
+ * Verifies user has access to the incident's Cliente before updating
  */
 /**
  * Reconcile the active set of IncidentAssignee rows for an incident.
@@ -408,14 +407,14 @@ export async function updateIncident(id: number, data: IncidentFormData) {
   // Verify access before update
   const existing = await prisma.incident.findUnique({
     where: { id },
-    select: { vicId: true },
+    select: { clienteId: true },
   });
 
   if (!existing) {
     throw new Error("Incident not found");
   }
 
-  assertVicAccess(user, existing.vicId);
+  assertClienteAccess(user, existing.clienteId);
 
   // typeId NOT NULL en BD. Si el caller intenta poner null/undefined, fallback.
   const typeId = data.typeId
@@ -428,16 +427,15 @@ export async function updateIncident(id: number, data: IncidentFormData) {
     data: {
       title: data.title,
       description: data.description,
-      priority: data.priority,
       typeId,
-      vicId: data.vicId || null,
+      clienteId: data.clienteId || null,
       scheduleId: data.scheduleId || null,
       startedAt: data.startedAt ?? null,
     },
     include: {
       type: true,
       status: true,
-      vic: true,
+      cliente: true,
       reportedBy: true,
     },
   });
@@ -463,12 +461,12 @@ export async function updateIncidentFsrs(
   const user = await requirePermission("incidents:update");
   const incident = await prisma.incident.findUnique({
     where: { id: incidentId },
-    select: { vicId: true },
+    select: { clienteId: true },
   });
   if (!incident) {
     throw new Error("Incidente no encontrado");
   }
-  assertVicAccess(user, incident.vicId);
+  assertClienteAccess(user, incident.clienteId);
 
   // Validate every FSR exists, is an FSR, and is accessible.
   if (fsrIds.length) {
@@ -493,8 +491,104 @@ export async function updateIncidentFsrs(
 }
 
 /**
+ * Quick-edit the incident's scheduled start date from the
+ * "Asignación de Programación" screen. Updates the linked Schedule's
+ * scheduledAt; if the incident has no schedule yet, creates a minimal one and
+ * links it (mirrors the create-incident dialog flow).
+ *
+ * NOTE: when several incidents share the same Schedule, changing the date
+ * affects all of them. In the common flow each incident gets its own schedule.
+ */
+export async function updateIncidentScheduledDate(
+  incidentId: number,
+  scheduledAtISO: string,
+): Promise<{ success: true }> {
+  const user = await requirePermission("incidents:update");
+
+  const scheduledAt = new Date(scheduledAtISO);
+  if (Number.isNaN(scheduledAt.getTime())) {
+    throw new Error("Fecha inválida");
+  }
+
+  const incident = await prisma.incident.findUnique({
+    where: { id: incidentId },
+    select: {
+      clienteId: true,
+      scheduleId: true,
+      title: true,
+      description: true,
+    },
+  });
+  if (!incident) {
+    throw new Error("Incidente no encontrado");
+  }
+  assertClienteAccess(user, incident.clienteId);
+
+  if (incident.scheduleId) {
+    await prisma.schedule.update({
+      where: { id: incident.scheduleId },
+      data: { scheduledAt },
+    });
+  } else {
+    const schedule = await prisma.schedule.create({
+      data: {
+        title: incident.title,
+        description: incident.description,
+        scheduledAt,
+      },
+    });
+    await prisma.incident.update({
+      where: { id: incidentId },
+      data: { scheduleId: schedule.id },
+    });
+  }
+
+  revalidatePath("/admin/programacion");
+  revalidatePath("/admin/incidents");
+  revalidatePath(`/admin/incidents/${incidentId}`);
+  return { success: true };
+}
+
+/**
+ * Quick-edit the incident type from the "Asignación de Programación" screen.
+ */
+export async function updateIncidentType(
+  incidentId: number,
+  typeId: number,
+): Promise<{ success: true }> {
+  const user = await requirePermission("incidents:update");
+
+  const incident = await prisma.incident.findUnique({
+    where: { id: incidentId },
+    select: { clienteId: true },
+  });
+  if (!incident) {
+    throw new Error("Incidente no encontrado");
+  }
+  assertClienteAccess(user, incident.clienteId);
+
+  const type = await prisma.incidentType.findFirst({
+    where: { id: typeId, active: true },
+    select: { id: true },
+  });
+  if (!type) {
+    throw new Error("Tipo de incidente no válido");
+  }
+
+  await prisma.incident.update({
+    where: { id: incidentId },
+    data: { typeId },
+  });
+
+  revalidatePath("/admin/programacion");
+  revalidatePath("/admin/incidents");
+  revalidatePath(`/admin/incidents/${incidentId}`);
+  return { success: true };
+}
+
+/**
  * Delete incident (soft delete)
- * Verifies user has access to the incident's VIC before deleting
+ * Verifies user has access to the incident's Cliente before deleting
  * Uses transaction to ensure atomicity when checking for active children
  */
 export async function deleteIncident(id: number) {
@@ -503,14 +597,14 @@ export async function deleteIncident(id: number) {
   // Verify access before delete
   const incident = await prisma.incident.findUnique({
     where: { id },
-    select: { vicId: true },
+    select: { clienteId: true },
   });
 
   if (!incident) {
     throw new Error("Incident not found");
   }
 
-  assertVicAccess(user, incident.vicId);
+  assertClienteAccess(user, incident.clienteId);
 
   // Use transaction to prevent race conditions when checking for children
   await prisma.$transaction(async (tx) => {
@@ -544,12 +638,12 @@ export async function refreshIncidentStatus(id: number) {
   const user = await requirePermission("incidents:update");
   const incident = await prisma.incident.findUnique({
     where: { id },
-    select: { vicId: true },
+    select: { clienteId: true },
   });
   if (!incident) {
     throw new Error("Incident not found");
   }
-  assertVicAccess(user, incident.vicId);
+  assertClienteAccess(user, incident.clienteId);
 
   const result = await syncIncidentState(id);
 
@@ -569,12 +663,12 @@ export async function closeIncident(id: number) {
 
   const incident = await prisma.incident.findUnique({
     where: { id },
-    select: { vicId: true },
+    select: { clienteId: true },
   });
   if (!incident) {
     throw new Error("Incident not found");
   }
-  assertVicAccess(user, incident.vicId);
+  assertClienteAccess(user, incident.clienteId);
 
   const result = await syncIncidentState(id);
   if (result.after !== INCIDENT_STATE.CERRADO) {
@@ -592,10 +686,10 @@ export async function closeIncident(id: number) {
 
 /**
  * Get FSR users for assignment
- * Filtered by user's VIC (except ADMINISTRADOR who sees all FSRs)
+ * Filtered by user's Cliente (except ADMINISTRADOR who sees all FSRs)
  */
 /**
- * FSRs list with their VIC assignments, used by bulk/quick edit dialogs.
+ * FSRs list with their Cliente assignments, used by bulk/quick edit dialogs.
  * Requires `incidents:update` since the caller will modify IncidentAssignee.
  */
 export async function getFsrsForAssignment() {
@@ -606,9 +700,9 @@ export async function getFsrsForAssignment() {
       id: true,
       name: true,
       email: true,
-      vicAssignments: {
+      clienteAssignments: {
         where: { active: true },
-        select: { vicId: true },
+        select: { clienteId: true },
       },
     },
     orderBy: { name: "asc" },
@@ -617,13 +711,13 @@ export async function getFsrsForAssignment() {
     id: f.id,
     name: f.name,
     email: f.email,
-    vicIds: f.vicAssignments.map((va) => va.vicId),
+    clienteIds: f.clienteAssignments.map((va) => va.clienteId),
   }));
 }
 
 export async function getFSRUsers() {
   const user = await requirePermission("incidents:assign");
-  const vicFilter = getVicWhereClause(user);
+  const clienteFilter = getClienteWhereClause(user);
 
   const fsrRole = await prisma.role.findUnique({
     where: { name: "FSR" },
@@ -637,13 +731,13 @@ export async function getFSRUsers() {
     where: {
       roleId: fsrRole.id,
       active: true,
-      ...vicFilter, // Only FSRs from same VIC
+      ...clienteFilter, // Only FSRs from same Cliente
     },
     select: {
       id: true,
       name: true,
       email: true,
-      vic: {
+      cliente: {
         select: {
           id: true,
           name: true,
@@ -658,35 +752,36 @@ export async function getFSRUsers() {
 
 /**
  * Get form options for incidents
- * VICs and schedules filtered by user's VIC (except ADMINISTRADOR)
+ * Clientes and schedules filtered by user's Cliente (except ADMINISTRADOR)
  */
 export async function getIncidentFormOptions() {
   const user = await requirePermission("incidents:read");
-  const vicFilter = getVicWhereClause(user);
+  const clienteFilter = getClienteWhereClause(user);
 
-  // Filter schedules by VICs the user can access (M:N relationship).
+  // Filter schedules by Clientes the user can access (M:N relationship).
   const isNullFilter =
-    vicFilter.vicId &&
-    typeof vicFilter.vicId === "object" &&
-    "equals" in vicFilter.vicId &&
-    vicFilter.vicId.equals === null;
+    clienteFilter.clienteId &&
+    typeof clienteFilter.clienteId === "object" &&
+    "equals" in clienteFilter.clienteId &&
+    clienteFilter.clienteId.equals === null;
   const scheduleWhere = isNullFilter
     ? {
         active: true,
-        vics: { some: { vicId: "__IMPOSSIBLE_VALUE__", active: true } },
+        clientes: { some: { clienteId: "__IMPOSSIBLE_VALUE__", active: true } },
       }
     : {
         active: true,
-        ...(vicFilter.vicId && typeof vicFilter.vicId === "string"
+        ...(clienteFilter.clienteId &&
+        typeof clienteFilter.clienteId === "string"
           ? {
-              vics: {
-                some: { vicId: vicFilter.vicId, active: true },
+              clientes: {
+                some: { clienteId: clienteFilter.clienteId, active: true },
               },
             }
           : {}),
       };
 
-  const [types, statuses, vics, users, schedules] = await Promise.all([
+  const [types, statuses, clientes, users, schedules] = await Promise.all([
     prisma.incidentType.findMany({
       where: { active: true },
       orderBy: { name: "asc" },
@@ -695,10 +790,10 @@ export async function getIncidentFormOptions() {
       where: { active: true },
       orderBy: { name: "asc" },
     }),
-    prisma.vehicleInspectionCenter.findMany({
+    prisma.cliente.findMany({
       where: {
         active: true,
-        ...vicFilter,
+        ...clienteFilter,
       },
       orderBy: { name: "asc" },
     }),
@@ -709,9 +804,9 @@ export async function getIncidentFormOptions() {
         name: true,
         email: true,
         role: true,
-        vicAssignments: {
+        clienteAssignments: {
           where: { active: true },
-          select: { vicId: true },
+          select: { clienteId: true },
         },
       },
       orderBy: { name: "asc" },
@@ -723,58 +818,61 @@ export async function getIncidentFormOptions() {
     }),
   ]);
 
-  const usersWithVicIds = users.map((u) => ({
+  const usersWithClienteIds = users.map((u) => ({
     id: u.id,
     name: u.name,
     email: u.email,
     role: u.role,
     roleName: u.role?.name ?? null,
-    vicIds: u.vicAssignments.map((va) => va.vicId),
+    clienteIds: u.clienteAssignments.map((va) => va.clienteId),
   }));
 
-  return { types, statuses, vics, users: usersWithVicIds, schedules };
+  return { types, statuses, clientes, users: usersWithClienteIds, schedules };
 }
 
 /**
  * Catalogs needed to fill the bulk-incident CSV.
- * Filters by user's VIC access (admin sees all).
+ * Filters by user's Cliente access (admin sees all).
  */
 export async function getBulkIncidentCatalogs() {
   const user = await requirePermission("incidents:create");
-  const vicFilter = getVicWhereClause(user);
+  const clienteFilter = getClienteWhereClause(user);
 
   const isNullFilter =
-    vicFilter.vicId &&
-    typeof vicFilter.vicId === "object" &&
-    "equals" in vicFilter.vicId &&
-    vicFilter.vicId.equals === null;
+    clienteFilter.clienteId &&
+    typeof clienteFilter.clienteId === "object" &&
+    "equals" in clienteFilter.clienteId &&
+    clienteFilter.clienteId.equals === null;
   const scheduleWhere = isNullFilter
     ? {
         active: true,
-        vics: { some: { vicId: "__IMPOSSIBLE_VALUE__", active: true } },
+        clientes: { some: { clienteId: "__IMPOSSIBLE_VALUE__", active: true } },
       }
     : {
         active: true,
-        ...(vicFilter.vicId && typeof vicFilter.vicId === "string"
+        ...(clienteFilter.clienteId &&
+        typeof clienteFilter.clienteId === "string"
           ? {
-              vics: { some: { vicId: vicFilter.vicId, active: true } },
+              clientes: {
+                some: { clienteId: clienteFilter.clienteId, active: true },
+              },
             }
           : {}),
       };
 
-  const [types, statuses, vics, schedules, fsrs] = await Promise.all([
+  const [types, statuses, clientes, schedules, fsrs] = await Promise.all([
     prisma.incidentType.findMany({
       where: { active: true },
       orderBy: { name: "asc" },
-      select: { id: true, name: true, sla: true },
+      select: { id: true, name: true },
     }),
     prisma.incidentStatus.findMany({
       where: { active: true },
       orderBy: { name: "asc" },
       select: { id: true, name: true, color: true },
     }),
-    prisma.vehicleInspectionCenter.findMany({
-      where: { active: true, ...vicFilter },
+    prisma.cliente.findMany({
+      where: { active: true, ...clienteFilter },
       orderBy: { name: "asc" },
       select: { id: true, name: true, code: true },
     }),
@@ -787,9 +885,9 @@ export async function getBulkIncidentCatalogs() {
         title: true,
         scheduledAt: true,
         endDate: true,
-        vics: {
+        clientes: {
           where: { active: true },
-          select: { vicId: true },
+          select: { clienteId: true },
         },
       },
     }),
@@ -799,9 +897,9 @@ export async function getBulkIncidentCatalogs() {
         id: true,
         name: true,
         email: true,
-        vicAssignments: {
+        clienteAssignments: {
           where: { active: true },
-          select: { vicId: true },
+          select: { clienteId: true },
         },
       },
       orderBy: { name: "asc" },
@@ -812,22 +910,22 @@ export async function getBulkIncidentCatalogs() {
     id: f.id,
     name: f.name,
     email: f.email,
-    vicIds: f.vicAssignments.map((va) => va.vicId),
+    clienteIds: f.clienteAssignments.map((va) => va.clienteId),
   }));
 
-  const schedulesWithVicIds = schedules.map((s) => ({
+  const schedulesWithClienteIds = schedules.map((s) => ({
     id: s.id,
     title: s.title,
     scheduledAt: s.scheduledAt,
     endDate: s.endDate,
-    vicIds: s.vics.map((v) => v.vicId),
+    clienteIds: s.clientes.map((v) => v.clienteId),
   }));
 
   return {
     types,
     statuses,
-    vics,
-    schedules: schedulesWithVicIds,
+    clientes,
+    schedules: schedulesWithClienteIds,
     fsrs: fsrUsers,
   };
 }
@@ -853,12 +951,11 @@ export type EditablePreviewRow = {
   rowNumber: number;
   title: string;
   description: string;
-  priority: number;
   startedAt: string | null;
   resolvedAt: string | null;
-  vicId: string | null;
-  vicCodeRaw: string | null;
-  vicResolved: boolean;
+  clienteId: string | null;
+  clienteCodeRaw: string | null;
+  clienteResolved: boolean;
   typeId: number | null;
   typeNameRaw: string | null;
   typeResolved: boolean;
@@ -872,7 +969,13 @@ export type EditablePreviewRow = {
  * "Cénac" → "cenac", "Mantenimiento" → "mantenimiento".
  */
 function normalizeForMatch(s: string): string {
-  return s.normalize("NFD").replace(/[̀-ͯ]/g, "").trim().toLowerCase();
+  return s
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "") // strip accents
+    .toLowerCase()
+    .replace(/\s*\/\s*/g, "/") // normalize spacing around "/"
+    .replace(/\s+/g, " ") // collapse repeated whitespace
+    .trim();
 }
 
 export type ResolveBulkResult =
@@ -886,7 +989,7 @@ function toIsoOrNull(d: Date | undefined | null): string | null {
 
 /**
  * Validate + resolve raw CSV rows into editable preview rows.
- * Accepts either the legible "template" format (Spanish headers, vic code, type name)
+ * Accepts either the legible "template" format (Spanish headers, cliente code, type name)
  * or the machine "snapshot" format (English headers, IDs). Does NOT write to DB.
  */
 export async function resolveBulkIncidentRows(
@@ -915,15 +1018,15 @@ export async function resolveBulkIncidentRows(
   }
 
   // Validate schedule access early. Caller must have access to at least one
-  // of the schedule's VICs.
+  // of the schedule's Clientes.
   if (scheduleId) {
     const sched = await prisma.schedule.findFirst({
       where: { id: scheduleId, active: true },
       select: {
         id: true,
-        vics: {
+        clientes: {
           where: { active: true },
-          select: { vicId: true },
+          select: { clienteId: true },
         },
       },
     });
@@ -938,7 +1041,9 @@ export async function resolveBulkIncidentRows(
         ],
       };
     }
-    const accessible = sched.vics.some((v) => canAccessVic(user, v.vicId));
+    const accessible = sched.clientes.some((v) =>
+      canAccessCliente(user, v.clienteId),
+    );
     if (!accessible) {
       return {
         ok: false,
@@ -950,13 +1055,13 @@ export async function resolveBulkIncidentRows(
   }
 
   // Catalogs for resolution.
-  const [allTypes, allVics, allFsrs] = await Promise.all([
+  const [allTypes, allClientes, allFsrs] = await Promise.all([
     prisma.incidentType.findMany({
       where: { active: true },
       select: { id: true, name: true },
     }),
-    prisma.vehicleInspectionCenter.findMany({
-      where: { active: true, ...getVicWhereClause(user) },
+    prisma.cliente.findMany({
+      where: { active: true, ...getClienteWhereClause(user) },
       select: { id: true, code: true },
     }),
     prisma.user.findMany({
@@ -969,10 +1074,10 @@ export async function resolveBulkIncidentRows(
     allTypes.map((t) => [normalizeForMatch(t.name), t.id] as const),
   );
   const typesById = new Map(allTypes.map((t) => [t.id, t.name] as const));
-  const vicsByCode = new Map(
-    allVics.map((v) => [normalizeForMatch(v.code), v.id] as const),
+  const clientesByCode = new Map(
+    allClientes.map((v) => [normalizeForMatch(v.code), v.id] as const),
   );
-  const vicsById = new Set(allVics.map((v) => v.id));
+  const clientesById = new Set(allClientes.map((v) => v.id));
   const validFsrIds = new Set(allFsrs.map((u) => u.id));
 
   const errors: BulkIncidentError[] = [];
@@ -995,19 +1100,17 @@ export async function resolveBulkIncidentRows(
 
       const title = getStr("titulo");
       const description = getStr("descripcion");
-      const prioRaw = getStr("prioridad");
       const tipoRaw = getStr("tipo");
       const fechaInicioRaw = getStr("fecha_inicio");
-      const vicRaw = getStr("vic");
+      const clienteRaw = getStr("cliente");
 
       // Skip rows that look completely empty (typical trailing rows in Excel).
       if (
         title === "" &&
         description === "" &&
-        prioRaw === "" &&
         tipoRaw === "" &&
         fechaInicioRaw === "" &&
-        vicRaw === ""
+        clienteRaw === ""
       ) {
         return;
       }
@@ -1019,62 +1122,48 @@ export async function resolveBulkIncidentRows(
         fieldErrors.descripcion = "Descripción es requerida";
       }
 
-      let priority = 0;
-      if (prioRaw === "") {
-        fieldErrors.prioridad = "Prioridad es requerida (1-10)";
-      } else {
-        const p = Number(prioRaw);
-        if (!Number.isFinite(p) || p < 1 || p > 10) {
-          fieldErrors.prioridad = `Prioridad inválida: "${prioRaw}"`;
-        } else {
-          priority = Math.floor(p);
-        }
-      }
-
       let startedAt: Date | null = null;
       if (fechaInicioRaw) {
-        const d = new Date(fechaInicioRaw);
-        if (Number.isNaN(d.getTime())) {
+        const d = parseMxDateTime(fechaInicioRaw);
+        if (!d) {
           fieldErrors.fecha_inicio = `Fecha inválida: "${fechaInicioRaw}"`;
         } else {
           startedAt = d;
         }
       }
 
-      const vicCodeRaw = vicRaw || null;
-      const vicId = vicCodeRaw
-        ? (vicsByCode.get(normalizeForMatch(vicCodeRaw)) ?? null)
+      const clienteCodeRaw = clienteRaw || null;
+      const clienteId = clienteCodeRaw
+        ? (clientesByCode.get(normalizeForMatch(clienteCodeRaw)) ?? null)
         : null;
-      if (vicCodeRaw && !vicId) {
-        fieldErrors.vic = `VIC "${vicCodeRaw}" no encontrado — selecciona uno`;
+      if (clienteCodeRaw && !clienteId) {
+        fieldErrors.cliente = `Cliente "${clienteCodeRaw}" no encontrado — selecciona uno`;
       }
 
-      // tipo es opcional: si no resuelve, el server hará fallback a
-      // "Desconocido". Conservamos el texto crudo para que el usuario lo vea
-      // y pueda corregirlo en el preview si quiere.
+      // tipo vacío es válido (fallback a "Desconocido"). Un tipo NO vacío que
+      // no existe en el catálogo es un ERROR visible: la fila no se puede
+      // guardar hasta que el usuario seleccione el tipo correcto en el preview.
       const typeNameRaw = tipoRaw || null;
       const typeId = typeNameRaw
         ? (typesByName.get(normalizeForMatch(typeNameRaw)) ?? null)
         : null;
+      const typeResolved = !typeNameRaw || typeId !== null;
       if (typeNameRaw && !typeId) {
-        warnings.tipo = `Tipo "${typeNameRaw}" no reconocido — se usará "Desconocido"`;
+        fieldErrors.tipo = `Tipo "${typeNameRaw}" no existe en el catálogo — selecciónalo`;
       }
 
       resolved.push({
         rowNumber,
         title,
         description,
-        priority,
         startedAt: toIsoOrNull(startedAt),
         resolvedAt: null,
-        vicId,
-        vicCodeRaw,
-        vicResolved: vicId !== null,
+        clienteId,
+        clienteCodeRaw,
+        clienteResolved: clienteId !== null,
         typeId,
         typeNameRaw,
-        // Tipo no encontrado o no especificado: el server hará fallback a
-        // "Desconocido" al guardar — no marcar la fila como inválida.
-        typeResolved: true,
+        typeResolved,
         assigneeIds: [],
         fieldErrors,
         warnings: Object.keys(warnings).length > 0 ? warnings : undefined,
@@ -1096,19 +1185,19 @@ export async function resolveBulkIncidentRows(
     }
     const data = parsed.data;
     let rowOk = true;
-    const vicId = data.vicId ?? null;
-    if (!vicId) {
+    const clienteId = data.clienteId ?? null;
+    if (!clienteId) {
       errors.push({
         row: rowNumber,
-        field: "vicId",
-        message: "vicId requerido en snapshot",
+        field: "clienteId",
+        message: "clienteId requerido en snapshot",
       });
       rowOk = false;
-    } else if (!vicsById.has(vicId)) {
+    } else if (!clientesById.has(clienteId)) {
       errors.push({
         row: rowNumber,
-        field: "vicId",
-        message: `VIC ${vicId} no existe o no accesible`,
+        field: "clienteId",
+        message: `Cliente ${clienteId} no existe o no accesible`,
       });
       rowOk = false;
     }
@@ -1147,12 +1236,11 @@ export async function resolveBulkIncidentRows(
         rowNumber,
         title: data.title,
         description: data.description,
-        priority: data.priority,
         startedAt: toIsoOrNull(data.startedAt),
         resolvedAt: toIsoOrNull(data.resolvedAt),
-        vicId,
-        vicCodeRaw: null,
-        vicResolved: true,
+        clienteId,
+        clienteCodeRaw: null,
+        clienteResolved: true,
         typeId,
         typeNameRaw: null,
         typeResolved: true,
@@ -1225,16 +1313,16 @@ export async function createIncidentsFromPreview(
     };
   }
 
-  // Validate schedule + collect its VICs for per-row cross-check.
-  let scheduleVicIds: Set<string> | null = null;
+  // Validate schedule + collect its Clientes for per-row cross-check.
+  let scheduleClienteIds: Set<string> | null = null;
   if (scheduleId) {
     const sched = await prisma.schedule.findFirst({
       where: { id: scheduleId, active: true },
       select: {
         id: true,
-        vics: {
+        clientes: {
           where: { active: true },
-          select: { vicId: true },
+          select: { clienteId: true },
         },
       },
     });
@@ -1249,7 +1337,9 @@ export async function createIncidentsFromPreview(
         ],
       };
     }
-    const accessible = sched.vics.some((v) => canAccessVic(user, v.vicId));
+    const accessible = sched.clientes.some((v) =>
+      canAccessCliente(user, v.clienteId),
+    );
     if (!accessible) {
       return {
         ok: false,
@@ -1258,12 +1348,12 @@ export async function createIncidentsFromPreview(
         ],
       };
     }
-    scheduleVicIds = new Set(sched.vics.map((v) => v.vicId));
+    scheduleClienteIds = new Set(sched.clientes.map((v) => v.clienteId));
   }
 
   // Catalogs for re-validation.
-  const vicIds = [
-    ...new Set(rows.map((r) => r.vicId).filter((v): v is string => !!v)),
+  const clienteIds = [
+    ...new Set(rows.map((r) => r.clienteId).filter((v): v is string => !!v)),
   ];
   const typeIds = [
     ...new Set(
@@ -1272,10 +1362,10 @@ export async function createIncidentsFromPreview(
   ];
   const assigneeIds = [...new Set(rows.flatMap((r) => r.assigneeIds))];
 
-  const [vicsExisting, typesExisting, fsrsExisting] = await Promise.all([
-    vicIds.length
-      ? prisma.vehicleInspectionCenter.findMany({
-          where: { id: { in: vicIds }, active: true },
+  const [clientesExisting, typesExisting, fsrsExisting] = await Promise.all([
+    clienteIds.length
+      ? prisma.cliente.findMany({
+          where: { id: { in: clienteIds }, active: true },
           select: { id: true },
         })
       : Promise.resolve([]),
@@ -1296,7 +1386,7 @@ export async function createIncidentsFromPreview(
         })
       : Promise.resolve([]),
   ]);
-  const validVics = new Set(vicsExisting.map((v) => v.id));
+  const validClientes = new Set(clientesExisting.map((v) => v.id));
   const validTypes = new Set(typesExisting.map((t) => t.id));
   const validFsrs = new Set(fsrsExisting.map((u) => u.id));
 
@@ -1316,37 +1406,30 @@ export async function createIncidentsFromPreview(
         message: "Descripción es requerida",
       });
     }
-    if (row.priority < 1 || row.priority > 10) {
+    if (!row.clienteId) {
       errors.push({
         row: row.rowNumber,
-        field: "priority",
-        message: "Prioridad debe estar entre 1 y 10",
+        field: "clienteId",
+        message: "Selecciona un Cliente para esta fila",
       });
-    }
-    if (!row.vicId) {
+    } else if (!validClientes.has(row.clienteId)) {
       errors.push({
         row: row.rowNumber,
-        field: "vicId",
-        message: "Selecciona un VIC para esta fila",
+        field: "clienteId",
+        message: `Cliente ${row.clienteId} no existe o inactivo`,
       });
-    } else if (!validVics.has(row.vicId)) {
+    } else if (!canAccessCliente(user, row.clienteId)) {
       errors.push({
         row: row.rowNumber,
-        field: "vicId",
-        message: `VIC ${row.vicId} no existe o inactivo`,
+        field: "clienteId",
+        message: "Sin acceso al Cliente seleccionado",
       });
-    } else if (!canAccessVic(user, row.vicId)) {
+    } else if (scheduleClienteIds && !scheduleClienteIds.has(row.clienteId)) {
       errors.push({
         row: row.rowNumber,
-        field: "vicId",
-        message: "Sin acceso al VIC seleccionado",
-      });
-    } else if (scheduleVicIds && !scheduleVicIds.has(row.vicId)) {
-      errors.push({
-        row: row.rowNumber,
-        field: "vicId",
+        field: "clienteId",
         message:
-          "El VIC de esta fila no está incluido en los VICs de la programación seleccionada",
+          "El Cliente de esta fila no está incluido en los Clientes de la programación seleccionada",
       });
     }
     if (row.typeId !== null && !validTypes.has(row.typeId)) {
@@ -1392,10 +1475,9 @@ export async function createIncidentsFromPreview(
         data: {
           title: row.title.trim(),
           description: row.description.trim(),
-          priority: row.priority,
           typeId: row.typeId ?? fallbackTypeId,
           statusId: row.resolvedAt ? closedStatus.id : openStatus.id,
-          vicId: row.vicId,
+          clienteId: row.clienteId,
           scheduleId,
           reportedById: user.id,
           startedAt: row.startedAt ? new Date(row.startedAt) : null,
@@ -1423,7 +1505,7 @@ export type BulkAssignChanges = {
   /** undefined = no tocar; null = quitar la programación */
   scheduleId?: string | null;
   /** undefined = no tocar */
-  vicId?: string;
+  clienteId?: string;
   /** undefined = no tocar */
   fsrIds?: { ids: string[]; mode: "replace" | "append" };
 };
@@ -1454,7 +1536,7 @@ export async function bulkAssignIncidents(
   }
   if (
     changes.scheduleId === undefined &&
-    changes.vicId === undefined &&
+    changes.clienteId === undefined &&
     changes.fsrIds === undefined
   ) {
     return {
@@ -1465,7 +1547,7 @@ export async function bulkAssignIncidents(
 
   const incidents = await prisma.incident.findMany({
     where: { id: { in: incidentIds }, active: true },
-    select: { id: true, vicId: true },
+    select: { id: true, clienteId: true },
   });
   const found = new Set(incidents.map((i) => i.id));
   const errors: Array<{ incidentId: number; message: string }> = [];
@@ -1476,44 +1558,46 @@ export async function bulkAssignIncidents(
     }
   }
 
-  // Per-incident access check based on current VIC.
+  // Per-incident access check based on current Cliente.
   for (const inc of incidents) {
-    if (!canAccessVic(user, inc.vicId)) {
+    if (!canAccessCliente(user, inc.clienteId)) {
       errors.push({
         incidentId: inc.id,
-        message: "Sin acceso al VIC actual del incidente",
+        message: "Sin acceso al Cliente actual del incidente",
       });
     }
   }
 
-  // Validate target VIC (single value, applies to all selected).
-  if (changes.vicId !== undefined) {
-    const targetVic = await prisma.vehicleInspectionCenter.findFirst({
-      where: { id: changes.vicId, active: true },
+  // Validate target Cliente (single value, applies to all selected).
+  if (changes.clienteId !== undefined) {
+    const targetCliente = await prisma.cliente.findFirst({
+      where: { id: changes.clienteId, active: true },
       select: { id: true },
     });
-    if (!targetVic) {
+    if (!targetCliente) {
       return {
         ok: false,
-        errors: [{ incidentId: 0, message: `VIC ${changes.vicId} no existe` }],
+        errors: [
+          { incidentId: 0, message: `Cliente ${changes.clienteId} no existe` },
+        ],
       };
     }
-    if (!canAccessVic(user, changes.vicId)) {
+    if (!canAccessCliente(user, changes.clienteId)) {
       return {
         ok: false,
-        errors: [{ incidentId: 0, message: "Sin acceso al VIC destino" }],
+        errors: [{ incidentId: 0, message: "Sin acceso al Cliente destino" }],
       };
     }
   }
 
-  // Validate target schedule and its VICs.
-  let scheduleVicIds: Set<string> | null = null;
+  // Validate target schedule and its Clientes.
+  let scheduleClienteIds: Set<string> | null = null;
   if (changes.scheduleId !== undefined && changes.scheduleId !== null) {
     const sched = await prisma.schedule.findFirst({
       where: { id: changes.scheduleId, active: true },
       select: {
         id: true,
-        vics: { where: { active: true }, select: { vicId: true } },
+        clientes: { where: { active: true }, select: { clienteId: true } },
       },
     });
     if (!sched) {
@@ -1527,7 +1611,7 @@ export async function bulkAssignIncidents(
         ],
       };
     }
-    scheduleVicIds = new Set(sched.vics.map((v) => v.vicId));
+    scheduleClienteIds = new Set(sched.clientes.map((v) => v.clienteId));
   }
 
   // Validate FSRs if any.
@@ -1550,14 +1634,18 @@ export async function bulkAssignIncidents(
     }
   }
 
-  // Per-incident validation: schedule↔VIC consistency.
+  // Per-incident validation: schedule↔Cliente consistency.
   for (const inc of incidents) {
-    const effectiveVic = changes.vicId ?? inc.vicId;
-    if (scheduleVicIds && effectiveVic && !scheduleVicIds.has(effectiveVic)) {
+    const effectiveCliente = changes.clienteId ?? inc.clienteId;
+    if (
+      scheduleClienteIds &&
+      effectiveCliente &&
+      !scheduleClienteIds.has(effectiveCliente)
+    ) {
       errors.push({
         incidentId: inc.id,
         message:
-          "El VIC del incidente no está incluido en la programación seleccionada",
+          "El Cliente del incidente no está incluido en la programación seleccionada",
       });
     }
   }
@@ -1572,8 +1660,8 @@ export async function bulkAssignIncidents(
     if (changes.scheduleId !== undefined) {
       updateData.scheduleId = changes.scheduleId;
     }
-    if (changes.vicId !== undefined) {
-      updateData.vicId = changes.vicId;
+    if (changes.clienteId !== undefined) {
+      updateData.clienteId = changes.clienteId;
     }
     if (Object.keys(updateData).length > 0) {
       await tx.incident.updateMany({

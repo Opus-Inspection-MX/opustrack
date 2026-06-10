@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { withPermission } from "@/lib/auth/auth";
 import { FALLBACK_INCIDENT_TYPE_NAME } from "@/lib/constants/incident-type";
 import { prisma } from "@/lib/database/prisma.singleton";
+import { INCIDENT_STATE } from "@/lib/state-machine/incident-machine";
 
 /**
  * POST /api/incidents
@@ -16,19 +17,17 @@ export const POST = withPermission(
       const {
         title,
         description,
-        priority,
         typeId,
-        statusId,
-        vicId,
+        clienteId,
         scheduleId,
         lineId,
         equipmentId,
       } = body;
 
       // Validaciones
-      if (!title || !description || priority === undefined) {
+      if (!title || !description) {
         return NextResponse.json(
-          { error: "Título, descripción y prioridad son requeridos" },
+          { error: "Título y descripción son requeridos" },
           { status: 400 },
         );
       }
@@ -49,15 +48,29 @@ export const POST = withPermission(
         resolvedTypeId = fallback.id;
       }
 
+      // State machine: every new incident starts at ABIERTO.
+      // Any caller-provided statusId is ignored so the flow can't be skipped.
+      const initialStatus = await prisma.incidentStatus.findUnique({
+        where: { name: INCIDENT_STATE.ABIERTO },
+        select: { id: true },
+      });
+      if (!initialStatus) {
+        return NextResponse.json(
+          {
+            error: `Falta estado '${INCIDENT_STATE.ABIERTO}' en el catálogo`,
+          },
+          { status: 500 },
+        );
+      }
+
       // Crear incidente
       const incident = await prisma.incident.create({
         data: {
           title,
           description,
-          priority: parseInt(priority, 10),
           typeId: resolvedTypeId,
-          statusId: statusId ? parseInt(statusId, 10) : null,
-          vicId: vicId || null,
+          statusId: initialStatus.id,
+          clienteId: clienteId || null,
           scheduleId: scheduleId || null,
           lineId: lineId ? parseInt(lineId, 10) : null,
           equipmentId: equipmentId ? parseInt(equipmentId, 10) : null,
@@ -66,7 +79,7 @@ export const POST = withPermission(
         include: {
           type: true,
           status: true,
-          vic: {
+          cliente: {
             select: {
               id: true,
               name: true,
@@ -112,14 +125,14 @@ export const POST = withPermission(
 export const GET = withPermission("incidents:read", async (request, _user) => {
   try {
     const { searchParams } = new URL(request.url);
-    const vicId = searchParams.get("vicId");
+    const clienteId = searchParams.get("clienteId");
 
     const where: Prisma.IncidentWhereInput = {
       active: true,
     };
 
-    if (vicId) {
-      where.vicId = vicId;
+    if (clienteId) {
+      where.clienteId = clienteId;
     }
 
     const incidents = await prisma.incident.findMany({
@@ -127,7 +140,7 @@ export const GET = withPermission("incidents:read", async (request, _user) => {
       include: {
         type: true,
         status: true,
-        vic: {
+        cliente: {
           select: {
             id: true,
             name: true,

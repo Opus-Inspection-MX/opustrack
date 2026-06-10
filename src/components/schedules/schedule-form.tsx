@@ -24,13 +24,13 @@ const scheduleSchema = z.object({
     .max(1000, "Description must be less than 1000 characters")
     .optional(),
   scheduledAt: z.string().min(1, "Scheduled date and time is required"),
-  vicId: z.string().min(1, "VIC Center is required"),
+  clienteId: z.string().min(1, "Cliente Center is required"),
   active: z.boolean(),
 });
 
 type ScheduleFormData = z.infer<typeof scheduleSchema>;
 
-interface VicCenter {
+interface ClienteCenter {
   id: string;
   name: string;
   code: string;
@@ -38,14 +38,14 @@ interface VicCenter {
 
 interface ScheduleFormProps {
   initialData?: Partial<ScheduleFormData>;
-  vicCenters: VicCenter[];
+  clientes: ClienteCenter[];
   onSubmit: (data: ScheduleFormData) => Promise<void>;
   onCancel: () => void;
 }
 
 export function ScheduleForm({
   initialData,
-  vicCenters,
+  clientes,
   onSubmit,
   onCancel,
 }: ScheduleFormProps) {
@@ -64,14 +64,14 @@ export function ScheduleForm({
       title: initialData?.title || "",
       description: initialData?.description || "",
       scheduledAt: initialData?.scheduledAt || "",
-      vicId: initialData?.vicId || "",
+      clienteId: initialData?.clienteId || "",
       active: initialData?.active ?? true,
     },
   });
 
   const activeValue = watch("active");
   const descriptionValue = watch("description");
-  const vicIdValue = watch("vicId");
+  const clienteIdValue = watch("clienteId");
 
   const handleFormSubmit = async (data: ScheduleFormData) => {
     try {
@@ -168,23 +168,25 @@ export function ScheduleForm({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="vicId">VIC Center *</Label>
+            <Label htmlFor="clienteId">Cliente Center *</Label>
             <SearchableSelect
-              options={vicCenters.map((vic) => ({
-                value: vic.id,
-                label: `${vic.code} - ${vic.name}`,
+              options={clientes.map((cliente) => ({
+                value: cliente.id,
+                label: `${cliente.code} - ${cliente.name}`,
               }))}
-              value={vicIdValue}
-              onValueChange={(value) => setValue("vicId", value)}
-              placeholder="Select VIC Center"
-              searchPlaceholder="Search VIC..."
-              emptyMessage="No VIC centers found."
+              value={clienteIdValue}
+              onValueChange={(value) => setValue("clienteId", value)}
+              placeholder="Select Cliente Center"
+              searchPlaceholder="Search Cliente..."
+              emptyMessage="No Cliente centers found."
               className={
-                errors.vicId && touchedFields.vicId ? "border-red-500" : ""
+                errors.clienteId && touchedFields.clienteId
+                  ? "border-red-500"
+                  : ""
               }
             />
-            {errors.vicId && touchedFields.vicId && (
-              <p className="text-sm text-red-500">{errors.vicId.message}</p>
+            {errors.clienteId && touchedFields.clienteId && (
+              <p className="text-sm text-red-500">{errors.clienteId.message}</p>
             )}
           </div>
 

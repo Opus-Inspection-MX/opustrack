@@ -4,7 +4,7 @@ import type { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requirePermission } from "@/lib/auth/auth";
-import { canAccessVic, getVicWhereClause } from "@/lib/auth/filters";
+import { canAccessCliente, getClienteWhereClause } from "@/lib/auth/filters";
 import { prisma } from "@/lib/database/prisma.singleton";
 
 export type ScheduleFormData = {
@@ -13,20 +13,20 @@ export type ScheduleFormData = {
   scheduledAt: Date;
   endDate?: Date | null;
   statusId?: number | null;
-  vicIds: string[];
+  clienteIds: string[];
 };
 
 export type ScheduleQuickUpdateData = {
-  vicIds: string[];
+  clienteIds: string[];
   scheduledAt: Date;
   endDate?: Date | null;
 };
 
 const scheduleInclude = {
-  vics: {
+  clientes: {
     where: { active: true },
     include: {
-      vic: { select: { id: true, code: true, name: true } },
+      cliente: { select: { id: true, code: true, name: true } },
     },
   },
   _count: { select: { incidents: true } },
@@ -60,7 +60,7 @@ export async function getSchedules(params?: {
   page?: number;
   limit?: number;
   search?: string;
-  vicId?: string;
+  clienteId?: string;
   statusId?: number;
   activeFrom?: Date;
   activeTo?: Date;
@@ -83,8 +83,8 @@ export async function getSchedules(params?: {
     ];
   }
 
-  if (params?.vicId) {
-    where.vics = { some: { vicId: params.vicId, active: true } };
+  if (params?.clienteId) {
+    where.clientes = { some: { clienteId: params.clienteId, active: true } };
   }
 
   if (params?.statusId) {
@@ -121,10 +121,10 @@ export async function getScheduleById(id: string) {
   const schedule = await prisma.schedule.findUnique({
     where: { id },
     include: {
-      vics: {
+      clientes: {
         where: { active: true },
         include: {
-          vic: { select: { id: true, code: true, name: true } },
+          cliente: { select: { id: true, code: true, name: true } },
         },
       },
       incidents: {
@@ -148,13 +148,13 @@ export async function getScheduleById(id: string) {
   return schedule;
 }
 
-async function assertAllVicAccess(
+async function assertAllClienteAccess(
   user: Awaited<ReturnType<typeof requirePermission>>,
-  vicIds: string[],
+  clienteIds: string[],
 ) {
-  for (const v of vicIds) {
-    if (!canAccessVic(user, v)) {
-      throw new Error(`Sin acceso al VIC ${v}`);
+  for (const v of clienteIds) {
+    if (!canAccessCliente(user, v)) {
+      throw new Error(`Sin acceso al Cliente ${v}`);
     }
   }
 }
@@ -164,11 +164,11 @@ async function assertAllVicAccess(
  */
 export async function createSchedule(data: ScheduleFormData) {
   const user = await requirePermission("schedules:create");
-  const vicIds = [...new Set(data.vicIds)];
-  if (vicIds.length === 0) {
-    throw new Error("Selecciona al menos un VIC");
+  const clienteIds = [...new Set(data.clienteIds)];
+  if (clienteIds.length === 0) {
+    throw new Error("Selecciona al menos un Cliente");
   }
-  await assertAllVicAccess(user, vicIds);
+  await assertAllClienteAccess(user, clienteIds);
 
   const schedule = await prisma.$transaction(async (tx) => {
     const created = await tx.schedule.create({
@@ -180,8 +180,11 @@ export async function createSchedule(data: ScheduleFormData) {
         statusId: data.statusId ?? null,
       },
     });
-    await tx.scheduleVic.createMany({
-      data: vicIds.map((vicId) => ({ scheduleId: created.id, vicId })),
+    await tx.scheduleCliente.createMany({
+      data: clienteIds.map((clienteId) => ({
+        scheduleId: created.id,
+        clienteId,
+      })),
       skipDuplicates: true,
     });
     return tx.schedule.findUnique({
@@ -195,21 +198,21 @@ export async function createSchedule(data: ScheduleFormData) {
   return { success: true, data: schedule };
 }
 
-async function syncScheduleVics(
+async function syncScheduleClientes(
   tx: Prisma.TransactionClient,
   scheduleId: string,
-  vicIds: string[],
+  clienteIds: string[],
 ) {
-  const current = await tx.scheduleVic.findMany({
+  const current = await tx.scheduleCliente.findMany({
     where: { scheduleId },
-    select: { vicId: true, active: true },
+    select: { clienteId: true, active: true },
   });
-  const desired = new Set(vicIds);
+  const desired = new Set(clienteIds);
   const currentActive = new Set(
-    current.filter((c) => c.active).map((c) => c.vicId),
+    current.filter((c) => c.active).map((c) => c.clienteId),
   );
   const currentInactive = new Set(
-    current.filter((c) => !c.active).map((c) => c.vicId),
+    current.filter((c) => !c.active).map((c) => c.clienteId),
   );
 
   const toDeactivate = [...currentActive].filter((v) => !desired.has(v));
@@ -219,20 +222,20 @@ async function syncScheduleVics(
   );
 
   if (toDeactivate.length) {
-    await tx.scheduleVic.updateMany({
-      where: { scheduleId, vicId: { in: toDeactivate } },
+    await tx.scheduleCliente.updateMany({
+      where: { scheduleId, clienteId: { in: toDeactivate } },
       data: { active: false },
     });
   }
   if (toActivate.length) {
-    await tx.scheduleVic.updateMany({
-      where: { scheduleId, vicId: { in: toActivate } },
+    await tx.scheduleCliente.updateMany({
+      where: { scheduleId, clienteId: { in: toActivate } },
       data: { active: true },
     });
   }
   if (toCreate.length) {
-    await tx.scheduleVic.createMany({
-      data: toCreate.map((vicId) => ({ scheduleId, vicId })),
+    await tx.scheduleCliente.createMany({
+      data: toCreate.map((clienteId) => ({ scheduleId, clienteId })),
       skipDuplicates: true,
     });
   }
@@ -243,11 +246,11 @@ async function syncScheduleVics(
  */
 export async function updateSchedule(id: string, data: ScheduleFormData) {
   const user = await requirePermission("schedules:update");
-  const vicIds = [...new Set(data.vicIds)];
-  if (vicIds.length === 0) {
-    throw new Error("Selecciona al menos un VIC");
+  const clienteIds = [...new Set(data.clienteIds)];
+  if (clienteIds.length === 0) {
+    throw new Error("Selecciona al menos un Cliente");
   }
-  await assertAllVicAccess(user, vicIds);
+  await assertAllClienteAccess(user, clienteIds);
 
   const schedule = await prisma.$transaction(async (tx) => {
     await tx.schedule.update({
@@ -260,7 +263,7 @@ export async function updateSchedule(id: string, data: ScheduleFormData) {
         statusId: data.statusId ?? null,
       },
     });
-    await syncScheduleVics(tx, id, vicIds);
+    await syncScheduleClientes(tx, id, clienteIds);
     return tx.schedule.findUnique({
       where: { id },
       include: scheduleInclude,
@@ -275,23 +278,23 @@ export async function updateSchedule(id: string, data: ScheduleFormData) {
 
 /**
  * Lightweight update used from list/calendar quick-edit dialog.
- * Only touches VICs + date range.
+ * Only touches Clientes + date range.
  */
 export async function quickUpdateSchedule(
   id: string,
   data: ScheduleQuickUpdateData,
 ) {
   const user = await requirePermission("schedules:update");
-  const vicIds = [...new Set(data.vicIds)];
-  if (vicIds.length === 0) {
-    throw new Error("Selecciona al menos un VIC");
+  const clienteIds = [...new Set(data.clienteIds)];
+  if (clienteIds.length === 0) {
+    throw new Error("Selecciona al menos un Cliente");
   }
   if (data.endDate && data.endDate < data.scheduledAt) {
     throw new Error(
       "La fecha de fin no puede ser anterior a la fecha de inicio",
     );
   }
-  await assertAllVicAccess(user, vicIds);
+  await assertAllClienteAccess(user, clienteIds);
 
   await prisma.$transaction(async (tx) => {
     await tx.schedule.update({
@@ -301,7 +304,7 @@ export async function quickUpdateSchedule(
         endDate: data.endDate ?? null,
       },
     });
-    await syncScheduleVics(tx, id, vicIds);
+    await syncScheduleClientes(tx, id, clienteIds);
   });
 
   revalidatePath("/admin/schedules");
@@ -336,15 +339,15 @@ export async function deleteSchedule(id: string) {
 }
 
 /**
- * Get VICs for schedule form. Filtered by the caller's accessible VICs.
+ * Get Clientes for schedule form. Filtered by the caller's accessible Clientes.
  */
-export async function getVICsForSchedules() {
+export async function getClientesForSchedules() {
   const user = await requirePermission("schedules:read");
 
-  const vics = await prisma.vehicleInspectionCenter.findMany({
-    where: { active: true, ...getVicWhereClause(user) },
+  const clientes = await prisma.cliente.findMany({
+    where: { active: true, ...getClienteWhereClause(user) },
     orderBy: { name: "asc" },
   });
 
-  return vics;
+  return clientes;
 }

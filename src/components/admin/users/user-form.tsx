@@ -23,7 +23,7 @@ type UserFormProps = {
     email: string;
     roleId: number;
     userStatusId: number;
-    vicId: string | null;
+    clienteId: string | null;
     userProfile: {
       telephone: string | null;
       secondaryTelephone: string | null;
@@ -33,10 +33,10 @@ type UserFormProps = {
   };
   roles: Array<{ id: number; name: string }>;
   statuses: Array<{ id: number; name: string }>;
-  vics: Array<{ id: string; name: string; code: string }>;
+  clientes: Array<{ id: string; name: string; code: string }>;
 };
 
-export function UserForm({ user, roles, statuses, vics }: UserFormProps) {
+export function UserForm({ user, roles, statuses, clientes }: UserFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -47,7 +47,7 @@ export function UserForm({ user, roles, statuses, vics }: UserFormProps) {
     password: "",
     roleId: user?.roleId || roles[0]?.id || 0,
     userStatusId: user?.userStatusId || statuses[0]?.id || 0,
-    vicId: user?.vicId || null,
+    clienteId: user?.clienteId || null,
     telephone: user?.userProfile?.telephone || "",
     secondaryTelephone: user?.userProfile?.secondaryTelephone || "",
     emergencyContact: user?.userProfile?.emergencyContact || "",
@@ -193,25 +193,25 @@ export function UserForm({ user, roles, statuses, vics }: UserFormProps) {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="vicId">Centro de Verificación</Label>
+              <Label htmlFor="clienteId">Centro de Verificación</Label>
               <SearchableSelect
                 options={[
                   { value: "none", label: "Sin asignar" },
-                  ...vics.map((vic) => ({
-                    value: vic.id,
-                    label: `${vic.name} (${vic.code})`,
+                  ...clientes.map((cliente) => ({
+                    value: cliente.id,
+                    label: `${cliente.name} (${cliente.code})`,
                   })),
                 ]}
-                value={formData.vicId || "none"}
+                value={formData.clienteId || "none"}
                 onValueChange={(value) =>
                   setFormData({
                     ...formData,
-                    vicId: value === "none" ? null : value,
+                    clienteId: value === "none" ? null : value,
                   })
                 }
-                placeholder="Seleccionar CVV"
-                searchPlaceholder="Buscar CVV..."
-                emptyMessage="No se encontraron CVV."
+                placeholder="Seleccionar Cliente"
+                searchPlaceholder="Buscar Cliente..."
+                emptyMessage="No se encontraron Cliente."
               />
             </div>
           </div>

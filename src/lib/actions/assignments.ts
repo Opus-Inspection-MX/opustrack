@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requirePermission } from "@/lib/auth/auth";
-import { getVicWhereClause } from "@/lib/auth/filters";
+import { getClienteWhereClause } from "@/lib/auth/filters";
 import { prisma } from "@/lib/database/prisma.singleton";
 import {
   ASSIGNMENT_STATE,
@@ -40,19 +40,18 @@ const assigneesInclude = {
   },
 } as const;
 
-async function assertAssigneesAuthorizedForIncident(
-  incidentId: number,
-  userIds: string[],
-) {
+/**
+ * Validate that the given users are active FSRs. FSR assignment is independent
+ * of the incident's Cliente and no longer requires per-incident enablement.
+ */
+async function assertAssigneesAreFsrs(userIds: string[]) {
   if (userIds.length === 0) return;
-  const authorized = await prisma.incidentAssignee.findMany({
-    where: { incidentId, active: true, userId: { in: userIds } },
-    select: { userId: true },
+  const fsrs = await prisma.user.findMany({
+    where: { id: { in: userIds }, active: true, role: { name: "FSR" } },
+    select: { id: true },
   });
-  const authorizedSet = new Set(authorized.map((a) => a.userId));
-  const unauthorized = userIds.filter((u) => !authorizedSet.has(u));
-  if (unauthorized.length > 0) {
-    throw new Error("Solo se pueden asignar FSRs habilitados en la incidencia");
+  if (fsrs.length !== new Set(userIds).size) {
+    throw new Error("Uno o más FSR no existen o no tienen rol FSR");
   }
 }
 
@@ -95,23 +94,23 @@ async function notifyAssignees(
 
 /**
  * Get all assignments
- * Filtered by user's VIC (except ADMINISTRADOR who sees all)
+ * Filtered by user's Cliente (except ADMINISTRADOR who sees all)
  */
 export async function getAssignments() {
   const user = await requirePermission("assignments:read");
-  const vicFilter = getVicWhereClause(user);
+  const clienteFilter = getClienteWhereClause(user);
 
   const assignments = await prisma.assignment.findMany({
     where: {
       active: true,
-      incident: { ...vicFilter },
+      incident: { ...clienteFilter },
     },
     include: {
       incident: {
         include: {
           type: true,
           status: true,
-          vic: true,
+          cliente: true,
         },
       },
       ...assigneesInclude,
@@ -146,7 +145,7 @@ export async function getAssignmentById(id: string) {
         include: {
           type: true,
           status: true,
-          vic: true,
+          cliente: true,
           reportedBy: true,
         },
       },
@@ -175,9 +174,9 @@ export async function getAssignmentById(id: string) {
     },
   });
 
-  if (assignment?.incident?.vicId) {
-    const { assertVicAccess } = await import("@/lib/auth/filters");
-    assertVicAccess(user, assignment.incident.vicId);
+  if (assignment?.incident?.clienteId) {
+    const { assertClienteAccess } = await import("@/lib/auth/filters");
+    assertClienteAccess(user, assignment.incident.clienteId);
   }
 
   return assignment;
@@ -215,12 +214,7 @@ export async function createAssignment(data: AssignmentFormData) {
 
   const uniqueAssignees = Array.from(new Set(data.assigneeIds));
 
-  if (uniqueAssignees.length > 0) {
-    await assertAssigneesAuthorizedForIncident(
-      data.incidentId,
-      uniqueAssignees,
-    );
-  }
+  await assertAssigneesAreFsrs(uniqueAssignees);
 
   const initialState =
     uniqueAssignees.length === 0
@@ -278,10 +272,7 @@ export async function updateAssignment(id: string, data: AssignmentFormData) {
     select: { incidentId: true },
   });
   if (!existingAssignment) throw new Error("Assignment not found");
-  await assertAssigneesAuthorizedForIncident(
-    existingAssignment.incidentId,
-    uniqueAssignees,
-  );
+  await assertAssigneesAreFsrs(uniqueAssignees);
 
   const result = await prisma.$transaction(async (tx) => {
     const existing = await tx.assignmentAssignee.findMany({
@@ -810,7 +801,7 @@ export async function getMyAssignments() {
         include: {
           type: true,
           status: true,
-          vic: true,
+          cliente: true,
         },
       },
       ...assigneesInclude,
@@ -840,7 +831,7 @@ export async function getAssignmentFormOptions() {
       include: {
         type: true,
         status: true,
-        vic: true,
+        cliente: true,
         assignees: {
           where: { active: true },
           select: { userId: true },
@@ -849,15 +840,15 @@ export async function getAssignmentFormOptions() {
       orderBy: { reportedAt: "desc" },
     }),
     prisma.user.findMany({
-      where: { active: true },
+      where: { active: true, role: { name: "FSR" } },
       select: {
         id: true,
         name: true,
         email: true,
         role: true,
-        vicAssignments: {
+        clienteAssignments: {
           where: { active: true },
-          select: { vicId: true },
+          select: { clienteId: true },
         },
       },
       orderBy: { name: "asc" },
@@ -868,9 +859,9 @@ export async function getAssignmentFormOptions() {
     }),
   ]);
 
-  const usersWithVicIds = users.map((user) => ({
+  const usersWithClienteIds = users.map((user) => ({
     ...user,
-    vicIds: user.vicAssignments.map((va) => va.vicId),
+    clienteIds: user.clienteAssignments.map((va) => va.clienteId),
   }));
 
   const incidentsWithAssigneeIds = incidents.map((inc) => ({
@@ -880,7 +871,7 @@ export async function getAssignmentFormOptions() {
 
   return {
     incidents: incidentsWithAssigneeIds,
-    users: usersWithVicIds,
+    users: usersWithClienteIds,
     assignmentStatuses,
   };
 }
@@ -921,20 +912,20 @@ export async function uploadAssignmentAttachment(formData: FormData) {
   );
   assertAllowedUpload(mimetype, file.size);
 
-  // Verify the assignment exists and the caller can reach its VIC
+  // Verify the assignment exists and the caller can reach its Cliente
   const assignment = await prisma.assignment.findUnique({
     where: { id: assignmentId },
-    select: { incidentId: true, incident: { select: { vicId: true } } },
+    select: { incidentId: true, incident: { select: { clienteId: true } } },
   });
   if (!assignment) {
     throw new Error("Asignación no encontrada");
   }
   await assertIncidentEditable(prisma, assignment.incidentId);
-  if (assignment.incident?.vicId) {
-    const { assertVicAccess } = await import("@/lib/auth/filters");
+  if (assignment.incident?.clienteId) {
+    const { assertClienteAccess } = await import("@/lib/auth/filters");
     const { requireAuth } = await import("@/lib/auth/auth");
     const user = await requireAuth();
-    assertVicAccess(user, assignment.incident.vicId);
+    assertClienteAccess(user, assignment.incident.clienteId);
   }
 
   const arrayBuffer = await file.arrayBuffer();

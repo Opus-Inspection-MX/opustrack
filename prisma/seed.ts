@@ -74,30 +74,107 @@ async function main() {
       }
       console.log("✅ Seeded VehicleTripStatuses");
 
-      // 2) State - Only one for testing
-      const state = await tx.state.upsert({
-        where: { code: "CDMX" },
-        update: {},
-        create: { name: "Ciudad de México", code: "CDMX" },
-      });
-      console.log("✅ Seeded State");
+      // 2) States - all 32 Mexican states
+      const mexicanStates: Array<{ name: string; code: string }> = [
+        { name: "Aguascalientes", code: "AGU" },
+        { name: "Baja California", code: "BCN" },
+        { name: "Baja California Sur", code: "BCS" },
+        { name: "Campeche", code: "CAM" },
+        { name: "Coahuila", code: "COA" },
+        { name: "Colima", code: "COL" },
+        { name: "Chiapas", code: "CHP" },
+        { name: "Chihuahua", code: "CHH" },
+        { name: "Ciudad de México", code: "CDMX" },
+        { name: "Durango", code: "DUR" },
+        { name: "Guanajuato", code: "GUA" },
+        { name: "Guerrero", code: "GRO" },
+        { name: "Hidalgo", code: "HID" },
+        { name: "Jalisco", code: "JAL" },
+        { name: "México", code: "MEX" },
+        { name: "Michoacán", code: "MIC" },
+        { name: "Morelos", code: "MOR" },
+        { name: "Nayarit", code: "NAY" },
+        { name: "Nuevo León", code: "NLE" },
+        { name: "Oaxaca", code: "OAX" },
+        { name: "Puebla", code: "PUE" },
+        { name: "Querétaro", code: "QUE" },
+        { name: "Quintana Roo", code: "ROO" },
+        { name: "San Luis Potosí", code: "SLP" },
+        { name: "Sinaloa", code: "SIN" },
+        { name: "Sonora", code: "SON" },
+        { name: "Tabasco", code: "TAB" },
+        { name: "Tamaulipas", code: "TAM" },
+        { name: "Tlaxcala", code: "TLA" },
+        { name: "Veracruz", code: "VER" },
+        { name: "Yucatán", code: "YUC" },
+        { name: "Zacatecas", code: "ZAC" },
+      ];
+      const stateByCode = new Map<string, { id: number }>();
+      for (const s of mexicanStates) {
+        const rec = await tx.state.upsert({
+          where: { code: s.code },
+          update: { name: s.name },
+          create: s,
+        });
+        stateByCode.set(s.code, rec);
+      }
+      const cdmx = stateByCode.get("CDMX");
+      const puebla = stateByCode.get("PUE");
+      if (!cdmx || !puebla) throw new Error("Estados base no encontrados");
+      console.log("✅ Seeded States (32)");
 
-      // 3) VehicleInspectionCenter - Only one for testing
-      const vic = await tx.vehicleInspectionCenter.upsert({
-        where: { code: "VIC001" },
-        update: {},
+      // 3) Clientes
+      // "SIN CENTRO": placeholder usado SOLO como fallback visual; los incidentes
+      // sin cliente dejan clienteId = null (no se asignan a este registro).
+      await tx.cliente.upsert({
+        where: { code: "SIN-CENTRO" },
+        update: { name: "SIN CENTRO" },
         create: {
-          code: "VIC001",
-          name: "Centro de Verificación CDMX Principal",
-          address: "Av. Principal 123, CDMX",
-          phone: "555-123-4567",
-          contact: "Juan Pérez",
-          rfc: "VICCDMX123456",
-          companyName: "OpusInspection CDMX",
-          stateId: state.id,
+          code: "SIN-CENTRO",
+          name: "SIN CENTRO",
+          companyName: "OpusInspection",
+          stateId: cdmx.id,
         },
       });
-      console.log("✅ Seeded VehicleInspectionCenter");
+
+      const clienteByCode = new Map<string, { id: string }>();
+      // PUEBLA: CVV01..CVV09
+      for (let n = 1; n <= 9; n++) {
+        const code = `CVV0${n}`;
+        const rec = await tx.cliente.upsert({
+          where: { code },
+          update: {},
+          create: {
+            code,
+            name: `Centro de Verificación Puebla ${code}`,
+            companyName: "OpusInspection Puebla",
+            stateId: puebla.id,
+          },
+        });
+        clienteByCode.set(code, rec);
+      }
+      // CDMX: IZ59, IT48, TH61
+      for (const code of ["IZ59", "IT48", "TH61"]) {
+        const rec = await tx.cliente.upsert({
+          where: { code },
+          update: {},
+          create: {
+            code,
+            name: `Centro de Verificación CDMX ${code}`,
+            companyName: "OpusInspection CDMX",
+            stateId: cdmx.id,
+          },
+        });
+        clienteByCode.set(code, rec);
+      }
+      // Test users below are related to these CDMX clientes.
+      const civ = clienteByCode.get("IZ59");
+      const civ2 = clienteByCode.get("IT48");
+      const civ3 = clienteByCode.get("TH61");
+      if (!civ || !civ2 || !civ3) throw new Error("Clientes base no creados");
+      console.log(
+        "✅ Seeded Clientes (SIN CENTRO, PUEBLA CVV01-09, CDMX IZ59/IT48/TH61)",
+      );
 
       // 4) Permissions - Comprehensive database-driven permissions
       const permissionsData = [
@@ -362,29 +439,29 @@ async function main() {
           action: "delete",
         },
 
-        // VIC management permissions
+        // Cliente management permissions
         {
-          name: "vics:read",
-          description: "View VICs",
-          resource: "vics",
+          name: "clientes:read",
+          description: "View Clientes",
+          resource: "clientes",
           action: "read",
         },
         {
-          name: "vics:create",
-          description: "Create VICs",
-          resource: "vics",
+          name: "clientes:create",
+          description: "Create Clientes",
+          resource: "clientes",
           action: "create",
         },
         {
-          name: "vics:update",
-          description: "Update VICs",
-          resource: "vics",
+          name: "clientes:update",
+          description: "Update Clientes",
+          resource: "clientes",
           action: "update",
         },
         {
-          name: "vics:delete",
-          description: "Delete VICs",
-          resource: "vics",
+          name: "clientes:delete",
+          description: "Delete Clientes",
+          resource: "clientes",
           action: "delete",
         },
 
@@ -752,7 +829,7 @@ async function main() {
         {
           name: "ADMINISTRADOR",
           description:
-            "Administrator with full system access (not related to VIC)",
+            "Administrator with full system access (not related to Cliente)",
           defaultPath: "/admin",
           permissions: [
             // All permissions (admin has full access)
@@ -781,7 +858,7 @@ async function main() {
             "parts:read",
             "schedules:read",
             "users:read",
-            "vics:read",
+            "clientes:read",
             "reports:view",
             "reports:export",
             "incident-status:read",
@@ -808,7 +885,7 @@ async function main() {
         },
         {
           name: "CLIENT",
-          description: "Client user - Raises incidents from VIC",
+          description: "Client user - Raises incidents from Cliente",
           defaultPath: "/client",
           permissions: [
             "route:client",
@@ -816,7 +893,7 @@ async function main() {
             "incidents:create",
             "incident-types:read", // Needed to select incident type when creating
             "incident-status:read", // Needed to view incident status
-            "vics:read", // Needed to select VIC when creating incidents
+            "clientes:read", // Needed to select Cliente when creating incidents
             "assignments:read",
             "schedules:read",
             "lines:read",
@@ -836,7 +913,7 @@ async function main() {
             "incidents:read",
             "incident-types:read", // Needed to view incident types
             "incident-status:read", // Needed to view incident status
-            "vics:read", // Needed to view VICs
+            "clientes:read", // Needed to view Clientes
             "assignments:read",
             "parts:read",
             "schedules:read",
@@ -885,31 +962,89 @@ async function main() {
       }
       console.log("✅ Seeded Roles with Permissions");
 
-      // 6) Users - One per role
-      const usersData = [
+      // 6) Users - 3 per role for testing. FSR/CLIENT users are related to a
+      // Cliente (one pair per Cliente). ADMIN and GUEST are not tied to any Cliente.
+      const usersData: Array<{
+        name: string;
+        email: string;
+        roleName: string;
+        clienteId: string | null;
+      }> = [
+        // ADMINISTRADOR (no Cliente)
         {
           name: "Admin User",
           email: "admin@opusinspection.com",
           roleName: "ADMINISTRADOR",
-          vicId: null, // Admin is not related to a VIC
+          clienteId: null,
         },
+        {
+          name: "Admin User 2",
+          email: "admin2@opusinspection.com",
+          roleName: "ADMINISTRADOR",
+          clienteId: null,
+        },
+        {
+          name: "Admin User 3",
+          email: "admin3@opusinspection.com",
+          roleName: "ADMINISTRADOR",
+          clienteId: null,
+        },
+        // FSR (one per Cliente)
         {
           name: "FSR User",
           email: "fsr@opusinspection.com",
           roleName: "FSR",
-          vicId: vic.id,
+          clienteId: civ.id,
         },
+        {
+          name: "FSR User 2",
+          email: "fsr2@opusinspection.com",
+          roleName: "FSR",
+          clienteId: civ2.id,
+        },
+        {
+          name: "FSR User 3",
+          email: "fsr3@opusinspection.com",
+          roleName: "FSR",
+          clienteId: civ3.id,
+        },
+        // CLIENT (one per Cliente — raises incidents from their Cliente)
         {
           name: "Client User",
           email: "client@opusinspection.com",
           roleName: "CLIENT",
-          vicId: vic.id, // Client raises incidents from VIC
+          clienteId: civ.id,
         },
+        {
+          name: "Client User 2",
+          email: "client2@opusinspection.com",
+          roleName: "CLIENT",
+          clienteId: civ2.id,
+        },
+        {
+          name: "Client User 3",
+          email: "client3@opusinspection.com",
+          roleName: "CLIENT",
+          clienteId: civ3.id,
+        },
+        // GUEST (read-only, no Cliente)
         {
           name: "Guest User",
           email: "guest@opusinspection.com",
           roleName: "GUEST",
-          vicId: null, // Guest has read-only access, no VIC association
+          clienteId: null,
+        },
+        {
+          name: "Guest User 2",
+          email: "guest2@opusinspection.com",
+          roleName: "GUEST",
+          clienteId: null,
+        },
+        {
+          name: "Guest User 3",
+          email: "guest3@opusinspection.com",
+          roleName: "GUEST",
+          clienteId: null,
         },
       ];
 
@@ -926,7 +1061,7 @@ async function main() {
             password: await hashPassword("password123"),
             roleId: role.id,
             userStatusId: userStatusActivo.id,
-            vicId: userData.vicId,
+            clienteId: userData.clienteId,
           },
         });
 
@@ -942,97 +1077,116 @@ async function main() {
           },
         });
 
-        // Create VIC assignment if user has a VIC
-        if (userData.vicId) {
-          await tx.userVicAssignment.upsert({
+        // Create Cliente assignment if user has a Cliente
+        if (userData.clienteId) {
+          await tx.userClienteAssignment.upsert({
             where: {
-              userId_vicId: { userId: user.id, vicId: userData.vicId },
+              userId_clienteId: {
+                userId: user.id,
+                clienteId: userData.clienteId,
+              },
             },
             update: { isPrimary: true, active: true },
             create: {
               userId: user.id,
-              vicId: userData.vicId,
+              clienteId: userData.clienteId,
               isPrimary: true,
             },
           });
         }
       }
-      console.log("✅ Seeded Users with Profiles and VIC Assignments");
+      console.log("✅ Seeded Users with Profiles and Cliente Assignments");
 
-      // 7) IncidentTypes (con SLA por tipo).
+      // 7) IncidentTypes.
       // El tipo "Desconocido" es del sistema — se usa como fallback cuando un
       // incidente se crea sin tipo. NO debe eliminarse (deleteIncidentType lo
       // blinda por nombre).
       const incidentTypes: Array<{
         name: string;
         description: string;
-        sla: number | null;
       }> = [
         {
           name: "Desconocido",
           description:
             "Tipo por defecto cuando no se clasifica. NO eliminar — usado como fallback del sistema.",
-          sla: null,
         },
         {
           name: "Falla Eléctrica",
           description: "Cortocircuitos, fallas de tablero, iluminación",
-          sla: 4,
         },
         {
           name: "Falla Mecánica",
           description: "Equipos hidráulicos, neumáticos, ejes",
-          sla: 8,
         },
         {
           name: "Falla de Software",
           description: "Sistema de inspección, base de datos, integraciones",
-          sla: 12,
         },
         {
           name: "Falla de Cámaras",
           description: "Cámaras de inspección OCR, lectores de placa",
-          sla: 6,
         },
         {
           name: "Falla de Báscula",
           description: "Sistema de pesaje",
-          sla: 8,
         },
         {
           name: "Falla de Diagnóstico",
           description: "Equipos de gases, frenómetro, alineadora",
-          sla: 8,
         },
         {
           name: "Falla de Red",
           description: "Conectividad, switches, WiFi",
-          sla: 4,
         },
         {
           name: "Mantenimiento Preventivo",
           description: "Mantenimiento programado",
-          sla: 48,
         },
         {
           name: "Mantenimiento Correctivo",
           description: "Reparación tras falla",
-          sla: 24,
         },
         {
           name: "Calibración",
           description: "Ajuste y calibración de equipos",
-          sla: 48,
         },
         {
           name: "Limpieza / Acondicionamiento",
-          description: "Higiene, orden, acondicionamiento del CVV",
-          sla: 72,
+          description: "Higiene, orden, acondicionamiento del Cliente",
         },
         {
           name: "Suministro",
           description: "Faltante de consumibles o refacciones",
-          sla: 24,
+        },
+        // MANTENIMIENTO — tipo genérico y subtipos operativos.
+        {
+          name: "MANTENIMIENTO",
+          description: "Mantenimiento general del centro de inspección",
+        },
+        {
+          name: "Mantenimiento Predictivo",
+          description: "Monitoreo de condición para anticipar fallas",
+        },
+        {
+          name: "Mantenimiento de Equipos de Diagnóstico",
+          description:
+            "Analizador de gases, frenómetro, alineadora, suspensión",
+        },
+        {
+          name: "Mantenimiento de Báscula",
+          description: "Sistema de pesaje y celdas de carga",
+        },
+        {
+          name: "Mantenimiento de Cámaras / OCR",
+          description: "Cámaras de inspección, lectores de placa OCR",
+        },
+        {
+          name: "Mantenimiento de Red / IT",
+          description: "Switches, cableado, servidores, conectividad",
+        },
+        {
+          name: "Mantenimiento de Infraestructura",
+          description: "Instalaciones eléctricas, hidráulicas y de obra civil",
         },
       ];
       for (const it of incidentTypes) {
@@ -1040,7 +1194,6 @@ async function main() {
           where: { name: it.name },
           update: {
             description: it.description,
-            sla: it.sla,
           },
           create: it,
         });
@@ -1162,13 +1315,13 @@ async function main() {
   console.log("🎉 Seed completed successfully!");
   console.log("\n📋 Test Users:");
   console.log(
-    "  Admin:  admin@opusinspection.com / password123  (Not related to VIC)",
+    "  Admin:  admin@opusinspection.com / password123  (Not related to Cliente)",
   );
   console.log(
     "  FSR:    fsr@opusinspection.com / password123     (Field Service Representative)",
   );
   console.log(
-    "  Client: client@opusinspection.com / password123  (Raises incidents from VIC)",
+    "  Client: client@opusinspection.com / password123  (Raises incidents from Cliente)",
   );
   console.log(
     "  Guest:  guest@opusinspection.com / password123   (Read-only access)",

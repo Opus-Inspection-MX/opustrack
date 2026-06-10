@@ -1,10 +1,6 @@
 import { z } from "zod";
-import {
-  baseQuerySchema,
-  cuidSchema,
-  intIdSchema,
-  prioritySchema,
-} from "./common";
+import { parseMxDateTime } from "@/lib/utils/datetime";
+import { baseQuerySchema, cuidSchema, intIdSchema } from "./common";
 
 /**
  * Schema for creating an incident. typeId is optional at the validation
@@ -17,10 +13,9 @@ export const IncidentCreateSchema = z.object({
     .min(3, "Title must be at least 3 characters")
     .max(200, "Title must be at most 200 characters"),
   description: z.string().min(1, "Description is required"),
-  priority: prioritySchema,
   typeId: intIdSchema.nullable().optional(),
   statusId: intIdSchema.nullable().optional(),
-  vicId: cuidSchema.nullable().optional(),
+  clienteId: cuidSchema.nullable().optional(),
   scheduleId: cuidSchema.nullable().optional(),
   reportedById: cuidSchema.nullable().optional(),
   startedAt: z.date().nullable().optional(),
@@ -29,8 +24,8 @@ export const IncidentCreateSchema = z.object({
 });
 
 /**
- * Schema for creating an incident as a client. SLA is implicit (lives on the
- * IncidentType). typeId optional → server falls back to "Desconocido".
+ * Schema for creating an incident as a client.
+ * typeId optional → server falls back to "Desconocido".
  */
 export const IncidentClientCreateSchema = z.object({
   title: z
@@ -38,7 +33,6 @@ export const IncidentClientCreateSchema = z.object({
     .min(3, "Title must be at least 3 characters")
     .max(200, "Title must be at most 200 characters"),
   description: z.string().min(1, "Description is required"),
-  priority: prioritySchema,
   typeId: intIdSchema.optional(),
   lineId: intIdSchema.optional(),
   equipmentId: intIdSchema.optional(),
@@ -80,11 +74,8 @@ export const IncidentAssignSchema = z.object({
 export const IncidentQuerySchema = baseQuerySchema.extend({
   statusId: z.coerce.number().int().positive().optional(),
   typeId: z.coerce.number().int().positive().optional(),
-  vicId: z.string().cuid().optional(),
-  priority: z.coerce.number().int().min(1).max(10).optional(),
-  sortBy: z
-    .enum(["reportedAt", "priority", "title", "updatedAt"])
-    .default("reportedAt"),
+  clienteId: z.string().cuid().optional(),
+  sortBy: z.enum(["reportedAt", "title", "updatedAt"]).default("reportedAt"),
 });
 
 /**
@@ -106,8 +97,8 @@ const optionalDateFromCsv = z
   .transform((v, ctx) => {
     if (!v || v.trim() === "") return undefined;
     const trimmed = v.trim();
-    const d = new Date(trimmed);
-    if (Number.isNaN(d.getTime())) {
+    const d = parseMxDateTime(trimmed);
+    if (!d) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: `Fecha inválida: "${trimmed}". Usa formato YYYY-MM-DD o YYYY-MM-DD HH:mm.`,
@@ -127,14 +118,9 @@ export const BulkIncidentSnapshotRowSchema = z.object({
     .min(3, "Título debe tener al menos 3 caracteres")
     .max(200, "Título debe tener máximo 200 caracteres"),
   description: z.string().min(1, "Descripción es requerida"),
-  priority: z.coerce
-    .number()
-    .int()
-    .min(1, "Prioridad mínima 1")
-    .max(10, "Prioridad máxima 10"),
   typeId: optionalIntFromCsv,
   statusId: optionalIntFromCsv,
-  vicId: optionalStringFromCsv,
+  clienteId: optionalStringFromCsv,
   scheduleId: optionalStringFromCsv,
   startedAt: optionalDateFromCsv,
   resolvedAt: optionalDateFromCsv,
@@ -147,7 +133,7 @@ export type BulkIncidentSnapshotRowInput = z.infer<
 
 /**
  * TEMPLATE row schema — human-readable plantilla the admin fills.
- * vic = VIC.code, tipo = IncidentType.name. scheduleId comes from the page-level selector.
+ * cliente = Cliente.code, tipo = IncidentType.name. scheduleId comes from the page-level selector.
  */
 export const BulkIncidentTemplateRowSchema = z.object({
   titulo: z
@@ -155,14 +141,9 @@ export const BulkIncidentTemplateRowSchema = z.object({
     .min(3, "Título debe tener al menos 3 caracteres")
     .max(200, "Título debe tener máximo 200 caracteres"),
   descripcion: z.string().min(1, "Descripción es requerida"),
-  prioridad: z.coerce
-    .number()
-    .int()
-    .min(1, "Prioridad mínima 1")
-    .max(10, "Prioridad máxima 10"),
   tipo: optionalStringFromCsv,
   fecha_inicio: optionalDateFromCsv,
-  vic: optionalStringFromCsv,
+  cliente: optionalStringFromCsv,
 });
 
 export type BulkIncidentTemplateRowInput = z.infer<

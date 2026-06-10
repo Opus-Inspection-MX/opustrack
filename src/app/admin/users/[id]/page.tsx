@@ -28,7 +28,7 @@ interface User {
   email: string;
   role: { id: number; name: string };
   userStatus: { id: number; name: string };
-  vicCenter?: { id: string; name: string; code: string } | null;
+  cliente?: { id: string; name: string; code: string } | null;
   active: boolean;
   createdAt: string;
   updatedAt: string;
@@ -54,7 +54,7 @@ export default function UserDetailPage() {
           email: "john.doe@example.com",
           role: { id: 1, name: "Admin" },
           userStatus: { id: 1, name: "Active" },
-          vicCenter: { id: "vic_1", name: "VIC Centro", code: "VIC001" },
+          cliente: { id: "vic_1", name: "Cliente Centro", code: "Cliente001" },
           active: true,
           createdAt: "2024-01-15T10:30:00Z",
           updatedAt: "2024-03-20T14:45:00Z",
@@ -173,15 +173,15 @@ export default function UserDetailPage() {
               </div>
             </div>
 
-            {user.vicCenter && (
+            {user.cliente && (
               <div className="flex items-start gap-3">
                 <Building2 className="h-5 w-5 text-muted-foreground mt-0.5" />
                 <div className="flex-1">
                   <p className="text-sm font-medium text-muted-foreground">
-                    VIC Center
+                    Cliente Center
                   </p>
                   <p className="text-base">
-                    {user.vicCenter.name} ({user.vicCenter.code})
+                    {user.cliente.name} ({user.cliente.code})
                   </p>
                 </div>
               </div>

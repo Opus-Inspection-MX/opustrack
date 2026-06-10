@@ -15,7 +15,7 @@ export const PartCreateSchema = z.object({
     .optional(),
   price: z.number().positive("Price must be positive"),
   stock: z.number().int().min(0, "Stock cannot be negative"),
-  vicId: cuidSchema,
+  clienteId: cuidSchema,
 });
 
 /**
@@ -69,7 +69,7 @@ export const WorkPartDeleteSchema = z.object({
  * Schema for querying parts
  */
 export const PartQuerySchema = baseQuerySchema.extend({
-  vicId: z.string().cuid().optional(),
+  clienteId: z.string().cuid().optional(),
   minStock: z.coerce.number().int().min(0).optional(),
   maxStock: z.coerce.number().int().optional(),
   sortBy: z.enum(["name", "price", "stock", "createdAt"]).default("name"),

@@ -3,12 +3,12 @@ import { withPermission } from "@/lib/auth/auth";
 import { prisma } from "@/lib/database/prisma.singleton";
 
 /**
- * GET /api/vics
+ * GET /api/clientes
  * Obtiene todos los centros de verificación
  */
-export const GET = withPermission("vics:read", async (_request, _user) => {
+export const GET = withPermission("clientes:read", async (_request, _user) => {
   try {
-    const vics = await prisma.vehicleInspectionCenter.findMany({
+    const clientes = await prisma.cliente.findMany({
       where: {
         active: true,
       },
@@ -28,11 +28,11 @@ export const GET = withPermission("vics:read", async (_request, _user) => {
 
     return NextResponse.json({
       success: true,
-      data: vics,
-      count: vics.length,
+      data: clientes,
+      count: clientes.length,
     });
   } catch (error) {
-    console.error("Error fetching VICs:", error);
+    console.error("Error fetching Clientes:", error);
     return NextResponse.json(
       { error: "Error al obtener centros de verificación" },
       { status: 500 },

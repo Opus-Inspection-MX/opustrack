@@ -32,7 +32,7 @@ interface UserFormProps {
     email: string;
     roleId: number;
     userStatusId: number;
-    vicId?: string;
+    clienteId?: string;
     active: boolean;
   };
   isEditing?: boolean;
@@ -50,7 +50,7 @@ export function UserForm({ user, isEditing = false }: UserFormProps) {
     confirmPassword: "",
     roleId: user?.roleId?.toString() || "",
     userStatusId: user?.userStatusId?.toString() || "",
-    vicId: user?.vicId || "none",
+    clienteId: user?.clienteId || "none",
     active: user?.active ?? true,
   });
 
@@ -68,10 +68,10 @@ export function UserForm({ user, isEditing = false }: UserFormProps) {
     { id: 4, name: "Pending" },
   ];
 
-  const vicCenters = [
-    { id: "vic_1", name: "VIC Centro", code: "VIC001" },
-    { id: "vic_2", name: "VIC Norte", code: "VIC002" },
-    { id: "vic_3", name: "VIC Sur", code: "VIC003" },
+  const clientes = [
+    { id: "vic_1", name: "Cliente Centro", code: "Cliente001" },
+    { id: "vic_2", name: "Cliente Norte", code: "Cliente002" },
+    { id: "vic_3", name: "Cliente Sur", code: "Cliente003" },
   ];
 
   const validateForm = () => {
@@ -273,19 +273,21 @@ export function UserForm({ user, isEditing = false }: UserFormProps) {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="vicId">VIC Center</Label>
+                <Label htmlFor="clienteId">Cliente Center</Label>
                 <Select
-                  value={formData.vicId}
-                  onValueChange={(value) => handleInputChange("vicId", value)}
+                  value={formData.clienteId}
+                  onValueChange={(value) =>
+                    handleInputChange("clienteId", value)
+                  }
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select VIC center (optional)" />
+                    <SelectValue placeholder="Select Cliente center (optional)" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">No VIC Center</SelectItem>
-                    {vicCenters.map((vic) => (
-                      <SelectItem key={vic.id} value={vic.id}>
-                        {vic.name} ({vic.code})
+                    <SelectItem value="none">No Cliente Center</SelectItem>
+                    {clientes.map((cliente) => (
+                      <SelectItem key={cliente.id} value={cliente.id}>
+                        {cliente.name} ({cliente.code})
                       </SelectItem>
                     ))}
                   </SelectContent>

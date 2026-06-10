@@ -8,26 +8,27 @@ import { ScheduleActivities } from "@/components/programacion/schedule-activitie
 import { ScheduleCalendar } from "@/components/programacion/schedule-calendar";
 import { SelectScheduleDialog } from "@/components/programacion/select-schedule-dialog";
 import { Button } from "@/components/ui/button";
+import { currentWeekRange } from "@/lib/utils/datetime";
 
-interface VicOption {
+interface ClienteOption {
   id: string;
   code: string;
   name: string;
 }
 
 export default function ProgramacionPage() {
-  const [vics, setVics] = useState<VicOption[]>([]);
+  const [clientes, setClientes] = useState<ClienteOption[]>([]);
 
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/vics")
+    fetch("/api/clientes")
       .then((r) => (r.ok ? r.json() : { data: [] }))
       .then((res) => {
         if (cancelled) return;
-        setVics(res.data || []);
+        setClientes(res.data || []);
       })
       .catch(() => {
-        if (!cancelled) setVics([]);
+        if (!cancelled) setClientes([]);
       });
     return () => {
       cancelled = true;
@@ -37,10 +38,9 @@ export default function ProgramacionPage() {
     start: Date;
     end: Date;
     type: "day" | "week" | "month" | "custom";
-  }>({
-    start: new Date(),
-    end: new Date(),
-    type: "day",
+  }>(() => {
+    const { start, end } = currentWeekRange();
+    return { start, end, type: "week" };
   });
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [selectScheduleDialogOpen, setSelectScheduleDialogOpen] =
@@ -146,7 +146,7 @@ export default function ProgramacionPage() {
           <ScheduleCalendar
             dateRange={selectedDateRange}
             onDateRangeChange={setSelectedDateRange}
-            vics={vics}
+            clientes={clientes}
           />
         </div>
 

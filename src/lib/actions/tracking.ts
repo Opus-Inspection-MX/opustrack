@@ -29,7 +29,7 @@ function parseFolioQuery(input: string): FolioQuery {
 }
 
 export async function getIncidentsForTracking(filters?: {
-  vicId?: string;
+  clienteId?: string;
   typeId?: number;
   statusId?: number;
   startDate?: string;
@@ -44,8 +44,8 @@ export async function getIncidentsForTracking(filters?: {
       active: true,
     };
 
-    if (filters?.vicId) {
-      where.vicId = filters.vicId;
+    if (filters?.clienteId) {
+      where.clienteId = filters.clienteId;
     }
 
     if (filters?.typeId) {
@@ -107,12 +107,11 @@ export async function getIncidentsForTracking(filters?: {
         id: true,
         title: true,
         description: true,
-        priority: true,
         reportedAt: true,
         resolvedAt: true,
         lineId: true,
         equipmentId: true,
-        vic: {
+        cliente: {
           select: {
             id: true,
             name: true,
@@ -205,14 +204,14 @@ export async function getIncidentsForTracking(filters?: {
   }
 }
 
-export async function getFSRsByVicId(vicId: string) {
+export async function getFSRsByClienteId(clienteId: string) {
   try {
     await requirePermission("tracking:read");
 
     const users = await prisma.user.findMany({
       where: {
-        vicAssignments: {
-          some: { vicId, active: true },
+        clienteAssignments: {
+          some: { clienteId, active: true },
         },
         active: true,
         role: {
@@ -231,7 +230,7 @@ export async function getFSRsByVicId(vicId: string) {
 
     return users;
   } catch (error) {
-    console.error("Error fetching FSRs by VIC:", error);
+    console.error("Error fetching FSRs by Cliente:", error);
     throw new Error("Failed to fetch FSRs");
   }
 }

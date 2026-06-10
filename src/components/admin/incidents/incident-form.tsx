@@ -27,23 +27,22 @@ type IncidentFormProps = {
     id: number;
     title: string;
     description: string;
-    priority: number;
     typeId: number | null;
     statusId: number | null;
-    vicId: string | null;
+    clienteId: string | null;
     scheduleId: string | null;
     reportedById: string | null;
     startedAt: Date | null;
     resolvedAt: Date | null;
     assigneeIds?: string[];
   };
-  types: Array<{ id: number; name: string; sla?: number | null }>;
+  types: Array<{ id: number; name: string }>;
   statuses: Array<{ id: number; name: string }>;
-  vics: Array<{ id: string; name: string; code: string }>;
+  clientes: Array<{ id: string; name: string; code: string }>;
   users: Array<{
     id: string;
     name: string;
-    vicIds?: string[];
+    clienteIds?: string[];
     roleName?: string | null;
   }>;
   schedules: Array<{ id: string; scheduledAt: Date }>;
@@ -53,7 +52,7 @@ export function IncidentForm({
   incident,
   types,
   statuses,
-  vics,
+  clientes,
   users,
   schedules,
 }: IncidentFormProps) {
@@ -64,10 +63,9 @@ export function IncidentForm({
   const [formData, setFormData] = useState<IncidentFormData>({
     title: incident?.title || "",
     description: incident?.description || "",
-    priority: incident?.priority || 5,
     typeId: incident?.typeId || types[0]?.id || null,
     statusId: incident?.statusId || statuses[0]?.id || null,
-    vicId: incident?.vicId || null,
+    clienteId: incident?.clienteId || null,
     scheduleId: incident?.scheduleId || null,
     reportedById: incident?.reportedById || null,
     startedAt: incident?.startedAt || null,
@@ -89,16 +87,18 @@ export function IncidentForm({
   const fsrCandidates = users.filter((u) => {
     const isFsr = u.roleName === "FSR";
     if (!isFsr) return false;
-    if (!formData.vicId) return true;
-    return u.vicIds?.includes(formData.vicId);
+    if (!formData.clienteId) return true;
+    return u.clienteIds?.includes(formData.clienteId);
   });
 
   useEffect(() => {
-    const vicId = formData.vicId;
-    if (!vicId) return;
+    const clienteId = formData.clienteId;
+    if (!clienteId) return;
     setFormData((prev) => {
       const allowed = users
-        .filter((u) => u.roleName === "FSR" && u.vicIds?.includes(vicId))
+        .filter(
+          (u) => u.roleName === "FSR" && u.clienteIds?.includes(clienteId),
+        )
         .map((u) => u.id);
       const filtered = (prev.assigneeIds ?? []).filter((id) =>
         allowed.includes(id),
@@ -106,7 +106,7 @@ export function IncidentForm({
       if (filtered.length === (prev.assigneeIds ?? []).length) return prev;
       return { ...prev, assigneeIds: filtered };
     });
-  }, [formData.vicId, users]);
+  }, [formData.clienteId, users]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -172,27 +172,6 @@ export function IncidentForm({
               required
             />
           </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="priority">Prioridad (1-10) *</Label>
-            <Input
-              id="priority"
-              type="number"
-              min={1}
-              max={10}
-              value={formData.priority}
-              onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  priority: parseInt(e.target.value, 10) || 5,
-                })
-              }
-              required
-            />
-            <p className="text-xs text-muted-foreground">
-              El SLA se hereda del tipo de incidente seleccionado.
-            </p>
-          </div>
         </CardContent>
       </Card>
 
@@ -222,14 +201,10 @@ export function IncidentForm({
                   {types.map((type) => (
                     <SelectItem key={type.id} value={type.id.toString()}>
                       {type.name}
-                      {type.sla != null ? ` · SLA ${type.sla}h` : " · Sin SLA"}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              <p className="text-xs text-muted-foreground">
-                El SLA del incidente se hereda del tipo seleccionado.
-              </p>
             </div>
 
             {/*
@@ -238,25 +213,25 @@ export function IncidentForm({
              */}
 
             <div className="space-y-2">
-              <Label htmlFor="vicId">Centro de Verificacion</Label>
+              <Label htmlFor="clienteId">Centro de Verificacion</Label>
               <SearchableSelect
                 options={[
-                  { value: "none", label: "Sin CVV" },
-                  ...vics.map((vic) => ({
-                    value: vic.id,
-                    label: `${vic.name} (${vic.code})`,
+                  { value: "none", label: "Sin Cliente" },
+                  ...clientes.map((cliente) => ({
+                    value: cliente.id,
+                    label: `${cliente.name} (${cliente.code})`,
                   })),
                 ]}
-                value={formData.vicId || "none"}
+                value={formData.clienteId || "none"}
                 onValueChange={(value) =>
                   setFormData({
                     ...formData,
-                    vicId: value === "none" ? null : value,
+                    clienteId: value === "none" ? null : value,
                   })
                 }
-                placeholder="Seleccionar CVV"
-                searchPlaceholder="Buscar CVV..."
-                emptyMessage="No se encontraron CVV."
+                placeholder="Seleccionar Cliente"
+                searchPlaceholder="Buscar Cliente..."
+                emptyMessage="No se encontraron Cliente."
               />
             </div>
 
@@ -319,15 +294,15 @@ export function IncidentForm({
                 setFormData({ ...formData, assigneeIds: ids })
               }
               placeholder={
-                formData.vicId
+                formData.clienteId
                   ? "Seleccionar FSRs habilitados"
-                  : "Selecciona un CVV para listar FSRs"
+                  : "Selecciona un Cliente para listar FSRs"
               }
               searchPlaceholder="Buscar FSR por nombre..."
               emptyMessage={
-                formData.vicId
-                  ? "No hay FSRs disponibles para este CVV"
-                  : "Selecciona un CVV primero"
+                formData.clienteId
+                  ? "No hay FSRs disponibles para este Cliente"
+                  : "Selecciona un Cliente primero"
               }
               disabled={fsrCandidates.length === 0}
             />

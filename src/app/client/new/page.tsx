@@ -31,7 +31,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { getEquipmentsByLineId } from "@/lib/actions/equipments";
 import { createIncidentAsClient } from "@/lib/actions/incidents";
-import { getLinesByVicId } from "@/lib/actions/lines";
+import { getLinesByClienteId } from "@/lib/actions/lines";
 import { getIncidentTypes } from "@/lib/actions/lookups";
 import { getMyProfile } from "@/lib/actions/users";
 
@@ -40,7 +40,7 @@ interface IncidentType {
   name: string;
 }
 
-interface VIC {
+interface Cliente {
   id: string;
   name: string;
   code: string;
@@ -61,7 +61,7 @@ export default function ReportIncidentPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [incidentTypes, setIncidentTypes] = useState<IncidentType[]>([]);
-  const [userVic, setUserVic] = useState<VIC | null>(null);
+  const [userCliente, setUserCliente] = useState<Cliente | null>(null);
   const [lines, setLines] = useState<Line[]>([]);
   const [equipments, setEquipments] = useState<Equipment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -83,16 +83,16 @@ export default function ReportIncidentPage() {
       ]);
 
       setIncidentTypes(types.data);
-      setUserVic(profile?.vic || null);
+      setUserCliente(profile?.cliente || null);
 
-      if (!profile?.vic) {
+      if (!profile?.cliente) {
         setErrors({
-          general: "Debes tener un CVV asignado para reportar incidentes",
+          general: "Debes tener un Cliente asignado para reportar incidentes",
         });
       } else {
-        // Load lines for the user's VIC
-        const vicLines = await getLinesByVicId(profile.vic.id);
-        setLines(vicLines);
+        // Load lines for the user's Cliente
+        const clienteLines = await getLinesByClienteId(profile.cliente.id);
+        setLines(clienteLines);
       }
     } catch (error) {
       console.error("Error loading data:", error);
@@ -148,9 +148,9 @@ export default function ReportIncidentPage() {
       newErrors.typeId = "El tipo de incidente es requerido";
     }
 
-    if (!userVic) {
+    if (!userCliente) {
       newErrors.general =
-        "Debes tener un CVV asignado para reportar incidentes";
+        "Debes tener un Cliente asignado para reportar incidentes";
     }
 
     setErrors(newErrors);
@@ -229,18 +229,18 @@ export default function ReportIncidentPage() {
         </div>
       </div>
 
-      {/* VIC Info Card */}
-      {userVic && (
+      {/* Cliente Info Card */}
+      {userCliente && (
         <Card className="bg-muted/30 border-primary/20">
           <CardContent className="py-4">
             <div className="flex items-center gap-3">
               <Building className="h-5 w-5 text-primary" />
               <div>
                 <p className="text-sm text-muted-foreground">
-                  Reportando para CVV
+                  Reportando para Cliente
                 </p>
                 <p className="font-medium">
-                  {userVic.name} ({userVic.code})
+                  {userCliente.name} ({userCliente.code})
                 </p>
               </div>
             </div>
@@ -271,7 +271,7 @@ export default function ReportIncidentPage() {
                 onChange={(e) => handleChange("title", e.target.value)}
                 placeholder="Breve descripción del problema"
                 className={errors.title ? "border-red-500" : ""}
-                disabled={!userVic}
+                disabled={!userCliente}
               />
               {errors.title && <FormError message={errors.title} />}
             </div>
@@ -288,7 +288,7 @@ export default function ReportIncidentPage() {
                 placeholder="Proporciona información detallada sobre el incidente..."
                 rows={5}
                 className={errors.description ? "border-red-500" : ""}
-                disabled={!userVic}
+                disabled={!userCliente}
               />
               {errors.description && <FormError message={errors.description} />}
             </div>
@@ -301,7 +301,7 @@ export default function ReportIncidentPage() {
               <Select
                 value={formData.typeId}
                 onValueChange={(value) => handleChange("typeId", value)}
-                disabled={!userVic}
+                disabled={!userCliente}
               >
                 <SelectTrigger
                   className={errors.typeId ? "border-red-500" : ""}
@@ -325,7 +325,7 @@ export default function ReportIncidentPage() {
               <Select
                 value={formData.lineId}
                 onValueChange={(value) => handleChange("lineId", value)}
-                disabled={!userVic || lines.length === 0}
+                disabled={!userCliente || lines.length === 0}
               >
                 <SelectTrigger>
                   <SelectValue
@@ -388,7 +388,7 @@ export default function ReportIncidentPage() {
             <div className="flex flex-col sm:flex-row gap-3 pt-4">
               <Button
                 type="submit"
-                disabled={isSubmitting || !userVic}
+                disabled={isSubmitting || !userCliente}
                 className="flex-1 sm:flex-initial"
               >
                 {isSubmitting && (

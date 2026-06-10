@@ -29,7 +29,7 @@ const mockUserProfile = {
   bio: "Experienced technician with 5+ years in vehicle inspection systems.",
   role: { name: "Admin" },
   userEstado: { name: "Active" },
-  vic: { name: "VIC Centro", code: "VIC001" },
+  cliente: { name: "Cliente Centro", code: "Cliente001" },
   createdAt: "2024-01-15T10:30:00Z",
   lastLogin: "2024-01-20T14:22:00Z",
 };
@@ -155,13 +155,15 @@ export default function UserProfilePage({
                 {mockUserProfile.userEstado.name}
               </Badge>
             </div>
-            {mockUserProfile.vic && (
+            {mockUserProfile.cliente && (
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Centro VIC:</span>
+                <span className="text-sm font-medium">Centro Cliente:</span>
                 <div className="text-right text-sm">
-                  <div className="font-medium">{mockUserProfile.vic.name}</div>
+                  <div className="font-medium">
+                    {mockUserProfile.cliente.name}
+                  </div>
                   <div className="text-muted-foreground">
-                    {mockUserProfile.vic.code}
+                    {mockUserProfile.cliente.code}
                   </div>
                 </div>
               </div>

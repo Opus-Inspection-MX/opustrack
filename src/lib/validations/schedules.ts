@@ -16,14 +16,14 @@ export const ScheduleCreateSchema = z.object({
   scheduledAt: z.date({ message: "Scheduled date is required" }),
   endDate: z.date().optional().nullable(),
   statusId: intIdSchema.optional().nullable(),
-  vicIds: z.array(cuidSchema).min(1, "Selecciona al menos un VIC"),
+  clienteIds: z.array(cuidSchema).min(1, "Selecciona al menos un Cliente"),
 });
 
 /**
- * Lightweight schema for the quick-edit dialog (VICs + date range only).
+ * Lightweight schema for the quick-edit dialog (Clientes + date range only).
  */
 export const ScheduleQuickUpdateSchema = z.object({
-  vicIds: z.array(cuidSchema).min(1, "Selecciona al menos un VIC"),
+  clienteIds: z.array(cuidSchema).min(1, "Selecciona al menos un Cliente"),
   scheduledAt: z.date({ message: "Scheduled date is required" }),
   endDate: z.date().optional().nullable(),
 });
@@ -55,7 +55,7 @@ export const ScheduleChangeStatusSchema = z.object({
  */
 export const ScheduleQuerySchema = baseQuerySchema.extend({
   statusId: z.coerce.number().int().positive().optional(),
-  vicId: z.string().cuid().optional(),
+  clienteId: z.string().cuid().optional(),
   fromDate: z.coerce.date().optional(),
   toDate: z.coerce.date().optional(),
   sortBy: z.enum(["scheduledAt", "title", "createdAt"]).default("scheduledAt"),

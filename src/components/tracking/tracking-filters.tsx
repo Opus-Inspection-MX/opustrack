@@ -15,12 +15,12 @@ import {
 } from "@/components/ui/select";
 
 interface TrackingFiltersProps {
-  vics: Array<{ id: string; name: string; code: string }>;
+  clientes: Array<{ id: string; name: string; code: string }>;
   incidentTypes: Array<{ id: number; name: string }>;
   incidentStatuses: Array<{ id: number; name: string }>;
   fsrs: Array<{ id: string; name: string }>;
   onFilterChange: (filters: {
-    vicId?: string;
+    clienteId?: string;
     typeId?: number;
     statusId?: number;
     startDate?: string;
@@ -32,7 +32,7 @@ interface TrackingFiltersProps {
 }
 
 export function TrackingFilters({
-  vics,
+  clientes,
   incidentTypes,
   incidentStatuses,
   fsrs,
@@ -42,7 +42,7 @@ export function TrackingFilters({
   const today = new Date().toISOString().split("T")[0];
   const [showFilters, setShowFilters] = useState(true);
   const [filters, setFilters] = useState({
-    vicId: "",
+    clienteId: "",
     typeId: "",
     statusId: "",
     startDate: today,
@@ -60,7 +60,7 @@ export function TrackingFilters({
   const handleSearch = () => {
     // Convert to proper types and remove empty values
     const cleanFilters: {
-      vicId?: string;
+      clienteId?: string;
       typeId?: number;
       statusId?: number;
       startDate?: string;
@@ -68,7 +68,7 @@ export function TrackingFilters({
       assignedFsrId?: string;
       folio?: string;
     } = {};
-    if (filters.vicId) cleanFilters.vicId = filters.vicId;
+    if (filters.clienteId) cleanFilters.clienteId = filters.clienteId;
     if (filters.typeId) cleanFilters.typeId = parseInt(filters.typeId, 10);
     if (filters.statusId)
       cleanFilters.statusId = parseInt(filters.statusId, 10);
@@ -109,7 +109,7 @@ export function TrackingFilters({
 
   const clearFilters = () => {
     const clearedFilters = {
-      vicId: "",
+      clienteId: "",
       typeId: "",
       statusId: "",
       startDate: filters.startDate, // Keep current date
@@ -126,7 +126,7 @@ export function TrackingFilters({
   };
 
   const hasActiveFilters =
-    filters.vicId !== "" ||
+    filters.clienteId !== "" ||
     filters.typeId !== "" ||
     filters.statusId !== "" ||
     filters.assignedFsrId !== "" ||
@@ -194,21 +194,23 @@ export function TrackingFilters({
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {/* CVV Filter */}
+              {/* Cliente Filter */}
               <div className="space-y-2">
-                <Label htmlFor="vicId">CVV</Label>
+                <Label htmlFor="clienteId">Cliente</Label>
                 <Select
-                  key={`vicId-${filters.vicId}`}
-                  value={filters.vicId || undefined}
-                  onValueChange={(value) => handleFilterChange("vicId", value)}
+                  key={`clienteId-${filters.clienteId}`}
+                  value={filters.clienteId || undefined}
+                  onValueChange={(value) =>
+                    handleFilterChange("clienteId", value)
+                  }
                 >
-                  <SelectTrigger id="vicId">
-                    <SelectValue placeholder="Todos los CVV" />
+                  <SelectTrigger id="clienteId">
+                    <SelectValue placeholder="Todos los Cliente" />
                   </SelectTrigger>
                   <SelectContent>
-                    {vics.map((vic) => (
-                      <SelectItem key={vic.id} value={vic.id}>
-                        {vic.name} ({vic.code})
+                    {clientes.map((cliente) => (
+                      <SelectItem key={cliente.id} value={cliente.id}>
+                        {cliente.name} ({cliente.code})
                       </SelectItem>
                     ))}
                   </SelectContent>

@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ResponsiveDialog } from "@/components/ui/responsive-dialog";
-import { SearchableSelect } from "@/components/ui/searchable-select";
 import {
   Select,
   SelectContent,
@@ -16,19 +15,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-
-interface VIC {
-  id: string;
-  name: string;
-  code: string;
-}
+import { localWallTimeToUTC } from "@/lib/utils/datetime";
 
 interface IncidentType {
-  id: number;
-  name: string;
-}
-
-interface IncidentStatus {
   id: number;
   name: string;
 }
@@ -52,46 +41,24 @@ export function CreateIncidentDialog({
   selectedSchedule,
 }: CreateIncidentDialogProps) {
   const router = useRouter();
-  const [vics, setVics] = useState<VIC[]>([]);
   const [incidentTypes, setIncidentTypes] = useState<IncidentType[]>([]);
-  const [incidentStatuses, setIncidentStatuses] = useState<IncidentStatus[]>(
-    [],
-  );
   const [loading, setLoading] = useState(false);
   const [dateRangeError, setDateRangeError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     title: "",
     description: "",
-    priority: "5",
-    sla: "24",
     typeId: "",
-    statusId: "",
-    vicId: "",
     scheduledDate: "",
     scheduledTime: "09:00",
   });
 
   const fetchData = useCallback(async () => {
     try {
-      const [vicsRes, typesRes, statusesRes] = await Promise.all([
-        fetch("/api/vics"),
-        fetch("/api/incident-types"),
-        fetch("/api/incident-statuses"),
-      ]);
-
-      if (vicsRes.ok) {
-        const vicsData = await vicsRes.json();
-        setVics(vicsData.data || []);
-      }
+      const typesRes = await fetch("/api/incident-types");
 
       if (typesRes.ok) {
         const typesData = await typesRes.json();
         setIncidentTypes(typesData.data || []);
-      }
-
-      if (statusesRes.ok) {
-        const statusesData = await statusesRes.json();
-        setIncidentStatuses(statusesData.data || []);
       }
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -123,7 +90,7 @@ export function CreateIncidentDialog({
         return true;
       }
 
-      const incidentDateTime = new Date(`${date}T${time}:00`);
+      const incidentDateTime = localWallTimeToUTC(date, time);
       const scheduleStart = new Date(selectedSchedule.scheduledAt);
 
       // If schedule has an end date, validate against it
@@ -195,8 +162,9 @@ export function CreateIncidentDialog({
 
       // Si no hay un schedule seleccionado, crear uno nuevo
       if (!scheduleId) {
-        const scheduledDateTime = new Date(
-          `${formData.scheduledDate}T${formData.scheduledTime}:00`,
+        const scheduledDateTime = localWallTimeToUTC(
+          formData.scheduledDate,
+          formData.scheduledTime,
         );
 
         const scheduleResponse = await fetch("/api/schedules", {
@@ -206,7 +174,6 @@ export function CreateIncidentDialog({
             title: formData.title,
             description: formData.description,
             scheduledAt: scheduledDateTime.toISOString(),
-            vicId: formData.vicId,
           }),
         });
 
@@ -225,11 +192,7 @@ export function CreateIncidentDialog({
         body: JSON.stringify({
           title: formData.title,
           description: formData.description,
-          priority: parseInt(formData.priority, 10),
-          sla: parseInt(formData.sla, 10),
           typeId: parseInt(formData.typeId, 10),
-          statusId: parseInt(formData.statusId, 10),
-          vicId: formData.vicId,
           scheduleId: scheduleId,
         }),
       });
@@ -242,11 +205,7 @@ export function CreateIncidentDialog({
       setFormData({
         title: "",
         description: "",
-        priority: "5",
-        sla: "24",
         typeId: "",
-        statusId: "",
-        vicId: "",
         scheduledDate: "",
         scheduledTime: "09:00",
       });
@@ -352,113 +311,29 @@ export function CreateIncidentDialog({
           />
         </div>
 
-        {/* VIC and Type */}
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="vicId">
-              VIC <span className="text-destructive">*</span>
-            </Label>
-            <SearchableSelect
-              options={vics.map((vic) => ({
-                value: vic.id,
-                label: vic.name,
-              }))}
-              value={formData.vicId}
-              onValueChange={(value) =>
-                setFormData({ ...formData, vicId: value })
-              }
-              placeholder="Selecciona un VIC"
-              searchPlaceholder="Buscar VIC..."
-              emptyMessage="No se encontraron VICs."
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="typeId">
-              Tipo <span className="text-destructive">*</span>
-            </Label>
-            <Select
-              value={formData.typeId}
-              onValueChange={(value) =>
-                setFormData({ ...formData, typeId: value })
-              }
-              required
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Selecciona tipo" />
-              </SelectTrigger>
-              <SelectContent>
-                {incidentTypes.map((type) => (
-                  <SelectItem key={type.id} value={type.id.toString()}>
-                    {type.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        {/* Priority and Status */}
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="priority">
-              Prioridad <span className="text-destructive">*</span>
-            </Label>
-            <Select
-              value={formData.priority}
-              onValueChange={(value) =>
-                setFormData({ ...formData, priority: value })
-              }
-              required
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="1">1 - Muy Baja</SelectItem>
-                <SelectItem value="3">3 - Baja</SelectItem>
-                <SelectItem value="5">5 - Media</SelectItem>
-                <SelectItem value="7">7 - Alta</SelectItem>
-                <SelectItem value="10">10 - Crítica</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="statusId">
-              Estado <span className="text-destructive">*</span>
-            </Label>
-            <Select
-              value={formData.statusId}
-              onValueChange={(value) =>
-                setFormData({ ...formData, statusId: value })
-              }
-              required
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Selecciona estado" />
-              </SelectTrigger>
-              <SelectContent>
-                {incidentStatuses.map((status) => (
-                  <SelectItem key={status.id} value={status.id.toString()}>
-                    {status.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        {/* SLA */}
+        {/* Type */}
         <div className="space-y-2">
-          <Label htmlFor="sla">SLA (horas)</Label>
-          <Input
-            id="sla"
-            type="number"
-            value={formData.sla}
-            onChange={(e) => setFormData({ ...formData, sla: e.target.value })}
-            min="1"
-          />
+          <Label htmlFor="typeId">
+            Tipo <span className="text-destructive">*</span>
+          </Label>
+          <Select
+            value={formData.typeId}
+            onValueChange={(value) =>
+              setFormData({ ...formData, typeId: value })
+            }
+            required
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Selecciona tipo" />
+            </SelectTrigger>
+            <SelectContent>
+              {incidentTypes.map((type) => (
+                <SelectItem key={type.id} value={type.id.toString()}>
+                  {type.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         {/* Scheduled Date and Time */}

@@ -10,7 +10,7 @@ export async function getLines() {
     const lines = await prisma.line.findMany({
       where: { active: true },
       include: {
-        vic: {
+        cliente: {
           select: {
             id: true,
             name: true,
@@ -47,7 +47,7 @@ export async function getLineById(id: number) {
     const line = await prisma.line.findUnique({
       where: { id },
       include: {
-        vic: {
+        cliente: {
           select: {
             id: true,
             name: true,
@@ -72,12 +72,12 @@ export async function getLineById(id: number) {
   }
 }
 
-export async function getLinesByVicId(vicId: string) {
+export async function getLinesByClienteId(clienteId: string) {
   await requirePermission("lines:read");
   try {
     const lines = await prisma.line.findMany({
       where: {
-        vicId,
+        clienteId,
         active: true,
       },
       include: {
@@ -90,7 +90,7 @@ export async function getLinesByVicId(vicId: string) {
 
     return lines;
   } catch (error) {
-    console.error("Error fetching lines by VIC:", error);
+    console.error("Error fetching lines by Cliente:", error);
     throw new Error("Failed to fetch lines");
   }
 }
@@ -98,7 +98,7 @@ export async function getLinesByVicId(vicId: string) {
 export async function createLine(data: {
   name: string;
   description?: string;
-  vicId: string;
+  clienteId: string;
 }) {
   await requirePermission("lines:create");
   try {
@@ -106,10 +106,10 @@ export async function createLine(data: {
       data: {
         name: data.name,
         description: data.description,
-        vicId: data.vicId,
+        clienteId: data.clienteId,
       },
       include: {
-        vic: {
+        cliente: {
           select: {
             id: true,
             name: true,
@@ -132,7 +132,7 @@ export async function updateLine(
   data: {
     name?: string;
     description?: string;
-    vicId?: string;
+    clienteId?: string;
   },
 ) {
   await requirePermission("lines:update");
@@ -144,10 +144,10 @@ export async function updateLine(
         ...(data.description !== undefined && {
           description: data.description,
         }),
-        ...(data.vicId && { vicId: data.vicId }),
+        ...(data.clienteId && { clienteId: data.clienteId }),
       },
       include: {
-        vic: {
+        cliente: {
           select: {
             id: true,
             name: true,

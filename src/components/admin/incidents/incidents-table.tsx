@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, Edit, Eye, MoreHorizontal, Trash2 } from "lucide-react";
+import { Edit, Eye, MoreHorizontal, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -27,7 +27,6 @@ type Incident = {
   id: number;
   title: string;
   description: string;
-  priority: number;
   reportedAt: Date;
   type: {
     name: string;
@@ -35,7 +34,7 @@ type Incident = {
   status: {
     name: string;
   } | null;
-  vic: {
+  cliente: {
     name: string;
     code: string;
   } | null;
@@ -75,12 +74,6 @@ export function IncidentsTable({ incidents }: { incidents: Incident[] }) {
     }
   };
 
-  const getPriorityColor = (priority: number) => {
-    if (priority >= 8) return "destructive";
-    if (priority >= 5) return "default";
-    return "secondary";
-  };
-
   if (incidents.length === 0) {
     return (
       <div className="text-center py-12 border rounded-lg">
@@ -98,8 +91,7 @@ export function IncidentsTable({ incidents }: { incidents: Incident[] }) {
               <TableHead>Titulo</TableHead>
               <TableHead className="hidden md:table-cell">Tipo</TableHead>
               <TableHead>Estado</TableHead>
-              <TableHead>Prioridad</TableHead>
-              <TableHead className="hidden lg:table-cell">CVV</TableHead>
+              <TableHead className="hidden lg:table-cell">Cliente</TableHead>
               <TableHead className="hidden xl:table-cell">
                 Reportado Por
               </TableHead>
@@ -114,9 +106,6 @@ export function IncidentsTable({ incidents }: { incidents: Incident[] }) {
                 <TableCell className="font-medium">
                   <div className="flex flex-col gap-1 min-w-0">
                     <div className="flex items-center gap-2 min-w-0">
-                      {incident.priority >= 8 && (
-                        <AlertTriangle className="h-4 w-4 text-destructive flex-shrink-0" />
-                      )}
                       <span className="truncate">{incident.title}</span>
                     </div>
                     <div className="md:hidden flex flex-wrap gap-1 mt-1">
@@ -149,17 +138,12 @@ export function IncidentsTable({ incidents }: { incidents: Incident[] }) {
                     </span>
                   )}
                 </TableCell>
-                <TableCell>
-                  <Badge variant={getPriorityColor(incident.priority)}>
-                    {incident.priority}/10
-                  </Badge>
-                </TableCell>
                 <TableCell className="hidden lg:table-cell">
-                  {incident.vic ? (
-                    <span className="text-sm">{incident.vic.name}</span>
+                  {incident.cliente ? (
+                    <span className="text-sm">{incident.cliente.name}</span>
                   ) : (
                     <span className="text-muted-foreground text-sm">
-                      Sin VIC
+                      Sin Cliente
                     </span>
                   )}
                 </TableCell>

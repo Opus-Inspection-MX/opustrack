@@ -9,14 +9,14 @@ import { prisma } from "@/lib/database/prisma.singleton";
  * Query params:
  * - start: fecha de inicio (ISO string)
  * - end: fecha de fin (ISO string)
- * - vicId: opcional, filtrar por VIC específico
+ * - clienteId: opcional, filtrar por Cliente específico
  */
 export const GET = withPermission("schedules:read", async (request, _user) => {
   try {
     const { searchParams } = new URL(request.url);
     const startParam = searchParams.get("start");
     const endParam = searchParams.get("end");
-    const vicIdParam = searchParams.get("vicId");
+    const clienteIdParam = searchParams.get("clienteId");
 
     if (!startParam || !endParam) {
       return NextResponse.json(
@@ -59,9 +59,9 @@ export const GET = withPermission("schedules:read", async (request, _user) => {
       ],
     };
 
-    // Filtrar por VIC si se proporciona
-    if (vicIdParam) {
-      where.vicId = vicIdParam;
+    // Filtrar por Cliente si se proporciona
+    if (clienteIdParam) {
+      where.clienteId = clienteIdParam;
     }
 
     // Obtener incidentes con schedules en el rango
@@ -70,7 +70,7 @@ export const GET = withPermission("schedules:read", async (request, _user) => {
       include: {
         type: true,
         status: true,
-        vic: {
+        cliente: {
           select: {
             id: true,
             code: true,

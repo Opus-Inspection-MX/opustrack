@@ -31,19 +31,19 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { getVICById } from "@/lib/actions/vics";
+import { getClienteById } from "@/lib/actions/clientes";
 import { requireRouteAccess } from "@/lib/auth/auth";
 
-export default async function VICDetailPage({
+export default async function ClienteDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await requireRouteAccess("/admin/vic-centers");
+  await requireRouteAccess("/admin/clientes");
   const { id } = await params;
-  const vic = await getVICById(id);
+  const cliente = await getClienteById(id);
 
-  if (!vic) notFound();
+  if (!cliente) notFound();
 
   return (
     <div className="space-y-6">
@@ -51,17 +51,19 @@ export default async function VICDetailPage({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" asChild>
-            <Link href="/admin/vic-centers">
+            <Link href="/admin/clientes">
               <ArrowLeft className="h-4 w-4" />
             </Link>
           </Button>
           <div>
-            <h1 className="text-3xl font-bold">{vic.name}</h1>
-            <p className="text-muted-foreground">Código CVV: {vic.code}</p>
+            <h1 className="text-3xl font-bold">{cliente.name}</h1>
+            <p className="text-muted-foreground">
+              Código Cliente: {cliente.code}
+            </p>
           </div>
         </div>
         <Button asChild>
-          <Link href={`/admin/vic-centers/${id}/edit`}>
+          <Link href={`/admin/clientes/${id}/edit`}>
             <Edit className="h-4 w-4 mr-2" />
             Editar
           </Link>
@@ -78,7 +80,7 @@ export default async function VICDetailPage({
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{vic._count.users}</div>
+            <div className="text-2xl font-bold">{cliente._count.users}</div>
             <p className="text-xs text-muted-foreground">Usuarios asignados</p>
           </CardContent>
         </Card>
@@ -89,7 +91,7 @@ export default async function VICDetailPage({
             <Wrench className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{vic._count.lines}</div>
+            <div className="text-2xl font-bold">{cliente._count.lines}</div>
             <p className="text-xs text-muted-foreground">
               Líneas de inspección
             </p>
@@ -102,7 +104,7 @@ export default async function VICDetailPage({
             <AlertTriangle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{vic._count.incidents}</div>
+            <div className="text-2xl font-bold">{cliente._count.incidents}</div>
             <p className="text-xs text-muted-foreground">Total de incidentes</p>
           </CardContent>
         </Card>
@@ -113,7 +115,9 @@ export default async function VICDetailPage({
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{vic._count.scheduleVics}</div>
+            <div className="text-2xl font-bold">
+              {cliente._count.scheduleClientes}
+            </div>
             <p className="text-xs text-muted-foreground">
               Total de calendarios
             </p>
@@ -121,7 +125,7 @@ export default async function VICDetailPage({
         </Card>
       </div>
 
-      {/* VIC Information */}
+      {/* Cliente Information */}
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
           <CardHeader>
@@ -131,35 +135,37 @@ export default async function VICDetailPage({
             <div className="flex items-start gap-3">
               <Building className="h-5 w-5 text-muted-foreground mt-0.5" />
               <div className="flex-1">
-                <p className="text-sm text-muted-foreground">Nombre del CVV</p>
-                <p className="font-medium">{vic.name}</p>
+                <p className="text-sm text-muted-foreground">
+                  Nombre del Cliente
+                </p>
+                <p className="font-medium">{cliente.name}</p>
               </div>
             </div>
 
             <div className="flex items-start gap-3">
               <Building className="h-5 w-5 text-muted-foreground mt-0.5" />
               <div className="flex-1">
-                <p className="text-sm text-muted-foreground">Código CVV</p>
-                <p className="font-medium font-mono">{vic.code}</p>
+                <p className="text-sm text-muted-foreground">Código Cliente</p>
+                <p className="font-medium font-mono">{cliente.code}</p>
               </div>
             </div>
 
-            {vic.companyName && (
+            {cliente.companyName && (
               <div className="flex items-start gap-3">
                 <Building className="h-5 w-5 text-muted-foreground mt-0.5" />
                 <div className="flex-1">
                   <p className="text-sm text-muted-foreground">Razón Social</p>
-                  <p className="font-medium">{vic.companyName}</p>
+                  <p className="font-medium">{cliente.companyName}</p>
                 </div>
               </div>
             )}
 
-            {vic.rfc && (
+            {cliente.rfc && (
               <div className="flex items-start gap-3">
                 <Building className="h-5 w-5 text-muted-foreground mt-0.5" />
                 <div className="flex-1">
                   <p className="text-sm text-muted-foreground">RFC</p>
-                  <p className="font-medium font-mono">{vic.rfc}</p>
+                  <p className="font-medium font-mono">{cliente.rfc}</p>
                 </div>
               </div>
             )}
@@ -171,12 +177,12 @@ export default async function VICDetailPage({
             <CardTitle>Información de Contacto</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {vic.address && (
+            {cliente.address && (
               <div className="flex items-start gap-3">
                 <MapPin className="h-5 w-5 text-muted-foreground mt-0.5" />
                 <div className="flex-1">
                   <p className="text-sm text-muted-foreground">Dirección</p>
-                  <p className="font-medium">{vic.address}</p>
+                  <p className="font-medium">{cliente.address}</p>
                 </div>
               </div>
             )}
@@ -185,40 +191,40 @@ export default async function VICDetailPage({
               <MapPin className="h-5 w-5 text-muted-foreground mt-0.5" />
               <div className="flex-1">
                 <p className="text-sm text-muted-foreground">Estado</p>
-                <p className="font-medium">{vic.state.name}</p>
+                <p className="font-medium">{cliente.state.name}</p>
               </div>
             </div>
 
-            {vic.contact && (
+            {cliente.contact && (
               <div className="flex items-start gap-3">
                 <User className="h-5 w-5 text-muted-foreground mt-0.5" />
                 <div className="flex-1">
                   <p className="text-sm text-muted-foreground">
                     Persona de Contacto
                   </p>
-                  <p className="font-medium">{vic.contact}</p>
+                  <p className="font-medium">{cliente.contact}</p>
                 </div>
               </div>
             )}
 
-            {vic.phone && (
+            {cliente.phone && (
               <div className="flex items-start gap-3">
                 <Phone className="h-5 w-5 text-muted-foreground mt-0.5" />
                 <div className="flex-1">
                   <p className="text-sm text-muted-foreground">Teléfono</p>
-                  <p className="font-medium">{vic.phone}</p>
+                  <p className="font-medium">{cliente.phone}</p>
                 </div>
               </div>
             )}
 
-            {vic.email && (
+            {cliente.email && (
               <div className="flex items-start gap-3">
                 <Mail className="h-5 w-5 text-muted-foreground mt-0.5" />
                 <div className="flex-1">
                   <p className="text-sm text-muted-foreground">
                     Correo Electrónico
                   </p>
-                  <p className="font-medium">{vic.email}</p>
+                  <p className="font-medium">{cliente.email}</p>
                 </div>
               </div>
             )}
@@ -231,14 +237,14 @@ export default async function VICDetailPage({
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Users className="h-5 w-5" />
-            Usuarios Asignados ({vic.users.length})
+            Usuarios Asignados ({cliente.users.length})
           </CardTitle>
-          <CardDescription>Usuarios asignados a este CVV</CardDescription>
+          <CardDescription>Usuarios asignados a este Cliente</CardDescription>
         </CardHeader>
         <CardContent>
-          {vic.users.length === 0 ? (
+          {cliente.users.length === 0 ? (
             <p className="text-center text-muted-foreground py-8">
-              No hay usuarios asignados a este CVV
+              No hay usuarios asignados a este Cliente
             </p>
           ) : (
             <div className="border rounded-lg overflow-auto">
@@ -253,7 +259,7 @@ export default async function VICDetailPage({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {vic.users.map((user) => (
+                  {cliente.users.map((user) => (
                     <TableRow key={user.id}>
                       <TableCell className="font-medium">{user.name}</TableCell>
                       <TableCell>{user.email}</TableCell>
@@ -290,18 +296,18 @@ export default async function VICDetailPage({
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Wrench className="h-5 w-5" />
-            Líneas y Equipos ({vic.lines.length})
+            Líneas y Equipos ({cliente.lines.length})
           </CardTitle>
           <CardDescription>Líneas de inspección y sus equipos</CardDescription>
         </CardHeader>
         <CardContent>
-          {vic.lines.length === 0 ? (
+          {cliente.lines.length === 0 ? (
             <p className="text-center text-muted-foreground py-8">
-              No hay líneas asignadas a este CVV
+              No hay líneas asignadas a este Cliente
             </p>
           ) : (
             <div className="space-y-6">
-              {vic.lines.map((line) => (
+              {cliente.lines.map((line) => (
                 <div key={line.id} className="border rounded-lg p-4">
                   <div className="flex items-center justify-between mb-4">
                     <div>
@@ -373,15 +379,15 @@ export default async function VICDetailPage({
       </Card>
 
       {/* Recent Incidents */}
-      {vic.incidents.length > 0 && (
+      {cliente.incidents.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5" />
-              Incidentes Recientes (Últimos {vic.incidents.length})
+              Incidentes Recientes (Últimos {cliente.incidents.length})
             </CardTitle>
             <CardDescription>
-              Incidentes más recientes reportados para este CVV
+              Incidentes más recientes reportados para este Cliente
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -393,13 +399,12 @@ export default async function VICDetailPage({
                     <TableHead>Título</TableHead>
                     <TableHead>Tipo</TableHead>
                     <TableHead>Estado</TableHead>
-                    <TableHead>Prioridad</TableHead>
                     <TableHead>Reportado</TableHead>
                     <TableHead className="text-right">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {vic.incidents.map((incident) => (
+                  {cliente.incidents.map((incident) => (
                     <TableRow key={incident.id}>
                       <TableCell className="font-mono text-sm">
                         INC-{incident.id}
@@ -422,15 +427,6 @@ export default async function VICDetailPage({
                         ) : (
                           <span className="text-muted-foreground">-</span>
                         )}
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={
-                            incident.priority >= 7 ? "destructive" : "outline"
-                          }
-                        >
-                          {incident.priority}/10
-                        </Badge>
                       </TableCell>
                       <TableCell className="text-sm">
                         {new Date(incident.reportedAt).toLocaleDateString()}

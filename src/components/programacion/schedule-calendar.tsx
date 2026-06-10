@@ -31,15 +31,15 @@ interface ScheduleItem {
   title: string;
   scheduledAt: string;
   endDate: string | null;
-  vics: Array<{
-    vicId: string;
+  clientes: Array<{
+    clienteId: string;
     active: boolean;
-    vic: { id: string; code: string; name: string };
+    cliente: { id: string; code: string; name: string };
   }>;
   _count: { incidents: number };
 }
 
-interface VicOption {
+interface ClienteOption {
   id: string;
   code: string;
   name: string;
@@ -56,14 +56,14 @@ interface ScheduleCalendarProps {
     end: Date;
     type: "day" | "week" | "month" | "custom";
   }) => void;
-  /** All VICs accessible by the user — needed for the quick-edit dialog. */
-  vics?: VicOption[];
+  /** All Clientes accessible by the user — needed for the quick-edit dialog. */
+  clientes?: ClienteOption[];
 }
 
 export function ScheduleCalendar({
   dateRange,
   onDateRangeChange,
-  vics = [],
+  clientes = [],
 }: ScheduleCalendarProps) {
   const router = useRouter();
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -465,7 +465,9 @@ export function ScheduleCalendar({
               </div>
               <div className="flex-1 border-l-2 pl-4 py-2 min-h-[60px]">
                 {schedulesByHour[hour]?.map((schedule) => {
-                  const activeVics = schedule.vics.filter((sv) => sv.active);
+                  const activeClientes = schedule.clientes.filter(
+                    (sv) => sv.active,
+                  );
                   return (
                     <div
                       key={schedule.id}
@@ -489,9 +491,11 @@ export function ScheduleCalendar({
                         </Button>
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        {activeVics.length === 0
-                          ? "Sin VICs"
-                          : activeVics.map((sv) => sv.vic.code).join(", ")}{" "}
+                        {activeClientes.length === 0
+                          ? "Sin Clientes"
+                          : activeClientes
+                              .map((sv) => sv.cliente.code)
+                              .join(", ")}{" "}
                         • {schedule._count.incidents} incidente(s)
                       </div>
                       <div className="text-xs text-muted-foreground mt-1">
@@ -697,7 +701,7 @@ export function ScheduleCalendar({
 
       <QuickEditScheduleDialog
         scheduleId={quickEditId}
-        vics={vics}
+        clientes={clientes}
         open={quickEditId !== null}
         onOpenChange={(open) => {
           if (!open) setQuickEditId(null);

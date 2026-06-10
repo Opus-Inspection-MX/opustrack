@@ -38,7 +38,7 @@ export const GET = withPermission("schedules:read", async (request, _user) => {
     const skip = (page - 1) * limit;
 
     const search = searchParams.get("search") || "";
-    const vicId = searchParams.get("vicId") || "";
+    const clienteId = searchParams.get("clienteId") || "";
     const statusId = searchParams.get("statusId") || "";
     const fromRaw =
       searchParams.get("activeFrom") || searchParams.get("startDate") || "";
@@ -59,8 +59,8 @@ export const GET = withPermission("schedules:read", async (request, _user) => {
       ];
     }
 
-    if (vicId) {
-      where.vics = { some: { vicId, active: true } };
+    if (clienteId) {
+      where.clientes = { some: { clienteId, active: true } };
     }
 
     if (statusId) {
@@ -72,10 +72,10 @@ export const GET = withPermission("schedules:read", async (request, _user) => {
     const schedules = await prisma.schedule.findMany({
       where,
       include: {
-        vics: {
+        clientes: {
           where: { active: true },
           include: {
-            vic: {
+            cliente: {
               select: { id: true, name: true, code: true },
             },
           },
@@ -113,25 +113,26 @@ export const GET = withPermission("schedules:read", async (request, _user) => {
 
 /**
  * POST /api/schedules
- * Crea una nueva programación (acepta vicIds: string[]).
+ * Crea una nueva programación (acepta clienteIds: string[]).
  */
 export const POST = withPermission(
   "schedules:create",
   async (request, _user) => {
     try {
       const body = await request.json();
-      const { title, description, scheduledAt, endDate, statusId, vicIds } =
+      const { title, description, scheduledAt, endDate, statusId, clienteIds } =
         body;
 
-      if (
-        !title ||
-        !scheduledAt ||
-        !Array.isArray(vicIds) ||
-        vicIds.length === 0
-      ) {
+      // clienteIds is optional: schedules created from "Asignación de Programación"
+      // are no longer tied to a Cliente.
+      const clienteIdList: string[] = Array.isArray(clienteIds)
+        ? clienteIds
+        : [];
+
+      if (!title || !scheduledAt) {
         return NextResponse.json(
           {
-            error: "Título, fecha programada y al menos un VIC son requeridos",
+            error: "Título y fecha programada son requeridos",
           },
           { status: 400 },
         );
@@ -147,20 +148,22 @@ export const POST = withPermission(
             statusId: statusId ? parseInt(statusId, 10) : null,
           },
         });
-        await tx.scheduleVic.createMany({
-          data: (vicIds as string[]).map((vicId) => ({
-            scheduleId: created.id,
-            vicId,
-          })),
-          skipDuplicates: true,
-        });
+        if (clienteIdList.length > 0) {
+          await tx.scheduleCliente.createMany({
+            data: clienteIdList.map((clienteId) => ({
+              scheduleId: created.id,
+              clienteId,
+            })),
+            skipDuplicates: true,
+          });
+        }
         return tx.schedule.findUnique({
           where: { id: created.id },
           include: {
-            vics: {
+            clientes: {
               where: { active: true },
               include: {
-                vic: { select: { id: true, name: true, code: true } },
+                cliente: { select: { id: true, name: true, code: true } },
               },
             },
             status: { select: { id: true, name: true, color: true } },

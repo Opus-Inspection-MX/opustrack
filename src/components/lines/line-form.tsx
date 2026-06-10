@@ -22,15 +22,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { getClientes } from "@/lib/actions/clientes";
 import { createLine, updateLine } from "@/lib/actions/lines";
-import { getVICs } from "@/lib/actions/vics";
 
 interface LineFormProps {
   line?: {
     id: number;
     name: string;
     description?: string | null;
-    vicId: string;
+    clienteId: string;
   };
   mode: "create" | "edit";
 }
@@ -39,7 +39,7 @@ export function LineForm({ line, mode }: LineFormProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [vics, setVics] = useState<
+  const [clientes, setClientes] = useState<
     Array<{ id: string; name: string; code: string }>
   >([]);
   const [loading, setLoading] = useState(true);
@@ -47,24 +47,24 @@ export function LineForm({ line, mode }: LineFormProps) {
   const [formData, setFormData] = useState({
     name: line?.name || "",
     description: line?.description || "",
-    vicId: line?.vicId || "",
+    clienteId: line?.clienteId || "",
   });
 
-  const loadVics = useCallback(async () => {
+  const loadClientes = useCallback(async () => {
     try {
-      const data = await getVICs();
-      setVics(data);
+      const data = await getClientes();
+      setClientes(data);
     } catch (error) {
-      console.error("Error loading VICs:", error);
-      setErrors({ general: "Error al cargar los CVV" });
+      console.error("Error loading Clientes:", error);
+      setErrors({ general: "Error al cargar los Cliente" });
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    loadVics();
-  }, [loadVics]);
+    loadClientes();
+  }, [loadClientes]);
 
   const handleChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -80,8 +80,8 @@ export function LineForm({ line, mode }: LineFormProps) {
       newErrors.name = "El nombre es requerido";
     }
 
-    if (!formData.vicId) {
-      newErrors.vicId = "El CVV es requerido";
+    if (!formData.clienteId) {
+      newErrors.clienteId = "El Cliente es requerido";
     }
 
     setErrors(newErrors);
@@ -103,13 +103,13 @@ export function LineForm({ line, mode }: LineFormProps) {
         await updateLine(line.id, {
           name: formData.name,
           description: formData.description || undefined,
-          vicId: formData.vicId,
+          clienteId: formData.clienteId,
         });
       } else {
         await createLine({
           name: formData.name,
           description: formData.description || undefined,
-          vicId: formData.vicId,
+          clienteId: formData.clienteId,
         });
       }
 
@@ -176,25 +176,27 @@ export function LineForm({ line, mode }: LineFormProps) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="vicId">
-              CVV <span className="text-red-500">*</span>
+            <Label htmlFor="clienteId">
+              Cliente <span className="text-red-500">*</span>
             </Label>
             <Select
-              value={formData.vicId}
-              onValueChange={(value) => handleChange("vicId", value)}
+              value={formData.clienteId}
+              onValueChange={(value) => handleChange("clienteId", value)}
             >
-              <SelectTrigger className={errors.vicId ? "border-red-500" : ""}>
-                <SelectValue placeholder="Seleccionar CVV" />
+              <SelectTrigger
+                className={errors.clienteId ? "border-red-500" : ""}
+              >
+                <SelectValue placeholder="Seleccionar Cliente" />
               </SelectTrigger>
               <SelectContent>
-                {vics.map((vic) => (
-                  <SelectItem key={vic.id} value={vic.id}>
-                    {vic.name} ({vic.code})
+                {clientes.map((cliente) => (
+                  <SelectItem key={cliente.id} value={cliente.id}>
+                    {cliente.name} ({cliente.code})
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            {errors.vicId && <FormError message={errors.vicId} />}
+            {errors.clienteId && <FormError message={errors.clienteId} />}
           </div>
 
           <div className="flex flex-col sm:flex-row gap-3 pt-4">

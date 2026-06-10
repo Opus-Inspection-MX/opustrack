@@ -28,7 +28,7 @@ type User = {
   userStatus: {
     name: string;
   };
-  vic: {
+  cliente: {
     name: string;
     code: string;
   } | null;
@@ -70,7 +70,7 @@ export function UsersTable({ users }: { users: User[] }) {
             <TableHead>Email</TableHead>
             <TableHead>Rol</TableHead>
             <TableHead>Estado</TableHead>
-            <TableHead>CVV</TableHead>
+            <TableHead>Cliente</TableHead>
             <TableHead>Activo</TableHead>
             <TableHead className="text-right">Acciones</TableHead>
           </TableRow>
@@ -93,9 +93,9 @@ export function UsersTable({ users }: { users: User[] }) {
                 </Badge>
               </TableCell>
               <TableCell>
-                {user.vic ? (
+                {user.cliente ? (
                   <span className="text-sm">
-                    {user.vic.name} ({user.vic.code})
+                    {user.cliente.name} ({user.cliente.code})
                   </span>
                 ) : (
                   <span className="text-muted-foreground text-sm">

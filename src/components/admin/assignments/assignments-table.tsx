@@ -29,7 +29,6 @@ type Assignment = {
   assignedAt: Date | null;
   incident: {
     title: string;
-    priority: number;
   };
   assignees: Array<{ user: { name: string } }>;
   _count: {

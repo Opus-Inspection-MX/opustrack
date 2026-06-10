@@ -26,7 +26,7 @@ interface Equipment {
   line: {
     id: number;
     name: string;
-    vic: { name: string; code: string };
+    cliente: { name: string; code: string };
   };
   active: boolean;
   createdAt: string;
@@ -67,7 +67,7 @@ export function EquipmentTable({
               <TableHead>Nombre</TableHead>
               <TableHead>Descripción</TableHead>
               <TableHead>Línea</TableHead>
-              <TableHead>CVV</TableHead>
+              <TableHead>Cliente</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="w-10"></TableHead>
             </TableRow>
@@ -91,7 +91,8 @@ export function EquipmentTable({
                 </TableCell>
                 <TableCell>
                   <span className="text-sm text-muted-foreground">
-                    {equipment.line.vic.name} ({equipment.line.vic.code})
+                    {equipment.line.cliente.name} ({equipment.line.cliente.code}
+                    )
                   </span>
                 </TableCell>
                 <TableCell>

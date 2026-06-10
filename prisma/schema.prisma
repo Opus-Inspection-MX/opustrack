@@ -17,14 +17,14 @@ model User {
   password            String
   roleId              Int
   userStatusId        Int                      @default(1)
-  vicId               String? // Deprecated - kept for backward compatibility (use vicAssignments instead)
-  vicIds              String[]                 @default([]) // Deprecated - use vicAssignments instead
+  clienteId               String? // Deprecated - kept for backward compatibility (use clienteAssignments instead)
+  clienteIds              String[]                 @default([]) // Deprecated - use clienteAssignments instead
   sessionVersion      Int                      @default(1) // Increment to invalidate all user sessions
   role                Role                     @relation(fields: [roleId], references: [id])
   userStatus          UserStatus               @relation(fields: [userStatusId], references: [id])
   userProfile         UserProfile?
-  vic                 VehicleInspectionCenter? @relation(fields: [vicId], references: [id])
-  vicAssignments      UserVicAssignment[] // VIC assignments for this user
+  cliente                 Cliente? @relation(fields: [clienteId], references: [id])
+  clienteAssignments      UserClienteAssignment[] // Cliente assignments for this user
   createdAt           DateTime                 @default(now())
   updatedAt           DateTime                 @updatedAt
   assignmentAssignees AssignmentAssignee[] // Assignments this user is assigned to (M-N)
@@ -38,21 +38,21 @@ model User {
   active              Boolean                  @default(true)
 }
 
-model UserVicAssignment {
+model UserClienteAssignment {
   id        String   @id @default(cuid())
   userId    String
-  vicId     String
-  isPrimary Boolean  @default(false) // Primary VIC for the user
+  clienteId     String
+  isPrimary Boolean  @default(false) // Primary Cliente for the user
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   user User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  vic  VehicleInspectionCenter @relation(fields: [vicId], references: [id], onDelete: Cascade)
+  cliente  Cliente @relation(fields: [clienteId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, vicId])
+  @@unique([userId, clienteId])
   @@index([userId])
-  @@index([vicId])
+  @@index([clienteId])
 }
 
 model Role {
@@ -113,7 +113,7 @@ model UserProfile {
   active             Boolean  @default(true)
 }
 
-model VehicleInspectionCenter {
+model Cliente {
   id              String              @id @default(cuid())
   code            String              @unique
   name            String
@@ -128,8 +128,8 @@ model VehicleInspectionCenter {
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
   users           User[] // Deprecated - use userAssignments instead
-  userAssignments UserVicAssignment[] // User assignments for this VIC
-  scheduleVics    ScheduleVic[]
+  userAssignments UserClienteAssignment[] // User assignments for this Cliente
+  scheduleClientes    ScheduleCliente[]
   incidents       Incident[]
   lines           Line[]
   active          Boolean             @default(true)
@@ -141,7 +141,7 @@ model State {
   code                     String                    @unique
   createdAt                DateTime                  @default(now())
   updatedAt                DateTime                  @updatedAt
-  vehicleInspectionCenters VehicleInspectionCenter[]
+  clientes                 Cliente[]
   active                   Boolean                   @default(true)
 }
 
@@ -153,7 +153,7 @@ model Schedule {
   endDate     DateTime? // Fecha de fin (opcional)
   statusId    Int? // Estado del schedule
   status      ScheduleStatus? @relation(fields: [statusId], references: [id])
-  vics        ScheduleVic[]
+  clientes        ScheduleCliente[]
   incidents   Incident[]
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
@@ -164,16 +164,16 @@ model Schedule {
   @@index([endDate])
 }
 
-model ScheduleVic {
+model ScheduleCliente {
   scheduleId String
-  vicId      String
+  clienteId      String
   schedule   Schedule                @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
-  vic        VehicleInspectionCenter @relation(fields: [vicId], references: [id])
+  cliente        Cliente @relation(fields: [clienteId], references: [id])
   active     Boolean                 @default(true)
   createdAt  DateTime                @default(now())
 
-  @@id([scheduleId, vicId])
-  @@index([vicId])
+  @@id([scheduleId, clienteId])
+  @@index([clienteId])
   @@index([scheduleId])
 }
 
@@ -192,7 +192,6 @@ model IncidentType {
   id          Int        @id @default(autoincrement())
   name        String     @unique
   description String?
-  sla         Int? // SLA en horas; null = "Sin SLA definido"
   incidents   Incident[]
   active      Boolean    @default(true)
 }
@@ -245,7 +244,6 @@ model Incident {
   id           Int                      @id @default(autoincrement())
   title        String
   description  String
-  priority     Int
   typeId       Int
   type         IncidentType             @relation(fields: [typeId], references: [id])
   statusId     Int?
@@ -255,8 +253,8 @@ model Incident {
   resolvedAt   DateTime?
   cancelledAt  DateTime?
   cancellationReason String?
-  vicId        String?
-  vic          VehicleInspectionCenter? @relation(fields: [vicId], references: [id])
+  clienteId        String?
+  cliente          Cliente? @relation(fields: [clienteId], references: [id])
   reportedById String?
   reportedBy   User?                    @relation("IncidentReporter", fields: [reportedById], references: [id])
   scheduleId   String?
@@ -276,7 +274,7 @@ model Incident {
   updatedAt   DateTime           @updatedAt
   active      Boolean            @default(true)
 
-  @@index([vicId])
+  @@index([clienteId])
   @@index([statusId])
   @@index([typeId])
   @@index([reportedById])
@@ -427,16 +425,16 @@ model Line {
   description String?
   statusId    Int                     @default(1)
   status      LineStatus              @relation(fields: [statusId], references: [id])
-  vicId       String
-  vic         VehicleInspectionCenter @relation(fields: [vicId], references: [id])
+  clienteId       String
+  cliente         Cliente @relation(fields: [clienteId], references: [id])
   equipments  Equipment[]
   incidents   Incident[]
   createdAt   DateTime                @default(now())
   updatedAt   DateTime                @updatedAt
   active      Boolean                 @default(true)
 
-  @@unique([name, vicId])
-  @@index([vicId])
+  @@unique([name, clienteId])
+  @@index([clienteId])
   @@index([statusId])
 }
 

@@ -22,7 +22,7 @@ export async function getStatesAdmin() {
     where: { active: true },
     include: {
       _count: {
-        select: { vehicleInspectionCenters: true },
+        select: { clientes: true },
       },
     },
     orderBy: { name: "asc" },
@@ -37,7 +37,7 @@ export async function getStateById(id: number) {
   const state = await prisma.state.findUnique({
     where: { id },
     include: {
-      vehicleInspectionCenters: {
+      clientes: {
         where: { active: true },
       },
     },
@@ -81,13 +81,13 @@ export async function updateState(id: number, data: StateFormData) {
 export async function deleteState(id: number) {
   await requirePermission("states:delete");
 
-  const vicCount = await prisma.vehicleInspectionCenter.count({
+  const clienteCount = await prisma.cliente.count({
     where: { stateId: id, active: true },
   });
 
-  if (vicCount > 0) {
+  if (clienteCount > 0) {
     throw new Error(
-      `Cannot delete state. ${vicCount} VIC(s) are in this state.`,
+      `Cannot delete state. ${clienteCount} Cliente(s) are in this state.`,
     );
   }
 
@@ -224,7 +224,6 @@ export async function deleteUserStatus(id: number) {
 export type IncidentTypeFormData = {
   name: string;
   description?: string;
-  sla?: number | null;
   active?: boolean;
 };
 
@@ -273,7 +272,6 @@ export async function getIncidentTypes(params?: {
     id: type.id,
     name: type.name,
     description: type.description ?? undefined,
-    sla: type.sla,
     active: type.active,
     incidentCount: type._count.incidents,
     createdAt: new Date().toISOString(), // IncidentType doesn't have createdAt
@@ -313,7 +311,6 @@ export async function createIncidentType(data: IncidentTypeFormData) {
     data: {
       name: data.name,
       description: data.description || null,
-      sla: data.sla ?? null,
       ...(data.active !== undefined && { active: data.active }),
     },
   });
@@ -333,7 +330,6 @@ export async function updateIncidentType(
     data: {
       name: data.name,
       description: data.description || null,
-      sla: data.sla ?? null,
       ...(data.active !== undefined && { active: data.active }),
     },
   });

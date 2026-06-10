@@ -15,12 +15,12 @@ import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  getClientesForSchedules,
   getScheduleById,
-  getVICsForSchedules,
   updateSchedule,
 } from "@/lib/actions/schedules";
 
-interface VicCenter {
+interface ClienteCenter {
   id: string;
   name: string;
   code: string;
@@ -36,21 +36,21 @@ export default function EditSchedulePage({
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [vicCenters, setVicCenters] = useState<VicCenter[]>([]);
+  const [clientes, setClienteCenters] = useState<ClienteCenter[]>([]);
 
   const [formData, setFormData] = useState<{
     title: string;
     description: string;
     scheduledAt: string;
     endDate: string;
-    vicIds: string[];
+    clienteIds: string[];
     active: boolean;
   }>({
     title: "",
     description: "",
     scheduledAt: "",
     endDate: "",
-    vicIds: [],
+    clienteIds: [],
     active: true,
   });
 
@@ -58,9 +58,9 @@ export default function EditSchedulePage({
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [schedule, vics] = await Promise.all([
+        const [schedule, clientes] = await Promise.all([
           getScheduleById(id),
-          getVICsForSchedules(),
+          getClientesForSchedules(),
         ]);
 
         if (schedule) {
@@ -73,13 +73,13 @@ export default function EditSchedulePage({
             endDate: schedule.endDate
               ? new Date(schedule.endDate).toISOString().slice(0, 16)
               : "",
-            vicIds: schedule.vics
+            clienteIds: schedule.clientes
               .filter((sv) => sv.active)
-              .map((sv) => sv.vicId),
+              .map((sv) => sv.clienteId),
             active: schedule.active,
           });
         }
-        setVicCenters(vics);
+        setClienteCenters(clientes);
       } catch (error) {
         console.error("Error fetching data:", error);
         setErrors({ submit: "Error al cargar los datos de la programación" });
@@ -125,8 +125,8 @@ export default function EditSchedulePage({
       }
     }
 
-    if (formData.vicIds.length === 0) {
-      newErrors.vicIds = "Selecciona al menos un VIC";
+    if (formData.clienteIds.length === 0) {
+      newErrors.clienteIds = "Selecciona al menos un Cliente";
     }
 
     setErrors(newErrors);
@@ -148,7 +148,7 @@ export default function EditSchedulePage({
         description: formData.description?.trim() || undefined,
         scheduledAt: new Date(formData.scheduledAt),
         endDate: formData.endDate ? new Date(formData.endDate) : undefined,
-        vicIds: formData.vicIds,
+        clienteIds: formData.clienteIds,
       });
 
       router.push(`/admin/schedules/${id}`);
@@ -273,25 +273,25 @@ export default function EditSchedulePage({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="vicIds">
-                VICs <span className="text-red-500">*</span>
+              <Label htmlFor="clienteIds">
+                Clientes <span className="text-red-500">*</span>
               </Label>
               <MultiSelect
-                options={vicCenters.map((vic) => ({
-                  value: vic.id,
-                  label: `${vic.code} — ${vic.name}`,
+                options={clientes.map((cliente) => ({
+                  value: cliente.id,
+                  label: `${cliente.code} — ${cliente.name}`,
                 }))}
-                value={formData.vicIds}
-                onValueChange={(ids) => handleChange("vicIds", ids)}
-                placeholder="Selecciona uno o varios VICs"
-                searchPlaceholder="Buscar VIC..."
-                emptyMessage="Sin VICs disponibles"
+                value={formData.clienteIds}
+                onValueChange={(ids) => handleChange("clienteIds", ids)}
+                placeholder="Selecciona uno o varios Clientes"
+                searchPlaceholder="Buscar Cliente..."
+                emptyMessage="Sin Clientes disponibles"
               />
-              {errors.vicIds && (
-                <p className="text-sm text-red-500">{errors.vicIds}</p>
+              {errors.clienteIds && (
+                <p className="text-sm text-red-500">{errors.clienteIds}</p>
               )}
               <p className="text-sm text-muted-foreground">
-                Puedes asignar la programación a varios CVVs.
+                Puedes asignar la programación a varios Clientes.
               </p>
             </div>
 

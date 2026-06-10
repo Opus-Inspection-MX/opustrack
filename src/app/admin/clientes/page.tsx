@@ -1,11 +1,11 @@
 import { Plus } from "lucide-react";
 import Link from "next/link";
-import { VICsTable } from "@/components/admin/vics/vics-table";
+import { ClientesTable } from "@/components/admin/clientes/clientes-table";
 import { Button } from "@/components/ui/button";
-import { getVICs } from "@/lib/actions/vics";
+import { getClientes } from "@/lib/actions/clientes";
 
-export default async function VICCentersPage() {
-  const vics = await getVICs();
+export default async function ClientesPage() {
+  const clientes = await getClientes();
 
   return (
     <div className="space-y-6">
@@ -17,14 +17,14 @@ export default async function VICCentersPage() {
           </p>
         </div>
         <Button asChild>
-          <Link href="/admin/vic-centers/new">
+          <Link href="/admin/clientes/new">
             <Plus className="mr-2 h-4 w-4" />
-            Agregar CVV
+            Agregar Cliente
           </Link>
         </Button>
       </div>
 
-      <VICsTable vics={vics} />
+      <ClientesTable clientes={clientes} />
     </div>
   );
 }

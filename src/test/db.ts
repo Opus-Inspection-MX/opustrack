@@ -62,17 +62,17 @@ export async function seedTestDatabase() {
       },
     });
 
-    // Create a test VIC
-    const vic = await prisma.vehicleInspectionCenter.upsert({
-      where: { id: "test-vic-id" },
+    // Create a test Cliente
+    const cliente = await prisma.cliente.upsert({
+      where: { id: "test-cliente-id" },
       update: {},
       create: {
-        id: "test-vic-id",
-        name: "Test VIC",
+        id: "test-cliente-id",
+        name: "Test Cliente",
         code: "TEST001",
         address: "Test Address",
         phone: "1234567890",
-        email: "test@vic.com",
+        email: "test@cliente.com",
         stateId: testState.id,
       },
     });
@@ -141,7 +141,7 @@ export async function seedTestDatabase() {
           "$2a$10$K5JhHUMN.P5k.0HXpZbRs.Nq0QYpF5hU5rHJ3/XP5JhHUMN.P5k.0", // "password123"
         roleId: fsrRole.id,
         userStatusId: activeStatus.id,
-        vicId: vic.id,
+        clienteId: cliente.id,
       },
     });
 
@@ -155,11 +155,11 @@ export async function seedTestDatabase() {
           "$2a$10$K5JhHUMN.P5k.0HXpZbRs.Nq0QYpF5hU5rHJ3/XP5JhHUMN.P5k.0", // "password123"
         roleId: clientRole.id,
         userStatusId: activeStatus.id,
-        vicId: vic.id,
+        clienteId: cliente.id,
       },
     });
 
-    return { vic, adminRole, fsrRole, clientRole, activeStatus };
+    return { cliente, adminRole, fsrRole, clientRole, activeStatus };
   } catch (error) {
     console.error("Failed to seed test database:", error);
     throw error;
@@ -191,7 +191,7 @@ export async function cleanupTestDatabase() {
     await prisma.role.deleteMany();
     await prisma.incidentType.deleteMany();
     await prisma.incidentStatus.deleteMany();
-    await prisma.vehicleInspectionCenter.deleteMany();
+    await prisma.cliente.deleteMany();
     await prisma.state.deleteMany();
     await prisma.userStatus.deleteMany();
   } catch (error) {

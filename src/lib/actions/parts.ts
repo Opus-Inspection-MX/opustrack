@@ -13,7 +13,7 @@ export type PartFormData = {
 };
 
 /**
- * Get all parts (warehouse-level, not scoped to VIC)
+ * Get all parts (warehouse-level, not scoped to Cliente)
  */
 export async function getParts() {
   await requirePermission("parts:read");

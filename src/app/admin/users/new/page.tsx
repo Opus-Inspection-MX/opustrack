@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { getUserFormOptions } from "@/lib/actions/users";
 
 export default async function NewUserPage() {
-  const { roles, statuses, vics } = await getUserFormOptions();
+  const { roles, statuses, clientes } = await getUserFormOptions();
 
   return (
     <div className="space-y-6">
@@ -23,7 +23,7 @@ export default async function NewUserPage() {
         </div>
       </div>
 
-      <UserForm roles={roles} statuses={statuses} vics={vics} />
+      <UserForm roles={roles} statuses={statuses} clientes={clientes} />
     </div>
   );
 }

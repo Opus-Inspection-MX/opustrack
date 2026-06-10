@@ -4,21 +4,16 @@ import { Search, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { BulkAssignDialog } from "@/components/admin/incidents/bulk-assign-dialog";
+import { QuickEditDatePopover } from "@/components/admin/incidents/quick-edit-date-popover";
 import { QuickEditFsrsPopover } from "@/components/admin/incidents/quick-edit-fsrs-popover";
+import { QuickEditTypePopover } from "@/components/admin/incidents/quick-edit-type-popover";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { SearchableSelect } from "@/components/ui/searchable-select";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { MultiSelect } from "@/components/ui/multi-select";
 import {
   Table,
   TableBody,
@@ -28,11 +23,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { getFsrsForAssignment } from "@/lib/actions/incidents";
+import { formatMX, mxDateString } from "@/lib/utils/datetime";
 
 interface Incident {
   id: number;
   title: string;
-  priority: number;
+  description?: string | null;
   schedule: {
     id: string;
     title: string;
@@ -41,7 +37,7 @@ interface Incident {
   } | null;
   status: { id: number; name: string; color: string } | null;
   type: { id: number; name: string } | null;
-  vic: { id: string; name: string; code?: string } | null;
+  cliente: { id: string; name: string; code?: string } | null;
   assignees: Array<{ user: { id: string; name: string; email: string } }>;
   _count: { assignees: number };
   assignments: Array<{ id: string; status?: { name: string } | null }>;
@@ -57,7 +53,7 @@ interface ScheduleOption {
   title: string;
 }
 
-interface VIC {
+interface Cliente {
   id: string;
   name: string;
   code: string;
@@ -67,7 +63,7 @@ interface FsrOption {
   id: string;
   name: string;
   email: string;
-  vicIds: string[];
+  clienteIds: string[];
 }
 
 interface ScheduleActivitiesProps {
@@ -90,14 +86,15 @@ export function ScheduleActivities({
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [incidentTypes, setIncidentTypes] = useState<IncidentType[]>([]);
   const [schedules, setSchedules] = useState<ScheduleOption[]>([]);
-  const [vics, setVics] = useState<VIC[]>([]);
+  const [clientes, setClientes] = useState<Cliente[]>([]);
   const [fsrs, setFsrs] = useState<FsrOption[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const [selectedVic, setSelectedVic] = useState<string>("all");
-  const [selectedType, setSelectedType] = useState<string>("all");
-  const [selectedScheduleFilter, setSelectedScheduleFilter] =
-    useState<string>("all");
+  const [selectedClientes, setSelectedClientes] = useState<string[]>([]);
+  const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
+  const [selectedScheduleFilters, setSelectedScheduleFilters] = useState<
+    string[]
+  >([]);
   const [searchQuery, setSearchQuery] = useState("");
 
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
@@ -105,17 +102,17 @@ export function ScheduleActivities({
 
   useEffect(() => {
     if (selectedSchedule) {
-      setSelectedScheduleFilter(selectedSchedule.id);
+      setSelectedScheduleFilters([selectedSchedule.id]);
     } else {
-      setSelectedScheduleFilter("all");
+      setSelectedScheduleFilters([]);
     }
   }, [selectedSchedule]);
 
   const fetchIncidents = useCallback(async () => {
     setLoading(true);
     try {
-      const startStr = dateRange.start.toISOString().split("T")[0];
-      const endStr = dateRange.end.toISOString().split("T")[0];
+      const startStr = mxDateString(dateRange.start);
+      const endStr = mxDateString(dateRange.end);
 
       const response = await fetch(
         `/api/schedules/incidents?start=${startStr}&end=${endStr}`,
@@ -157,14 +154,14 @@ export function ScheduleActivities({
     }
   }, []);
 
-  const fetchVics = useCallback(async () => {
+  const fetchClientes = useCallback(async () => {
     try {
-      const response = await fetch("/api/vics");
+      const response = await fetch("/api/clientes");
       if (!response.ok) return;
       const result = await response.json();
-      setVics(result.data || []);
+      setClientes(result.data || []);
     } catch (error) {
-      console.error("Error fetching VICs:", error);
+      console.error("Error fetching Clientes:", error);
     }
   }, []);
 
@@ -184,33 +181,44 @@ export function ScheduleActivities({
   useEffect(() => {
     fetchIncidentTypes();
     fetchSchedules();
-    fetchVics();
+    fetchClientes();
     fetchFsrs();
-  }, [fetchIncidentTypes, fetchSchedules, fetchVics, fetchFsrs]);
+  }, [fetchIncidentTypes, fetchSchedules, fetchClientes, fetchFsrs]);
 
   // Filtrar + ordenar: incidentes sin FSRs habilitados arriba.
   const filteredIncidents = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
     const filtered = incidents.filter((incident) => {
-      if (selectedVic !== "all" && incident.vic?.id !== selectedVic) {
-        return false;
-      }
       if (
-        selectedType !== "all" &&
-        incident.type?.id.toString() !== selectedType
+        selectedClientes.length > 0 &&
+        (!incident.cliente?.id ||
+          !selectedClientes.includes(incident.cliente.id))
       ) {
         return false;
       }
       if (
-        selectedScheduleFilter !== "all" &&
-        incident.schedule?.id !== selectedScheduleFilter
+        selectedTypes.length > 0 &&
+        (!incident.type?.id ||
+          !selectedTypes.includes(incident.type.id.toString()))
       ) {
         return false;
       }
       if (
-        searchQuery &&
-        !incident.title.toLowerCase().includes(searchQuery.toLowerCase())
+        selectedScheduleFilters.length > 0 &&
+        (!incident.schedule?.id ||
+          !selectedScheduleFilters.includes(incident.schedule.id))
       ) {
         return false;
+      }
+      if (q) {
+        const haystack = [
+          incident.title,
+          incident.description ?? "",
+          incident.cliente?.code ?? "",
+        ]
+          .join(" ")
+          .toLowerCase();
+        if (!haystack.includes(q)) return false;
       }
       return true;
     });
@@ -218,14 +226,20 @@ export function ScheduleActivities({
       const aHas = (a._count?.assignees ?? 0) > 0 ? 1 : 0;
       const bHas = (b._count?.assignees ?? 0) > 0 ? 1 : 0;
       if (aHas !== bHas) return aHas - bHas; // 0 first (no FSRs)
-      if (a.priority !== b.priority) return b.priority - a.priority; // priority desc
-      return 0;
+      // then by scheduled start date ascending
+      const aDate = a.schedule?.scheduledAt
+        ? new Date(a.schedule.scheduledAt).getTime()
+        : Number.POSITIVE_INFINITY;
+      const bDate = b.schedule?.scheduledAt
+        ? new Date(b.schedule.scheduledAt).getTime()
+        : Number.POSITIVE_INFINITY;
+      return aDate - bDate;
     });
   }, [
     incidents,
-    selectedVic,
-    selectedType,
-    selectedScheduleFilter,
+    selectedClientes,
+    selectedTypes,
+    selectedScheduleFilters,
     searchQuery,
   ]);
 
@@ -256,13 +270,7 @@ export function ScheduleActivities({
     });
   };
 
-  const getPriorityColor = (priority: number) => {
-    if (priority >= 8) return "destructive";
-    if (priority >= 6) return "default";
-    return "secondary";
-  };
-
-  const vicOptions = vics.map((v) => ({
+  const clienteOptions = clientes.map((v) => ({
     value: v.id,
     label: `${v.code} — ${v.name}`,
   }));
@@ -304,53 +312,43 @@ export function ScheduleActivities({
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-4">
           <div className="space-y-2">
             <Label className="text-xs font-medium">Tipo de Incidente</Label>
-            <Select value={selectedType} onValueChange={setSelectedType}>
-              <SelectTrigger className="h-9">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos los tipos</SelectItem>
-                {incidentTypes.map((type) => (
-                  <SelectItem key={type.id} value={type.id.toString()}>
-                    {type.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label className="text-xs font-medium">Programación</Label>
-            <SearchableSelect
-              options={[
-                { value: "all", label: "Todas las programaciones" },
-                ...schedules.map((schedule) => ({
-                  value: schedule.id,
-                  label: schedule.title,
-                })),
-              ]}
-              value={selectedScheduleFilter}
-              onValueChange={setSelectedScheduleFilter}
-              placeholder="Todas las programaciones"
-              searchPlaceholder="Buscar programación..."
-              emptyMessage="No se encontraron programaciones."
-              className="h-9"
+            <MultiSelect
+              options={incidentTypes.map((type) => ({
+                value: type.id.toString(),
+                label: type.name,
+              }))}
+              value={selectedTypes}
+              onValueChange={setSelectedTypes}
+              placeholder="Todos los tipos"
+              searchPlaceholder="Buscar tipo..."
+              emptyMessage="No se encontraron tipos."
             />
           </div>
 
           <div className="space-y-2">
-            <Label className="text-xs font-medium">VIC</Label>
-            <SearchableSelect
-              options={[
-                { value: "all", label: "Todos los VICs" },
-                ...vicOptions,
-              ]}
-              value={selectedVic}
-              onValueChange={setSelectedVic}
-              placeholder="Todos los VICs"
-              searchPlaceholder="Buscar VIC..."
-              emptyMessage="No se encontraron VICs."
-              className="h-9"
+            <Label className="text-xs font-medium">Programación</Label>
+            <MultiSelect
+              options={schedules.map((schedule) => ({
+                value: schedule.id,
+                label: schedule.title,
+              }))}
+              value={selectedScheduleFilters}
+              onValueChange={setSelectedScheduleFilters}
+              placeholder="Todas las programaciones"
+              searchPlaceholder="Buscar programación..."
+              emptyMessage="No se encontraron programaciones."
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-xs font-medium">Cliente</Label>
+            <MultiSelect
+              options={clienteOptions}
+              value={selectedClientes}
+              onValueChange={setSelectedClientes}
+              placeholder="Todos los Clientes"
+              searchPlaceholder="Buscar Cliente..."
+              emptyMessage="No se encontraron Clientes."
             />
           </div>
 
@@ -425,9 +423,9 @@ export function ScheduleActivities({
                   <TableHead>Título</TableHead>
                   <TableHead>Tipo</TableHead>
                   <TableHead>Programación</TableHead>
-                  <TableHead>VIC</TableHead>
+                  <TableHead>Fecha</TableHead>
+                  <TableHead>Cliente</TableHead>
                   <TableHead>FSRs</TableHead>
-                  <TableHead>Prioridad</TableHead>
                   <TableHead>Estado</TableHead>
                   <TableHead className="w-10" />
                 </TableRow>
@@ -476,34 +474,57 @@ export function ScheduleActivities({
                         <TableCell className="font-medium">
                           {incident.title}
                         </TableCell>
-                        <TableCell>
-                          <Badge variant="outline">
-                            {incident.type?.name || "Sin tipo"}
-                          </Badge>
+                        <TableCell data-no-row-nav>
+                          <div className="flex items-center gap-1">
+                            <Badge variant="outline">
+                              {incident.type?.name || "Sin tipo"}
+                            </Badge>
+                            <QuickEditTypePopover
+                              incidentId={incident.id}
+                              initialTypeId={incident.type?.id ?? null}
+                              types={incidentTypes}
+                              onSaved={fetchIncidents}
+                            />
+                          </div>
                         </TableCell>
                         <TableCell>
                           <div className="text-sm">
                             {incident.schedule?.title || "Sin programación"}
                           </div>
                         </TableCell>
+                        <TableCell data-no-row-nav>
+                          <div className="flex items-center gap-1">
+                            <span className="text-sm">
+                              {incident.schedule?.scheduledAt
+                                ? formatMX(incident.schedule.scheduledAt)
+                                : "Sin fecha"}
+                            </span>
+                            <QuickEditDatePopover
+                              incidentId={incident.id}
+                              initialScheduledAt={
+                                incident.schedule?.scheduledAt ?? null
+                              }
+                              onSaved={fetchIncidents}
+                            />
+                          </div>
+                        </TableCell>
                         <TableCell>
                           <div className="text-sm">
-                            {incident.vic?.name || "Sin VIC"}
+                            {incident.cliente?.name || "Sin Cliente"}
                           </div>
                         </TableCell>
                         <TableCell>
                           {fsrCount === 0 ? (
                             <Badge variant="destructive">Sin FSRs</Badge>
                           ) : (
-                            <Badge variant="secondary">
-                              {fsrCount} FSR{fsrCount === 1 ? "" : "s"}
-                            </Badge>
+                            <div className="flex flex-wrap gap-1">
+                              {incident.assignees.map((a) => (
+                                <Badge key={a.user.id} variant="secondary">
+                                  {a.user.name}
+                                </Badge>
+                              ))}
+                            </div>
                           )}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={getPriorityColor(incident.priority)}>
-                            {incident.priority}
-                          </Badge>
                         </TableCell>
                         <TableCell>
                           <Badge variant="secondary">
@@ -513,7 +534,6 @@ export function ScheduleActivities({
                         <TableCell data-no-row-nav>
                           <QuickEditFsrsPopover
                             incidentId={incident.id}
-                            incidentVicId={incident.vic?.id ?? null}
                             initialFsrIds={incident.assignees.map(
                               (a) => a.user.id,
                             )}
@@ -533,7 +553,7 @@ export function ScheduleActivities({
 
       <BulkAssignDialog
         incidentIds={[...selectedIds]}
-        vics={vicOptions}
+        clientes={clienteOptions}
         schedules={scheduleOptionsForBulk}
         fsrs={fsrOptionsForBulk}
         open={bulkOpen}

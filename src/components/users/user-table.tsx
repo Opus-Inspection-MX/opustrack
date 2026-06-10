@@ -34,7 +34,7 @@ interface UserType {
   email: string;
   role: { name: string };
   userStatus: { name: string };
-  vic?: { name: string; code: string };
+  cliente?: { name: string; code: string };
   active: boolean;
   createdAt: string;
 }
@@ -104,7 +104,7 @@ export function UserTable({ users, onDelete }: UserTableProps) {
                 <TableHead>Correo</TableHead>
                 <TableHead>Rol</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>CVV</TableHead>
+                <TableHead>Cliente</TableHead>
                 <TableHead>Creado</TableHead>
                 <TableHead className="w-10"></TableHead>
               </TableRow>
@@ -148,11 +148,11 @@ export function UserTable({ users, onDelete }: UserTableProps) {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      {user.vic ? (
+                      {user.cliente ? (
                         <div className="text-sm">
-                          <div className="font-medium">{user.vic.name}</div>
+                          <div className="font-medium">{user.cliente.name}</div>
                           <div className="text-muted-foreground">
-                            {user.vic.code}
+                            {user.cliente.code}
                           </div>
                         </div>
                       ) : (

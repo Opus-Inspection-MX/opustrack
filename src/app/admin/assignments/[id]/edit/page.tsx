@@ -48,8 +48,7 @@ interface IncidentType {
 interface AssignmentIncident {
   id: number;
   title: string;
-  vicId?: string | null;
-  priority: number;
+  clienteId?: string | null;
   type?: IncidentType | null;
   status?: AssignmentStatus | null;
 }
@@ -104,7 +103,7 @@ interface User {
   id: string;
   name: string;
   email: string;
-  vicIds?: string[];
+  clienteIds?: string[];
 }
 
 export default function EditAssignmentPage({
@@ -283,8 +282,7 @@ export default function EditAssignmentPage({
                 <p className="text-xs text-muted-foreground">
                   {assignment.incident.type?.name &&
                     `Tipo: ${assignment.incident.type.name} • `}
-                  Prioridad: {assignment.incident.priority}/10 • Estado:{" "}
-                  {assignment.incident.status?.name}
+                  Estado: {assignment.incident.status?.name}
                 </p>
               </div>
             </div>

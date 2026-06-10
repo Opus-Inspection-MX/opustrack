@@ -13,7 +13,7 @@ export const userSchema = z.object({
     .optional(),
   roleId: z.number().min(1, "Role is required"),
   userStatusId: z.number().min(1, "Status is required"),
-  vicId: z.string().optional(),
+  clienteId: z.string().optional(),
   active: z.boolean().default(true),
 });
 
@@ -40,7 +40,7 @@ export const incidentSchema = z.object({
     .max(8760, "SLA cannot exceed 1 year"),
   typeId: z.string().min(1, "Incident type is required"),
   statusId: z.string().min(1, "Status is required"),
-  vicId: z.string().min(1, "VIC is required"),
+  clienteId: z.string().min(1, "Cliente is required"),
   reportedById: z.string().min(1, "Reporter is required"),
   scheduleId: z.string().optional(),
 });

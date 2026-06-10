@@ -55,12 +55,6 @@ export default async function FSRIncidentDetailPage({
     }
   };
 
-  const getPriorityColor = (priority: number) => {
-    if (priority >= 8) return "text-red-600 font-bold";
-    if (priority >= 5) return "text-orange-600 font-semibold";
-    return "text-blue-600";
-  };
-
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
@@ -88,12 +82,6 @@ export default async function FSRIncidentDetailPage({
                 {incident.status.name}
               </Badge>
             )}
-            <Badge
-              variant="outline"
-              className={getPriorityColor(incident.priority)}
-            >
-              Prioridad: {incident.priority}/10
-            </Badge>
             {incident.type && (
               <Badge variant="outline">{incident.type.name}</Badge>
             )}
@@ -111,11 +99,11 @@ export default async function FSRIncidentDetailPage({
           )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-            {incident.vic && (
+            {incident.cliente && (
               <div className="flex items-center gap-2">
                 <Building2 className="h-4 w-4 text-muted-foreground" />
-                <span className="font-medium">CVV:</span>
-                <span>{incident.vic.name}</span>
+                <span className="font-medium">Cliente:</span>
+                <span>{incident.cliente.name}</span>
               </div>
             )}
             {incident.reportedBy && (
@@ -129,15 +117,6 @@ export default async function FSRIncidentDetailPage({
               <Calendar className="h-4 w-4 text-muted-foreground" />
               <span className="font-medium">Fecha:</span>
               <span>{new Date(incident.reportedAt).toLocaleString()}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Clock className="h-4 w-4 text-muted-foreground" />
-              <span className="font-medium">SLA:</span>
-              <span>
-                {incident.type?.sla != null
-                  ? `${incident.type.sla} horas`
-                  : "Sin SLA"}
-              </span>
             </div>
             {incident.resolvedAt && (
               <div className="flex items-center gap-2">

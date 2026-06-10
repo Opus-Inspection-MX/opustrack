@@ -23,7 +23,7 @@ interface State {
   id: number;
   name: string;
   code: string;
-  vicCount: number;
+  clienteCount: number;
   active: boolean;
   createdAt: string;
   updatedAt: string;
@@ -63,7 +63,7 @@ export function StateTable({
             <TableRow>
               <TableHead>Nombre</TableHead>
               <TableHead>Código</TableHead>
-              <TableHead>CVV</TableHead>
+              <TableHead>Cliente</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Creado</TableHead>
               <TableHead className="w-[70px]">Acciones</TableHead>
@@ -84,7 +84,9 @@ export function StateTable({
                   </Badge>
                 </TableCell>
                 <TableCell>
-                  <Badge variant="secondary">{state.vicCount} centros</Badge>
+                  <Badge variant="secondary">
+                    {state.clienteCount} centros
+                  </Badge>
                 </TableCell>
                 <TableCell>
                   <Badge
@@ -120,7 +122,7 @@ export function StateTable({
                       <DropdownMenuItem
                         onClick={() => onDelete(state.id)}
                         className="text-red-600"
-                        disabled={state.vicCount > 0}
+                        disabled={state.clienteCount > 0}
                       >
                         <Trash2 className="mr-2 h-4 w-4" />
                         Eliminar

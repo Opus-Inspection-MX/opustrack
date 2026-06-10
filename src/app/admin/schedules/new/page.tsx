@@ -14,9 +14,12 @@ import { MultiSelect } from "@/components/ui/multi-select";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { createSchedule, getVICsForSchedules } from "@/lib/actions/schedules";
+import {
+  createSchedule,
+  getClientesForSchedules,
+} from "@/lib/actions/schedules";
 
-interface VicCenter {
+interface ClienteCenter {
   id: string;
   name: string;
   code: string;
@@ -27,39 +30,39 @@ export default function NewSchedulePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [vicCenters, setVicCenters] = useState<VicCenter[]>([]);
+  const [clientes, setClienteCenters] = useState<ClienteCenter[]>([]);
 
   const [formData, setFormData] = useState<{
     title: string;
     description: string;
     scheduledAt: string;
     endDate: string;
-    vicIds: string[];
+    clienteIds: string[];
     active: boolean;
   }>({
     title: "",
     description: "",
     scheduledAt: "",
     endDate: "",
-    vicIds: [],
+    clienteIds: [],
     active: true,
   });
 
   useEffect(() => {
-    const fetchVICs = async () => {
+    const fetchClientes = async () => {
       try {
         setIsLoading(true);
-        const vics = await getVICsForSchedules();
-        setVicCenters(vics);
+        const clientes = await getClientesForSchedules();
+        setClienteCenters(clientes);
       } catch (error) {
-        console.error("Error fetching VIC centers:", error);
-        setErrors({ submit: "Error al cargar los centros VIC" });
+        console.error("Error fetching Cliente centers:", error);
+        setErrors({ submit: "Error al cargar los centros Cliente" });
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchVICs();
+    fetchClientes();
   }, []);
 
   const handleChange = (field: string, value: string | boolean | string[]) => {
@@ -96,8 +99,8 @@ export default function NewSchedulePage() {
       }
     }
 
-    if (formData.vicIds.length === 0) {
-      newErrors.vicIds = "Selecciona al menos un VIC";
+    if (formData.clienteIds.length === 0) {
+      newErrors.clienteIds = "Selecciona al menos un Cliente";
     }
 
     setErrors(newErrors);
@@ -119,7 +122,7 @@ export default function NewSchedulePage() {
         description: formData.description?.trim() || undefined,
         scheduledAt: new Date(formData.scheduledAt),
         endDate: formData.endDate ? new Date(formData.endDate) : undefined,
-        vicIds: formData.vicIds,
+        clienteIds: formData.clienteIds,
       });
 
       router.push("/admin/schedules");
@@ -242,25 +245,25 @@ export default function NewSchedulePage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="vicIds">
-                VICs <span className="text-red-500">*</span>
+              <Label htmlFor="clienteIds">
+                Clientes <span className="text-red-500">*</span>
               </Label>
               <MultiSelect
-                options={vicCenters.map((vic) => ({
-                  value: vic.id,
-                  label: `${vic.code} — ${vic.name}`,
+                options={clientes.map((cliente) => ({
+                  value: cliente.id,
+                  label: `${cliente.code} — ${cliente.name}`,
                 }))}
-                value={formData.vicIds}
-                onValueChange={(ids) => handleChange("vicIds", ids)}
-                placeholder="Selecciona uno o varios VICs"
-                searchPlaceholder="Buscar VIC..."
-                emptyMessage="Sin VICs disponibles"
+                value={formData.clienteIds}
+                onValueChange={(ids) => handleChange("clienteIds", ids)}
+                placeholder="Selecciona uno o varios Clientes"
+                searchPlaceholder="Buscar Cliente..."
+                emptyMessage="Sin Clientes disponibles"
               />
-              {errors.vicIds && (
-                <p className="text-sm text-red-500">{errors.vicIds}</p>
+              {errors.clienteIds && (
+                <p className="text-sm text-red-500">{errors.clienteIds}</p>
               )}
               <p className="text-sm text-muted-foreground">
-                Puedes asignar la programación a varios CVVs.
+                Puedes asignar la programación a varios Clientes.
               </p>
             </div>
 

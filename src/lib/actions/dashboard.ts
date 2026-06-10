@@ -101,7 +101,6 @@ export async function getDashboardStats() {
   const criticalIncidents = await prisma.incident.count({
     where: {
       active: true,
-      priority: { gte: 8 },
       status: {
         name: { not: "CERRADO" },
       },

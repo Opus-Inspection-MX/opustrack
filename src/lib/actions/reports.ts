@@ -219,6 +219,7 @@ export async function getAssignmentStatusData(
  */
 export async function getIncidentTrendData(
   dateRange?: DateRange,
+  typeIds?: number[],
 ): Promise<IncidentTrendData[]> {
   await requirePermission("reports:view");
 
@@ -234,6 +235,7 @@ export async function getIncidentTrendData(
         gte: startDate,
         lte: endDate,
       },
+      ...(typeIds && typeIds.length > 0 ? { typeId: { in: typeIds } } : {}),
     },
     select: {
       reportedAt: true,
@@ -270,6 +272,7 @@ export async function getIncidentTrendData(
  */
 export async function getIncidentsByTypeData(
   dateRange?: DateRange,
+  typeIds?: number[],
 ): Promise<IncidentByTypeData[]> {
   await requirePermission("reports:view");
 
@@ -285,6 +288,7 @@ export async function getIncidentsByTypeData(
         gte: startDate,
         lte: endDate,
       },
+      ...(typeIds && typeIds.length > 0 ? { typeId: { in: typeIds } } : {}),
     },
     include: {
       type: true,
@@ -552,177 +556,6 @@ export async function getReportSummary(dateRange?: DateRange) {
     totalKmDriven: totalKmDriven._sum.kmDriven || 0,
     totalPartsUsed: partsUsed._sum.quantity || 0,
   };
-}
-
-// ============================================
-// SLA COMPLIANCE REPORT
-// ============================================
-
-export type SLAComplianceData = {
-  incidentId: number;
-  title: string;
-  priority: number;
-  slaHours: number;
-  actualHours: number | null;
-  isCompliant: boolean;
-  status: string;
-  reportedAt: string;
-  resolvedAt: string | null;
-};
-
-export type SLASummary = {
-  totalIncidents: number;
-  compliantCount: number;
-  breachedCount: number;
-  pendingCount: number;
-  complianceRate: number;
-  avgResolutionTime: number;
-  byPriority: Array<{
-    priority: number;
-    total: number;
-    compliant: number;
-    breached: number;
-    complianceRate: number;
-  }>;
-};
-
-/**
- * Get SLA Compliance Report Data
- */
-export async function getSLAComplianceData(
-  dateRange?: DateRange,
-): Promise<{ incidents: SLAComplianceData[]; summary: SLASummary }> {
-  await requirePermission("reports:view");
-
-  const startDate = dateRange?.startDate
-    ? new Date(dateRange.startDate)
-    : new Date(new Date().setMonth(new Date().getMonth() - 1));
-  const endDate = dateRange?.endDate ? new Date(dateRange.endDate) : new Date();
-
-  const incidents = await prisma.incident.findMany({
-    where: {
-      active: true,
-      reportedAt: {
-        gte: startDate,
-        lte: endDate,
-      },
-    },
-    include: {
-      status: true,
-      type: { select: { id: true, name: true, sla: true } },
-    },
-    orderBy: { reportedAt: "desc" },
-  });
-
-  const now = new Date();
-  let compliantCount = 0;
-  let breachedCount = 0;
-  let pendingCount = 0;
-  let totalResolutionTime = 0;
-  let resolvedCount = 0;
-
-  // Track by priority
-  const priorityStats: Record<
-    number,
-    { total: number; compliant: number; breached: number }
-  > = {};
-
-  const incidentData: SLAComplianceData[] = incidents.map((incident) => {
-    // SLA ahora vive en el tipo. null = "Sin SLA definido" → no se mide.
-    const slaHours = incident.type?.sla ?? null;
-    let actualHours: number | null = null;
-    let isCompliant = false;
-
-    // Initialize priority stats
-    if (!priorityStats[incident.priority]) {
-      priorityStats[incident.priority] = {
-        total: 0,
-        compliant: 0,
-        breached: 0,
-      };
-    }
-    priorityStats[incident.priority].total++;
-
-    if (slaHours === null) {
-      // Tipo sin SLA definido — excluir del cálculo de cumplimiento.
-      pendingCount++;
-      isCompliant = false;
-    } else if (incident.resolvedAt) {
-      // Incident is resolved - calculate actual time
-      actualHours =
-        (incident.resolvedAt.getTime() - incident.reportedAt.getTime()) /
-        (1000 * 60 * 60);
-      isCompliant = actualHours <= slaHours;
-      totalResolutionTime += actualHours;
-      resolvedCount++;
-
-      if (isCompliant) {
-        compliantCount++;
-        priorityStats[incident.priority].compliant++;
-      } else {
-        breachedCount++;
-        priorityStats[incident.priority].breached++;
-      }
-    } else {
-      // Incident is pending - check if SLA is already breached
-      const elapsedHours =
-        (now.getTime() - incident.reportedAt.getTime()) / (1000 * 60 * 60);
-      actualHours = elapsedHours;
-
-      if (elapsedHours > slaHours) {
-        // Already breached
-        breachedCount++;
-        priorityStats[incident.priority].breached++;
-        isCompliant = false;
-      } else {
-        // Still within SLA
-        pendingCount++;
-        isCompliant = true; // Currently compliant
-      }
-    }
-
-    return {
-      incidentId: incident.id,
-      title: incident.title,
-      priority: incident.priority,
-      slaHours: slaHours ?? 0,
-      actualHours:
-        actualHours !== null ? Math.round(actualHours * 10) / 10 : null,
-      isCompliant,
-      status: incident.status?.name || "Sin Estado",
-      reportedAt: incident.reportedAt.toISOString(),
-      resolvedAt: incident.resolvedAt?.toISOString() || null,
-    };
-  });
-
-  const summary: SLASummary = {
-    totalIncidents: incidents.length,
-    compliantCount,
-    breachedCount,
-    pendingCount,
-    complianceRate:
-      incidents.length > 0
-        ? Math.round(((compliantCount + pendingCount) / incidents.length) * 100)
-        : 0,
-    avgResolutionTime:
-      resolvedCount > 0
-        ? Math.round((totalResolutionTime / resolvedCount) * 10) / 10
-        : 0,
-    byPriority: Object.entries(priorityStats)
-      .map(([priority, stats]) => ({
-        priority: parseInt(priority, 10),
-        total: stats.total,
-        compliant: stats.compliant,
-        breached: stats.breached,
-        complianceRate:
-          stats.total > 0
-            ? Math.round((stats.compliant / stats.total) * 100)
-            : 0,
-      }))
-      .sort((a, b) => b.priority - a.priority),
-  };
-
-  return { incidents: incidentData, summary };
 }
 
 // ============================================

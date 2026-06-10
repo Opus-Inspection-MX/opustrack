@@ -137,7 +137,7 @@ export default function EditIncidentPage({
         }}
         types={formOptions.types}
         statuses={formOptions.statuses}
-        vics={formOptions.vics}
+        clientes={formOptions.clientes}
         users={formOptions.users}
         schedules={formOptions.schedules}
       />

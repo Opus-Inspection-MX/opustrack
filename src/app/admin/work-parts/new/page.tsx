@@ -19,28 +19,28 @@ const mockParts = [
     name: "Brake Pad Set",
     price: 89.99,
     stock: 25,
-    vic: { name: "VIC Center 1", code: "VIC001" },
+    cliente: { name: "Cliente Center 1", code: "Cliente001" },
   },
   {
     id: "part_002",
     name: "Oil Filter",
     price: 15.5,
     stock: 50,
-    vic: { name: "VIC Center 1", code: "VIC001" },
+    cliente: { name: "Cliente Center 1", code: "Cliente001" },
   },
   {
     id: "part_003",
     name: "Air Filter",
     price: 22.75,
     stock: 30,
-    vic: { name: "VIC Center 2", code: "VIC002" },
+    cliente: { name: "Cliente Center 2", code: "Cliente002" },
   },
   {
     id: "part_004",
     name: "Spark Plugs",
     price: 45.0,
     stock: 15,
-    vic: { name: "VIC Center 2", code: "VIC002" },
+    cliente: { name: "Cliente Center 2", code: "Cliente002" },
   },
 ];
 

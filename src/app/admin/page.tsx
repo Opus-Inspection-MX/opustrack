@@ -102,11 +102,7 @@ export default async function AdminDashboard() {
                           {new Date(incident.reportedAt).toLocaleDateString()}
                         </p>
                       </div>
-                      <Badge
-                        variant={
-                          incident.priority >= 8 ? "destructive" : "secondary"
-                        }
-                      >
+                      <Badge variant="secondary">
                         {incident.status?.name || "Sin estado"}
                       </Badge>
                     </div>

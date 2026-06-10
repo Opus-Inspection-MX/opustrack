@@ -10,6 +10,7 @@ import {
   PieChart,
   StatCard,
 } from "@/components/reports";
+import { MultiSelect } from "@/components/ui/multi-select";
 import {
   Table,
   TableBody,
@@ -32,12 +33,14 @@ interface IncidentsReportClientProps {
   initialTrendData: IncidentTrendData[];
   initialTypeData: IncidentByTypeData[];
   initialSummary: Awaited<ReturnType<typeof getReportSummary>>;
+  incidentTypes: Array<{ id: number; name: string }>;
 }
 
 export function IncidentsReportClient({
   initialTrendData,
   initialTypeData,
   initialSummary,
+  incidentTypes,
 }: IncidentsReportClientProps) {
   const [isPending, startTransition] = useTransition();
   const [trendData, setTrendData] = useState(initialTrendData);
@@ -53,24 +56,36 @@ export function IncidentsReportClient({
     thirtyDaysAgo.toISOString().split("T")[0],
   );
   const [endDate, setEndDate] = useState(today.toISOString().split("T")[0]);
+  const [selectedTypeIds, setSelectedTypeIds] = useState<string[]>([]);
 
-  const handleDateChange = (newStartDate: string, newEndDate: string) => {
-    setStartDate(newStartDate);
-    setEndDate(newEndDate);
-
+  const refetch = (
+    newStartDate: string,
+    newEndDate: string,
+    typeIdStrings: string[],
+  ) => {
+    const typeIds = typeIdStrings.map((id) => Number.parseInt(id, 10));
     startTransition(async () => {
+      const range = { startDate: newStartDate, endDate: newEndDate };
       const [newTrendData, newTypeData, newSummary] = await Promise.all([
-        getIncidentTrendData({ startDate: newStartDate, endDate: newEndDate }),
-        getIncidentsByTypeData({
-          startDate: newStartDate,
-          endDate: newEndDate,
-        }),
-        getReportSummary({ startDate: newStartDate, endDate: newEndDate }),
+        getIncidentTrendData(range, typeIds),
+        getIncidentsByTypeData(range, typeIds),
+        getReportSummary(range),
       ]);
       setTrendData(newTrendData);
       setTypeData(newTypeData);
       setSummary(newSummary);
     });
+  };
+
+  const handleDateChange = (newStartDate: string, newEndDate: string) => {
+    setStartDate(newStartDate);
+    setEndDate(newEndDate);
+    refetch(newStartDate, newEndDate, selectedTypeIds);
+  };
+
+  const handleTypeChange = (typeIdStrings: string[]) => {
+    setSelectedTypeIds(typeIdStrings);
+    refetch(startDate, endDate, typeIdStrings);
   };
 
   // Calculate totals
@@ -109,6 +124,19 @@ export function IncidentsReportClient({
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <div className="w-56">
+            <MultiSelect
+              options={incidentTypes.map((t) => ({
+                value: t.id.toString(),
+                label: t.name,
+              }))}
+              value={selectedTypeIds}
+              onValueChange={handleTypeChange}
+              placeholder="Todos los tipos"
+              searchPlaceholder="Buscar tipo..."
+              emptyMessage="No se encontraron tipos."
+            />
+          </div>
           <DateRangeFilter
             startDate={startDate}
             endDate={endDate}

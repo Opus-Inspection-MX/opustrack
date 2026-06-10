@@ -22,9 +22,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { deleteVIC } from "@/lib/actions/vics";
+import { deleteCliente } from "@/lib/actions/clientes";
 
-type VIC = {
+type Cliente = {
   id: string;
   code: string;
   name: string;
@@ -48,26 +48,26 @@ type VIC = {
   fsrCount?: number;
 };
 
-export function VICsTable({ vics }: { vics: VIC[] }) {
+export function ClientesTable({ clientes }: { clientes: Cliente[] }) {
   const router = useRouter();
   const [deleting, setDeleting] = useState<string | null>(null);
 
   const handleDelete = async (id: string, name: string) => {
-    if (!confirm(`¿Está seguro de que desea eliminar el VIC "${name}"?`)) {
+    if (!confirm(`¿Está seguro de que desea eliminar el Cliente "${name}"?`)) {
       return;
     }
 
     setDeleting(id);
     try {
-      await deleteVIC(id);
+      await deleteCliente(id);
       router.refresh();
     } catch (error) {
-      alert(`Error al eliminar VIC: ${(error as Error).message}`);
+      alert(`Error al eliminar Cliente: ${(error as Error).message}`);
       setDeleting(null);
     }
   };
 
-  if (vics.length === 0) {
+  if (clientes.length === 0) {
     return (
       <div className="text-center py-12 border rounded-lg">
         <p className="text-muted-foreground">
@@ -78,15 +78,15 @@ export function VICsTable({ vics }: { vics: VIC[] }) {
   }
 
   // Calculate total equipments
-  const getTotalEquipments = (vic: VIC) => {
+  const getTotalEquipments = (cliente: Cliente) => {
     return (
-      vic.lines?.reduce((sum, line) => sum + line._count.equipments, 0) || 0
+      cliente.lines?.reduce((sum, line) => sum + line._count.equipments, 0) || 0
     );
   };
 
-  // Calculate total FSRs assigned to this VIC
-  const getTotalFSRs = (vic: VIC) => {
-    return vic.fsrCount || 0;
+  // Calculate total FSRs assigned to this Cliente
+  const getTotalFSRs = (cliente: Cliente) => {
+    return cliente.fsrCount || 0;
   };
 
   return (
@@ -107,38 +107,38 @@ export function VICsTable({ vics }: { vics: VIC[] }) {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {vics.map((vic) => (
-            <TableRow key={vic.id}>
-              <TableCell className="font-medium">{vic.code}</TableCell>
-              <TableCell>{vic.name}</TableCell>
+          {clientes.map((cliente) => (
+            <TableRow key={cliente.id}>
+              <TableCell className="font-medium">{cliente.code}</TableCell>
+              <TableCell>{cliente.name}</TableCell>
               <TableCell>
-                <Badge variant="outline">{vic.state.name}</Badge>
+                <Badge variant="outline">{cliente.state.name}</Badge>
               </TableCell>
               <TableCell>
                 <div className="text-sm">
-                  {vic.phone && <div>{vic.phone}</div>}
-                  {vic.email && (
-                    <div className="text-muted-foreground">{vic.email}</div>
+                  {cliente.phone && <div>{cliente.phone}</div>}
+                  {cliente.email && (
+                    <div className="text-muted-foreground">{cliente.email}</div>
                   )}
-                  {!vic.phone && !vic.email && (
+                  {!cliente.phone && !cliente.email && (
                     <span className="text-muted-foreground">Sin contacto</span>
                   )}
                 </div>
               </TableCell>
               <TableCell>
-                <Badge variant="outline">{getTotalFSRs(vic)}</Badge>
+                <Badge variant="outline">{getTotalFSRs(cliente)}</Badge>
               </TableCell>
               <TableCell>
-                <Badge variant="outline">{vic._count.users}</Badge>
+                <Badge variant="outline">{cliente._count.users}</Badge>
               </TableCell>
               <TableCell>
-                <Badge variant="outline">{vic._count.incidents}</Badge>
+                <Badge variant="outline">{cliente._count.incidents}</Badge>
               </TableCell>
               <TableCell>
-                <Badge variant="outline">{vic._count.lines}</Badge>
+                <Badge variant="outline">{cliente._count.lines}</Badge>
               </TableCell>
               <TableCell>
-                <Badge variant="outline">{getTotalEquipments(vic)}</Badge>
+                <Badge variant="outline">{getTotalEquipments(cliente)}</Badge>
               </TableCell>
               <TableCell className="text-right">
                 <DropdownMenu>
@@ -152,7 +152,7 @@ export function VICsTable({ vics }: { vics: VIC[] }) {
                     <DropdownMenuSeparator />
                     <DropdownMenuItem asChild>
                       <Link
-                        href={`/admin/vic-centers/${vic.id}`}
+                        href={`/admin/clientes/${cliente.id}`}
                         className="flex items-center cursor-pointer"
                       >
                         <Eye className="h-4 w-4 mr-2" />
@@ -161,7 +161,7 @@ export function VICsTable({ vics }: { vics: VIC[] }) {
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                       <Link
-                        href={`/admin/vic-centers/${vic.id}/edit`}
+                        href={`/admin/clientes/${cliente.id}/edit`}
                         className="flex items-center cursor-pointer"
                       >
                         <Edit className="h-4 w-4 mr-2" />
@@ -170,8 +170,8 @@ export function VICsTable({ vics }: { vics: VIC[] }) {
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
-                      onClick={() => handleDelete(vic.id, vic.name)}
-                      disabled={deleting === vic.id}
+                      onClick={() => handleDelete(cliente.id, cliente.name)}
+                      disabled={deleting === cliente.id}
                       className="text-destructive focus:text-destructive cursor-pointer"
                     >
                       <Trash2 className="h-4 w-4 mr-2" />

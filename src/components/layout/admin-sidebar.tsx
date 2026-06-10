@@ -24,7 +24,6 @@ import {
   Settings,
   Shield,
   Tag,
-  Target,
   TrendingUp,
   User,
   UserCheck,
@@ -115,11 +114,6 @@ const menuSections = [
         icon: Package,
       },
       {
-        title: "Cumplimiento SLA",
-        url: "/admin/reports/sla-compliance",
-        icon: Target,
-      },
-      {
         title: "Antigüedad Asignaciones",
         url: "/admin/reports/assignment-aging",
         icon: Clock,
@@ -144,7 +138,7 @@ const menuSections = [
   {
     title: "Organización",
     items: [
-      { title: "CVV", url: "/admin/vic-centers", icon: Building2 },
+      { title: "Cliente", url: "/admin/clientes", icon: Building2 },
       { title: "Líneas", url: "/admin/lines", icon: List },
       { title: "Equipos", url: "/admin/equipments", icon: Wrench },
       { title: "Estados", url: "/admin/states", icon: MapPin },

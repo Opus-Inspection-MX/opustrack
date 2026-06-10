@@ -16,7 +16,7 @@ import { Label } from "@/components/ui/label";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { getScheduleById, quickUpdateSchedule } from "@/lib/actions/schedules";
 
-interface VicOption {
+interface ClienteOption {
   id: string;
   code: string;
   name: string;
@@ -24,7 +24,7 @@ interface VicOption {
 
 interface QuickEditScheduleDialogProps {
   scheduleId: string | null;
-  vics: VicOption[];
+  clientes: ClienteOption[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSaved?: () => void;
@@ -40,7 +40,7 @@ function toDatetimeLocal(d: Date | string | null | undefined): string {
 
 export function QuickEditScheduleDialog({
   scheduleId,
-  vics,
+  clientes,
   open,
   onOpenChange,
   onSaved,
@@ -48,7 +48,7 @@ export function QuickEditScheduleDialog({
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [vicIds, setVicIds] = useState<string[]>([]);
+  const [clienteIds, setClienteIds] = useState<string[]>([]);
   const [scheduledAt, setScheduledAt] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
   const [title, setTitle] = useState<string>("");
@@ -62,7 +62,9 @@ export function QuickEditScheduleDialog({
       .then((sched) => {
         if (cancelled || !sched) return;
         setTitle(sched.title);
-        setVicIds(sched.vics.filter((sv) => sv.active).map((sv) => sv.vicId));
+        setClienteIds(
+          sched.clientes.filter((sv) => sv.active).map((sv) => sv.clienteId),
+        );
         setScheduledAt(toDatetimeLocal(sched.scheduledAt));
         setEndDate(toDatetimeLocal(sched.endDate));
       })
@@ -84,8 +86,8 @@ export function QuickEditScheduleDialog({
   const handleSave = async () => {
     if (!scheduleId) return;
     setError(null);
-    if (vicIds.length === 0) {
-      setError("Selecciona al menos un VIC");
+    if (clienteIds.length === 0) {
+      setError("Selecciona al menos un Cliente");
       return;
     }
     if (!scheduledAt) {
@@ -101,7 +103,7 @@ export function QuickEditScheduleDialog({
     setSubmitting(true);
     try {
       await quickUpdateSchedule(scheduleId, {
-        vicIds,
+        clienteIds,
         scheduledAt: start,
         endDate: end,
       });
@@ -122,8 +124,8 @@ export function QuickEditScheduleDialog({
           <DialogTitle>Edición rápida</DialogTitle>
           <DialogDescription>
             {title
-              ? `Actualiza VICs y rango de fechas de "${title}".`
-              : "Actualiza VICs y rango de fechas de la programación."}
+              ? `Actualiza Clientes y rango de fechas de "${title}".`
+              : "Actualiza Clientes y rango de fechas de la programación."}
           </DialogDescription>
         </DialogHeader>
 
@@ -134,19 +136,19 @@ export function QuickEditScheduleDialog({
         ) : (
           <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <Label htmlFor="qe-vics">
-                VICs <span className="text-red-500">*</span>
+              <Label htmlFor="qe-clientes">
+                Clientes <span className="text-red-500">*</span>
               </Label>
               <MultiSelect
-                options={vics.map((v) => ({
+                options={clientes.map((v) => ({
                   value: v.id,
                   label: `${v.code} — ${v.name}`,
                 }))}
-                value={vicIds}
-                onValueChange={setVicIds}
-                placeholder="Selecciona uno o varios VICs"
-                searchPlaceholder="Buscar VIC..."
-                emptyMessage="Sin VICs disponibles"
+                value={clienteIds}
+                onValueChange={setClienteIds}
+                placeholder="Selecciona uno o varios Clientes"
+                searchPlaceholder="Buscar Cliente..."
+                emptyMessage="Sin Clientes disponibles"
               />
             </div>
 

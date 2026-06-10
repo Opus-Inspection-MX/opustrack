@@ -47,7 +47,7 @@ interface AssignmentStatus {
   color?: string | null;
 }
 
-interface VIC {
+interface Cliente {
   id: string;
   name: string;
   code: string;
@@ -56,10 +56,9 @@ interface VIC {
 interface AssignmentIncident {
   id: number;
   title: string;
-  priority: number;
   status?: AssignmentStatus | null;
   type?: { name: string } | null;
-  vic?: VIC | null;
+  cliente?: Cliente | null;
 }
 
 interface FSRAssignment {
@@ -549,12 +548,11 @@ export default function FSRAssignmentDetailPage({
                   {assignment.incident.type?.name && (
                     <span>Tipo: {assignment.incident.type.name}</span>
                   )}
-                  <span>Prioridad: {assignment.incident.priority}/10</span>
                   {assignment.incident.status?.name && (
                     <span>Estado: {assignment.incident.status.name}</span>
                   )}
-                  {assignment.incident.vic?.name && (
-                    <span>VIC: {assignment.incident.vic.name}</span>
+                  {assignment.incident.cliente?.name && (
+                    <span>Cliente: {assignment.incident.cliente.name}</span>
                   )}
                 </div>
               </div>

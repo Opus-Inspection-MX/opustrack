@@ -195,20 +195,20 @@ export function CreateScheduleDialog({
             </div>
           )}
 
-          {/* VIC Selection */}
+          {/* Cliente Selection */}
           <div className="space-y-2">
-            <Label>VIC (Centro de Verificación)</Label>
+            <Label>Cliente (Centro de Verificación)</Label>
             <SearchableSelect
               options={[
-                { value: "vic-1", label: "VIC CDMX Norte" },
-                { value: "vic-2", label: "VIC CDMX Sur" },
-                { value: "vic-3", label: "VIC Guadalajara" },
+                { value: "cliente-1", label: "Cliente CDMX Norte" },
+                { value: "cliente-2", label: "Cliente CDMX Sur" },
+                { value: "cliente-3", label: "Cliente Guadalajara" },
               ]}
               value=""
               onValueChange={() => {}}
-              placeholder="Selecciona un VIC"
-              searchPlaceholder="Buscar VIC..."
-              emptyMessage="No se encontraron VICs."
+              placeholder="Selecciona un Cliente"
+              searchPlaceholder="Buscar Cliente..."
+              emptyMessage="No se encontraron Clientes."
             />
           </div>
 

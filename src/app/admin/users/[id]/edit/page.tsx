@@ -11,7 +11,7 @@ export default async function EditUserPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [user, { roles, statuses, vics }] = await Promise.all([
+  const [user, { roles, statuses, clientes }] = await Promise.all([
     getUserById(id),
     getUserFormOptions(),
   ]);
@@ -36,7 +36,12 @@ export default async function EditUserPage({
         </div>
       </div>
 
-      <UserForm user={user} roles={roles} statuses={statuses} vics={vics} />
+      <UserForm
+        user={user}
+        roles={roles}
+        statuses={statuses}
+        clientes={clientes}
+      />
     </div>
   );
 }

@@ -64,14 +64,6 @@ export default async function IncidentTypeDetailPage({
             </div>
             <div>
               <p className="text-sm font-medium text-muted-foreground">
-                SLA (horas)
-              </p>
-              <p className="text-lg">
-                {incidentType.sla != null ? `${incidentType.sla}h` : "Sin SLA"}
-              </p>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">
                 Status
               </p>
               <p className="text-lg">

@@ -16,7 +16,7 @@ interface StateApiResponse {
   createdAt: Date | string;
   updatedAt: Date | string;
   _count?: {
-    vehicleInspectionCenters: number;
+    clientes: number;
   };
 }
 
@@ -24,7 +24,7 @@ interface State {
   id: number;
   name: string;
   code: string;
-  vicCount: number;
+  clienteCount: number;
   active: boolean;
   createdAt: string;
   updatedAt: string;
@@ -46,7 +46,7 @@ export default function StatesPage() {
           id: state.id,
           name: state.name,
           code: state.code,
-          vicCount: state._count?.vehicleInspectionCenters || 0,
+          clienteCount: state._count?.clientes || 0,
           active: state.active,
           createdAt:
             typeof state.createdAt === "string"
@@ -74,9 +74,9 @@ export default function StatesPage() {
 
   const handleDelete = async (id: number) => {
     const state = states.find((s) => s.id === id);
-    if (state?.vicCount && state.vicCount > 0) {
+    if (state?.clienteCount && state.clienteCount > 0) {
       alert(
-        "No se puede eliminar el estado con centros VIC asociados. Por favor reasigna o elimina los centros VIC primero.",
+        "No se puede eliminar el estado con centros Cliente asociados. Por favor reasigna o elimina los centros Cliente primero.",
       );
       return;
     }

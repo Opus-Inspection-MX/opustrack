@@ -28,7 +28,7 @@ export interface BulkAssignOption {
 
 interface BulkAssignDialogProps {
   incidentIds: number[];
-  vics: BulkAssignOption[];
+  clientes: BulkAssignOption[];
   schedules: BulkAssignOption[];
   fsrs: BulkAssignOption[];
   open: boolean;
@@ -38,7 +38,7 @@ interface BulkAssignDialogProps {
 
 export function BulkAssignDialog({
   incidentIds,
-  vics,
+  clientes,
   schedules,
   fsrs,
   open,
@@ -53,8 +53,8 @@ export function BulkAssignDialog({
   const [modifySchedule, setModifySchedule] = useState(false);
   const [scheduleValue, setScheduleValue] = useState<string>("");
 
-  const [modifyVic, setModifyVic] = useState(false);
-  const [vicValue, setVicValue] = useState<string>("");
+  const [modifyCliente, setModifyCliente] = useState(false);
+  const [clienteValue, setClienteValue] = useState<string>("");
 
   const [modifyFsrs, setModifyFsrs] = useState(false);
   const [fsrValues, setFsrValues] = useState<string[]>([]);
@@ -62,10 +62,10 @@ export function BulkAssignDialog({
 
   const reset = () => {
     setModifySchedule(false);
-    setModifyVic(false);
+    setModifyCliente(false);
     setModifyFsrs(false);
     setScheduleValue("");
-    setVicValue("");
+    setClienteValue("");
     setFsrValues([]);
     setFsrMode("replace");
     setErrors([]);
@@ -78,22 +78,22 @@ export function BulkAssignDialog({
 
   const handleSave = async () => {
     setErrors([]);
-    if (!modifySchedule && !modifyVic && !modifyFsrs) {
+    if (!modifySchedule && !modifyCliente && !modifyFsrs) {
       setErrors([
         { incidentId: 0, message: "Activa al menos un campo para modificar" },
       ]);
       return;
     }
-    if (modifyVic && !vicValue) {
-      setErrors([{ incidentId: 0, message: "Selecciona un VIC" }]);
+    if (modifyCliente && !clienteValue) {
+      setErrors([{ incidentId: 0, message: "Selecciona un Cliente" }]);
       return;
     }
     const changes: BulkAssignChanges = {};
     if (modifySchedule) {
       changes.scheduleId = scheduleValue === "__clear__" ? null : scheduleValue;
     }
-    if (modifyVic) {
-      changes.vicId = vicValue;
+    if (modifyCliente) {
+      changes.clienteId = clienteValue;
     }
     if (modifyFsrs) {
       changes.fsrIds = { ids: fsrValues, mode: fsrMode };
@@ -162,29 +162,29 @@ export function BulkAssignDialog({
             )}
           </div>
 
-          {/* VIC */}
+          {/* Cliente */}
           <div className="space-y-2 border-t pt-4">
             <div className="flex items-center justify-between">
-              <Label htmlFor="bulk-vic-switch">VIC</Label>
+              <Label htmlFor="bulk-cliente-switch">Cliente</Label>
               <Switch
-                id="bulk-vic-switch"
-                checked={modifyVic}
-                onCheckedChange={setModifyVic}
+                id="bulk-cliente-switch"
+                checked={modifyCliente}
+                onCheckedChange={setModifyCliente}
               />
             </div>
-            {modifyVic && (
+            {modifyCliente && (
               <>
                 <SearchableSelect
-                  options={vics}
-                  value={vicValue}
-                  onValueChange={setVicValue}
-                  placeholder="Elige VIC"
-                  searchPlaceholder="Buscar VIC..."
-                  emptyMessage="Sin VICs"
+                  options={clientes}
+                  value={clienteValue}
+                  onValueChange={setClienteValue}
+                  placeholder="Elige Cliente"
+                  searchPlaceholder="Buscar Cliente..."
+                  emptyMessage="Sin Clientes"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Cambiar el VIC puede invalidar FSRs ya asignados al incidente
-                  — se rechazará la fila si quedan FSRs incompatibles.
+                  Cambiar el Cliente puede invalidar FSRs ya asignados al
+                  incidente — se rechazará la fila si quedan FSRs incompatibles.
                 </p>
               </>
             )}

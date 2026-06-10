@@ -19,7 +19,7 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { deleteSchedule, getSchedules } from "@/lib/actions/schedules";
 
-interface VIC {
+interface Cliente {
   id: string;
   name: string;
   code: string;
@@ -36,7 +36,7 @@ interface Schedule {
   description?: string;
   scheduledAt: string;
   endDate?: string | null;
-  vics: Array<{ id: string; code: string; name: string }>;
+  clientes: Array<{ id: string; code: string; name: string }>;
   incidentCount: number;
   active: boolean;
   createdAt: string;
@@ -49,10 +49,10 @@ interface ScheduleApiResponse {
   description?: string | null;
   scheduledAt: Date | string;
   endDate?: Date | string | null;
-  vics?: Array<{
-    vicId: string;
+  clientes?: Array<{
+    clienteId: string;
     active: boolean;
-    vic: { id: string; code: string; name: string };
+    cliente: { id: string; code: string; name: string };
   }>;
   _count?: { incidents: number };
   active: boolean;
@@ -64,7 +64,7 @@ export default function SchedulesPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
-  const [vics, setVics] = useState<VIC[]>([]);
+  const [clientes, setClientes] = useState<Cliente[]>([]);
   const [statuses, setStatuses] = useState<IncidentStatus[]>([]);
 
   // Pagination state
@@ -75,7 +75,7 @@ export default function SchedulesPage() {
 
   // Filter state
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedVic, setSelectedVic] = useState<string>("all");
+  const [selectedCliente, setSelectedCliente] = useState<string>("all");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
@@ -83,14 +83,14 @@ export default function SchedulesPage() {
   // Quick-edit dialog state
   const [quickEditId, setQuickEditId] = useState<string | null>(null);
 
-  const fetchVics = useCallback(async () => {
+  const fetchClientes = useCallback(async () => {
     try {
-      const response = await fetch("/api/vics");
+      const response = await fetch("/api/clientes");
       if (!response.ok) return;
       const result = await response.json();
-      setVics(result.data || []);
+      setClientes(result.data || []);
     } catch (error) {
-      console.error("Error fetching VICs:", error);
+      console.error("Error fetching Clientes:", error);
     }
   }, []);
 
@@ -112,7 +112,7 @@ export default function SchedulesPage() {
         page: currentPage,
         limit: itemsPerPage,
         search: searchQuery || undefined,
-        vicId: selectedVic !== "all" ? selectedVic : undefined,
+        clienteId: selectedCliente !== "all" ? selectedCliente : undefined,
         statusId:
           selectedStatus !== "all" ? parseInt(selectedStatus, 10) : undefined,
         activeFrom: startDate ? new Date(startDate) : undefined,
@@ -133,9 +133,9 @@ export default function SchedulesPage() {
               ? schedule.endDate
               : new Date(schedule.endDate).toISOString()
             : null,
-          vics: (schedule.vics ?? [])
+          clientes: (schedule.clientes ?? [])
             .filter((sv) => sv.active)
-            .map((sv) => sv.vic),
+            .map((sv) => sv.cliente),
           incidentCount: schedule._count?.incidents || 0,
           active: schedule.active,
           createdAt:
@@ -162,16 +162,16 @@ export default function SchedulesPage() {
     currentPage,
     itemsPerPage,
     searchQuery,
-    selectedVic,
+    selectedCliente,
     selectedStatus,
     startDate,
     endDate,
   ]);
 
   useEffect(() => {
-    fetchVics();
+    fetchClientes();
     fetchStatuses();
-  }, [fetchStatuses, fetchVics]);
+  }, [fetchStatuses, fetchClientes]);
 
   useEffect(() => {
     fetchSchedulesData();
@@ -249,11 +249,11 @@ export default function SchedulesPage() {
         </div>
 
         <div className="space-y-2">
-          <Label className="text-xs font-medium">VIC</Label>
+          <Label className="text-xs font-medium">Cliente</Label>
           <Select
-            value={selectedVic}
+            value={selectedCliente}
             onValueChange={(value) => {
-              setSelectedVic(value);
+              setSelectedCliente(value);
               handleFilterChange();
             }}
           >
@@ -261,10 +261,10 @@ export default function SchedulesPage() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Todos los VICs</SelectItem>
-              {vics.map((vic) => (
-                <SelectItem key={vic.id} value={vic.id}>
-                  {vic.name} ({vic.code})
+              <SelectItem value="all">Todos los Clientes</SelectItem>
+              {clientes.map((cliente) => (
+                <SelectItem key={cliente.id} value={cliente.id}>
+                  {cliente.name} ({cliente.code})
                 </SelectItem>
               ))}
             </SelectContent>
@@ -335,7 +335,7 @@ export default function SchedulesPage() {
 
       <QuickEditScheduleDialog
         scheduleId={quickEditId}
-        vics={vics}
+        clientes={clientes}
         open={quickEditId !== null}
         onOpenChange={(open) => {
           if (!open) setQuickEditId(null);
