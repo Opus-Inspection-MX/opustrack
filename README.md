@@ -4,12 +4,14 @@ Sistema profesional de gestión de incidentes y seguimiento de órdenes de traba
 
 ## 🚀 Características Principales
 
-- **Gestión de Incidentes**: Sistema completo para reportar, rastrear y resolver incidentes
-- **Órdenes de Trabajo**: Administración de órdenes con seguimiento de actividades y partes
+- **Gestión de Incidentes**: Reportar, rastrear y resolver incidentes con cierre automático
+- **Asignaciones (órdenes de trabajo)**: Máquina de estados "Visto", captura GPS, actividades, partes y evidencia
 - **Control de Acceso Basado en Roles (RBAC)**: Sistema dinámico de permisos almacenado en base de datos
-- **Multi-tenancy**: Soporte para múltiples Centros de Verificación (VICs)
-- **Gestión de Inventario**: Control de partes y refacciones
-- **Reportes y Análisis**: Sistema de reportes integrado
+- **Multi-tenancy por Cliente**: Soporte para múltiples Centros de Verificación Vehicular
+- **Gestión de Inventario**: Control de partes con stock automático
+- **Control de Flota**: Vehículos y viajes con odómetro, foto y GPS
+- **Programación y Notificaciones**: Calendario de trabajo y avisos a usuarios
+- **Reportes y Análisis**: Suite de reportes operativos y tracking en tiempo real
 
 ## 🛠️ Stack Tecnológico
 
@@ -94,17 +96,29 @@ Abre [http://localhost:3000](http://localhost:3000) en tu navegador.
 
 Después de ejecutar el seed, puedes usar estas credenciales:
 
-- **Administrador**: admin@opusinspection.com / password123 _(No relacionado con VIC)_
+- **Administrador**: admin@opusinspection.com / password123 _(No relacionado con ningún Cliente)_
 - **FSR**: fsr@opusinspection.com / password123 _(Field Service Representative)_
-- **Cliente**: client@opusinspection.com / password123 _(Levanta incidentes desde VIC)_
+- **Cliente**: client@opusinspection.com / password123 _(Levanta incidentes desde su Centro de Verificación)_
 - **Invitado**: guest@opusinspection.com / password123 _(Solo lectura)_
 
 ## 📚 Documentación
 
-Toda la documentación del proyecto se encuentra en la carpeta [`docs/`](./docs/):
+### Especificación de dominio (`spec/`)
 
-- **[docs/README.md](./docs/README.md)** - Índice de documentación
+La **fuente de verdad del dominio** vive en [`spec/`](./spec/): requisitos funcionales
+(`RF-XXX`), reglas de negocio, máquinas de estado y deuda técnica conocida, obtenidos por
+reverse-engineering del código actual. Es la base para planificar cambios con SDD.
+
+- **[spec/README.md](./spec/README.md)** - Índice de la especificación
+- **[spec/00-overview.md](./spec/00-overview.md)** - Lenguaje ubicuo, roles, convención RF y reglas transversales
+
+> Nota: si `CLAUDE.md` y `spec/` difieren en terminología de dominio (p. ej. "VIC" vs
+> "Cliente", "WorkOrder" vs "Assignment"), `spec/` refleja el código actual y prevalece.
+
+### Otra documentación
+
 - **[CLAUDE.md](./CLAUDE.md)** - Arquitectura y guía de desarrollo
+- **[docs/README.md](./docs/README.md)** - Índice de documentación
 - **[docs/MIGRATION_GUIDE.md](./docs/MIGRATION_GUIDE.md)** - Guía de migración de base de datos
 - **[docs/REFACTOR_SUMMARY.md](./docs/REFACTOR_SUMMARY.md)** - Resumen de refactorización
 - **[docs/LOGIN_LOGOUT_GUIDE.md](./docs/LOGIN_LOGOUT_GUIDE.md)** - Guía de login/logout
