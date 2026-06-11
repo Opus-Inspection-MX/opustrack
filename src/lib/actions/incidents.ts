@@ -1634,7 +1634,12 @@ export async function bulkAssignIncidents(
         ],
       };
     }
-    scheduleClienteIds = new Set(sched.clientes.map((v) => v.clienteId));
+    // Global schedules (no active Clientes) impose no cliente restriction:
+    // keep scheduleClienteIds null so the truthy guard below skips the check.
+    scheduleClienteIds =
+      sched.clientes.length > 0
+        ? new Set(sched.clientes.map((v) => v.clienteId))
+        : null;
   }
 
   // Validate FSRs if any.
