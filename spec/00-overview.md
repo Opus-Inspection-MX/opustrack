@@ -157,7 +157,6 @@ revisar (candidatos a cambios SDD futuros).
 
 **Rendimiento**
 - Conteo de FSR por Cliente en el listado es N+1 (una query por Cliente) (02).
-- Tracking usa `take: 500` fijo sin paginación (09).
 
 ---
 

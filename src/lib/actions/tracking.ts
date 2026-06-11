@@ -28,6 +28,8 @@ function parseFolioQuery(input: string): FolioQuery {
   return { kind: "none" };
 }
 
+const TRACKING_MAX_RESULTS = 200;
+
 export async function getIncidentsForTracking(filters?: {
   clienteId?: string;
   typeId?: number;
@@ -101,103 +103,108 @@ export async function getIncidentsForTracking(filters?: {
       };
     }
 
-    const incidents = await prisma.incident.findMany({
-      where,
-      select: {
-        id: true,
-        title: true,
-        description: true,
-        reportedAt: true,
-        resolvedAt: true,
-        lineId: true,
-        equipmentId: true,
-        cliente: {
-          select: {
-            id: true,
-            name: true,
-            code: true,
-          },
+    const incidentSelect = {
+      id: true,
+      title: true,
+      description: true,
+      reportedAt: true,
+      resolvedAt: true,
+      lineId: true,
+      equipmentId: true,
+      cliente: {
+        select: {
+          id: true,
+          name: true,
+          code: true,
         },
-        type: {
-          select: {
-            id: true,
-            name: true,
-          },
+      },
+      type: {
+        select: {
+          id: true,
+          name: true,
         },
-        status: {
-          select: {
-            id: true,
-            name: true,
-            color: true,
-          },
+      },
+      status: {
+        select: {
+          id: true,
+          name: true,
+          color: true,
         },
-        reportedBy: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
+      },
+      reportedBy: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
         },
-        line: {
-          select: {
-            id: true,
-            name: true,
-          },
+      },
+      line: {
+        select: {
+          id: true,
+          name: true,
         },
-        assignees: {
-          where: { active: true },
-          select: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-              },
+      },
+      assignees: {
+        where: { active: true },
+        select: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
             },
           },
         },
-        assignments: {
-          where: assignmentsWhere,
-          select: {
-            id: true,
-            folio: true,
-            notes: true,
-            startedAt: true,
-            finishedAt: true,
-            createdAt: true,
-            assignees: {
-              where: { active: true },
-              select: {
-                user: {
-                  select: {
-                    id: true,
-                    name: true,
-                    email: true,
-                    roleId: true,
-                  },
+      },
+      assignments: {
+        where: assignmentsWhere,
+        select: {
+          id: true,
+          folio: true,
+          notes: true,
+          startedAt: true,
+          finishedAt: true,
+          createdAt: true,
+          assignees: {
+            where: { active: true },
+            select: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                  roleId: true,
                 },
               },
             },
-            status: {
-              select: {
-                id: true,
-                name: true,
-                color: true,
-              },
+          },
+          status: {
+            select: {
+              id: true,
+              name: true,
+              color: true,
             },
           },
-          orderBy: {
-            createdAt: "desc",
-          },
+        },
+        orderBy: {
+          createdAt: "desc",
         },
       },
-      orderBy: {
-        reportedAt: "desc",
-      },
-      take: 500,
-    });
+    } as const;
 
-    return incidents;
+    const [totalCount, incidents] = await Promise.all([
+      prisma.incident.count({ where }),
+      prisma.incident.findMany({
+        where,
+        select: incidentSelect,
+        orderBy: {
+          reportedAt: "desc",
+        },
+        take: TRACKING_MAX_RESULTS,
+      }),
+    ]);
+
+    return { data: incidents, totalCount };
   } catch (error) {
     console.error("Error fetching incidents for tracking:", error);
     throw new Error("Failed to fetch incidents");

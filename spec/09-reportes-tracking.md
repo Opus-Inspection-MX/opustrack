@@ -293,7 +293,7 @@ Proveer visibilidad operativa y analítica al administrador sobre el desempeño 
 
 **Reglas de negocio:**
 - Requiere permiso `tracking:read`.
-- Carga hasta **500 incidentes** activos por consulta (límite fijo en `take: 500`).
+- Carga hasta **`TRACKING_MAX_RESULTS` incidentes** activos por consulta (valor por defecto: 200, definido como constante en `src/lib/actions/tracking.ts`). Si el total de incidentes que coinciden con los filtros supera ese límite, la UI muestra un indicador `"Mostrando N de M — aplicá filtros para acotar"`.
 - Filtros disponibles:
   - `clienteId`: filtra incidentes del cliente seleccionado
   - `typeId`: tipo de incidente
@@ -382,4 +382,4 @@ Proveer visibilidad operativa y analítica al administrador sobre el desempeño 
 - **Stock no es histórico:** En el reporte de partes (RF-507), `currentStock` refleja el stock actual del catálogo, no el stock al momento del uso. Si hay consumo posterior al período analizado, el número puede ser inconsistente con el histórico.
 - **Cálculo de completadas (FSR Performance):** Una asignación se considera completada si `status.name = "CERRADO"` **o** `finishedAt != null`. En principio ambas condiciones deberían ser equivalentes, pero la doble comprobación actúa como salvaguarda ante inconsistencias de datos.
 - **Tracking no es GPS en tiempo real:** El módulo `/admin/tracking` es una vista filtrable de base de datos, no un mapa con actualización automática de posición GPS. La posición GPS (start/end) se captura durante las transiciones del FSR (INICIADO, CERRADO), no se actualiza de forma continua.
-- **Límite de 500 incidentes en tracking:** La consulta de tracking tiene un `take: 500` fijo. No hay paginación; si se supera ese umbral, registros más antiguos pueden quedar fuera de la vista.
+- **Límite de resultados en tracking:** La consulta de tracking usa `take: TRACKING_MAX_RESULTS` (200). Si el total de coincidencias supera ese valor, la UI muestra un indicador de truncado. La solución es aplicar filtros más acotados para reducir el conjunto. No hay paginación por diseño — esta es una vista de monitoreo, no de navegación de registros.

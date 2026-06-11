@@ -84,6 +84,7 @@ interface TrackingFiltersState {
 
 export default function TrackingPage() {
   const [incidents, setIncidents] = useState<TrackingIncident[]>([]);
+  const [totalCount, setTotalCount] = useState<number>(0);
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [incidentTypes, setIncidentTypes] = useState<IncidentType[]>([]);
   const [incidentStatuses, setIncidentStatuses] = useState<IncidentStatus[]>(
@@ -97,8 +98,9 @@ export default function TrackingPage() {
   const loadIncidents = useCallback(
     async (filterParams: TrackingFiltersState) => {
       try {
-        const data = await getIncidentsForTracking(filterParams);
-        setIncidents(data as TrackingIncident[]);
+        const result = await getIncidentsForTracking(filterParams);
+        setIncidents(result.data as TrackingIncident[]);
+        setTotalCount(result.totalCount);
       } catch (error) {
         console.error("Error loading incidents:", error);
       }
@@ -204,13 +206,17 @@ export default function TrackingPage() {
         />
       </div>
 
-      <div className="bg-muted/30 rounded-lg p-4">
+      <div className="bg-muted/30 rounded-lg p-4 flex items-center gap-3 flex-wrap">
         <div className="text-sm text-muted-foreground">
           Total de incidentes:{" "}
-          <span className="font-semibold text-foreground">
-            {incidents.length}
-          </span>
+          <span className="font-semibold text-foreground">{totalCount}</span>
         </div>
+        {incidents.length < totalCount && (
+          <span className="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">
+            Mostrando {incidents.length} de {totalCount} — aplicá filtros para
+            acotar
+          </span>
+        )}
       </div>
 
       <div>
