@@ -213,7 +213,7 @@ export default function TrackingPage() {
         </div>
         {incidents.length < totalCount && (
           <span className="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">
-            Mostrando {incidents.length} de {totalCount} — aplicá filtros para
+            Mostrando {incidents.length} de {totalCount} — aplique filtros para
             acotar
           </span>
         )}

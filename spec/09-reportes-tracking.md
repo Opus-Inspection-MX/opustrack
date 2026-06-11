@@ -293,7 +293,7 @@ Proveer visibilidad operativa y analítica al administrador sobre el desempeño 
 
 **Reglas de negocio:**
 - Requiere permiso `tracking:read`.
-- Carga hasta **`TRACKING_MAX_RESULTS` incidentes** activos por consulta (valor por defecto: 200, definido como constante en `src/lib/actions/tracking.ts`). Si el total de incidentes que coinciden con los filtros supera ese límite, la UI muestra un indicador `"Mostrando N de M — aplicá filtros para acotar"`.
+- Carga hasta **`TRACKING_MAX_RESULTS` incidentes** activos por consulta (valor por defecto: 200, definido como constante en `src/lib/actions/tracking.ts`). Si el total de incidentes que coinciden con los filtros supera ese límite, la UI muestra un indicador `"Mostrando N de M — aplique filtros para acotar"`.
 - Filtros disponibles:
   - `clienteId`: filtra incidentes del cliente seleccionado
   - `typeId`: tipo de incidente
