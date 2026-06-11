@@ -4,7 +4,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { z } from "zod";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,20 +12,10 @@ import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-
-const incidentTypeSchema = z.object({
-  name: z
-    .string()
-    .min(1, "Name is required")
-    .max(100, "Name must be less than 100 characters"),
-  description: z
-    .string()
-    .max(500, "Description must be less than 500 characters")
-    .optional(),
-  active: z.boolean(),
-});
-
-type IncidentTypeFormData = z.infer<typeof incidentTypeSchema>;
+import {
+  type IncidentTypeFormData,
+  incidentTypeSchema,
+} from "@/lib/validations/incident-types";
 
 interface IncidentTypeFormProps {
   initialData?: Partial<IncidentTypeFormData & { id: number }>;
@@ -59,6 +48,7 @@ export function IncidentTypeForm({
       name: initialData?.name || "",
       description: initialData?.description || "",
       active: initialData?.active ?? true,
+      priority: initialData?.priority ?? 5,
     },
   });
 
@@ -130,6 +120,29 @@ export function IncidentTypeForm({
                 {descriptionValue?.length || 0}/500
               </p>
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="priority">Prioridad *</Label>
+            <Input
+              id="priority"
+              type="number"
+              min={1}
+              max={10}
+              step={1}
+              {...register("priority", { valueAsNumber: true })}
+              className={
+                errors.priority && touchedFields.priority
+                  ? "border-red-500"
+                  : ""
+              }
+            />
+            {errors.priority && touchedFields.priority && (
+              <p className="text-sm text-red-500">{errors.priority.message}</p>
+            )}
+            <p className="text-sm text-muted-foreground">
+              1 (lowest) – 10 (highest). Values ≥ 8 are flagged as critical.
+            </p>
           </div>
 
           {isEdit && (
