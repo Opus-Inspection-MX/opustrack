@@ -104,6 +104,18 @@ export async function updatePart(id: string, data: PartFormData) {
 export async function deletePart(id: string) {
   await requirePermission("parts:delete");
 
+  // Prevent removing a part that is still referenced by active work parts,
+  // which would leave those usage records pointing at a "deleted" part.
+  const workPartCount = await prisma.workPart.count({
+    where: { partId: id, active: true },
+  });
+
+  if (workPartCount > 0) {
+    throw new Error(
+      `Cannot delete part. It is used in ${workPartCount} active work part record(s).`,
+    );
+  }
+
   await prisma.part.update({
     where: { id },
     data: { active: false },

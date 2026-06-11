@@ -168,6 +168,19 @@ export async function updateLine(
 
 export async function deleteLine(id: number) {
   await requirePermission("lines:delete");
+
+  // Prevent orphaning child equipment: a line cannot be removed while it still
+  // has active equipment attached.
+  const equipmentCount = await prisma.equipment.count({
+    where: { lineId: id, active: true },
+  });
+
+  if (equipmentCount > 0) {
+    throw new Error(
+      `Cannot delete line. ${equipmentCount} active equipment item(s) belong to this line.`,
+    );
+  }
+
   try {
     // Soft delete - set active to false
     await prisma.line.update({

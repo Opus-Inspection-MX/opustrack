@@ -15,7 +15,10 @@ export const PartCreateSchema = z.object({
     .optional(),
   price: z.number().positive("Price must be positive"),
   stock: z.number().int().min(0, "Stock cannot be negative"),
-  clienteId: cuidSchema,
+  // Optional: the Part model has no clienteId column and createPart does not
+  // persist it. Kept optional for forms that still submit it until the
+  // cliente-scoped parts feature is either implemented or removed.
+  clienteId: cuidSchema.optional(),
 });
 
 /**

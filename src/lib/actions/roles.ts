@@ -195,6 +195,11 @@ export async function assignPermissionsToRole(
   );
   await invalidateRoleSessions(roleId);
 
+  // Clear the in-memory permissions cache (5 min TTL) so in-flight requests do
+  // not keep serving the role's stale permissions until the cache expires.
+  const { clearPermissionsCache } = await import("@/lib/authz/authz");
+  clearPermissionsCache();
+
   revalidatePath("/admin/roles");
   revalidatePath(`/admin/roles/${roleId}`);
   revalidatePath(`/admin/roles/${roleId}/permissions`);
