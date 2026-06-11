@@ -34,15 +34,17 @@ export function SeenTimeClient({ initialData }: SeenTimeClientProps) {
   const [data, setData] = useState(initialData.assignments);
   const [summary, setSummary] = useState(initialData.summary);
 
-  // Date range state
-  const today = new Date();
-  const thirtyDaysAgo = new Date(today);
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  // Date range state — CDMX today / 30 days ago (avoids UTC date drift)
+  const mxDate = (offsetDays = 0) => {
+    const d = new Date();
+    d.setDate(d.getDate() - offsetDays);
+    return new Intl.DateTimeFormat("sv-SE", {
+      timeZone: "America/Mexico_City",
+    }).format(d);
+  };
 
-  const [startDate, setStartDate] = useState(
-    thirtyDaysAgo.toISOString().split("T")[0],
-  );
-  const [endDate, setEndDate] = useState(today.toISOString().split("T")[0]);
+  const [startDate, setStartDate] = useState(() => mxDate(30));
+  const [endDate, setEndDate] = useState(() => mxDate(0));
 
   const handleDateChange = (newStartDate: string, newEndDate: string) => {
     setStartDate(newStartDate);
@@ -93,6 +95,7 @@ export function SeenTimeClient({ initialData }: SeenTimeClientProps) {
       month: "short",
       hour: "2-digit",
       minute: "2-digit",
+      timeZone: "America/Mexico_City",
     });
   };
 
