@@ -36,6 +36,7 @@ export type IncidentTrendData = {
 
 export type IncidentByTypeData = {
   type: string;
+  priority: number;
   count: number;
   percentage: number;
 };
@@ -295,18 +296,23 @@ export async function getIncidentsByTypeData(
     },
   });
 
-  // Group by type
-  const typeCounts: Record<string, number> = {};
+  // Group by type, accumulate priority from the first incident of each type
+  const typeCounts: Record<string, { count: number; priority: number }> = {};
   incidents.forEach((incident) => {
     const typeName = incident.type?.name || "Sin Tipo";
-    typeCounts[typeName] = (typeCounts[typeName] || 0) + 1;
+    const typePriority = incident.type?.priority ?? 5;
+    if (!typeCounts[typeName]) {
+      typeCounts[typeName] = { count: 0, priority: typePriority };
+    }
+    typeCounts[typeName].count++;
   });
 
   const total = incidents.length || 1;
-  return Object.entries(typeCounts).map(([type, count]) => ({
+  return Object.entries(typeCounts).map(([type, data]) => ({
     type,
-    count,
-    percentage: Math.round((count / total) * 100),
+    priority: data.priority,
+    count: data.count,
+    percentage: Math.round((data.count / total) * 100),
   }));
 }
 

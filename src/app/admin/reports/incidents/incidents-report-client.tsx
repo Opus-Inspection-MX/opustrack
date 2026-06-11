@@ -2,6 +2,7 @@
 
 import { AlertTriangle, CheckCircle, TrendingUp } from "lucide-react";
 import { useState, useTransition } from "react";
+import { PriorityBadge } from "@/components/incident-types/priority-badge";
 import {
   AreaChart,
   ChartCard,
@@ -243,6 +244,7 @@ export function IncidentsReportClient({
               <TableHeader>
                 <TableRow>
                   <TableHead>Tipo</TableHead>
+                  <TableHead>Prioridad</TableHead>
                   <TableHead className="text-right">Cantidad</TableHead>
                   <TableHead className="text-right">Porcentaje</TableHead>
                 </TableRow>
@@ -251,6 +253,9 @@ export function IncidentsReportClient({
                 {typeData.map((row) => (
                   <TableRow key={row.type}>
                     <TableCell className="font-medium">{row.type}</TableCell>
+                    <TableCell>
+                      <PriorityBadge priority={row.priority} />
+                    </TableCell>
                     <TableCell className="text-right">{row.count}</TableCell>
                     <TableCell className="text-right">
                       {row.percentage}%
@@ -260,7 +265,7 @@ export function IncidentsReportClient({
                 {typeData.length === 0 && (
                   <TableRow>
                     <TableCell
-                      colSpan={3}
+                      colSpan={4}
                       className="text-center py-8 text-muted-foreground"
                     >
                       No hay datos disponibles
