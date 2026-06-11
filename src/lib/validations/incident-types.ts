@@ -6,7 +6,8 @@ import {
 
 /**
  * Schema for creating or updating an IncidentType via the admin form.
- * `priority` uses z.coerce because HTML number inputs submit strings.
+ * `priority` is validated as a number; the form coerces the HTML input via
+ * react-hook-form's `valueAsNumber`, so the schema receives a number directly.
  */
 export const incidentTypeSchema = z.object({
   name: z
