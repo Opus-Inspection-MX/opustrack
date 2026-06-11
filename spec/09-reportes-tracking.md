@@ -20,7 +20,7 @@ Proveer visibilidad operativa y analítica al administrador sobre el desempeño 
 | `Notification`    | Notification          | Engagement de notificaciones                         |
 | `User` (FSR)      | User (role = FSR)     | Todos los reportes de FSR                            |
 
-**Zona horaria:** Todos los reportes con manejo explícito de fechas usan `America/Mexico_City` via `moment-timezone`. Los reportes más simples usan UTC nativo de JavaScript (sin conversión).
+**Zona horaria:** Todos los reportes usan `America/Mexico_City` de forma consistente. Los límites de rango (`gte`/`lte`) se calculan con `mxDayRange()` de `src/lib/utils/datetime.ts`, que produce instantes UTC correctos para inicio/fin de día CDMX. La agrupación por fecha en series temporales usa `mxDateString()` (CDMX), nunca `toISOString().split("T")[0]` (UTC). Las fechas por defecto en la UI se inicializan con `mxTodayString()` / `mxDaysAgoString()` en servidor y con el one-liner `Intl.DateTimeFormat("sv-SE", { timeZone: "America/Mexico_City" })` en componentes cliente.
 
 **Permiso requerido:** `reports:view` para todos los reportes. `dashboard:view` para el dashboard. `tracking:read` y `tracking:update` para el módulo de tracking.
 
@@ -92,7 +92,7 @@ Proveer visibilidad operativa y analítica al administrador sobre el desempeño 
 **Descripción:** Serie temporal diaria de incidentes creados y resueltos en el período.
 
 **Reglas de negocio:**
-- Agrupa por fecha de `reportedAt` (formato `YYYY-MM-DD` en UTC).
+- Agrupa por fecha de `reportedAt` (formato `YYYY-MM-DD` en zona `America/Mexico_City`).
 - Para cada día calcula: `count` (incidentes creados) y `resolved` (incidentes que tienen `resolvedAt != null` y fueron creados ese día).
 - Resultado ordenado por fecha ASC.
 - Soporta filtrado adicional por `typeId` (uno o varios tipos de incidente).
@@ -125,7 +125,7 @@ Proveer visibilidad operativa y analítica al administrador sobre el desempeño 
 **Descripción:** Serie temporal diaria de viajes registrados y kilómetros acumulados.
 
 **Reglas de negocio:**
-- Agrupa por fecha de `startedAt` (formato `YYYY-MM-DD` en UTC).
+- Agrupa por fecha de `startedAt` (formato `YYYY-MM-DD` en zona `America/Mexico_City`).
 - Suma `kmDriven` por día; registros con `kmDriven = null` contribuyen 0.
 - Resultado ordenado por fecha ASC.
 
@@ -378,7 +378,7 @@ Proveer visibilidad operativa y analítica al administrador sobre el desempeño 
 
 ## Reglas transversales aplicables
 
-- **Zona horaria uniforme:** Reportes con grillas de días (cumplimiento diario, engagement) usan `moment-timezone` con `America/Mexico_City`. Reportes con agrupación simple por fecha usan `toISOString().split("T")[0]` (UTC). Esta inconsistencia puede producir diferencias de un día para registros creados entre 18:00 y 23:59 hora CDMX.
+- **Zona horaria uniforme:** Todos los reportes usan `America/Mexico_City` de forma consistente. Los límites de rango se generan con `mxDayRange()`, la agrupación por fecha con `mxDateString()`, y los valores por defecto en la UI con `mxTodayString()` / `mxDaysAgoString()` (servidor) o con `Intl.DateTimeFormat("sv-SE", { timeZone: "America/Mexico_City" })` (cliente). No existe inconsistencia UTC vs. CDMX.
 - **Stock no es histórico:** En el reporte de partes (RF-507), `currentStock` refleja el stock actual del catálogo, no el stock al momento del uso. Si hay consumo posterior al período analizado, el número puede ser inconsistente con el histórico.
 - **Cálculo de completadas (FSR Performance):** Una asignación se considera completada si `status.name = "CERRADO"` **o** `finishedAt != null`. En principio ambas condiciones deberían ser equivalentes, pero la doble comprobación actúa como salvaguarda ante inconsistencias de datos.
 - **Tracking no es GPS en tiempo real:** El módulo `/admin/tracking` es una vista filtrable de base de datos, no un mapa con actualización automática de posición GPS. La posición GPS (start/end) se captura durante las transiciones del FSR (INICIADO, CERRADO), no se actualiza de forma continua.
