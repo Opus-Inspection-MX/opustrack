@@ -150,8 +150,6 @@ revisar (candidatos a cambios SDD futuros).
 - Reportes: mezcla de zonas horarias (`America/Mexico_City` vs UTC) → la fecha de agrupación
   puede diferir entre reportes para registros nocturnos (09).
 - Dashboard: `criticalIncidents` ejecuta **la misma query** que `activeIncidents` (09).
-- Programación: la API REST acepta `clienteIds` vacío pero la Server Action lo rechaza —
-  dos contratos para el mismo recurso (07).
 - `/admin/programacion` es Client Component que consume API REST, excepción al patrón
   "Server Components + Server Actions" declarado en CLAUDE.md (07).
 

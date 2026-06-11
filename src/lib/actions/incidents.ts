@@ -759,6 +759,7 @@ export async function getIncidentFormOptions() {
   const clienteFilter = getClienteWhereClause(user);
 
   // Filter schedules by Clientes the user can access (M:N relationship).
+  // Schedules without any active Clientes are considered global and always shown.
   const isNullFilter =
     clienteFilter.clienteId &&
     typeof clienteFilter.clienteId === "object" &&
@@ -767,16 +768,24 @@ export async function getIncidentFormOptions() {
   const scheduleWhere = isNullFilter
     ? {
         active: true,
-        clientes: { some: { clienteId: "__IMPOSSIBLE_VALUE__", active: true } },
+        // User has no accessible Cliente: show only clienteless (global) schedules.
+        clientes: { none: { active: true } },
       }
     : {
         active: true,
         ...(clienteFilter.clienteId &&
         typeof clienteFilter.clienteId === "string"
           ? {
-              clientes: {
-                some: { clienteId: clienteFilter.clienteId, active: true },
-              },
+              // Include schedules linked to this specific Cliente OR global schedules
+              // (no active Cliente links) so that client-less schedules are always shown.
+              OR: [
+                {
+                  clientes: {
+                    some: { clienteId: clienteFilter.clienteId, active: true },
+                  },
+                },
+                { clientes: { none: { active: true } } },
+              ],
             }
           : {}),
       };
@@ -843,19 +852,28 @@ export async function getBulkIncidentCatalogs() {
     typeof clienteFilter.clienteId === "object" &&
     "equals" in clienteFilter.clienteId &&
     clienteFilter.clienteId.equals === null;
+  // Schedules without any active Clientes are considered global and always shown.
   const scheduleWhere = isNullFilter
     ? {
         active: true,
-        clientes: { some: { clienteId: "__IMPOSSIBLE_VALUE__", active: true } },
+        // User has no accessible Cliente: show only clienteless (global) schedules.
+        clientes: { none: { active: true } },
       }
     : {
         active: true,
         ...(clienteFilter.clienteId &&
         typeof clienteFilter.clienteId === "string"
           ? {
-              clientes: {
-                some: { clienteId: clienteFilter.clienteId, active: true },
-              },
+              // Include schedules linked to this specific Cliente OR global schedules
+              // (no active Cliente links) so that client-less schedules are always shown.
+              OR: [
+                {
+                  clientes: {
+                    some: { clienteId: clienteFilter.clienteId, active: true },
+                  },
+                },
+                { clientes: { none: { active: true } } },
+              ],
             }
           : {}),
       };
@@ -1337,9 +1355,12 @@ export async function createIncidentsFromPreview(
         ],
       };
     }
-    const accessible = sched.clientes.some((v) =>
-      canAccessCliente(user, v.clienteId),
-    );
+    // A schedule without any active Clientes is considered global (no Cliente
+    // restriction). Only check access when there is at least one Client linked.
+    const hasClientes = sched.clientes.length > 0;
+    const accessible =
+      !hasClientes ||
+      sched.clientes.some((v) => canAccessCliente(user, v.clienteId));
     if (!accessible) {
       return {
         ok: false,
@@ -1348,7 +1369,9 @@ export async function createIncidentsFromPreview(
         ],
       };
     }
-    scheduleClienteIds = new Set(sched.clientes.map((v) => v.clienteId));
+    scheduleClienteIds = hasClientes
+      ? new Set(sched.clientes.map((v) => v.clienteId))
+      : null;
   }
 
   // Catalogs for re-validation.

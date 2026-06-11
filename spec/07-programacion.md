@@ -90,18 +90,16 @@ El campo `color` es hexadecimal y se usa para renderizar badges en UI.
 
 ### RF-402 · Crear una programación
 
-**Descripción:** Crea una nueva programación con uno o más Clientes vinculados en una operación atómica.
+**Descripción:** Crea una nueva programación, opcionalmente con Clientes vinculados, en una operación atómica.
 
 **Reglas de negocio:**
 - Se requiere permiso `schedules:create`.
-- Se debe seleccionar al menos un Cliente (`clienteIds.length > 0`). Si el arreglo está vacío, se lanza error "Selecciona al menos un Cliente".
+- `clienteIds` es **opcional**: puede ser un arreglo vacío. Una programación sin Clientes es válida y se trata como "global" (sin restricción de Cliente).
 - Se eliminan duplicados en `clienteIds` antes de procesarlos (`new Set()`).
 - El usuario debe tener acceso a cada Cliente indicado (`canAccessCliente`). Si no, se lanza error "Sin acceso al Cliente {id}".
 - La creación del `Schedule` y los registros `ScheduleCliente` ocurren en una única transacción (`$transaction`).
 - Se usa `skipDuplicates: true` al crear los `ScheduleCliente`.
 - Después de crear, se invalida caché de `/admin/schedules` y `/admin/programacion`.
-
-> **Nota:** La API REST (`POST /api/schedules`) acepta `clienteIds` como opcional; cuando se llama desde la vista "Asignación de Programación", los Clientes son opcionales y la lista puede estar vacía.
 
 ---
 
@@ -111,7 +109,7 @@ El campo `color` es hexadecimal y se usa para renderizar badges en UI.
 
 **Reglas de negocio:**
 - Se requiere permiso `schedules:update`.
-- Al menos un Cliente debe permanecer vinculado.
+- `clienteIds` es **opcional**: puede ser un arreglo vacío. Enviar `[]` desvincula todos los Clientes activos del schedule (queda como "global").
 - La sincronización de Clientes (`syncScheduleClientes`) es incremental:
   - Clientes en `currentActive` que no están en `desired` → se desactivan (`active: false`).
   - Clientes en `currentInactive` que vuelven a `desired` → se reactivan (`active: true`).
@@ -129,7 +127,7 @@ El campo `color` es hexadecimal y se usa para renderizar badges en UI.
 **Reglas de negocio:**
 - Se requiere permiso `schedules:update`.
 - Si `endDate` se provee y es anterior a `scheduledAt`, se lanza error "La fecha de fin no puede ser anterior a la fecha de inicio".
-- Al menos un Cliente debe estar vinculado.
+- `clienteIds` es **opcional**: puede ser un arreglo vacío. Enviar `[]` desvincula todos los Clientes activos del schedule (queda como "global").
 - Usa la misma lógica de sincronización incremental de `ScheduleCliente` que RF-403.
 
 ---
@@ -205,6 +203,7 @@ El campo `color` es hexadecimal y se usa para renderizar badges en UI.
 - Si el usuario intenta asociar un Cliente al que no tiene acceso, se lanza error inmediatamente ("Sin acceso al Cliente {id}").
 - El ADMINISTRADOR tiene acceso a todos los Clientes.
 - Los demás roles solo tienen acceso a los Clientes explícitamente asignados.
+- Un schedule **sin Clientes vinculados** es considerado "global": cualquier usuario puede acceder a él en operaciones de lectura y en la asignación de incidentes. La verificación de acceso a Clientes se omite cuando el schedule no tiene ningún `ScheduleCliente` activo.
 
 ---
 
