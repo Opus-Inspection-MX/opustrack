@@ -86,10 +86,6 @@ export function QuickEditScheduleDialog({
   const handleSave = async () => {
     if (!scheduleId) return;
     setError(null);
-    if (clienteIds.length === 0) {
-      setError("Selecciona al menos un Cliente");
-      return;
-    }
     if (!scheduledAt) {
       setError("La fecha de inicio es requerida");
       return;
@@ -136,9 +132,7 @@ export function QuickEditScheduleDialog({
         ) : (
           <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <Label htmlFor="qe-clientes">
-                Clientes <span className="text-red-500">*</span>
-              </Label>
+              <Label htmlFor="qe-clientes">Clientes</Label>
               <MultiSelect
                 options={clientes.map((v) => ({
                   value: v.id,

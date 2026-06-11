@@ -125,10 +125,6 @@ export default function EditSchedulePage({
       }
     }
 
-    if (formData.clienteIds.length === 0) {
-      newErrors.clienteIds = "Selecciona al menos un Cliente";
-    }
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -273,9 +269,7 @@ export default function EditSchedulePage({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="clienteIds">
-                Clientes <span className="text-red-500">*</span>
-              </Label>
+              <Label htmlFor="clienteIds">Clientes</Label>
               <MultiSelect
                 options={clientes.map((cliente) => ({
                   value: cliente.id,
