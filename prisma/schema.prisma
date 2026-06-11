@@ -192,6 +192,7 @@ model IncidentType {
   id          Int        @id @default(autoincrement())
   name        String     @unique
   description String?
+  priority    Int        @default(5)
   incidents   Incident[]
   active      Boolean    @default(true)
 }
