@@ -72,3 +72,38 @@ export function currentWeekRange(reference: Date = new Date()): {
   const end = ref.clone().endOf("isoWeek"); // Sunday
   return { start: start.toDate(), end: end.toDate() };
 }
+
+/**
+ * Convert a "YYYY-MM-DD" date string (interpreted as a wall-clock date in
+ * Mexico City) into a Prisma-ready `{ gte, lte }` range spanning from
+ * start-of-day to end-of-day in CDMX time (returned as UTC Date instants).
+ *
+ * Use this for all Prisma `where` clauses that filter by a single calendar
+ * day or a date range entered by users in the reports UI.
+ *
+ * Example: mxDayRange("2026-06-10")
+ *   gte → 2026-06-10T06:00:00.000Z  (CDMX midnight = UTC 06:00)
+ *   lte → 2026-06-11T05:59:59.999Z  (CDMX 23:59:59.999 = UTC next-day 05:59)
+ */
+export function mxDayRange(dateStr: string): { gte: Date; lte: Date } {
+  const gte = moment.tz(dateStr, "YYYY-MM-DD", APP_TZ).startOf("day").toDate();
+  const lte = moment.tz(dateStr, "YYYY-MM-DD", APP_TZ).endOf("day").toDate();
+  return { gte, lte };
+}
+
+/**
+ * Today's date in Mexico City time, formatted as "YYYY-MM-DD".
+ * Thin wrapper around `mxDateString` for use as a default date value in
+ * server-rendered pages and report defaults.
+ */
+export function mxTodayString(): string {
+  return mxDateString(new Date());
+}
+
+/**
+ * The date N days ago in Mexico City time, formatted as "YYYY-MM-DD".
+ * Useful for building default "last N days" ranges without UTC drift.
+ */
+export function mxDaysAgoString(n: number): string {
+  return moment().tz(APP_TZ).subtract(n, "days").format("YYYY-MM-DD");
+}
