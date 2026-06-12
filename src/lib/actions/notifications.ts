@@ -122,11 +122,15 @@ export async function sendBroadcast(
     throw new Error("Debe seleccionar un rol cuando la audiencia es por rol");
   }
 
-  // Resolve recipients
+  // Resolve recipients. ANNOUNCEMENT always targets every active user
+  // regardless of the selected audience (RF-470); only SYSTEM honors the
+  // by-role audience filter.
   const whereClause =
-    input.audience === "by-role" && input.roleId
-      ? { active: true, roleId: input.roleId }
-      : { active: true };
+    input.type === "announcement"
+      ? { active: true }
+      : input.audience === "by-role" && input.roleId
+        ? { active: true, roleId: input.roleId }
+        : { active: true };
 
   const recipients = await prisma.user.findMany({
     where: whereClause,
@@ -137,5 +141,8 @@ export async function sendBroadcast(
 
   await notifyBroadcast(input.type, recipientIds, title, message, user.id);
 
-  return { success: true, count: recipientIds.length };
+  // The actor is excluded from delivery by emit(); reflect that in the count.
+  const deliveredCount = recipientIds.filter((id) => id !== user.id).length;
+
+  return { success: true, count: deliveredCount };
 }

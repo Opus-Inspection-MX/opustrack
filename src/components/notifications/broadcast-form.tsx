@@ -116,7 +116,16 @@ export function BroadcastForm({ roles }: BroadcastFormProps) {
               <Label htmlFor="type">Tipo de notificación</Label>
               <Select
                 value={type}
-                onValueChange={(val) => setType(val as BroadcastType)}
+                onValueChange={(val) => {
+                  const next = val as BroadcastType;
+                  setType(next);
+                  // ANNOUNCEMENT always reaches all active users (RF-470);
+                  // collapse the audience choice so the UI matches the rule.
+                  if (next === "announcement") {
+                    setAudience("all");
+                    setRoleId("");
+                  }
+                }}
                 disabled={loading}
               >
                 <SelectTrigger id="type">
@@ -137,7 +146,7 @@ export function BroadcastForm({ roles }: BroadcastFormProps) {
                   setAudience(val as BroadcastAudience);
                   if (val !== "by-role") setRoleId("");
                 }}
-                disabled={loading}
+                disabled={loading || type === "announcement"}
               >
                 <SelectTrigger id="audience">
                   <SelectValue placeholder="Seleccione la audiencia" />
