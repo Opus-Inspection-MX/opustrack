@@ -16,14 +16,14 @@ export const ScheduleCreateSchema = z.object({
   scheduledAt: z.date({ message: "Scheduled date is required" }),
   endDate: z.date().optional().nullable(),
   statusId: intIdSchema.optional().nullable(),
-  clienteIds: z.array(cuidSchema).min(1, "Selecciona al menos un Cliente"),
+  clienteIds: z.array(cuidSchema),
 });
 
 /**
  * Lightweight schema for the quick-edit dialog (Clientes + date range only).
  */
 export const ScheduleQuickUpdateSchema = z.object({
-  clienteIds: z.array(cuidSchema).min(1, "Selecciona al menos un Cliente"),
+  clienteIds: z.array(cuidSchema),
   scheduledAt: z.date({ message: "Scheduled date is required" }),
   endDate: z.date().optional().nullable(),
 });

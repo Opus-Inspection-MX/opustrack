@@ -165,9 +165,6 @@ async function assertAllClienteAccess(
 export async function createSchedule(data: ScheduleFormData) {
   const user = await requirePermission("schedules:create");
   const clienteIds = [...new Set(data.clienteIds)];
-  if (clienteIds.length === 0) {
-    throw new Error("Selecciona al menos un Cliente");
-  }
   await assertAllClienteAccess(user, clienteIds);
 
   const schedule = await prisma.$transaction(async (tx) => {
@@ -247,9 +244,6 @@ async function syncScheduleClientes(
 export async function updateSchedule(id: string, data: ScheduleFormData) {
   const user = await requirePermission("schedules:update");
   const clienteIds = [...new Set(data.clienteIds)];
-  if (clienteIds.length === 0) {
-    throw new Error("Selecciona al menos un Cliente");
-  }
   await assertAllClienteAccess(user, clienteIds);
 
   const schedule = await prisma.$transaction(async (tx) => {
@@ -286,9 +280,6 @@ export async function quickUpdateSchedule(
 ) {
   const user = await requirePermission("schedules:update");
   const clienteIds = [...new Set(data.clienteIds)];
-  if (clienteIds.length === 0) {
-    throw new Error("Selecciona al menos un Cliente");
-  }
   if (data.endDate && data.endDate < data.scheduledAt) {
     throw new Error(
       "La fecha de fin no puede ser anterior a la fecha de inicio",
