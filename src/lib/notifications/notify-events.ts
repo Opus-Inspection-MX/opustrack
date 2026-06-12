@@ -179,19 +179,37 @@ export async function notifyAssignmentReopened(
 }
 
 // ---------------------------------------------------------------------------
-// Broadcast stub — completed in Slice 3
+// Broadcast helpers (RF-469, RF-470)
 // ---------------------------------------------------------------------------
 
 /**
- * Admin broadcast notification.
- * TODO(s3): implement full body — resolve all/by-role recipients, call emit().
+ * RF-469 / RF-470: Admin broadcast notification.
+ * Dispatches a SYSTEM or ANNOUNCEMENT notification to the provided recipients.
+ * Recipients are pre-resolved by the caller (sendBroadcast server action).
+ * Actor is excluded by emit().
+ * Priority: SYSTEM → MEDIUM; ANNOUNCEMENT → LOW.
+ * entityType/entityId are null for broadcast messages.
  */
 export async function notifyBroadcast(
-  _type: "system" | "announcement",
-  _recipientIds: string[],
-  _title: string,
-  _message: string,
-  _actorId: string,
+  type: "system" | "announcement",
+  recipientIds: string[],
+  title: string,
+  message: string,
+  actorId: string,
 ): Promise<void> {
-  // Stub — implemented in Slice 3 (feat/notifications-broadcast)
+  const notificationType =
+    type === "system"
+      ? NOTIFICATION_TYPES.SYSTEM
+      : NOTIFICATION_TYPES.ANNOUNCEMENT;
+  const priority =
+    type === "system"
+      ? NOTIFICATION_PRIORITY.MEDIUM
+      : NOTIFICATION_PRIORITY.LOW;
+
+  await emit(recipientIds, actorId, {
+    title,
+    message,
+    type: notificationType,
+    priority,
+  });
 }
