@@ -10,6 +10,11 @@ import {
 } from "@/lib/auth/filters";
 import { FALLBACK_INCIDENT_TYPE_NAME } from "@/lib/constants/incident-type";
 import { prisma } from "@/lib/database/prisma.singleton";
+import {
+  notifyIncidentAssigned,
+  notifyIncidentCreated,
+  notifyIncidentUpdated,
+} from "@/lib/notifications";
 import { INCIDENT_STATE, syncIncidentState } from "@/lib/state-machine";
 import { getPrimaryClienteId } from "@/lib/utils/cliente-assignments";
 import { parseMxDateTime } from "@/lib/utils/datetime";
@@ -244,6 +249,9 @@ export async function createIncident(data: unknown) {
     });
   }
 
+  // POST-tx: notify admins of new incident (RF-465). Never throws.
+  await notifyIncidentCreated(incident.id, incident.title, user.id);
+
   revalidatePath("/admin/incidents");
   revalidatePath("/client/incidents");
   return { success: true, data: incident };
@@ -301,6 +309,9 @@ export async function createIncidentAsClient(data: unknown) {
     },
   });
 
+  // POST-tx: notify admins of new incident (RF-465). Never throws.
+  await notifyIncidentCreated(incident.id, incident.title, user.id);
+
   revalidatePath("/client/incidents");
   revalidatePath("/admin/incidents");
   return { success: true, data: incident };
@@ -357,7 +368,7 @@ export async function getClientIncidents() {
 async function syncIncidentAssignees(
   incidentId: number,
   desiredIds: string[],
-): Promise<void> {
+): Promise<{ toAdd: string[] }> {
   const desired = new Set(desiredIds);
   const current = await prisma.incidentAssignee.findMany({
     where: { incidentId, active: true },
@@ -399,6 +410,8 @@ async function syncIncidentAssignees(
       data: { active: true },
     });
   }
+
+  return { toAdd };
 }
 
 export async function updateIncident(id: number, data: IncidentFormData) {
@@ -440,8 +453,23 @@ export async function updateIncident(id: number, data: IncidentFormData) {
     },
   });
 
+  let toAdd: string[] = [];
   if (data.assigneeIds !== undefined) {
-    await syncIncidentAssignees(id, data.assigneeIds);
+    ({ toAdd } = await syncIncidentAssignees(id, data.assigneeIds));
+  }
+
+  // POST-tx: notify incident FSR events (RF-466, RF-468). Both never-throw.
+  // Fetch existing active IncidentAssignees (excluding newly added) for INCIDENT_UPDATED.
+  const existingFsrRows = await prisma.incidentAssignee.findMany({
+    where: { incidentId: id, active: true, userId: { notIn: toAdd } },
+    select: { userId: true },
+  });
+  const existingFsrIds = existingFsrRows.map((r) => r.userId);
+  if (existingFsrIds.length > 0) {
+    await notifyIncidentUpdated(id, incident.title, existingFsrIds, user.id);
+  }
+  if (toAdd.length > 0) {
+    await notifyIncidentAssigned(id, incident.title, toAdd, user.id);
   }
 
   revalidatePath("/admin/incidents");
@@ -461,7 +489,7 @@ export async function updateIncidentFsrs(
   const user = await requirePermission("incidents:update");
   const incident = await prisma.incident.findUnique({
     where: { id: incidentId },
-    select: { clienteId: true },
+    select: { clienteId: true, title: true },
   });
   if (!incident) {
     throw new Error("Incidente no encontrado");
@@ -483,7 +511,13 @@ export async function updateIncidentFsrs(
     }
   }
 
-  await syncIncidentAssignees(incidentId, fsrIds);
+  const { toAdd } = await syncIncidentAssignees(incidentId, fsrIds);
+
+  // POST-tx: notify new FSRs they were assigned to this incident (RF-468).
+  if (toAdd.length > 0) {
+    await notifyIncidentAssigned(incidentId, incident.title, toAdd, user.id);
+  }
+
   revalidatePath("/admin/incidents");
   revalidatePath(`/admin/incidents/${incidentId}`);
   revalidatePath("/admin/programacion");

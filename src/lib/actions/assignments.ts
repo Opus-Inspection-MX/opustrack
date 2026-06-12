@@ -11,6 +11,7 @@ import {
   notifyAssignmentCompleted,
   notifyAssignmentReopened,
   notifyAssignmentUpdated,
+  notifyIncidentClosed,
 } from "@/lib/notifications";
 import {
   ASSIGNMENT_STATE,
@@ -795,7 +796,22 @@ export async function closeAssignment(formData: FormData) {
     user.id,
   );
 
-  // TODO(s2): wire INCIDENT_CLOSED here using result.incidentBefore / result.incidentAfter
+  // POST-tx: fire INCIDENT_CLOSED only on a real CERRADO transition (RF-467).
+  if (
+    result.incidentBefore !== "CERRADO" &&
+    result.incidentAfter === "CERRADO"
+  ) {
+    const incidentData = await prisma.incident.findUnique({
+      where: { id: result.incidentId },
+      select: { reportedById: true, title: true },
+    });
+    await notifyIncidentClosed(
+      result.incidentId,
+      incidentData?.title,
+      incidentData?.reportedById ?? null,
+      user.id,
+    );
+  }
 
   revalidateAssignmentPaths(id, result.incidentId);
   return { success: true, data: result.assignment };
