@@ -179,6 +179,125 @@ export async function notifyAssignmentReopened(
 }
 
 // ---------------------------------------------------------------------------
+// Incident notification helpers (RF-465, RF-466, RF-467, RF-468)
+// ---------------------------------------------------------------------------
+
+/**
+ * RF-465: Fires after a new incident is persisted.
+ * Recipients: all active ADMINISTRADOR users, actor excluded.
+ * Priority: MEDIUM.
+ */
+export async function notifyIncidentCreated(
+  incidentId: number,
+  incidentTitle: string | null | undefined,
+  actorId: string,
+): Promise<void> {
+  const adminIds = await getAdminUserIds();
+  const title = "Nuevo incidente reportado";
+  const message = incidentTitle
+    ? `Se reportó un nuevo incidente: ${incidentTitle}`
+    : "Se reportó un nuevo incidente";
+
+  await emit(adminIds, actorId, {
+    title,
+    message,
+    type: NOTIFICATION_TYPES.INCIDENT_CREATED,
+    entityType: "incident",
+    entityId: String(incidentId),
+    actionUrl: `/admin/incidents/${incidentId}`,
+    priority: NOTIFICATION_PRIORITY.MEDIUM,
+  });
+}
+
+/**
+ * RF-466: Fires after incident metadata is updated.
+ * Recipients: enabled FSRs (active IncidentAssignee), actor excluded.
+ * Priority: LOW. No write if recipientIds is empty.
+ */
+export async function notifyIncidentUpdated(
+  incidentId: number,
+  incidentTitle: string | null | undefined,
+  recipientIds: string[],
+  actorId: string,
+): Promise<void> {
+  if (recipientIds.length === 0) return;
+  const title = "Incidente actualizado";
+  const message = incidentTitle
+    ? `El incidente ha sido actualizado: ${incidentTitle}`
+    : "El incidente ha sido actualizado";
+
+  await emit(recipientIds, actorId, {
+    title,
+    message,
+    type: NOTIFICATION_TYPES.INCIDENT_UPDATED,
+    entityType: "incident",
+    entityId: String(incidentId),
+    actionUrl: `/fsr/assignments`,
+    priority: NOTIFICATION_PRIORITY.LOW,
+  });
+}
+
+/**
+ * RF-467: Fires ONLY when the incident transitions to CERRADO (auto-close gate).
+ * Recipients: reporter (reporterIdOrNull) + all active ADMINISTRADOR users, actor excluded.
+ * Priority: HIGH.
+ */
+export async function notifyIncidentClosed(
+  incidentId: number,
+  incidentTitle: string | null | undefined,
+  reporterIdOrNull: string | null | undefined,
+  actorId: string,
+): Promise<void> {
+  const adminIds = await getAdminUserIds();
+  const recipients = [
+    ...(reporterIdOrNull ? [reporterIdOrNull] : []),
+    ...adminIds,
+  ];
+  const title = "Incidente cerrado";
+  const message = incidentTitle
+    ? `El incidente fue cerrado: ${incidentTitle}`
+    : "El incidente fue cerrado";
+
+  await emit(recipients, actorId, {
+    title,
+    message,
+    type: NOTIFICATION_TYPES.INCIDENT_CLOSED,
+    entityType: "incident",
+    entityId: String(incidentId),
+    actionUrl: `/admin/incidents/${incidentId}`,
+    priority: NOTIFICATION_PRIORITY.HIGH,
+  });
+}
+
+/**
+ * RF-468: Fires when new FSRs are enabled on an incident (IncidentAssignee created).
+ * Recipients: new FSR IDs, actor excluded.
+ * Priority: MEDIUM.
+ */
+export async function notifyIncidentAssigned(
+  incidentId: number,
+  incidentTitle: string | null | undefined,
+  newFsrIds: string[],
+  actorId: string,
+): Promise<void> {
+  if (newFsrIds.length === 0) return;
+  const title = "Asignado a incidente";
+  const message = incidentTitle
+    ? `Se te ha asignado al incidente: ${incidentTitle}`
+    : "Se te ha asignado a un incidente";
+
+  await emit(newFsrIds, actorId, {
+    title,
+    message,
+    type: NOTIFICATION_TYPES.INCIDENT_ASSIGNED,
+    entityType: "incident",
+    entityId: String(incidentId),
+    actionUrl: `/fsr/assignments`,
+    priority: NOTIFICATION_PRIORITY.MEDIUM,
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Broadcast stub — completed in Slice 3
 // ---------------------------------------------------------------------------
 
