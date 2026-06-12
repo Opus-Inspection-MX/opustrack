@@ -147,8 +147,7 @@ revisar (candidatos a cambios SDD futuros).
 
 **Consistencia funcional**
 - Notificaciones: de 10 tipos definidos, **solo `ASSIGNMENT_ASSIGNED` se dispara** realmente (08).
-- Reportes: mezcla de zonas horarias (`America/Mexico_City` vs UTC) → la fecha de agrupación
-  puede diferir entre reportes para registros nocturnos (09).
+- Reportes: zona horaria estandarizada a `America/Mexico_City` en todos los reportes (resuelto). No quedan inconsistencias UTC vs. CDMX (09).
 - Dashboard: `criticalIncidents` ejecuta **la misma query** que `activeIncidents` (09).
 - `/admin/programacion` es Client Component que consume API REST, excepción al patrón
   "Server Components + Server Actions" declarado en CLAUDE.md (07).

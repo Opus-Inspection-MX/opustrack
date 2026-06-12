@@ -84,6 +84,7 @@ export function AssignmentAgingClient({
       day: "numeric",
       month: "short",
       year: "numeric",
+      timeZone: "America/Mexico_City",
     });
   };
 

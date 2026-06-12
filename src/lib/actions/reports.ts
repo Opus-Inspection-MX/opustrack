@@ -3,8 +3,13 @@
 import moment from "moment-timezone";
 import { requirePermission } from "@/lib/auth/auth";
 import { prisma } from "@/lib/database/prisma.singleton";
-
-const REPORT_TZ = "America/Mexico_City";
+import {
+  APP_TZ,
+  mxDateString,
+  mxDayRange,
+  mxDaysAgoString,
+  mxTodayString,
+} from "@/lib/utils/datetime";
 
 export type DateRange = {
   startDate: string;
@@ -71,10 +76,14 @@ export async function getFSRPerformanceData(
 ): Promise<FSRPerformanceData[]> {
   await requirePermission("reports:view");
 
-  const startDate = dateRange?.startDate
-    ? new Date(dateRange.startDate)
-    : new Date(new Date().setMonth(new Date().getMonth() - 1));
-  const endDate = dateRange?.endDate ? new Date(dateRange.endDate) : new Date();
+  const startRange = dateRange?.startDate
+    ? mxDayRange(dateRange.startDate)
+    : mxDayRange(mxDaysAgoString(30));
+  const endRange = dateRange?.endDate
+    ? mxDayRange(dateRange.endDate)
+    : mxDayRange(mxTodayString());
+  const startDate = startRange.gte;
+  const endDate = endRange.lte;
 
   // Get FSR role
   const fsrRole = await prisma.role.findFirst({
@@ -183,10 +192,14 @@ export async function getAssignmentStatusData(
 ): Promise<AssignmentStatusData[]> {
   await requirePermission("reports:view");
 
-  const startDate = dateRange?.startDate
-    ? new Date(dateRange.startDate)
-    : new Date(new Date().setMonth(new Date().getMonth() - 1));
-  const endDate = dateRange?.endDate ? new Date(dateRange.endDate) : new Date();
+  const startRange = dateRange?.startDate
+    ? mxDayRange(dateRange.startDate)
+    : mxDayRange(mxDaysAgoString(30));
+  const endRange = dateRange?.endDate
+    ? mxDayRange(dateRange.endDate)
+    : mxDayRange(mxTodayString());
+  const startDate = startRange.gte;
+  const endDate = endRange.lte;
 
   const assignments = await prisma.assignment.findMany({
     where: {
@@ -224,10 +237,14 @@ export async function getIncidentTrendData(
 ): Promise<IncidentTrendData[]> {
   await requirePermission("reports:view");
 
-  const startDate = dateRange?.startDate
-    ? new Date(dateRange.startDate)
-    : new Date(new Date().setMonth(new Date().getMonth() - 1));
-  const endDate = dateRange?.endDate ? new Date(dateRange.endDate) : new Date();
+  const startRange = dateRange?.startDate
+    ? mxDayRange(dateRange.startDate)
+    : mxDayRange(mxDaysAgoString(30));
+  const endRange = dateRange?.endDate
+    ? mxDayRange(dateRange.endDate)
+    : mxDayRange(mxTodayString());
+  const startDate = startRange.gte;
+  const endDate = endRange.lte;
 
   const incidents = await prisma.incident.findMany({
     where: {
@@ -248,7 +265,7 @@ export async function getIncidentTrendData(
   const trendByDate: Record<string, { count: number; resolved: number }> = {};
 
   incidents.forEach((incident) => {
-    const dateStr = incident.reportedAt.toISOString().split("T")[0];
+    const dateStr = mxDateString(incident.reportedAt);
     if (!trendByDate[dateStr]) {
       trendByDate[dateStr] = { count: 0, resolved: 0 };
     }
@@ -277,10 +294,14 @@ export async function getIncidentsByTypeData(
 ): Promise<IncidentByTypeData[]> {
   await requirePermission("reports:view");
 
-  const startDate = dateRange?.startDate
-    ? new Date(dateRange.startDate)
-    : new Date(new Date().setMonth(new Date().getMonth() - 1));
-  const endDate = dateRange?.endDate ? new Date(dateRange.endDate) : new Date();
+  const startRange = dateRange?.startDate
+    ? mxDayRange(dateRange.startDate)
+    : mxDayRange(mxDaysAgoString(30));
+  const endRange = dateRange?.endDate
+    ? mxDayRange(dateRange.endDate)
+    : mxDayRange(mxTodayString());
+  const startDate = startRange.gte;
+  const endDate = endRange.lte;
 
   const incidents = await prisma.incident.findMany({
     where: {
@@ -324,10 +345,14 @@ export async function getVehicleTripTrendData(
 ): Promise<VehicleTripData[]> {
   await requirePermission("reports:view");
 
-  const startDate = dateRange?.startDate
-    ? new Date(dateRange.startDate)
-    : new Date(new Date().setMonth(new Date().getMonth() - 1));
-  const endDate = dateRange?.endDate ? new Date(dateRange.endDate) : new Date();
+  const startRange = dateRange?.startDate
+    ? mxDayRange(dateRange.startDate)
+    : mxDayRange(mxDaysAgoString(30));
+  const endRange = dateRange?.endDate
+    ? mxDayRange(dateRange.endDate)
+    : mxDayRange(mxTodayString());
+  const startDate = startRange.gte;
+  const endDate = endRange.lte;
 
   const trips = await prisma.vehicleTrip.findMany({
     where: {
@@ -347,7 +372,7 @@ export async function getVehicleTripTrendData(
   const tripsByDate: Record<string, { trips: number; totalKm: number }> = {};
 
   trips.forEach((trip) => {
-    const dateStr = trip.startedAt.toISOString().split("T")[0];
+    const dateStr = mxDateString(trip.startedAt);
     if (!tripsByDate[dateStr]) {
       tripsByDate[dateStr] = { trips: 0, totalKm: 0 };
     }
@@ -372,10 +397,14 @@ export async function getVehicleTripsByFSRData(
 ): Promise<FSRTripData[]> {
   await requirePermission("reports:view");
 
-  const startDate = dateRange?.startDate
-    ? new Date(dateRange.startDate)
-    : new Date(new Date().setMonth(new Date().getMonth() - 1));
-  const endDate = dateRange?.endDate ? new Date(dateRange.endDate) : new Date();
+  const startRange = dateRange?.startDate
+    ? mxDayRange(dateRange.startDate)
+    : mxDayRange(mxDaysAgoString(30));
+  const endRange = dateRange?.endDate
+    ? mxDayRange(dateRange.endDate)
+    : mxDayRange(mxTodayString());
+  const startDate = startRange.gte;
+  const endDate = endRange.lte;
 
   const trips = await prisma.vehicleTrip.findMany({
     where: {
@@ -426,10 +455,14 @@ export async function getPartsUsageData(
 ): Promise<PartUsageData[]> {
   await requirePermission("reports:view");
 
-  const startDate = dateRange?.startDate
-    ? new Date(dateRange.startDate)
-    : new Date(new Date().setMonth(new Date().getMonth() - 1));
-  const endDate = dateRange?.endDate ? new Date(dateRange.endDate) : new Date();
+  const startRange = dateRange?.startDate
+    ? mxDayRange(dateRange.startDate)
+    : mxDayRange(mxDaysAgoString(30));
+  const endRange = dateRange?.endDate
+    ? mxDayRange(dateRange.endDate)
+    : mxDayRange(mxTodayString());
+  const startDate = startRange.gte;
+  const endDate = endRange.lte;
 
   // Get all work parts with their part info
   const workParts = await prisma.workPart.findMany({
@@ -482,10 +515,14 @@ export async function getPartsUsageData(
 export async function getReportSummary(dateRange?: DateRange) {
   await requirePermission("reports:view");
 
-  const startDate = dateRange?.startDate
-    ? new Date(dateRange.startDate)
-    : new Date(new Date().setMonth(new Date().getMonth() - 1));
-  const endDate = dateRange?.endDate ? new Date(dateRange.endDate) : new Date();
+  const startRange = dateRange?.startDate
+    ? mxDayRange(dateRange.startDate)
+    : mxDayRange(mxDaysAgoString(30));
+  const endRange = dateRange?.endDate
+    ? mxDayRange(dateRange.endDate)
+    : mxDayRange(mxTodayString());
+  const startDate = startRange.gte;
+  const endDate = endRange.lte;
 
   // Parallel queries for summary stats
   const [
@@ -731,10 +768,14 @@ export async function getSeenTimeData(
 ): Promise<{ assignments: SeenTimeData[]; summary: SeenTimeSummary }> {
   await requirePermission("reports:view");
 
-  const startDate = dateRange?.startDate
-    ? new Date(dateRange.startDate)
-    : new Date(new Date().setMonth(new Date().getMonth() - 1));
-  const endDate = dateRange?.endDate ? new Date(dateRange.endDate) : new Date();
+  const startRange = dateRange?.startDate
+    ? mxDayRange(dateRange.startDate)
+    : mxDayRange(mxDaysAgoString(30));
+  const endRange = dateRange?.endDate
+    ? mxDayRange(dateRange.endDate)
+    : mxDayRange(mxTodayString());
+  const startDate = startRange.gte;
+  const endDate = endRange.lte;
 
   const assignments = await prisma.assignment.findMany({
     where: {
@@ -888,11 +929,11 @@ export async function getNotificationEngagementReport(
   await requirePermission("reports:view");
 
   const startDate = dateRange?.startDate
-    ? moment.tz(dateRange.startDate, REPORT_TZ).startOf("day").toDate()
-    : moment().tz(REPORT_TZ).subtract(30, "days").startOf("day").toDate();
+    ? moment.tz(dateRange.startDate, APP_TZ).startOf("day").toDate()
+    : moment().tz(APP_TZ).subtract(30, "days").startOf("day").toDate();
   const endDate = dateRange?.endDate
-    ? moment.tz(dateRange.endDate, REPORT_TZ).endOf("day").toDate()
-    : moment().tz(REPORT_TZ).endOf("day").toDate();
+    ? moment.tz(dateRange.endDate, APP_TZ).endOf("day").toDate()
+    : moment().tz(APP_TZ).endOf("day").toDate();
 
   const fsrRole = await prisma.role.findFirst({
     where: { name: "FSR", active: true },
@@ -1030,11 +1071,11 @@ export async function getDailyTripComplianceReport(
   await requirePermission("reports:view");
 
   const start = dateRange?.startDate
-    ? moment.tz(dateRange.startDate, REPORT_TZ).startOf("day")
-    : moment().tz(REPORT_TZ).subtract(6, "days").startOf("day");
+    ? moment.tz(dateRange.startDate, APP_TZ).startOf("day")
+    : moment().tz(APP_TZ).subtract(6, "days").startOf("day");
   const end = dateRange?.endDate
-    ? moment.tz(dateRange.endDate, REPORT_TZ).endOf("day")
-    : moment().tz(REPORT_TZ).endOf("day");
+    ? moment.tz(dateRange.endDate, APP_TZ).endOf("day")
+    : moment().tz(APP_TZ).endOf("day");
 
   const days: string[] = [];
   const iter = start.clone();
@@ -1083,7 +1124,7 @@ export async function getDailyTripComplianceReport(
           },
         });
 
-  const today = moment().tz(REPORT_TZ).format("YYYY-MM-DD");
+  const today = moment().tz(APP_TZ).format("YYYY-MM-DD");
 
   const rows: DailyTripComplianceRow[] = fsrUsers.map((user) => {
     const byDay: Record<string, DailyTripComplianceCell> = {};
@@ -1095,7 +1136,7 @@ export async function getDailyTripComplianceReport(
     let lastTripAt: Date | null = null;
 
     for (const trip of userTrips) {
-      const day = moment(trip.startedAt).tz(REPORT_TZ).format("YYYY-MM-DD");
+      const day = moment(trip.startedAt).tz(APP_TZ).format("YYYY-MM-DD");
       if (byDay[day]) {
         byDay[day].reported = true;
         byDay[day].tripCount += 1;
