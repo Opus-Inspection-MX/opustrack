@@ -1,6 +1,7 @@
 "use server";
 
 import { requirePermission } from "@/lib/auth/auth";
+import { prisma } from "@/lib/database/prisma.singleton";
 import {
   deleteNotification,
   type GetNotificationsOptions,
@@ -8,6 +9,7 @@ import {
   getUserNotifications,
   markAllAsRead,
   markAsRead,
+  notifyBroadcast,
 } from "@/lib/notifications";
 
 /**
@@ -66,4 +68,81 @@ export async function getNotificationsWithCount(
     getUnreadCount(user.id),
   ]);
   return { notifications, unreadCount };
+}
+
+// ---------------------------------------------------------------------------
+// Admin broadcast (RF-469, RF-470)
+// ---------------------------------------------------------------------------
+
+export type BroadcastAudience = "all" | "by-role";
+export type BroadcastType = "system" | "announcement";
+
+export interface BroadcastInput {
+  title: string;
+  message: string;
+  type: BroadcastType;
+  audience: BroadcastAudience;
+  /** Required when audience === "by-role" */
+  roleId?: number;
+}
+
+export interface BroadcastResult {
+  success: true;
+  count: number;
+}
+
+/**
+ * RF-469 / RF-470: Send a broadcast notification from the admin UI.
+ * Audience "all" → all active users.
+ * Audience "by-role" → all active users with the selected roleId.
+ * Actor is excluded by notifyBroadcast → emit().
+ */
+export async function sendBroadcast(
+  input: BroadcastInput,
+): Promise<BroadcastResult> {
+  // Admin route guard is handled by requireRouteAccess on the page,
+  // but we still check notifications:read so the server action itself
+  // is not callable by non-authenticated users.
+  const user = await requirePermission("notifications:read");
+
+  // Input validation
+  const title = input.title?.trim();
+  const message = input.message?.trim();
+
+  if (!title) {
+    throw new Error("El título es obligatorio");
+  }
+  if (!message) {
+    throw new Error("El mensaje es obligatorio");
+  }
+  if (input.type !== "system" && input.type !== "announcement") {
+    throw new Error("Tipo de notificación no válido");
+  }
+  if (input.audience === "by-role" && !input.roleId) {
+    throw new Error("Debe seleccionar un rol cuando la audiencia es por rol");
+  }
+
+  // Resolve recipients. ANNOUNCEMENT always targets every active user
+  // regardless of the selected audience (RF-470); only SYSTEM honors the
+  // by-role audience filter.
+  const whereClause =
+    input.type === "announcement"
+      ? { active: true }
+      : input.audience === "by-role" && input.roleId
+        ? { active: true, roleId: input.roleId }
+        : { active: true };
+
+  const recipients = await prisma.user.findMany({
+    where: whereClause,
+    select: { id: true },
+  });
+
+  const recipientIds = recipients.map((r) => r.id);
+
+  await notifyBroadcast(input.type, recipientIds, title, message, user.id);
+
+  // The actor is excluded from delivery by emit(); reflect that in the count.
+  const deliveredCount = recipientIds.filter((id) => id !== user.id).length;
+
+  return { success: true, count: deliveredCount };
 }
