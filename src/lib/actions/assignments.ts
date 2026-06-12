@@ -6,6 +6,13 @@ import { requirePermission } from "@/lib/auth/auth";
 import { getClienteWhereClause } from "@/lib/auth/filters";
 import { prisma } from "@/lib/database/prisma.singleton";
 import {
+  getAdminUserIds,
+  notifyAssignmentAssigned,
+  notifyAssignmentCompleted,
+  notifyAssignmentReopened,
+  notifyAssignmentUpdated,
+} from "@/lib/notifications";
+import {
   ASSIGNMENT_STATE,
   type AssignmentState,
   assertAssignmentPreconditions,
@@ -52,43 +59,6 @@ async function assertAssigneesAreFsrs(userIds: string[]) {
   });
   if (fsrs.length !== new Set(userIds).size) {
     throw new Error("Uno o más FSR no existen o no tienen rol FSR");
-  }
-}
-
-async function notifyAssignees(
-  userIds: string[],
-  payload: {
-    assignmentId: string;
-    incidentTitle?: string | null;
-    title: string;
-    message: string;
-  },
-) {
-  if (userIds.length === 0) return;
-  try {
-    const { createNotification } = await import(
-      "@/lib/notifications/notification-service"
-    );
-    const { NOTIFICATION_TYPES, NOTIFICATION_PRIORITY } = await import(
-      "@/lib/notifications/notification-types"
-    );
-
-    await Promise.all(
-      userIds.map((userId) =>
-        createNotification({
-          userId,
-          title: payload.title,
-          message: payload.message,
-          type: NOTIFICATION_TYPES.ASSIGNMENT_ASSIGNED,
-          entityType: "assignment",
-          entityId: payload.assignmentId,
-          actionUrl: `/fsr/assignments/${payload.assignmentId}`,
-          priority: NOTIFICATION_PRIORITY.HIGH,
-        }),
-      ),
-    );
-  } catch (error) {
-    console.error("Error creating assignment notifications:", error);
   }
 }
 
@@ -210,7 +180,7 @@ async function resolveAssignmentStatusId(
  * Caller-provided statusId is ignored — the state machine owns it.
  */
 export async function createAssignment(data: AssignmentFormData) {
-  await requirePermission("assignments:create");
+  const user = await requirePermission("assignments:create");
 
   const uniqueAssignees = Array.from(new Set(data.assigneeIds));
 
@@ -244,13 +214,14 @@ export async function createAssignment(data: AssignmentFormData) {
     return created;
   });
 
+  // POST-tx notification: new FSRs receive ASSIGNMENT_ASSIGNED (actor excluded by emit).
   if (uniqueAssignees.length > 0) {
-    await notifyAssignees(uniqueAssignees, {
-      assignmentId: assignment.id,
-      incidentTitle: assignment.incident?.title,
-      title: "Nueva asignación",
-      message: `Se te ha asignado una nueva asignación${assignment.incident?.title ? ` para el incidente: ${assignment.incident.title}` : ""}`,
-    });
+    await notifyAssignmentAssigned(
+      assignment.id,
+      assignment.incident?.title,
+      uniqueAssignees,
+      user.id,
+    );
   }
 
   revalidatePath("/admin/assignments");
@@ -263,7 +234,7 @@ export async function createAssignment(data: AssignmentFormData) {
  * Update existing assignment
  */
 export async function updateAssignment(id: string, data: AssignmentFormData) {
-  await requirePermission("assignments:update");
+  const user = await requirePermission("assignments:update");
 
   const uniqueAssignees = Array.from(new Set(data.assigneeIds));
 
@@ -360,16 +331,35 @@ export async function updateAssignment(id: string, data: AssignmentFormData) {
 
     await syncIncidentState(assignment.incidentId, tx);
 
-    return { assignment, toAdd };
+    // preExisting: active assignees that were already assigned and are NOT newly added.
+    // Disjoint from toAdd so no FSR gets both ASSIGNMENT_ASSIGNED and ASSIGNMENT_UPDATED.
+    const toRemoveSet = new Set(toRemove);
+    const toAddSet = new Set(toAdd);
+    const preExisting = [...existingIds].filter(
+      (u) => !toRemoveSet.has(u) && !toAddSet.has(u),
+    );
+
+    return { assignment, toAdd, preExisting };
   });
 
+  // POST-tx notifications (disjoint sets):
+  // - New FSRs → ASSIGNMENT_ASSIGNED
+  // - Pre-existing active FSRs → ASSIGNMENT_UPDATED
   if (result.toAdd.length > 0) {
-    await notifyAssignees(result.toAdd, {
-      assignmentId: id,
-      incidentTitle: result.assignment.incident?.title,
-      title: "Asignación asignada",
-      message: `Se te ha asignado la asignación${result.assignment.incident?.title ? ` para el incidente: ${result.assignment.incident.title}` : ""}`,
-    });
+    await notifyAssignmentAssigned(
+      id,
+      result.assignment.incident?.title,
+      result.toAdd,
+      user.id,
+    );
+  }
+  if (result.preExisting.length > 0) {
+    await notifyAssignmentUpdated(
+      id,
+      result.assignment.incident?.title,
+      result.preExisting,
+      user.id,
+    );
   }
 
   revalidatePath("/admin/assignments");
@@ -547,6 +537,16 @@ export async function markAssignmentSeen(id: string) {
     return { assignment: updated, incidentId: current.incidentId, noop: false };
   });
 
+  if (!result.noop && result.assignment) {
+    const assigneeIds = result.assignment.assignees.map((a) => a.userId);
+    await notifyAssignmentUpdated(
+      id,
+      result.assignment.incident?.title,
+      assigneeIds,
+      user.id,
+    );
+  }
+
   revalidateAssignmentPaths(id, result.incidentId);
   return { success: true, data: result.assignment, noop: result.noop };
 }
@@ -616,6 +616,14 @@ export async function startAssignmentWork(formData: FormData) {
     return { assignment: updated, incidentId: current.incidentId };
   });
 
+  const assigneeIds = result.assignment.assignees.map((a) => a.userId);
+  await notifyAssignmentUpdated(
+    id,
+    result.assignment.incident?.title,
+    assigneeIds,
+    user.id,
+  );
+
   revalidateAssignmentPaths(id, result.incidentId);
   return { success: true, data: result.assignment };
 }
@@ -643,6 +651,15 @@ export async function pauseAssignment(id: string) {
     await syncIncidentState(current.incidentId, tx);
     return { assignment: updated, incidentId: current.incidentId };
   });
+
+  const assigneeIds = result.assignment.assignees.map((a) => a.userId);
+  await notifyAssignmentUpdated(
+    id,
+    result.assignment.incident?.title,
+    assigneeIds,
+    user.id,
+  );
+
   revalidateAssignmentPaths(id, result.incidentId);
   return { success: true, data: result.assignment };
 }
@@ -670,6 +687,15 @@ export async function resumeAssignment(id: string) {
     await syncIncidentState(current.incidentId, tx);
     return { assignment: updated, incidentId: current.incidentId };
   });
+
+  const assigneeIds = result.assignment.assignees.map((a) => a.userId);
+  await notifyAssignmentUpdated(
+    id,
+    result.assignment.incident?.title,
+    assigneeIds,
+    user.id,
+  );
+
   revalidateAssignmentPaths(id, result.incidentId);
   return { success: true, data: result.assignment };
 }
@@ -749,9 +775,27 @@ export async function closeAssignment(formData: FormData) {
       },
       include: { incident: true, ...assigneesInclude, status: true },
     });
-    await syncIncidentState(current.incidentId, tx);
-    return { assignment: updated, incidentId: current.incidentId };
+    const { before: incidentBefore, after: incidentAfter } =
+      await syncIncidentState(current.incidentId, tx);
+    return {
+      assignment: updated,
+      incidentId: current.incidentId,
+      incidentBefore,
+      incidentAfter,
+    };
   });
+
+  const assigneeIds = result.assignment.assignees.map((a) => a.userId);
+  const adminIds = await getAdminUserIds();
+  const completedRecipients = [...assigneeIds, ...adminIds];
+  await notifyAssignmentCompleted(
+    id,
+    result.assignment.incident?.title,
+    completedRecipients,
+    user.id,
+  );
+
+  // TODO(s2): wire INCIDENT_CLOSED here using result.incidentBefore / result.incidentAfter
 
   revalidateAssignmentPaths(id, result.incidentId);
   return { success: true, data: result.assignment };
@@ -761,7 +805,7 @@ export async function closeAssignment(formData: FormData) {
  * Reopen a closed assignment back to EN_PROGRESO. Admins only.
  */
 export async function reopenAssignment(id: string) {
-  await requirePermission("assignments:reopen");
+  const user = await requirePermission("assignments:reopen");
   const result = await prisma.$transaction(async (tx) => {
     const current = await loadAssignmentForTransition(tx, id);
     const from = current.status?.name as AssignmentState;
@@ -781,6 +825,15 @@ export async function reopenAssignment(id: string) {
     await syncIncidentState(current.incidentId, tx);
     return { assignment: updated, incidentId: current.incidentId };
   });
+
+  const assigneeIds = result.assignment.assignees.map((a) => a.userId);
+  await notifyAssignmentReopened(
+    id,
+    result.assignment.incident?.title,
+    assigneeIds,
+    user.id,
+  );
+
   revalidateAssignmentPaths(id, result.incidentId);
   return { success: true, data: result.assignment };
 }
@@ -1003,7 +1056,7 @@ export async function updateAssignmentOdtFolio(
   id: string,
   odtFolio: string | null,
 ) {
-  await requirePermission("assignments:update");
+  const user = await requirePermission("assignments:update");
 
   const trimmed = odtFolio?.trim() || null;
 
@@ -1017,8 +1070,22 @@ export async function updateAssignmentOdtFolio(
   const assignment = await prisma.assignment.update({
     where: { id },
     data: { odtFolio: trimmed },
-    select: { id: true, odtFolio: true, incidentId: true },
+    select: {
+      id: true,
+      odtFolio: true,
+      incidentId: true,
+      incident: { select: { title: true } },
+      assignees: { where: { active: true }, select: { userId: true } },
+    },
   });
+
+  const assigneeIds = assignment.assignees.map((a) => a.userId);
+  await notifyAssignmentUpdated(
+    id,
+    assignment.incident?.title,
+    assigneeIds,
+    user.id,
+  );
 
   revalidatePath(`/admin/assignments/${id}`);
   revalidatePath(`/fsr/assignments/${id}`);
@@ -1034,7 +1101,7 @@ export async function updateAssignmentOdtFolio(
  * use startAssignmentWork() and closeAssignment() instead.
  */
 export async function updateAssignmentStatus(id: string, statusId: number) {
-  await requirePermission("assignments:update");
+  const user = await requirePermission("assignments:update");
 
   const result = await prisma.$transaction(async (tx) => {
     const target = await tx.assignmentStatus.findUnique({
@@ -1067,6 +1134,14 @@ export async function updateAssignmentStatus(id: string, statusId: number) {
     await syncIncidentState(current.incidentId, tx);
     return { assignment: updated, incidentId: current.incidentId };
   });
+
+  const assigneeIds = result.assignment.assignees.map((a) => a.userId);
+  await notifyAssignmentUpdated(
+    id,
+    result.assignment.incident?.title,
+    assigneeIds,
+    user.id,
+  );
 
   revalidateAssignmentPaths(id, result.incidentId);
   return { success: true, data: result.assignment };
