@@ -1,0 +1,78 @@
+project: opustrack
+detected: 2026-06-10
+artifact_store: hybrid
+execution_mode: interactive
+delivery_strategy: ask-on-risk
+
+context: |
+  OpusTrack — incident management and work order tracking system for Vehicle Inspection Centers (VICs) in Mexico.
+  Stack: Next.js 15 (App Router, Turbopack), React 19, TypeScript strict, Prisma 6 + PostgreSQL, NextAuth v4 (JWT).
+  Domain: Cliente (replaces VIC), Assignment (replaces WorkOrder), Incident, FSR, Schedule, Vehicle, Notification.
+  Architecture: database-driven RBAC, JWT+Edge Runtime middleware, Server Components + Server Actions (default pattern).
+  Linter/formatter: Biome 2.2. No ESLint/Prettier.
+  Spec source of truth: spec/ (00-overview + 01-09), requirements RF-XXX.
+  CLAUDE.md partially outdated (uses VIC/WorkOrder). spec/ overrides for domain terminology.
+
+stack:
+  runtime: Node.js
+  framework: next@15.5.9
+  language: TypeScript 5 (strict)
+  ui: React 19 / Radix UI / shadcn (New York) / Tailwind 4
+  orm: Prisma 6 + PostgreSQL
+  auth: NextAuth v4 (JWT, 30-day, Edge Runtime)
+  forms: react-hook-form + Zod 4
+  charts: Recharts
+  pdf: @react-pdf/renderer
+  excel: exceljs
+  storage: Vercel Blob (default) | filesystem
+  linter: Biome 2.2
+  formatter: Biome 2.2
+
+testing:
+  strict_tdd: false
+  caveat: >
+    Infrastructure exists (Vitest 4 + jsdom + MSW + Prisma test harness in src/test/)
+    but only one real test file: src/test/example.test.ts (smoke test, no domain logic).
+    DB-dependent tests require opustrack_test database running and TEST_DATABASE_URL set.
+    Strict TDD not viable until meaningful server-action/domain tests exist.
+    Coverage thresholds configured (75%) but currently trivially met by example.test.ts alone.
+  unit:
+    available: true
+    command: npm test
+    runner: vitest@4
+    environment: jsdom
+    setup: src/test/setup.ts
+  e2e:
+    available: true
+    command: npm run test:e2e
+    runner: "@playwright/test@1.57"
+    config: playwright.config.ts
+  coverage:
+    available: true
+    command: npm run test:coverage
+    provider: v8
+    thresholds: { lines: 75, functions: 75, branches: 75, statements: 75 }
+  integration:
+    available: true
+    tool: "@testing-library/react + MSW + Prisma test harness"
+    note: "Harness ready (src/test/db.ts, helpers.tsx, mocks/) but no integration tests written yet."
+
+phases:
+  proposal:
+    model: opus
+    questions_round: true
+  spec:
+    model: sonnet
+  design:
+    model: opus
+  tasks:
+    model: sonnet
+    review_workload_guard: true
+    budget_lines: 400
+  apply:
+    model: sonnet
+    strict_tdd: false
+  verify:
+    model: sonnet
+  archive:
+    model: haiku

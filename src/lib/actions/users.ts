@@ -332,11 +332,16 @@ export async function updateMyPassword(
     throw new Error("Current password is incorrect");
   }
 
-  // Hash and update new password
+  // Hash and update new password. Bump sessionVersion to invalidate every
+  // existing JWT for this user: after a password change, any previously issued
+  // session (including a stolen one) must be forced to re-authenticate.
   const hashedPassword = await hashPassword(newPassword);
   await prisma.user.update({
     where: { id: user.id },
-    data: { password: hashedPassword },
+    data: {
+      password: hashedPassword,
+      sessionVersion: { increment: 1 },
+    },
   });
 
   return { success: true };

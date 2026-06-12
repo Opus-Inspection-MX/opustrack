@@ -118,10 +118,6 @@ reverse-engineering del código actual. Es la base para planificar cambios con S
 ### Otra documentación
 
 - **[CLAUDE.md](./CLAUDE.md)** - Arquitectura y guía de desarrollo
-- **[docs/README.md](./docs/README.md)** - Índice de documentación
-- **[docs/MIGRATION_GUIDE.md](./docs/MIGRATION_GUIDE.md)** - Guía de migración de base de datos
-- **[docs/REFACTOR_SUMMARY.md](./docs/REFACTOR_SUMMARY.md)** - Resumen de refactorización
-- **[docs/LOGIN_LOGOUT_GUIDE.md](./docs/LOGIN_LOGOUT_GUIDE.md)** - Guía de login/logout
 
 ### Documentación para Claude Code
 
