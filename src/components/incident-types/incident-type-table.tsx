@@ -3,6 +3,7 @@
 import { Edit, Eye, FileText, MoreHorizontal, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { TablePagination } from "@/components/common/table-pagination";
+import { PriorityBadge } from "@/components/incident-types/priority-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,6 +26,7 @@ interface IncidentType {
   name: string;
   description?: string;
   active: boolean;
+  priority: number;
   incidentCount: number;
   createdAt: string;
   updatedAt: string;
@@ -59,6 +61,7 @@ export function IncidentTypeTable({
             <TableRow>
               <TableHead>Nombre</TableHead>
               <TableHead>Descripción</TableHead>
+              <TableHead>Prioridad</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Incidentes</TableHead>
               <TableHead>Creado</TableHead>
@@ -81,6 +84,9 @@ export function IncidentTypeTable({
                       Sin descripción
                     </span>
                   )}
+                </TableCell>
+                <TableCell>
+                  <PriorityBadge priority={type.priority} />
                 </TableCell>
                 <TableCell>
                   <Badge variant={type.active ? "default" : "secondary"}>

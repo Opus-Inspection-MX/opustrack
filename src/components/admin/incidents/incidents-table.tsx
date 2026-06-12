@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { TablePagination } from "@/components/common/table-pagination";
+import { PriorityBadge } from "@/components/incident-types/priority-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -30,6 +31,7 @@ type Incident = {
   reportedAt: Date;
   type: {
     name: string;
+    priority: number;
   } | null;
   status: {
     name: string;
@@ -122,7 +124,10 @@ export function IncidentsTable({ incidents }: { incidents: Incident[] }) {
                 </TableCell>
                 <TableCell className="hidden md:table-cell">
                   {incident.type ? (
-                    <Badge variant="outline">{incident.type.name}</Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline">{incident.type.name}</Badge>
+                      <PriorityBadge priority={incident.type.priority} />
+                    </div>
                   ) : (
                     <span className="text-muted-foreground text-sm">
                       Sin tipo

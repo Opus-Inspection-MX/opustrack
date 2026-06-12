@@ -20,6 +20,7 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import React, { useMemo, useState } from "react";
+import { PriorityBadge } from "@/components/incident-types/priority-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -105,7 +106,7 @@ interface TrackingIncident {
   resolvedAt?: Date | string | null;
   statusId?: number | null;
   status?: { id: number; name: string; color: string } | null;
-  type?: { id: number; name: string } | null;
+  type?: { id: number; name: string; priority: number } | null;
   cliente?: { id: string; name: string; code: string } | null;
   reportedBy?: { id: string; name: string } | null;
   assignees?: Array<{ user: { id: string; name: string; email?: string } }>;
@@ -717,9 +718,14 @@ export function TrackingTable({
                       )}
                     </TableCell>
                     <TableCell onClick={() => toggleRowExpansion(incident.id)}>
-                      <Badge variant="secondary">
-                        {incident.type?.name || "Sin tipo"}
-                      </Badge>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="secondary">
+                          {incident.type?.name || "Sin tipo"}
+                        </Badge>
+                        {incident.type?.priority !== undefined && (
+                          <PriorityBadge priority={incident.type.priority} />
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell onClick={() => toggleRowExpansion(incident.id)}>
                       {formatDate(incident.reportedAt)}
@@ -1206,7 +1212,17 @@ export function TrackingTable({
                                     <span className="font-medium text-muted-foreground">
                                       Tipo:
                                     </span>
-                                    <p>{incident.type?.name || "Sin tipo"}</p>
+                                    <div className="flex items-center gap-2 mt-1">
+                                      <span>
+                                        {incident.type?.name || "Sin tipo"}
+                                      </span>
+                                      {incident.type?.priority !==
+                                        undefined && (
+                                        <PriorityBadge
+                                          priority={incident.type.priority}
+                                        />
+                                      )}
+                                    </div>
                                   </div>
                                 </div>
                               </div>

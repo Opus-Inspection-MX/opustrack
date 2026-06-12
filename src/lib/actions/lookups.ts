@@ -225,6 +225,7 @@ export type IncidentTypeFormData = {
   name: string;
   description?: string;
   active?: boolean;
+  priority: number;
 };
 
 export async function getIncidentTypes(params?: {
@@ -273,6 +274,7 @@ export async function getIncidentTypes(params?: {
     name: type.name,
     description: type.description ?? undefined,
     active: type.active,
+    priority: type.priority,
     incidentCount: type._count.incidents,
     createdAt: new Date().toISOString(), // IncidentType doesn't have createdAt
     updatedAt: new Date().toISOString(), // IncidentType doesn't have updatedAt
@@ -311,6 +313,7 @@ export async function createIncidentType(data: IncidentTypeFormData) {
     data: {
       name: data.name,
       description: data.description || null,
+      priority: data.priority,
       ...(data.active !== undefined && { active: data.active }),
     },
   });
@@ -330,6 +333,7 @@ export async function updateIncidentType(
     data: {
       name: data.name,
       description: data.description || null,
+      priority: data.priority,
       ...(data.active !== undefined && { active: data.active }),
     },
   });

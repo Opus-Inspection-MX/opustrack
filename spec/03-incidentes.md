@@ -52,14 +52,17 @@ Tabla pivote que habilita a FSRs específicos para trabajar en un incidente. Ind
 
 ### IncidentType
 
-| Campo       | Tipo     | Notas                                                                  |
-|-------------|----------|------------------------------------------------------------------------|
-| id          | Int (PK) |                                                                        |
-| name        | String   | Único. Ej.: "Falla Eléctrica", "Mantenimiento Preventivo"              |
-| description | String?  |                                                                        |
-| active      | Boolean  | Soft delete                                                            |
+| Campo       | Tipo     | Notas                                                                                     |
+|-------------|----------|-------------------------------------------------------------------------------------------|
+| id          | Int (PK) |                                                                                           |
+| name        | String   | Único. Ej.: "Falla Eléctrica", "Mantenimiento Preventivo"                                 |
+| description | String?  |                                                                                           |
+| priority    | Int      | NOT NULL. Rango cerrado [1, 10]. @default(5). Importancia operacional del tipo. RF-214.   |
+| active      | Boolean  | Soft delete                                                                               |
 
 El tipo `"Desconocido"` es de sistema y no puede eliminarse. Se usa como fallback cuando un incidente se crea sin tipo explícito.
+
+**Umbral crítico:** Un incidente se considera crítico si `IncidentType.priority >= CRITICAL_PRIORITY_THRESHOLD (= 8)`. Esta constante vive en `src/lib/constants/incident-type.ts` y es la única fuente de verdad — no se hardcodea en consultas ni componentes. RF-215.
 
 ### IncidentStatus
 
@@ -338,6 +341,33 @@ La máquina de estados del incidente se define en `src/lib/state-machine/inciden
 - El tipo "Desconocido" está protegido contra eliminación (blindado en `deleteIncidentType` por nombre, según `FALLBACK_INCIDENT_TYPE_NAME`).
 - Los estados del catálogo (`IncidentStatus`) deben coincidir con los valores de `INCIDENT_STATE` en el código; si falta alguno, la máquina de estados lanza error al intentar una transición.
 - Los estados y tipos inactivos no aparecen en formularios de creación/edición.
+- `IncidentType.priority` es obligatorio al crear/editar un tipo. Rango [1, 10]; valores fuera del rango son rechazados por validación Zod (`incidentTypeSchema`). El campo tiene `@default(5)` como red de seguridad a nivel DB.
+- El admin puede ver la prioridad de cada tipo en la tabla de catálogo (columna "Prioridad" con badge de color).
+
+### RF-214 · Campo priority en IncidentType — migración y seed
+
+**Descripción:** El esquema de BD incluye `IncidentType.priority Int NOT NULL @default(5)`. La migración aplica `DEFAULT 5` a filas existentes. El seed asigna valores reales a todos los tipos.
+
+**Implementación:** `prisma/schema.prisma`, `prisma/migrations/`, `prisma/seed.ts`
+
+### RF-215 · Constante CRITICAL_PRIORITY_THRESHOLD
+
+**Descripción:** El sistema define `CRITICAL_PRIORITY_THRESHOLD = 8` en `src/lib/constants/incident-type.ts`. Un incidente es crítico si y solo si `type.priority >= 8`. También define `MIN_INCIDENT_PRIORITY = 1`, `MAX_INCIDENT_PRIORITY = 10`, e `isCriticalPriority(p)`.
+
+### RF-216 · PriorityBadge — visibilidad en todas las superficies
+
+**Descripción:** El valor numérico de prioridad (1–10) se muestra como badge (`PriorityBadge`) en:
+
+| Superficie                        | Archivo                                                                   |
+|-----------------------------------|---------------------------------------------------------------------------|
+| Tabla de catálogo de tipos        | `src/components/incident-types/incident-type-table.tsx`                  |
+| Lista de incidentes (admin)       | `src/components/admin/incidents/incidents-table.tsx`                     |
+| Lista de incidentes (FSR)         | `src/app/fsr/incidents/page.tsx`                                         |
+| Lista de incidentes (CLIENT)      | `src/app/client/page.tsx`                                                |
+| Vista de tracking                 | `src/components/tracking/tracking-table.tsx`                             |
+| Reporte distribución por tipo     | `src/app/admin/reports/incidents/incidents-report-client.tsx`            |
+
+**Componente:** `src/components/incident-types/priority-badge.tsx`. Color: 8–10 destructivo (crítico), 5–7 ámbar (medio), 1–4 muted (bajo).
 
 ---
 

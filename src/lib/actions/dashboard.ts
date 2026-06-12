@@ -1,6 +1,7 @@
 "use server";
 
 import { requirePermission } from "@/lib/auth/auth";
+import { CRITICAL_PRIORITY_THRESHOLD } from "@/lib/constants/incident-type";
 import { prisma } from "@/lib/database/prisma.singleton";
 
 export async function getDashboardStats() {
@@ -14,6 +15,7 @@ export async function getDashboardStats() {
     scheduledTasks,
     recentIncidents,
     pendingAssignments,
+    criticalIncidents,
   ] = await Promise.all([
     // Total users
     prisma.user.count({
@@ -95,17 +97,20 @@ export async function getDashboardStats() {
       orderBy: { createdAt: "desc" },
       take: 5,
     }),
-  ]);
 
-  // Count critical incidents
-  const criticalIncidents = await prisma.incident.count({
-    where: {
-      active: true,
-      status: {
-        name: { not: "CERRADO" },
+    // Critical incidents: active, not CERRADO, type priority >= threshold
+    prisma.incident.count({
+      where: {
+        active: true,
+        status: {
+          name: { not: "CERRADO" },
+        },
+        type: {
+          priority: { gte: CRITICAL_PRIORITY_THRESHOLD },
+        },
       },
-    },
-  });
+    }),
+  ]);
 
   return {
     stats: {

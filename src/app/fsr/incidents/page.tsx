@@ -1,5 +1,6 @@
 import { AlertTriangle, Building2, Calendar, Eye, User } from "lucide-react";
 import Link from "next/link";
+import { PriorityBadge } from "@/components/incident-types/priority-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -74,7 +75,12 @@ export default async function FSRIncidentsPage() {
                           </Badge>
                         )}
                         {incident.type && (
-                          <Badge variant="outline">{incident.type.name}</Badge>
+                          <>
+                            <Badge variant="outline">
+                              {incident.type.name}
+                            </Badge>
+                            <PriorityBadge priority={incident.type.priority} />
+                          </>
                         )}
                       </div>
 

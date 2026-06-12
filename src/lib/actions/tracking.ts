@@ -122,6 +122,7 @@ export async function getIncidentsForTracking(filters?: {
           select: {
             id: true,
             name: true,
+            priority: true,
           },
         },
         status: {

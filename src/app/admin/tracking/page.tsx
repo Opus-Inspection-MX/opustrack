@@ -62,7 +62,7 @@ interface TrackingIncident {
   resolvedAt?: Date | string | null;
   statusId?: number | null;
   status?: { id: number; name: string; color: string } | null;
-  type?: { id: number; name: string } | null;
+  type?: { id: number; name: string; priority: number } | null;
   cliente?: { id: string; name: string; code: string } | null;
   reportedBy?: { id: string; name: string } | null;
   assignments: TrackingAssignment[];

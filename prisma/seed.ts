@@ -1101,92 +1101,115 @@ async function main() {
       // El tipo "Desconocido" es del sistema — se usa como fallback cuando un
       // incidente se crea sin tipo. NO debe eliminarse (deleteIncidentType lo
       // blinda por nombre).
+      // Priority scale: 1–10. Critical threshold: >= 8. Values are intentional
+      // and override the DB default of 5 — do not remove priority from upserts.
       const incidentTypes: Array<{
         name: string;
         description: string;
+        priority: number;
       }> = [
         {
           name: "Desconocido",
           description:
             "Tipo por defecto cuando no se clasifica. NO eliminar — usado como fallback del sistema.",
+          priority: 3, // Explicit: unclassified stays out of critical count
         },
         {
           name: "Falla Eléctrica",
           description: "Cortocircuitos, fallas de tablero, iluminación",
+          priority: 8, // Critical — electrical failures stop operations
         },
         {
           name: "Falla Mecánica",
           description: "Equipos hidráulicos, neumáticos, ejes",
+          priority: 7,
         },
         {
           name: "Falla de Software",
           description: "Sistema de inspección, base de datos, integraciones",
+          priority: 8, // Critical — software failure blocks all inspections
         },
         {
           name: "Falla de Cámaras",
           description: "Cámaras de inspección OCR, lectores de placa",
+          priority: 6,
         },
         {
           name: "Falla de Báscula",
           description: "Sistema de pesaje",
+          priority: 8, // Critical — weight system required for certification
         },
         {
           name: "Falla de Diagnóstico",
           description: "Equipos de gases, frenómetro, alineadora",
+          priority: 8, // Critical — diagnostic equipment required for certification
         },
         {
           name: "Falla de Red",
           description: "Conectividad, switches, WiFi",
+          priority: 7,
         },
         {
           name: "Mantenimiento Preventivo",
           description: "Mantenimiento programado",
+          priority: 4,
         },
         {
           name: "Mantenimiento Correctivo",
           description: "Reparación tras falla",
+          priority: 6,
         },
         {
           name: "Calibración",
           description: "Ajuste y calibración de equipos",
+          priority: 5,
         },
         {
           name: "Limpieza / Acondicionamiento",
           description: "Higiene, orden, acondicionamiento del Cliente",
+          priority: 2,
         },
         {
           name: "Suministro",
           description: "Faltante de consumibles o refacciones",
+          priority: 4,
         },
         // MANTENIMIENTO — tipo genérico y subtipos operativos.
         {
           name: "MANTENIMIENTO",
           description: "Mantenimiento general del centro de inspección",
+          priority: 4,
         },
         {
           name: "Mantenimiento Predictivo",
           description: "Monitoreo de condición para anticipar fallas",
+          priority: 4,
         },
         {
           name: "Mantenimiento de Equipos de Diagnóstico",
           description:
             "Analizador de gases, frenómetro, alineadora, suspensión",
+          priority: 7,
         },
         {
           name: "Mantenimiento de Báscula",
           description: "Sistema de pesaje y celdas de carga",
+          priority: 6,
         },
         {
           name: "Mantenimiento de Cámaras / OCR",
           description: "Cámaras de inspección, lectores de placa OCR",
+          priority: 6,
         },
         {
           name: "Mantenimiento de Red / IT",
           description: "Switches, cableado, servidores, conectividad",
+          priority: 5,
         },
         {
           name: "Mantenimiento de Infraestructura",
           description: "Instalaciones eléctricas, hidráulicas y de obra civil",
+          priority: 5,
         },
       ];
       for (const it of incidentTypes) {
@@ -1194,6 +1217,7 @@ async function main() {
           where: { name: it.name },
           update: {
             description: it.description,
+            priority: it.priority,
           },
           create: it,
         });

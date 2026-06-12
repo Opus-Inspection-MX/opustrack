@@ -43,7 +43,7 @@ Proveer visibilidad operativa y analítica al administrador sobre el desempeño 
   4. `scheduledTasks` — schedules con `scheduledAt >= ahora`
   5. `recentIncidents` — últimos 5 incidentes por `reportedAt DESC` (incluye tipo, estado y nombre del reportador)
   6. `pendingAssignments` — últimas 5 asignaciones en estado `PENDIENTE_DE_ASIGNACION` o `ASIGNADO` (incluye incidente vinculado y asignados)
-- Adicionalmente ejecuta una consulta separada para `criticalIncidents` (misma condición que `activeIncidents`; en la implementación actual produce el mismo valor numérico).
+- Adicionalmente ejecuta una séptima consulta para `criticalIncidents`: cuenta incidentes activos cuyo `IncidentType.priority >= CRITICAL_PRIORITY_THRESHOLD (= 8)` y cuyo estado no sea `CERRADO`. Esta consulta corre dentro del mismo `Promise.all`. **Históricamente esta consulta era idéntica a `activeIncidents`; RF-215 la corrigió usando el filtro de prioridad.**
 
 **Implementación:** `getDashboardStats()` en `src/lib/actions/dashboard.ts`
 
@@ -106,12 +106,16 @@ Proveer visibilidad operativa y analítica al administrador sobre el desempeño 
 
 ### RF-504 · Reporte de distribución de incidentes por tipo
 
-**Descripción:** Distribución porcentual de incidentes activos en el período según su tipo.
+**Descripción:** Distribución porcentual de incidentes activos en el período según su tipo. Incluye la prioridad de cada tipo en el resultado.
 
 **Reglas de negocio:**
-- Incidentes sin tipo se agrupan bajo `"Sin Tipo"`.
+- Incidentes sin tipo se agrupan bajo `"Sin Tipo"` con prioridad por defecto 5.
 - El porcentaje usa la misma lógica anti-división-por-cero que RF-502.
 - Soporta filtrado por `typeIds[]` para limitar a tipos específicos.
+- Cada entrada del resultado incluye `priority: number` (tomado del primer incidente del grupo).
+- La UI renderiza `PriorityBadge` en la columna "Prioridad" de la tabla "Detalle por Tipo".
+
+**Tipo de resultado:** `IncidentByTypeData` en `src/lib/actions/reports.ts` — incluye `type`, `priority`, `count`, `percentage`.
 
 **Filtros disponibles:** `startDate`, `endDate`, `typeIds[]`
 
@@ -304,7 +308,7 @@ Proveer visibilidad operativa y analítica al administrador sobre el desempeño 
     - `INC-{n}` o `INC {n}` → busca por `incident.id`
     - `AS-{n}` o `AS {n}` → busca por `assignment.folio`
     - Solo dígitos → busca en **ambos** (incident.id OR assignment.folio)
-- Por cada incidente, incluye: tipo, estado (con color), cliente, reportador, línea, asignados directos al incidente, y todas las asignaciones filtradas con sus asignados y estado.
+- Por cada incidente, incluye: tipo (con `priority`), estado (con color), cliente, reportador, línea, asignados directos al incidente, y todas las asignaciones filtradas con sus asignados y estado. El campo `type.priority` se selecciona explícitamente (`priority: true`) para alimentar el `PriorityBadge` en la UI.
 - Las asignaciones se ordenan por `createdAt DESC` dentro de cada incidente.
 - Los incidentes se ordenan por `reportedAt DESC`.
 
