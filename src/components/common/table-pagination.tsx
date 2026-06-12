@@ -1,3 +1,9 @@
+/**
+ * @deprecated Use `ui/pagination.tsx` (`Pagination`) instead.
+ * This component is scheduled for removal after all catalog screens are
+ * migrated to `CatalogTable` (Slice S4c of catalog-screens-consistency).
+ * Do NOT add new imports of this file.
+ */
 "use client";
 
 import {
