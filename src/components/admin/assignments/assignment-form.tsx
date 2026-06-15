@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { SearchableSelect } from "@/components/ui/searchable-select";
@@ -21,6 +22,7 @@ type AssignmentFormProps = {
     assigneeIds: string[];
     notes: string | null;
     statusId?: number | null;
+    scheduledDate?: Date | null;
   };
   incidents: Array<{
     id: number;
@@ -52,6 +54,7 @@ export function AssignmentForm({
     assigneeIds: assignment?.assigneeIds || [],
     statusId: assignment?.statusId ?? null,
     notes: assignment?.notes || "",
+    scheduledDate: assignment?.scheduledDate ?? null,
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -138,6 +141,31 @@ export function AssignmentForm({
               placeholder="Notas adicionales sobre la asignación"
               rows={4}
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="scheduledDate">Fecha programada (opcional)</Label>
+            <Input
+              id="scheduledDate"
+              type="date"
+              value={
+                formData.scheduledDate
+                  ? new Date(formData.scheduledDate).toISOString().slice(0, 10)
+                  : ""
+              }
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  scheduledDate: e.target.value
+                    ? new Date(`${e.target.value}T00:00:00`)
+                    : null,
+                })
+              }
+            />
+            <p className="text-xs text-muted-foreground">
+              Si se especifica, los técnicos asignados no pueden tener
+              vacaciones aprobadas ni día festivo en esta fecha.
+            </p>
           </div>
         </CardContent>
       </Card>

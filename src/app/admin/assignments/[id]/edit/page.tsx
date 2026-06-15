@@ -62,6 +62,7 @@ interface Assignment {
   folio: number;
   odtFolio: string | null;
   finishedAt: Date | null;
+  scheduledDate?: Date | null;
   incident?: AssignmentIncident | null;
   attachments?: Attachment[];
 }
