@@ -1,15 +1,11 @@
 "use client";
 
-import { Eye, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { Eye, Pencil, Trash2 } from "lucide-react";
 import Link from "next/link";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   Table,
   TableBody,
@@ -18,6 +14,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { VehicleStatusBadge } from "./vehicle-status-badge";
 
 interface Vehicle {
@@ -39,10 +40,19 @@ interface VehicleTableProps {
 }
 
 export function VehicleTable({ vehicles, onDelete }: VehicleTableProps) {
+  const [confirmId, setConfirmId] = useState<string | null>(null);
+
+  function handleDeleteConfirm() {
+    if (confirmId && onDelete) {
+      onDelete(confirmId);
+    }
+    setConfirmId(null);
+  }
+
   if (vehicles.length === 0) {
     return (
       <div className="text-center py-8 text-muted-foreground">
-        No vehicles found. Create your first vehicle to get started.
+        No se encontraron vehículos. Crea el primero para comenzar.
       </div>
     );
   }
@@ -63,50 +73,67 @@ export function VehicleTable({ vehicles, onDelete }: VehicleTableProps) {
                     {vehicle.licensePlate}
                   </div>
                 </div>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon">
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem asChild>
-                      <Link
-                        href={`/admin/vehicles/${vehicle.id}`}
-                        className="flex items-center cursor-pointer"
+                <div className="flex items-center gap-1">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        asChild
+                        aria-label="Ver"
                       >
-                        <Eye className="h-4 w-4 mr-2" />
-                        View
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <Link
-                        href={`/admin/vehicles/${vehicle.id}/edit`}
-                        className="flex items-center cursor-pointer"
+                        <Link
+                          href={`/admin/vehicles/${vehicle.id}`}
+                          aria-label="Ver"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Link>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Ver</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        asChild
+                        aria-label="Editar"
                       >
-                        <Pencil className="h-4 w-4 mr-2" />
-                        Edit
-                      </Link>
-                    </DropdownMenuItem>
-                    {onDelete && (
-                      <DropdownMenuItem
-                        onClick={() => onDelete(vehicle.id)}
-                        className="text-destructive"
-                      >
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Delete
-                      </DropdownMenuItem>
-                    )}
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                        <Link
+                          href={`/admin/vehicles/${vehicle.id}/edit`}
+                          aria-label="Editar"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Link>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Editar</TooltipContent>
+                  </Tooltip>
+                  {onDelete && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          aria-label="Eliminar"
+                          onClick={() => setConfirmId(vehicle.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Eliminar</TooltipContent>
+                    </Tooltip>
+                  )}
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-2 text-sm">
                 <div>
-                  <span className="text-muted-foreground">Year:</span>{" "}
+                  <span className="text-muted-foreground">Año:</span>{" "}
                   {vehicle.year}
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Trips:</span>{" "}
+                  <span className="text-muted-foreground">Viajes:</span>{" "}
                   {vehicle._count?.trips || 0}
                 </div>
                 <div>
@@ -127,13 +154,13 @@ export function VehicleTable({ vehicles, onDelete }: VehicleTableProps) {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>License Plate</TableHead>
-              <TableHead>Make & Model</TableHead>
-              <TableHead>Year</TableHead>
-              <TableHead>Assigned FSR</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Trips</TableHead>
-              <TableHead className="w-[70px]">Actions</TableHead>
+              <TableHead>Placa</TableHead>
+              <TableHead>Marca y Modelo</TableHead>
+              <TableHead>Año</TableHead>
+              <TableHead>FSR Asignado</TableHead>
+              <TableHead>Estado</TableHead>
+              <TableHead>Viajes</TableHead>
+              <TableHead className="text-right">Acciones</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -158,48 +185,80 @@ export function VehicleTable({ vehicles, onDelete }: VehicleTableProps) {
                 </TableCell>
                 <TableCell>{vehicle._count?.trips || 0}</TableCell>
                 <TableCell>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem asChild>
-                        <Link
-                          href={`/admin/vehicles/${vehicle.id}`}
-                          className="flex items-center cursor-pointer"
+                  <div className="flex items-center justify-end gap-1">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          asChild
+                          aria-label="Ver"
                         >
-                          <Eye className="h-4 w-4 mr-2" />
-                          View
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link
-                          href={`/admin/vehicles/${vehicle.id}/edit`}
-                          className="flex items-center cursor-pointer"
+                          <Link
+                            href={`/admin/vehicles/${vehicle.id}`}
+                            aria-label="Ver"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Link>
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Ver</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          asChild
+                          aria-label="Editar"
                         >
-                          <Pencil className="h-4 w-4 mr-2" />
-                          Edit
-                        </Link>
-                      </DropdownMenuItem>
-                      {onDelete && (
-                        <DropdownMenuItem
-                          onClick={() => onDelete(vehicle.id)}
-                          className="text-destructive"
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Delete
-                        </DropdownMenuItem>
-                      )}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                          <Link
+                            href={`/admin/vehicles/${vehicle.id}/edit`}
+                            aria-label="Editar"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Link>
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Editar</TooltipContent>
+                    </Tooltip>
+                    {onDelete && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label="Eliminar"
+                            onClick={() => setConfirmId(vehicle.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Eliminar</TooltipContent>
+                      </Tooltip>
+                    )}
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
       </div>
+
+      {/* Confirmation dialog for delete */}
+      <ConfirmDialog
+        open={confirmId !== null}
+        onOpenChange={(open) => {
+          if (!open) setConfirmId(null);
+        }}
+        title="Eliminar vehículo"
+        message="¿Estás seguro de que deseas eliminar este vehículo? Esta acción no se puede deshacer."
+        confirmLabel="Eliminar"
+        cancelLabel="Cancelar"
+        variant="destructive"
+        onConfirm={handleDeleteConfirm}
+        onCancel={() => setConfirmId(null)}
+      />
     </>
   );
 }
