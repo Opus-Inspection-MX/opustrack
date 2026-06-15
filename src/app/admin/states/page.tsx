@@ -1,113 +1,122 @@
 "use client";
 
-import { Plus } from "lucide-react";
+import { Eye, Pencil, Plus, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { StateTable } from "@/components/states/state-table";
+import { useCallback, useEffect, useState } from "react";
+import type {
+  CatalogAction,
+  CatalogColumn,
+} from "@/components/common/catalog-table";
+import { CatalogTable } from "@/components/common/catalog-table";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
+import { useDebounce } from "@/hooks/use-debounce";
 import { deleteState, getStatesAdmin } from "@/lib/actions/lookups";
 
-interface StateApiResponse {
-  id: number;
-  name: string;
-  code: string;
-  active: boolean;
-  createdAt: Date | string;
-  updatedAt: Date | string;
-  _count?: {
-    clientes: number;
-  };
-}
+type State = Awaited<ReturnType<typeof getStatesAdmin>>["data"][number];
 
-interface State {
-  id: number;
-  name: string;
-  code: string;
-  clienteCount: number;
-  active: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
+const columns: CatalogColumn<State>[] = [
+  {
+    header: "ID",
+    cell: (row) => <span className="font-mono text-sm">{row.id}</span>,
+  },
+  {
+    header: "Nombre",
+    cell: (row) => <span className="font-medium">{row.name}</span>,
+  },
+  {
+    header: "Código",
+    cell: (row) => (
+      <span className="font-mono text-sm uppercase">{row.code}</span>
+    ),
+  },
+  {
+    header: "Clientes",
+    cell: (row) => (
+      <span className="text-sm text-muted-foreground">
+        {row._count.clientes}
+      </span>
+    ),
+  },
+  {
+    header: "Estado",
+    cell: (row) => (
+      <Badge variant={row.active ? "default" : "secondary"}>
+        {row.active ? "Activo" : "Inactivo"}
+      </Badge>
+    ),
+  },
+];
 
 export default function StatesPage() {
+  const router = useRouter();
   const [states, setStates] = useState<State[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
-  const router = useRouter();
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const debouncedSearch = useDebounce(searchQuery, 300);
+
+  const fetchData = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const result = await getStatesAdmin({
+        page: currentPage,
+        limit: itemsPerPage,
+        search: debouncedSearch || undefined,
+      });
+      setStates(result.data);
+      setTotalItems(result.pagination.total);
+      setTotalPages(result.pagination.totalPages);
+    } catch (error) {
+      console.error("Error fetching states:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [currentPage, itemsPerPage, debouncedSearch]);
 
   useEffect(() => {
-    const fetchStates = async () => {
-      try {
-        const data = await getStatesAdmin();
-        // Transform data to match table expectations
-        const transformed: State[] = data.map((state: StateApiResponse) => ({
-          id: state.id,
-          name: state.name,
-          code: state.code,
-          clienteCount: state._count?.clientes || 0,
-          active: state.active,
-          createdAt:
-            typeof state.createdAt === "string"
-              ? state.createdAt
-              : new Date(state.createdAt).toISOString(),
-          updatedAt:
-            typeof state.updatedAt === "string"
-              ? state.updatedAt
-              : new Date(state.updatedAt).toISOString(),
-        }));
-        setStates(transformed);
-      } catch (error) {
-        console.error("Error fetching states:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+    fetchData();
+  }, [fetchData]);
 
-    fetchStates();
-  }, []);
-
-  const handleEdit = (id: number) => {
-    router.push(`/admin/states/${id}/edit`);
+  const handleSearchChange = (value: string) => {
+    setSearchQuery(value);
+    setCurrentPage(1);
   };
 
-  const handleDelete = async (id: number) => {
-    const state = states.find((s) => s.id === id);
-    if (state?.clienteCount && state.clienteCount > 0) {
-      alert(
-        "No se puede eliminar el estado con centros Cliente asociados. Por favor reasigna o elimina los centros Cliente primero.",
-      );
-      return;
-    }
-
-    if (confirm("¿Estás seguro de que deseas eliminar este estado?")) {
-      try {
-        await deleteState(id);
-        // Refresh the list
-        setStates((prev) => prev.filter((s) => s.id !== id));
-      } catch (error) {
-        console.error("Error deleting state:", error);
-        alert(
-          error instanceof Error
-            ? error.message
-            : "Error al eliminar el estado",
-        );
-      }
-    }
-  };
-
-  const handleView = (id: number) => {
-    router.push(`/admin/states/${id}`);
-  };
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Spinner size="lg" text="Cargando estados..." />
-      </div>
-    );
-  }
+  const actions: CatalogAction<State>[] = [
+    {
+      icon: Eye,
+      label: "Ver",
+      href: (row) => `/admin/states/${row.id}`,
+    },
+    {
+      icon: Pencil,
+      label: "Editar",
+      href: (row) => `/admin/states/${row.id}/edit`,
+    },
+    {
+      icon: Trash2,
+      label: "Eliminar",
+      variant: "destructive",
+      requiresConfirm: true,
+      confirmTitle: "Eliminar estado",
+      confirmMessage: (row) =>
+        `¿Seguro que deseas eliminar "${row.name}"? Esta acción no se puede deshacer.`,
+      disabled: (row) => row._count.clientes > 0,
+      onClick: async (row) => {
+        try {
+          await deleteState(row.id);
+          await fetchData();
+        } catch (error) {
+          console.error("Error deleting state:", error);
+        }
+      },
+    },
+  ];
 
   return (
     <div className="space-y-6">
@@ -124,16 +133,25 @@ export default function StatesPage() {
         </Button>
       </div>
 
-      <StateTable
-        states={states}
-        totalCount={states.length}
+      <CatalogTable
+        data={states}
+        columns={columns}
+        actions={actions}
+        rowKey={(row) => row.id}
+        searchValue={searchQuery}
+        onSearchChange={handleSearchChange}
+        searchPlaceholder="Buscar por nombre o código..."
         currentPage={currentPage}
+        totalPages={totalPages}
+        totalItems={totalItems}
         itemsPerPage={itemsPerPage}
         onPageChange={setCurrentPage}
-        onItemsPerPageChange={setItemsPerPage}
-        onEdit={handleEdit}
-        onDelete={handleDelete}
-        onView={handleView}
+        onItemsPerPageChange={(value) => {
+          setItemsPerPage(value);
+          setCurrentPage(1);
+        }}
+        loading={isLoading}
+        emptyMessage="Sin estados registrados."
       />
     </div>
   );
