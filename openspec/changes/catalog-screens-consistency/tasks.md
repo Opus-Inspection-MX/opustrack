@@ -80,19 +80,21 @@ Chain strategy: stacked-to-main
 
 ---
 
-## S2 — Incident Types & Incident Status: Icons + Confirm (PR 3, base: main, dep: S0 merged)
+## S2 — Incident Types & Incident Status: Icons + Confirm (PR 3, base: main, dep: S0 merged) ✅ COMPLETE
 
 **Objective**: Replace 3-dot dropdown actions with icon buttons; replace `window.confirm` with `ConfirmDialog` in incident-types and incident-status screens.
 **Spec coverage**: RF-602, RF-606, RF-653, RF-654, RF-659
 **Touches server actions**: No (search already server-side per design note)
-**Rollback**: Revert component changes; S0 stays.
+**Rollback**: Revert page changes; S0 stays.
+**Branch**: feat/catalog-incident-tables
+**Commits**: a0a5496
 
-- [ ] S2.1 — Grep importers: `rg "incident-type-table|incident-status-table" src --include="*.tsx" --include="*.ts"` — confirm which pages import these components.
-- [ ] S2.2 — Migrate `src/components/incident-types/incident-type-table.tsx` to `CatalogTable`; define `columns` (Spanish headers); define `actions` array with Eye, Pencil, Trash2 — Trash2 with `requiresConfirm: true`, `confirmTitle`, `confirmMessage`; remove `TablePagination` import; pass controlled pagination from page.
-- [ ] S2.3 — Update the incident-types page (find from S2.1 grep) to be a client component with `page/limit/search/loading` state; wire `useDebounce`; call existing action; pass props to migrated table.
-- [ ] S2.4 — Migrate `src/components/incident-status/incident-status-table.tsx` to `CatalogTable`; same pattern as S2.2.
-- [ ] S2.5 — Update the incident-status page to client component pattern (same as S2.3).
-- [ ] S2.6 — Manual verification: confirm no 3-dot dropdown menus in either screen; Trash2 opens `ConfirmDialog` (not `window.confirm`); keyboard Escape cancels; Enter/Space confirms; all headers in Spanish.
+- [x] S2.1 — Grep importers: incident-type-table only imported by /admin/incident-types/page.tsx; incident-status-table only imported by /admin/incident-status/page.tsx. Zero other consumers.
+- [x] S2.2 — Migrated /admin/incident-types/page.tsx to inline CatalogTable; columns: ID, Nombre, Descripción, Prioridad (PriorityBadge preserved), Estado, Incidentes; Eye/Pencil href actions + Trash2 requiresConfirm; disabled when incidentCount > 0; useDebounce 300 ms; controlled pagination.
+- [x] S2.3 — incident-types page already was "use client"; converted to direct CatalogTable inline (no intermediate component); removed old IncidentTypeTable, Pagination, Search/Label/Spinner block; 0 window.confirm.
+- [x] S2.4 — Migrated /admin/incident-status/page.tsx to inline CatalogTable; columns: ID, Nombre, Color (swatch + hex), Vista previa (styled Badge with row.color), Incidentes, Estado; Spanish headers throughout; color preview badge preserved.
+- [x] S2.5 — incident-status page same pattern; removed old IncidentStatusTable, double-Pagination, window.confirm; 0 DropdownMenu.
+- [x] S2.6 — Manual verification: 0 window.confirm in src (global rg check); 0 DropdownMenu in migrated pages; PriorityBadge preserved in incident-types; color preview Badge preserved in incident-status; Spanish headers; lint 0 errors; tsc --noEmit 0 errors.
 
 ---
 
