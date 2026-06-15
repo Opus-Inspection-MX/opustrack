@@ -15,12 +15,12 @@ import {
   getIncidentById,
   getIncidentFormOptions,
 } from "@/lib/actions/incidents";
-import { getParts } from "@/lib/actions/parts";
+import { getPartsForSelect } from "@/lib/actions/parts";
 import { deleteWorkPart, getWorkParts } from "@/lib/actions/work-parts";
 
 type Incident = Awaited<ReturnType<typeof getIncidentById>>;
 type FormOptions = Awaited<ReturnType<typeof getIncidentFormOptions>>;
-type Part = Awaited<ReturnType<typeof getParts>>[number];
+type Part = Awaited<ReturnType<typeof getPartsForSelect>>[number];
 type WorkPart = Awaited<ReturnType<typeof getWorkParts>>[number];
 
 export default function EditIncidentPage({
@@ -50,7 +50,7 @@ export default function EditIncidentPage({
       const [incidentData, options, parts] = await Promise.all([
         getIncidentById(incidentId),
         getIncidentFormOptions(),
-        getParts(),
+        getPartsForSelect(),
       ]);
 
       setIncident(incidentData);
