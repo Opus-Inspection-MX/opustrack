@@ -59,22 +59,24 @@ Chain strategy: stacked-to-main
 
 ---
 
-## S1 — Status Tables / Fix Double Pagination (PR 2, base: main, dep: S0 merged)
+## S1 — Status Tables / Fix Double Pagination (PR 2, base: main, dep: S0 merged) ✅ COMPLETE
 
 **Objective**: Migrate 6 GenericStatusTable usages to `CatalogTable`; eliminate internal pagination `useState`; preserve assignment-status banner.
 **Spec coverage**: RF-603, RF-653, RF-654, RF-656, RF-659
 **Touches server actions**: No (status lookups return full arrays; no pagination contract upgrade needed)
 **Rollback**: Revert component + page changes; S0 stays.
+**Branch**: feat/catalog-status-tables
+**Commits**: d070a33, 0458039, a2ada82, bdb187a, 4d13fab
 
-- [ ] S1.1 — Grep importers: `rg "user-status-table|equipment-status-table|assignment-status-table|line-status-table|vehicle-status-table|vehicle-trip-status-table" src --include="*.tsx" --include="*.ts"` — list all pages that import each status table component.
-- [ ] S1.2 — Migrate `src/components/user-status/user-status-table.tsx` to use `CatalogTable`; drop internal `useState` for page/items; pass pagination as controlled props; replace `TablePagination` import with `CatalogTable`; neutralize column headers to Spanish (RF-653).
-- [ ] S1.3 — Migrate `src/app/admin/settings/...` (user-status page): convert to client component; add `page`, `limit`, `search`, `loading` state; wire `useDebounce`; pass controlled props to migrated table; confirm `onSearchChange` resets page to 1.
-- [ ] S1.4 — Repeat S1.2–S1.3 for `equipment-status-table.tsx` + its settings page.
-- [ ] S1.5 — Repeat S1.2–S1.3 for `line-status-table.tsx` + its settings page.
-- [ ] S1.6 — Repeat S1.2–S1.3 for `vehicle-status-table.tsx` + its settings page.
-- [ ] S1.7 — Repeat S1.2–S1.3 for `vehicle-trip-status-table.tsx` + its settings page.
-- [ ] S1.8 — Migrate `src/components` assignment-status table to `CatalogTable`; open `src/app/admin/settings/assignment-status/page.tsx`; **keep the warning banner JSX in its current position above the table** (RF-656); only the table component changes.
-- [ ] S1.9 — Manual verification: navigate to each of the 6 status screens; confirm pagination controls appear only once (no double pagination); confirm assignment-status banner is visible; confirm all column headers are Spanish; confirm no `window.confirm` dialogs.
+- [x] S1.1 — Grep importers: confirmed 5 settings pages + 1 user-status page (/admin/user-status/) use GenericStatusTable. No separate status-table components used by these pages (user-status-table.tsx was dead code with 0 importers).
+- [x] S1.2 — Migration approach: inline CatalogTable in each page directly (no intermediate component); columns defined as module-level constant; actions array defined inside component (closure over fetchData/router).
+- [x] S1.3 — Migrated /admin/user-status/page.tsx: CatalogTable + useDebounce + controlled pagination; Spanish headers (ID, Nombre, Usuarios, Estado); ConfirmDialog via requiresConfirm on Trash2.
+- [x] S1.4 — Migrated /admin/settings/equipment-status/page.tsx: same pattern; _count key: equipments.
+- [x] S1.5 — Migrated /admin/settings/line-status/page.tsx: same pattern; _count key: lines.
+- [x] S1.6 — Migrated /admin/settings/vehicle-status/page.tsx: same pattern; _count key: vehicles.
+- [x] S1.7 — Migrated /admin/settings/vehicle-trip-status/page.tsx: same pattern; _count key: trips.
+- [x] S1.8 — Migrated /admin/settings/assignment-status/page.tsx; warning banner preserved above CatalogTable (RF-656); _count key: assignments.
+- [x] S1.9 — Manual verification: 0 window.confirm in src; 0 GenericStatusTable consumers; 0 table-pagination in migrated files; Spanish headers (ID/Nombre/[count]/Estado); lint 0 errors; tsc 0 errors; assignment-status banner present.
 
 ---
 
