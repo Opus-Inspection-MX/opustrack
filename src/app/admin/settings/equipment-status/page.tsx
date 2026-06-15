@@ -1,14 +1,13 @@
 "use client";
 
-import { Plus, Search } from "lucide-react";
+import { Eye, Pencil, Trash2 } from "lucide-react";
+import { Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { GenericStatusTable } from "@/components/settings/generic-status-table";
+import { CatalogTable } from "@/components/common/catalog-table";
+import type { CatalogAction, CatalogColumn } from "@/components/common/catalog-table";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Pagination } from "@/components/ui/pagination";
-import { Spinner } from "@/components/ui/spinner";
+import { useDebounce } from "@/hooks/use-debounce";
 import {
   deleteEquipmentStatus,
   getEquipmentStatuses,
@@ -17,6 +16,37 @@ import {
 type EquipmentStatus = Awaited<
   ReturnType<typeof getEquipmentStatuses>
 >["data"][number];
+
+const columns: CatalogColumn<EquipmentStatus>[] = [
+  {
+    header: "ID",
+    cell: (row) => (
+      <span className="font-mono text-sm">{row.id}</span>
+    ),
+  },
+  {
+    header: "Nombre",
+    cell: (row) => <span className="font-medium">{row.name}</span>,
+  },
+  {
+    header: "Equipos",
+    cell: (row) => row._count.equipments,
+  },
+  {
+    header: "Estado",
+    cell: (row) => (
+      <span
+        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+          row.active
+            ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+            : "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200"
+        }`}
+      >
+        {row.active ? "Activo" : "Inactivo"}
+      </span>
+    ),
+  },
+];
 
 export default function EquipmentStatusPage() {
   const router = useRouter();
@@ -28,13 +58,15 @@ export default function EquipmentStatusPage() {
   const [totalPages, setTotalPages] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
 
+  const debouncedSearch = useDebounce(searchQuery, 300);
+
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
       const result = await getEquipmentStatuses({
         page: currentPage,
         limit: itemsPerPage,
-        search: searchQuery || undefined,
+        search: debouncedSearch || undefined,
       });
       setStatuses(result.data);
       setTotalItems(result.pagination.total);
@@ -44,46 +76,47 @@ export default function EquipmentStatusPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [currentPage, itemsPerPage, searchQuery]);
+  }, [currentPage, itemsPerPage, debouncedSearch]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
-  const handleEdit = (id: number) => {
-    router.push(`/admin/settings/equipment-status/${id}/edit`);
-  };
-
-  const handleDelete = async (id: number) => {
-    if (
-      confirm("¿Estás seguro de que deseas eliminar este estado de equipo?")
-    ) {
-      try {
-        await deleteEquipmentStatus(id);
-        await fetchData();
-      } catch (error) {
-        console.error("Error deleting equipment status:", error);
-        alert("Error al eliminar el estado de equipo");
-      }
-    }
-  };
-
-  const handleView = (id: number) => {
-    router.push(`/admin/settings/equipment-status/${id}`);
-  };
-
-  const handleSearch = (value: string) => {
+  const handleSearchChange = (value: string) => {
     setSearchQuery(value);
     setCurrentPage(1);
   };
 
-  if (isLoading && statuses.length === 0) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Spinner size="lg" text="Cargando estados de equipo..." />
-      </div>
-    );
-  }
+  const actions: CatalogAction<EquipmentStatus>[] = [
+    {
+      icon: Eye,
+      label: "Ver",
+      href: (row) => `/admin/settings/equipment-status/${row.id}`,
+    },
+    {
+      icon: Pencil,
+      label: "Editar",
+      href: (row) => `/admin/settings/equipment-status/${row.id}/edit`,
+    },
+    {
+      icon: Trash2,
+      label: "Eliminar",
+      variant: "destructive",
+      requiresConfirm: true,
+      confirmTitle: "Eliminar estado de equipo",
+      confirmMessage: (row) =>
+        `¿Seguro que deseas eliminar "${row.name}"? Esta acción no se puede deshacer.`,
+      disabled: (row) => row._count.equipments > 0,
+      onClick: async (row) => {
+        try {
+          await deleteEquipmentStatus(row.id);
+          await fetchData();
+        } catch (error) {
+          console.error("Error deleting equipment status:", error);
+        }
+      },
+    },
+  ];
 
   return (
     <div className="space-y-6">
@@ -94,50 +127,32 @@ export default function EquipmentStatusPage() {
             Gestionar tipos de estado de equipo
           </p>
         </div>
-        <Button
-          onClick={() => router.push("/admin/settings/equipment-status/new")}
-        >
+        <Button onClick={() => router.push("/admin/settings/equipment-status/new")}>
           <Plus className="mr-2 h-4 w-4" />
           Nuevo Estado
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="space-y-2">
-          <Label className="text-xs font-medium">Buscar</Label>
-          <div className="relative">
-            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar por nombre..."
-              value={searchQuery}
-              onChange={(e) => handleSearch(e.target.value)}
-              className="pl-8"
-            />
-          </div>
-        </div>
-      </div>
-
-      <GenericStatusTable
+      <CatalogTable
         data={statuses}
-        onEdit={handleEdit}
-        onDelete={handleDelete}
-        onView={handleView}
-        countLabel="Equipos con este estado"
+        columns={columns}
+        actions={actions}
+        rowKey={(row) => row.id}
+        searchValue={searchQuery}
+        onSearchChange={handleSearchChange}
+        searchPlaceholder="Buscar por nombre..."
+        currentPage={currentPage}
+        totalPages={totalPages}
+        totalItems={totalItems}
+        itemsPerPage={itemsPerPage}
+        onPageChange={setCurrentPage}
+        onItemsPerPageChange={(value) => {
+          setItemsPerPage(value);
+          setCurrentPage(1);
+        }}
+        loading={isLoading}
+        emptyMessage="Sin estados de equipo."
       />
-
-      {totalItems > 0 && (
-        <Pagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          totalItems={totalItems}
-          itemsPerPage={itemsPerPage}
-          onPageChange={setCurrentPage}
-          onItemsPerPageChange={(value) => {
-            setItemsPerPage(value);
-            setCurrentPage(1);
-          }}
-        />
-      )}
     </div>
   );
 }
