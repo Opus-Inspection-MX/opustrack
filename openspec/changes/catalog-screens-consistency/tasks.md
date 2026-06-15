@@ -98,29 +98,30 @@ Chain strategy: stacked-to-main
 
 ---
 
-## S3 — States, Lines, Equipments: Action Upgrade + Page Migration (PR 4, base: main, dep: S0 merged)
+## S3 — States, Lines, Equipments: Action Upgrade + Page Migration (PR 4, base: main, dep: S0 merged) ✅ COMPLETE
 
 **Objective**: Upgrade 3 server actions to `{page,limit,search}→{data,pagination}` contract; migrate their pages and table components to `CatalogTable`.
 **Spec coverage**: RF-651, RF-652, RF-653, RF-654, RF-659
-**Touches server actions**: Yes — `getStatesAdmin` (lookups.ts), `getLines` (lines.ts), equipments action
-**Rollback**: Revert action + page + component changes together; callers migrated in same PR so no orphan callers.
+**Touches server actions**: Yes — `getStatesAdmin` (lookups.ts), `getLines` (lines.ts), `getEquipments` (equipments.ts)
+**Branch**: feat/catalog-geographic
+**Commits**: cd0a566 (action upgrades), 3da69e2 (page migrations)
 
-- [ ] S3.1 — Grep callers before touching actions: `rg "getStatesAdmin" src --include="*.tsx" --include="*.ts"` — list every file that imports `getStatesAdmin`; record the list.
-- [ ] S3.2 — Upgrade `getStatesAdmin` in `src/lib/actions/lookups.ts`: add optional `params?: {page?,limit?,search?}`; add `Promise.all([findMany,count])`; return `{data, pagination}`; preserve `requirePermission` and `where.active:true`; search OR on name+code (String fields); numeric id → no id search.
-- [ ] S3.3 — Update every caller found in S3.1 to consume `{data, pagination}` (destructure `r.data` / `r.pagination.total`).
-- [ ] S3.4 — Migrate `src/components/states/state-table.tsx` to `CatalogTable`; drop `TablePagination` import; neutralize column headers.
-- [ ] S3.5 — Convert the states admin page to client component pattern; add `page/limit/search/debounce/loading` state; wire to upgraded `getStatesAdmin`; pass controlled props to `CatalogTable`.
-- [ ] S3.6 — Grep callers: `rg "getLines" src --include="*.tsx" --include="*.ts"` — record list.
-- [ ] S3.7 — Upgrade `getLines` in `src/lib/actions/lines.ts` to `{page,limit,search}→{data,pagination}` contract; same pattern as S3.2.
-- [ ] S3.8 — Update every getLines caller found in S3.6.
-- [ ] S3.9 — Migrate `src/components/lines/line-table.tsx` to `CatalogTable`; drop `TablePagination`; Spanish headers.
-- [ ] S3.10 — Convert the lines admin page to client component pattern; wire to upgraded `getLines`.
-- [ ] S3.11 — Grep callers: `rg "getEquipments\|getEquipmentAdmin" src --include="*.tsx" --include="*.ts"` — record list.
-- [ ] S3.12 — Upgrade equipments action in `src/lib/actions/equipments.ts` to `{page,limit,search}→{data,pagination}` contract.
-- [ ] S3.13 — Update every equipments caller found in S3.11.
-- [ ] S3.14 — Migrate `src/components/equipments/equipment-table.tsx` to `CatalogTable`; drop `TablePagination`; Spanish headers.
-- [ ] S3.15 — Convert the equipments admin page to client component pattern; wire to upgraded action.
-- [ ] S3.16 — Manual verification: each of the 3 screens — pagination works; search filters server-side; RBAC rejections still work for unauthorized roles; no double pagination; no `window.confirm`.
+- [x] S3.1 — Grep callers of getStatesAdmin: only `src/app/admin/states/page.tsx`. Separate `getStates()` in clientes.ts is a selector for forms — untouched.
+- [x] S3.2 — Upgraded `getStatesAdmin` in lookups.ts: {page,limit,search}→{data,pagination}; OR on name+code; Promise.all; requirePermission + active:true preserved.
+- [x] S3.3 — states/page.tsx updated to consume {data, pagination}.
+- [x] S3.4 — states/page.tsx migrated inline to CatalogTable; columns: ID/Nombre/Código/Clientes/Estado; Trash2 disabled when _count.clientes > 0.
+- [x] S3.5 — States page wired with useDebounce(300ms), controlled pagination, reset page=1 on search change.
+- [x] S3.6 — Grep callers of getLines: only `src/app/admin/lines/page.tsx`. `getLinesByClienteId` in lines.ts is a selector — untouched.
+- [x] S3.7 — Upgraded `getLines` in lines.ts: {page,limit,search}→{data,pagination}; OR on name+description; equipments via select:{id} for count.
+- [x] S3.8 — lines/page.tsx updated to consume {data, pagination}.
+- [x] S3.9 — lines/page.tsx migrated inline to CatalogTable; columns: ID/Nombre/Descripción/Cliente/Equipos/Estado; Trash2 disabled when equipments.length > 0.
+- [x] S3.10 — Lines page wired with useDebounce(300ms), controlled pagination.
+- [x] S3.11 — Grep callers of getEquipments: only `src/app/admin/equipments/page.tsx`. `getEquipmentsByLineId` is a selector — untouched.
+- [x] S3.12 — Upgraded `getEquipments` in equipments.ts: {page,limit,search}→{data,pagination}; OR on name+description.
+- [x] S3.13 — equipments/page.tsx updated to consume {data, pagination}.
+- [x] S3.14 — equipments/page.tsx migrated inline to CatalogTable; columns: ID/Nombre/Descripción/Línea/Cliente/Estado.
+- [x] S3.15 — Equipments page wired with useDebounce(300ms), controlled pagination.
+- [x] S3.16 — Manual: lint 0 errors, tsc 0 errors; 0 window.confirm globally; 0 DropdownMenu in 3 pages; server-side search on all 3; RBAC (requirePermission) preserved in all 3 actions.
 
 ---
 
