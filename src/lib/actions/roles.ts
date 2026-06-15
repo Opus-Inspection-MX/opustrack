@@ -1,7 +1,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { requirePermission } from "@/lib/auth/auth";
 import { prisma } from "@/lib/database/prisma.singleton";
 
@@ -12,28 +11,101 @@ export type RoleFormData = {
   permissionIds?: number[];
 };
 
+export type RoleListParams = {
+  page?: number;
+  limit?: number;
+  search?: string;
+};
+
+export type PaginationMeta = {
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+};
+
 /**
- * Get all roles with permissions
+ * Get all roles with permissions (paginated, server-side search).
+ * Search matches name or description (case-insensitive).
  */
-export async function getRoles() {
+export async function getRoles(params?: RoleListParams): Promise<{
+  data: Array<{
+    id: number;
+    name: string;
+    description: string | null;
+    defaultPath: string;
+    rolePermission: Array<{ permission: { id: number; name: string } }>;
+    _count: { users: number };
+  }>;
+  pagination: PaginationMeta;
+}> {
   await requirePermission("roles:read");
 
-  const roles = await prisma.role.findMany({
-    where: { active: true },
-    include: {
-      rolePermission: {
-        include: {
-          permission: true,
+  const page = params?.page ?? 1;
+  const limit = params?.limit ?? 10;
+  const search = params?.search?.trim() ?? "";
+  const skip = (page - 1) * limit;
+
+  const where = {
+    active: true,
+    ...(search
+      ? {
+          OR: [
+            { name: { contains: search, mode: "insensitive" as const } },
+            { description: { contains: search, mode: "insensitive" as const } },
+          ],
+        }
+      : {}),
+  };
+
+  const [data, total] = await Promise.all([
+    prisma.role.findMany({
+      where,
+      include: {
+        rolePermission: {
+          include: {
+            permission: true,
+          },
+        },
+        _count: {
+          select: { users: true },
         },
       },
-      _count: {
-        select: { users: true },
-      },
+      orderBy: { name: "asc" },
+      skip,
+      take: limit,
+    }),
+    prisma.role.count({ where }),
+  ]);
+
+  return {
+    data,
+    pagination: {
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    },
+  };
+}
+
+/**
+ * Get all active roles as a flat array for dropdown/select usage.
+ * Does NOT paginate — returns the full list.
+ */
+export async function getRolesForSelect() {
+  await requirePermission("roles:read");
+
+  return prisma.role.findMany({
+    where: { active: true },
+    select: {
+      id: true,
+      name: true,
+      description: true,
+      defaultPath: true,
     },
     orderBy: { name: "asc" },
   });
-
-  return roles;
 }
 
 /**
@@ -148,7 +220,7 @@ export async function deleteRole(id: number) {
   });
 
   revalidatePath("/admin/roles");
-  redirect("/admin/roles");
+  return { success: true };
 }
 
 /**
