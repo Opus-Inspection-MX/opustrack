@@ -1,33 +1,78 @@
 "use client";
 
-import { Plus, Search } from "lucide-react";
+import { Eye, Pencil, Plus, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { IncidentTypeTable } from "@/components/incident-types/incident-type-table";
+import type {
+  CatalogAction,
+  CatalogColumn,
+} from "@/components/common/catalog-table";
+import { CatalogTable } from "@/components/common/catalog-table";
+import { PriorityBadge } from "@/components/incident-types/priority-badge";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Pagination } from "@/components/ui/pagination";
-import { Spinner } from "@/components/ui/spinner";
+import { useDebounce } from "@/hooks/use-debounce";
 import { deleteIncidentType, getIncidentTypes } from "@/lib/actions/lookups";
 
 type IncidentType = Awaited<
   ReturnType<typeof getIncidentTypes>
 >["data"][number];
 
+const columns: CatalogColumn<IncidentType>[] = [
+  {
+    header: "ID",
+    cell: (row) => <span className="font-mono text-sm">{row.id}</span>,
+  },
+  {
+    header: "Nombre",
+    cell: (row) => <span className="font-medium">{row.name}</span>,
+  },
+  {
+    header: "Descripción",
+    cell: (row) =>
+      row.description ? (
+        <span className="text-sm text-muted-foreground">
+          {row.description.length > 50
+            ? `${row.description.substring(0, 50)}...`
+            : row.description}
+        </span>
+      ) : (
+        <span className="text-sm text-muted-foreground italic">
+          Sin descripción
+        </span>
+      ),
+  },
+  {
+    header: "Prioridad",
+    cell: (row) => <PriorityBadge priority={row.priority} />,
+  },
+  {
+    header: "Estado",
+    cell: (row) => (
+      <Badge variant={row.active ? "default" : "secondary"}>
+        {row.active ? "Activo" : "Inactivo"}
+      </Badge>
+    ),
+  },
+  {
+    header: "Incidentes",
+    cell: (row) => (
+      <span className="text-sm text-muted-foreground">{row.incidentCount}</span>
+    ),
+  },
+];
+
 export default function IncidentTypesPage() {
   const router = useRouter();
-  const [isLoading, setIsLoading] = useState(true);
   const [incidentTypes, setIncidentTypes] = useState<IncidentType[]>([]);
-
-  // Pagination state
+  const [isLoading, setIsLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [totalItems, setTotalItems] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
-
-  // Filter state
   const [searchQuery, setSearchQuery] = useState("");
+
+  const debouncedSearch = useDebounce(searchQuery, 300);
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -35,9 +80,8 @@ export default function IncidentTypesPage() {
       const result = await getIncidentTypes({
         page: currentPage,
         limit: itemsPerPage,
-        search: searchQuery || undefined,
+        search: debouncedSearch || undefined,
       });
-
       setIncidentTypes(result.data);
       setTotalItems(result.pagination.total);
       setTotalPages(result.pagination.totalPages);
@@ -46,46 +90,47 @@ export default function IncidentTypesPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [currentPage, itemsPerPage, searchQuery]);
+  }, [currentPage, itemsPerPage, debouncedSearch]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
-  const handleEdit = (id: number) => {
-    router.push(`/admin/incident-types/${id}/edit`);
-  };
-
-  const handleDelete = async (id: number) => {
-    if (
-      confirm("¿Estás seguro de que deseas eliminar este tipo de incidente?")
-    ) {
-      try {
-        await deleteIncidentType(id);
-        await fetchData();
-      } catch (error) {
-        console.error("Error deleting incident type:", error);
-        alert("Error al eliminar el tipo de incidente");
-      }
-    }
-  };
-
-  const handleView = (id: number) => {
-    router.push(`/admin/incident-types/${id}`);
-  };
-
-  const handleSearch = (value: string) => {
+  const handleSearchChange = (value: string) => {
     setSearchQuery(value);
-    setCurrentPage(1); // Reset to first page on search
+    setCurrentPage(1);
   };
 
-  if (isLoading && incidentTypes.length === 0) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Spinner size="lg" text="Cargando tipos de incidente..." />
-      </div>
-    );
-  }
+  const actions: CatalogAction<IncidentType>[] = [
+    {
+      icon: Eye,
+      label: "Ver",
+      href: (row) => `/admin/incident-types/${row.id}`,
+    },
+    {
+      icon: Pencil,
+      label: "Editar",
+      href: (row) => `/admin/incident-types/${row.id}/edit`,
+    },
+    {
+      icon: Trash2,
+      label: "Eliminar",
+      variant: "destructive",
+      requiresConfirm: true,
+      confirmTitle: "Eliminar tipo de incidente",
+      confirmMessage: (row) =>
+        `¿Seguro que deseas eliminar "${row.name}"? Esta acción no se puede deshacer.`,
+      disabled: (row) => row.incidentCount > 0,
+      onClick: async (row) => {
+        try {
+          await deleteIncidentType(row.id);
+          await fetchData();
+        } catch (error) {
+          console.error("Error deleting incident type:", error);
+        }
+      },
+    },
+  ];
 
   return (
     <div className="space-y-6">
@@ -102,42 +147,26 @@ export default function IncidentTypesPage() {
         </Button>
       </div>
 
-      {/* Search */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="space-y-2">
-          <Label className="text-xs font-medium">Buscar</Label>
-          <div className="relative">
-            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar por nombre o descripción..."
-              value={searchQuery}
-              onChange={(e) => handleSearch(e.target.value)}
-              className="pl-8"
-            />
-          </div>
-        </div>
-      </div>
-
-      <IncidentTypeTable
+      <CatalogTable
         data={incidentTypes}
-        onEdit={handleEdit}
-        onDelete={handleDelete}
-        onView={handleView}
+        columns={columns}
+        actions={actions}
+        rowKey={(row) => row.id}
+        searchValue={searchQuery}
+        onSearchChange={handleSearchChange}
+        searchPlaceholder="Buscar por nombre..."
+        currentPage={currentPage}
+        totalPages={totalPages}
+        totalItems={totalItems}
+        itemsPerPage={itemsPerPage}
+        onPageChange={setCurrentPage}
+        onItemsPerPageChange={(value) => {
+          setItemsPerPage(value);
+          setCurrentPage(1);
+        }}
+        loading={isLoading}
+        emptyMessage="Sin tipos de incidente."
       />
-
-      {totalItems > 0 && (
-        <Pagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          totalItems={totalItems}
-          itemsPerPage={itemsPerPage}
-          onPageChange={setCurrentPage}
-          onItemsPerPageChange={(value) => {
-            setItemsPerPage(value);
-            setCurrentPage(1);
-          }}
-        />
-      )}
     </div>
   );
 }
