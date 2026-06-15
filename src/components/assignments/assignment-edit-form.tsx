@@ -35,6 +35,7 @@ type AssignmentEditFormProps = {
     folio: number;
     odtFolio: string | null;
     finishedAt: Date | null;
+    scheduledDate?: Date | null;
     assignees: Array<{ user: { id: string; name: string } }>;
   };
   users: Array<{ id: string; name: string; email: string }>;
@@ -63,6 +64,9 @@ export function AssignmentEditForm({
     finishedAt: assignment.finishedAt
       ? new Date(assignment.finishedAt).toISOString().slice(0, 16)
       : "",
+    scheduledDate: assignment.scheduledDate
+      ? new Date(assignment.scheduledDate).toISOString().slice(0, 10)
+      : "",
   });
 
   const toggleAssignee = (userId: string) => {
@@ -88,6 +92,9 @@ export function AssignmentEditForm({
         finishedAt: formData.finishedAt
           ? new Date(formData.finishedAt)
           : undefined,
+        scheduledDate: formData.scheduledDate
+          ? new Date(`${formData.scheduledDate}T00:00:00`)
+          : null,
       });
 
       if (!result.success) {
@@ -114,6 +121,9 @@ export function AssignmentEditForm({
       odtFolio: assignment.odtFolio || "",
       finishedAt: assignment.finishedAt
         ? new Date(assignment.finishedAt).toISOString().slice(0, 16)
+        : "",
+      scheduledDate: assignment.scheduledDate
+        ? new Date(assignment.scheduledDate).toISOString().slice(0, 10)
         : "",
     });
     setError(null);
@@ -284,6 +294,22 @@ export function AssignmentEditForm({
             </div>
 
             <div className="space-y-2">
+              <Label htmlFor="scheduledDate">Fecha programada (opcional)</Label>
+              <Input
+                id="scheduledDate"
+                type="date"
+                value={formData.scheduledDate}
+                onChange={(e) =>
+                  setFormData({ ...formData, scheduledDate: e.target.value })
+                }
+              />
+              <p className="text-xs text-muted-foreground">
+                Si se especifica, los técnicos no pueden tener vacaciones
+                aprobadas ni día festivo en esta fecha.
+              </p>
+            </div>
+
+            <div className="space-y-2">
               <Label htmlFor="notes">Notas</Label>
               <Textarea
                 id="notes"
@@ -354,6 +380,16 @@ export function AssignmentEditForm({
                 {assignment.finishedAt
                   ? new Date(assignment.finishedAt).toLocaleString("es-MX")
                   : "Aún no finalizada"}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Fecha programada</p>
+              <p className="font-medium">
+                {assignment.scheduledDate
+                  ? new Date(assignment.scheduledDate).toLocaleDateString(
+                      "es-MX",
+                    )
+                  : "No especificada"}
               </p>
             </div>
             {assignment.notes && (
