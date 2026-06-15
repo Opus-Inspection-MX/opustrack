@@ -1,7 +1,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { requirePermission } from "@/lib/auth/auth";
 import { prisma } from "@/lib/database/prisma.singleton";
 
@@ -12,23 +11,73 @@ export type PartFormData = {
   stock: number;
 };
 
+export type GetPartsParams = {
+  page?: number;
+  limit?: number;
+  search?: string;
+};
+
 /**
- * Get all parts (warehouse-level, not scoped to Cliente)
+ * Get paginated parts list for catalog screen.
+ * Supports server-side search by name and description.
  */
-export async function getParts() {
+export async function getParts(params?: GetPartsParams) {
   await requirePermission("parts:read");
 
-  const parts = await prisma.part.findMany({
-    where: { active: true },
-    include: {
-      _count: {
-        select: { workParts: true },
+  const page = params?.page ?? 1;
+  const limit = params?.limit ?? 10;
+  const search = params?.search?.trim();
+  const skip = (page - 1) * limit;
+
+  const where = {
+    active: true,
+    ...(search
+      ? {
+          OR: [
+            { name: { contains: search, mode: "insensitive" as const } },
+            { description: { contains: search, mode: "insensitive" as const } },
+          ],
+        }
+      : {}),
+  };
+
+  const [data, total] = await Promise.all([
+    prisma.part.findMany({
+      where,
+      include: {
+        _count: {
+          select: { workParts: true },
+        },
       },
+      orderBy: { name: "asc" },
+      skip,
+      take: limit,
+    }),
+    prisma.part.count({ where }),
+  ]);
+
+  return {
+    data,
+    pagination: {
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
     },
+  };
+}
+
+/**
+ * Get all active parts as a flat array — for use in form selectors / dropdowns.
+ * Does NOT paginate; returns the full list sorted by name.
+ */
+export async function getPartsForSelect() {
+  await requirePermission("parts:read");
+
+  return prisma.part.findMany({
+    where: { active: true },
     orderBy: { name: "asc" },
   });
-
-  return parts;
 }
 
 /**
@@ -122,7 +171,7 @@ export async function deletePart(id: string) {
   });
 
   revalidatePath("/admin/parts");
-  redirect("/admin/parts");
+  return { success: true };
 }
 
 /**

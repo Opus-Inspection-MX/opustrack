@@ -31,7 +31,7 @@ import {
   getAssignmentById,
   getAssignmentFormOptions,
 } from "@/lib/actions/assignments";
-import { getParts } from "@/lib/actions/parts";
+import { getPartsForSelect } from "@/lib/actions/parts";
 import { deleteWorkPart, getWorkParts } from "@/lib/actions/work-parts";
 import { formatFileSize, getFileIcon } from "@/lib/upload";
 
@@ -151,7 +151,7 @@ export default function EditAssignmentPage({
         getAssignmentById(assignmentId),
         getAssignmentActivities(assignmentId),
         getWorkParts(assignmentId),
-        getParts(),
+        getPartsForSelect(),
         getAssignmentFormOptions(),
         getAssignmentStatuses(),
       ]);
