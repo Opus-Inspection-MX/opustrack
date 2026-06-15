@@ -1,10 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { requirePermission } from "@/lib/auth/auth";
 import { isAdmin } from "@/lib/authz/authz";
 import { prisma } from "@/lib/database/prisma.singleton";
+import { mxDayRange } from "@/lib/utils/datetime";
 import {
   type VacationFormData,
   validateVacationDates,
@@ -108,6 +108,12 @@ export async function createVacation(data: VacationFormData) {
 
   validateVacationDates(data);
 
+  // Normalize the picked calendar dates to CDMX day bounds so single-day and
+  // multi-day vacations cover the full Mexico City day. The HTML date input
+  // yields a UTC-midnight Date whose ISO date is the day the user picked.
+  const startDate = mxDayRange(data.startDate.toISOString().slice(0, 10)).gte;
+  const endDate = mxDayRange(data.endDate.toISOString().slice(0, 10)).lte;
+
   // Resolve target user
   const targetUserId = data.userId ?? caller.id;
 
@@ -143,8 +149,8 @@ export async function createVacation(data: VacationFormData) {
       active: true,
       statusId: { in: blockingStatusIds },
       // Inclusive overlap: existing.startDate <= newEnd AND existing.endDate >= newStart
-      startDate: { lte: data.endDate },
-      endDate: { gte: data.startDate },
+      startDate: { lte: endDate },
+      endDate: { gte: startDate },
     },
     select: { id: true, startDate: true, endDate: true },
   });
@@ -158,8 +164,8 @@ export async function createVacation(data: VacationFormData) {
   const vacation = await prisma.vacation.create({
     data: {
       userId: targetUserId,
-      startDate: data.startDate,
-      endDate: data.endDate,
+      startDate,
+      endDate,
       reason: data.reason ?? null,
       statusId: pendienteStatus.id,
     },
@@ -260,5 +266,5 @@ export async function deleteVacation(id: string) {
 
   revalidatePath("/admin/vacations");
   revalidatePath("/fsr/vacations");
-  redirect("/fsr/vacations");
+  return { success: true };
 }
