@@ -18,6 +18,7 @@ import {
   List,
   MapPin,
   Package,
+  Palmtree,
   PanelLeftClose,
   PanelLeftOpen,
   PieChart,
@@ -152,11 +153,13 @@ const menuSections = [
       { title: "Usuarios", url: "/admin/users", icon: Users },
       { title: "Roles", url: "/admin/roles", icon: Shield },
       { title: "Permisos", url: "/admin/permissions", icon: Settings },
+      { title: "Vacaciones", url: "/admin/vacations", icon: Palmtree },
     ],
   },
   {
     title: "Configuración",
     items: [
+      { title: "Días Festivos", url: "/admin/holidays", icon: Calendar },
       { title: "Ciclo de Vida", url: "/admin/lifecycle", icon: Workflow },
       { title: "Tipos de Incidente", url: "/admin/incident-types", icon: Tag },
       {

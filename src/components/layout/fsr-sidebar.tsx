@@ -4,6 +4,7 @@ import {
   AlertTriangle,
   Car,
   ClipboardList,
+  Palmtree,
   PanelLeftClose,
   PanelLeftOpen,
   User,
@@ -46,6 +47,11 @@ const menuItems = [
     title: "Viajes",
     url: "/fsr/vehicle-trips",
     icon: Car,
+  },
+  {
+    title: "Vacaciones",
+    url: "/fsr/vacations",
+    icon: Palmtree,
   },
   {
     title: "Mi Perfil",

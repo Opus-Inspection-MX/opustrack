@@ -61,6 +61,17 @@ export function PermissionSelector({
     setSelectedIds(newSelected);
   };
 
+  const allGloballySelected =
+    allPermissions.length > 0 && selectedIds.size === allPermissions.length;
+
+  const handleSelectAllGlobal = () => {
+    if (allGloballySelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(allPermissions.map((p) => p.id)));
+    }
+  };
+
   const handleSelectAll = (resource: string) => {
     const newSelected = new Set(selectedIds);
     const resourcePerms = groupedPermissions[resource];
@@ -108,7 +119,17 @@ export function PermissionSelector({
           <p className="text-sm font-medium">Permisos seleccionados</p>
           <p className="text-2xl font-bold">{selectedIds.size}</p>
         </div>
-        <Badge variant="outline">{allPermissions.length} totales</Badge>
+        <div className="flex items-center gap-3">
+          <Badge variant="outline">{allPermissions.length} totales</Badge>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleSelectAllGlobal}
+          >
+            {allGloballySelected ? "Deseleccionar todo" : "Seleccionar todo"}
+          </Button>
+        </div>
       </div>
 
       <div className="space-y-4">
