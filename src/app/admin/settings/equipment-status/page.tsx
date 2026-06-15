@@ -1,11 +1,13 @@
 "use client";
 
-import { Eye, Pencil, Trash2 } from "lucide-react";
-import { Plus } from "lucide-react";
+import { Eye, Pencil, Plus, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import type {
+  CatalogAction,
+  CatalogColumn,
+} from "@/components/common/catalog-table";
 import { CatalogTable } from "@/components/common/catalog-table";
-import type { CatalogAction, CatalogColumn } from "@/components/common/catalog-table";
 import { Button } from "@/components/ui/button";
 import { useDebounce } from "@/hooks/use-debounce";
 import {
@@ -20,9 +22,7 @@ type EquipmentStatus = Awaited<
 const columns: CatalogColumn<EquipmentStatus>[] = [
   {
     header: "ID",
-    cell: (row) => (
-      <span className="font-mono text-sm">{row.id}</span>
-    ),
+    cell: (row) => <span className="font-mono text-sm">{row.id}</span>,
   },
   {
     header: "Nombre",
@@ -127,7 +127,9 @@ export default function EquipmentStatusPage() {
             Gestionar tipos de estado de equipo
           </p>
         </div>
-        <Button onClick={() => router.push("/admin/settings/equipment-status/new")}>
+        <Button
+          onClick={() => router.push("/admin/settings/equipment-status/new")}
+        >
           <Plus className="mr-2 h-4 w-4" />
           Nuevo Estado
         </Button>

@@ -3,8 +3,11 @@
 import { Eye, Pencil, Plus, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import type {
+  CatalogAction,
+  CatalogColumn,
+} from "@/components/common/catalog-table";
 import { CatalogTable } from "@/components/common/catalog-table";
-import type { CatalogAction, CatalogColumn } from "@/components/common/catalog-table";
 import { Button } from "@/components/ui/button";
 import { useDebounce } from "@/hooks/use-debounce";
 import { deleteLineStatus, getLineStatuses } from "@/lib/actions/lookups";
