@@ -70,45 +70,45 @@ Chain strategy: stacked-to-main
 
 ### Phase 2.1 — Validations
 
-- [ ] 2.1.1 Create `src/lib/validations/holidays.ts`: export `HolidayFormData` type with `name`, `month`, `day?`, `nthMonday?`, `isRecurring`, `year?`. Add `validateHolidayXOR(data)` that throws if both `day` and `nthMonday` are set, or neither; throws if `!isRecurring && !year`. [validation]
-- [ ] 2.1.2 Create `src/lib/validations/vacations.ts`: export `VacationFormData` type with `userId?`, `startDate`, `endDate`, `reason?`. Add `validateVacationDates(data)` that throws if `endDate < startDate`. [validation]
+- [x] 2.1.1 Create `src/lib/validations/holidays.ts`: export `HolidayFormData` type with `name`, `month`, `day?`, `nthMonday?`, `isRecurring`, `year?`. Add `validateHolidayXOR(data)` that throws if both `day` and `nthMonday` are set, or neither; throws if `!isRecurring && !year`. [validation]
+- [x] 2.1.2 Create `src/lib/validations/vacations.ts`: export `VacationFormData` type with `userId?`, `startDate`, `endDate`, `reason?`. Add `validateVacationDates(data)` that throws if `endDate < startDate`. [validation]
 
 ### Phase 2.2 — Server actions: holidays
 
-- [ ] 2.2.1 Create `src/lib/actions/holidays.ts` ("use server"). Export `getHolidays()` (requires `holidays:read`), `getHolidayById(id)` (requires `holidays:read`). [action: read]
-- [ ] 2.2.2 In `src/lib/actions/holidays.ts`, export `createHoliday(data: HolidayFormData)` (requires `holidays:create`): validate XOR + year; `prisma.holiday.create`; `revalidatePath("/admin/holidays")`. [action: create]
-- [ ] 2.2.3 In `src/lib/actions/holidays.ts`, export `updateHoliday(id, data)` (requires `holidays:update`): validate XOR + year; `prisma.holiday.update`; revalidate. [action: update]
-- [ ] 2.2.4 In `src/lib/actions/holidays.ts`, export `deleteHoliday(id)` (requires `holidays:delete`): soft delete `active: false`; revalidate. [action: delete]
+- [x] 2.2.1 Create `src/lib/actions/holidays.ts` ("use server"). Export `getHolidays()` (requires `holidays:read`), `getHolidayById(id)` (requires `holidays:read`). [action: read]
+- [x] 2.2.2 In `src/lib/actions/holidays.ts`, export `createHoliday(data: HolidayFormData)` (requires `holidays:create`): validate XOR + year; `prisma.holiday.create`; `revalidatePath("/admin/holidays")`. [action: create]
+- [x] 2.2.3 In `src/lib/actions/holidays.ts`, export `updateHoliday(id, data)` (requires `holidays:update`): validate XOR + year; `prisma.holiday.update`; revalidate. [action: update]
+- [x] 2.2.4 In `src/lib/actions/holidays.ts`, export `deleteHoliday(id)` (requires `holidays:delete`): soft delete `active: false`; revalidate. [action: delete]
 
 ### Phase 2.3 — Server actions: vacations
 
-- [ ] 2.3.1 Create `src/lib/actions/vacations.ts` ("use server"). Export `getVacations()` and `getMyVacations()` (requires `vacations:read`); `getVacationById(id)` (same). `getMyVacations` filters by `userId = caller.id`. [action: read]
-- [ ] 2.3.2 In `src/lib/actions/vacations.ts`, export `getFsrsForVacations()` (requires `vacations:create`): return active FSR users for the FSR-select dropdown. [action: helper]
-- [ ] 2.3.3 In `src/lib/actions/vacations.ts`, export `createVacation(data: VacationFormData)` (requires `vacations:create`): resolve `targetUserId = data.userId ?? caller.id`; if `targetUserId !== caller.id`, assert admin; validate FSR active; `validateVacationDates`; check PENDIENTE|APROBADA overlap (throw neutral Spanish if overlap); set `statusId = PENDIENTE`; create; revalidate `/admin/vacations` + `/fsr/vacations`. [action: create]
-- [ ] 2.3.4 In `src/lib/actions/vacations.ts`, export `approveVacation(id)` and `rejectVacation(id)` (both require `vacations:approve`): set `statusId`, `approvedById = caller.id`, `approvedAt = now`; revalidate. No auto-reassignment. [action: approve/reject]
-- [ ] 2.3.5 In `src/lib/actions/vacations.ts`, export `deleteVacation(id)` (requires `vacations:delete`): soft delete `active: false`; FSR can only delete own; admin can delete any. Revalidate. [action: delete]
+- [x] 2.3.1 Create `src/lib/actions/vacations.ts` ("use server"). Export `getVacations()` and `getMyVacations()` (requires `vacations:read`); `getVacationById(id)` (same). `getMyVacations` filters by `userId = caller.id`. [action: read]
+- [x] 2.3.2 In `src/lib/actions/vacations.ts`, export `getFsrsForVacations()` (requires `vacations:create`): return active FSR users for the FSR-select dropdown. [action: helper]
+- [x] 2.3.3 In `src/lib/actions/vacations.ts`, export `createVacation(data: VacationFormData)` (requires `vacations:create`): resolve `targetUserId = data.userId ?? caller.id`; if `targetUserId !== caller.id`, assert admin; validate FSR active; `validateVacationDates`; check PENDIENTE|APROBADA overlap (throw neutral Spanish if overlap); set `statusId = PENDIENTE`; create; revalidate `/admin/vacations` + `/fsr/vacations`. [action: create]
+- [x] 2.3.4 In `src/lib/actions/vacations.ts`, export `approveVacation(id)` and `rejectVacation(id)` (both require `vacations:approve`): set `statusId`, `approvedById = caller.id`, `approvedAt = now`; revalidate. No auto-reassignment. [action: approve/reject]
+- [x] 2.3.5 In `src/lib/actions/vacations.ts`, export `deleteVacation(id)` (requires `vacations:delete`): soft delete `active: false`; FSR can only delete own; admin can delete any. Revalidate. [action: delete]
 
 ### Phase 2.4 — UI components
 
-- [ ] 2.4.1 Create `src/components/holidays/holiday-form.tsx`: rule-type toggle (Fixed / N-th Monday) showing `day` or `nthMonday` input conditionally; `isRecurring` switch with conditional `year` input. Submits to `createHoliday`/`updateHoliday`. Labels in neutral Spanish. [component]
-- [ ] 2.4.2 Create `src/components/vacations/vacation-form.tsx`: props `showFsrSelect: boolean`. When true, renders FSR `<select>` (admin path); when false, hides it (FSR self-service). Submits to `createVacation`. Labels: "Fecha de inicio", "Fecha de fin", "Motivo (opcional)". [component]
-- [ ] 2.4.3 Create `src/components/vacations/vacation-approval-buttons.tsx`: two buttons "Aprobar" and "Rechazar" calling `approveVacation`/`rejectVacation` via form actions. Conditionally rendered based on `vacations:approve`. [component]
+- [x] 2.4.1 Create `src/components/holidays/holiday-form.tsx`: rule-type toggle (Fixed / N-th Monday) showing `day` or `nthMonday` input conditionally; `isRecurring` switch with conditional `year` input. Submits to `createHoliday`/`updateHoliday`. Labels in neutral Spanish. [component]
+- [x] 2.4.2 Create `src/components/vacations/vacation-form.tsx`: props `showFsrSelect: boolean`. When true, renders FSR `<select>` (admin path); when false, hides it (FSR self-service). Submits to `createVacation`. Labels: "Fecha de inicio", "Fecha de fin", "Motivo (opcional)". [component]
+- [x] 2.4.3 Create `src/components/vacations/vacation-approval-buttons.tsx`: two buttons "Aprobar" and "Rechazar" calling `approveVacation`/`rejectVacation` via form actions. Conditionally rendered based on `vacations:approve`. [component]
 
 ### Phase 2.5 — Admin pages: holidays
 
-- [ ] 2.5.1 Create `src/app/admin/holidays/page.tsx`: `requireRouteAccess("/admin/holidays")`; fetch `getHolidays()`; render table with name, type, date rule, active status, edit/delete actions. [page: list]
-- [ ] 2.5.2 Create `src/app/admin/holidays/new/page.tsx`: `requireRouteAccess("/admin/holidays")`; render `<HolidayForm />` for creation. [page: new]
-- [ ] 2.5.3 Create `src/app/admin/holidays/[id]/edit/page.tsx`: `requireRouteAccess("/admin/holidays")`; `await params`; fetch `getHolidayById(id)`; render `<HolidayForm />` pre-filled. [page: edit]
+- [x] 2.5.1 Create `src/app/admin/holidays/page.tsx`: `requireRouteAccess("/admin/holidays")`; fetch `getHolidays()`; render table with name, type, date rule, active status, edit/delete actions. [page: list]
+- [x] 2.5.2 Create `src/app/admin/holidays/new/page.tsx`: `requireRouteAccess("/admin/holidays")`; render `<HolidayForm />` for creation. [page: new]
+- [x] 2.5.3 Create `src/app/admin/holidays/[id]/edit/page.tsx`: `requireRouteAccess("/admin/holidays")`; `await params`; fetch `getHolidayById(id)`; render `<HolidayForm />` pre-filled. [page: edit]
 
 ### Phase 2.6 — Admin pages: vacations
 
-- [ ] 2.6.1 Create `src/app/admin/vacations/page.tsx`: `requireRouteAccess("/admin/vacations")`; fetch `getVacations()`; render table with FSR name, dates, status (colored badge), approval buttons via `<VacationApprovalButtons />`. [page: list]
-- [ ] 2.6.2 Create `src/app/admin/vacations/new/page.tsx`: `requireRouteAccess("/admin/vacations")`; render `<VacationForm showFsrSelect={true} />`. [page: new]
+- [x] 2.6.1 Create `src/app/admin/vacations/page.tsx`: `requireRouteAccess("/admin/vacations")`; fetch `getVacations()`; render table with FSR name, dates, status (colored badge), approval buttons via `<VacationApprovalButtons />`. [page: list]
+- [x] 2.6.2 Create `src/app/admin/vacations/new/page.tsx`: `requireRouteAccess("/admin/vacations")`; render `<VacationForm showFsrSelect={true} />`. [page: new]
 
 ### Phase 2.7 — FSR page: vacations
 
-- [ ] 2.7.1 Create `src/app/fsr/vacations/page.tsx`: `requireRouteAccess("/fsr/vacations")`; fetch `getMyVacations()`; render own vacations table + link to create new request. [page: FSR list]
-- [ ] 2.7.2 Create `src/app/fsr/vacations/new/page.tsx`: `requireRouteAccess("/fsr/vacations")`; render `<VacationForm showFsrSelect={false} />`. [page: FSR new]
+- [x] 2.7.1 Create `src/app/fsr/vacations/page.tsx`: `requireRouteAccess("/fsr/vacations")`; fetch `getMyVacations()`; render own vacations table + link to create new request. [page: FSR list]
+- [x] 2.7.2 Create `src/app/fsr/vacations/new/page.tsx`: `requireRouteAccess("/fsr/vacations")`; render `<VacationForm showFsrSelect={false} />`. [page: FSR new]
 
 ---
 
@@ -122,19 +122,19 @@ Chain strategy: stacked-to-main
 
 ### Phase 3.1 — scheduledDate in assignment form
 
-- [ ] 3.1.1 Locate the assignment creation form component (likely under `src/components/` or `src/app/*/assignments/`). Add a date input labeled "Fecha programada (opcional)" bound to `scheduledDate` field. Input is optional; submits `null` when empty. [UI: delta]
+- [x] 3.1.1 Locate the assignment creation form component (likely under `src/components/` or `src/app/*/assignments/`). Add a date input labeled "Fecha programada (opcional)" bound to `scheduledDate` field. Input is optional; submits `null` when empty. [UI: delta]
 
 ### Phase 3.2 — createAssignment block
 
-- [ ] 3.2.1 In `src/lib/actions/lines.ts` (or the file containing `createAssignment`): extend `AssignmentFormData` to include `scheduledDate?: Date | null`. After `assertAssigneesAreFsrs` and before the transaction, if `scheduledDate != null && assignees.length > 0`, loop `isFsrUnavailable(userId, scheduledDate)` for each assignee; if any returns true, throw with neutral Spanish error: "No es posible asignar al FSR en la fecha indicada porque no está disponible (festivo o vacaciones aprobadas)." Persist `scheduledDate ?? null` inside the transaction. [action: block]
+- [x] 3.2.1 In `src/lib/actions/lines.ts` (or the file containing `createAssignment`): extend `AssignmentFormData` to include `scheduledDate?: Date | null`. After `assertAssigneesAreFsrs` and before the transaction, if `scheduledDate != null && assignees.length > 0`, loop `isFsrUnavailable(userId, scheduledDate)` for each assignee; if any returns true, throw with neutral Spanish error: "No es posible asignar al FSR en la fecha indicada porque no está disponible (festivo o vacaciones aprobadas)." Persist `scheduledDate ?? null` inside the transaction. [action: block]
 
 ### Phase 3.3 — updateAssignment block
 
-- [ ] 3.3.1 In the `updateAssignment` action: add `scheduledDate` to the `findUnique` select so the existing date is recoverable. Resolve effective date as `data.scheduledDate ?? existing.scheduledDate`. Check `isFsrUnavailable` only for `toAdd` fsrs against effective date (if non-null). Persist `scheduledDate` via undefined-means-unchanged pattern (same as `odtFolio`). [action: block]
+- [x] 3.3.1 In the `updateAssignment` action: add `scheduledDate` to the `findUnique` select so the existing date is recoverable. Resolve effective date as `data.scheduledDate ?? existing.scheduledDate`. Check `isFsrUnavailable` only for `toAdd` fsrs against effective date (if non-null). Persist `scheduledDate` via undefined-means-unchanged pattern (same as `odtFolio`). [action: block]
 
 ### Phase 3.4 — createAssignmentActivity block
 
-- [ ] 3.4.1 In `src/lib/actions/lines.ts` (or the file containing `createAssignmentActivity`): resolve `performedAt = data.performedAt ?? new Date()`. Load active assignees for the assignment. Loop `isFsrUnavailable(userId, performedAt)` for each; if any returns true, throw neutral Spanish: "No es posible registrar la actividad en esa fecha porque el FSR no estaba disponible (festivo o vacaciones aprobadas)." Soft-delete of activity path: skip availability check entirely. [action: block]
+- [x] 3.4.1 In `src/lib/actions/lines.ts` (or the file containing `createAssignmentActivity`): resolve `performedAt = data.performedAt ?? new Date()`. Load active assignees for the assignment. Loop `isFsrUnavailable(userId, performedAt)` for each; if any returns true, throw neutral Spanish: "No es posible registrar la actividad en esa fecha porque el FSR no estaba disponible (festivo o vacaciones aprobadas)." Soft-delete of activity path: skip availability check entirely. [action: block]
 
 ---
 
