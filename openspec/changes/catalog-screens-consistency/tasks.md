@@ -185,11 +185,11 @@ Chain strategy: stacked-to-main
 **Touches server actions**: No
 **Rollback**: Revert vehicle-table component change only.
 
-- [ ] S5.1 — Grep importers: `rg "vehicle-table\|VehicleTable" src --include="*.tsx" --include="*.ts"` — confirm which pages use the vehicles table.
-- [ ] S5.2 — Open `src/app/admin/vehicles/page.tsx`; identify how the vehicle list is rendered (server component vs client; existing DropdownMenu usage).
-- [ ] S5.3 — Replace the 3-dot `DropdownMenu` actions in the vehicles list with individual icon buttons (Eye → view detail, Pencil → edit, Trash2 → delete); wrap each in `Tooltip` with matching `aria-label` (RF-602); use `ConfirmDialog` from S0 for the delete action (RF-606, RF-659); do NOT use `CatalogTable` (RF-657).
-- [ ] S5.4 — Preserve the mobile card layout: do not change grid/flex structure, card JSX, or responsive breakpoints.
-- [ ] S5.5 — Manual verification: vehicles page on mobile viewport — cards intact; icon buttons visible; tooltip on hover; Escape cancels confirm; delete executes only after confirm; no `window.confirm`; no 3-dot dropdown menu.
+- [x] S5.1 — Grep importers: `rg "vehicle-table\|VehicleTable" src --include="*.tsx" --include="*.ts"` — confirm which pages use the vehicles table.
+- [x] S5.2 — Open `src/app/admin/vehicles/page.tsx`; identify how the vehicle list is rendered (server component vs client; existing DropdownMenu usage).
+- [x] S5.3 — Replace the 3-dot `DropdownMenu` actions in the vehicles list with individual icon buttons (Eye → view detail, Pencil → edit, Trash2 → delete); wrap each in `Tooltip` with matching `aria-label` (RF-602); use `ConfirmDialog` from S0 for the delete action (RF-606, RF-659); do NOT use `CatalogTable` (RF-657).
+- [x] S5.4 — Preserve the mobile card layout: do not change grid/flex structure, card JSX, or responsive breakpoints.
+- [x] S5.5 — Manual verification: vehicles page on mobile viewport — cards intact; icon buttons visible; tooltip on hover; Escape cancels confirm; delete executes only after confirm; no `window.confirm`; no 3-dot dropdown menu.
 
 ---
 

@@ -50,16 +50,12 @@ export default function VehiclesPage() {
   }, [loadVehicles]);
 
   const handleDelete = async (id: string) => {
-    if (!confirm("¿Estás seguro de que deseas eliminar este vehículo?")) {
-      return;
-    }
-
     try {
       await deleteVehicle(id);
       router.refresh();
       loadVehicles();
     } catch (error) {
-      alert(
+      console.error(
         error instanceof Error
           ? error.message
           : "Error al eliminar el vehículo",
