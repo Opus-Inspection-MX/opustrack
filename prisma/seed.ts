@@ -805,6 +805,60 @@ async function main() {
           resource: "equipments",
           action: "delete",
         },
+
+        // Holiday management permissions (RF-700, RF-706)
+        {
+          name: "holidays:read",
+          description: "View holiday catalog",
+          resource: "holidays",
+          action: "read",
+          routePath: "/admin/holidays",
+        },
+        {
+          name: "holidays:create",
+          description: "Create holiday rules",
+          resource: "holidays",
+          action: "create",
+        },
+        {
+          name: "holidays:update",
+          description: "Update holiday rules",
+          resource: "holidays",
+          action: "update",
+        },
+        {
+          name: "holidays:delete",
+          description: "Soft-delete holiday rules",
+          resource: "holidays",
+          action: "delete",
+        },
+
+        // Vacation management permissions (RF-701, RF-702, RF-706)
+        {
+          name: "vacations:read",
+          description: "View vacation requests",
+          resource: "vacations",
+          action: "read",
+          routePath: "/admin/vacations",
+        },
+        {
+          name: "vacations:create",
+          description: "Create vacation requests",
+          resource: "vacations",
+          action: "create",
+        },
+        {
+          name: "vacations:approve",
+          description: "Approve or reject vacation requests",
+          resource: "vacations",
+          action: "approve",
+        },
+        {
+          name: "vacations:delete",
+          description: "Soft-delete vacation requests",
+          resource: "vacations",
+          action: "delete",
+        },
       ];
 
       const permissionRecords = [];
@@ -881,6 +935,10 @@ async function main() {
             "notifications:delete",
             "dashboard:view",
             "assignment-status:read",
+            // Vacation permissions for FSR (RF-706): can manage own vacations
+            "vacations:read",
+            "vacations:create",
+            "vacations:delete",
           ],
         },
         {
@@ -1289,7 +1347,11 @@ async function main() {
       console.log("✅ Seeded AssignmentStatuses");
 
       // 8b) ScheduleStatuses - Separate from IncidentStatus for semantic clarity
-      const scheduleStatuses = [
+      const scheduleStatuses: Array<{
+        name: string;
+        description: string;
+        color: string;
+      }> = [
         {
           name: "BORRADOR",
           description: "Schedule en edición, no confirmado",
@@ -1329,6 +1391,102 @@ async function main() {
         });
       }
       console.log("✅ Seeded ScheduleStatuses");
+
+      // 8c) VacationStatus catalog — PENDIENTE / APROBADA / RECHAZADA (RF-707)
+      const vacationStatuses: Array<{
+        name: string;
+        description: string;
+        color: string;
+      }> = [
+        {
+          name: "PENDIENTE",
+          description: "Vacation request pending admin review",
+          color: "#F59E0B",
+        },
+        {
+          name: "APROBADA",
+          description: "Vacation request approved",
+          color: "#10B981",
+        },
+        {
+          name: "RECHAZADA",
+          description: "Vacation request rejected",
+          color: "#EF4444",
+        },
+      ];
+      for (const vs of vacationStatuses) {
+        await tx.vacationStatus.upsert({
+          where: { name: vs.name },
+          update: { color: vs.color, description: vs.description },
+          create: vs,
+        });
+      }
+      console.log("✅ Seeded VacationStatuses");
+
+      // 8d) Holidays — LFT Art. 74 rules (RF-700)
+      // Guard: only insert if the table is empty (no natural unique key).
+      const holidayCount = await tx.holiday.count();
+      if (holidayCount === 0) {
+        await tx.holiday.createMany({
+          data: [
+            // Fixed-date holidays
+            {
+              name: "Año Nuevo",
+              month: 1,
+              day: 1,
+              isRecurring: true,
+            },
+            {
+              name: "Día del Trabajo",
+              month: 5,
+              day: 1,
+              isRecurring: true,
+            },
+            {
+              name: "Día de la Independencia",
+              month: 9,
+              day: 16,
+              isRecurring: true,
+            },
+            {
+              name: "Navidad",
+              month: 12,
+              day: 25,
+              isRecurring: true,
+            },
+            // N-th Monday holidays
+            {
+              name: "Día de la Constitución",
+              month: 2,
+              nthMonday: 1,
+              isRecurring: true,
+            },
+            {
+              name: "Natalicio de Benito Juárez",
+              month: 3,
+              nthMonday: 3,
+              isRecurring: true,
+            },
+            {
+              name: "Día de la Revolución",
+              month: 11,
+              nthMonday: 3,
+              isRecurring: true,
+            },
+            // One-time sexennial event (next transfer of executive power)
+            {
+              name: "Transmisión del Poder Ejecutivo",
+              month: 10,
+              day: 1,
+              isRecurring: false,
+              year: 2030,
+            },
+          ],
+        });
+        console.log("✅ Seeded Holidays (LFT Art. 74 — 8 rules)");
+      } else {
+        console.log("⏭️  Holidays already seeded, skipping");
+      }
     },
     {
       maxWait: 30000, // Maximum time to wait for a transaction slot (30 seconds)

@@ -35,6 +35,8 @@ model User {
   vehicleTrips        VehicleTrip[] // Vehicle trips driven by this FSR
   assignedVehicles    Vehicle[]                @relation("AssignedVehicles") // Vehicles assigned to this FSR
   notifications       Notification[] // User's notifications
+  vacations           Vacation[]               @relation("VacationUser") // Vacation requests owned by this user (RF-701)
+  approvedVacations   Vacation[]               @relation("VacationApprover") // Vacations approved/rejected by this user (RF-702)
   active              Boolean                  @default(true)
 }
 
@@ -331,6 +333,7 @@ model Assignment {
   attachments          AssignmentAttachment[]
   workParts            WorkPart[]
   vehicleTrips         VehicleTrip[] // Vehicle trips linked to this assignment
+  scheduledDate        DateTime? // Optional scheduled date for FSR availability check (RF-708)
   createdAt            DateTime               @default(now())
   updatedAt            DateTime               @updatedAt
   active               Boolean                @default(true)
@@ -340,6 +343,7 @@ model Assignment {
   @@index([active, createdAt]) // Compound index for active assignments ordered by date
   @@index([seenAt]) // Optimize filtering by seen status
   @@index([seenById])
+  @@index([scheduledDate])
 }
 
 model AssignmentAssignee {
@@ -556,4 +560,72 @@ model Notification {
   @@index([userId, createdAt]) // Fast "recent notifications" queries
   @@index([type]) // Filter by notification type
   @@index([active, createdAt]) // Cleanup queries
+}
+
+// ─── Holidays & Vacations (RF-700–RF-749) ────────────────────────────────────
+
+/// Official non-working day rule (LFT Art. 74).
+/// A rule is either a fixed date (month+day), an n-th Monday (month+nthMonday),
+/// or a one-time sexennial event (isRecurring:false + year).
+/// XOR(day, nthMonday) — exactly one must be set.
+model Holiday {
+  id          Int     @id @default(autoincrement())
+  name        String
+  /// Calendar month (1=Jan … 12=Dec). Always required.
+  month       Int
+  /// Day-of-month for fixed-date holidays. Null for n-th-Monday rules.
+  day         Int?
+  /// Which Monday of the month (1=first, 3=third). Null for fixed-date rules.
+  nthMonday   Int?
+  /// True for annually recurring holidays. False for one-time events (requires year).
+  isRecurring Boolean @default(true)
+  /// The specific year for one-time (sexennial) events. Null for recurring rules.
+  year        Int?
+  active      Boolean @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([active])
+  @@index([month])
+  @@map("holidays")
+}
+
+/// Status catalog for vacation requests — follows ScheduleStatus pattern.
+/// Seed values: PENDIENTE, APROBADA, RECHAZADA.
+model VacationStatus {
+  id          Int       @id @default(autoincrement())
+  name        String    @unique
+  description String?
+  color       String    @default("#6B7280")
+  active      Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  vacations   Vacation[]
+
+  @@map("vacation_statuses")
+}
+
+/// FSR absence / vacation period request (RF-701, RF-702).
+/// Date range is inclusive; stored as UTC instants representing CDMX start/end of day.
+model Vacation {
+  id           String         @id @default(cuid())
+  userId       String
+  user         User           @relation("VacationUser", fields: [userId], references: [id])
+  startDate    DateTime
+  endDate      DateTime
+  reason       String?
+  statusId     Int
+  status       VacationStatus @relation(fields: [statusId], references: [id])
+  approvedById String?
+  approvedBy   User?          @relation("VacationApprover", fields: [approvedById], references: [id])
+  approvedAt   DateTime?
+  active       Boolean        @default(true)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  @@index([userId])
+  @@index([statusId])
+  @@index([userId, startDate, endDate])
+  @@index([active, userId])
+  @@map("vacations")
 }
