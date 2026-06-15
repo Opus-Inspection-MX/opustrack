@@ -15,20 +15,49 @@ export type StateFormData = {
   active?: boolean;
 };
 
-export async function getStatesAdmin() {
+export async function getStatesAdmin(params?: {
+  page?: number;
+  limit?: number;
+  search?: string;
+}) {
   await requirePermission("states:read");
 
-  const states = await prisma.state.findMany({
-    where: { active: true },
-    include: {
-      _count: {
-        select: { clientes: true },
-      },
-    },
-    orderBy: { name: "asc" },
-  });
+  const page = params?.page ?? 1;
+  const limit = params?.limit ?? 10;
+  const skip = (page - 1) * limit;
 
-  return states;
+  const where: Prisma.StateWhereInput = { active: true };
+  if (params?.search) {
+    where.OR = [
+      { name: { contains: params.search, mode: "insensitive" } },
+      { code: { contains: params.search, mode: "insensitive" } },
+    ];
+  }
+
+  const [states, total] = await Promise.all([
+    prisma.state.findMany({
+      where,
+      include: {
+        _count: {
+          select: { clientes: true },
+        },
+      },
+      orderBy: { name: "asc" },
+      skip,
+      take: limit,
+    }),
+    prisma.state.count({ where }),
+  ]);
+
+  return {
+    data: states,
+    pagination: {
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    },
+  };
 }
 
 export async function getStateById(id: number) {

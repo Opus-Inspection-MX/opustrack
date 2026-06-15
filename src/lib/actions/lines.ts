@@ -1,40 +1,69 @@
 "use server";
 
+import type { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { requirePermission } from "@/lib/auth/auth";
 import { prisma } from "@/lib/database/prisma.singleton";
 
-export async function getLines() {
+export async function getLines(params?: {
+  page?: number;
+  limit?: number;
+  search?: string;
+}) {
   await requirePermission("lines:read");
+
+  const page = params?.page ?? 1;
+  const limit = params?.limit ?? 10;
+  const skip = (page - 1) * limit;
+
+  const where: Prisma.LineWhereInput = { active: true };
+  if (params?.search) {
+    where.OR = [
+      { name: { contains: params.search, mode: "insensitive" } },
+      { description: { contains: params.search, mode: "insensitive" } },
+    ];
+  }
+
   try {
-    const lines = await prisma.line.findMany({
-      where: { active: true },
-      include: {
-        cliente: {
-          select: {
-            id: true,
-            name: true,
-            code: true,
+    const [lines, total] = await Promise.all([
+      prisma.line.findMany({
+        where,
+        include: {
+          cliente: {
+            select: {
+              id: true,
+              name: true,
+              code: true,
+            },
+          },
+          equipments: {
+            where: { active: true },
+            select: { id: true },
           },
         },
-        equipments: {
-          where: { active: true },
-        },
-      },
-      orderBy: { createdAt: "desc" },
-    });
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: limit,
+      }),
+      prisma.line.count({ where }),
+    ]);
 
-    // Serialize dates for client components
-    return lines.map((line) => ({
+    const data = lines.map((line) => ({
       ...line,
       createdAt: line.createdAt.toISOString(),
       updatedAt: line.updatedAt.toISOString(),
-      equipments: line.equipments.map((equipment) => ({
-        ...equipment,
-        createdAt: equipment.createdAt.toISOString(),
-        updatedAt: equipment.updatedAt.toISOString(),
-      })),
+      equipments: line.equipments,
     }));
+
+    return {
+      data,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   } catch (error) {
     console.error("Error fetching lines:", error);
     throw new Error("Failed to fetch lines");

@@ -1,36 +1,68 @@
 "use server";
 
+import type { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { requirePermission } from "@/lib/auth/auth";
 import { prisma } from "@/lib/database/prisma.singleton";
 
-export async function getEquipments() {
+export async function getEquipments(params?: {
+  page?: number;
+  limit?: number;
+  search?: string;
+}) {
   await requirePermission("equipments:read");
+
+  const page = params?.page ?? 1;
+  const limit = params?.limit ?? 10;
+  const skip = (page - 1) * limit;
+
+  const where: Prisma.EquipmentWhereInput = { active: true };
+  if (params?.search) {
+    where.OR = [
+      { name: { contains: params.search, mode: "insensitive" } },
+      { description: { contains: params.search, mode: "insensitive" } },
+    ];
+  }
+
   try {
-    const equipments = await prisma.equipment.findMany({
-      where: { active: true },
-      include: {
-        line: {
-          include: {
-            cliente: {
-              select: {
-                id: true,
-                name: true,
-                code: true,
+    const [equipments, total] = await Promise.all([
+      prisma.equipment.findMany({
+        where,
+        include: {
+          line: {
+            include: {
+              cliente: {
+                select: {
+                  id: true,
+                  name: true,
+                  code: true,
+                },
               },
             },
           },
         },
-      },
-      orderBy: { createdAt: "desc" },
-    });
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: limit,
+      }),
+      prisma.equipment.count({ where }),
+    ]);
 
-    // Serialize dates for client components
-    return equipments.map((equipment) => ({
+    const data = equipments.map((equipment) => ({
       ...equipment,
       createdAt: equipment.createdAt.toISOString(),
       updatedAt: equipment.updatedAt.toISOString(),
     }));
+
+    return {
+      data,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   } catch (error) {
     console.error("Error fetching equipments:", error);
     throw new Error("Failed to fetch equipments");
