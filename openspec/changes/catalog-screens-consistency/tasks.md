@@ -132,28 +132,28 @@ Chain strategy: stacked-to-main
 **Touches server actions**: Yes — `getParts` in `src/lib/actions/parts.ts`
 **Rollback**: Revert action + component + page.
 
-- [ ] S4a.1 — Grep callers: `rg "getParts" src --include="*.tsx" --include="*.ts"` — record every importer.
-- [ ] S4a.2 — Upgrade `getParts` in `src/lib/actions/parts.ts` to `{page,limit,search}→{data,pagination}`; preserve RBAC guard; search OR on name (and code/sku if fields exist); numeric id → no id search.
-- [ ] S4a.3 — Update every getParts caller found in S4a.1 to consume `{data, pagination}`.
-- [ ] S4a.4 — Migrate `src/components/parts/part-table.tsx` to `CatalogTable`; drop `TablePagination`; Spanish column headers.
-- [ ] S4a.5 — Convert the parts admin page to client component pattern; wire to upgraded `getParts`; `onSearchChange` resets page to 1.
-- [ ] S4a.6 — Manual verification: parts screen — pagination, search, icon actions, confirm-dialog on delete, Spanish headers, no `window.confirm`.
+- [x] S4a.1 — Grep callers: `rg "getParts" src --include="*.tsx" --include="*.ts"` — record every importer.
+- [x] S4a.2 — Upgrade `getParts` in `src/lib/actions/parts.ts` to `{page,limit,search}→{data,pagination}`; preserve RBAC guard; search OR on name (and code/sku if fields exist); numeric id → no id search.
+- [x] S4a.3 — Update every getParts caller found in S4a.1 to consume `{data, pagination}`.
+- [x] S4a.4 — Migrate parts admin page to inline CatalogTable (parts-table.tsx is now dead code); drop DropdownMenu; Spanish column headers; icon actions Eye/Pencil/Trash2.
+- [x] S4a.5 — Convert the parts admin page to client component pattern; wire to upgraded `getParts`; `onSearchChange` resets page to 1.
+- [x] S4a.6 — Manual verification: lint 0, tsc 0, no window.confirm globally, no DropdownMenu in parts page, no table-pagination in parts page, Spanish headers, icon actions, ConfirmDialog on delete.
 
 ---
 
-## S4b — Users + getUsers Upgrade (PR 6, base: main, dep: S0 merged)
+## S4b — Users + getUsers Upgrade (PR 6, base: main, dep: S0 merged) ✅ COMPLETE
 
 **Objective**: Upgrade `getUsers` to `{page,limit,search}→{data,pagination}`; migrate user-table and users page to `CatalogTable`.
 **Spec coverage**: RF-651, RF-652 (search: id+name+email), RF-653, RF-654, RF-659
 **Touches server actions**: Yes — `getUsers` in `src/lib/actions/users.ts`
 **Rollback**: Revert action + component + page.
 
-- [ ] S4b.1 — Grep callers: `rg "getUsers" src --include="*.tsx" --include="*.ts"` — record every importer.
-- [ ] S4b.2 — Upgrade `getUsers` in `src/lib/actions/users.ts` to `{page,limit,search}→{data,pagination}`; preserve RBAC guard; search OR on `id` (String → `contains`), `name`, `email` (RF-652).
-- [ ] S4b.3 — Update every getUsers caller found in S4b.1 to consume `{data, pagination}`.
-- [ ] S4b.4 — Migrate `src/components/users/user-table.tsx` to `CatalogTable`; drop `TablePagination`; Spanish column headers.
-- [ ] S4b.5 — Convert the users admin page to client component pattern; wire to upgraded `getUsers`; `onSearchChange` resets page to 1.
-- [ ] S4b.6 — Manual verification: users screen — id/name/email search works; pagination; icon actions; confirm-dialog on delete; Spanish headers; no `window.confirm`.
+- [x] S4b.1 — Grep callers: `rg "getUsers" src --include="*.tsx" --include="*.ts"` — record every importer.
+- [x] S4b.2 — Upgrade `getUsers` in `src/lib/actions/users.ts` to `{page,limit,search}→{data,pagination}`; preserve RBAC guard; search OR on `id` (String → `contains`), `name`, `email` (RF-652).
+- [x] S4b.3 — Update every getUsers caller found in S4b.1 to consume `{data, pagination}`.
+- [x] S4b.4 — Migrate `src/components/users/user-table.tsx` to `CatalogTable`; drop `TablePagination`; Spanish column headers.
+- [x] S4b.5 — Convert the users admin page to client component pattern; wire to upgraded `getUsers`; `onSearchChange` resets page to 1.
+- [x] S4b.6 — Manual verification: users screen — id/name/email search works; pagination; icon actions; confirm-dialog on delete; Spanish headers; no `window.confirm`.
 
 ---
 

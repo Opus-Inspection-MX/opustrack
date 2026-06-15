@@ -2,7 +2,6 @@
 
 import type { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { requirePermission } from "@/lib/auth/auth";
 import { prisma } from "@/lib/database/prisma.singleton";
 import { hashPassword } from "@/lib/security/hash";
@@ -25,24 +24,59 @@ export type UserFormData = {
   jobPosition?: string;
 };
 
+type GetUsersParams = {
+  page?: number;
+  limit?: number;
+  search?: string;
+};
+
 /**
- * Get all users with relations
+ * Get users with pagination and optional search (name, email, or id).
  */
-export async function getUsers() {
+export async function getUsers(params?: GetUsersParams) {
   await requirePermission("users:read");
 
-  const users = await prisma.user.findMany({
-    where: { active: true },
-    include: {
-      role: true,
-      userStatus: true,
-      cliente: true,
-      userProfile: true,
-    },
-    orderBy: { createdAt: "desc" },
-  });
+  const page = params?.page ?? 1;
+  const limit = params?.limit ?? 10;
+  const skip = (page - 1) * limit;
+  const search = params?.search?.trim();
 
-  return users;
+  const where = search
+    ? {
+        active: true,
+        OR: [
+          { name: { contains: search, mode: "insensitive" as const } },
+          { email: { contains: search, mode: "insensitive" as const } },
+          { id: { contains: search, mode: "insensitive" as const } },
+        ],
+      }
+    : { active: true };
+
+  const [data, total] = await Promise.all([
+    prisma.user.findMany({
+      where,
+      include: {
+        role: true,
+        userStatus: true,
+        cliente: true,
+        userProfile: true,
+      },
+      orderBy: { createdAt: "desc" },
+      skip,
+      take: limit,
+    }),
+    prisma.user.count({ where }),
+  ]);
+
+  return {
+    data,
+    pagination: {
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    },
+  };
 }
 
 /**
@@ -210,7 +244,7 @@ export async function deleteUser(id: string) {
   await invalidateUserSessions(id);
 
   revalidatePath("/admin/users");
-  redirect("/admin/users");
+  return { success: true };
 }
 
 /**
