@@ -839,7 +839,6 @@ async function main() {
           description: "View vacation requests",
           resource: "vacations",
           action: "read",
-          routePath: "/admin/vacations",
         },
         {
           name: "vacations:create",
