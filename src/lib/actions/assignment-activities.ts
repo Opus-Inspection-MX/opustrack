@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requirePermission } from "@/lib/auth/auth";
 import { prisma } from "@/lib/database/prisma.singleton";
+import { isFsrUnavailable } from "@/lib/utils/availability";
 
 export type AssignmentActivityFormData = {
   assignmentId: string;
@@ -89,11 +90,32 @@ export async function createAssignmentActivity(
   await requirePermission("assignments:update");
   await assertAssignmentEditable(data.assignmentId);
 
+  // Resolve effective performedAt — caller-supplied value or now.
+  const performedAt = data.performedAt ?? new Date();
+
+  // Load all active assignees for the assignment (FSRs doing the work).
+  const assigneeRows = await prisma.assignmentAssignee.findMany({
+    where: { assignmentId: data.assignmentId, active: true },
+    select: { userId: true, user: { select: { name: true } } },
+  });
+
+  // Availability block: reject if any active FSR assignee is unavailable on the
+  // CDMX calendar day of performedAt (RF-258/RF-705).
+  for (const row of assigneeRows) {
+    const unavailable = await isFsrUnavailable(row.userId, performedAt);
+    if (unavailable) {
+      const label = row.user?.name ?? row.userId;
+      throw new Error(
+        `El técnico ${label} no está disponible en la fecha indicada (día festivo o vacaciones aprobadas).`,
+      );
+    }
+  }
+
   const activity = await prisma.assignmentActivity.create({
     data: {
       assignmentId: data.assignmentId,
       description: data.description,
-      performedAt: data.performedAt || new Date(),
+      performedAt,
     },
   });
 

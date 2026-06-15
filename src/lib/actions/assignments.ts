@@ -21,6 +21,7 @@ import {
   isAssignmentState,
   syncIncidentState,
 } from "@/lib/state-machine";
+import { isFsrUnavailable } from "@/lib/utils/availability";
 
 export type AssignmentFormData = {
   incidentId: number;
@@ -30,6 +31,7 @@ export type AssignmentFormData = {
   odtFolio?: string | null;
   startedAt?: Date | null;
   finishedAt?: Date | null;
+  scheduledDate?: Date | null;
 };
 
 const assigneesInclude = {
@@ -187,6 +189,23 @@ export async function createAssignment(data: AssignmentFormData) {
 
   await assertAssigneesAreFsrs(uniqueAssignees);
 
+  // Availability check: only when scheduledDate is provided and there are assignees.
+  if (data.scheduledDate != null && uniqueAssignees.length > 0) {
+    for (const userId of uniqueAssignees) {
+      const unavailable = await isFsrUnavailable(userId, data.scheduledDate);
+      if (unavailable) {
+        const fsrRecord = await prisma.user.findUnique({
+          where: { id: userId },
+          select: { name: true },
+        });
+        const label = fsrRecord?.name ?? userId;
+        throw new Error(
+          `El técnico ${label} no está disponible en la fecha programada (día festivo o vacaciones aprobadas).`,
+        );
+      }
+    }
+  }
+
   const initialState =
     uniqueAssignees.length === 0
       ? ASSIGNMENT_STATE.PENDIENTE_DE_ASIGNACION
@@ -200,6 +219,7 @@ export async function createAssignment(data: AssignmentFormData) {
         statusId,
         notes: data.notes || null,
         odtFolio: data.odtFolio?.trim() || null,
+        scheduledDate: data.scheduledDate ?? null,
         assignedAt: uniqueAssignees.length > 0 ? new Date() : null,
         assignees: {
           create: uniqueAssignees.map((userId) => ({ userId })),
@@ -241,10 +261,16 @@ export async function updateAssignment(id: string, data: AssignmentFormData) {
 
   const existingAssignment = await prisma.assignment.findUnique({
     where: { id },
-    select: { incidentId: true },
+    select: { incidentId: true, scheduledDate: true },
   });
   if (!existingAssignment) throw new Error("Assignment not found");
   await assertAssigneesAreFsrs(uniqueAssignees);
+
+  // Resolve effective scheduledDate (new value ?? existing value) for the block check.
+  const effectiveScheduledDate =
+    data.scheduledDate !== undefined
+      ? data.scheduledDate
+      : existingAssignment.scheduledDate;
 
   const result = await prisma.$transaction(async (tx) => {
     const existing = await tx.assignmentAssignee.findMany({
@@ -256,6 +282,27 @@ export async function updateAssignment(id: string, data: AssignmentFormData) {
 
     const toAdd = uniqueAssignees.filter((u) => !existingIds.has(u));
     const toRemove = [...existingIds].filter((u) => !newIds.has(u));
+
+    // Availability check: only for newly added FSRs and only when a scheduled
+    // date is present. Already-assigned FSRs are not re-checked (RF-256).
+    if (effectiveScheduledDate != null && toAdd.length > 0) {
+      for (const userId of toAdd) {
+        const unavailable = await isFsrUnavailable(
+          userId,
+          effectiveScheduledDate,
+        );
+        if (unavailable) {
+          const fsrRecord = await tx.user.findUnique({
+            where: { id: userId },
+            select: { name: true },
+          });
+          const label = fsrRecord?.name ?? userId;
+          throw new Error(
+            `El técnico ${label} no está disponible en la fecha programada (día festivo o vacaciones aprobadas).`,
+          );
+        }
+      }
+    }
 
     const isReassignment = toAdd.length > 0 || toRemove.length > 0;
 
@@ -315,6 +362,10 @@ export async function updateAssignment(id: string, data: AssignmentFormData) {
           data.odtFolio === undefined
             ? undefined
             : data.odtFolio?.trim() || null,
+        // scheduledDate: undefined means "don't change"; null means "clear it".
+        ...(data.scheduledDate !== undefined && {
+          scheduledDate: data.scheduledDate,
+        }),
         ...(nextStatusId !== undefined && { statusId: nextStatusId }),
         ...(isReassignment && {
           assignedAt: new Date(),
