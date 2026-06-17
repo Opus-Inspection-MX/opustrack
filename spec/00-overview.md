@@ -74,6 +74,7 @@ y se preservan con su número original aunque queden fuera del rango de su domin
 | RF-400 – RF-449 | Programación | [07](./07-programacion.md) |
 | RF-450 – RF-499 | Notificaciones | [08](./08-notificaciones.md) |
 | RF-500 – RF-549 | Reportes, tracking y dashboard | [09](./09-reportes-tracking.md) |
+| RF-700 – RF-749 | Festivos y vacaciones | [10](./10-festivos-vacaciones.md) |
 
 **Al agregar un requisito nuevo**: usá el siguiente número libre dentro del rango del dominio.
 No reutilices números ni renumeres requisitos existentes (se referencian de forma cruzada).
@@ -125,6 +126,7 @@ No reutilices números ni renumeres requisitos existentes (se referencian de for
 | 07 | Programación | Schedule, ScheduleCliente, ScheduleStatus |
 | 08 | Notificaciones | Notification |
 | 09 | Reportes, tracking y dashboard | (consume datos de todos los dominios) |
+| 10 | Festivos y vacaciones | Holiday, Vacation, VacationStatus |
 
 ---
 

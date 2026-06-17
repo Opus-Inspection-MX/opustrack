@@ -33,6 +33,7 @@ automático, captura GPS, chequeos de permiso). El CRUD simple se documenta en p
 | 07 | [Programación](./07-programacion.md) | Schedules, calendario, vínculo cliente/incidente | RF-400–449 |
 | 08 | [Notificaciones](./08-notificaciones.md) | Triggers, tipos, lectura, prioridad | RF-450–499 |
 | 09 | [Reportes, tracking y dashboard](./09-reportes-tracking.md) | Reportes operativos, seguimiento, métricas | RF-500–549 |
+| 10 | [Festivos y vacaciones](./10-festivos-vacaciones.md) | Festivos LFT, vacaciones FSR, bloqueo de días inhábiles | RF-700–749 |
 
 ## Convención al agregar requisitos
 
