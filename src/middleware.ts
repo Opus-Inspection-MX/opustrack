@@ -56,15 +56,11 @@ export async function middleware(req: NextRequest) {
 
   // Handle root path - redirect to user's default path
   if (pathname === "/" || pathname === "/dashboard") {
-    console.log(
-      `[Middleware] Redirecting to defaultPath: ${defaultPath} for role: ${roleName}`,
-    );
     return NextResponse.redirect(new URL(defaultPath, req.url));
   }
 
   // Admin has access to all routes
   if (roleName === "ADMINISTRADOR") {
-    console.log(`[Middleware] Admin accessing: ${pathname}`);
     return NextResponse.next();
   }
 
@@ -78,9 +74,6 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL("/unauthorized", req.url));
   }
 
-  console.log(
-    `[Middleware] Access granted for role ${roleName} to ${pathname}`,
-  );
   return NextResponse.next();
 }
 
