@@ -49,3 +49,10 @@ next-env.d.ts
 /src/generated/prisma
 
 /docs/opustrack_local_db
+
+# initial_load — REAL personnel/client data, never commit (contains credentials).
+# The template seed (initial_load/seed.example.ts) IS tracked.
+/initial_load/*.xlsx
+/initial_load/seed.ts
+/initial_load/users.txt
+/initial_load/vics.txt
