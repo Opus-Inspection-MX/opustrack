@@ -1,5 +1,6 @@
 "use server";
 
+import type { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requirePermission } from "@/lib/auth/auth";
@@ -49,39 +50,73 @@ async function resolveTypeIdOrFallback(
   return fallback.id;
 }
 
+type GetIncidentsParams = {
+  page?: number;
+  limit?: number;
+  search?: string;
+};
+
 /**
- * Get all incidents with relations
- * Filtered by user's Cliente (except ADMINISTRADOR who sees all)
+ * Get incidents with relations, paginated and searchable (title, description).
+ * Filtered by user's Cliente (except ADMINISTRADOR who sees all).
  */
-export async function getIncidents() {
+export async function getIncidents(params?: GetIncidentsParams) {
   const user = await requirePermission("incidents:read");
   const clienteFilter = getClienteWhereClause(user);
 
-  const incidents = await prisma.incident.findMany({
-    where: {
-      active: true,
-      ...clienteFilter, // Apply Cliente filter
-    },
-    include: {
-      type: true,
-      status: true,
-      cliente: true,
-      reportedBy: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
+  const page = params?.page ?? 1;
+  const limit = params?.limit ?? 10;
+  const skip = (page - 1) * limit;
+  const search = params?.search?.trim();
+
+  const where: Prisma.IncidentWhereInput = {
+    active: true,
+    ...clienteFilter, // Apply Cliente filter
+    ...(search
+      ? {
+          OR: [
+            { title: { contains: search, mode: "insensitive" } },
+            { description: { contains: search, mode: "insensitive" } },
+          ],
+        }
+      : {}),
+  };
+
+  const [data, total] = await Promise.all([
+    prisma.incident.findMany({
+      where,
+      include: {
+        type: true,
+        status: true,
+        cliente: true,
+        reportedBy: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        schedule: true,
+        _count: {
+          select: { assignments: true },
         },
       },
-      schedule: true,
-      _count: {
-        select: { assignments: true },
-      },
-    },
-    orderBy: { reportedAt: "desc" },
-  });
+      orderBy: { reportedAt: "desc" },
+      skip,
+      take: limit,
+    }),
+    prisma.incident.count({ where }),
+  ]);
 
-  return incidents;
+  return {
+    data,
+    pagination: {
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    },
+  };
 }
 
 /**

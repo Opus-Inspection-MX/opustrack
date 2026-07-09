@@ -6,7 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import { TrackingFilters } from "@/components/tracking/tracking-filters";
 import { TrackingTable } from "@/components/tracking/tracking-table";
 import { Button } from "@/components/ui/button";
-import { getClientes } from "@/lib/actions/clientes";
+import { getClientesForSelect } from "@/lib/actions/clientes";
 import { getIncidentStatuses, getIncidentTypes } from "@/lib/actions/lookups";
 import {
   getFSRsByClienteId,
@@ -111,7 +111,7 @@ export default function TrackingPage() {
   const loadInitialData = useCallback(async () => {
     try {
       const [clientesData, typesResult, statusesResult] = await Promise.all([
-        getClientes(),
+        getClientesForSelect(),
         getIncidentTypes(),
         getIncidentStatuses(),
       ]);

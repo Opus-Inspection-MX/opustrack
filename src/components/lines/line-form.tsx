@@ -22,7 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { getClientes } from "@/lib/actions/clientes";
+import { getClientesForSelect } from "@/lib/actions/clientes";
 import { createLine, updateLine } from "@/lib/actions/lines";
 
 interface LineFormProps {
@@ -52,7 +52,7 @@ export function LineForm({ line, mode }: LineFormProps) {
 
   const loadClientes = useCallback(async () => {
     try {
-      const data = await getClientes();
+      const data = await getClientesForSelect();
       setClientes(data);
     } catch (error) {
       console.error("Error loading Clientes:", error);

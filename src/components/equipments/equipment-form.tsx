@@ -23,7 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { getClientes } from "@/lib/actions/clientes";
+import { getClientesForSelect } from "@/lib/actions/clientes";
 import { createEquipment, updateEquipment } from "@/lib/actions/equipments";
 import { getLinesByClienteId } from "@/lib/actions/lines";
 
@@ -69,7 +69,7 @@ export function EquipmentForm({ equipment, mode }: EquipmentFormProps) {
 
   const loadClientes = useCallback(async () => {
     try {
-      const data = await getClientes();
+      const data = await getClientesForSelect();
       setClientes(data);
     } catch (error) {
       console.error("Error loading Clientes:", error);

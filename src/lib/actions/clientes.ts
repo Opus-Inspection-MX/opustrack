@@ -1,5 +1,6 @@
 "use server";
 
+import type { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requirePermission } from "@/lib/auth/auth";
@@ -20,52 +21,83 @@ export type ClienteFormData = {
   clientIds?: string[];
 };
 
+type GetClientesParams = {
+  page?: number;
+  limit?: number;
+  search?: string;
+};
+
 /**
- * Get all Clientes with relations
+ * Lightweight Cliente list for select/dropdown inputs and filters.
+ * Returns only { id, code, name } for all active Clientes — no counts, no
+ * pagination. Use this instead of getClientes() when you just need options.
  */
-export async function getClientes() {
+export async function getClientesForSelect() {
   await requirePermission("clientes:read");
 
-  const clientes = await prisma.cliente.findMany({
+  return prisma.cliente.findMany({
     where: { active: true },
-    include: {
-      state: true,
-      lines: {
-        where: { active: true },
-        select: {
-          id: true,
-          _count: {
-            select: {
-              equipments: true,
-            },
-          },
-        },
-      },
-      _count: {
-        select: {
-          users: true,
-          incidents: true,
-          lines: true,
-        },
-      },
-    },
+    select: { id: true, code: true, name: true },
     orderBy: { name: "asc" },
   });
+}
 
-  // Get FSR role
-  const fsrRole = await prisma.role.findFirst({
-    where: { name: "FSR" },
-  });
+/**
+ * Get Clientes with relations, paginated and searchable (code, name, company).
+ */
+export async function getClientes(params?: GetClientesParams) {
+  await requirePermission("clientes:read");
 
-  // Count active FSRs per Cliente in a SINGLE grouped query (avoids an N+1:
-  // previously this ran one user.count() per Cliente). UserClienteAssignment is
-  // unique on (userId, clienteId), so counting rows == counting distinct FSRs.
+  const page = params?.page ?? 1;
+  const limit = params?.limit ?? 10;
+  const skip = (page - 1) * limit;
+  const search = params?.search?.trim();
+
+  const where: Prisma.ClienteWhereInput = search
+    ? {
+        active: true,
+        OR: [
+          { code: { contains: search, mode: "insensitive" } },
+          { name: { contains: search, mode: "insensitive" } },
+          { companyName: { contains: search, mode: "insensitive" } },
+        ],
+      }
+    : { active: true };
+
+  const [clientes, total] = await Promise.all([
+    prisma.cliente.findMany({
+      where,
+      include: {
+        state: true,
+        lines: {
+          where: { active: true },
+          select: {
+            id: true,
+            _count: { select: { equipments: true } },
+          },
+        },
+        _count: {
+          select: { users: true, incidents: true, lines: true },
+        },
+      },
+      orderBy: { name: "asc" },
+      skip,
+      take: limit,
+    }),
+    prisma.cliente.count({ where }),
+  ]);
+
+  // Count active FSRs for THIS page's Clientes in a single grouped query
+  // (avoids an N+1: previously one user.count() per Cliente). Unique
+  // (userId, clienteId) means row count == distinct FSR count.
+  const fsrRole = await prisma.role.findFirst({ where: { name: "FSR" } });
   const fsrCountByCliente = new Map<string, number>();
-  if (fsrRole) {
+  if (fsrRole && clientes.length > 0) {
     const grouped = await prisma.userClienteAssignment.groupBy({
       by: ["clienteId"],
       where: {
         active: true,
+        clienteId: { in: clientes.map((c) => c.id) },
         user: { active: true, roleId: fsrRole.id },
       },
       _count: { userId: true },
@@ -75,10 +107,18 @@ export async function getClientes() {
     }
   }
 
-  return clientes.map((cliente) => ({
-    ...cliente,
-    fsrCount: fsrCountByCliente.get(cliente.id) ?? 0,
-  }));
+  return {
+    data: clientes.map((cliente) => ({
+      ...cliente,
+      fsrCount: fsrCountByCliente.get(cliente.id) ?? 0,
+    })),
+    pagination: {
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    },
+  };
 }
 
 /**
