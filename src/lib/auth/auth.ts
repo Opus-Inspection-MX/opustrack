@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
+import { cache } from "react";
 import { authOptions } from "@/lib/auth/auth-options";
 import {
   getAccessibleRoutes,
@@ -29,43 +30,49 @@ export async function getSession() {
  * Session validation:
  * - Checks if user's sessionVersion matches JWT
  * - If not, forces re-authentication
+ *
+ * Wrapped in React cache() for request-level memoization: multiple auth helpers
+ * (requireRouteAccess, canPerform, getMyAccessibleRoutes, ...) called during a
+ * single render now share ONE getServerSession + user query instead of repeating.
  */
-export async function getAuthenticatedUser(): Promise<UserWithPermissions | null> {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) return null;
+export const getAuthenticatedUser = cache(
+  async (): Promise<UserWithPermissions | null> => {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) return null;
 
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id, active: true },
-    select: {
-      id: true,
-      email: true,
-      name: true,
-      roleId: true,
-      clienteId: true,
-      sessionVersion: true,
-    },
-  });
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id, active: true },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        roleId: true,
+        clienteId: true,
+        sessionVersion: true,
+      },
+    });
 
-  if (!user) return null;
+    if (!user) return null;
 
-  // Validate session version (if JWT has version)
-  const jwtVersion = session.user.sessionVersion;
-  if (jwtVersion !== undefined && user.sessionVersion !== jwtVersion) {
-    // Session has been invalidated - user needs to re-login
-    console.log(
-      `[SESSION] Invalid session for user ${user.id}: JWT version ${jwtVersion} != DB version ${user.sessionVersion}`,
-    );
-    return null;
-  }
+    // Validate session version (if JWT has version)
+    const jwtVersion = session.user.sessionVersion;
+    if (jwtVersion !== undefined && user.sessionVersion !== jwtVersion) {
+      // Session has been invalidated - user needs to re-login
+      console.log(
+        `[SESSION] Invalid session for user ${user.id}: JWT version ${jwtVersion} != DB version ${user.sessionVersion}`,
+      );
+      return null;
+    }
 
-  const role = await getRoleById(user.roleId);
-  if (!role) return null;
+    const role = await getRoleById(user.roleId);
+    if (!role) return null;
 
-  return {
-    ...user,
-    role,
-  };
-}
+    return {
+      ...user,
+      role,
+    };
+  },
+);
 
 /**
  * Get authenticated user or throw error

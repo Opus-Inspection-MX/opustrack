@@ -57,28 +57,28 @@ export async function getClientes() {
     where: { name: "FSR" },
   });
 
-  // For each Cliente, count how many FSRs have this Cliente in their clienteIds array
-  const clientesWithFSRCount = await Promise.all(
-    clientes.map(async (cliente) => {
-      if (!fsrRole) {
-        return { ...cliente, fsrCount: 0 };
-      }
+  // Count active FSRs per Cliente in a SINGLE grouped query (avoids an N+1:
+  // previously this ran one user.count() per Cliente). UserClienteAssignment is
+  // unique on (userId, clienteId), so counting rows == counting distinct FSRs.
+  const fsrCountByCliente = new Map<string, number>();
+  if (fsrRole) {
+    const grouped = await prisma.userClienteAssignment.groupBy({
+      by: ["clienteId"],
+      where: {
+        active: true,
+        user: { active: true, roleId: fsrRole.id },
+      },
+      _count: { userId: true },
+    });
+    for (const g of grouped) {
+      fsrCountByCliente.set(g.clienteId, g._count.userId);
+    }
+  }
 
-      const fsrCount = await prisma.user.count({
-        where: {
-          roleId: fsrRole.id,
-          active: true,
-          clienteAssignments: {
-            some: { clienteId: cliente.id, active: true },
-          },
-        },
-      });
-
-      return { ...cliente, fsrCount };
-    }),
-  );
-
-  return clientesWithFSRCount;
+  return clientes.map((cliente) => ({
+    ...cliente,
+    fsrCount: fsrCountByCliente.get(cliente.id) ?? 0,
+  }));
 }
 
 /**
