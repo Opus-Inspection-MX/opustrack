@@ -31,6 +31,7 @@ import {
   type EditablePreviewRow,
   resolveBulkIncidentRows,
 } from "@/lib/actions/incidents";
+import { excelDateCell, excelDateToWallClock } from "@/lib/utils/datetime";
 
 type Catalogs = {
   types: Array<{ id: number; name: string }>;
@@ -90,18 +91,16 @@ function downloadBlob(filename: string, blob: Blob) {
   URL.revokeObjectURL(url);
 }
 
-function formatSampleDate(d: Date): string {
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
-
 /**
  * Convert an exceljs cell value to a plain string for downstream Zod schemas.
  * Dates → "YYYY-MM-DD HH:mm"; numbers → "123"; rich text → concatenated runs.
+ *
+ * Real date cells are read as the wall clock the sheet shows, so the user can
+ * type dates in Excel's own date format instead of plain text.
  */
 function cellToString(value: unknown): string {
   if (value == null) return "";
-  if (value instanceof Date) return formatSampleDate(value);
+  if (value instanceof Date) return excelDateToWallClock(value);
   if (typeof value === "number" || typeof value === "boolean") {
     return String(value);
   }
@@ -174,7 +173,9 @@ async function buildTemplateWorkbook(opts: {
     titulo: "Falla en cámara de inspección",
     descripcion: "Cámara 3 no enciende en el turno matutino, requiere revisión",
     tipo: sampleType,
-    fecha_inicio: new Date(2026, 0, 15, 9, 0),
+    // Built from UTC components so Excel displays 09:00 no matter which
+    // timezone generated the template — see excelDateCell.
+    fecha_inicio: excelDateCell(2026, 1, 15, 9, 0),
     cliente: opts.defaultClienteCode ?? opts.catalogs.clientes[0]?.code ?? "",
   });
 
@@ -231,7 +232,7 @@ async function buildTemplateWorkbook(opts: {
     },
     {
       col: "fecha_inicio",
-      desc: "Fecha y hora (formato yyyy-mm-dd hh:mm). Opcional. Vacío = la incidencia se registra como abierta sin fecha de inicio.",
+      desc: "Celda de fecha: escríbela como fecha de Excel (el formato yyyy-mm-dd hh:mm ya viene aplicado) o como texto yyyy-mm-dd hh:mm. Si omites la hora se toma 00:00. Opcional: vacío = la incidencia se registra como abierta sin fecha de inicio.",
     },
     {
       col: "cliente",

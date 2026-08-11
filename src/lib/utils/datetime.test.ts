@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   currentWeekRange,
+  excelDateCell,
+  excelDateToWallClock,
   localWallTimeToUTC,
   mxDateAndTime,
   mxDateString,
@@ -66,6 +68,72 @@ describe("parseMxDateTime", () => {
 describe("mxDateAndTime", () => {
   it("returns a default for null input", () => {
     expect(mxDateAndTime(null)).toEqual({ date: "", time: "09:00" });
+  });
+});
+
+describe("excelDateToWallClock", () => {
+  // ExcelJS materializes a date cell's serial number into a Date whose UTC
+  // components carry the naive wall clock the sheet displays. Reading it with
+  // local getters would shift it by the reader's offset — that is the bug this
+  // helper exists to prevent, so every assertion here reads UTC-built Dates.
+  it("returns the wall clock the sheet displays", () => {
+    expect(excelDateToWallClock(new Date(Date.UTC(2026, 0, 15, 9, 0)))).toBe(
+      "2026-01-15 09:00",
+    );
+  });
+
+  it("keeps a midnight cell on its own calendar day", () => {
+    // The regression that mattered most: a date-only cell must not roll back
+    // to the previous day for readers west of UTC.
+    expect(excelDateToWallClock(new Date(Date.UTC(2026, 0, 15, 0, 0)))).toBe(
+      "2026-01-15 00:00",
+    );
+  });
+
+  it("does not depend on the runtime timezone", () => {
+    // Same instant, same output — the helper never consults local getters.
+    const cell = new Date(Date.UTC(2026, 6, 4, 23, 30));
+    expect(excelDateToWallClock(cell)).toBe("2026-07-04 23:30");
+  });
+
+  it("pads single-digit months, days, hours and minutes", () => {
+    expect(excelDateToWallClock(new Date(Date.UTC(2026, 2, 5, 7, 5)))).toBe(
+      "2026-03-05 07:05",
+    );
+  });
+});
+
+describe("excelDateCell", () => {
+  it("builds a cell that Excel displays as the given wall clock", () => {
+    expect(excelDateCell(2026, 1, 15, 9, 0).toISOString()).toBe(
+      "2026-01-15T09:00:00.000Z",
+    );
+  });
+
+  it("round-trips through excelDateToWallClock", () => {
+    expect(excelDateToWallClock(excelDateCell(2026, 1, 15, 9, 0))).toBe(
+      "2026-01-15 09:00",
+    );
+  });
+
+  it("defaults the time to midnight", () => {
+    expect(excelDateToWallClock(excelDateCell(2026, 12, 31))).toBe(
+      "2026-12-31 00:00",
+    );
+  });
+});
+
+describe("Excel wall clock → CDMX instant", () => {
+  it("feeds parseMxDateTime a string it can interpret as CDMX time", () => {
+    const cell = new Date(Date.UTC(2026, 0, 15, 9, 0));
+    const parsed = parseMxDateTime(excelDateToWallClock(cell));
+
+    expect(parsed).toBeInstanceOf(Date);
+    // 09:00 in CDMX, whatever the offset that day happens to be.
+    expect(mxDateAndTime((parsed as Date).toISOString())).toEqual({
+      date: "2026-01-15",
+      time: "09:00",
+    });
   });
 });
 

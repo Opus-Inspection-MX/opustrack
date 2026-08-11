@@ -35,6 +35,42 @@ export function parseMxDateTime(value: string): Date | null {
   return m.isValid() ? m.toDate() : null;
 }
 
+/**
+ * Read an Excel date cell as the naive wall clock the sheet displays,
+ * formatted as `YYYY-MM-DD HH:mm` for `parseMxDateTime`.
+ *
+ * A date cell in .xlsx is a serial number with no timezone — it means exactly
+ * what the user sees. ExcelJS materializes that serial into a `Date` whose
+ * **UTC** components carry the wall clock, so the value must be read with
+ * `getUTC*`. Using local getters instead shifts every imported date by the
+ * reader's offset, which in CDMX turns a date-only cell (midnight) into the
+ * previous calendar day.
+ */
+export function excelDateToWallClock(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return (
+    `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}` +
+    ` ${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}`
+  );
+}
+
+/**
+ * Build a `Date` that ExcelJS writes as the given wall clock — the inverse of
+ * `excelDateToWallClock`. Use it for any date cell written into a template, so
+ * the sheet shows the intended time regardless of the generator's timezone.
+ *
+ * `month` is 1-based, matching how the date reads on the sheet.
+ */
+export function excelDateCell(
+  year: number,
+  month: number,
+  day: number,
+  hours = 0,
+  minutes = 0,
+): Date {
+  return new Date(Date.UTC(year, month - 1, day, hours, minutes));
+}
+
 /** Format a Date as `YYYY-MM-DD` in Mexico City time (for query ranges). */
 export function mxDateString(date: Date): string {
   return moment(date).tz(APP_TZ).format("YYYY-MM-DD");
