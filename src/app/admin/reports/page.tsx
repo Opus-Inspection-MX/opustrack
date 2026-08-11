@@ -1,6 +1,7 @@
 import {
   AlertTriangle,
   Bell,
+  CalendarRange,
   Car,
   CheckCircle,
   CheckCircle2,
@@ -15,6 +16,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireRouteAccess } from "@/lib/auth/auth";
 
 const reports = [
+  {
+    title: "Reporte de Incidentes",
+    description:
+      "Incidentes por programacion en un rango de fechas, en el formato de reporteria de la operacion, exportable a Excel.",
+    href: "/admin/reports/incident-program",
+    icon: CalendarRange,
+    color: "bg-cyan-500",
+  },
   {
     title: "Rendimiento de FSR",
     description:

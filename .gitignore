@@ -56,3 +56,10 @@ next-env.d.ts
 /initial_load/seed.ts
 /initial_load/users.txt
 /initial_load/vics.txt
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/e2e/.auth/

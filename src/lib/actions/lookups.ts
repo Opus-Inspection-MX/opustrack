@@ -15,6 +15,21 @@ export type StateFormData = {
   active?: boolean;
 };
 
+/**
+ * Lightweight State list for select/dropdown inputs and filters.
+ * Returns only { id, code, name } for all active States — no counts, no
+ * pagination. Use this instead of getStatesAdmin() when you just need options.
+ */
+export async function getStatesForSelect() {
+  await requirePermission("states:read");
+
+  return prisma.state.findMany({
+    where: { active: true },
+    select: { id: true, code: true, name: true },
+    orderBy: { name: "asc" },
+  });
+}
+
 export async function getStatesAdmin(params?: {
   page?: number;
   limit?: number;

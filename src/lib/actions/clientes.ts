@@ -29,15 +29,16 @@ type GetClientesParams = {
 
 /**
  * Lightweight Cliente list for select/dropdown inputs and filters.
- * Returns only { id, code, name } for all active Clientes — no counts, no
- * pagination. Use this instead of getClientes() when you just need options.
+ * Returns only { id, code, name, stateId } for all active Clientes — no counts,
+ * no pagination. Use this instead of getClientes() when you just need options.
+ * `stateId` lets callers narrow the options by plaza without a round-trip.
  */
 export async function getClientesForSelect() {
   await requirePermission("clientes:read");
 
   return prisma.cliente.findMany({
     where: { active: true },
-    select: { id: true, code: true, name: true },
+    select: { id: true, code: true, name: true, stateId: true },
     orderBy: { name: "asc" },
   });
 }
