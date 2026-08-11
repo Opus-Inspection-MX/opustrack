@@ -20,9 +20,12 @@ environments. `npm run test:e2e` does three things:
    enough to bury a genuine server error. The production server emits none of
    it, runs the suite in about half the time, and is what actually ships. Use
    `npm run test:e2e:dev` to swap back to the dev server while debugging.
-1. **Starts a throwaway PostgreSQL** (`docker-compose.e2e.yml`) — its own
-   container, port **5433**, and a tmpfs data directory, so every `up` begins
-   empty and `npm run e2e:db:down` leaves nothing behind.
+1. **Creates a throwaway PostgreSQL** (`docker-compose.e2e.yml`) — its own
+   compose project, port **5433**, tmpfs data directory. It is destroyed when
+   the run ends, **including when tests fail or you hit Ctrl-C**:
+   `scripts/e2e.mjs` tears it down in a `finally`, and chained npm scripts
+   could not guarantee that (`&&` short-circuits on failure). Before this, the
+   container survived between runs and test data piled up.
 2. **Migrates and seeds it** with the tracked template seed
    (`initial_load/seed.example.ts`), which is self-contained mock data covering
    all four roles.
@@ -63,7 +66,7 @@ and overrides it.
 
 To run with your **real data and accounts**, point `E2E_SEED_SCRIPT` at
 `initial_load/seed.ts` there. The real seed then populates the *ephemeral
-container*: real data, still thrown away on `e2e:db:down`.
+container*: real data, still thrown away on `e2e:down`.
 
 `db.setup.ts` creates any configured account that is missing. If the account
 already exists it is left alone — its password is never rewritten — so pointing
@@ -72,16 +75,18 @@ the suite at real accounts cannot modify anyone's credentials.
 ## Commands
 
 ```bash
-npm run test:e2e            # docker + seed + build + all browsers (~1.5 min)
-npm run test:e2e:dev        # dev server instead: no build, dev overlay, noisy
-npm run test:e2e:ui         # dev server, interactive UI mode
-npm run test:e2e:only       # skip docker/seed/build, reuse what is there
-npm run e2e:db:up           # start the container only
-npm run e2e:db:prepare      # migrate + seed it
-npm run e2e:db:down         # stop and delete it (volumes included)
+npm run test:e2e            # create db → seed → build → test → destroy db
+npm run test:e2e:dev        # same, dev server instead of a build
+npm run test:e2e:ui         # same, interactive UI mode
 
-npx playwright test --project=chromium   # one browser (after a build)
+# Escape hatch for iterating on a single spec. Does NOT create or destroy
+# anything — bring the database up yourself first.
+npm run e2e:up
+npm run test:e2e:only -- --project=chromium e2e/incident-lifecycle.spec.ts
+npm run e2e:down
 ```
+
+Arguments are forwarded, so `npm run test:e2e -- --project=chromium` works.
 
 `Access denied for role X to /y` lines in the output are **expected**: they are
 the middleware's own security warning, emitted once per RF-106 denial test.

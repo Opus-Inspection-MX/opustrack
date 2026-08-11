@@ -1,0 +1,62 @@
+# Local development stack: PostgreSQL + the Next.js server.
+#
+# `docker compose up` is inherently "create if it does not exist", so this is
+# the whole setup — no manual steps. Data lives in a named volume, not in a
+# bind mount inside the repository.
+#
+# The end-to-end suite has its own throwaway stack in docker-compose.e2e.yml
+# and never touches this one.
+name: opustrack
+
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: opustrack-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: opustrack
+    ports:
+      # Published so host tooling (prisma studio, vitest, psql) can reach it.
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - opustrack-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d opustrack"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  app:
+    build:
+      context: .
+      target: dev
+    container_name: opustrack-app
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - .env.development
+    environment:
+      # Inside the compose network Postgres answers to `db`, not `localhost`.
+      # .env.development keeps `localhost` because host tooling connects from
+      # outside; this override is what the container actually uses.
+      DATABASE_URL: "postgresql://postgres:postgres@db:5432/opustrack?schema=public"
+      HOSTNAME: "0.0.0.0"
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    volumes:
+      - .:/app
+      # Anonymous volume: keeps the image's Linux node_modules from being
+      # shadowed by the host's macOS build (bcrypt and the Prisma engines are
+      # native and not portable between the two).
+      - /app/node_modules
+      # Next's build cache — otherwise it is rebuilt on every container start.
+      - opustrack-app-next:/app/.next
+      # The `filesystem` storage provider writes here; survives restarts.
+      - opustrack-app-uploads:/app/public/uploads
+
+volumes:
+  opustrack-db-data:
+  opustrack-app-next:
+  opustrack-app-uploads:

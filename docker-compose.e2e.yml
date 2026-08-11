@@ -6,7 +6,13 @@
 #     and nothing survives a `down`.
 #
 # The credentials below are not secrets: they only ever reach this ephemeral
-# container. Real credentials belong in `.env.test.local` (gitignored).
+# container. Real credentials belong in `config/e2e.local.env` (gitignored).
+#
+# Its own project name: both compose files live in the same directory, so
+# without this they would share the default project `opustrack` — one network,
+# and a teardown here reaching into the development stack.
+name: opustrack-e2e
+
 services:
   e2e-db:
     image: postgres:17-alpine

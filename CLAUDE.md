@@ -10,10 +10,16 @@ OpusTrack is a professional incident management and work order tracking system f
 
 ### Running the Application
 ```bash
-npm run dev          # Start development server with Turbopack
-npm run build        # Build for production with Turbopack
-npm start            # Start production server
+npm run dev          # Full stack in Docker: database + Next server (hot reload)
+npm run dev:host     # Next on the host, database still in Docker
+npm run stack:down   # Stop the stack
+npm run build        # Production build — this is what Vercel runs
+npm start            # Production server
 ```
+
+The local stack is defined in `docker-compose.yml`: a `opustrack-db` Postgres
+container and an `opustrack-app` container built from `Dockerfile`. Uploads use
+`FILE_STORAGE_PROVIDER="filesystem"` and live in a named volume.
 
 ### Code Quality
 ```bash
@@ -23,13 +29,23 @@ npm run format       # Format code with Biome (writes changes)
 
 ### Database Operations
 ```bash
-npm run db:migrate   # Run Prisma migrations (also generates client)
+npm run db:up        # Start the local Postgres container (creates it if missing)
+npm run db:init      # Migrate, then seed ONLY if the database is empty
+npm run db:migrate   # Create a new migration
 npm run db:studio    # Open Prisma Studio (database GUI)
-npm run db:reset     # Reset database and re-run migrations
-npm run db:seed      # Seed database with initial data
+npm run db:reset     # Drop and rebuild from scratch
 ```
 
+**Safety**: every `db:*` command refuses to run against a non-local host
+(`scripts/lib/db-guard.ts`). Production lives on Neon and is managed from
+Vercel, never from these scripts.
+
 **Important**: After schema changes, always run `npm run db:migrate` to create a migration and regenerate the Prisma client.
+
+**Environments**: `.env.development` (local container) · `.env.production`
+(Neon, for local production builds only) · `config/e2e.env` (throwaway e2e
+container) · Vercel Dashboard (the real deployment). `scripts/with-env.mjs`
+loads the right profile for each command.
 
 The seed script (`prisma/seed.ts`) creates:
 - 1 VIC (Vehicle Inspection Center) in CDMX

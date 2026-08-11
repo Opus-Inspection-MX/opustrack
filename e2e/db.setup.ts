@@ -17,7 +17,7 @@ import { assertEphemeralDatabase } from "./fixtures/ephemeral-db";
  *   rewritten, so running against a container seeded with real personnel
  *   cannot modify anyone's credentials.
  *
- * Requires the role and status catalogs, created by `npm run e2e:db:prepare`.
+ * Requires the role and status catalogs, created by `npm run e2e:up`.
  */
 const prisma = new PrismaClient();
 
@@ -39,9 +39,7 @@ setup("provision e2e accounts", async () => {
   });
 
   if (!activeStatus) {
-    throw new Error(
-      "UserStatus 'ACTIVO' no existe. Ejecuta `npm run e2e:db:prepare`.",
-    );
+    throw new Error("UserStatus 'ACTIVO' no existe. Ejecuta `npm run e2e:up`.");
   }
 
   // Any real Cliente works for the roles that need one; the seed always
@@ -62,7 +60,7 @@ setup("provision e2e accounts", async () => {
 
     if (!roleRecord) {
       throw new Error(
-        `Rol '${roleName}' no existe. Ejecuta \`npm run e2e:db:prepare\`.`,
+        `Rol '${roleName}' no existe. Ejecuta \`npm run e2e:up\`.`,
       );
     }
 
@@ -123,7 +121,7 @@ async function ensureCliente(
   if (!fallbackClienteId) {
     throw new Error(
       `No hay ningún Cliente activo para asignar al rol ${roleName}. ` +
-        "Ejecuta `npm run e2e:db:prepare`.",
+        "Ejecuta `npm run e2e:up`.",
     );
   }
 

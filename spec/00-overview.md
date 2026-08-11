@@ -178,6 +178,10 @@ SDD futuros. Los hallazgos ya resueltos se retiran de esta lista al corregirse.
 - `/uploads` quedaba detrás del middleware: con el proveedor `filesystem` ningún adjunto se
   renderizaba (next/image recibía el redirect a /login). Ahora es ruta pública, igual que los
   archivos de Vercel Blob.
+- La suite e2e dejaba su contenedor vivo entre corridas: los datos de prueba se acumulaban y,
+  antes del guard, una corrida contra `.env.development` (que apuntaba a Neon) dejó 4 cuentas
+  `@e2e.opustrack.local` en la base real — ya eliminadas. Ahora `scripts/e2e.mjs` crea la base
+  al empezar y la destruye en un `finally`, pase lo que pase.
 - Suite e2e rota: credenciales del seed mock anterior + `reuseExistingServer` sobre el puerto
   3000. Ahora usa cuentas propias (`e2e/db.setup.ts`), su propio puerto (3100) y una base
   efímera en Docker cuya invariante verifica `assertEphemeralDatabase()`.

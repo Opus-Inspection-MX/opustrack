@@ -101,14 +101,17 @@ export default defineConfig({
     // under test always talks to the disposable container.
     command:
       process.env.E2E_SERVER === "dev"
-        ? `npm run dev:e2e -- --port ${PORT}`
-        : `npm run start:e2e -- --port ${PORT}`,
+        ? `npm run e2e:dev -- --port ${PORT}`
+        : `npm run e2e:start -- --port ${PORT}`,
     url: BASE_URL,
     // NextAuth builds its callback URLs from NEXTAUTH_URL; without this the
     // login POST would redirect to port 3000 and the session cookie would be
     // set on the wrong origin.
     env: { NEXTAUTH_URL: BASE_URL },
-    reuseExistingServer: !process.env.CI,
+    // Never reuse: each run gets a freshly built server against a freshly
+    // created database. Reusing once attached the suite to an unrelated
+    // container that happened to hold the port.
+    reuseExistingServer: false,
     timeout: 120000,
   },
 });
