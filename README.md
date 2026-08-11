@@ -132,6 +132,12 @@ npm run test:e2e:only -- --project=chromium e2e/incident-lifecycle.spec.ts
 npm run e2e:down
 ```
 
+### Integración continua
+
+`.github/workflows/ci.yml` corre `check` y las pruebas unitarias en cada push y
+en cada pull request. No corre los e2e: son pesados y se ejecutan en local con
+`npm run test:all`. No necesita secretos.
+
 ---
 
 ## Comandos

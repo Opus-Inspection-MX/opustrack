@@ -1,0 +1,47 @@
+# Verificación en cada push: formato, tipos y pruebas unitarias.
+#
+# Deliberadamente NO corre los e2e: son pesados (185 pruebas en 5 navegadores,
+# más Docker y un build) y se ejecutan en local con `npm run test:all`.
+#
+# No requiere ningún secreto. Las pruebas unitarias mockean el cliente de
+# Prisma, así que funcionan sin DATABASE_URL ni archivos .env — que además
+# están en .gitignore y no existen en el runner.
+#
+# El despliegue no vive aquí: lo hace la integración de Vercel con GitHub
+# directamente sobre el push.
+name: CI
+
+on:
+  push:
+  pull_request:
+
+# Un push nuevo cancela la verificación anterior de la misma rama, para no
+# gastar minutos en commits que ya quedaron atrás.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Formato, tipos y unitarias
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # `npm ci` dispara postinstall → prisma generate, necesario para que
+      # tsc resuelva los tipos de @prisma/client.
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Biome + TypeScript
+        run: npm run check
+
+      - name: Pruebas unitarias
+        run: npm run test:unit

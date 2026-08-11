@@ -21,7 +21,8 @@ import { createInterface } from "node:readline/promises";
 import { loadProfile } from "./lib/env-profiles.mjs";
 
 const ACTIONS = {
-  status: "Muestra el estado de migraciones y el conteo de filas. Solo lectura.",
+  status:
+    "Muestra el estado de migraciones y el conteo de filas. Solo lectura.",
   migrate: "Aplica las migraciones pendientes (prisma migrate deploy).",
   seed: "Ejecuta el seed. NO borra, pero puede duplicar o sobrescribir datos.",
   reset: "BORRA TODA LA BASE, reaplica migraciones y siembra desde cero.",
@@ -132,13 +133,19 @@ async function main() {
       run("npx", ["prisma", "migrate", "deploy"]);
       break;
     case "seed":
-      run("npx", ["tsx", process.env.PROD_SEED_SCRIPT?.trim() || "initial_load/seed.ts"]);
+      run("npx", [
+        "tsx",
+        process.env.PROD_SEED_SCRIPT?.trim() || "initial_load/seed.ts",
+      ]);
       break;
     case "reset":
       // --force skips Prisma's own prompt; ours already ran, and --skip-seed
       // keeps the seed an explicit second step.
       run("npx", ["prisma", "migrate", "reset", "--force", "--skip-seed"]);
-      run("npx", ["tsx", process.env.PROD_SEED_SCRIPT?.trim() || "initial_load/seed.ts"]);
+      run("npx", [
+        "tsx",
+        process.env.PROD_SEED_SCRIPT?.trim() || "initial_load/seed.ts",
+      ]);
       break;
     case "studio":
       run("npx", ["prisma", "studio"]);
