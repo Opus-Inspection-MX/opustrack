@@ -23,9 +23,11 @@ function parseIdParam(value: string | null): number | undefined {
 }
 
 /**
- * Plaza name used to label the download. Read directly rather than through
- * `getStatesForSelect` so exporting does not additionally require
- * `states:read` — the caller is already gated on `reports:export`.
+ * Plaza name used to label the download, only when a single plaza is in
+ * scope (a multi-plaza download has no single name to show). Read directly
+ * rather than through `getStatesForSelect` so exporting does not
+ * additionally require `states:read` — the caller is already gated on
+ * `reports:export`.
  */
 async function getStateNameForFileName(
   stateId: number,
@@ -37,10 +39,18 @@ async function getStateNameForFileName(
   return state?.name ?? null;
 }
 
+function parseIdListParam(value: string | null): string[] | undefined {
+  const ids = value
+    ?.split(",")
+    .map((id) => id.trim())
+    .filter(Boolean);
+  return ids && ids.length > 0 ? ids : undefined;
+}
+
 /**
  * GET /api/reports/incident-program
  *   ?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD
- *   [&scheduleIds=a,b,c][&stateId=...][&clienteId=...]
+ *   [&scheduleIds=a,b,c][&stateIds=1,2][&clienteIds=a,b]
  *
  * Streams the incident workbook for the requested range, using the operation's
  * pre-existing Excel layout.
@@ -74,24 +84,23 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const clienteId = searchParams.get("clienteId") || undefined;
-  const stateId = parseIdParam(searchParams.get("stateId"));
-  const scheduleIds =
-    searchParams
-      .get("scheduleIds")
-      ?.split(",")
-      .map((id) => id.trim())
-      .filter(Boolean) ?? undefined;
+  const clienteIds = parseIdListParam(searchParams.get("clienteIds"));
+  const stateIds = parseIdListParam(searchParams.get("stateIds"))
+    ?.map((id) => parseIdParam(id))
+    .filter((id): id is number => id !== undefined);
+  const scheduleIds = parseIdListParam(searchParams.get("scheduleIds"));
 
   const [report, plaza] = await Promise.all([
     getIncidentProgramReport({
       startDate,
       endDate,
       scheduleIds,
-      stateId,
-      clienteId,
+      stateIds,
+      clienteIds,
     }),
-    stateId ? getStateNameForFileName(stateId) : Promise.resolve(null),
+    stateIds?.length === 1
+      ? getStateNameForFileName(stateIds[0])
+      : Promise.resolve(null),
   ]);
 
   const buffer = await renderIncidentProgramWorkbook(report);

@@ -35,9 +35,9 @@ export interface IncidentProgramFilters {
    */
   scheduleIds?: string[];
   /** Optional plaza filter — the source workbook is issued per plaza. */
-  stateId?: number;
-  /** Optional cliente (centro) filter. Narrower than `stateId`. */
-  clienteId?: string;
+  stateIds?: number[];
+  /** Optional cliente (centro) filter. Narrower than `stateIds`. */
+  clienteIds?: string[];
 }
 
 /**
@@ -80,7 +80,7 @@ function assigneeNames(assignees: { user: { name: string } }[]): string[] {
 function incidentWindowWhere(
   from: Date,
   to: Date,
-  filters: Pick<IncidentProgramFilters, "stateId" | "clienteId">,
+  filters: Pick<IncidentProgramFilters, "stateIds" | "clienteIds">,
   scope: ReportScope,
 ): Prisma.IncidentWhereInput {
   return {
@@ -88,9 +88,13 @@ function incidentWindowWhere(
     // Tenant scope first — the user-supplied filters below can only narrow it,
     // never widen it past the caller's own Clientes.
     ...incidentScopeWhere(scope),
-    ...(filters.clienteId ? { clienteId: filters.clienteId } : {}),
-    // A plaza filter constrains the cliente, so it composes with clienteId.
-    ...(filters.stateId ? { cliente: { stateId: filters.stateId } } : {}),
+    ...(filters.clienteIds?.length
+      ? { clienteId: { in: filters.clienteIds } }
+      : {}),
+    // A plaza filter constrains the cliente, so it composes with clienteIds.
+    ...(filters.stateIds?.length
+      ? { cliente: { stateId: { in: filters.stateIds } } }
+      : {}),
     OR: [
       {
         assignments: {

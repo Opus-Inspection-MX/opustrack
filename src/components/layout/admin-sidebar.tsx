@@ -105,6 +105,11 @@ const menuSections = [
       },
       { title: "Incidentes", url: "/admin/reports/incidents", icon: PieChart },
       {
+        title: "Reporte de Incidentes",
+        url: "/admin/reports/incident-program",
+        icon: FileText,
+      },
+      {
         title: "Viajes de Vehículos",
         url: "/admin/reports/vehicle-trips",
         icon: Car,

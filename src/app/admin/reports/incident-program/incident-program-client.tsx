@@ -8,11 +8,11 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
-  SearchableSelect,
-  type SearchableSelectOption,
-} from "@/components/ui/searchable-select";
+  MultiSelect,
+  type MultiSelectOption,
+} from "@/components/ui/multi-select";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   getIncidentProgramReport,
   getScheduleOptions,
@@ -47,9 +47,6 @@ interface Props {
   clientes: ClienteOption[];
   states: StateOption[];
 }
-
-const ALL_STATES = "__all_states__";
-const ALL_CLIENTES = "__all__";
 
 /** Quick range presets, expressed against the current CDMX date. */
 const PRESETS = [
@@ -160,8 +157,9 @@ export function IncidentProgramClient({
   const [schedules, setSchedules] = useState(initialSchedules);
   const [startDate, setStartDate] = useState(initialStartDate);
   const [endDate, setEndDate] = useState(initialEndDate);
-  const [stateId, setStateId] = useState(ALL_STATES);
-  const [clienteId, setClienteId] = useState(ALL_CLIENTES);
+  // Empty array = no restriction ("todos los estados" / "todos los centros").
+  const [stateIds, setStateIds] = useState<string[]>([]);
+  const [clienteIds, setClienteIds] = useState<string[]>([]);
   // Empty set = no restriction ("todas las programaciones").
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isDownloading, setIsDownloading] = useState(false);
@@ -171,31 +169,30 @@ export function IncidentProgramClient({
   const allSelected =
     schedules.length > 0 && selectedIds.size === schedules.length;
 
-  const stateOptions: SearchableSelectOption[] = [
-    { value: ALL_STATES, label: "Todos los estados" },
-    ...states.map((s) => ({ value: String(s.id), label: s.name })),
-  ];
+  const stateOptions: MultiSelectOption[] = states.map((s) => ({
+    value: String(s.id),
+    label: s.name,
+  }));
 
-  // The centro list follows the selected plaza, so the operator only sees the
-  // centros that can appear in this report.
-  const clienteOptions: SearchableSelectOption[] = [
-    { value: ALL_CLIENTES, label: "Todos los centros" },
-    ...clientes
-      .filter((c) => stateId === ALL_STATES || String(c.stateId) === stateId)
-      .map((c) => ({ value: c.id, label: `${c.code} — ${c.name}` })),
-  ];
+  // The centro list follows the selected plazas, so the operator only sees
+  // the centros that can appear in this report.
+  const clienteOptions: MultiSelectOption[] = clientes
+    .filter(
+      (c) => stateIds.length === 0 || stateIds.includes(String(c.stateId)),
+    )
+    .map((c) => ({ value: c.id, label: `${c.code} — ${c.name}` }));
 
   const buildFilters = (next: {
     startDate: string;
     endDate: string;
-    stateId: string;
-    clienteId: string;
+    stateIds: string[];
+    clienteIds: string[];
     selectedIds: Set<string>;
   }) => ({
     startDate: next.startDate,
     endDate: next.endDate,
-    stateId: next.stateId === ALL_STATES ? undefined : Number(next.stateId),
-    clienteId: next.clienteId === ALL_CLIENTES ? undefined : next.clienteId,
+    stateIds: next.stateIds.length > 0 ? next.stateIds.map(Number) : undefined,
+    clienteIds: next.clienteIds.length > 0 ? next.clienteIds : undefined,
     scheduleIds: next.selectedIds.size > 0 ? [...next.selectedIds] : undefined,
   });
 
@@ -227,8 +224,8 @@ export function IncidentProgramClient({
           getScheduleOptions({
             startDate: filters.startDate,
             endDate: filters.endDate,
-            stateId: filters.stateId,
-            clienteId: filters.clienteId,
+            stateIds: filters.stateIds,
+            clienteIds: filters.clienteIds,
           }),
           getIncidentProgramReport({ ...filters, scheduleIds: undefined }),
         ]);
@@ -244,8 +241,8 @@ export function IncidentProgramClient({
   const currentScope = {
     startDate,
     endDate,
-    stateId,
-    clienteId,
+    stateIds,
+    clienteIds,
     selectedIds,
   };
 
@@ -272,20 +269,28 @@ export function IncidentProgramClient({
     });
   };
 
-  const handleStateChange = (value: string) => {
-    setStateId(value);
-    // A centro from another plaza would contradict the new filter — reset it.
-    setClienteId(ALL_CLIENTES);
+  const handleStateChange = (value: string[]) => {
+    setStateIds(value);
+    // Centros from a plaza no longer selected would contradict the new
+    // filter — drop them, keeping any that still belong to `value`.
+    const validClienteIds =
+      value.length === 0
+        ? clienteIds
+        : clienteIds.filter((id) => {
+            const cliente = clientes.find((c) => c.id === id);
+            return cliente && value.includes(String(cliente.stateId));
+          });
+    setClienteIds(validClienteIds);
     reloadScope({
       ...currentScope,
-      stateId: value,
-      clienteId: ALL_CLIENTES,
+      stateIds: value,
+      clienteIds: validClienteIds,
     });
   };
 
-  const handleClienteChange = (value: string) => {
-    setClienteId(value);
-    reloadScope({ ...currentScope, clienteId: value });
+  const handleClienteChange = (value: string[]) => {
+    setClienteIds(value);
+    reloadScope({ ...currentScope, clienteIds: value });
   };
 
   const toggleSchedule = (id: string) => {
@@ -309,8 +314,10 @@ export function IncidentProgramClient({
     setError(null);
     try {
       const params = new URLSearchParams({ startDate, endDate });
-      if (stateId !== ALL_STATES) params.set("stateId", stateId);
-      if (clienteId !== ALL_CLIENTES) params.set("clienteId", clienteId);
+      if (stateIds.length > 0) params.set("stateIds", stateIds.join(","));
+      if (clienteIds.length > 0) {
+        params.set("clienteIds", clienteIds.join(","));
+      }
       if (selectedIds.size > 0) {
         params.set("scheduleIds", [...selectedIds].join(","));
       }
@@ -407,9 +414,9 @@ export function IncidentProgramClient({
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="program-state">Estado</Label>
-          <SearchableSelect
+          <MultiSelect
             options={stateOptions}
-            value={stateId}
+            value={stateIds}
             onValueChange={handleStateChange}
             placeholder="Todos los estados"
             searchPlaceholder="Buscar estado..."
@@ -419,9 +426,9 @@ export function IncidentProgramClient({
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="program-cliente">Centro</Label>
-          <SearchableSelect
+          <MultiSelect
             options={clienteOptions}
-            value={clienteId}
+            value={clienteIds}
             onValueChange={handleClienteChange}
             placeholder="Todos los centros"
             searchPlaceholder="Buscar centro..."
