@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
 import { deletePart } from "@/lib/actions/parts";
+import { isFailure } from "@/lib/actions/result";
 
 type Part = {
   id: string;
@@ -46,10 +47,17 @@ export function PartsTable({ parts }: { parts: Part[] }) {
 
     setDeleting(id);
     try {
-      await deletePart(id);
+      const result = await deletePart(id);
+
+      if (isFailure(result)) {
+        toast.error(result.error);
+        return;
+      }
       router.refresh();
     } catch (error) {
+      console.error("deletePart failed:", error);
       toast.error("Error al eliminar parte");
+    } finally {
       setDeleting(null);
     }
   };

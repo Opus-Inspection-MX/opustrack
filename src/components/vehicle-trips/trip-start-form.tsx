@@ -1,6 +1,5 @@
 "use client";
 
-import { isFailure } from "@/lib/actions/result";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -17,6 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { isFailure } from "@/lib/actions/result";
 import {
   getAvailableVehicles,
   getMyAssignmentsForTrips,

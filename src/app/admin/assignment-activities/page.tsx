@@ -1,6 +1,5 @@
 "use client";
 
-import { isFailure } from "@/lib/actions/result";
 import { Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -12,6 +11,7 @@ import {
   deleteAssignmentActivity,
   getAllAssignmentActivities,
 } from "@/lib/actions/assignment-activities";
+import { isFailure } from "@/lib/actions/result";
 
 interface AssignmentActivityApiResponse {
   id: string;

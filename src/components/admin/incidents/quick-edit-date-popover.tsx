@@ -1,6 +1,5 @@
 "use client";
 
-import { isFailure } from "@/lib/actions/result";
 import { CalendarClock, Loader2, Save } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -12,6 +11,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { updateIncidentScheduledDate } from "@/lib/actions/incidents";
+import { isFailure } from "@/lib/actions/result";
 import { localWallTimeToUTC, mxDateAndTime } from "@/lib/utils/datetime";
 
 interface QuickEditDatePopoverProps {

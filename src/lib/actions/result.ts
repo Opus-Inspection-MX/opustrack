@@ -16,7 +16,7 @@
 
 export type ActionFailure = { success: false; error: string };
 
-export type ActionResult<T extends object = Record<string, never>> =
+export type ActionResult<T extends object = object> =
   | ({ success: true } & T)
   | ActionFailure;
 

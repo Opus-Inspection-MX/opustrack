@@ -1,6 +1,5 @@
 "use client";
 
-import { isFailure } from "@/lib/actions/result";
 import { ArrowLeft, Edit, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { use, useEffect, useState } from "react";
@@ -8,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/hooks/use-toast";
+import { isFailure } from "@/lib/actions/result";
 import { deleteWorkPart, getWorkPartById } from "@/lib/actions/work-parts";
 
 interface Part {

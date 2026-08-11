@@ -156,14 +156,8 @@ SDD futuros. Los hallazgos ya resueltos se retiran de esta lista al corregirse.
 **Consistencia funcional**
 - `/admin/programacion` es Client Component que consume API REST, excepción al patrón
   "Server Components + Server Actions" declarado en CLAUDE.md (07).
-- Las reglas de negocio que el usuario debe leer no pueden **lanzarse** desde un Server Action:
-  un build de producción de Next reemplaza el mensaje por "An error occurred in the Server
-  Components render". `tracking.ts` ya las **devuelve** (`{ success: false, error }`); el resto de
-  las acciones sigue lanzando `Error` y esos mensajes no llegan al usuario en producción.
 - `assignFSRToIncident()` (RF-514) no tiene consumidor: la asignación rápida real de
   `/admin/tracking` pasa por `createAssignment()` y `updateAssignmentAssignees()`.
-- Los errores de `/admin/tracking` se comunican con `alert()`, no con el sistema de toasts del
-  resto de la app.
 - La página `/unauthorized` no expone su título como heading: `CardTitle` (shadcn) renderiza
   un `<div>`, así que no hay landmark de encabezado para lectores de pantalla. Aplica a toda
   pantalla que use `CardTitle` como título principal.
@@ -201,6 +195,18 @@ SDD futuros. Los hallazgos ya resueltos se retiran de esta lista al corregirse.
   sus `try/catch` reemplazaban toda regla de negocio por un mensaje genérico.
 - Programación y seguimiento sin cobertura: `e2e/programacion.spec.ts` y `e2e/tracking.spec.ts`
   (proyecto `flows`), más los unitarios de `schedules`, `tracking` y `api/schedules/incidents`.
+- **Ninguna regla de negocio llegaba al usuario en producción.** Un build de Next reemplaza el
+  mensaje de todo lo que un Server Action *lanza*, así que en Vercel un borrado bloqueado no
+  mostraba nada y "El técnico X no está disponible" salía como error genérico. Ahora las reglas se
+  **devuelven** (`rejected()`) o se **levantan** como `BusinessRuleError` (`businessRule()`) cuando
+  nacen en un guard compartido o dentro de una transacción — donde `return` commitearía — y
+  `guarded()` las convierte en valor en la frontera de la acción. Ver `src/lib/actions/result.ts`.
+  El contrato lo vigila `actions-contract.test.ts` y lo prueba `e2e/errors.spec.ts` contra
+  `next start`, que es el único lugar donde el fallo era visible.
+- Los 31 `alert()` del sistema: ahora hay toasts propios, sin dependencias nuevas
+  (`src/hooks/use-toast.ts` + `src/components/ui/toast(er).tsx`, montados en el layout raíz).
+- `CatalogTable` invocaba la acción de cada fila sin `await`: un borrado rechazado se convertía en
+  una promesa sin manejar y la UI no mostraba nada.
 
 ---
 

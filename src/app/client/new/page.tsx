@@ -8,8 +8,6 @@ import {
   Send,
 } from "lucide-react";
 import Link from "next/link";
-import { toast } from "@/hooks/use-toast";
-import { isFailure } from "@/lib/actions/result";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -31,10 +29,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { toast } from "@/hooks/use-toast";
 import { getEquipmentsByLineId } from "@/lib/actions/equipments";
 import { createIncidentAsClient } from "@/lib/actions/incidents";
 import { getLinesByClienteId } from "@/lib/actions/lines";
 import { getIncidentTypes } from "@/lib/actions/lookups";
+import { isFailure } from "@/lib/actions/result";
 import { getMyProfile } from "@/lib/actions/users";
 
 interface IncidentType {

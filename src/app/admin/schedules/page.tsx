@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/hooks/use-toast";
+import { isFailure } from "@/lib/actions/result";
 import { deleteSchedule, getSchedules } from "@/lib/actions/schedules";
 
 interface Cliente {
@@ -185,7 +186,12 @@ export default function SchedulesPage() {
   const handleDelete = async (id: string) => {
     if (confirm("¿Estás seguro de que deseas eliminar esta programación?")) {
       try {
-        await deleteSchedule(id);
+        const result = await deleteSchedule(id);
+
+        if (isFailure(result)) {
+          toast.error(result.error);
+          return;
+        }
         await fetchSchedulesData();
       } catch (error) {
         console.error("Error deleting schedule:", error);

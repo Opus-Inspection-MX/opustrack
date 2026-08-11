@@ -1,6 +1,5 @@
 "use client";
 
-import { isFailure } from "@/lib/actions/result";
 import { ArrowLeft, Package, Plus, Trash2, Wrench } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -18,6 +17,7 @@ import {
   getIncidentFormOptions,
 } from "@/lib/actions/incidents";
 import { getPartsForSelect } from "@/lib/actions/parts";
+import { isFailure } from "@/lib/actions/result";
 import { deleteWorkPart, getWorkParts } from "@/lib/actions/work-parts";
 
 type Incident = Awaited<ReturnType<typeof getIncidentById>>;

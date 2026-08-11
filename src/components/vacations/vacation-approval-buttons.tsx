@@ -1,8 +1,8 @@
 "use client";
 
-import { isFailure } from "@/lib/actions/result";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { isFailure } from "@/lib/actions/result";
 import { approveVacation, rejectVacation } from "@/lib/actions/vacations";
 
 type VacationApprovalButtonsProps = {

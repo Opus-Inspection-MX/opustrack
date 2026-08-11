@@ -325,6 +325,66 @@ export async function createIncident(formData: FormData) {
 }
 ```
 
+### CRITICAL: Business rules are RETURNED, never thrown
+
+A **production** build of Next replaces the message of anything a Server Action
+throws with *"An error occurred in the Server Components render. The specific
+message is omitted in production builds…"*. A thrown rule reaches the UI under
+`next dev` and silently disappears under `next start` — which is what ships.
+
+Use `src/lib/actions/result.ts`:
+
+```typescript
+import { businessRule, guarded, ok, rejected } from "@/lib/actions/result";
+
+// Straight-line guard, before any write → return it.
+export async function deleteState(id: number) {
+  await requirePermission("states:delete");
+
+  const count = await prisma.cliente.count({ where: { stateId: id, active: true } });
+  if (count > 0) {
+    return rejected(`No se puede eliminar: ${count} Cliente(s) pertenecen a este estado.`);
+  }
+  // ...
+}
+
+// Rule raised from a shared guard or INSIDE a transaction → businessRule + guarded.
+// Returning from a $transaction callback COMMITS it; only throwing rolls back.
+export async function createWorkPart(data: unknown) {
+  await requirePermission("assignments:update");   // stays outside: auth must still throw
+
+  return guarded(async () => {
+    await assertAssignmentEditable(id);             // helper calls businessRule(...)
+    const workPart = await prisma.$transaction(async (tx) => {
+      if (noStock) businessRule(`Stock insuficiente. Disponible: ${part.stock}`);
+      // ...
+    });
+    return { data: workPart };                      // `guarded` adds success: true
+  });
+}
+```
+
+At the call site:
+
+```typescript
+const result = await deleteState(id);
+if (isFailure(result)) {
+  toast.error(result.error);   // or setError(result.error) where the form shows it inline
+  return;
+}
+```
+
+**What still throws**: seed invariants (`Estado 'PENDIENTE' no encontrado`),
+`requirePermission` failures, `redirect()`, and infrastructure wrappers. Those
+are defects or authentication, not decisions the user can revisit.
+
+The rule of thumb, enforced by `src/lib/actions/actions-contract.test.ts`:
+**a message written in Spanish is for the operator and must be returned; an
+English one describes a defect and keeps throwing.**
+
+User-facing messages are shown with the in-house toast
+(`import { toast } from "@/hooks/use-toast"`). Never `alert()`.
+
 #### 2. API Routes + Client Components (for high interactivity)
 
 **Use for**: Real-time updates, complex client interactions, external integrations

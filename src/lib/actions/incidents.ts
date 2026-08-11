@@ -26,7 +26,7 @@ import {
   IncidentCreateSchema,
   parseAssigneeIds,
 } from "@/lib/validations/incidents";
-import { businessRule, guarded } from "./result";
+import { type ActionResult, businessRule, guarded } from "./result";
 
 // Keep legacy type for backward compatibility with existing forms
 export type IncidentFormData = IncidentCreateInput;
@@ -527,7 +527,7 @@ export async function updateIncident(id: number, data: IncidentFormData) {
 export async function updateIncidentFsrs(
   incidentId: number,
   fsrIds: string[],
-): Promise<{ success: true }> {
+): Promise<ActionResult> {
   const user = await requirePermission("incidents:update");
 
   return guarded(async () => {
@@ -581,7 +581,7 @@ export async function updateIncidentFsrs(
 export async function updateIncidentScheduledDate(
   incidentId: number,
   scheduledAtISO: string,
-): Promise<{ success: true }> {
+): Promise<ActionResult> {
   const user = await requirePermission("incidents:update");
 
   return guarded(async () => {
@@ -636,7 +636,7 @@ export async function updateIncidentScheduledDate(
 export async function updateIncidentType(
   incidentId: number,
   typeId: number,
-): Promise<{ success: true }> {
+): Promise<ActionResult> {
   const user = await requirePermission("incidents:update");
 
   return guarded(async () => {
@@ -677,39 +677,41 @@ export async function updateIncidentType(
 export async function deleteIncident(id: number) {
   const user = await requirePermission("incidents:delete");
 
-  // Verify access before delete
-  const incident = await prisma.incident.findUnique({
-    where: { id },
-    select: { clienteId: true },
-  });
-
-  if (!incident) {
-    throw new Error("Incident not found");
-  }
-
-  assertClienteAccess(user, incident.clienteId);
-
-  // Use transaction to prevent race conditions when checking for children
-  await prisma.$transaction(async (tx) => {
-    // Check for active assignments
-    const activeAssignments = await tx.assignment.count({
-      where: { incidentId: id, active: true },
+  return guarded(async () => {
+    // Verify access before delete
+    const incident = await prisma.incident.findUnique({
+      where: { id },
+      select: { clienteId: true },
     });
 
-    if (activeAssignments > 0) {
-      throw new Error(
-        `No se puede eliminar el incidente. Tiene ${activeAssignments} asignación(es) activa(s).`,
-      );
+    if (!incident) {
+      throw new Error("Incident not found");
     }
 
-    await tx.incident.update({
-      where: { id },
-      data: { active: false },
-    });
-  });
+    assertClienteAccess(user, incident.clienteId);
 
-  revalidatePath("/admin/incidents");
-  redirect("/admin/incidents");
+    // Use transaction to prevent race conditions when checking for children
+    await prisma.$transaction(async (tx) => {
+      // Check for active assignments
+      const activeAssignments = await tx.assignment.count({
+        where: { incidentId: id, active: true },
+      });
+
+      if (activeAssignments > 0) {
+        businessRule(
+          `No se puede eliminar el incidente. Tiene ${activeAssignments} asignación(es) activa(s).`,
+        );
+      }
+
+      await tx.incident.update({
+        where: { id },
+        data: { active: false },
+      });
+    });
+
+    revalidatePath("/admin/incidents");
+    redirect("/admin/incidents");
+  });
 }
 
 /**
@@ -744,27 +746,29 @@ export async function refreshIncidentStatus(id: number) {
 export async function closeIncident(id: number) {
   const user = await requirePermission("incidents:close");
 
-  const incident = await prisma.incident.findUnique({
-    where: { id },
-    select: { clienteId: true },
+  return guarded(async () => {
+    const incident = await prisma.incident.findUnique({
+      where: { id },
+      select: { clienteId: true },
+    });
+    if (!incident) {
+      throw new Error("Incident not found");
+    }
+    assertClienteAccess(user, incident.clienteId);
+
+    const result = await syncIncidentState(id);
+    if (result.after !== INCIDENT_STATE.CERRADO) {
+      businessRule(
+        "No se puede cerrar la incidencia: aún tiene asignaciones abiertas",
+      );
+    }
+
+    revalidatePath("/admin/incidents");
+    revalidatePath(`/admin/incidents/${id}`);
+    revalidatePath("/fsr/incidents");
+    revalidatePath("/client/incidents");
+    return {};
   });
-  if (!incident) {
-    throw new Error("Incident not found");
-  }
-  assertClienteAccess(user, incident.clienteId);
-
-  const result = await syncIncidentState(id);
-  if (result.after !== INCIDENT_STATE.CERRADO) {
-    throw new Error(
-      "No se puede cerrar la incidencia: aún tiene asignaciones abiertas",
-    );
-  }
-
-  revalidatePath("/admin/incidents");
-  revalidatePath(`/admin/incidents/${id}`);
-  revalidatePath("/fsr/incidents");
-  revalidatePath("/client/incidents");
-  return { success: true };
 }
 
 /**

@@ -1,6 +1,5 @@
 "use client";
 
-import { isFailure } from "@/lib/actions/result";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -22,6 +21,7 @@ import {
   type IncidentFormData,
   updateIncident,
 } from "@/lib/actions/incidents";
+import { isFailure } from "@/lib/actions/result";
 
 type IncidentFormProps = {
   incident?: {

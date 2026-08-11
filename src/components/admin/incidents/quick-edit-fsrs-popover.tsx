@@ -1,6 +1,5 @@
 "use client";
 
-import { isFailure } from "@/lib/actions/result";
 import { Loader2, Pencil, Save } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -11,6 +10,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { updateIncidentFsrs } from "@/lib/actions/incidents";
+import { isFailure } from "@/lib/actions/result";
 
 interface FsrOption {
   id: string;

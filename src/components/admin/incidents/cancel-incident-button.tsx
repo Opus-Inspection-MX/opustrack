@@ -1,6 +1,5 @@
 "use client";
 
-import { isFailure } from "@/lib/actions/result";
 import { Ban, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -16,6 +15,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { cancelIncident } from "@/lib/actions/incidents";
+import { isFailure } from "@/lib/actions/result";
 
 type Props = {
   incidentId: number;
@@ -33,7 +33,10 @@ export function CancelIncidentButton({ incidentId, disabled }: Props) {
     setLoading(true);
     setError(null);
     try {
-      const result = await cancelIncident(incidentId, reason.trim() || undefined);
+      const result = await cancelIncident(
+        incidentId,
+        reason.trim() || undefined,
+      );
 
       if (isFailure(result)) {
         setError(result.error);

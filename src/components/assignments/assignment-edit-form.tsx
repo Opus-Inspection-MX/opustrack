@@ -1,6 +1,5 @@
 "use client";
 
-import { isFailure } from "@/lib/actions/result";
 import { Check, Edit as EditIcon, Save, X } from "lucide-react";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
@@ -23,6 +22,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { updateAssignment } from "@/lib/actions/assignments";
+import { isFailure } from "@/lib/actions/result";
 
 type AssignmentEditFormProps = {
   assignment: {

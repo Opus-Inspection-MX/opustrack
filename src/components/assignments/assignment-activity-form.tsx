@@ -1,6 +1,5 @@
 "use client";
 
-import { isFailure } from "@/lib/actions/result";
 import { Plus, Save } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -11,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { createAssignmentActivity } from "@/lib/actions/assignment-activities";
 import { uploadAssignmentAttachment } from "@/lib/actions/assignments";
+import { isFailure } from "@/lib/actions/result";
 import { normalizeMimeType } from "@/lib/upload";
 
 type AssignmentActivityFormProps = {

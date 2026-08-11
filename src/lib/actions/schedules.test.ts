@@ -179,14 +179,16 @@ describe("quickUpdateSchedule (RF-404)", () => {
   const scheduledAt = new Date("2026-06-10T09:00:00.000Z");
 
   it("rechaza una fecha de fin anterior al inicio", async () => {
-    await expect(
-      quickUpdateSchedule("s1", {
-        scheduledAt,
-        endDate: new Date("2026-06-09T09:00:00.000Z"),
-        clienteIds: [],
-      }),
-    ).rejects.toThrow(/no puede ser anterior/);
+    const result = await quickUpdateSchedule("s1", {
+      scheduledAt,
+      endDate: new Date("2026-06-09T09:00:00.000Z"),
+      clienteIds: [],
+    });
 
+    expect(result).toEqual({
+      success: false,
+      error: expect.stringMatching(/no puede ser anterior/),
+    });
     expect(prismaMock.schedule.update).not.toHaveBeenCalled();
   });
 

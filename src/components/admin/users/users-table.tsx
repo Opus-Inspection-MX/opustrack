@@ -15,6 +15,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
+import { isFailure } from "@/lib/actions/result";
 import { deleteUser } from "@/lib/actions/users";
 
 type User = {
@@ -46,10 +47,17 @@ export function UsersTable({ users }: { users: User[] }) {
 
     setDeleting(id);
     try {
-      await deleteUser(id);
+      const result = await deleteUser(id);
+
+      if (isFailure(result)) {
+        toast.error(result.error);
+        return;
+      }
       router.refresh();
     } catch (error) {
+      console.error("deleteUser failed:", error);
       toast.error("Error al eliminar usuario");
+    } finally {
       setDeleting(null);
     }
   };

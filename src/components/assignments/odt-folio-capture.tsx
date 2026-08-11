@@ -1,6 +1,5 @@
 "use client";
 
-import { isFailure } from "@/lib/actions/result";
 import { Check, FileText, Pencil, X } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -8,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FormError } from "@/components/ui/form-error";
 import { Input } from "@/components/ui/input";
 import { updateAssignmentOdtFolio } from "@/lib/actions/assignments";
+import { isFailure } from "@/lib/actions/result";
 
 type OdtFolioCaptureProps = {
   assignmentId: string;

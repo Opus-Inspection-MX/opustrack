@@ -14,6 +14,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MultiSelect } from "@/components/ui/multi-select";
+import { isFailure } from "@/lib/actions/result";
 import { getScheduleById, quickUpdateSchedule } from "@/lib/actions/schedules";
 
 interface ClienteOption {
@@ -98,11 +99,16 @@ export function QuickEditScheduleDialog({
     }
     setSubmitting(true);
     try {
-      await quickUpdateSchedule(scheduleId, {
+      const result = await quickUpdateSchedule(scheduleId, {
         clienteIds,
         scheduledAt: start,
         endDate: end,
       });
+
+      if (isFailure(result)) {
+        setError(result.error);
+        return;
+      }
       onSaved?.();
     } catch (e) {
       setError(

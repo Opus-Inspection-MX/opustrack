@@ -10,7 +10,6 @@ import {
   Trash2,
 } from "lucide-react";
 import Link from "next/link";
-import { isFailure } from "@/lib/actions/result";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { AssignmentActivityEdit } from "@/components/assignments/assignment-activity-edit";
@@ -34,6 +33,7 @@ import {
   getAssignmentFormOptions,
 } from "@/lib/actions/assignments";
 import { getPartsForSelect } from "@/lib/actions/parts";
+import { isFailure } from "@/lib/actions/result";
 import { deleteWorkPart, getWorkParts } from "@/lib/actions/work-parts";
 import { formatFileSize, getFileIcon } from "@/lib/upload";
 

@@ -1,6 +1,5 @@
 "use client";
 
-import { isFailure } from "@/lib/actions/result";
 import { CheckCircle, Edit, Eye, Lock, Trash2, Wrench } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -17,6 +16,7 @@ import {
 } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
 import { deleteAssignment } from "@/lib/actions/assignments";
+import { isFailure } from "@/lib/actions/result";
 
 type Assignment = {
   id: string;
@@ -76,7 +76,9 @@ export function AssignmentsTable({
       }
       router.refresh();
     } catch (error) {
+      console.error("deleteAssignment failed:", error);
       toast.error("Error al eliminar asignación");
+    } finally {
       setDeleting(null);
     }
   };

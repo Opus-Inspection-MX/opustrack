@@ -282,7 +282,7 @@ export async function quickUpdateSchedule(
   const user = await requirePermission("schedules:update");
   const clienteIds = [...new Set(data.clienteIds)];
   if (data.endDate && data.endDate < data.scheduledAt) {
-    throw new Error(
+    return rejected(
       "La fecha de fin no puede ser anterior a la fecha de inicio",
     );
   }

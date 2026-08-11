@@ -1,6 +1,5 @@
 "use client";
 
-import { isFailure } from "@/lib/actions/result";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -15,6 +14,7 @@ import {
   createAssignment,
   updateAssignment,
 } from "@/lib/actions/assignments";
+import { isFailure } from "@/lib/actions/result";
 
 type AssignmentFormProps = {
   assignment?: {

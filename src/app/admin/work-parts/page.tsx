@@ -1,6 +1,5 @@
 "use client";
 
-import { isFailure } from "@/lib/actions/result";
 import { Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -9,6 +8,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { WorkPartFilters } from "@/components/work-parts/work-part-filters";
 import { WorkPartTable } from "@/components/work-parts/work-part-table";
 import { toast } from "@/hooks/use-toast";
+import { isFailure } from "@/lib/actions/result";
 import { deleteWorkPart, getAllWorkParts } from "@/lib/actions/work-parts";
 
 // API response types (nullable fields from database)

@@ -18,7 +18,6 @@ import {
   X as XIcon,
 } from "lucide-react";
 import Link from "next/link";
-import { isFailure } from "@/lib/actions/result";
 import { useRouter } from "next/navigation";
 import React, { useMemo, useState } from "react";
 import { PriorityBadge } from "@/components/incident-types/priority-badge";
@@ -54,6 +53,7 @@ import { createAssignment } from "@/lib/actions/assignments";
 import { getEquipmentsByLineId } from "@/lib/actions/equipments";
 import { updateIncidentFsrs } from "@/lib/actions/incidents";
 import { getLinesByClienteId } from "@/lib/actions/lines";
+import { isFailure } from "@/lib/actions/result";
 import {
   updateAssignmentAssignees,
   updateAssignmentDetails,
@@ -491,7 +491,10 @@ export function TrackingTable({
         equipmentId: equipmentIdValue,
       });
       if (editForm.assigneeIds !== undefined) {
-        const result = await updateIncidentFsrs(incidentId, editForm.assigneeIds);
+        const result = await updateIncidentFsrs(
+          incidentId,
+          editForm.assigneeIds,
+        );
 
         if (isFailure(result)) {
           toast.error(result.error);

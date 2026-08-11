@@ -1,6 +1,5 @@
 "use client";
 
-import { isFailure } from "@/lib/actions/result";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useState } from "react";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +10,7 @@ import { FormError } from "@/components/ui/form-error";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { isFailure } from "@/lib/actions/result";
 import { endVehicleTrip } from "@/lib/actions/vehicle-trips";
 import { normalizeMimeType } from "@/lib/upload";
 import { GPSLocationCapture } from "./gps-location-capture";

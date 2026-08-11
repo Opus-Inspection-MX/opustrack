@@ -7,6 +7,8 @@ import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { VehicleTable } from "@/components/vehicles/vehicle-table";
+import { toast } from "@/hooks/use-toast";
+import { isFailure } from "@/lib/actions/result";
 import { deleteVehicle, getVehicles } from "@/lib/actions/vehicles";
 
 interface Vehicle {
@@ -51,15 +53,17 @@ export default function VehiclesPage() {
 
   const handleDelete = async (id: string) => {
     try {
-      await deleteVehicle(id);
+      const result = await deleteVehicle(id);
+
+      if (isFailure(result)) {
+        toast.error(result.error);
+        return;
+      }
       router.refresh();
       loadVehicles();
     } catch (error) {
-      console.error(
-        error instanceof Error
-          ? error.message
-          : "Error al eliminar el vehículo",
-      );
+      console.error("deleteVehicle failed:", error);
+      toast.error("Error al eliminar el vehículo");
     }
   };
 

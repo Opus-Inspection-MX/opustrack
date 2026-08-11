@@ -1,6 +1,5 @@
 "use client";
 
-import { isFailure } from "@/lib/actions/result";
 import { ArrowLeft, Edit, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { use, useEffect, useState } from "react";
@@ -12,6 +11,7 @@ import {
   deleteAssignmentActivity,
   getAssignmentActivityById,
 } from "@/lib/actions/assignment-activities";
+import { isFailure } from "@/lib/actions/result";
 
 interface Part {
   id: string;

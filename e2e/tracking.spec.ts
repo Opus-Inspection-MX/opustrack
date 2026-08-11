@@ -187,13 +187,6 @@ test("rechaza un FSR no habilitado en la incidencia (RF-514)", async ({
   await searchFolio(page, `INC-${fixture.incidentId}`);
   const details = await expandIncident(page);
 
-  // The alert is the only channel the table has for a rejection.
-  const messages: string[] = [];
-  page.on("dialog", async (alert) => {
-    messages.push(alert.message());
-    await alert.dismiss();
-  });
-
   await editAssignment(details);
 
   // The outsider IS an FSR of this Cliente — that is why the dropdown offers
@@ -205,9 +198,11 @@ test("rechaza un FSR no habilitado en la incidencia (RF-514)", async ({
   );
   await details.getByRole("button", { name: "Guardar" }).first().click();
 
-  await expect
-    .poll(() => messages.join(" | "), { timeout: 15_000 })
-    .toMatch(/Solo se pueden asignar FSRs habilitados/);
+  // The rejection now arrives as a returned value and is shown in a toast; it
+  // used to be a thrown error, whose message a production build of Next strips.
+  await expect(
+    page.getByRole("alert").filter({ hasText: /Solo se pueden asignar FSRs/ }),
+  ).toBeVisible();
 
   // And nothing was written.
   const assignees = await db().assignmentAssignee.count({

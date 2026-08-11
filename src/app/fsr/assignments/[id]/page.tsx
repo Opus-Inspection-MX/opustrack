@@ -15,7 +15,6 @@ import {
   Trash2,
 } from "lucide-react";
 import Link from "next/link";
-import { isFailure } from "@/lib/actions/result";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { AssignmentActivityEdit } from "@/components/assignments/assignment-activity-edit";
@@ -41,6 +40,7 @@ import {
   resumeAssignment,
   startAssignmentWork,
 } from "@/lib/actions/assignments";
+import { isFailure } from "@/lib/actions/result";
 import { getWorkParts } from "@/lib/actions/work-parts";
 
 interface AssignmentStatus {
@@ -181,7 +181,7 @@ export default function FSRAssignmentDetailPage({
       const result = await deleteAssignmentActivity(id);
 
       if (isFailure(result)) {
-        setError(result.error);
+        toast.error(result.error);
         return;
       }
       await fetchData();
@@ -198,7 +198,7 @@ export default function FSRAssignmentDetailPage({
       const result = await deleteAssignmentAttachment(id);
 
       if (isFailure(result)) {
-        setError(result.error);
+        toast.error(result.error);
         return;
       }
       await fetchData();
@@ -249,7 +249,7 @@ export default function FSRAssignmentDetailPage({
       const result = await markAssignmentSeen(assignmentId);
 
       if (isFailure(result)) {
-        setError(result.error);
+        toast.error(result.error);
         return;
       }
       await fetchData();
@@ -273,7 +273,7 @@ export default function FSRAssignmentDetailPage({
       const result = await startAssignmentWork(fd);
 
       if (isFailure(result)) {
-        setError(result.error);
+        toast.error(result.error);
         return;
       }
       await fetchData();
@@ -331,7 +331,7 @@ export default function FSRAssignmentDetailPage({
       const result = await closeAssignment(fd);
 
       if (isFailure(result)) {
-        setError(result.error);
+        toast.error(result.error);
         return;
       }
       await fetchData();

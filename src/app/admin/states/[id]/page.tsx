@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/hooks/use-toast";
 import { deleteState, getStateById } from "@/lib/actions/lookups";
+import { isFailure } from "@/lib/actions/result";
 
 interface ClienteCenter {
   id: string;
@@ -64,7 +65,13 @@ export default function StateDetailPage({
 
     setIsDeleting(true);
     try {
-      await deleteState(Number(id));
+      const result = await deleteState(Number(id));
+
+      if (isFailure(result)) {
+        toast.error(result.error);
+        setIsDeleting(false);
+        return;
+      }
       router.push("/admin/states");
     } catch (error) {
       console.error("Error deleting state:", error);
