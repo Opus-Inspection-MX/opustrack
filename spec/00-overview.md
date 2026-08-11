@@ -91,12 +91,20 @@ No reutilices números ni renumeres requisitos existentes (se referencian de for
    `requireRouteAccess()`, cada API/Server Action usa `requirePermission()` / `requireAction()`
    o sus wrappers. ADMINISTRADOR pasa todos los checks.
 
-3. **JWT + Edge Runtime.** El middleware enruta con datos del JWT (rápido, sin DB). Las
-   páginas/acciones consultan la DB para permisos finos. Cambios de rol/permiso requieren
-   re-login. Detalle en [01](./01-auth-rbac.md).
+3. **JWT + Edge Runtime.** El middleware enruta con datos del JWT (rápido, sin DB). Las rutas
+   permitidas del rol (`Permission.routePath`) se embeben en el token al iniciar sesión y se
+   evalúan con `canAccessRoute()` (`src/lib/authz/route-access.ts`), el mismo matcher que usa
+   `roleCanAccessRoute()` en el servidor. Un token emitido antes de que existiera ese campo
+   fuerza re-login en vez de degradar a permisivo. Las páginas/acciones consultan la DB para
+   permisos finos. Cambios de rol/permiso requieren re-login. Detalle en
+   [01](./01-auth-rbac.md).
 
 4. **Scoping por Cliente.** Los usuarios no ADMINISTRADOR solo ven datos de su(s) Cliente(s).
-   Las consultas filtran por el/los Cliente(s) asignados (`UserClienteAssignment`).
+   Las consultas filtran por el/los Cliente(s) asignados (`UserClienteAssignment`). Un permiso
+   no implica alcance: reportes y dashboard aplican `src/lib/auth/report-scope.ts`, que falla
+   cerrado (sin Cliente asignado ⇒ no ve nada). Las lecturas de datos personales
+   (p. ej. vacaciones) además verifican propiedad, porque el permiso se comparte con el dueño
+   del registro.
 
 5. **Revalidación de cache.** Toda mutación llama `revalidatePath()` sobre las rutas afectadas
    (tanto `/admin/...` como las específicas del rol).
@@ -132,30 +140,49 @@ No reutilices números ni renumeres requisitos existentes (se referencian de for
 
 ## Deuda técnica e inconsistencias conocidas
 
-Hallazgos reales detectados durante el reverse-engineering. No son requisitos; son riesgos a
-revisar (candidatos a cambios SDD futuros).
+Riesgos abiertos detectados durante la revisión. No son requisitos; son candidatos a cambios
+SDD futuros. Los hallazgos ya resueltos se retiran de esta lista al corregirse.
 
-**Seguridad / sesiones**
-- `updateMyPassword()` **no invalida la sesión**: un JWT robado sigue válido tras el cambio de
-  contraseña (RF-110 / 01).
-- `assignPermissionsToRole()` invalida sesiones pero **no limpia la caché de permisos** (5 min);
-  requests en vuelo ven permisos viejos hasta el re-login (01).
+**Almacenamiento de archivos**
+- El proveedor `filesystem` nombra los archivos `"<timestamp>-<nombre>"` en `public/uploads/`,
+  que el middleware sirve como ruta pública. Son adivinables, a diferencia del sufijo aleatorio
+  de Vercel Blob. Tratar `filesystem` como proveedor de desarrollo únicamente.
 
 **Integridad de datos**
-- `deleteLine` **no valida equipos hijos activos** antes de desactivar (asimétrico vs `deleteCliente`).
-- `deletePart` **no valida `WorkPart` activos** antes de soft delete (asimétrico vs `deleteAssignment`).
-- `PartCreateSchema` (Zod) exige `clienteId`, pero el modelo `Part` **no tiene esa columna**:
-  feature diseñada y no migrada (05).
+- `PartCreateSchema` (Zod) acepta `clienteId` opcional, pero el modelo `Part` **no tiene esa
+  columna** y `createPart` no lo persiste: feature diseñada y no migrada (05). Mientras no se
+  migre, ninguna consulta debe filtrar `Part` por Cliente.
 
 **Consistencia funcional**
-- Notificaciones: de 10 tipos definidos, **solo `ASSIGNMENT_ASSIGNED` se dispara** realmente (08).
-- Reportes: zona horaria estandarizada a `America/Mexico_City` en todos los reportes (resuelto). No quedan inconsistencias UTC vs. CDMX (09).
-- Dashboard: `criticalIncidents` ejecuta **la misma query** que `activeIncidents` (09).
 - `/admin/programacion` es Client Component que consume API REST, excepción al patrón
   "Server Components + Server Actions" declarado en CLAUDE.md (07).
+- La página `/unauthorized` no expone su título como heading: `CardTitle` (shadcn) renderiza
+  un `<div>`, así que no hay landmark de encabezado para lectores de pantalla. Aplica a toda
+  pantalla que use `CardTitle` como título principal.
 
-**Rendimiento**
-- Conteo de FSR por Cliente en el listado es N+1 (una query por Cliente) (02).
+### Resuelto
+
+- Middleware RBAC hardcodeado → ahora las rutas del rol viajan en el JWT y se evalúan con
+  `src/lib/authz/route-access.ts`, compartido con `roleCanAccessRoute()`.
+- Reportes y dashboard sin scoping por Cliente → `src/lib/auth/report-scope.ts`.
+- Lectura de vacaciones sin control de propiedad; `approveVacation`/`rejectVacation` sin
+  guardas de estado.
+- `updateWorkPart` sin validación Zod (inflaba stock con cantidades negativas) y
+  `deleteWorkPart` no idempotente (devolvía stock dos veces).
+- `getAvailableParts` consultaba `Part.clienteId`, columna inexistente.
+- Dashboard contaba `CANCELADA` como incidente activo/crítico.
+- `updateMyPassword` no invalidaba sesión; `assignPermissionsToRole` no limpiaba la caché.
+- `deleteLine` / `deletePart` sin validación de hijos activos.
+- Notificaciones: los 10 tipos se disparan.
+- Conteo N+1 de FSR por Cliente en el listado.
+- `/uploads` quedaba detrás del middleware: con el proveedor `filesystem` ningún adjunto se
+  renderizaba (next/image recibía el redirect a /login). Ahora es ruta pública, igual que los
+  archivos de Vercel Blob.
+- Suite e2e rota: credenciales del seed mock anterior + `reuseExistingServer` sobre el puerto
+  3000. Ahora usa cuentas propias (`e2e/db.setup.ts`), su propio puerto (3100) y una base
+  efímera en Docker cuya invariante verifica `assertEphemeralDatabase()`.
+- El flujo central (cliente reporta → admin programa y asigna → FSR cierra → auto-cierre del
+  incidente) no tenía prueba de integración: ahora lo cubre `e2e/incident-lifecycle.spec.ts`.
 
 ---
 

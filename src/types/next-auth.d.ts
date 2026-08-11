@@ -12,6 +12,7 @@ declare module "next-auth" {
       name: string;
       defaultPath: string;
     };
+    routePaths?: string[];
     sessionVersion?: number;
     clienteId?: string | null;
   }
@@ -24,6 +25,8 @@ declare module "next-auth" {
       roleId: number;
       roleName?: string;
       defaultPath?: string;
+      /** Route paths granted to the user's role (from Permission.routePath). */
+      routePaths?: string[];
       sessionVersion?: number;
       clienteId?: string;
     };
@@ -38,6 +41,8 @@ declare module "next-auth/jwt" {
     roleId: number;
     roleName?: string;
     defaultPath?: string;
+    /** Route paths granted to the user's role (from Permission.routePath). */
+    routePaths?: string[];
     sessionVersion?: number;
     clienteId?: string;
   }

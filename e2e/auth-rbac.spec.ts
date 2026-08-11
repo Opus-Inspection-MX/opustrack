@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
-import { ACCOUNTS, authFile, ROLES, SEED_PASSWORD } from "./fixtures/auth";
+import { account, authFile, defaultPathFor, ROLES } from "./fixtures/auth";
+import { submitLogin } from "./fixtures/login";
 
 /**
  * E2E coverage for spec/01-auth-rbac.md.
@@ -10,9 +11,11 @@ import { ACCOUNTS, authFile, ROLES, SEED_PASSWORD } from "./fixtures/auth";
  *   active" vs "Invalid credentials" distinction from RF-100 is not observable
  *   at the UI layer — it lives in authorize()/getAuthenticatedUser(). It is
  *   covered by unit tests, not here.
- * - The middleware route map (checkRouteAccess) is intentionally independent
- *   from the DB RBAC (RF-101). These tests assert the middleware behavior, which
- *   is what a browser actually hits.
+ * - Route access is database-driven: the role's `Permission.routePath` values
+ *   travel in the JWT and the middleware evaluates them with
+ *   `src/lib/authz/route-access.ts`. These tests assert the middleware behavior,
+ *   which is what a browser actually hits, so they also cover the DB rules.
+ *   Adding or revoking a `route:*` permission changes these expectations.
  */
 
 // ---------------------------------------------------------------------------
@@ -22,12 +25,10 @@ test.describe("RF-100 · Login por credenciales", () => {
   test("valid credentials land the user on their defaultPath", async ({
     page,
   }) => {
-    const { email, defaultPath } = ACCOUNTS.admin;
+    const { email, password, defaultPath } = account("admin");
 
     await page.goto("/login");
-    await page.locator("#email").fill(email);
-    await page.locator("#password").fill(SEED_PASSWORD);
-    await page.getByRole("button", { name: "Iniciar Sesión" }).click();
+    await submitLogin(page, email, password);
 
     await page.waitForURL(`**${defaultPath}`);
     await expect(page).toHaveURL(new RegExp(`${defaultPath}$`));
@@ -37,9 +38,7 @@ test.describe("RF-100 · Login por credenciales", () => {
     page,
   }) => {
     await page.goto("/login");
-    await page.locator("#email").fill("admin@opusinspection.com");
-    await page.locator("#password").fill("wrong-password");
-    await page.getByRole("button", { name: "Iniciar Sesión" }).click();
+    await submitLogin(page, account("admin").email, "wrong-password");
 
     await expect(page.getByText(/Credenciales inválidas/i)).toBeVisible();
     await expect(page).toHaveURL(/\/login/);
@@ -49,9 +48,11 @@ test.describe("RF-100 · Login por credenciales", () => {
     page,
   }) => {
     await page.goto("/login");
-    await page.locator("#email").fill("nobody@opusinspection.com");
-    await page.locator("#password").fill(SEED_PASSWORD);
-    await page.getByRole("button", { name: "Iniciar Sesión" }).click();
+    await submitLogin(
+      page,
+      "nobody-definitely-not-a-user@e2e.invalid",
+      account("admin").password,
+    );
 
     await expect(page.getByText(/Credenciales inválidas/i)).toBeVisible();
     await expect(page).toHaveURL(/\/login/);
@@ -99,13 +100,11 @@ for (const role of ROLES) {
   test.describe(`RF-104 · defaultPath de ${role}`, () => {
     test.use({ storageState: authFile(role) });
 
-    test(`visiting "/" redirects ${role} to ${ACCOUNTS[role].defaultPath}`, async ({
+    test(`visiting "/" redirects ${role} to ${defaultPathFor(role)}`, async ({
       page,
     }) => {
       await page.goto("/");
-      await expect(page).toHaveURL(
-        new RegExp(`${ACCOUNTS[role].defaultPath}$`),
-      );
+      await expect(page).toHaveURL(new RegExp(`${defaultPathFor(role)}$`));
     });
   });
 }
@@ -116,7 +115,16 @@ for (const role of ROLES) {
 test.describe("RF-103 · Bypass total de ADMINISTRADOR", () => {
   test.use({ storageState: authFile("admin") });
 
-  for (const route of ["/fsr", "/client", "/guest", "/parts", "/reports"]) {
+  // Only real routes: asserting on a non-existent path passes trivially because
+  // a 404 page still has the requested URL and is neither /unauthorized nor
+  // /login. The previous list used /parts and /reports, which do not exist.
+  for (const route of [
+    "/fsr",
+    "/client",
+    "/guest",
+    "/profile",
+    "/admin/reports/incident-program",
+  ]) {
     test(`admin can access ${route}`, async ({ page }) => {
       await page.goto(route);
       await expect(page).toHaveURL(new RegExp(`${route}`));
@@ -130,11 +138,16 @@ test.describe("RF-103 · Bypass total de ADMINISTRADOR", () => {
 // RF-106 · Denegación de rutas fuera del mapa del rol → /unauthorized
 // ---------------------------------------------------------------------------
 test.describe("RF-106 · Denegación por rol", () => {
-  const denials: Array<{ role: "client" | "guest"; route: string }> = [
+  const denials: Array<{ role: "fsr" | "client" | "guest"; route: string }> = [
+    { role: "fsr", route: "/admin" }, // admin dashboard
+    { role: "fsr", route: "/admin/reports/incident-program" }, // admin sub-route
+    // A route permission must not leak across a path segment: FSR holds "/fsr",
+    // which grants "/fsr/..." but never "/fsr-admin".
+    { role: "fsr", route: "/fsr-admin" },
     { role: "client", route: "/fsr" }, // FSR-only dashboard
-    { role: "client", route: "/parts" }, // parts not in CLIENT map
-    { role: "guest", route: "/reports" }, // reports not in GUEST map
-    { role: "guest", route: "/client" }, // client dashboard not in GUEST map
+    { role: "client", route: "/admin" }, // admin dashboard
+    { role: "guest", route: "/admin" }, // admin dashboard
+    { role: "guest", route: "/client" }, // client dashboard
   ];
 
   for (const { role, route } of denials) {
@@ -144,9 +157,26 @@ test.describe("RF-106 · Denegación por rol", () => {
       test(`is redirected to /unauthorized`, async ({ page }) => {
         await page.goto(route);
         await expect(page).toHaveURL(/\/unauthorized/);
-        await expect(
-          page.getByRole("heading", { name: "Acceso Denegado" }),
-        ).toBeVisible();
+        // Matched by text, not by role: the page renders its title through
+        // shadcn's CardTitle, which is a <div> — there is no heading element.
+        await expect(page.getByText("Acceso Denegado")).toBeVisible();
+      });
+    });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// RF-106 · Ruta compartida /profile — concedida por el permiso `route:profile`
+// ---------------------------------------------------------------------------
+test.describe("RF-106 · Acceso compartido a /profile", () => {
+  for (const role of ROLES) {
+    test.describe(`${role}`, () => {
+      test.use({ storageState: authFile(role) });
+
+      test("can reach /profile", async ({ page }) => {
+        await page.goto("/profile");
+        await expect(page).not.toHaveURL(/\/unauthorized/);
+        await expect(page).not.toHaveURL(/\/login/);
       });
     });
   }

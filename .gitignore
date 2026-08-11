@@ -63,3 +63,10 @@ next-env.d.ts
 /blob-report/
 /playwright/.cache/
 /e2e/.auth/
+
+# e2e environment overrides — may contain REAL credentials, never commit.
+# The tracked baseline is config/e2e.env (throwaway values only).
+config/e2e.local.env
+
+# Local file-storage provider writes here (and the e2e evidence fixture).
+/public/uploads/

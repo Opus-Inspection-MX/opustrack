@@ -283,10 +283,22 @@ export async function updateAssignment(id: string, data: AssignmentFormData) {
     const toAdd = uniqueAssignees.filter((u) => !existingIds.has(u));
     const toRemove = [...existingIds].filter((u) => !newIds.has(u));
 
-    // Availability check: only for newly added FSRs and only when a scheduled
-    // date is present. Already-assigned FSRs are not re-checked (RF-256).
-    if (effectiveScheduledDate != null && toAdd.length > 0) {
-      for (const userId of toAdd) {
+    // Availability check (RF-704). Two cases must be covered:
+    //   - newly added FSRs, against the effective scheduled date;
+    //   - ALL assignees when the scheduled date itself moves, otherwise moving
+    //     an assignment onto a holiday or an approved vacation would slip
+    //     through because `toAdd` is empty.
+    const scheduledDateChanged =
+      data.scheduledDate !== undefined &&
+      effectiveScheduledDate?.getTime() !==
+        existingAssignment.scheduledDate?.getTime();
+
+    const toCheck = scheduledDateChanged
+      ? Array.from(new Set([...uniqueAssignees, ...existingIds]))
+      : toAdd;
+
+    if (effectiveScheduledDate != null && toCheck.length > 0) {
+      for (const userId of toCheck) {
         const unavailable = await isFsrUnavailable(
           userId,
           effectiveScheduledDate,

@@ -9,7 +9,9 @@ export default defineConfig({
     globals: true,
     setupFiles: ["./src/test/setup.ts"],
     include: ["**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}"],
-    exclude: ["node_modules", "dist", ".next", "e2e"],
+    // Playwright owns e2e/**/*.spec.ts. Everything else under e2e/ (pure
+    // helpers such as fixtures/ephemeral-db.ts) is unit-tested here.
+    exclude: ["node_modules", "dist", ".next", "e2e/**/*.spec.ts"],
     coverage: {
       provider: "v8",
       reporter: ["text", "json", "html"],

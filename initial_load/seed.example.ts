@@ -199,6 +199,11 @@ async function main() {
           description: "Access to guest dashboard",
           routePath: "/guest",
         },
+        {
+          name: "route:profile",
+          description: "Access to the shared profile page",
+          routePath: "/profile",
+        },
 
         // Incident permissions
         {
@@ -896,6 +901,7 @@ async function main() {
           defaultPath: "/fsr",
           permissions: [
             "route:fsr",
+            "route:profile",
             "incidents:read",
             "incidents:update",
             "assignments:read",
@@ -946,6 +952,7 @@ async function main() {
           defaultPath: "/client",
           permissions: [
             "route:client",
+            "route:profile",
             "incidents:read",
             "incidents:create",
             "incident-types:read", // Needed to select incident type when creating
@@ -967,6 +974,7 @@ async function main() {
           defaultPath: "/guest",
           permissions: [
             "route:guest",
+            "route:profile",
             "incidents:read",
             "incident-types:read", // Needed to view incident types
             "incident-status:read", // Needed to view incident status

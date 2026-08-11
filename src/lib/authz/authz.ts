@@ -1,6 +1,7 @@
 // src/lib/authz/authz.ts
 
 import { prisma } from "@/lib/database/prisma.singleton";
+import { canAccessRoute } from "./route-access";
 
 /**
  * Type definitions for authorization
@@ -157,20 +158,13 @@ export function roleHasPermission(role: Role, permissionName: string): boolean {
  * Check if a role has access to a specific route
  */
 export function roleCanAccessRoute(role: Role, routePath: string): boolean {
-  // Normalize route path (remove trailing slash, handle params)
-  const normalizedPath = routePath.replace(/\/$/, "") || "/";
-
-  // Check for exact route permission match
-  const hasRoutePermission = role.permissions.some(
-    (perm) => perm.routePath && normalizedPath.startsWith(perm.routePath),
+  // Delegates to the shared, Edge-safe matcher so pages and middleware agree
+  // on what a route permission covers.
+  return canAccessRoute(
+    role.permissions.map((perm) => perm.routePath),
+    role.name,
+    routePath,
   );
-
-  if (hasRoutePermission) return true;
-
-  // Admin role gets access to everything
-  if (role.name === "ADMINISTRADOR") return true;
-
-  return false;
 }
 
 /**

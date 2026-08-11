@@ -7,6 +7,7 @@ import { prisma } from "@/lib/database/prisma.singleton";
 import {
   type WorkPartCreateInput,
   WorkPartCreateSchema,
+  WorkPartUpdateSchema,
 } from "@/lib/validations/parts";
 
 // Keep legacy type for backward compatibility
@@ -147,23 +148,32 @@ export async function updateWorkPart(
 ) {
   await requirePermission("assignments:update");
 
-  const existingForGuard = await prisma.workPart.findUnique({
-    where: { id },
+  // Validate before touching stock: an unchecked negative quantity would take
+  // the "restore" branch below and create inventory out of nothing.
+  const validated = WorkPartUpdateSchema.parse({ ...data, id });
+
+  const existingForGuard = await prisma.workPart.findFirst({
+    where: { id, active: true },
     select: { assignmentId: true },
   });
   await assertAssignmentEditable(existingForGuard?.assignmentId);
 
   const result = await prisma.$transaction(async (tx) => {
-    const existingWorkPart = await tx.workPart.findUnique({
-      where: { id },
+    // Only active rows: re-editing a soft-deleted work part would move stock
+    // for a record whose quantity was already returned by deleteWorkPart.
+    const existingWorkPart = await tx.workPart.findFirst({
+      where: { id, active: true },
     });
 
     if (!existingWorkPart) {
       throw new Error("Work part no encontrada");
     }
 
-    if (data.quantity && data.quantity !== existingWorkPart.quantity) {
-      const difference = data.quantity - existingWorkPart.quantity;
+    if (
+      validated.quantity !== undefined &&
+      validated.quantity !== existingWorkPart.quantity
+    ) {
+      const difference = validated.quantity - existingWorkPart.quantity;
 
       if (difference > 0) {
         const updated = await tx.part.updateMany({
@@ -193,8 +203,8 @@ export async function updateWorkPart(
     const workPart = await tx.workPart.update({
       where: { id },
       data: {
-        quantity: data.quantity,
-        description: data.description,
+        quantity: validated.quantity,
+        description: validated.description,
       },
     });
 
@@ -216,29 +226,36 @@ export async function updateWorkPart(
 export async function deleteWorkPart(id: string) {
   await requirePermission("assignments:delete");
 
-  const existingForGuard = await prisma.workPart.findUnique({
-    where: { id },
+  const existingForGuard = await prisma.workPart.findFirst({
+    where: { id, active: true },
     select: { assignmentId: true },
   });
   await assertAssignmentEditable(existingForGuard?.assignmentId);
 
   const result = await prisma.$transaction(async (tx) => {
-    const workPart = await tx.workPart.findUnique({
-      where: { id },
+    const workPart = await tx.workPart.findFirst({
+      where: { id, active: true },
     });
 
     if (!workPart) {
       throw new Error("Work part no encontrada");
     }
 
+    // Deactivate first, conditioned on the row still being active. If a
+    // concurrent delete won the race, count is 0 and the stock is not returned
+    // twice for the same work part.
+    const deactivated = await tx.workPart.updateMany({
+      where: { id, active: true },
+      data: { active: false },
+    });
+
+    if (deactivated.count === 0) {
+      throw new Error("Work part no encontrada");
+    }
+
     await tx.part.update({
       where: { id: workPart.partId },
       data: { stock: { increment: workPart.quantity } },
-    });
-
-    await tx.workPart.update({
-      where: { id },
-      data: { active: false },
     });
 
     return { assignmentId: workPart.assignmentId };
@@ -280,15 +297,19 @@ export async function getWorkPartById(id: string) {
 }
 
 /**
- * Get parts available for assignment (for FSR)
+ * Get parts available for assignment (for FSR).
+ *
+ * Parts are not scoped per Cliente: the `Part` model has no `clienteId` column,
+ * so there is nothing to filter by. The parameter this function used to accept
+ * produced an invalid Prisma query at runtime and has been removed — reinstate
+ * it only together with the schema migration.
  */
-export async function getAvailableParts(clienteId?: string) {
+export async function getAvailableParts() {
   await requirePermission("parts:read");
 
   const parts = await prisma.part.findMany({
     where: {
       active: true,
-      ...(clienteId && { clienteId }),
       stock: { gt: 0 },
     },
     orderBy: { name: "asc" },

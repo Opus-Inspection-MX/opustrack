@@ -1,0 +1,28 @@
+# Throwaway PostgreSQL for the end-to-end suite.
+#
+# Deliberately isolated from development and production:
+#   - its own container name and port (5433 by default — 5432 is usually taken),
+#   - its data directory is a tmpfs, so every `up` starts from an empty database
+#     and nothing survives a `down`.
+#
+# The credentials below are not secrets: they only ever reach this ephemeral
+# container. Real credentials belong in `.env.test.local` (gitignored).
+services:
+  e2e-db:
+    image: postgres:17-alpine
+    container_name: opustrack-e2e-db
+    environment:
+      POSTGRES_USER: opustrack_e2e
+      POSTGRES_PASSWORD: opustrack_e2e
+      POSTGRES_DB: opustrack_e2e
+    ports:
+      - "${E2E_DB_PORT:-5433}:5432"
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      # `docker compose up --wait` blocks on this, so the migrate step never
+      # races the server's startup.
+      test: ["CMD-SHELL", "pg_isready -U opustrack_e2e -d opustrack_e2e"]
+      interval: 2s
+      timeout: 3s
+      retries: 30

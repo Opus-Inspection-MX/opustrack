@@ -15,15 +15,20 @@ import {
 // ---------------------------------------------------------------------------
 
 /**
- * Get all active vacations (admin view, optionally filtered by statusId).
+ * Get active vacations, optionally filtered by statusId.
+ *
+ * ADMIN sees every request; anyone else sees only their own. `vacations:read`
+ * is granted to FSR so they can manage their own requests (RF-706), so the
+ * permission alone must not expose other people's `reason`.
  */
 export async function getVacations(statusId?: number) {
-  await requirePermission("vacations:read");
+  const caller = await requirePermission("vacations:read");
 
   const vacations = await prisma.vacation.findMany({
     where: {
       active: true,
       ...(statusId !== undefined ? { statusId } : {}),
+      ...(isAdmin(caller) ? {} : { userId: caller.id }),
     },
     include: {
       user: { select: { id: true, name: true, email: true } },
@@ -56,12 +61,18 @@ export async function getMyVacations() {
 
 /**
  * Get a single vacation by ID.
+ *
+ * Ownership is enforced in the query itself: a non-admin can only resolve their
+ * own request. Returns null rather than another user's record.
  */
 export async function getVacationById(id: string) {
-  await requirePermission("vacations:read");
+  const caller = await requirePermission("vacations:read");
 
-  const vacation = await prisma.vacation.findUnique({
-    where: { id },
+  const vacation = await prisma.vacation.findFirst({
+    where: {
+      id,
+      ...(isAdmin(caller) ? {} : { userId: caller.id }),
+    },
     include: {
       user: { select: { id: true, name: true, email: true } },
       status: true,
@@ -177,32 +188,63 @@ export async function createVacation(data: VacationFormData) {
 }
 
 /**
- * Approve a vacation (ADMIN only — requires vacations:approve).
- * Sets status to APROBADA and records approvedById and approvedAt.
+ * Apply a terminal decision to a PENDIENTE vacation.
+ *
+ * Guards, in order: the request must still be active (a soft-deleted request
+ * must not become APROBADA and start blocking assignments), and it must be in
+ * PENDIENTE — a decision is taken once, so an already resolved request cannot
+ * be flipped or have its `approvedAt` overwritten.
  */
-export async function approveVacation(id: string) {
-  const approver = await requirePermission("vacations:approve");
-
-  const aprobadaStatus = await prisma.vacationStatus.findFirst({
-    where: { name: "APROBADA", active: true },
+async function resolveVacation(
+  id: string,
+  target: "APROBADA" | "RECHAZADA",
+  approverId: string,
+) {
+  const status = await prisma.vacationStatus.findFirst({
+    where: { name: target, active: true },
     select: { id: true },
   });
 
-  if (!aprobadaStatus) {
-    throw new Error("Estado 'APROBADA' no encontrado.");
+  if (!status) {
+    throw new Error(`Estado '${target}' no encontrado.`);
+  }
+
+  const existing = await prisma.vacation.findUnique({
+    where: { id },
+    select: { active: true, status: { select: { name: true } } },
+  });
+
+  if (!existing || !existing.active) {
+    throw new Error("Solicitud de vacaciones no encontrada.");
+  }
+
+  if (existing.status.name !== "PENDIENTE") {
+    throw new Error(
+      `La solicitud ya fue resuelta (${existing.status.name}). Solo se puede decidir sobre solicitudes pendientes.`,
+    );
   }
 
   const vacation = await prisma.vacation.update({
     where: { id },
     data: {
-      statusId: aprobadaStatus.id,
-      approvedById: approver.id,
+      statusId: status.id,
+      approvedById: approverId,
       approvedAt: new Date(),
     },
   });
 
   revalidatePath("/admin/vacations");
+  revalidatePath("/fsr/vacations");
   return { success: true, data: vacation };
+}
+
+/**
+ * Approve a vacation (ADMIN only — requires vacations:approve).
+ * Sets status to APROBADA and records approvedById and approvedAt.
+ */
+export async function approveVacation(id: string) {
+  const approver = await requirePermission("vacations:approve");
+  return resolveVacation(id, "APROBADA", approver.id);
 }
 
 /**
@@ -211,27 +253,7 @@ export async function approveVacation(id: string) {
  */
 export async function rejectVacation(id: string) {
   const approver = await requirePermission("vacations:approve");
-
-  const rechazadaStatus = await prisma.vacationStatus.findFirst({
-    where: { name: "RECHAZADA", active: true },
-    select: { id: true },
-  });
-
-  if (!rechazadaStatus) {
-    throw new Error("Estado 'RECHAZADA' no encontrado.");
-  }
-
-  const vacation = await prisma.vacation.update({
-    where: { id },
-    data: {
-      statusId: rechazadaStatus.id,
-      approvedById: approver.id,
-      approvedAt: new Date(),
-    },
-  });
-
-  revalidatePath("/admin/vacations");
-  return { success: true, data: vacation };
+  return resolveVacation(id, "RECHAZADA", approver.id);
 }
 
 /**

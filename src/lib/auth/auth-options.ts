@@ -43,6 +43,16 @@ export const authOptions: NextAuthOptions = {
                 id: true,
                 name: true,
                 defaultPath: true,
+                // Route permissions travel in the JWT so the Edge middleware can
+                // authorize without a DB round-trip — and without a hardcoded
+                // per-role route table.
+                rolePermission: {
+                  select: {
+                    permission: {
+                      select: { routePath: true, active: true },
+                    },
+                  },
+                },
               },
             },
             userStatus: {
@@ -73,13 +83,27 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Invalid email or password");
         }
 
+        // Distinct, non-null route paths granted to the role.
+        const routePaths = Array.from(
+          new Set(
+            user.role.rolePermission
+              .filter((rp) => rp.permission.active && rp.permission.routePath)
+              .map((rp) => rp.permission.routePath as string),
+          ),
+        );
+
         // Return user object that will be encoded in JWT
         return {
           id: user.id,
           email: user.email,
           name: user.name,
           roleId: user.roleId,
-          role: user.role,
+          role: {
+            id: user.role.id,
+            name: user.role.name,
+            defaultPath: user.role.defaultPath,
+          },
+          routePaths,
           sessionVersion: user.sessionVersion,
           clienteId: user.clienteId,
         };
@@ -96,6 +120,7 @@ export const authOptions: NextAuthOptions = {
         token.roleId = user.roleId;
         token.roleName = user.role?.name;
         token.defaultPath = user.role?.defaultPath;
+        token.routePaths = user.routePaths ?? [];
         token.sessionVersion = user.sessionVersion;
         token.clienteId = user.clienteId ?? undefined;
       }
@@ -126,5 +151,9 @@ export const authOptions: NextAuthOptions = {
     },
   },
   secret: process.env.NEXTAUTH_SECRET,
-  debug: process.env.NODE_ENV === "development",
+  // On in development, but silenceable: the e2e run sets NEXTAUTH_DEBUG=false
+  // so its server log stays readable.
+  debug:
+    process.env.NODE_ENV === "development" &&
+    process.env.NEXTAUTH_DEBUG !== "false",
 };

@@ -2,6 +2,14 @@
 
 import moment from "moment-timezone";
 import { requirePermission } from "@/lib/auth/auth";
+import {
+  assignmentScopeWhere,
+  fsrScopeWhere,
+  getReportScope,
+  incidentScopeWhere,
+  vehicleTripScopeWhere,
+  workPartScopeWhere,
+} from "@/lib/auth/report-scope";
 import { prisma } from "@/lib/database/prisma.singleton";
 import {
   APP_TZ,
@@ -74,7 +82,7 @@ export type PartUsageData = {
 export async function getFSRPerformanceData(
   dateRange?: DateRange,
 ): Promise<FSRPerformanceData[]> {
-  await requirePermission("reports:view");
+  const scope = await getReportScope(await requirePermission("reports:view"));
 
   const startRange = dateRange?.startDate
     ? mxDayRange(dateRange.startDate)
@@ -97,6 +105,7 @@ export async function getFSRPerformanceData(
     where: {
       roleId: fsrRole.id,
       active: true,
+      ...fsrScopeWhere(scope),
     },
     select: {
       id: true,
@@ -117,6 +126,7 @@ export async function getFSRPerformanceData(
             gte: startDate,
             lte: endDate,
           },
+          ...assignmentScopeWhere(scope),
         },
         include: {
           status: true,
@@ -138,7 +148,7 @@ export async function getFSRPerformanceData(
         }
       });
 
-      // Get vehicle trips
+      // Scoped transitively: `fsr` comes from the already-scoped fsrUsers list.
       const trips = await prisma.vehicleTrip.findMany({
         where: {
           fsrId: fsr.id,
@@ -190,7 +200,7 @@ export async function getFSRPerformanceData(
 export async function getAssignmentStatusData(
   dateRange?: DateRange,
 ): Promise<AssignmentStatusData[]> {
-  await requirePermission("reports:view");
+  const scope = await getReportScope(await requirePermission("reports:view"));
 
   const startRange = dateRange?.startDate
     ? mxDayRange(dateRange.startDate)
@@ -208,6 +218,7 @@ export async function getAssignmentStatusData(
         gte: startDate,
         lte: endDate,
       },
+      ...assignmentScopeWhere(scope),
     },
     include: {
       status: true,
@@ -235,7 +246,7 @@ export async function getIncidentTrendData(
   dateRange?: DateRange,
   typeIds?: number[],
 ): Promise<IncidentTrendData[]> {
-  await requirePermission("reports:view");
+  const scope = await getReportScope(await requirePermission("reports:view"));
 
   const startRange = dateRange?.startDate
     ? mxDayRange(dateRange.startDate)
@@ -254,6 +265,7 @@ export async function getIncidentTrendData(
         lte: endDate,
       },
       ...(typeIds && typeIds.length > 0 ? { typeId: { in: typeIds } } : {}),
+      ...incidentScopeWhere(scope),
     },
     select: {
       reportedAt: true,
@@ -292,7 +304,7 @@ export async function getIncidentsByTypeData(
   dateRange?: DateRange,
   typeIds?: number[],
 ): Promise<IncidentByTypeData[]> {
-  await requirePermission("reports:view");
+  const scope = await getReportScope(await requirePermission("reports:view"));
 
   const startRange = dateRange?.startDate
     ? mxDayRange(dateRange.startDate)
@@ -311,6 +323,7 @@ export async function getIncidentsByTypeData(
         lte: endDate,
       },
       ...(typeIds && typeIds.length > 0 ? { typeId: { in: typeIds } } : {}),
+      ...incidentScopeWhere(scope),
     },
     include: {
       type: true,
@@ -343,7 +356,7 @@ export async function getIncidentsByTypeData(
 export async function getVehicleTripTrendData(
   dateRange?: DateRange,
 ): Promise<VehicleTripData[]> {
-  await requirePermission("reports:view");
+  const scope = await getReportScope(await requirePermission("reports:view"));
 
   const startRange = dateRange?.startDate
     ? mxDayRange(dateRange.startDate)
@@ -361,6 +374,7 @@ export async function getVehicleTripTrendData(
         gte: startDate,
         lte: endDate,
       },
+      ...vehicleTripScopeWhere(scope),
     },
     select: {
       startedAt: true,
@@ -395,7 +409,7 @@ export async function getVehicleTripTrendData(
 export async function getVehicleTripsByFSRData(
   dateRange?: DateRange,
 ): Promise<FSRTripData[]> {
-  await requirePermission("reports:view");
+  const scope = await getReportScope(await requirePermission("reports:view"));
 
   const startRange = dateRange?.startDate
     ? mxDayRange(dateRange.startDate)
@@ -413,6 +427,7 @@ export async function getVehicleTripsByFSRData(
         gte: startDate,
         lte: endDate,
       },
+      ...vehicleTripScopeWhere(scope),
     },
     include: {
       fsr: {
@@ -453,7 +468,7 @@ export async function getVehicleTripsByFSRData(
 export async function getPartsUsageData(
   dateRange?: DateRange,
 ): Promise<PartUsageData[]> {
-  await requirePermission("reports:view");
+  const scope = await getReportScope(await requirePermission("reports:view"));
 
   const startRange = dateRange?.startDate
     ? mxDayRange(dateRange.startDate)
@@ -472,6 +487,7 @@ export async function getPartsUsageData(
         gte: startDate,
         lte: endDate,
       },
+      ...workPartScopeWhere(scope),
     },
     include: {
       part: true,
@@ -513,7 +529,7 @@ export async function getPartsUsageData(
  * Get Report Summary Statistics
  */
 export async function getReportSummary(dateRange?: DateRange) {
-  await requirePermission("reports:view");
+  const scope = await getReportScope(await requirePermission("reports:view"));
 
   const startRange = dateRange?.startDate
     ? mxDayRange(dateRange.startDate)
@@ -538,6 +554,7 @@ export async function getReportSummary(dateRange?: DateRange) {
       where: {
         active: true,
         reportedAt: { gte: startDate, lte: endDate },
+        ...incidentScopeWhere(scope),
       },
     }),
     prisma.incident.count({
@@ -545,12 +562,14 @@ export async function getReportSummary(dateRange?: DateRange) {
         active: true,
         reportedAt: { gte: startDate, lte: endDate },
         resolvedAt: { not: null },
+        ...incidentScopeWhere(scope),
       },
     }),
     prisma.assignment.count({
       where: {
         active: true,
         createdAt: { gte: startDate, lte: endDate },
+        ...assignmentScopeWhere(scope),
       },
     }),
     prisma.assignment.count({
@@ -558,12 +577,14 @@ export async function getReportSummary(dateRange?: DateRange) {
         active: true,
         createdAt: { gte: startDate, lte: endDate },
         finishedAt: { not: null },
+        ...assignmentScopeWhere(scope),
       },
     }),
     prisma.vehicleTrip.count({
       where: {
         active: true,
         startedAt: { gte: startDate, lte: endDate },
+        ...vehicleTripScopeWhere(scope),
       },
     }),
     prisma.vehicleTrip.aggregate({
@@ -571,6 +592,7 @@ export async function getReportSummary(dateRange?: DateRange) {
       where: {
         active: true,
         startedAt: { gte: startDate, lte: endDate },
+        ...vehicleTripScopeWhere(scope),
       },
     }),
     prisma.workPart.aggregate({
@@ -578,6 +600,7 @@ export async function getReportSummary(dateRange?: DateRange) {
       where: {
         active: true,
         createdAt: { gte: startDate, lte: endDate },
+        ...workPartScopeWhere(scope),
       },
     }),
   ]);
@@ -648,12 +671,13 @@ export async function getAssignmentAgingData(): Promise<{
   assignments: AssignmentAgingData[];
   summary: AgingSummary;
 }> {
-  await requirePermission("reports:view");
+  const scope = await getReportScope(await requirePermission("reports:view"));
 
   const assignments = await prisma.assignment.findMany({
     where: {
       active: true,
       finishedAt: null,
+      ...assignmentScopeWhere(scope),
     },
     include: {
       incident: {
@@ -766,7 +790,7 @@ export type SeenTimeSummary = {
 export async function getSeenTimeData(
   dateRange?: DateRange,
 ): Promise<{ assignments: SeenTimeData[]; summary: SeenTimeSummary }> {
-  await requirePermission("reports:view");
+  const scope = await getReportScope(await requirePermission("reports:view"));
 
   const startRange = dateRange?.startDate
     ? mxDayRange(dateRange.startDate)
@@ -784,6 +808,7 @@ export async function getSeenTimeData(
         gte: startDate,
         lte: endDate,
       },
+      ...assignmentScopeWhere(scope),
     },
     include: {
       incident: {
@@ -926,7 +951,7 @@ export async function getNotificationEngagementReport(
   rows: NotificationEngagementRow[];
   summary: NotificationEngagementSummary;
 }> {
-  await requirePermission("reports:view");
+  const scope = await getReportScope(await requirePermission("reports:view"));
 
   const startDate = dateRange?.startDate
     ? moment.tz(dateRange.startDate, APP_TZ).startOf("day").toDate()
@@ -953,13 +978,14 @@ export async function getNotificationEngagementReport(
   }
 
   const fsrUsers = await prisma.user.findMany({
-    where: { roleId: fsrRole.id, active: true },
+    where: { roleId: fsrRole.id, active: true, ...fsrScopeWhere(scope) },
     select: { id: true, name: true, email: true },
     orderBy: { name: "asc" },
   });
 
   const rows: NotificationEngagementRow[] = await Promise.all(
     fsrUsers.map(async (user) => {
+      // Scoped transitively: `user` comes from the already-scoped fsrUsers list.
       const notifications = await prisma.notification.findMany({
         where: {
           userId: user.id,
@@ -1068,7 +1094,7 @@ export async function getDailyTripComplianceReport(
   rows: DailyTripComplianceRow[];
   summary: DailyTripComplianceSummary;
 }> {
-  await requirePermission("reports:view");
+  const scope = await getReportScope(await requirePermission("reports:view"));
 
   const start = dateRange?.startDate
     ? moment.tz(dateRange.startDate, APP_TZ).startOf("day")
@@ -1101,7 +1127,7 @@ export async function getDailyTripComplianceReport(
   }
 
   const fsrUsers = await prisma.user.findMany({
-    where: { roleId: fsrRole.id, active: true },
+    where: { roleId: fsrRole.id, active: true, ...fsrScopeWhere(scope) },
     select: { id: true, name: true, email: true },
     orderBy: { name: "asc" },
   });

@@ -274,6 +274,11 @@ asignación tiene `scheduledDate` no nulo, el sistema llama `isFsrUnavailable` p
 `toAdd`. Si alguno está inhábil en esa fecha, **toda la operación se rechaza** con un error claro
 en español neutro y no se persiste ningún cambio.
 
+Además, cuando `updateAssignment` **cambia el `scheduledDate`**, la verificación se aplica a
+**todos** los asignados (los existentes y los nuevos), no solo a `toAdd`. De lo contrario mover
+una asignación a un día festivo o a un periodo de vacaciones aprobado pasaría sin bloqueo,
+porque `toAdd` estaría vacío.
+
 Si `scheduledDate` es `null` o ausente, el sistema **no** ejecuta el chequeo al crear/actualizar
 (la verificación se difiere al registro de actividad, ver RF-705).
 
@@ -290,6 +295,13 @@ Si `scheduledDate` es `null` o ausente, el sistema **no** ejecuta el chequeo al 
 - Y `toAdd` contiene al FSR "Diana" (que tiene una vacación en alguna fecha)
 - CUANDO se llama `createAssignment` o `updateAssignment`
 - ENTONCES la operación procede sin chequear disponibilidad; Diana se agrega normalmente
+
+#### Escenario: Bloqueo — mover la fecha a un día inhábil sin cambiar asignados
+
+- DADO una asignación con `scheduledDate: 2026-12-26` y el FSR "Diana" ya asignada
+- Y Diana tiene una vacación APROBADA que cubre el 2026-12-28
+- CUANDO se llama `updateAssignment` con `scheduledDate: 2026-12-28` y la misma lista de FSR
+- ENTONCES el sistema lanza un error en español y no persiste el cambio de fecha
 
 #### Escenario: Permitido — FSR disponible en `scheduledDate`
 

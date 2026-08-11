@@ -3,6 +3,11 @@
 import type { Prisma } from "@prisma/client";
 import moment from "moment-timezone";
 import { requirePermission } from "@/lib/auth/auth";
+import {
+  getReportScope,
+  incidentScopeWhere,
+  type ReportScope,
+} from "@/lib/auth/report-scope";
 import { prisma } from "@/lib/database/prisma.singleton";
 import {
   buildIncidentProgram,
@@ -76,9 +81,13 @@ function incidentWindowWhere(
   from: Date,
   to: Date,
   filters: Pick<IncidentProgramFilters, "stateId" | "clienteId">,
+  scope: ReportScope,
 ): Prisma.IncidentWhereInput {
   return {
     active: true,
+    // Tenant scope first — the user-supplied filters below can only narrow it,
+    // never widen it past the caller's own Clientes.
+    ...incidentScopeWhere(scope),
     ...(filters.clienteId ? { clienteId: filters.clienteId } : {}),
     // A plaza filter constrains the cliente, so it composes with clienteId.
     ...(filters.stateId ? { cliente: { stateId: filters.stateId } } : {}),
@@ -101,10 +110,10 @@ function incidentWindowWhere(
 export async function getScheduleOptions(
   filters: Omit<IncidentProgramFilters, "scheduleIds">,
 ): Promise<ScheduleOption[]> {
-  await requirePermission("reports:view");
+  const scope = await getReportScope(await requirePermission("reports:view"));
 
   const { from, to } = reportWindow(filters.startDate, filters.endDate);
-  const where = incidentWindowWhere(from, to, filters);
+  const where = incidentWindowWhere(from, to, filters, scope);
 
   const incidents = await prisma.incident.findMany({
     where,
@@ -199,12 +208,12 @@ const assignmentSelect = {
 export async function getIncidentProgramReport(
   filters: IncidentProgramFilters,
 ): Promise<IncidentProgramReport> {
-  await requirePermission("reports:view");
+  const scope = await getReportScope(await requirePermission("reports:view"));
 
   const { startDate, endDate, scheduleIds } = filters;
   const { from, to } = reportWindow(startDate, endDate);
 
-  const where = incidentWindowWhere(from, to, filters);
+  const where = incidentWindowWhere(from, to, filters, scope);
 
   // An empty selection means "no filter"; otherwise restrict to the picked
   // programaciones, optionally including the unlinked ones.

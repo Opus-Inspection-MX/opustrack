@@ -1,12 +1,21 @@
 "use server";
 
 import { requirePermission } from "@/lib/auth/auth";
+import {
+  assignmentScopeWhere,
+  fsrScopeWhere,
+  getReportScope,
+  incidentScopeWhere,
+} from "@/lib/auth/report-scope";
 import { CRITICAL_PRIORITY_THRESHOLD } from "@/lib/constants/incident-type";
 import { prisma } from "@/lib/database/prisma.singleton";
+import { INCIDENT_TERMINAL_STATES } from "@/lib/state-machine/incident-machine";
+
+/** Both incident end states. An incident in either is no longer "active". */
+const TERMINAL_INCIDENT_NAMES = [...INCIDENT_TERMINAL_STATES];
 
 export async function getDashboardStats() {
-  // Admin can see all stats
-  await requirePermission("dashboard:view");
+  const scope = await getReportScope(await requirePermission("dashboard:view"));
 
   const [
     totalUsers,
@@ -19,16 +28,15 @@ export async function getDashboardStats() {
   ] = await Promise.all([
     // Total users
     prisma.user.count({
-      where: { active: true },
+      where: { active: true, ...fsrScopeWhere(scope) },
     }),
 
-    // Active incidents (not closed)
+    // Active incidents: neither CERRADO nor CANCELADA.
     prisma.incident.count({
       where: {
         active: true,
-        status: {
-          name: { not: "CERRADO" },
-        },
+        status: { name: { notIn: TERMINAL_INCIDENT_NAMES } },
+        ...incidentScopeWhere(scope),
       },
     }),
 
@@ -47,6 +55,7 @@ export async function getDashboardStats() {
             ],
           },
         },
+        ...assignmentScopeWhere(scope),
       },
     }),
 
@@ -60,7 +69,7 @@ export async function getDashboardStats() {
 
     // Recent incidents (last 5)
     prisma.incident.findMany({
-      where: { active: true },
+      where: { active: true, ...incidentScopeWhere(scope) },
       include: {
         type: true,
         status: true,
@@ -79,6 +88,7 @@ export async function getDashboardStats() {
         status: {
           name: { in: ["PENDIENTE_DE_ASIGNACION", "ASIGNADO"] },
         },
+        ...assignmentScopeWhere(scope),
       },
       include: {
         incident: {
@@ -98,16 +108,15 @@ export async function getDashboardStats() {
       take: 5,
     }),
 
-    // Critical incidents: active, not CERRADO, type priority >= threshold
+    // Critical incidents: still active (non-terminal) and high-priority type.
     prisma.incident.count({
       where: {
         active: true,
-        status: {
-          name: { not: "CERRADO" },
-        },
+        status: { name: { notIn: TERMINAL_INCIDENT_NAMES } },
         type: {
           priority: { gte: CRITICAL_PRIORITY_THRESHOLD },
         },
+        ...incidentScopeWhere(scope),
       },
     }),
   ]);
