@@ -18,6 +18,7 @@ import {
   type BroadcastType,
   sendBroadcast,
 } from "@/lib/actions/notifications";
+import { isFailure } from "@/lib/actions/result";
 
 interface Role {
   id: number;
@@ -53,6 +54,14 @@ export function BroadcastForm({ roles }: BroadcastFormProps) {
         audience,
         roleId: audience === "by-role" && roleId ? Number(roleId) : undefined,
       });
+
+      // Validation comes back as a value, not an exception: Next strips the
+      // message of anything a Server Action throws in a production build.
+      if (isFailure(result)) {
+        setError(result.error);
+        return;
+      }
+
       setSuccessCount(result.count);
       setTitle("");
       setMessage("");

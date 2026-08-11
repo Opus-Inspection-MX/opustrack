@@ -20,6 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { toast } from "@/hooks/use-toast";
 import { deletePart } from "@/lib/actions/parts";
 
 type Part = {
@@ -48,7 +49,7 @@ export function PartsTable({ parts }: { parts: Part[] }) {
       await deletePart(id);
       router.refresh();
     } catch (error) {
-      alert(`Error al eliminar parte: ${(error as Error).message}`);
+      toast.error("Error al eliminar parte");
       setDeleting(null);
     }
   };

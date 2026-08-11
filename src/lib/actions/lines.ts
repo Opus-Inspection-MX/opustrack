@@ -4,6 +4,7 @@ import type { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { requirePermission } from "@/lib/auth/auth";
 import { prisma } from "@/lib/database/prisma.singleton";
+import { rejected } from "./result";
 
 export async function getLines(params?: {
   page?: number;
@@ -205,8 +206,8 @@ export async function deleteLine(id: number) {
   });
 
   if (equipmentCount > 0) {
-    throw new Error(
-      `Cannot delete line. ${equipmentCount} active equipment item(s) belong to this line.`,
+    return rejected(
+      `No se puede eliminar: ${equipmentCount} equipo(s) activo(s) pertenecen a esta línea.`,
     );
   }
 

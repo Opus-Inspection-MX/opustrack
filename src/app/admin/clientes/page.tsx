@@ -11,7 +11,9 @@ import { CatalogTable } from "@/components/common/catalog-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useDebounce } from "@/hooks/use-debounce";
+import { toast } from "@/hooks/use-toast";
 import { deleteCliente, getClientes } from "@/lib/actions/clientes";
+import { isFailure } from "@/lib/actions/result";
 
 type ClienteRow = Awaited<ReturnType<typeof getClientes>>["data"][number];
 
@@ -129,10 +131,15 @@ export default function ClientesPage() {
         `¿Seguro que deseas eliminar el centro "${row.name}"? Esta acción no se puede deshacer.`,
       onClick: async (row) => {
         try {
-          await deleteCliente(row.id);
+          const result = await deleteCliente(row.id);
+          if (isFailure(result)) {
+            toast.error(result.error);
+            return;
+          }
           await fetchData();
         } catch (error) {
-          console.error("Error al eliminar centro:", error);
+          console.error("deleteCliente failed:", error);
+          toast.error("No se pudo completar la operación. Intenta de nuevo.");
         }
       },
     },

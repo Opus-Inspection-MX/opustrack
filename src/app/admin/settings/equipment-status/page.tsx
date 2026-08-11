@@ -10,10 +10,12 @@ import type {
 import { CatalogTable } from "@/components/common/catalog-table";
 import { Button } from "@/components/ui/button";
 import { useDebounce } from "@/hooks/use-debounce";
+import { toast } from "@/hooks/use-toast";
 import {
   deleteEquipmentStatus,
   getEquipmentStatuses,
 } from "@/lib/actions/lookups";
+import { isFailure } from "@/lib/actions/result";
 
 type EquipmentStatus = Awaited<
   ReturnType<typeof getEquipmentStatuses>
@@ -109,10 +111,15 @@ export default function EquipmentStatusPage() {
       disabled: (row) => row._count.equipments > 0,
       onClick: async (row) => {
         try {
-          await deleteEquipmentStatus(row.id);
+          const result = await deleteEquipmentStatus(row.id);
+          if (isFailure(result)) {
+            toast.error(result.error);
+            return;
+          }
           await fetchData();
         } catch (error) {
-          console.error("Error deleting equipment status:", error);
+          console.error("deleteEquipmentStatus failed:", error);
+          toast.error("No se pudo completar la operación. Intenta de nuevo.");
         }
       },
     },

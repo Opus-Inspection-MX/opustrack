@@ -9,6 +9,7 @@ import {
   type VacationFormData,
   validateVacationDates,
 } from "@/lib/validations/vacations";
+import { rejected } from "./result";
 
 // ---------------------------------------------------------------------------
 // Read
@@ -129,7 +130,7 @@ export async function createVacation(data: VacationFormData) {
   const targetUserId = data.userId ?? caller.id;
 
   if (targetUserId !== caller.id && !isAdmin(caller)) {
-    throw new Error(
+    return rejected(
       "No tiene permisos para crear vacaciones en nombre de otro usuario.",
     );
   }
@@ -167,7 +168,7 @@ export async function createVacation(data: VacationFormData) {
   });
 
   if (overlap) {
-    throw new Error(
+    return rejected(
       "El período solicitado se superpone con una solicitud de vacaciones pendiente o aprobada existente.",
     );
   }
@@ -219,7 +220,7 @@ async function resolveVacation(
   }
 
   if (existing.status.name !== "PENDIENTE") {
-    throw new Error(
+    return rejected(
       `La solicitud ya fue resuelta (${existing.status.name}). Solo se puede decidir sobre solicitudes pendientes.`,
     );
   }
@@ -275,7 +276,7 @@ export async function deleteVacation(id: string) {
     }
 
     if (vacation.userId !== caller.id) {
-      throw new Error(
+      return rejected(
         "Solo puede eliminar sus propias solicitudes de vacaciones.",
       );
     }

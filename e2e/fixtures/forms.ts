@@ -116,3 +116,47 @@ export async function pickFromCombobox(
     await page.keyboard.press("Escape");
   }
 }
+
+/**
+ * Fill a field of a react-hook-form + shadcn `FormField` form (parts, roles).
+ *
+ * Those forms render `FormLabel`/`FormControl` and wire the id themselves, so
+ * there is no stable `#id` to target — the accessible label is the contract.
+ */
+export async function fillByLabel(
+  page: Page,
+  label: string | RegExp,
+  value: string,
+): Promise<void> {
+  await fillStable(page.getByLabel(label), value);
+}
+
+/**
+ * Pick an option from a Radix `<Select>` (lines, equipments, clientes,
+ * vehicles).
+ *
+ * NOT the same component as `SearchableSelect`/`MultiSelect`: this one has no
+ * search box, and its trigger is a combobox whose accessible name is the
+ * current value or the placeholder.
+ */
+export async function pickFromSelect(
+  page: Page,
+  trigger: Locator,
+  option?: string | RegExp,
+): Promise<void> {
+  await trigger.click();
+  const item = option
+    ? page.getByRole("option", { name: option, exact: true })
+    : page.getByRole("option").first();
+  await item.click();
+}
+
+/** Radix `<Select>` trigger addressed by the `htmlFor` of its label. */
+export function selectByFieldId(page: Page, id: string): Locator {
+  return page.locator(`label[for="${id}"] + button, #${id}`).first();
+}
+
+/** The submit button of the form on screen. Labels differ per catalog. */
+export function submitButton(page: Page): Locator {
+  return page.locator('button[type="submit"]').first();
+}

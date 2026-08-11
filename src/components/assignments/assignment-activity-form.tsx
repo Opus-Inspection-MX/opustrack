@@ -1,5 +1,6 @@
 "use client";
 
+import { isFailure } from "@/lib/actions/result";
 import { Plus, Save } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -48,8 +49,9 @@ export function AssignmentActivityForm({
         performedAt: new Date(),
       });
 
-      if (!result.success) {
-        throw new Error("Failed to create work activity");
+      if (isFailure(result)) {
+        setError(result.error);
+        return;
       }
 
       // Upload files if any (multipart, per-file isolated failures)

@@ -328,12 +328,15 @@ Proveer visibilidad operativa y analítica al administrador sobre el desempeño 
 
 **Reglas de negocio:**
 - Requiere permiso `tracking:update`.
-- El FSR a asignar debe estar activo y tener `role.name = "FSR"` con un `clienteAssignment` activo vinculando al FSR con el cliente del incidente.
+- El FSR debe estar **habilitado en el incidente**: existe un `IncidentAssignee` activo que lo vincula con ese incidente (RF-025). Pertenecer al mismo Cliente **no** es suficiente — el desplegable de la UI lista a los FSRs del Cliente (`getFSRsByClienteId`), y de esos solo los habilitados pueden asignarse.
+- Si el FSR no está habilitado, la acción **devuelve** `{ success: false, error }` con el motivo. No lanza: un build de producción de Next reemplaza el mensaje de cualquier excepción de un Server Action, así que la regla solo llega a la UI como valor de retorno.
 - Si ya existe una asignación activa para el incidente, el FSR se agrega como asignado adicional (`upsert` en `AssignmentAssignee`).
 - Si no existe asignación activa, se crea una nueva con estado `ASIGNADO` y `assignedAt = new Date()`.
 - Invalida cache de `/admin/tracking` con `revalidatePath`.
 
 **Implementación:** `assignFSRToIncident()` en `src/lib/actions/tracking.ts`
+
+> **Nota:** la UI de `/admin/tracking` no invoca hoy esta acción. La asignación rápida real pasa por `createAssignment()` (alta de asignación) y `updateAssignmentAssignees()` (RF-515), que aplica la misma regla de habilitación.
 
 ---
 
@@ -344,7 +347,7 @@ Proveer visibilidad operativa y analítica al administrador sobre el desempeño 
 **Reglas de negocio:**
 - Requiere permiso `tracking:update`.
 - Deduplica `userIds` antes de procesar.
-- Valida que todos los FSRs solicitados estén autorizados para el incidente vinculado (tabla `IncidentAssignee`). Si alguno no lo está, lanza error.
+- Valida que todos los FSRs solicitados estén autorizados para el incidente vinculado (tabla `IncidentAssignee`). Si alguno no lo está, **devuelve** `{ success: false, error: "Solo se pueden asignar FSRs habilitados en la incidencia" }` sin escribir nada (ver la nota de RF-514 sobre por qué se devuelve en vez de lanzar).
 - Ejecuta la sincronización de asignados en una transacción:
   - Calcula `toRemove` (activos que no están en la nueva lista) y `toAdd` (nuevos que no estaban activos).
   - Los removidos se marcan `active: false`; los nuevos se upsert con `active: true`.

@@ -4,6 +4,42 @@ import type { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { requirePermission } from "@/lib/auth/auth";
 import { prisma } from "@/lib/database/prisma.singleton";
+import { mxDayRange } from "@/lib/utils/datetime";
+
+/**
+ * Errors that must reach the caller verbatim: business rules the user can act
+ * on, and permission failures. Everything else is wrapped, so an unexpected
+ * fault does not leak internals into the UI.
+ *
+ * The catch-all used to replace *every* error with a generic message, which
+ * meant the "Solo se pueden asignar FSRs habilitados" guard fired correctly and
+ * the user never saw why — and a denied permission looked like a server fault.
+ */
+function rethrowBusinessError(error: unknown): void {
+  if (
+    error instanceof Error &&
+    /^(Solo se|Assignment not found|Unauthorized|Forbidden)/.test(error.message)
+  ) {
+    throw error;
+  }
+}
+
+/**
+ * A rejection the user is meant to read.
+ *
+ * It is RETURNED, not thrown, because a production build of Next replaces the
+ * message of anything a Server Action throws with "An error occurred in the
+ * Server Components render… the specific message is omitted in production
+ * builds". Re-throwing the rule reaches the caller in dev and disappears in
+ * production — which is exactly where it matters. A returned value crosses the
+ * boundary untouched.
+ */
+function rejected(message: string) {
+  return { success: false as const, error: message };
+}
+
+const FSR_NOT_ENABLED =
+  "Solo se pueden asignar FSRs habilitados en la incidencia";
 
 type FolioQuery =
   | { kind: "incident"; value: number }
@@ -59,14 +95,15 @@ export async function getIncidentsForTracking(filters?: {
     }
 
     if (filters?.startDate || filters?.endDate) {
+      // CDMX day bounds, per the cross-cutting timezone rule. `new Date()` plus
+      // setHours() resolved in the server's local zone — UTC on Vercel — so an
+      // incident reported at 23:30 CDMX fell into the next day's filter.
       where.reportedAt = {};
       if (filters.startDate) {
-        where.reportedAt.gte = new Date(filters.startDate);
+        where.reportedAt.gte = mxDayRange(filters.startDate).gte;
       }
       if (filters.endDate) {
-        const endDate = new Date(filters.endDate);
-        endDate.setHours(23, 59, 59, 999);
-        where.reportedAt.lte = endDate;
+        where.reportedAt.lte = mxDayRange(filters.endDate).lte;
       }
     }
 
@@ -207,6 +244,7 @@ export async function getIncidentsForTracking(filters?: {
 
     return { data: incidents, totalCount };
   } catch (error) {
+    rethrowBusinessError(error);
     console.error("Error fetching incidents for tracking:", error);
     throw new Error("Failed to fetch incidents");
   }
@@ -238,6 +276,7 @@ export async function getFSRsByClienteId(clienteId: string) {
 
     return users;
   } catch (error) {
+    rethrowBusinessError(error);
     console.error("Error fetching FSRs by Cliente:", error);
     throw new Error("Failed to fetch FSRs");
   }
@@ -252,9 +291,7 @@ export async function assignFSRToIncident(incidentId: number, fsrId: string) {
       select: { id: true },
     });
     if (!authorized) {
-      throw new Error(
-        "Solo se pueden asignar FSRs habilitados en la incidencia",
-      );
+      return rejected(FSR_NOT_ENABLED);
     }
 
     const existingAssignment = await prisma.assignment.findFirst({
@@ -297,8 +334,9 @@ export async function assignFSRToIncident(incidentId: number, fsrId: string) {
     }
 
     revalidatePath("/admin/tracking");
-    return { success: true };
+    return { success: true as const };
   } catch (error) {
+    rethrowBusinessError(error);
     console.error("Error assigning FSR to incident:", error);
     throw new Error("Failed to assign FSR");
   }
@@ -318,7 +356,9 @@ export async function updateAssignmentAssignees(
         where: { id: assignmentId },
         select: { incidentId: true },
       });
-      if (!assignment) throw new Error("Assignment not found");
+      if (!assignment) {
+        return rejected("La asignación ya no existe.");
+      }
       const authorized = await prisma.incidentAssignee.findMany({
         where: {
           incidentId: assignment.incidentId,
@@ -330,9 +370,7 @@ export async function updateAssignmentAssignees(
       const authorizedSet = new Set(authorized.map((a) => a.userId));
       const unauthorized = uniqueIds.filter((u) => !authorizedSet.has(u));
       if (unauthorized.length > 0) {
-        throw new Error(
-          "Solo se pueden asignar FSRs habilitados en la incidencia",
-        );
+        return rejected(FSR_NOT_ENABLED);
       }
     }
 
@@ -385,8 +423,10 @@ export async function updateAssignmentAssignees(
     });
 
     revalidatePath("/admin/tracking");
-    return { success: true, assignment: updatedAssignment };
+    // `as const` so the caller can discriminate this from `rejected()`.
+    return { success: true as const, assignment: updatedAssignment };
   } catch (error) {
+    rethrowBusinessError(error);
     console.error("Error updating assignment assignees:", error);
     throw new Error("Failed to update assignment assignees");
   }
@@ -423,6 +463,7 @@ export async function updateIncidentDetails(
     revalidatePath("/admin/tracking");
     return { success: true };
   } catch (error) {
+    rethrowBusinessError(error);
     console.error("Error updating incident:", error);
     throw new Error("Failed to update incident");
   }
@@ -451,6 +492,7 @@ export async function updateAssignmentDetails(
     revalidatePath("/admin/tracking");
     return { success: true };
   } catch (error) {
+    rethrowBusinessError(error);
     console.error("Error updating assignment:", error);
     throw new Error("Failed to update assignment");
   }

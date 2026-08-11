@@ -10,6 +10,7 @@ import {
   Trash2,
 } from "lucide-react";
 import Link from "next/link";
+import { isFailure } from "@/lib/actions/result";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { AssignmentActivityEdit } from "@/components/assignments/assignment-activity-edit";
@@ -22,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
+import { toast } from "@/hooks/use-toast";
 import {
   deleteAssignmentActivity,
   getAssignmentActivities,
@@ -187,11 +189,16 @@ export default function EditAssignmentPage({
       return;
 
     try {
-      await deleteAssignmentActivity(id);
+      const result = await deleteAssignmentActivity(id);
+
+      if (isFailure(result)) {
+        toast.error(result.error);
+        return;
+      }
       await fetchData();
     } catch (error) {
       console.error("Error deleting activity:", error);
-      alert("Error al eliminar la actividad");
+      toast.error("Error al eliminar la actividad");
     }
   };
 
@@ -200,11 +207,16 @@ export default function EditAssignmentPage({
       return;
 
     try {
-      await deleteWorkPart(id);
+      const result = await deleteWorkPart(id);
+
+      if (isFailure(result)) {
+        toast.error(result.error);
+        return;
+      }
       await fetchData();
     } catch (error) {
       console.error("Error deleting part:", error);
-      alert("Error al eliminar la refacción");
+      toast.error("Error al eliminar la refacción");
     }
   };
 
@@ -212,11 +224,16 @@ export default function EditAssignmentPage({
     if (!confirm("¿Estás seguro de que deseas eliminar este archivo?")) return;
 
     try {
-      await deleteAssignmentAttachment(id);
+      const result = await deleteAssignmentAttachment(id);
+
+      if (isFailure(result)) {
+        toast.error(result.error);
+        return;
+      }
       await fetchData();
     } catch (error) {
       console.error("Error deleting attachment:", error);
-      alert("Error al eliminar el archivo");
+      toast.error("Error al eliminar el archivo");
     }
   };
 

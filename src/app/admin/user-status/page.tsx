@@ -10,7 +10,9 @@ import type {
 import { CatalogTable } from "@/components/common/catalog-table";
 import { Button } from "@/components/ui/button";
 import { useDebounce } from "@/hooks/use-debounce";
+import { toast } from "@/hooks/use-toast";
 import { deleteUserStatus, getUserStatuses } from "@/lib/actions/lookups";
+import { isFailure } from "@/lib/actions/result";
 
 type UserStatus = Awaited<ReturnType<typeof getUserStatuses>>["data"][number];
 
@@ -104,10 +106,15 @@ export default function UserStatusPage() {
       disabled: (row) => row._count.users > 0,
       onClick: async (row) => {
         try {
-          await deleteUserStatus(row.id);
+          const result = await deleteUserStatus(row.id);
+          if (isFailure(result)) {
+            toast.error(result.error);
+            return;
+          }
           await fetchData();
         } catch (error) {
-          console.error("Error deleting user status:", error);
+          console.error("deleteUserStatus failed:", error);
+          toast.error("No se pudo completar la operación. Intenta de nuevo.");
         }
       },
     },

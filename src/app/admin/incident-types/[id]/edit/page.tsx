@@ -31,9 +31,9 @@ export default async function EditIncidentTypePage({
           ...incidentType,
           description: incidentType.description ?? undefined,
         }}
-        onSubmit={async (data) => {
-          await updateIncidentType(incidentType.id, data);
-        }}
+        // Bound, not wrapped: an inline arrow would be a plain closure, and a
+        // Server Component cannot pass one to a Client Component.
+        onSubmit={updateIncidentType.bind(null, incidentType.id)}
         redirectPath="/admin/incident-types"
         title="Incident Type Details"
         isEdit

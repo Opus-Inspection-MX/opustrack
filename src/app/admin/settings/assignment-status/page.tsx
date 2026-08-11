@@ -10,10 +10,12 @@ import type {
 import { CatalogTable } from "@/components/common/catalog-table";
 import { Button } from "@/components/ui/button";
 import { useDebounce } from "@/hooks/use-debounce";
+import { toast } from "@/hooks/use-toast";
 import {
   deleteAssignmentStatus,
   getAssignmentStatuses,
 } from "@/lib/actions/lookups";
+import { isFailure } from "@/lib/actions/result";
 
 type AssignmentStatus = Awaited<
   ReturnType<typeof getAssignmentStatuses>
@@ -109,10 +111,15 @@ export default function AssignmentStatusPage() {
       disabled: (row) => row._count.assignments > 0,
       onClick: async (row) => {
         try {
-          await deleteAssignmentStatus(row.id);
+          const result = await deleteAssignmentStatus(row.id);
+          if (isFailure(result)) {
+            toast.error(result.error);
+            return;
+          }
           await fetchData();
         } catch (error) {
-          console.error("Error deleting asignación status:", error);
+          console.error("deleteAssignmentStatus failed:", error);
+          toast.error("No se pudo completar la operación. Intenta de nuevo.");
         }
       },
     },

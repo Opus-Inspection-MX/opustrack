@@ -1,5 +1,6 @@
 "use client";
 
+import { isFailure } from "@/lib/actions/result";
 import { Plus, Save } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -76,8 +77,9 @@ export function WorkPartForm({
         description: formData.description || undefined,
       });
 
-      if (!result.success) {
-        throw new Error("Failed to add part");
+      if (isFailure(result)) {
+        setError(result.error);
+        return;
       }
 
       // Reset form

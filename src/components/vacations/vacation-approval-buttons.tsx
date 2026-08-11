@@ -1,5 +1,6 @@
 "use client";
 
+import { isFailure } from "@/lib/actions/result";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { approveVacation, rejectVacation } from "@/lib/actions/vacations";
@@ -31,7 +32,12 @@ export function VacationApprovalButtons({
     setLoading("approve");
     setError(null);
     try {
-      await approveVacation(vacationId);
+      const result = await approveVacation(vacationId);
+
+      if (isFailure(result)) {
+        setError(result.error);
+        return;
+      }
       onSuccess?.();
     } catch (err) {
       setError((err as Error).message);
@@ -44,7 +50,12 @@ export function VacationApprovalButtons({
     setLoading("reject");
     setError(null);
     try {
-      await rejectVacation(vacationId);
+      const result = await rejectVacation(vacationId);
+
+      if (isFailure(result)) {
+        setError(result.error);
+        return;
+      }
       onSuccess?.();
     } catch (err) {
       setError((err as Error).message);

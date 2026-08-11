@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { toast } from "@/hooks/use-toast";
 
 interface Cliente {
   id: string;
@@ -147,7 +148,7 @@ export function CreateProgramDialog({
       router.refresh();
     } catch (error) {
       console.error("Error creating schedule:", error);
-      alert("Error al crear la programación");
+      toast.error("Error al crear la programación");
     } finally {
       setLoading(false);
     }

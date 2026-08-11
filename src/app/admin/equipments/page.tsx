@@ -11,7 +11,9 @@ import { CatalogTable } from "@/components/common/catalog-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useDebounce } from "@/hooks/use-debounce";
+import { toast } from "@/hooks/use-toast";
 import { deleteEquipment, getEquipments } from "@/lib/actions/equipments";
+import { isFailure } from "@/lib/actions/result";
 
 type Equipment = Awaited<ReturnType<typeof getEquipments>>["data"][number];
 
@@ -119,10 +121,15 @@ export default function EquipmentsPage() {
         `¿Seguro que deseas eliminar "${row.name}"? Esta acción no se puede deshacer.`,
       onClick: async (row) => {
         try {
-          await deleteEquipment(row.id);
+          const result = await deleteEquipment(row.id);
+          if (isFailure(result)) {
+            toast.error(result.error);
+            return;
+          }
           await fetchData();
         } catch (error) {
-          console.error("Error deleting equipment:", error);
+          console.error("deleteEquipment failed:", error);
+          toast.error("No se pudo completar la operación. Intenta de nuevo.");
         }
       },
     },

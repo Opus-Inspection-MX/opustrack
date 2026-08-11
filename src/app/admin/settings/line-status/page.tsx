@@ -10,7 +10,9 @@ import type {
 import { CatalogTable } from "@/components/common/catalog-table";
 import { Button } from "@/components/ui/button";
 import { useDebounce } from "@/hooks/use-debounce";
+import { toast } from "@/hooks/use-toast";
 import { deleteLineStatus, getLineStatuses } from "@/lib/actions/lookups";
+import { isFailure } from "@/lib/actions/result";
 
 type LineStatus = Awaited<ReturnType<typeof getLineStatuses>>["data"][number];
 
@@ -104,10 +106,15 @@ export default function LineStatusPage() {
       disabled: (row) => row._count.lines > 0,
       onClick: async (row) => {
         try {
-          await deleteLineStatus(row.id);
+          const result = await deleteLineStatus(row.id);
+          if (isFailure(result)) {
+            toast.error(result.error);
+            return;
+          }
           await fetchData();
         } catch (error) {
-          console.error("Error deleting line status:", error);
+          console.error("deleteLineStatus failed:", error);
+          toast.error("No se pudo completar la operación. Intenta de nuevo.");
         }
       },
     },

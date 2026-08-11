@@ -1,5 +1,6 @@
 "use client";
 
+import { isFailure } from "@/lib/actions/result";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useState } from "react";
 import { Badge } from "@/components/ui/badge";
@@ -105,7 +106,12 @@ export function TripEndForm({ trip }: TripEndFormProps) {
       if (formData.address) fd.append("endAddress", formData.address);
       if (formData.notes) fd.append("notes", formData.notes);
 
-      await endVehicleTrip(fd);
+      const result = await endVehicleTrip(fd);
+
+      if (isFailure(result)) {
+        setError(result.error);
+        return;
+      }
 
       router.push("/fsr/vehicle-trips");
     } catch (err) {

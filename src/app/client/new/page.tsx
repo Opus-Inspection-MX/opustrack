@@ -8,6 +8,8 @@ import {
   Send,
 } from "lucide-react";
 import Link from "next/link";
+import { toast } from "@/hooks/use-toast";
+import { isFailure } from "@/lib/actions/result";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -178,6 +180,11 @@ export default function ReportIncidentPage() {
           ? parseInt(formData.equipmentId, 10)
           : undefined,
       });
+
+      if (isFailure(result)) {
+        toast.error(result.error);
+        return;
+      }
 
       if (result.success) {
         router.push("/client");

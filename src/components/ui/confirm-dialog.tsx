@@ -33,6 +33,13 @@ export interface ConfirmDialogProps {
   onConfirm: () => void;
   /** Called when the user cancels. If omitted, cancel closes the dialog via onOpenChange. */
   onCancel?: () => void;
+  /**
+   * Async mode. When provided, the dialog stops closing itself on confirm —
+   * the caller closes it once the action settles — and both buttons are
+   * disabled while `true`, so a slow delete cannot be fired twice.
+   * Omitted, the dialog behaves as before.
+   */
+  busy?: boolean;
 }
 
 /**
@@ -49,6 +56,7 @@ export function ConfirmDialog({
   variant = "default",
   onConfirm,
   onCancel,
+  busy,
 }: ConfirmDialogProps) {
   function handleCancel() {
     if (onCancel) {
@@ -60,7 +68,11 @@ export function ConfirmDialog({
 
   function handleConfirm() {
     onConfirm();
-    onOpenChange(false);
+    // In async mode the caller decides when to close, once it knows whether
+    // the action succeeded.
+    if (busy === undefined) {
+      onOpenChange(false);
+    }
   }
 
   return (
@@ -71,10 +83,10 @@ export function ConfirmDialog({
           <DialogDescription>{message}</DialogDescription>
         </DialogHeader>
         <DialogFooter>
-          <Button variant="outline" onClick={handleCancel}>
+          <Button variant="outline" onClick={handleCancel} disabled={busy}>
             {cancelLabel}
           </Button>
-          <Button variant={variant} onClick={handleConfirm}>
+          <Button variant={variant} onClick={handleConfirm} disabled={busy}>
             {confirmLabel}
           </Button>
         </DialogFooter>

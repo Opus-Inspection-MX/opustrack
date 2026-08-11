@@ -4,6 +4,7 @@ import type React from "react";
 import "./globals.css";
 import { SessionProvider } from "@/components/providers/session-provider";
 import { ThemeProvider } from "@/components/theme-provider";
+import { Toaster } from "@/components/ui/toaster";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -30,6 +31,8 @@ export default function RootLayout({
             disableTransitionOnChange
           >
             {children}
+            {/* Single viewport for every business-rule message in the app. */}
+            <Toaster />
           </ThemeProvider>
         </SessionProvider>
       </body>

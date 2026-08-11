@@ -64,28 +64,57 @@ export default defineConfig({
       testMatch: /auth\.setup\.ts/,
       dependencies: ["db"],
     },
+    // Catalog CRUD: 16 catalogs x 4 tests. Chromium only — it is not
+    // browser-sensitive, and running it everywhere would triple the suite.
+    {
+      name: "catalogs",
+      testMatch: /catalogs\.spec\.ts$/,
+      // Serial: the catalogs share one database and reference each other
+      // (equipments picks a line, lines picks a cliente). Run in parallel, one
+      // catalog's fixture becomes another's dependency and deletes start
+      // failing on guards that have nothing to do with the test.
+      fullyParallel: false,
+      use: { ...devices["Desktop Chrome"] },
+      dependencies: ["setup"],
+    },
+    // Programación and seguimiento: dense flows over shared operational data
+    // (schedules, incidents, assignments). Chromium only and serial, for the
+    // same reasons as the catalogs — they are not browser-sensitive, and two
+    // workers editing the same incident rows race each other.
+    {
+      name: "flows",
+      testMatch: /(programacion|tracking)\.spec\.ts$/,
+      fullyParallel: false,
+      use: { ...devices["Desktop Chrome"] },
+      dependencies: ["setup"],
+    },
     {
       name: "chromium",
+      testIgnore: /(catalogs|programacion|tracking)\.spec\.ts$/,
       use: { ...devices["Desktop Chrome"] },
       dependencies: ["setup"],
     },
     {
       name: "firefox",
+      testIgnore: /(catalogs|programacion|tracking)\.spec\.ts$/,
       use: { ...devices["Desktop Firefox"] },
       dependencies: ["setup"],
     },
     {
       name: "webkit",
+      testIgnore: /(catalogs|programacion|tracking)\.spec\.ts$/,
       use: { ...devices["Desktop Safari"] },
       dependencies: ["setup"],
     },
     {
       name: "Mobile Chrome",
+      testIgnore: /(catalogs|programacion|tracking)\.spec\.ts$/,
       use: { ...devices["Pixel 5"] },
       dependencies: ["setup"],
     },
     {
       name: "Mobile Safari",
+      testIgnore: /(catalogs|programacion|tracking)\.spec\.ts$/,
       use: { ...devices["iPhone 12"] },
       dependencies: ["setup"],
     },

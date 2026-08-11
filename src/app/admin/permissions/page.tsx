@@ -6,6 +6,7 @@ import { useState } from "react";
 import { PermissionTable } from "@/components/permissions/permission-table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { toast } from "@/hooks/use-toast";
 
 interface Permission {
   id: number;
@@ -91,7 +92,7 @@ export default function PermissionsPage() {
 
   const handleDelete = (permission: Permission) => {
     if (permission.roleCount > 0) {
-      alert(
+      toast.error(
         `No se puede eliminar el permiso "${permission.name}" porque está asignado a ${permission.roleCount} rol(es).`,
       );
       return;

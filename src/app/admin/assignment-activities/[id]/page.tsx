@@ -1,11 +1,13 @@
 "use client";
 
+import { isFailure } from "@/lib/actions/result";
 import { ArrowLeft, Edit, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { use, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
+import { toast } from "@/hooks/use-toast";
 import {
   deleteAssignmentActivity,
   getAssignmentActivityById,
@@ -84,7 +86,12 @@ export default function AssignmentActivityDetailPage({
     setIsDeleting(true);
     try {
       const assignmentId = activity?.assignmentId;
-      await deleteAssignmentActivity(id);
+      const result = await deleteAssignmentActivity(id);
+
+      if (isFailure(result)) {
+        toast.error(result.error);
+        return;
+      }
       router.push(
         assignmentId
           ? `/admin/assignments/${assignmentId}`
@@ -92,11 +99,7 @@ export default function AssignmentActivityDetailPage({
       );
     } catch (error) {
       console.error("Error deleting work activity:", error);
-      alert(
-        error instanceof Error
-          ? error.message
-          : "Error al eliminar la actividad de trabajo",
-      );
+      toast.error("Error al eliminar la actividad de trabajo");
       setIsDeleting(false);
     }
   };

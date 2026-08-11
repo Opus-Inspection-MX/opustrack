@@ -1,5 +1,6 @@
 "use client";
 
+import { isFailure } from "@/lib/actions/result";
 import { Check, Edit as EditIcon, Save, X } from "lucide-react";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
@@ -97,8 +98,9 @@ export function AssignmentEditForm({
           : null,
       });
 
-      if (!result.success) {
-        throw new Error("Failed to update asignación");
+      if (isFailure(result)) {
+        setError(result.error);
+        return;
       }
 
       setIsEditing(false);

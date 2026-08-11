@@ -11,6 +11,8 @@ import { CatalogTable } from "@/components/common/catalog-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useDebounce } from "@/hooks/use-debounce";
+import { toast } from "@/hooks/use-toast";
+import { isFailure } from "@/lib/actions/result";
 import { deleteUser, getUsers } from "@/lib/actions/users";
 
 type UserRow = Awaited<ReturnType<typeof getUsers>>["data"][number];
@@ -125,10 +127,15 @@ export default function UsersPage() {
         `¿Seguro que deseas eliminar al usuario "${row.name}"? Esta acción no se puede deshacer.`,
       onClick: async (row) => {
         try {
-          await deleteUser(row.id);
+          const result = await deleteUser(row.id);
+          if (isFailure(result)) {
+            toast.error(result.error);
+            return;
+          }
           await fetchData();
         } catch (error) {
-          console.error("Error al eliminar usuario:", error);
+          console.error("deleteUser failed:", error);
+          toast.error("No se pudo completar la operación. Intenta de nuevo.");
         }
       },
     },

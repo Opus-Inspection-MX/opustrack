@@ -156,6 +156,14 @@ SDD futuros. Los hallazgos ya resueltos se retiran de esta lista al corregirse.
 **Consistencia funcional**
 - `/admin/programacion` es Client Component que consume API REST, excepción al patrón
   "Server Components + Server Actions" declarado en CLAUDE.md (07).
+- Las reglas de negocio que el usuario debe leer no pueden **lanzarse** desde un Server Action:
+  un build de producción de Next reemplaza el mensaje por "An error occurred in the Server
+  Components render". `tracking.ts` ya las **devuelve** (`{ success: false, error }`); el resto de
+  las acciones sigue lanzando `Error` y esos mensajes no llegan al usuario en producción.
+- `assignFSRToIncident()` (RF-514) no tiene consumidor: la asignación rápida real de
+  `/admin/tracking` pasa por `createAssignment()` y `updateAssignmentAssignees()`.
+- Los errores de `/admin/tracking` se comunican con `alert()`, no con el sistema de toasts del
+  resto de la app.
 - La página `/unauthorized` no expone su título como heading: `CardTitle` (shadcn) renderiza
   un `<div>`, así que no hay landmark de encabezado para lectores de pantalla. Aplica a toda
   pantalla que use `CardTitle` como título principal.
@@ -187,6 +195,12 @@ SDD futuros. Los hallazgos ya resueltos se retiran de esta lista al corregirse.
   efímera en Docker cuya invariante verifica `assertEphemeralDatabase()`.
 - El flujo central (cliente reporta → admin programa y asigna → FSR cierra → auto-cierre del
   incidente) no tenía prueba de integración: ahora lo cubre `e2e/incident-lifecycle.spec.ts`.
+- El diálogo de incidente de `/admin/programacion` creaba incidentes sin Cliente, invisibles para
+  FSR, CLIENT y GUEST por el scoping multi-tenant. Ahora el Centro es obligatorio.
+- `/admin/tracking` filtraba por día con la zona del servidor (UTC en Vercel) en vez de CDMX, y
+  sus `try/catch` reemplazaban toda regla de negocio por un mensaje genérico.
+- Programación y seguimiento sin cobertura: `e2e/programacion.spec.ts` y `e2e/tracking.spec.ts`
+  (proyecto `flows`), más los unitarios de `schedules`, `tracking` y `api/schedules/incidents`.
 
 ---
 

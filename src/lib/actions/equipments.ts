@@ -4,6 +4,7 @@ import type { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { requirePermission } from "@/lib/auth/auth";
 import { prisma } from "@/lib/database/prisma.singleton";
+import { rejected } from "./result";
 
 export async function getEquipments(params?: {
   page?: number;
@@ -203,6 +204,20 @@ export async function updateEquipment(
 
 export async function deleteEquipment(id: number) {
   await requirePermission("equipments:delete");
+
+  // Prevent orphaning: an incident points at the equipment it was reported for,
+  // and nothing re-validates that relation afterwards. Every other catalog
+  // delete guards its children the same way — this one used to be the exception.
+  const incidentCount = await prisma.incident.count({
+    where: { equipmentId: id, active: true },
+  });
+
+  if (incidentCount > 0) {
+    return rejected(
+      `No se puede eliminar: ${incidentCount} incidente(s) activo(s) lo referencian.`,
+    );
+  }
+
   try {
     const equipment = await prisma.equipment.findUnique({
       where: { id },

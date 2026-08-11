@@ -11,6 +11,8 @@ import {
   User,
   X,
 } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
+import { isFailure } from "@/lib/actions/result";
 import { useCallback, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -174,10 +176,15 @@ export default function FSRProfilePage() {
         return;
       }
 
-      await updateMyPassword(
+      const result = await updateMyPassword(
         passwordData.currentPassword,
         passwordData.newPassword,
       );
+
+      if (isFailure(result)) {
+        toast.error(result.error);
+        return;
+      }
       setIsChangingPassword(false);
       setPasswordData({
         currentPassword: "",

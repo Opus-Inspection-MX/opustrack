@@ -19,6 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { toast } from "@/hooks/use-toast";
 
 interface IncidentStatus {
   id: number;
@@ -53,7 +54,7 @@ export function IncidentStatusTable({
 
   const handleDelete = (id: number, incidentCount: number) => {
     if (incidentCount > 0) {
-      alert(
+      toast.error(
         `No se puede eliminar este estado. Está siendo usado por ${incidentCount} incidente(s).`,
       );
       return;

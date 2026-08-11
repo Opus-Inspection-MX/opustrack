@@ -1,5 +1,6 @@
 "use client";
 
+import { isFailure } from "@/lib/actions/result";
 import { Edit as EditIcon, Save, X } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -66,8 +67,9 @@ export function WorkPartEdit({
         description: formData.description || undefined,
       });
 
-      if (!result.success) {
-        throw new Error("Failed to update part");
+      if (isFailure(result)) {
+        setError(result.error);
+        return;
       }
 
       setIsEditing(false);

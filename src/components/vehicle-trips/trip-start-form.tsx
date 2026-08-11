@@ -1,5 +1,6 @@
 "use client";
 
+import { isFailure } from "@/lib/actions/result";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -138,7 +139,12 @@ export function TripStartForm() {
       if (formData.address) fd.append("startAddress", formData.address);
       if (formData.notes) fd.append("notes", formData.notes);
 
-      await startVehicleTrip(fd);
+      const result = await startVehicleTrip(fd);
+
+      if (isFailure(result)) {
+        setError(result.error);
+        return;
+      }
 
       router.push("/fsr/vehicle-trips");
     } catch (err) {

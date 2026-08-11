@@ -11,10 +11,12 @@ import { CatalogTable } from "@/components/common/catalog-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useDebounce } from "@/hooks/use-debounce";
+import { toast } from "@/hooks/use-toast";
 import {
   deleteIncidentStatus,
   getIncidentStatuses,
 } from "@/lib/actions/lookups";
+import { isFailure } from "@/lib/actions/result";
 
 type IncidentStatus = Awaited<
   ReturnType<typeof getIncidentStatuses>
@@ -135,10 +137,15 @@ export default function IncidentStatusPage() {
       disabled: (row) => row.incidentCount > 0,
       onClick: async (row) => {
         try {
-          await deleteIncidentStatus(row.id);
+          const result = await deleteIncidentStatus(row.id);
+          if (isFailure(result)) {
+            toast.error(result.error);
+            return;
+          }
           await fetchData();
         } catch (error) {
-          console.error("Error deleting incident status:", error);
+          console.error("deleteIncidentStatus failed:", error);
+          toast.error("No se pudo completar la operación. Intenta de nuevo.");
         }
       },
     },

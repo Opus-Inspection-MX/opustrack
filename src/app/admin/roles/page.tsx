@@ -11,6 +11,8 @@ import { CatalogTable } from "@/components/common/catalog-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useDebounce } from "@/hooks/use-debounce";
+import { toast } from "@/hooks/use-toast";
+import { isFailure } from "@/lib/actions/result";
 import { deleteRole, getRoles } from "@/lib/actions/roles";
 
 type RoleRow = Awaited<ReturnType<typeof getRoles>>["data"][number];
@@ -121,10 +123,15 @@ export default function RolesPage() {
       disabled: (row) => row._count.users > 0,
       onClick: async (row) => {
         try {
-          await deleteRole(row.id);
+          const result = await deleteRole(row.id);
+          if (isFailure(result)) {
+            toast.error(result.error);
+            return;
+          }
           await fetchData();
         } catch (error) {
-          console.error("Error al eliminar rol:", error);
+          console.error("deleteRole failed:", error);
+          toast.error("No se pudo completar la operación. Intenta de nuevo.");
         }
       },
     },

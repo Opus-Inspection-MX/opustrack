@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requirePermission } from "@/lib/auth/auth";
 import { prisma } from "@/lib/database/prisma.singleton";
+import { rejected } from "./result";
 
 export type PartFormData = {
   name: string;
@@ -160,8 +161,8 @@ export async function deletePart(id: string) {
   });
 
   if (workPartCount > 0) {
-    throw new Error(
-      `Cannot delete part. It is used in ${workPartCount} active work part record(s).`,
+    return rejected(
+      `No se puede eliminar: la refacción se usa en ${workPartCount} registro(s) activo(s).`,
     );
   }
 

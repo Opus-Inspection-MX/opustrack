@@ -9,6 +9,7 @@ import {
   WorkPartCreateSchema,
   WorkPartUpdateSchema,
 } from "@/lib/validations/parts";
+import { businessRule, guarded } from "./result";
 
 // Keep legacy type for backward compatibility
 export type WorkPartFormData = WorkPartCreateInput;
@@ -23,7 +24,7 @@ async function assertAssignmentEditable(
   });
   const name = row?.incident?.status?.name;
   if (name === "CERRADO" || name === "CANCELADA") {
-    throw new Error(
+    businessRule(
       name === "CANCELADA"
         ? "La incidencia está cancelada. No se pueden hacer cambios."
         : "La incidencia está cerrada. No se pueden hacer cambios.",
@@ -94,48 +95,52 @@ export async function createWorkPart(data: unknown) {
   await requirePermission("assignments:update");
 
   const validated = WorkPartCreateSchema.parse(data);
-  await assertAssignmentEditable(validated.assignmentId);
 
-  const workPart = await prisma.$transaction(async (tx) => {
-    const part = await tx.part.findUnique({
-      where: { id: validated.partId },
+  return guarded(async () => {
+    await assertAssignmentEditable(validated.assignmentId);
+
+    const workPart = await prisma.$transaction(async (tx) => {
+      const part = await tx.part.findUnique({
+        where: { id: validated.partId },
+      });
+
+      if (!part) {
+        throw new Error("Parte no encontrada");
+      }
+
+      const updated = await tx.part.updateMany({
+        where: { id: validated.partId, stock: { gte: validated.quantity } },
+        data: { stock: { decrement: validated.quantity } },
+      });
+
+      if (updated.count === 0) {
+        // Raised, not returned: returning from a transaction callback COMMITS
+        // it. `businessRule` throws, which rolls the transaction back, and
+        // `guarded` turns it into a value once the boundary is reached.
+        businessRule(
+          `Stock insuficiente. Disponible: ${part.stock}, Solicitado: ${validated.quantity}`,
+        );
+      }
+
+      return tx.workPart.create({
+        data: {
+          assignmentId: validated.assignmentId,
+          activityId: validated.activityId,
+          partId: validated.partId,
+          quantity: validated.quantity,
+          description: validated.description || null,
+          price: part.price,
+        },
+      });
     });
 
-    if (!part) {
-      throw new Error("Parte no encontrada");
+    if (validated.assignmentId) {
+      revalidatePath(`/admin/assignments/${validated.assignmentId}`);
+      revalidatePath(`/fsr/assignments/${validated.assignmentId}`);
     }
 
-    const updated = await tx.part.updateMany({
-      where: { id: validated.partId, stock: { gte: validated.quantity } },
-      data: { stock: { decrement: validated.quantity } },
-    });
-
-    if (updated.count === 0) {
-      throw new Error(
-        `Stock insuficiente. Disponible: ${part.stock}, Solicitado: ${validated.quantity}`,
-      );
-    }
-
-    const wp = await tx.workPart.create({
-      data: {
-        assignmentId: validated.assignmentId,
-        activityId: validated.activityId,
-        partId: validated.partId,
-        quantity: validated.quantity,
-        description: validated.description || null,
-        price: part.price,
-      },
-    });
-
-    return wp;
+    return { data: workPart };
   });
-
-  if (validated.assignmentId) {
-    revalidatePath(`/admin/assignments/${validated.assignmentId}`);
-    revalidatePath(`/fsr/assignments/${validated.assignmentId}`);
-  }
-
-  return { success: true, data: workPart };
 }
 
 /**
@@ -152,71 +157,75 @@ export async function updateWorkPart(
   // the "restore" branch below and create inventory out of nothing.
   const validated = WorkPartUpdateSchema.parse({ ...data, id });
 
-  const existingForGuard = await prisma.workPart.findFirst({
-    where: { id, active: true },
-    select: { assignmentId: true },
-  });
-  await assertAssignmentEditable(existingForGuard?.assignmentId);
-
-  const result = await prisma.$transaction(async (tx) => {
-    // Only active rows: re-editing a soft-deleted work part would move stock
-    // for a record whose quantity was already returned by deleteWorkPart.
-    const existingWorkPart = await tx.workPart.findFirst({
+  return guarded(async () => {
+    const existingForGuard = await prisma.workPart.findFirst({
       where: { id, active: true },
+      select: { assignmentId: true },
     });
+    await assertAssignmentEditable(existingForGuard?.assignmentId);
 
-    if (!existingWorkPart) {
-      throw new Error("Work part no encontrada");
-    }
+    const result = await prisma.$transaction(async (tx) => {
+      // Only active rows: re-editing a soft-deleted work part would move stock
+      // for a record whose quantity was already returned by deleteWorkPart.
+      const existingWorkPart = await tx.workPart.findFirst({
+        where: { id, active: true },
+      });
 
-    if (
-      validated.quantity !== undefined &&
-      validated.quantity !== existingWorkPart.quantity
-    ) {
-      const difference = validated.quantity - existingWorkPart.quantity;
-
-      if (difference > 0) {
-        const updated = await tx.part.updateMany({
-          where: {
-            id: existingWorkPart.partId,
-            stock: { gte: difference },
-          },
-          data: { stock: { decrement: difference } },
-        });
-
-        if (updated.count === 0) {
-          const part = await tx.part.findUnique({
-            where: { id: existingWorkPart.partId },
-          });
-          throw new Error(
-            `Stock insuficiente. Disponible: ${part?.stock ?? 0}, Solicitado adicional: ${difference}`,
-          );
-        }
-      } else {
-        await tx.part.update({
-          where: { id: existingWorkPart.partId },
-          data: { stock: { increment: Math.abs(difference) } },
-        });
+      if (!existingWorkPart) {
+        throw new Error("Work part no encontrada");
       }
-    }
 
-    const workPart = await tx.workPart.update({
-      where: { id },
-      data: {
-        quantity: validated.quantity,
-        description: validated.description,
-      },
+      if (
+        validated.quantity !== undefined &&
+        validated.quantity !== existingWorkPart.quantity
+      ) {
+        const difference = validated.quantity - existingWorkPart.quantity;
+
+        if (difference > 0) {
+          const updated = await tx.part.updateMany({
+            where: {
+              id: existingWorkPart.partId,
+              stock: { gte: difference },
+            },
+            data: { stock: { decrement: difference } },
+          });
+
+          if (updated.count === 0) {
+            const part = await tx.part.findUnique({
+              where: { id: existingWorkPart.partId },
+            });
+            // Raised, not returned: this guard sits after a possible stock
+            // restore in the sibling branch, and only a throw rolls back.
+            businessRule(
+              `Stock insuficiente. Disponible: ${part?.stock ?? 0}, Solicitado adicional: ${difference}`,
+            );
+          }
+        } else {
+          await tx.part.update({
+            where: { id: existingWorkPart.partId },
+            data: { stock: { increment: Math.abs(difference) } },
+          });
+        }
+      }
+
+      const workPart = await tx.workPart.update({
+        where: { id },
+        data: {
+          quantity: validated.quantity,
+          description: validated.description,
+        },
+      });
+
+      return { workPart, assignmentId: existingWorkPart.assignmentId };
     });
 
-    return { workPart, assignmentId: existingWorkPart.assignmentId };
+    if (result.assignmentId) {
+      revalidatePath(`/admin/assignments/${result.assignmentId}`);
+      revalidatePath(`/fsr/assignments/${result.assignmentId}`);
+    }
+
+    return { data: result.workPart };
   });
-
-  if (result.assignmentId) {
-    revalidatePath(`/admin/assignments/${result.assignmentId}`);
-    revalidatePath(`/fsr/assignments/${result.assignmentId}`);
-  }
-
-  return { success: true, data: result.workPart };
 }
 
 /**
@@ -226,47 +235,49 @@ export async function updateWorkPart(
 export async function deleteWorkPart(id: string) {
   await requirePermission("assignments:delete");
 
-  const existingForGuard = await prisma.workPart.findFirst({
-    where: { id, active: true },
-    select: { assignmentId: true },
-  });
-  await assertAssignmentEditable(existingForGuard?.assignmentId);
-
-  const result = await prisma.$transaction(async (tx) => {
-    const workPart = await tx.workPart.findFirst({
+  return guarded(async () => {
+    const existingForGuard = await prisma.workPart.findFirst({
       where: { id, active: true },
+      select: { assignmentId: true },
+    });
+    await assertAssignmentEditable(existingForGuard?.assignmentId);
+
+    const result = await prisma.$transaction(async (tx) => {
+      const workPart = await tx.workPart.findFirst({
+        where: { id, active: true },
+      });
+
+      if (!workPart) {
+        throw new Error("Work part no encontrada");
+      }
+
+      // Deactivate first, conditioned on the row still being active. If a
+      // concurrent delete won the race, count is 0 and the stock is not
+      // returned twice for the same work part.
+      const deactivated = await tx.workPart.updateMany({
+        where: { id, active: true },
+        data: { active: false },
+      });
+
+      if (deactivated.count === 0) {
+        throw new Error("Work part no encontrada");
+      }
+
+      await tx.part.update({
+        where: { id: workPart.partId },
+        data: { stock: { increment: workPart.quantity } },
+      });
+
+      return { assignmentId: workPart.assignmentId };
     });
 
-    if (!workPart) {
-      throw new Error("Work part no encontrada");
+    if (result.assignmentId) {
+      revalidatePath(`/admin/assignments/${result.assignmentId}`);
+      revalidatePath(`/fsr/assignments/${result.assignmentId}`);
     }
 
-    // Deactivate first, conditioned on the row still being active. If a
-    // concurrent delete won the race, count is 0 and the stock is not returned
-    // twice for the same work part.
-    const deactivated = await tx.workPart.updateMany({
-      where: { id, active: true },
-      data: { active: false },
-    });
-
-    if (deactivated.count === 0) {
-      throw new Error("Work part no encontrada");
-    }
-
-    await tx.part.update({
-      where: { id: workPart.partId },
-      data: { stock: { increment: workPart.quantity } },
-    });
-
-    return { assignmentId: workPart.assignmentId };
+    return {};
   });
-
-  if (result.assignmentId) {
-    revalidatePath(`/admin/assignments/${result.assignmentId}`);
-    revalidatePath(`/fsr/assignments/${result.assignmentId}`);
-  }
-
-  return { success: true };
 }
 
 /**

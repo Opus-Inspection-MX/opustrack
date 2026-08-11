@@ -1,5 +1,6 @@
 "use client";
 
+import { isFailure } from "@/lib/actions/result";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -58,7 +59,12 @@ export function VacationForm({
         data.userId = selectedUserId;
       }
 
-      await createVacation(data);
+      const result = await createVacation(data);
+
+      if (isFailure(result)) {
+        setError(result.error);
+        return;
+      }
       router.push(redirectPath);
       router.refresh();
     } catch (err) {

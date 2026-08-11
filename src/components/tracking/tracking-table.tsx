@@ -18,6 +18,7 @@ import {
   X as XIcon,
 } from "lucide-react";
 import Link from "next/link";
+import { isFailure } from "@/lib/actions/result";
 import { useRouter } from "next/navigation";
 import React, { useMemo, useState } from "react";
 import { PriorityBadge } from "@/components/incident-types/priority-badge";
@@ -48,6 +49,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { toast } from "@/hooks/use-toast";
 import { createAssignment } from "@/lib/actions/assignments";
 import { getEquipmentsByLineId } from "@/lib/actions/equipments";
 import { updateIncidentFsrs } from "@/lib/actions/incidents";
@@ -258,6 +260,18 @@ export function TrackingTable({
     );
   };
 
+  /**
+   * Report an UNEXPECTED failure.
+   *
+   * Business rules no longer arrive here: the actions return them, because a
+   * production build of Next strips the message of anything they throw. What
+   * reaches this catch is a genuine fault, and its text is not for the user.
+   */
+  const reportFailure = (error: unknown, message: string) => {
+    console.error(message, error);
+    toast.error(message);
+  };
+
   const toggleRowExpansion = (incidentId: number) => {
     const newExpanded = new Set(expandedRows);
     if (newExpanded.has(incidentId)) {
@@ -292,7 +306,7 @@ export function TrackingTable({
 
   const handleSaveAssignment = async (assignmentId: string) => {
     if (!assignmentEditForm.assignedToId) {
-      alert("Por favor selecciona un FSR");
+      toast.error("Por favor selecciona un FSR");
       return;
     }
 
@@ -310,9 +324,16 @@ export function TrackingTable({
         finishedAt: assignmentEditForm.finishedAt || null,
       });
       if (assignmentEditForm.assignedToId) {
-        await updateAssignmentAssignees(assignmentId, [
+        const result = await updateAssignmentAssignees(assignmentId, [
           assignmentEditForm.assignedToId,
         ]);
+        // A rejected business rule comes back as a value, not an exception:
+        // Next strips the message of anything a Server Action throws in a
+        // production build. Keeping the editor open lets the user fix it.
+        if (!result.success) {
+          toast.error(result.error);
+          return;
+        }
       }
       setEditingAssignment(null);
       setAssignmentEditForm({});
@@ -321,8 +342,7 @@ export function TrackingTable({
         onDataChange();
       }
     } catch (error) {
-      console.error("Error updating asignación:", error);
-      alert("Error al actualizar asignación");
+      reportFailure(error, "Error al actualizar asignación");
     } finally {
       setSavingAssignment(null);
     }
@@ -414,7 +434,7 @@ export function TrackingTable({
     // server, por eso no lo enviamos.
     setSavingNewAssignment(true);
     try {
-      await createAssignment({
+      const result = await createAssignment({
         incidentId,
         assigneeIds: newAssignmentForm.assignedToId
           ? [newAssignmentForm.assignedToId]
@@ -424,6 +444,11 @@ export function TrackingTable({
         startedAt: null,
         finishedAt: null,
       });
+
+      if (isFailure(result)) {
+        toast.error(result.error);
+        return;
+      }
       setCreatingAssignment(null);
       setNewAssignmentForm({});
       // Reload the incidents data to reflect the change
@@ -431,8 +456,7 @@ export function TrackingTable({
         onDataChange();
       }
     } catch (error) {
-      console.error("Error creating asignación:", error);
-      alert("Error al crear la asignación");
+      reportFailure(error, "Error al crear la asignación");
     } finally {
       setSavingNewAssignment(false);
     }
@@ -467,7 +491,12 @@ export function TrackingTable({
         equipmentId: equipmentIdValue,
       });
       if (editForm.assigneeIds !== undefined) {
-        await updateIncidentFsrs(incidentId, editForm.assigneeIds);
+        const result = await updateIncidentFsrs(incidentId, editForm.assigneeIds);
+
+        if (isFailure(result)) {
+          toast.error(result.error);
+          return;
+        }
       }
       setEditingIncident(null);
       setEditForm({});
@@ -478,8 +507,7 @@ export function TrackingTable({
         onDataChange();
       }
     } catch (error) {
-      console.error("Error updating incident:", error);
-      alert("Error al actualizar incidente");
+      reportFailure(error, "Error al actualizar incidente");
     } finally {
       setSavingIncident(false);
     }

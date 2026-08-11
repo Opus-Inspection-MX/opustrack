@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
+import { toast } from "@/hooks/use-toast";
 
 const userProfileSchema = z.object({
   telephone: z
@@ -114,7 +115,7 @@ export function UserProfileForm({
 
       if (isOwnProfile) {
         // Stay on profile page for own profile
-        alert("Profile updated successfully!");
+        toast.error("Profile updated successfully!");
       } else {
         // Go back to users list for admin editing
         router.push("/admin/users");

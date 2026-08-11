@@ -11,7 +11,9 @@ import { CatalogTable } from "@/components/common/catalog-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useDebounce } from "@/hooks/use-debounce";
+import { toast } from "@/hooks/use-toast";
 import { deletePart, getParts } from "@/lib/actions/parts";
+import { isFailure } from "@/lib/actions/result";
 
 type Part = Awaited<ReturnType<typeof getParts>>["data"][number];
 
@@ -125,10 +127,15 @@ export default function PartsPage() {
       disabled: (row) => row._count.workParts > 0,
       onClick: async (row) => {
         try {
-          await deletePart(row.id);
+          const result = await deletePart(row.id);
+          if (isFailure(result)) {
+            toast.error(result.error);
+            return;
+          }
           await fetchData();
         } catch (error) {
-          console.error("Error al eliminar parte:", error);
+          console.error("deletePart failed:", error);
+          toast.error("No se pudo completar la operación. Intenta de nuevo.");
         }
       },
     },

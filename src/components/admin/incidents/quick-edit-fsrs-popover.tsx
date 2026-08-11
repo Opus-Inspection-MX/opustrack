@@ -1,5 +1,6 @@
 "use client";
 
+import { isFailure } from "@/lib/actions/result";
 import { Loader2, Pencil, Save } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -46,7 +47,12 @@ export function QuickEditFsrsPopover({
     setError(null);
     setSubmitting(true);
     try {
-      await updateIncidentFsrs(incidentId, selected);
+      const result = await updateIncidentFsrs(incidentId, selected);
+
+      if (isFailure(result)) {
+        setError(result.error);
+        return;
+      }
       setOpen(false);
       onSaved?.();
     } catch (e) {

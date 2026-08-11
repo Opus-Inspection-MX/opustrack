@@ -1,11 +1,13 @@
 "use client";
 
+import { isFailure } from "@/lib/actions/result";
 import { Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AssignmentActivityTable } from "@/components/assignment-activities/assignment-activity-table";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import { toast } from "@/hooks/use-toast";
 import {
   deleteAssignmentActivity,
   getAllAssignmentActivities,
@@ -94,18 +96,19 @@ export default function AssignmentActivitiesPage() {
       confirm("¿Estás seguro de que deseas eliminar esta actividad de trabajo?")
     ) {
       try {
-        await deleteAssignmentActivity(id);
+        const result = await deleteAssignmentActivity(id);
+
+        if (isFailure(result)) {
+          toast.error(result.error);
+          return;
+        }
         // Refresh the list
         setAssignmentActivities((prev) =>
           prev.filter((item) => item.id !== id),
         );
       } catch (error) {
         console.error("Error deleting work activity:", error);
-        alert(
-          error instanceof Error
-            ? error.message
-            : "Error al eliminar la actividad de trabajo",
-        );
+        toast.error("Error al eliminar la actividad de trabajo");
       }
     }
   };

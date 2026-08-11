@@ -26,7 +26,9 @@ export default async function EditLineStatusPage({
 
       <GenericStatusForm
         initialData={status}
-        onSubmit={(data) => updateLineStatus(status.id, data)}
+        // Bound, not wrapped: an inline arrow would be a plain closure, and a
+        // Server Component cannot pass one to a Client Component.
+        onSubmit={updateLineStatus.bind(null, status.id)}
         redirectPath="/admin/settings/line-status"
         title="Line Status Details"
         isEdit

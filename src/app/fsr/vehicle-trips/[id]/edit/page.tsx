@@ -1,5 +1,6 @@
 "use client";
 
+import { isFailure } from "@/lib/actions/result";
 import { useRouter } from "next/navigation";
 import { type FormEvent, use, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -74,11 +75,16 @@ export default function EditTripPage({
     setIsSubmitting(true);
 
     try {
-      await updateVehicleTrip(resolvedParams.id, {
+      const result = await updateVehicleTrip(resolvedParams.id, {
         notes: formData.notes || undefined,
         startAddress: formData.startAddress || undefined,
         endAddress: formData.endAddress || undefined,
       });
+
+      if (isFailure(result)) {
+        setError(result.error);
+        return;
+      }
 
       router.push(`/fsr/vehicle-trips/${resolvedParams.id}`);
     } catch (err) {

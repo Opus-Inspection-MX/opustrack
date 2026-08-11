@@ -15,10 +15,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { toast } from "@/hooks/use-toast";
 import { localWallTimeToUTC } from "@/lib/utils/datetime";
 
 interface IncidentType {
   id: number;
+  name: string;
+}
+
+interface ClienteOption {
+  id: string;
+  code: string;
   name: string;
 }
 
@@ -42,23 +49,38 @@ export function CreateIncidentDialog({
 }: CreateIncidentDialogProps) {
   const router = useRouter();
   const [incidentTypes, setIncidentTypes] = useState<IncidentType[]>([]);
+  const [clientes, setClientes] = useState<ClienteOption[]>([]);
   const [loading, setLoading] = useState(false);
   const [dateRangeError, setDateRangeError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     title: "",
     description: "",
     typeId: "",
+    clienteId: "",
     scheduledDate: "",
     scheduledTime: "09:00",
   });
 
   const fetchData = useCallback(async () => {
     try {
-      const typesRes = await fetch("/api/incident-types");
+      const [typesRes, clientesRes] = await Promise.all([
+        fetch("/api/incident-types"),
+        fetch("/api/clientes"),
+      ]);
 
       if (typesRes.ok) {
         const typesData = await typesRes.json();
         setIncidentTypes(typesData.data || []);
+      }
+
+      if (clientesRes.ok) {
+        const clientesData = await clientesRes.json();
+        const options: ClienteOption[] = clientesData.data || [];
+        setClientes(options);
+        // Preselect when there is no choice to make.
+        if (options.length === 1) {
+          setFormData((prev) => ({ ...prev, clienteId: options[0].id }));
+        }
       }
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -155,6 +177,13 @@ export function CreateIncidentDialog({
       return;
     }
 
+    if (!formData.clienteId) {
+      // Radix's Select does not participate in native form validation, so the
+      // required marker alone would not stop the submit.
+      setDateRangeError("Selecciona el centro al que pertenece el incidente.");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -193,6 +222,10 @@ export function CreateIncidentDialog({
           title: formData.title,
           description: formData.description,
           typeId: parseInt(formData.typeId, 10),
+          // Without this the incident is stored with clienteId: null, which the
+          // multi-tenant scoping then hides from FSR, CLIENT and GUEST — the
+          // incident exists but nobody at a centre can see it.
+          clienteId: formData.clienteId,
           scheduleId: scheduleId,
         }),
       });
@@ -206,6 +239,7 @@ export function CreateIncidentDialog({
         title: "",
         description: "",
         typeId: "",
+        clienteId: "",
         scheduledDate: "",
         scheduledTime: "09:00",
       });
@@ -214,7 +248,7 @@ export function CreateIncidentDialog({
       router.refresh();
     } catch (error) {
       console.error("Error creating incident:", error);
-      alert("Error al crear el incidente");
+      toast.error("Error al crear el incidente");
     } finally {
       setLoading(false);
     }
@@ -330,6 +364,32 @@ export function CreateIncidentDialog({
               {incidentTypes.map((type) => (
                 <SelectItem key={type.id} value={type.id.toString()}>
                   {type.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Cliente — required: an incident without one is invisible to every
+            non-admin role because of the multi-tenant scoping. */}
+        <div className="space-y-2">
+          <Label htmlFor="clienteId">
+            Centro <span className="text-destructive">*</span>
+          </Label>
+          <Select
+            value={formData.clienteId}
+            onValueChange={(value) =>
+              setFormData({ ...formData, clienteId: value })
+            }
+            required
+          >
+            <SelectTrigger id="clienteId">
+              <SelectValue placeholder="Selecciona centro" />
+            </SelectTrigger>
+            <SelectContent>
+              {clientes.map((cliente) => (
+                <SelectItem key={cliente.id} value={cliente.id}>
+                  {cliente.code} — {cliente.name}
                 </SelectItem>
               ))}
             </SelectContent>

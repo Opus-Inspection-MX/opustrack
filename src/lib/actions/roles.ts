@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requirePermission } from "@/lib/auth/auth";
 import { prisma } from "@/lib/database/prisma.singleton";
+import { rejected } from "./result";
 
 export type RoleFormData = {
   name: string;
@@ -209,8 +210,8 @@ export async function deleteRole(id: number) {
   });
 
   if (userCount > 0) {
-    throw new Error(
-      `Cannot delete role. ${userCount} user(s) are currently assigned to this role.`,
+    return rejected(
+      `No se puede eliminar: ${userCount} usuario(s) tienen este rol asignado.`,
     );
   }
 

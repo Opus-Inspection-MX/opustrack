@@ -14,6 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { toast } from "@/hooks/use-toast";
 import { deleteUser } from "@/lib/actions/users";
 
 type User = {
@@ -48,7 +49,7 @@ export function UsersTable({ users }: { users: User[] }) {
       await deleteUser(id);
       router.refresh();
     } catch (error) {
-      alert(`Error al eliminar usuario: ${(error as Error).message}`);
+      toast.error("Error al eliminar usuario");
       setDeleting(null);
     }
   };

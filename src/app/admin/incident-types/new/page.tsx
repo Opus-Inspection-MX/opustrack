@@ -13,9 +13,9 @@ export default async function NewIncidentTypePage() {
       </div>
 
       <IncidentTypeForm
-        onSubmit={async (data) => {
-          await createIncidentType(data);
-        }}
+        // Bound, not wrapped: an inline arrow would be a plain closure, and a
+        // Server Component cannot pass one to a Client Component.
+        onSubmit={createIncidentType}
         redirectPath="/admin/incident-types"
         title="Incident Type Details"
       />

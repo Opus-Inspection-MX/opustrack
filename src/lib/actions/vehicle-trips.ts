@@ -9,6 +9,7 @@ import {
   deleteFile,
   uploadFileFromBuffer,
 } from "@/lib/storage/file-storage";
+import { businessRule, guarded } from "./result";
 
 function getString(formData: FormData, key: string): string | undefined {
   const v = formData.get(key);
@@ -27,7 +28,7 @@ function getNumber(formData: FormData, key: string): number | undefined {
 function requireInt(formData: FormData, key: string, label: string): number {
   const n = getNumber(formData, key);
   if (n === undefined || !Number.isInteger(n)) {
-    throw new Error(`${label} es requerido`);
+    businessRule(`${label} es requerido`);
   }
   return n;
 }
@@ -35,7 +36,7 @@ function requireInt(formData: FormData, key: string, label: string): number {
 function requireFile(formData: FormData, key: string, label: string): File {
   const f = formData.get(key);
   if (!(f instanceof File) || f.size === 0) {
-    throw new Error(`${label} es requerida`);
+    businessRule(`${label} es requerida`);
   }
   return f;
 }
@@ -194,92 +195,98 @@ export async function getVehicleTripById(id: string) {
 export async function startVehicleTrip(formData: FormData) {
   const user = await requirePermission("vehicle-trips:create");
 
-  const vehicleId = getString(formData, "vehicleId");
-  if (!vehicleId) throw new Error("vehicleId requerido");
-  const assignmentId = getString(formData, "assignmentId") ?? null;
-  const startOdometer = requireInt(formData, "startOdometer", "startOdometer");
-  const photo = requireFile(formData, "photo", "Foto del odómetro");
-  const photoMimetype =
-    getString(formData, "photoMimetype") ||
-    photo.type ||
-    "application/octet-stream";
+  return guarded(async () => {
+    const vehicleId = getString(formData, "vehicleId");
+    if (!vehicleId) throw new Error("vehicleId requerido");
+    const assignmentId = getString(formData, "assignmentId") ?? null;
+    const startOdometer = requireInt(
+      formData,
+      "startOdometer",
+      "startOdometer",
+    );
+    const photo = requireFile(formData, "photo", "Foto del odómetro");
+    const photoMimetype =
+      getString(formData, "photoMimetype") ||
+      photo.type ||
+      "application/octet-stream";
 
-  assertAllowedUpload(photoMimetype, photo.size);
+    assertAllowedUpload(photoMimetype, photo.size);
 
-  // Validate vehicle exists and is selectable. If the user is not admin, the
-  // vehicle must be currently AVAILABLE (the same constraint exposed by
-  // getAvailableVehicles).
-  const vehicle = await prisma.vehicle.findUnique({
-    where: { id: vehicleId },
-    select: { id: true, status: { select: { name: true } } },
-  });
-  if (!vehicle) throw new Error("Vehículo no encontrado");
-  if (
-    user.role.name !== "ADMINISTRADOR" &&
-    vehicle.status?.name !== "AVAILABLE"
-  ) {
-    throw new Error("Vehículo no disponible");
-  }
-
-  // If linked to an assignment, ensure the caller is actually an assignee
-  // (an FSR shouldn't be able to start a trip against someone else's work).
-  if (assignmentId && user.role.name !== "ADMINISTRADOR") {
-    const isAssignee = await prisma.assignmentAssignee.findFirst({
-      where: { assignmentId, userId: user.id, active: true },
-      select: { id: true },
+    // Validate vehicle exists and is selectable. If the user is not admin, the
+    // vehicle must be currently AVAILABLE (the same constraint exposed by
+    // getAvailableVehicles).
+    const vehicle = await prisma.vehicle.findUnique({
+      where: { id: vehicleId },
+      select: { id: true, status: { select: { name: true } } },
     });
-    if (!isAssignee) {
-      throw new Error("No estás asignado a esta asignación");
+    if (!vehicle) throw new Error("Vehículo no encontrado");
+    if (
+      user.role.name !== "ADMINISTRADOR" &&
+      vehicle.status?.name !== "AVAILABLE"
+    ) {
+      businessRule("El vehículo no está disponible.");
     }
-  }
 
-  const arrayBuffer = await photo.arrayBuffer();
-  const buffer = Buffer.from(arrayBuffer);
-  const startPhotoResult = await uploadFileFromBuffer(
-    photo.name,
-    buffer,
-    photoMimetype,
-    { subfolder: "vehicle-trips" },
-  );
+    // If linked to an assignment, ensure the caller is actually an assignee
+    // (an FSR shouldn't be able to start a trip against someone else's work).
+    if (assignmentId && user.role.name !== "ADMINISTRADOR") {
+      const isAssignee = await prisma.assignmentAssignee.findFirst({
+        where: { assignmentId, userId: user.id, active: true },
+        select: { id: true },
+      });
+      if (!isAssignee) {
+        businessRule("No estás asignado a esta asignación.");
+      }
+    }
 
-  const inUseStatus = await prisma.vehicleStatus.findUnique({
-    where: { name: "IN_USE" },
+    const arrayBuffer = await photo.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const startPhotoResult = await uploadFileFromBuffer(
+      photo.name,
+      buffer,
+      photoMimetype,
+      { subfolder: "vehicle-trips" },
+    );
+
+    const inUseStatus = await prisma.vehicleStatus.findUnique({
+      where: { name: "IN_USE" },
+    });
+    if (!inUseStatus) throw new Error("Vehicle status IN_USE not found");
+
+    const inProgressStatus = await prisma.vehicleTripStatus.findUnique({
+      where: { name: "IN_PROGRESS" },
+    });
+    if (!inProgressStatus) throw new Error("Trip status IN_PROGRESS not found");
+
+    await prisma.vehicle.update({
+      where: { id: vehicleId },
+      data: { statusId: inUseStatus.id },
+    });
+
+    const trip = await prisma.vehicleTrip.create({
+      data: {
+        vehicleId,
+        fsrId: user.id,
+        assignmentId,
+        startOdometer,
+        startPhotoUrl: startPhotoResult.url,
+        startPhotoProvider: startPhotoResult.provider,
+        startLatitude: getNumber(formData, "startLatitude") ?? null,
+        startLongitude: getNumber(formData, "startLongitude") ?? null,
+        startAddress: getString(formData, "startAddress") ?? null,
+        notes: getString(formData, "notes") ?? null,
+        statusId: inProgressStatus.id,
+      },
+      include: {
+        vehicle: true,
+        assignment: true,
+      },
+    });
+
+    revalidatePath("/fsr/vehicle-trips");
+    revalidatePath("/admin/vehicles");
+    return { data: trip };
   });
-  if (!inUseStatus) throw new Error("Vehicle status IN_USE not found");
-
-  const inProgressStatus = await prisma.vehicleTripStatus.findUnique({
-    where: { name: "IN_PROGRESS" },
-  });
-  if (!inProgressStatus) throw new Error("Trip status IN_PROGRESS not found");
-
-  await prisma.vehicle.update({
-    where: { id: vehicleId },
-    data: { statusId: inUseStatus.id },
-  });
-
-  const trip = await prisma.vehicleTrip.create({
-    data: {
-      vehicleId,
-      fsrId: user.id,
-      assignmentId,
-      startOdometer,
-      startPhotoUrl: startPhotoResult.url,
-      startPhotoProvider: startPhotoResult.provider,
-      startLatitude: getNumber(formData, "startLatitude") ?? null,
-      startLongitude: getNumber(formData, "startLongitude") ?? null,
-      startAddress: getString(formData, "startAddress") ?? null,
-      notes: getString(formData, "notes") ?? null,
-      statusId: inProgressStatus.id,
-    },
-    include: {
-      vehicle: true,
-      assignment: true,
-    },
-  });
-
-  revalidatePath("/fsr/vehicle-trips");
-  revalidatePath("/admin/vehicles");
-  return { success: true, data: trip };
 }
 
 /**
@@ -295,94 +302,96 @@ export async function startVehicleTrip(formData: FormData) {
 export async function endVehicleTrip(formData: FormData) {
   const user = await requirePermission("vehicle-trips:update");
 
-  const id = getString(formData, "tripId");
-  if (!id) throw new Error("tripId requerido");
-  const endOdometer = requireInt(formData, "endOdometer", "endOdometer");
-  const photo = requireFile(formData, "photo", "Foto del odómetro");
-  const photoMimetype =
-    getString(formData, "photoMimetype") ||
-    photo.type ||
-    "application/octet-stream";
+  return guarded(async () => {
+    const id = getString(formData, "tripId");
+    if (!id) throw new Error("tripId requerido");
+    const endOdometer = requireInt(formData, "endOdometer", "endOdometer");
+    const photo = requireFile(formData, "photo", "Foto del odómetro");
+    const photoMimetype =
+      getString(formData, "photoMimetype") ||
+      photo.type ||
+      "application/octet-stream";
 
-  assertAllowedUpload(photoMimetype, photo.size);
+    assertAllowedUpload(photoMimetype, photo.size);
 
-  const trip = await prisma.vehicleTrip.findUnique({
-    where: { id },
-    select: {
-      fsrId: true,
-      vehicleId: true,
-      startOdometer: true,
-      status: { select: { name: true } },
-    },
+    const trip = await prisma.vehicleTrip.findUnique({
+      where: { id },
+      select: {
+        fsrId: true,
+        vehicleId: true,
+        startOdometer: true,
+        status: { select: { name: true } },
+      },
+    });
+
+    if (!trip) {
+      throw new Error("Trip not found");
+    }
+
+    // FSR can only end their own trips
+    if (user.role.name !== "ADMINISTRADOR" && trip.fsrId !== user.id) {
+      businessRule("Solo puedes finalizar tus propios viajes.");
+    }
+
+    if (trip.status?.name !== "IN_PROGRESS") {
+      businessRule("El viaje ya está finalizado o cancelado.");
+    }
+
+    if (endOdometer < trip.startOdometer) {
+      businessRule("El odómetro final no puede ser menor que el inicial.");
+    }
+
+    const completedStatus = await prisma.vehicleTripStatus.findUnique({
+      where: { name: "COMPLETED" },
+    });
+    if (!completedStatus) throw new Error("Trip status COMPLETED not found");
+
+    const availableStatus = await prisma.vehicleStatus.findUnique({
+      where: { name: "AVAILABLE" },
+    });
+    if (!availableStatus) throw new Error("Vehicle status AVAILABLE not found");
+
+    const arrayBuffer = await photo.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const endPhotoResult = await uploadFileFromBuffer(
+      photo.name,
+      buffer,
+      photoMimetype,
+      { subfolder: "vehicle-trips" },
+    );
+
+    const kmDriven = endOdometer - trip.startOdometer;
+
+    const updatedTrip = await prisma.vehicleTrip.update({
+      where: { id },
+      data: {
+        endOdometer,
+        endPhotoUrl: endPhotoResult.url,
+        endPhotoProvider: endPhotoResult.provider,
+        endLatitude: getNumber(formData, "endLatitude") ?? null,
+        endLongitude: getNumber(formData, "endLongitude") ?? null,
+        endAddress: getString(formData, "endAddress") ?? null,
+        endedAt: new Date(),
+        kmDriven,
+        statusId: completedStatus.id,
+        notes: getString(formData, "notes") ?? null,
+      },
+      include: {
+        vehicle: true,
+        assignment: true,
+      },
+    });
+
+    await prisma.vehicle.update({
+      where: { id: trip.vehicleId },
+      data: { statusId: availableStatus.id },
+    });
+
+    revalidatePath("/fsr/vehicle-trips");
+    revalidatePath(`/fsr/vehicle-trips/${id}`);
+    revalidatePath("/admin/vehicles");
+    return { data: updatedTrip };
   });
-
-  if (!trip) {
-    throw new Error("Trip not found");
-  }
-
-  // FSR can only end their own trips
-  if (user.role.name !== "ADMINISTRADOR" && trip.fsrId !== user.id) {
-    throw new Error("Access denied: You can only end your own trips");
-  }
-
-  if (trip.status?.name !== "IN_PROGRESS") {
-    throw new Error("Trip is already completed or cancelled");
-  }
-
-  if (endOdometer < trip.startOdometer) {
-    throw new Error("End odometer reading cannot be less than start reading");
-  }
-
-  const completedStatus = await prisma.vehicleTripStatus.findUnique({
-    where: { name: "COMPLETED" },
-  });
-  if (!completedStatus) throw new Error("Trip status COMPLETED not found");
-
-  const availableStatus = await prisma.vehicleStatus.findUnique({
-    where: { name: "AVAILABLE" },
-  });
-  if (!availableStatus) throw new Error("Vehicle status AVAILABLE not found");
-
-  const arrayBuffer = await photo.arrayBuffer();
-  const buffer = Buffer.from(arrayBuffer);
-  const endPhotoResult = await uploadFileFromBuffer(
-    photo.name,
-    buffer,
-    photoMimetype,
-    { subfolder: "vehicle-trips" },
-  );
-
-  const kmDriven = endOdometer - trip.startOdometer;
-
-  const updatedTrip = await prisma.vehicleTrip.update({
-    where: { id },
-    data: {
-      endOdometer,
-      endPhotoUrl: endPhotoResult.url,
-      endPhotoProvider: endPhotoResult.provider,
-      endLatitude: getNumber(formData, "endLatitude") ?? null,
-      endLongitude: getNumber(formData, "endLongitude") ?? null,
-      endAddress: getString(formData, "endAddress") ?? null,
-      endedAt: new Date(),
-      kmDriven,
-      statusId: completedStatus.id,
-      notes: getString(formData, "notes") ?? null,
-    },
-    include: {
-      vehicle: true,
-      assignment: true,
-    },
-  });
-
-  await prisma.vehicle.update({
-    where: { id: trip.vehicleId },
-    data: { statusId: availableStatus.id },
-  });
-
-  revalidatePath("/fsr/vehicle-trips");
-  revalidatePath(`/fsr/vehicle-trips/${id}`);
-  revalidatePath("/admin/vehicles");
-  return { success: true, data: updatedTrip };
 }
 
 /**
@@ -453,32 +462,34 @@ export async function updateVehicleTrip(
 ) {
   const user = await requirePermission("vehicle-trips:update");
 
-  const trip = await prisma.vehicleTrip.findUnique({
-    where: { id },
-    select: { fsrId: true },
+  return guarded(async () => {
+    const trip = await prisma.vehicleTrip.findUnique({
+      where: { id },
+      select: { fsrId: true },
+    });
+
+    if (!trip) {
+      throw new Error("Trip not found");
+    }
+
+    // FSR can only update their own trips
+    if (user.role.name !== "ADMINISTRADOR" && trip.fsrId !== user.id) {
+      businessRule("Solo puedes actualizar tus propios viajes.");
+    }
+
+    const updatedTrip = await prisma.vehicleTrip.update({
+      where: { id },
+      data: {
+        notes: data.notes,
+        startAddress: data.startAddress,
+        endAddress: data.endAddress,
+      },
+    });
+
+    revalidatePath("/fsr/vehicle-trips");
+    revalidatePath(`/fsr/vehicle-trips/${id}`);
+    return { data: updatedTrip };
   });
-
-  if (!trip) {
-    throw new Error("Trip not found");
-  }
-
-  // FSR can only update their own trips
-  if (user.role.name !== "ADMINISTRADOR" && trip.fsrId !== user.id) {
-    throw new Error("Access denied: You can only update your own trips");
-  }
-
-  const updatedTrip = await prisma.vehicleTrip.update({
-    where: { id },
-    data: {
-      notes: data.notes,
-      startAddress: data.startAddress,
-      endAddress: data.endAddress,
-    },
-  });
-
-  revalidatePath("/fsr/vehicle-trips");
-  revalidatePath(`/fsr/vehicle-trips/${id}`);
-  return { success: true, data: updatedTrip };
 }
 
 /**
@@ -487,64 +498,66 @@ export async function updateVehicleTrip(
 export async function deleteVehicleTrip(id: string) {
   const user = await requirePermission("vehicle-trips:delete");
 
-  const trip = await prisma.vehicleTrip.findUnique({
-    where: { id },
-    select: {
-      fsrId: true,
-      status: { select: { name: true } },
-      startPhotoUrl: true,
-      startPhotoProvider: true,
-      endPhotoUrl: true,
-      endPhotoProvider: true,
-      vehicleId: true,
-    },
-  });
-
-  if (!trip) {
-    throw new Error("Trip not found");
-  }
-
-  // FSR can only delete their own trips
-  if (user.role.name !== "ADMINISTRADOR" && trip.fsrId !== user.id) {
-    throw new Error("Access denied: You can only delete your own trips");
-  }
-
-  // Soft delete
-  await prisma.vehicleTrip.update({
-    where: { id },
-    data: { active: false },
-  });
-
-  // Delete photos from storage
-  try {
-    await deleteFile(
-      trip.startPhotoUrl,
-      trip.startPhotoProvider as "vercel-blob" | "filesystem",
-    );
-    if (trip.endPhotoUrl && trip.endPhotoProvider) {
-      await deleteFile(
-        trip.endPhotoUrl,
-        trip.endPhotoProvider as "vercel-blob" | "filesystem",
-      );
-    }
-  } catch (error) {
-    console.error("Error deleting trip photos:", error);
-    // Continue even if photo deletion fails
-  }
-
-  // If trip was IN_PROGRESS, set vehicle back to AVAILABLE
-  if (trip.status?.name === "IN_PROGRESS") {
-    const availableStatus = await prisma.vehicleStatus.findUnique({
-      where: { name: "AVAILABLE" },
+  return guarded(async () => {
+    const trip = await prisma.vehicleTrip.findUnique({
+      where: { id },
+      select: {
+        fsrId: true,
+        status: { select: { name: true } },
+        startPhotoUrl: true,
+        startPhotoProvider: true,
+        endPhotoUrl: true,
+        endPhotoProvider: true,
+        vehicleId: true,
+      },
     });
-    if (availableStatus) {
-      await prisma.vehicle.update({
-        where: { id: trip.vehicleId },
-        data: { statusId: availableStatus.id },
-      });
-    }
-  }
 
-  revalidatePath("/fsr/vehicle-trips");
-  redirect("/fsr/vehicle-trips");
+    if (!trip) {
+      throw new Error("Trip not found");
+    }
+
+    // FSR can only delete their own trips
+    if (user.role.name !== "ADMINISTRADOR" && trip.fsrId !== user.id) {
+      businessRule("Solo puedes eliminar tus propios viajes.");
+    }
+
+    // Soft delete
+    await prisma.vehicleTrip.update({
+      where: { id },
+      data: { active: false },
+    });
+
+    // Delete photos from storage
+    try {
+      await deleteFile(
+        trip.startPhotoUrl,
+        trip.startPhotoProvider as "vercel-blob" | "filesystem",
+      );
+      if (trip.endPhotoUrl && trip.endPhotoProvider) {
+        await deleteFile(
+          trip.endPhotoUrl,
+          trip.endPhotoProvider as "vercel-blob" | "filesystem",
+        );
+      }
+    } catch (error) {
+      console.error("Error deleting trip photos:", error);
+      // Continue even if photo deletion fails
+    }
+
+    // If trip was IN_PROGRESS, set vehicle back to AVAILABLE
+    if (trip.status?.name === "IN_PROGRESS") {
+      const availableStatus = await prisma.vehicleStatus.findUnique({
+        where: { name: "AVAILABLE" },
+      });
+      if (availableStatus) {
+        await prisma.vehicle.update({
+          where: { id: trip.vehicleId },
+          data: { statusId: availableStatus.id },
+        });
+      }
+    }
+
+    revalidatePath("/fsr/vehicle-trips");
+    redirect("/fsr/vehicle-trips");
+  });
 }

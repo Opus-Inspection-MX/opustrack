@@ -10,6 +10,7 @@ import {
   getPrimaryClienteId,
   removeUserFromCliente,
 } from "@/lib/utils/cliente-assignments";
+import { businessRule, guarded } from "./result";
 
 export type UserFormData = {
   name: string;
@@ -104,43 +105,45 @@ export async function getUserById(id: string) {
 export async function createUser(data: UserFormData) {
   await requirePermission("users:create");
 
-  if (!data.password) {
-    throw new Error("Password is required for new users");
-  }
+  return guarded(async () => {
+    if (!data.password) {
+      businessRule("La contraseña es obligatoria para usuarios nuevos.");
+    }
 
-  const hashedPassword = await hashPassword(data.password);
+    const hashedPassword = await hashPassword(data.password);
 
-  const user = await prisma.user.create({
-    data: {
-      name: data.name,
-      email: data.email,
-      password: hashedPassword,
-      roleId: data.roleId,
-      userStatusId: data.userStatusId,
-      userProfile: {
-        create: {
-          telephone: data.telephone || null,
-          secondaryTelephone: data.secondaryTelephone || null,
-          emergencyContact: data.emergencyContact || null,
-          jobPosition: data.jobPosition || null,
+    const user = await prisma.user.create({
+      data: {
+        name: data.name,
+        email: data.email,
+        password: hashedPassword,
+        roleId: data.roleId,
+        userStatusId: data.userStatusId,
+        userProfile: {
+          create: {
+            telephone: data.telephone || null,
+            secondaryTelephone: data.secondaryTelephone || null,
+            emergencyContact: data.emergencyContact || null,
+            jobPosition: data.jobPosition || null,
+          },
         },
       },
-    },
-    include: {
-      role: true,
-      userStatus: true,
-      cliente: true,
-      userProfile: true,
-    },
+      include: {
+        role: true,
+        userStatus: true,
+        cliente: true,
+        userProfile: true,
+      },
+    });
+
+    // Assign Cliente via UserClienteAssignment if provided
+    if (data.clienteId) {
+      await assignUserToCliente(user.id, data.clienteId, true);
+    }
+
+    revalidatePath("/admin/users");
+    return { data: user };
   });
-
-  // Assign Cliente via UserClienteAssignment if provided
-  if (data.clienteId) {
-    await assignUserToCliente(user.id, data.clienteId, true);
-  }
-
-  revalidatePath("/admin/users");
-  return { success: true, data: user };
 }
 
 /**
@@ -345,38 +348,40 @@ export async function updateMyPassword(
   const { requireAuth } = await import("@/lib/auth/auth");
   const user = await requireAuth();
 
-  // Get user with password
-  const userWithPassword = await prisma.user.findUnique({
-    where: { id: user.id },
-    select: { password: true },
+  return guarded(async () => {
+    // Get user with password
+    const userWithPassword = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { password: true },
+    });
+
+    if (!userWithPassword) {
+      throw new Error("User not found");
+    }
+
+    // Verify current password
+    const bcrypt = await import("bcrypt");
+    const isValidPassword = await bcrypt.compare(
+      currentPassword,
+      userWithPassword.password,
+    );
+
+    if (!isValidPassword) {
+      businessRule("La contraseña actual es incorrecta.");
+    }
+
+    // Hash and update new password. Bump sessionVersion to invalidate every
+    // existing JWT for this user: after a password change, any previously issued
+    // session (including a stolen one) must be forced to re-authenticate.
+    const hashedPassword = await hashPassword(newPassword);
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        password: hashedPassword,
+        sessionVersion: { increment: 1 },
+      },
+    });
+
+    return {};
   });
-
-  if (!userWithPassword) {
-    throw new Error("User not found");
-  }
-
-  // Verify current password
-  const bcrypt = await import("bcrypt");
-  const isValidPassword = await bcrypt.compare(
-    currentPassword,
-    userWithPassword.password,
-  );
-
-  if (!isValidPassword) {
-    throw new Error("Current password is incorrect");
-  }
-
-  // Hash and update new password. Bump sessionVersion to invalidate every
-  // existing JWT for this user: after a password change, any previously issued
-  // session (including a stolen one) must be forced to re-authenticate.
-  const hashedPassword = await hashPassword(newPassword);
-  await prisma.user.update({
-    where: { id: user.id },
-    data: {
-      password: hashedPassword,
-      sessionVersion: { increment: 1 },
-    },
-  });
-
-  return { success: true };
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { isFailure } from "@/lib/actions/result";
 import { Loader2, Save, Tag } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -39,7 +40,12 @@ export function QuickEditTypePopover({
     }
     setSubmitting(true);
     try {
-      await updateIncidentType(incidentId, Number.parseInt(typeId, 10));
+      const result = await updateIncidentType(incidentId, Number.parseInt(typeId, 10));
+
+      if (isFailure(result)) {
+        setError(result.error);
+        return;
+      }
       setOpen(false);
       onSaved?.();
     } catch (e) {

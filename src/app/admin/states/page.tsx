@@ -11,7 +11,9 @@ import { CatalogTable } from "@/components/common/catalog-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useDebounce } from "@/hooks/use-debounce";
+import { toast } from "@/hooks/use-toast";
 import { deleteState, getStatesAdmin } from "@/lib/actions/lookups";
+import { isFailure } from "@/lib/actions/result";
 
 type State = Awaited<ReturnType<typeof getStatesAdmin>>["data"][number];
 
@@ -109,10 +111,15 @@ export default function StatesPage() {
       disabled: (row) => row._count.clientes > 0,
       onClick: async (row) => {
         try {
-          await deleteState(row.id);
+          const result = await deleteState(row.id);
+          if (isFailure(result)) {
+            toast.error(result.error);
+            return;
+          }
           await fetchData();
         } catch (error) {
-          console.error("Error deleting state:", error);
+          console.error("deleteState failed:", error);
+          toast.error("No se pudo completar la operación. Intenta de nuevo.");
         }
       },
     },

@@ -13,9 +13,9 @@ export default async function NewIncidentStatusPage() {
       </div>
 
       <IncidentStatusForm
-        onSubmit={async (data) => {
-          await createIncidentStatus(data);
-        }}
+        // Bound, not wrapped: an inline arrow would be a plain closure, and a
+        // Server Component cannot pass one to a Client Component.
+        onSubmit={createIncidentStatus}
         redirectPath="/admin/incident-status"
         title="Incident Status Details"
       />

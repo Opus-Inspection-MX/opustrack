@@ -15,6 +15,7 @@ import {
   Trash2,
 } from "lucide-react";
 import Link from "next/link";
+import { isFailure } from "@/lib/actions/result";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { AssignmentActivityEdit } from "@/components/assignments/assignment-activity-edit";
@@ -26,6 +27,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
+import { toast } from "@/hooks/use-toast";
 import {
   deleteAssignmentActivity,
   getAssignmentActivities,
@@ -176,11 +178,16 @@ export default function FSRAssignmentDetailPage({
       return;
 
     try {
-      await deleteAssignmentActivity(id);
+      const result = await deleteAssignmentActivity(id);
+
+      if (isFailure(result)) {
+        setError(result.error);
+        return;
+      }
       await fetchData();
     } catch (error) {
       console.error("Error deleting activity:", error);
-      alert("Error al eliminar la actividad");
+      toast.error("Error al eliminar la actividad");
     }
   };
 
@@ -188,11 +195,16 @@ export default function FSRAssignmentDetailPage({
     if (!confirm("¿Estás seguro de que deseas eliminar este archivo?")) return;
 
     try {
-      await deleteAssignmentAttachment(id);
+      const result = await deleteAssignmentAttachment(id);
+
+      if (isFailure(result)) {
+        setError(result.error);
+        return;
+      }
       await fetchData();
     } catch (error) {
       console.error("Error deleting attachment:", error);
-      alert("Error al eliminar el archivo");
+      toast.error("Error al eliminar el archivo");
     }
   };
 
@@ -234,13 +246,16 @@ export default function FSRAssignmentDetailPage({
     if (!assignmentId) return;
     try {
       setActionLoading(true);
-      await markAssignmentSeen(assignmentId);
+      const result = await markAssignmentSeen(assignmentId);
+
+      if (isFailure(result)) {
+        setError(result.error);
+        return;
+      }
       await fetchData();
     } catch (error) {
       console.error("Error marking asignación as seen:", error);
-      alert(
-        `Error al marcar como vista: ${(error as Error).message ?? "desconocido"}`,
-      );
+      toast.error("Error al marcar como vista");
     } finally {
       setActionLoading(false);
     }
@@ -255,13 +270,16 @@ export default function FSRAssignmentDetailPage({
       fd.append("assignmentId", assignmentId);
       fd.append("latitude", String(latitude));
       fd.append("longitude", String(longitude));
-      await startAssignmentWork(fd);
+      const result = await startAssignmentWork(fd);
+
+      if (isFailure(result)) {
+        setError(result.error);
+        return;
+      }
       await fetchData();
     } catch (error) {
       console.error("Error starting asignación:", error);
-      alert(
-        `No se pudo iniciar el trabajo: ${(error as Error).message ?? "error desconocido"}`,
-      );
+      toast.error("No se pudo iniciar el trabajo");
     } finally {
       setActionLoading(false);
     }
@@ -275,9 +293,7 @@ export default function FSRAssignmentDetailPage({
       await fetchData();
     } catch (error) {
       console.error("Error pausing asignación:", error);
-      alert(
-        `Error al pausar la asignación: ${(error as Error).message ?? "desconocido"}`,
-      );
+      toast.error("Error al pausar la asignación");
     } finally {
       setActionLoading(false);
     }
@@ -291,9 +307,7 @@ export default function FSRAssignmentDetailPage({
       await fetchData();
     } catch (error) {
       console.error("Error resuming asignación:", error);
-      alert(
-        `Error al retomar el trabajo: ${(error as Error).message ?? "desconocido"}`,
-      );
+      toast.error("Error al retomar el trabajo");
     } finally {
       setActionLoading(false);
     }
@@ -314,14 +328,17 @@ export default function FSRAssignmentDetailPage({
       fd.append("assignmentId", assignmentId);
       fd.append("latitude", String(latitude));
       fd.append("longitude", String(longitude));
-      await closeAssignment(fd);
+      const result = await closeAssignment(fd);
+
+      if (isFailure(result)) {
+        setError(result.error);
+        return;
+      }
       await fetchData();
-      alert("¡Asignación cerrada exitosamente!");
+      toast.success("¡Asignación cerrada exitosamente!");
     } catch (error) {
       console.error("Error closing asignación:", error);
-      alert(
-        `No se pudo cerrar la asignación: ${(error as Error).message ?? "error desconocido"}`,
-      );
+      toast.error("No se pudo cerrar la asignación");
     } finally {
       setActionLoading(false);
     }

@@ -2,6 +2,7 @@
 
 import { use } from "react";
 import { WorkPartForm } from "@/components/work-parts/work-part-form";
+import { toast } from "@/hooks/use-toast";
 
 interface WorkPartFormData {
   partId: string;
@@ -85,7 +86,7 @@ export default function EditWorkPartPage({
     console.log("Updating work part:", resolvedParams.id, data);
     // Simulate API call
     await new Promise((resolve) => setTimeout(resolve, 1000));
-    alert("¡Refacción actualizada exitosamente!");
+    toast.success("¡Refacción actualizada exitosamente!");
   };
 
   return (

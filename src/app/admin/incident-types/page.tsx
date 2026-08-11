@@ -12,7 +12,9 @@ import { PriorityBadge } from "@/components/incident-types/priority-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useDebounce } from "@/hooks/use-debounce";
+import { toast } from "@/hooks/use-toast";
 import { deleteIncidentType, getIncidentTypes } from "@/lib/actions/lookups";
+import { isFailure } from "@/lib/actions/result";
 
 type IncidentType = Awaited<
   ReturnType<typeof getIncidentTypes>
@@ -123,10 +125,15 @@ export default function IncidentTypesPage() {
       disabled: (row) => row.incidentCount > 0,
       onClick: async (row) => {
         try {
-          await deleteIncidentType(row.id);
+          const result = await deleteIncidentType(row.id);
+          if (isFailure(result)) {
+            toast.error(result.error);
+            return;
+          }
           await fetchData();
         } catch (error) {
-          console.error("Error deleting incident type:", error);
+          console.error("deleteIncidentType failed:", error);
+          toast.error("No se pudo completar la operación. Intenta de nuevo.");
         }
       },
     },

@@ -11,7 +11,9 @@ import { CatalogTable } from "@/components/common/catalog-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useDebounce } from "@/hooks/use-debounce";
+import { toast } from "@/hooks/use-toast";
 import { deleteLine, getLines } from "@/lib/actions/lines";
+import { isFailure } from "@/lib/actions/result";
 
 type Line = Awaited<ReturnType<typeof getLines>>["data"][number];
 
@@ -122,10 +124,15 @@ export default function LinesPage() {
       disabled: (row) => row.equipments.length > 0,
       onClick: async (row) => {
         try {
-          await deleteLine(row.id);
+          const result = await deleteLine(row.id);
+          if (isFailure(result)) {
+            toast.error(result.error);
+            return;
+          }
           await fetchData();
         } catch (error) {
-          console.error("Error deleting line:", error);
+          console.error("deleteLine failed:", error);
+          toast.error("No se pudo completar la operación. Intenta de nuevo.");
         }
       },
     },

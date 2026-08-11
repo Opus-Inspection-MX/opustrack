@@ -26,7 +26,9 @@ export default async function EditUserStatusPage({
 
       <GenericStatusForm
         initialData={status}
-        onSubmit={(data) => updateUserStatus(status.id, data)}
+        // Bound, not wrapped: an inline arrow would be a plain closure, and a
+        // Server Component cannot pass one to a Client Component.
+        onSubmit={updateUserStatus.bind(null, status.id)}
         redirectPath="/admin/user-status"
         title="User Status Details"
         isEdit

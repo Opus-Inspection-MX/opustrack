@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { requirePermission } from "@/lib/auth/auth";
 import { FALLBACK_INCIDENT_TYPE_NAME } from "@/lib/constants/incident-type";
 import { prisma } from "@/lib/database/prisma.singleton";
+import { rejected } from "./result";
 
 // ==================== STATES ====================
 
@@ -130,8 +131,8 @@ export async function deleteState(id: number) {
   });
 
   if (clienteCount > 0) {
-    throw new Error(
-      `Cannot delete state. ${clienteCount} Cliente(s) are in this state.`,
+    return rejected(
+      `No se puede eliminar: ${clienteCount} Cliente(s) pertenecen a este estado.`,
     );
   }
 
@@ -249,8 +250,8 @@ export async function deleteUserStatus(id: number) {
   });
 
   if (userCount > 0) {
-    throw new Error(
-      `Cannot delete status. ${userCount} user(s) have this status.`,
+    return rejected(
+      `No se puede eliminar: ${userCount} usuario(s) tienen este estado.`,
     );
   }
 
@@ -395,7 +396,7 @@ export async function deleteIncidentType(id: number) {
     select: { name: true },
   });
   if (existing?.name === FALLBACK_INCIDENT_TYPE_NAME) {
-    throw new Error(
+    return rejected(
       `El tipo "${FALLBACK_INCIDENT_TYPE_NAME}" es del sistema y no se puede eliminar.`,
     );
   }
@@ -405,8 +406,8 @@ export async function deleteIncidentType(id: number) {
   });
 
   if (incidentCount > 0) {
-    throw new Error(
-      `Cannot delete type. ${incidentCount} incident(s) have this type.`,
+    return rejected(
+      `No se puede eliminar: ${incidentCount} incidente(s) tienen este tipo.`,
     );
   }
 
@@ -544,8 +545,8 @@ export async function deleteIncidentStatus(id: number) {
   });
 
   if (incidentCount > 0) {
-    throw new Error(
-      `Cannot delete status. ${incidentCount} incident(s) have this status.`,
+    return rejected(
+      `No se puede eliminar: ${incidentCount} incidente(s) tienen este estado.`,
     );
   }
 
@@ -676,8 +677,8 @@ export async function deleteAssignmentStatus(id: number) {
   });
 
   if (assignmentCount > 0) {
-    throw new Error(
-      `Cannot delete status. ${assignmentCount} assignment(s) have this status.`,
+    return rejected(
+      `No se puede eliminar: ${assignmentCount} asignación(es) tienen este estado.`,
     );
   }
 
@@ -777,8 +778,8 @@ export async function deleteLineStatus(id: number) {
     where: { statusId: id, active: true },
   });
   if (lineCount > 0) {
-    throw new Error(
-      `Cannot delete status. ${lineCount} line(s) have this status.`,
+    return rejected(
+      `No se puede eliminar: ${lineCount} línea(s) tienen este estado.`,
     );
   }
   await prisma.lineStatus.update({
@@ -879,8 +880,8 @@ export async function deleteEquipmentStatus(id: number) {
     where: { statusId: id, active: true },
   });
   if (equipmentCount > 0) {
-    throw new Error(
-      `Cannot delete status. ${equipmentCount} equipment(s) have this status.`,
+    return rejected(
+      `No se puede eliminar: ${equipmentCount} equipo(s) tienen este estado.`,
     );
   }
   await prisma.equipmentStatus.update({
@@ -981,8 +982,8 @@ export async function deleteVehicleStatus(id: number) {
     where: { statusId: id, active: true },
   });
   if (vehicleCount > 0) {
-    throw new Error(
-      `Cannot delete status. ${vehicleCount} vehicle(s) have this status.`,
+    return rejected(
+      `No se puede eliminar: ${vehicleCount} vehículo(s) tienen este estado.`,
     );
   }
   await prisma.vehicleStatus.update({
@@ -1083,8 +1084,8 @@ export async function deleteVehicleTripStatus(id: number) {
     where: { statusId: id, active: true },
   });
   if (tripCount > 0) {
-    throw new Error(
-      `Cannot delete status. ${tripCount} trip(s) have this status.`,
+    return rejected(
+      `No se puede eliminar: ${tripCount} viaje(s) tienen este estado.`,
     );
   }
   await prisma.vehicleTripStatus.update({
@@ -1182,8 +1183,8 @@ export async function deletePermission(id: number) {
   });
 
   if (roleCount > 0) {
-    throw new Error(
-      `Cannot delete permission. ${roleCount} role(s) have this permission.`,
+    return rejected(
+      `No se puede eliminar: ${roleCount} rol(es) tienen este permiso.`,
     );
   }
 

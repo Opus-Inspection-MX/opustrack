@@ -11,6 +11,7 @@ import {
   markAsRead,
   notifyBroadcast,
 } from "@/lib/notifications";
+import { type ActionResult, ok, rejected } from "./result";
 
 /**
  * Get current user's notifications
@@ -86,10 +87,7 @@ export interface BroadcastInput {
   roleId?: number;
 }
 
-export interface BroadcastResult {
-  success: true;
-  count: number;
-}
+export type BroadcastResult = ActionResult<{ count: number }>;
 
 /**
  * RF-469 / RF-470: Send a broadcast notification from the admin UI.
@@ -110,16 +108,16 @@ export async function sendBroadcast(
   const message = input.message?.trim();
 
   if (!title) {
-    throw new Error("El título es obligatorio");
+    return rejected("El título es obligatorio");
   }
   if (!message) {
-    throw new Error("El mensaje es obligatorio");
+    return rejected("El mensaje es obligatorio");
   }
   if (input.type !== "system" && input.type !== "announcement") {
-    throw new Error("Tipo de notificación no válido");
+    return rejected("Tipo de notificación no válido");
   }
   if (input.audience === "by-role" && !input.roleId) {
-    throw new Error("Debe seleccionar un rol cuando la audiencia es por rol");
+    return rejected("Debe seleccionar un rol cuando la audiencia es por rol");
   }
 
   // Resolve recipients. ANNOUNCEMENT always targets every active user
@@ -144,5 +142,5 @@ export async function sendBroadcast(
   // The actor is excluded from delivery by emit(); reflect that in the count.
   const deliveredCount = recipientIds.filter((id) => id !== user.id).length;
 
-  return { success: true, count: deliveredCount };
+  return ok({ count: deliveredCount });
 }

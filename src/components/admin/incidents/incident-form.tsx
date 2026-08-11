@@ -1,5 +1,6 @@
 "use client";
 
+import { isFailure } from "@/lib/actions/result";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -121,9 +122,19 @@ export function IncidentForm({
       };
 
       if (incident) {
-        await updateIncident(incident.id, submitData);
+        const result = await updateIncident(incident.id, submitData);
+
+        if (isFailure(result)) {
+          setError(result.error);
+          return;
+        }
       } else {
-        await createIncident(submitData);
+        const result = await createIncident(submitData);
+
+        if (isFailure(result)) {
+          setError(result.error);
+          return;
+        }
       }
       router.push("/admin/incidents");
       router.refresh();

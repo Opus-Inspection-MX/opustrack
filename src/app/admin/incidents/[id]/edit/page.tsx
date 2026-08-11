@@ -1,5 +1,6 @@
 "use client";
 
+import { isFailure } from "@/lib/actions/result";
 import { ArrowLeft, Package, Plus, Trash2, Wrench } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -11,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
+import { toast } from "@/hooks/use-toast";
 import {
   getIncidentById,
   getIncidentFormOptions,
@@ -93,11 +95,16 @@ export default function EditIncidentPage({
       return;
 
     try {
-      await deleteWorkPart(partId);
+      const result = await deleteWorkPart(partId);
+
+      if (isFailure(result)) {
+        toast.error(result.error);
+        return;
+      }
       await fetchData();
     } catch (error) {
       console.error("Error deleting part:", error);
-      alert("Error al eliminar la refacción");
+      toast.error("Error al eliminar la refacción");
     }
   };
 

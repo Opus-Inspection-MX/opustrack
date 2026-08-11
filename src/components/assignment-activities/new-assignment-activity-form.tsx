@@ -1,5 +1,7 @@
 "use client";
 
+import { toast } from "@/hooks/use-toast";
+import { isFailure } from "@/lib/actions/result";
 import { ArrowLeft, Save } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -59,6 +61,11 @@ export default function NewAssignmentActivityForm() {
         description: formData.description,
         performedAt: new Date(formData.performedAt),
       });
+
+      if (isFailure(result)) {
+        toast.error(result.error);
+        return;
+      }
 
       if (result.success) {
         router.push(`/admin/assignments/${formData.assignmentId}`);

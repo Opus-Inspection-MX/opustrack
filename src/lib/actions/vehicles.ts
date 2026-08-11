@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requirePermission } from "@/lib/auth/auth";
 import { prisma } from "@/lib/database/prisma.singleton";
+import { rejected } from "./result";
 
 export type VehicleFormData = {
   make: string;
@@ -158,8 +159,8 @@ export async function deleteVehicle(id: string) {
   });
 
   if (activeTripCount > 0) {
-    throw new Error(
-      `Cannot delete vehicle. ${activeTripCount} trip(s) are in progress.`,
+    return rejected(
+      `No se puede eliminar: ${activeTripCount} viaje(s) en curso usan este vehículo.`,
     );
   }
 

@@ -17,6 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
+import { toast } from "@/hooks/use-toast";
 import { deleteSchedule, getSchedules } from "@/lib/actions/schedules";
 
 interface Cliente {
@@ -188,11 +189,7 @@ export default function SchedulesPage() {
         await fetchSchedulesData();
       } catch (error) {
         console.error("Error deleting schedule:", error);
-        alert(
-          error instanceof Error
-            ? error.message
-            : "Error al eliminar la programación",
-        );
+        toast.error("Error al eliminar la programación");
       }
     }
   };

@@ -6,6 +6,7 @@ import { use, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
+import { toast } from "@/hooks/use-toast";
 import { deleteState, getStateById } from "@/lib/actions/lookups";
 
 interface ClienteCenter {
@@ -67,9 +68,7 @@ export default function StateDetailPage({
       router.push("/admin/states");
     } catch (error) {
       console.error("Error deleting state:", error);
-      alert(
-        error instanceof Error ? error.message : "Error al eliminar el estado",
-      );
+      toast.error("Error al eliminar el estado");
       setIsDeleting(false);
     }
   };

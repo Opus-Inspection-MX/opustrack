@@ -1,5 +1,6 @@
 "use client";
 
+import { isFailure } from "@/lib/actions/result";
 import { CalendarClock, Loader2, Save } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -41,7 +42,12 @@ export function QuickEditDatePopover({
     setSubmitting(true);
     try {
       const iso = localWallTimeToUTC(date, time || "00:00").toISOString();
-      await updateIncidentScheduledDate(incidentId, iso);
+      const result = await updateIncidentScheduledDate(incidentId, iso);
+
+      if (isFailure(result)) {
+        setError(result.error);
+        return;
+      }
       setOpen(false);
       onSaved?.();
     } catch (e) {

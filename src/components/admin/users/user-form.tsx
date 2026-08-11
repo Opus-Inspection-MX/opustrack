@@ -1,5 +1,6 @@
 "use client";
 
+import { isFailure } from "@/lib/actions/result";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -63,7 +64,12 @@ export function UserForm({ user, roles, statuses, clientes }: UserFormProps) {
       if (user) {
         await updateUser(user.id, formData);
       } else {
-        await createUser(formData);
+        const result = await createUser(formData);
+
+        if (isFailure(result)) {
+          setError(result.error);
+          return;
+        }
       }
       router.push("/admin/users");
       router.refresh();

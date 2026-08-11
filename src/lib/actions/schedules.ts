@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { requirePermission } from "@/lib/auth/auth";
 import { canAccessCliente, getClienteWhereClause } from "@/lib/auth/filters";
 import { prisma } from "@/lib/database/prisma.singleton";
+import { rejected } from "./result";
 
 export type ScheduleFormData = {
   title: string;
@@ -315,8 +316,8 @@ export async function deleteSchedule(id: string) {
   });
 
   if (incidentCount > 0) {
-    throw new Error(
-      `Cannot delete schedule. ${incidentCount} incident(s) are linked to this schedule.`,
+    return rejected(
+      `No se puede eliminar: ${incidentCount} incidente(s) están vinculados a esta programación.`,
     );
   }
 

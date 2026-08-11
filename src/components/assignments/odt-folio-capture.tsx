@@ -1,5 +1,6 @@
 "use client";
 
+import { isFailure } from "@/lib/actions/result";
 import { Check, FileText, Pencil, X } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -36,6 +37,11 @@ export function OdtFolioCapture({
         assignmentId,
         trimmed || null,
       );
+
+      if (isFailure(result)) {
+        setError(result.error);
+        return;
+      }
       const newValue = result.data.odtFolio || "";
       setSaved(newValue);
       setValue(newValue);

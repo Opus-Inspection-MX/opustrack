@@ -55,6 +55,8 @@ export function CatalogTable<T>({
     action: CatalogAction<T>;
     row: T;
   } | null>(null);
+  // Keeps the confirm dialog on screen while the server action is in flight.
+  const [runningAction, setRunningAction] = useState(false);
 
   const showSearch = typeof onSearchChange === "function";
 
@@ -68,19 +70,37 @@ export function CatalogTable<T>({
     typeof onItemsPerPageChange === "function" &&
     totalPages > 1;
 
+  /**
+   * Run a row action and wait for it.
+   *
+   * `onClick` is async in every caller — it deletes and then reloads the list.
+   * Firing it without awaiting turned any rejection into an unhandled promise:
+   * the user confirmed a delete that the server refused, and nothing appeared
+   * on screen. The dialog now stays open until the action settles.
+   */
+  async function runAction(action: CatalogAction<T>, row: T) {
+    setRunningAction(true);
+    try {
+      await action.onClick?.(row);
+    } finally {
+      setRunningAction(false);
+    }
+  }
+
   function handleActionClick(action: CatalogAction<T>, row: T) {
     if (action.requiresConfirm) {
       setPendingAction({ action, row });
     } else {
-      action.onClick?.(row);
+      void runAction(action, row);
     }
   }
 
-  function handleConfirm() {
-    if (pendingAction) {
-      pendingAction.action.onClick?.(pendingAction.row);
-      setPendingAction(null);
-    }
+  async function handleConfirm() {
+    if (!pendingAction) return;
+
+    const { action, row } = pendingAction;
+    await runAction(action, row);
+    setPendingAction(null);
   }
 
   function handleCancelConfirm() {
@@ -261,6 +281,7 @@ export function CatalogTable<T>({
               ? "Eliminar"
               : "Confirmar"
           }
+          busy={runningAction}
           onConfirm={handleConfirm}
           onCancel={handleCancelConfirm}
         />

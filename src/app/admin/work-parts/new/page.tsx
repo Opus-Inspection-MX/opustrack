@@ -1,6 +1,7 @@
 "use client";
 
 import { WorkPartForm } from "@/components/work-parts/work-part-form";
+import { toast } from "@/hooks/use-toast";
 
 interface WorkPartFormData {
   partId: string;
@@ -85,7 +86,7 @@ export default function NewWorkPartPage() {
     console.log("Creating work part:", data);
     // Simulate API call
     await new Promise((resolve) => setTimeout(resolve, 1000));
-    alert("¡Refacción agregada exitosamente!");
+    toast.success("¡Refacción agregada exitosamente!");
   };
 
   return (

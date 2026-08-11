@@ -1,5 +1,6 @@
 "use client";
 
+import { isFailure } from "@/lib/actions/result";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -64,9 +65,19 @@ export function AssignmentForm({
 
     try {
       if (assignment) {
-        await updateAssignment(assignment.id, formData);
+        const result = await updateAssignment(assignment.id, formData);
+
+        if (isFailure(result)) {
+          setError(result.error);
+          return;
+        }
       } else {
-        await createAssignment(formData);
+        const result = await createAssignment(formData);
+
+        if (isFailure(result)) {
+          setError(result.error);
+          return;
+        }
       }
       router.push("/admin/assignments");
       router.refresh();

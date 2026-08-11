@@ -1,11 +1,13 @@
 "use client";
 
+import { isFailure } from "@/lib/actions/result";
 import { ArrowLeft, Edit, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { use, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
+import { toast } from "@/hooks/use-toast";
 import { deleteWorkPart, getWorkPartById } from "@/lib/actions/work-parts";
 
 interface Part {
@@ -86,7 +88,12 @@ export default function WorkPartDetailPage({
     setIsDeleting(true);
     try {
       const assignmentId = workPart?.assignmentId;
-      await deleteWorkPart(id);
+      const result = await deleteWorkPart(id);
+
+      if (isFailure(result)) {
+        toast.error(result.error);
+        return;
+      }
       router.push(
         assignmentId
           ? `/admin/assignments/${assignmentId}`
@@ -94,11 +101,7 @@ export default function WorkPartDetailPage({
       );
     } catch (error) {
       console.error("Error deleting work part:", error);
-      alert(
-        error instanceof Error
-          ? error.message
-          : "Error al eliminar la refacción",
-      );
+      toast.error("Error al eliminar la refacción");
       setIsDeleting(false);
     }
   };

@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { requirePermission } from "@/lib/auth/auth";
 import { prisma } from "@/lib/database/prisma.singleton";
 import { assignUserToCliente } from "@/lib/utils/cliente-assignments";
+import { rejected } from "./result";
 
 export type ClienteFormData = {
   code: string;
@@ -350,8 +351,8 @@ export async function deleteCliente(id: string) {
   });
 
   if (userCount > 0) {
-    throw new Error(
-      `Cannot delete Cliente. ${userCount} active user(s) are assigned to this center.`,
+    return rejected(
+      `No se puede eliminar: ${userCount} usuario(s) activo(s) están asignados a este centro.`,
     );
   }
 

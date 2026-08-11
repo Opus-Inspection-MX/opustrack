@@ -31,7 +31,9 @@ export default async function EditVehicleStatusPage({
 
       <GenericStatusForm
         initialData={status}
-        onSubmit={(data) => updateVehicleStatus(status.id, data)}
+        // Bound, not wrapped: an inline arrow would be a plain closure, and a
+        // Server Component cannot pass one to a Client Component.
+        onSubmit={updateVehicleStatus.bind(null, status.id)}
         redirectPath="/admin/settings/vehicle-status"
         title="Vehicle Status Details"
         isEdit

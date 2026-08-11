@@ -38,7 +38,13 @@ interface IncidentStatusFormProps {
     color: string;
     active: boolean;
   };
-  onSubmit: (data: IncidentStatusFormData) => Promise<void>;
+  /**
+   * Server action invoked on submit. Typed as returning `unknown` so a
+   * server action can be passed directly: narrowing it to `Promise<void>`
+   * forced callers to wrap it in an arrow, and a Server Component cannot
+   * hand a plain closure to a Client Component.
+   */
+  onSubmit: (data: IncidentStatusFormData) => Promise<unknown>;
   redirectPath: string;
   title?: string;
   isEdit?: boolean;

@@ -10,10 +10,12 @@ import type {
 import { CatalogTable } from "@/components/common/catalog-table";
 import { Button } from "@/components/ui/button";
 import { useDebounce } from "@/hooks/use-debounce";
+import { toast } from "@/hooks/use-toast";
 import {
   deleteVehicleTripStatus,
   getVehicleTripStatuses,
 } from "@/lib/actions/lookups";
+import { isFailure } from "@/lib/actions/result";
 
 type VehicleTripStatus = Awaited<
   ReturnType<typeof getVehicleTripStatuses>
@@ -109,10 +111,15 @@ export default function VehicleTripStatusPage() {
       disabled: (row) => row._count.trips > 0,
       onClick: async (row) => {
         try {
-          await deleteVehicleTripStatus(row.id);
+          const result = await deleteVehicleTripStatus(row.id);
+          if (isFailure(result)) {
+            toast.error(result.error);
+            return;
+          }
           await fetchData();
         } catch (error) {
-          console.error("Error deleting vehicle trip status:", error);
+          console.error("deleteVehicleTripStatus failed:", error);
+          toast.error("No se pudo completar la operación. Intenta de nuevo.");
         }
       },
     },

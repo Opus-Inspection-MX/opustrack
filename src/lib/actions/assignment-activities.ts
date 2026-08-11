@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requirePermission } from "@/lib/auth/auth";
 import { prisma } from "@/lib/database/prisma.singleton";
+import { businessRule, guarded } from "./result";
 import { isFsrUnavailable } from "@/lib/utils/availability";
 
 export type AssignmentActivityFormData = {
@@ -18,7 +19,7 @@ async function assertAssignmentEditable(assignmentId: string): Promise<void> {
   });
   const name = row?.incident?.status?.name;
   if (name === "CERRADO" || name === "CANCELADA") {
-    throw new Error(
+    businessRule(
       name === "CANCELADA"
         ? "La incidencia está cancelada. No se pueden hacer cambios."
         : "La incidencia está cerrada. No se pueden hacer cambios.",
@@ -88,39 +89,42 @@ export async function createAssignmentActivity(
   data: AssignmentActivityFormData,
 ) {
   await requirePermission("assignments:update");
-  await assertAssignmentEditable(data.assignmentId);
 
-  // Resolve effective performedAt — caller-supplied value or now.
-  const performedAt = data.performedAt ?? new Date();
+  return guarded(async () => {
+    await assertAssignmentEditable(data.assignmentId);
 
-  // Load all active assignees for the assignment (FSRs doing the work).
-  const assigneeRows = await prisma.assignmentAssignee.findMany({
-    where: { assignmentId: data.assignmentId, active: true },
-    select: { userId: true, user: { select: { name: true } } },
-  });
+    // Resolve effective performedAt — caller-supplied value or now.
+    const performedAt = data.performedAt ?? new Date();
 
-  // Availability block: reject if any active FSR assignee is unavailable on the
-  // CDMX calendar day of performedAt (RF-258/RF-705).
-  for (const row of assigneeRows) {
-    const unavailable = await isFsrUnavailable(row.userId, performedAt);
-    if (unavailable) {
-      const label = row.user?.name ?? row.userId;
-      throw new Error(
-        `El técnico ${label} no está disponible en la fecha indicada (día festivo o vacaciones aprobadas).`,
-      );
+    // Load all active assignees for the assignment (FSRs doing the work).
+    const assigneeRows = await prisma.assignmentAssignee.findMany({
+      where: { assignmentId: data.assignmentId, active: true },
+      select: { userId: true, user: { select: { name: true } } },
+    });
+
+    // Availability block: reject if any active FSR assignee is unavailable on
+    // the CDMX calendar day of performedAt (RF-258/RF-705).
+    for (const row of assigneeRows) {
+      const unavailable = await isFsrUnavailable(row.userId, performedAt);
+      if (unavailable) {
+        const label = row.user?.name ?? row.userId;
+        businessRule(
+          `El técnico ${label} no está disponible en la fecha indicada (día festivo o vacaciones aprobadas).`,
+        );
+      }
     }
-  }
 
-  const activity = await prisma.assignmentActivity.create({
-    data: {
-      assignmentId: data.assignmentId,
-      description: data.description,
-      performedAt,
-    },
+    const activity = await prisma.assignmentActivity.create({
+      data: {
+        assignmentId: data.assignmentId,
+        description: data.description,
+        performedAt,
+      },
+    });
+
+    revalidatePath(`/admin/assignments/${data.assignmentId}`);
+    return { data: activity };
   });
-
-  revalidatePath(`/admin/assignments/${data.assignmentId}`);
-  return { success: true, data: activity };
 }
 
 /**
@@ -132,30 +136,32 @@ export async function updateAssignmentActivity(
 ) {
   await requirePermission("assignments:update");
 
-  const ref0 = await prisma.assignmentActivity.findUnique({
-    where: { id },
-    select: { assignmentId: true },
+  return guarded(async () => {
+    const ref0 = await prisma.assignmentActivity.findUnique({
+      where: { id },
+      select: { assignmentId: true },
+    });
+    if (ref0) await assertAssignmentEditable(ref0.assignmentId);
+
+    const activity = await prisma.assignmentActivity.update({
+      where: { id },
+      data: {
+        description: data.description,
+        performedAt: data.performedAt,
+      },
+    });
+
+    const ref = await prisma.assignmentActivity.findUnique({
+      where: { id },
+      select: { assignmentId: true },
+    });
+
+    if (ref) {
+      revalidatePath(`/admin/assignments/${ref.assignmentId}`);
+    }
+
+    return { data: activity };
   });
-  if (ref0) await assertAssignmentEditable(ref0.assignmentId);
-
-  const activity = await prisma.assignmentActivity.update({
-    where: { id },
-    data: {
-      description: data.description,
-      performedAt: data.performedAt,
-    },
-  });
-
-  const ref = await prisma.assignmentActivity.findUnique({
-    where: { id },
-    select: { assignmentId: true },
-  });
-
-  if (ref) {
-    revalidatePath(`/admin/assignments/${ref.assignmentId}`);
-  }
-
-  return { success: true, data: activity };
 }
 
 /**
@@ -164,24 +170,26 @@ export async function updateAssignmentActivity(
 export async function deleteAssignmentActivity(id: string) {
   await requirePermission("assignments:delete");
 
-  const activity = await prisma.assignmentActivity.findUnique({
-    where: { id },
-    select: { assignmentId: true },
+  return guarded(async () => {
+    const activity = await prisma.assignmentActivity.findUnique({
+      where: { id },
+      select: { assignmentId: true },
+    });
+
+    if (activity) await assertAssignmentEditable(activity.assignmentId);
+
+    await prisma.assignmentActivity.update({
+      where: { id },
+      data: { active: false },
+    });
+
+    if (activity) {
+      revalidatePath(`/admin/assignments/${activity.assignmentId}`);
+      revalidatePath(`/fsr/assignments/${activity.assignmentId}`);
+    }
+
+    return {};
   });
-
-  if (activity) await assertAssignmentEditable(activity.assignmentId);
-
-  await prisma.assignmentActivity.update({
-    where: { id },
-    data: { active: false },
-  });
-
-  if (activity) {
-    revalidatePath(`/admin/assignments/${activity.assignmentId}`);
-    revalidatePath(`/fsr/assignments/${activity.assignmentId}`);
-  }
-
-  return { success: true };
 }
 
 /**

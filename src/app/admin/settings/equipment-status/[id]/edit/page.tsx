@@ -31,7 +31,9 @@ export default async function EditEquipmentStatusPage({
 
       <GenericStatusForm
         initialData={status}
-        onSubmit={(data) => updateEquipmentStatus(status.id, data)}
+        // Bound, not wrapped: an inline arrow would be a plain closure, and a
+        // Server Component cannot pass one to a Client Component.
+        onSubmit={updateEquipmentStatus.bind(null, status.id)}
         redirectPath="/admin/settings/equipment-status"
         title="Equipment Status Details"
         isEdit

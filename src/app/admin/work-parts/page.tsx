@@ -1,5 +1,6 @@
 "use client";
 
+import { isFailure } from "@/lib/actions/result";
 import { Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -7,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { WorkPartFilters } from "@/components/work-parts/work-part-filters";
 import { WorkPartTable } from "@/components/work-parts/work-part-table";
+import { toast } from "@/hooks/use-toast";
 import { deleteWorkPart, getAllWorkParts } from "@/lib/actions/work-parts";
 
 // API response types (nullable fields from database)
@@ -181,18 +183,19 @@ export default function WorkPartsPage() {
       )
     ) {
       try {
-        await deleteWorkPart(id);
+        const result = await deleteWorkPart(id);
+
+        if (isFailure(result)) {
+          toast.error(result.error);
+          return;
+        }
         // Refresh the list
         const updatedParts = workParts.filter((wp) => wp.id !== id);
         setWorkParts(updatedParts);
         setFilteredWorkParts(filteredWorkParts.filter((wp) => wp.id !== id));
       } catch (error) {
         console.error("Error deleting work part:", error);
-        alert(
-          error instanceof Error
-            ? error.message
-            : "Error al eliminar la refacción",
-        );
+        toast.error("Error al eliminar la refacción");
       }
     }
   };

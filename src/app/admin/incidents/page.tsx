@@ -12,7 +12,9 @@ import { PriorityBadge } from "@/components/incident-types/priority-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useDebounce } from "@/hooks/use-debounce";
+import { toast } from "@/hooks/use-toast";
 import { deleteIncident, getIncidents } from "@/lib/actions/incidents";
+import { isFailure } from "@/lib/actions/result";
 
 type IncidentRow = Awaited<ReturnType<typeof getIncidents>>["data"][number];
 
@@ -153,10 +155,15 @@ export default function IncidentsPage() {
         `¿Seguro que deseas eliminar el incidente "${row.title}"? Esta acción no se puede deshacer.`,
       onClick: async (row) => {
         try {
-          await deleteIncident(row.id);
+          const result = await deleteIncident(row.id);
+          if (isFailure(result)) {
+            toast.error(result.error);
+            return;
+          }
           await fetchData();
         } catch (error) {
-          console.error("Error al eliminar incidente:", error);
+          console.error("deleteIncident failed:", error);
+          toast.error("No se pudo completar la operación. Intenta de nuevo.");
         }
       },
     },

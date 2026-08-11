@@ -1,5 +1,6 @@
 "use client";
 
+import { isFailure } from "@/lib/actions/result";
 import { Edit as EditIcon, Save, X } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -52,8 +53,9 @@ export function AssignmentActivityEdit({
         performedAt: new Date(formData.performedAt),
       });
 
-      if (!result.success) {
-        throw new Error("Failed to update activity");
+      if (isFailure(result)) {
+        setError(result.error);
+        return;
       }
 
       setIsEditing(false);
