@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -85,29 +85,7 @@ export function IncidentForm({
       : "",
   );
 
-  const fsrCandidates = users.filter((u) => {
-    const isFsr = u.roleName === "FSR";
-    if (!isFsr) return false;
-    if (!formData.clienteId) return true;
-    return u.clienteIds?.includes(formData.clienteId);
-  });
-
-  useEffect(() => {
-    const clienteId = formData.clienteId;
-    if (!clienteId) return;
-    setFormData((prev) => {
-      const allowed = users
-        .filter(
-          (u) => u.roleName === "FSR" && u.clienteIds?.includes(clienteId),
-        )
-        .map((u) => u.id);
-      const filtered = (prev.assigneeIds ?? []).filter((id) =>
-        allowed.includes(id),
-      );
-      if (filtered.length === (prev.assigneeIds ?? []).length) return prev;
-      return { ...prev, assigneeIds: filtered };
-    });
-  }, [formData.clienteId, users]);
+  const fsrCandidates = users.filter((u) => u.roleName === "FSR");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -304,17 +282,9 @@ export function IncidentForm({
               onValueChange={(ids) =>
                 setFormData({ ...formData, assigneeIds: ids })
               }
-              placeholder={
-                formData.clienteId
-                  ? "Seleccionar FSRs habilitados"
-                  : "Selecciona un Cliente para listar FSRs"
-              }
+              placeholder="Seleccionar FSRs habilitados"
               searchPlaceholder="Buscar FSR por nombre..."
-              emptyMessage={
-                formData.clienteId
-                  ? "No hay FSRs disponibles para este Cliente"
-                  : "Selecciona un Cliente primero"
-              }
+              emptyMessage="No hay FSRs disponibles"
               disabled={fsrCandidates.length === 0}
             />
             <p className="text-xs text-muted-foreground">

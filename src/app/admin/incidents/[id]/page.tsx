@@ -115,12 +115,12 @@ export default async function IncidentDetailPage({
       {/* Incident Details Card */}
       <Card>
         <CardHeader>
-          <CardTitle>Incident Details</CardTitle>
+          <CardTitle>Detalles del Incidente</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Description */}
           <div>
-            <p className="text-sm text-muted-foreground mb-2">Description</p>
+            <p className="text-sm text-muted-foreground mb-2">Descripción</p>
             <p className="text-base">{incident.description}</p>
           </div>
 
@@ -131,9 +131,9 @@ export default async function IncidentDetailPage({
             <div className="flex items-start gap-3">
               <FileText className="h-5 w-5 text-muted-foreground mt-0.5" />
               <div>
-                <p className="text-sm text-muted-foreground">Type</p>
+                <p className="text-sm text-muted-foreground">Tipo</p>
                 <p className="font-medium">
-                  {incident.type?.name || "No Type"}
+                  {incident.type?.name || "Sin tipo"}
                 </p>
               </div>
             </div>
@@ -145,7 +145,7 @@ export default async function IncidentDetailPage({
                 <p className="font-medium">
                   {incident.cliente
                     ? `${incident.cliente.name} (${incident.cliente.code})`
-                    : "Not Assigned"}
+                    : "Sin asignar"}
                 </p>
               </div>
             </div>
@@ -153,9 +153,9 @@ export default async function IncidentDetailPage({
             <div className="flex items-start gap-3">
               <User className="h-5 w-5 text-muted-foreground mt-0.5" />
               <div>
-                <p className="text-sm text-muted-foreground">Reported By</p>
+                <p className="text-sm text-muted-foreground">Reportado por</p>
                 <p className="font-medium">
-                  {incident.reportedBy?.name || "Unknown"}
+                  {incident.reportedBy?.name || "Desconocido"}
                 </p>
               </div>
             </div>
@@ -163,7 +163,9 @@ export default async function IncidentDetailPage({
             <div className="flex items-start gap-3">
               <Calendar className="h-5 w-5 text-muted-foreground mt-0.5" />
               <div>
-                <p className="text-sm text-muted-foreground">Reported At</p>
+                <p className="text-sm text-muted-foreground">
+                  Fecha de reporte
+                </p>
                 <p className="font-medium">
                   {new Date(incident.reportedAt).toLocaleString()}
                 </p>
@@ -188,7 +190,9 @@ export default async function IncidentDetailPage({
               <div className="flex items-start gap-3">
                 <Calendar className="h-5 w-5 text-muted-foreground mt-0.5" />
                 <div>
-                  <p className="text-sm text-muted-foreground">Resolved At</p>
+                  <p className="text-sm text-muted-foreground">
+                    Fecha de resolución
+                  </p>
                   <p className="font-medium">
                     {new Date(incident.resolvedAt).toLocaleString()}
                   </p>
@@ -201,7 +205,9 @@ export default async function IncidentDetailPage({
             <>
               <Separator />
               <div>
-                <p className="text-sm text-muted-foreground mb-2">Schedule</p>
+                <p className="text-sm text-muted-foreground mb-2">
+                  Programación
+                </p>
                 <p className="font-medium">{incident.schedule.title}</p>
                 <p className="text-sm text-muted-foreground">
                   {new Date(incident.schedule.scheduledAt).toLocaleString()}
@@ -241,16 +247,16 @@ export default async function IncidentDetailPage({
           <div>
             <h2 className="text-2xl font-bold flex items-center gap-2">
               <Wrench className="h-6 w-6" />
-              Assignments ({incident.assignments?.length || 0})
+              Asignaciones ({incident.assignments?.length || 0})
             </h2>
             <p className="text-sm text-muted-foreground">
-              All asignacións assigned to this incident
+              Todas las asignaciones de este incidente
             </p>
           </div>
           <Button asChild>
             <Link href={`/admin/assignments/new?incidentId=${incident.id}`}>
               <Plus className="mr-2 h-4 w-4" />
-              Create Assignment
+              Crear Asignación
             </Link>
           </Button>
         </div>
@@ -259,14 +265,17 @@ export default async function IncidentDetailPage({
           <Card>
             <CardContent className="py-12 text-center text-muted-foreground">
               <Wrench className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p className="text-lg font-medium mb-2">No Assignments Yet</p>
+              <p className="text-lg font-medium mb-2">
+                Aún no hay asignaciones
+              </p>
               <p className="text-sm mb-4">
-                Create a asignación to start tracking work on this incident
+                Crea una asignación para comenzar a dar seguimiento a este
+                incidente
               </p>
               <Button asChild variant="outline">
                 <Link href={`/admin/assignments/new?incidentId=${incident.id}`}>
                   <Plus className="mr-2 h-4 w-4" />
-                  Create First Assignment
+                  Crear primera asignación
                 </Link>
               </Button>
             </CardContent>
@@ -278,12 +287,12 @@ export default async function IncidentDetailPage({
                 <TableHeader>
                   <TableRow>
                     <TableHead>Estado</TableHead>
-                    <TableHead>Assigned To</TableHead>
-                    <TableHead>Activities</TableHead>
-                    <TableHead>Parts</TableHead>
-                    <TableHead>Created</TableHead>
-                    <TableHead>Finished</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    <TableHead>Asignado a</TableHead>
+                    <TableHead>Actividades</TableHead>
+                    <TableHead>Partes</TableHead>
+                    <TableHead>Creado</TableHead>
+                    <TableHead>Finalizado</TableHead>
+                    <TableHead className="text-right">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -291,7 +300,7 @@ export default async function IncidentDetailPage({
                     <TableRow key={wo.id}>
                       <TableCell>
                         <Badge variant={getStatusColor(wo.status?.name || "")}>
-                          {wo.status?.name || "No status"}
+                          {wo.status?.name || "Sin estado"}
                         </Badge>
                       </TableCell>
                       <TableCell>
@@ -334,13 +343,13 @@ export default async function IncidentDetailPage({
                         <div className="flex justify-end gap-2">
                           <Button variant="ghost" size="sm" asChild>
                             <Link href={`/admin/assignments/${wo.id}`}>
-                              View
+                              Ver
                             </Link>
                           </Button>
                           <Button variant="outline" size="sm" asChild>
                             <Link href={`/admin/assignments/${wo.id}/edit`}>
                               <EditIcon className="mr-2 h-4 w-4" />
-                              Edit
+                              Editar
                             </Link>
                           </Button>
                         </div>
