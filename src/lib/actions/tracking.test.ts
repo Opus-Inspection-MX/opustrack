@@ -11,7 +11,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { prismaMock, requirePermission } = vi.hoisted(() => ({
   prismaMock: {
-    incident: { findMany: vi.fn(), count: vi.fn(), update: vi.fn() },
+    incident: {
+      findMany: vi.fn(),
+      findUnique: vi.fn(),
+      count: vi.fn(),
+      update: vi.fn(),
+    },
     assignment: {
       findFirst: vi.fn(),
       findUnique: vi.fn(),
@@ -21,14 +26,24 @@ const { prismaMock, requirePermission } = vi.hoisted(() => ({
     assignmentStatus: { findFirst: vi.fn() },
     assignmentAssignee: {
       upsert: vi.fn(),
+      findUnique: vi.fn(),
       findMany: vi.fn(),
       updateMany: vi.fn(),
     },
-    incidentAssignee: { findFirst: vi.fn(), findMany: vi.fn() },
+    incidentAssignee: {
+      findFirst: vi.fn(),
+      findMany: vi.fn(),
+      upsert: vi.fn(),
+    },
     user: { findMany: vi.fn() },
     $transaction: vi.fn(),
   },
   requirePermission: vi.fn(async (_name: string) => ({ id: "admin" })),
+}));
+
+const { syncIncidentState, notifyAssignmentAssigned } = vi.hoisted(() => ({
+  syncIncidentState: vi.fn(),
+  notifyAssignmentAssigned: vi.fn(),
 }));
 
 vi.mock("@/lib/database/prisma.singleton", () => ({ prisma: prismaMock }));
@@ -36,6 +51,10 @@ vi.mock("@/lib/auth/auth", () => ({
   requirePermission: (name: string) => requirePermission(name),
 }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
+vi.mock("@/lib/state-machine/sync", () => ({ syncIncidentState }));
+vi.mock("@/lib/notifications/notify-events", () => ({
+  notifyAssignmentAssigned,
+}));
 
 import { APP_TZ } from "@/lib/utils/datetime";
 import {
@@ -64,8 +83,17 @@ beforeEach(() => {
   prismaMock.assignment.findUnique.mockResolvedValue({ incidentId: 1 });
   prismaMock.assignmentStatus.findFirst.mockResolvedValue({ id: 2 });
   prismaMock.assignmentAssignee.findMany.mockResolvedValue([]);
+  prismaMock.assignmentAssignee.findUnique.mockResolvedValue(null);
   prismaMock.incidentAssignee.findFirst.mockResolvedValue({ id: "ia1" });
   prismaMock.incidentAssignee.findMany.mockResolvedValue([]);
+  prismaMock.incident.findUnique.mockResolvedValue({ title: "Incidente" });
+  prismaMock.assignment.create.mockResolvedValue({ id: "a-new" });
+  // Everyone asked about is an FSR unless a test says otherwise, which is what
+  // `assertAreFsrs` checks: it compares the row count to the id count.
+  prismaMock.user.findMany.mockImplementation(
+    async (args: { where?: { id?: { in?: string[] } } }) =>
+      (args?.where?.id?.in ?? []).map((id) => ({ id })),
+  );
   prismaMock.$transaction.mockImplementation(
     async (fn: (tx: unknown) => unknown) => fn(prismaMock),
   );
@@ -178,17 +206,37 @@ describe("getIncidentsForTracking · consulta (RF-513)", () => {
 // RF-514 · asignación rápida de FSR
 // ---------------------------------------------------------------------------
 describe("assignFSRToIncident (RF-514)", () => {
-  it("rechaza a un FSR no habilitado y el motivo llega al llamador", async () => {
+  it("habilita en la incidencia al FSR que aún no lo estaba", async () => {
+    prismaMock.assignment.findFirst.mockResolvedValue({ id: "a1" });
+    // Nobody enabled on the incident yet.
     prismaMock.incidentAssignee.findFirst.mockResolvedValue(null);
+
+    const result = await assignFSRToIncident(1, "fsr1");
+
+    // This used to be a rejection. Assigning now grants the enablement instead
+    // of demanding it, so that creating an assignment and editing it accept the
+    // same people — before, an FSR could be picked on create and refused on
+    // edit, which is the error operators actually hit.
+    expect(result).toEqual({ success: true });
+    expect(prismaMock.incidentAssignee.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { incidentId_userId: { incidentId: 1, userId: "fsr1" } },
+        update: { active: true },
+      }),
+    );
+  });
+
+  it("rechaza a quien no tiene rol FSR", async () => {
+    prismaMock.user.findMany.mockResolvedValue([]);
 
     // Returned, not thrown: a production build of Next replaces the message of
     // anything a Server Action throws, so throwing this rule reached the UI in
     // dev and vanished in production — proven by the e2e run.
-    const result = await assignFSRToIncident(1, "fsr1");
+    const result = await assignFSRToIncident(1, "no-es-fsr");
 
     expect(result).toEqual({
       success: false,
-      error: expect.stringMatching(/Solo se pueden asignar FSRs habilitados/),
+      error: expect.stringMatching(/no tienen rol FSR/),
     });
     expect(prismaMock.assignment.create).not.toHaveBeenCalled();
     expect(prismaMock.assignmentAssignee.upsert).not.toHaveBeenCalled();
@@ -206,6 +254,32 @@ describe("assignFSRToIncident (RF-514)", () => {
       }),
     );
     expect(prismaMock.assignment.create).not.toHaveBeenCalled();
+  });
+
+  it("notifica al FSR recién agregado", async () => {
+    prismaMock.assignment.findFirst.mockResolvedValue({ id: "a1" });
+    prismaMock.assignmentAssignee.findUnique.mockResolvedValue(null);
+
+    await assignFSRToIncident(1, "fsr1");
+
+    // Seguimiento assigned people and never told them.
+    expect(notifyAssignmentAssigned).toHaveBeenCalledWith(
+      "a1",
+      "Incidente",
+      ["fsr1"],
+      "admin",
+    );
+  });
+
+  it("no vuelve a notificar a quien ya estaba activo en la asignación", async () => {
+    prismaMock.assignment.findFirst.mockResolvedValue({ id: "a1" });
+    prismaMock.assignmentAssignee.findUnique.mockResolvedValue({
+      active: true,
+    });
+
+    await assignFSRToIncident(1, "fsr1");
+
+    expect(notifyAssignmentAssigned).not.toHaveBeenCalled();
   });
 
   it("crea una asignación en ASIGNADO cuando no hay ninguna activa", async () => {
@@ -232,29 +306,91 @@ describe("assignFSRToIncident (RF-514)", () => {
 // ---------------------------------------------------------------------------
 describe("updateAssignmentAssignees (RF-515)", () => {
   it("deduplica los ids antes de validar", async () => {
-    prismaMock.incidentAssignee.findMany.mockResolvedValue([{ userId: "f1" }]);
-
     await updateAssignmentAssignees("a1", ["f1", "f1", "f1"]);
 
-    expect(prismaMock.incidentAssignee.findMany).toHaveBeenCalledWith(
+    expect(prismaMock.user.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({ userId: { in: ["f1"] } }),
+        where: expect.objectContaining({ id: { in: ["f1"] } }),
       }),
     );
   });
 
-  it("rechaza si algún FSR no está habilitado en la incidencia", async () => {
-    prismaMock.incidentAssignee.findMany.mockResolvedValue([{ userId: "f1" }]);
+  it("rechaza a quien no tiene rol FSR", async () => {
+    // One of the two ids comes back from the role query; the other does not.
+    prismaMock.user.findMany.mockResolvedValue([{ id: "f1" }]);
 
     const result = await updateAssignmentAssignees("a1", ["f1", "intruso"]);
 
     expect(result).toEqual({
       success: false,
-      error: expect.stringMatching(/Solo se pueden asignar FSRs habilitados/),
+      error: expect.stringMatching(/no tienen rol FSR/),
     });
     // Rejected before touching the join table.
     expect(prismaMock.assignmentAssignee.updateMany).not.toHaveBeenCalled();
     expect(prismaMock.assignmentAssignee.upsert).not.toHaveBeenCalled();
+  });
+
+  it("habilita en la incidencia a los FSR recién agregados", async () => {
+    prismaMock.assignment.findUnique.mockResolvedValue({ incidentId: 7 });
+    prismaMock.assignmentAssignee.findMany.mockResolvedValue([
+      { userId: "f1", active: true },
+    ]);
+
+    await updateAssignmentAssignees("a1", ["f1", "f2"]);
+
+    // f2 is new: it gets the enablement instead of being rejected for lacking
+    // it. f1 was already active and is not touched again.
+    const enabled = prismaMock.incidentAssignee.upsert.mock.calls.map(
+      (c) => c[0].where.incidentId_userId.userId,
+    );
+    expect(enabled).toEqual(["f2"]);
+  });
+
+  it("quitar a un FSR de la asignación no le retira la habilitación de la incidencia", async () => {
+    prismaMock.assignment.findUnique.mockResolvedValue({ incidentId: 7 });
+    prismaMock.assignmentAssignee.findMany.mockResolvedValue([
+      { userId: "f1", active: true },
+      { userId: "f2", active: true },
+    ]);
+
+    const result = await updateAssignmentAssignees("a1", ["f1"]);
+
+    // An incident can carry several assignments, so leaving one of them must
+    // not silently revoke visibility of the whole incident. f2 loses its row in
+    // `assignmentAssignee` and keeps the one in `incidentAssignee`.
+    expect(result.success).toBe(true);
+    expect(prismaMock.assignmentAssignee.updateMany).toHaveBeenCalledWith({
+      where: { assignmentId: "a1", userId: { in: ["f2"] } },
+      data: { active: false },
+    });
+    expect(prismaMock.incidentAssignee.upsert).not.toHaveBeenCalled();
+  });
+
+  it("solo notifica a los nuevos, no a los que ya estaban", async () => {
+    prismaMock.assignment.findUnique.mockResolvedValue({ incidentId: 7 });
+    prismaMock.assignmentAssignee.findMany.mockResolvedValue([
+      { userId: "f1", active: true },
+    ]);
+
+    await updateAssignmentAssignees("a1", ["f1", "f2"]);
+
+    expect(notifyAssignmentAssigned).toHaveBeenCalledWith(
+      "a1",
+      "Incidente",
+      ["f2"],
+      "admin",
+    );
+  });
+
+  it("reguardar sin cambios no notifica a nadie", async () => {
+    prismaMock.assignmentAssignee.findMany.mockResolvedValue([
+      { userId: "f1", active: true },
+      { userId: "f2", active: true },
+    ]);
+
+    await updateAssignmentAssignees("a1", ["f1", "f2"]);
+
+    expect(notifyAssignmentAssigned).not.toHaveBeenCalled();
   });
 
   it("rechaza si la asignación ya no existe", async () => {

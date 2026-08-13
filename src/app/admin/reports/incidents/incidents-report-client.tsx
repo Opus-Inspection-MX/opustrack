@@ -29,6 +29,7 @@ import {
   getIncidentTrendData,
   getReportSummary,
 } from "@/lib/actions/reports";
+import { mxDaysAgoString } from "@/lib/utils/datetime";
 
 interface IncidentsReportClientProps {
   initialTrendData: IncidentTrendData[];
@@ -50,16 +51,9 @@ export function IncidentsReportClient({
 
   // Date range state — initialized to CDMX today / 30 days ago (avoids UTC
   // date drift for users viewing reports between 18:00 and 23:59 CDMX)
-  const mxDate = (offsetDays = 0) => {
-    const d = new Date();
-    d.setDate(d.getDate() - offsetDays);
-    return new Intl.DateTimeFormat("sv-SE", {
-      timeZone: "America/Mexico_City",
-    }).format(d);
-  };
 
-  const [startDate, setStartDate] = useState(() => mxDate(30));
-  const [endDate, setEndDate] = useState(() => mxDate(0));
+  const [startDate, setStartDate] = useState(() => mxDaysAgoString(30));
+  const [endDate, setEndDate] = useState(() => mxDaysAgoString(0));
   const [selectedTypeIds, setSelectedTypeIds] = useState<string[]>([]);
 
   const refetch = (

@@ -71,6 +71,7 @@ export default function ReportIncidentPage() {
   const [formData, setFormData] = useState({
     title: "",
     description: "",
+    reporterName: "",
     priority: 5,
     typeId: "",
     lineId: "",
@@ -173,6 +174,7 @@ export default function ReportIncidentPage() {
       const result = await createIncidentAsClient({
         title: formData.title,
         description: formData.description,
+        reporterName: formData.reporterName || undefined,
         priority: formData.priority,
         typeId: formData.typeId ? parseInt(formData.typeId, 10) : undefined,
         lineId: formData.lineId ? parseInt(formData.lineId, 10) : undefined,
@@ -281,6 +283,24 @@ export default function ReportIncidentPage() {
                 disabled={!userCliente}
               />
               {errors.title && <FormError message={errors.title} />}
+            </div>
+
+            {/* Who is reporting — the account belongs to the whole center, so
+                this is the only way to know which person raised it. */}
+            <div className="space-y-2">
+              <Label htmlFor="reporterName">¿Quién reporta?</Label>
+              <Input
+                id="reporterName"
+                value={formData.reporterName}
+                onChange={(e) => handleChange("reporterName", e.target.value)}
+                placeholder="Nombre de la persona que reporta"
+                maxLength={120}
+                disabled={!userCliente}
+              />
+              <p className="text-xs text-muted-foreground">
+                Esta cuenta es del centro. Escribe tu nombre para que el
+                administrador y el técnico sepan con quién dar seguimiento.
+              </p>
             </div>
 
             {/* Description */}

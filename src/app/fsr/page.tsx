@@ -24,6 +24,7 @@ import {
   getMyUnreadCount,
 } from "@/lib/actions/notifications";
 import { requireRouteAccess } from "@/lib/auth/auth";
+import { formatMX } from "@/lib/utils/datetime";
 
 moment.locale("es");
 
@@ -299,7 +300,7 @@ export default async function FSRDashboardPage() {
                         </div>
                         <div>
                           <span className="font-medium">Creada:</span>{" "}
-                          {new Date(wo.createdAt).toLocaleDateString()}
+                          {formatMX(wo.createdAt, { dateStyle: "short" })}
                         </div>
                       </div>
                     </div>

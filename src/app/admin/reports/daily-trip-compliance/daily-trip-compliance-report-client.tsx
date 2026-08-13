@@ -22,10 +22,9 @@ import type {
   DailyTripComplianceSummary,
 } from "@/lib/actions/reports";
 import { getDailyTripComplianceReport } from "@/lib/actions/reports";
+import { APP_TZ } from "@/lib/utils/datetime";
 
 moment.locale("es");
-
-const TZ = "America/Mexico_City";
 
 interface Props {
   initialDays: string[];
@@ -44,9 +43,11 @@ export function DailyTripComplianceReportClient({
   const [summary, setSummary] = useState(initialSummary);
 
   const [startDate, setStartDate] = useState(
-    moment().tz(TZ).subtract(6, "days").format("YYYY-MM-DD"),
+    moment().tz(APP_TZ).subtract(6, "days").format("YYYY-MM-DD"),
   );
-  const [endDate, setEndDate] = useState(moment().tz(TZ).format("YYYY-MM-DD"));
+  const [endDate, setEndDate] = useState(
+    moment().tz(APP_TZ).format("YYYY-MM-DD"),
+  );
 
   const handleDateChange = (s: string, e: string) => {
     setStartDate(s);
@@ -62,7 +63,7 @@ export function DailyTripComplianceReportClient({
     });
   };
 
-  const today = moment().tz(TZ).format("YYYY-MM-DD");
+  const today = moment().tz(APP_TZ).format("YYYY-MM-DD");
   const missedToday = rows.filter((r) => !r.reportedToday);
 
   return (
@@ -159,10 +160,10 @@ export function DailyTripComplianceReportClient({
               {days.map((d) => (
                 <TableHead key={d} className="text-center whitespace-nowrap">
                   <div className="text-xs">
-                    {moment.tz(d, TZ).format("ddd")}
+                    {moment.tz(d, APP_TZ).format("ddd")}
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    {moment.tz(d, TZ).format("DD/MM")}
+                    {moment.tz(d, APP_TZ).format("DD/MM")}
                   </div>
                 </TableHead>
               ))}

@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/table";
 import type { AgingSummary, AssignmentAgingData } from "@/lib/actions/reports";
 import { getAssignmentAgingData } from "@/lib/actions/reports";
+import { APP_TZ } from "@/lib/utils/datetime";
 
 interface AssignmentAgingClientProps {
   initialData: {
@@ -84,7 +85,7 @@ export function AssignmentAgingClient({
       day: "numeric",
       month: "short",
       year: "numeric",
-      timeZone: "America/Mexico_City",
+      timeZone: APP_TZ,
     });
   };
 

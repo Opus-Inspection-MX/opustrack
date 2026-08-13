@@ -5,15 +5,14 @@ import {
   getVehicleTripTrendData,
 } from "@/lib/actions/reports";
 import { requireRouteAccess } from "@/lib/auth/auth";
+import { APP_TZ } from "@/lib/utils/datetime";
 import { VehicleTripsReportClient } from "./vehicle-trips-report-client";
-
-const TZ = "America/Mexico_City";
 
 export default async function VehicleTripsReportPage() {
   await requireRouteAccess("/admin");
 
-  const startDate = moment().tz(TZ).startOf("isoWeek").format("YYYY-MM-DD");
-  const endDate = moment().tz(TZ).endOf("isoWeek").format("YYYY-MM-DD");
+  const startDate = moment().tz(APP_TZ).startOf("isoWeek").format("YYYY-MM-DD");
+  const endDate = moment().tz(APP_TZ).endOf("isoWeek").format("YYYY-MM-DD");
 
   const [initialTrendData, initialFsrData, initialSummary] = await Promise.all([
     getVehicleTripTrendData({ startDate, endDate }),

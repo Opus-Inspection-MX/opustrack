@@ -26,6 +26,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { formatMX } from "@/lib/utils/datetime";
 
 interface AssignmentActivity {
   id: string;
@@ -95,9 +96,7 @@ export function AssignmentActivityTable({
                     <span className="text-sm">{activity.assignmentTitle}</span>
                   </div>
                 </TableCell>
-                <TableCell>
-                  {new Date(activity.performedAt).toLocaleString()}
-                </TableCell>
+                <TableCell>{formatMX(activity.performedAt)}</TableCell>
                 <TableCell>
                   <Badge variant="outline">{activity.partsCount} partes</Badge>
                 </TableCell>

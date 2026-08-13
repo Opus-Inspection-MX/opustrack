@@ -296,13 +296,13 @@ export function ScheduleActivities({
           )}
         </div>
         <div className="text-sm text-muted-foreground">
-          {dateRange.start.toLocaleDateString("es-MX", {
+          {formatMX(dateRange.start, {
             day: "numeric",
             month: "short",
             year: "numeric",
           })}{" "}
           -{" "}
-          {dateRange.end.toLocaleDateString("es-MX", {
+          {formatMX(dateRange.end, {
             day: "numeric",
             month: "short",
             year: "numeric",

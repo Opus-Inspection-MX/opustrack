@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
 import { createAssignmentActivity } from "@/lib/actions/assignment-activities";
 import { isFailure } from "@/lib/actions/result";
+import { toDatetimeLocalMX } from "@/lib/utils/datetime";
 
 export default function NewAssignmentActivityForm() {
   const router = useRouter();
@@ -24,7 +25,7 @@ export default function NewAssignmentActivityForm() {
   const [formData, setFormData] = useState({
     assignmentId: assignmentId || "",
     description: "",
-    performedAt: new Date().toISOString().slice(0, 16),
+    performedAt: toDatetimeLocalMX(new Date()),
   });
 
   useEffect(() => {

@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getEquipmentById } from "@/lib/actions/equipments";
+import { formatMX } from "@/lib/utils/datetime";
 
 interface EquipmentDetailPageProps {
   params: Promise<{ id: string }>;
@@ -110,8 +111,8 @@ export default async function EquipmentDetailPage({
               <div className="flex-1">
                 <p className="text-sm text-muted-foreground">Creado</p>
                 <p className="font-medium">
-                  {new Date(equipment.createdAt).toLocaleDateString()}{" "}
-                  {new Date(equipment.createdAt).toLocaleTimeString()}
+                  {formatMX(equipment.createdAt, { dateStyle: "short" })}{" "}
+                  {formatMX(equipment.createdAt, { timeStyle: "short" })}
                 </p>
               </div>
             </div>

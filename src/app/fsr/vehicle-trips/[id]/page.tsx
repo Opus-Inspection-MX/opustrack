@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { OdometerPhotoPreview } from "@/components/vehicle-trips/odometer-photo-preview";
 import { getVehicleTripById } from "@/lib/actions/vehicle-trips";
+import { formatMX } from "@/lib/utils/datetime";
 
 interface VehicleTrip {
   id: string;
@@ -177,7 +178,7 @@ export default async function TripDetailPage({
             <div>
               <div className="text-sm text-muted-foreground">Inicio</div>
               <div className="font-medium text-sm sm:text-base">
-                {new Date(trip.startedAt).toLocaleString("es-MX", {
+                {formatMX(trip.startedAt, {
                   dateStyle: "full",
                   timeStyle: "short",
                 })}
@@ -227,7 +228,7 @@ export default async function TripDetailPage({
                 <div className="text-sm text-muted-foreground">Fin</div>
                 <div className="font-medium text-sm sm:text-base">
                   {trip.endedAt &&
-                    new Date(trip.endedAt).toLocaleString("es-MX", {
+                    formatMX(trip.endedAt, {
                       dateStyle: "full",
                       timeStyle: "short",
                     })}

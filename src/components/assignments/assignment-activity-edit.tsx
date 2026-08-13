@@ -9,6 +9,11 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { updateAssignmentActivity } from "@/lib/actions/assignment-activities";
 import { isFailure } from "@/lib/actions/result";
+import {
+  formatMX,
+  fromDatetimeLocalMX,
+  toDatetimeLocalMX,
+} from "@/lib/utils/datetime";
 
 type AssignmentActivityEditProps = {
   activity: {
@@ -33,7 +38,7 @@ export function AssignmentActivityEdit({
 
   const [formData, setFormData] = useState({
     description: activity.description,
-    performedAt: new Date(activity.performedAt).toISOString().slice(0, 16), // Format for datetime-local input
+    performedAt: toDatetimeLocalMX(activity.performedAt), // Format for datetime-local input
   });
 
   const handleSave = async () => {
@@ -50,7 +55,7 @@ export function AssignmentActivityEdit({
       const result = await updateAssignmentActivity(activity.id, {
         assignmentId: "", // Not used in update
         description: formData.description.trim(),
-        performedAt: new Date(formData.performedAt),
+        performedAt: fromDatetimeLocalMX(formData.performedAt) ?? new Date(),
       });
 
       if (isFailure(result)) {
@@ -73,7 +78,7 @@ export function AssignmentActivityEdit({
   const handleCancel = () => {
     setFormData({
       description: activity.description,
-      performedAt: new Date(activity.performedAt).toISOString().slice(0, 16),
+      performedAt: toDatetimeLocalMX(activity.performedAt),
     });
     setError(null);
     setIsEditing(false);
@@ -87,7 +92,7 @@ export function AssignmentActivityEdit({
       <div className="flex items-start justify-between">
         <div className="flex-1">
           <div className="font-medium text-base">
-            {new Date(activity.performedAt).toLocaleString()}
+            {formatMX(activity.performedAt)}
           </div>
           <p className="text-sm text-muted-foreground mt-2">
             {activity.description}

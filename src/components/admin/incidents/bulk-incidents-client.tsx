@@ -31,7 +31,14 @@ import {
   type EditablePreviewRow,
   resolveBulkIncidentRows,
 } from "@/lib/actions/incidents";
-import { excelDateCell, excelDateToWallClock } from "@/lib/utils/datetime";
+import {
+  excelDateCell,
+  excelDateToWallClock,
+  formatMX,
+  fromDatetimeLocalMX,
+  mxTodayString,
+  toDatetimeLocalMX,
+} from "@/lib/utils/datetime";
 
 type Catalogs = {
   types: Array<{ id: number; name: string }>;
@@ -395,19 +402,9 @@ async function parseExcelFile(file: File): Promise<ParseExcelResult> {
   return { ok: true, mode, rows };
 }
 
-function toLocalDatetimeInput(iso: string | null): string {
-  if (!iso) return "";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
-
-function fromLocalDatetimeInput(v: string): string | null {
-  if (!v) return null;
-  const d = new Date(v);
-  if (Number.isNaN(d.getTime())) return null;
-  return d.toISOString();
+/** The grid stores ISO strings, so the CDMX wall clock is converted back. */
+function fromBulkDatetimeInput(v: string): string | null {
+  return fromDatetimeLocalMX(v)?.toISOString() ?? null;
 }
 
 function CollapsibleCard({
@@ -637,7 +634,8 @@ export function BulkIncidentsClient({ catalogs }: { catalogs: Catalogs }) {
         statusIds,
       );
       downloadBlob(
-        `incidentes-snapshot-${new Date().toISOString().slice(0, 10)}.xlsx`,
+        // CDMX day: a snapshot taken at 7pm was being named with tomorrow's date.
+        `incidentes-snapshot-${mxTodayString()}.xlsx`,
         blob,
       );
     } catch (err) {
@@ -655,7 +653,7 @@ export function BulkIncidentsClient({ catalogs }: { catalogs: Catalogs }) {
 
   // Schedule options for the SearchableSelect.
   const scheduleOptions = useMemo(() => {
-    const fmt = (d: Date) => new Date(d).toLocaleDateString("es-MX");
+    const fmt = (d: Date) => formatMX(d, { dateStyle: "short" });
     return [
       { value: "", label: "— Sin programación —" },
       ...catalogs.schedules.map((s) => ({
@@ -872,11 +870,11 @@ export function BulkIncidentsClient({ catalogs }: { catalogs: Catalogs }) {
                   <TableRow key={s.id}>
                     <TableCell>{s.title}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">
-                      {new Date(s.scheduledAt).toLocaleDateString("es-MX")}
+                      {formatMX(s.scheduledAt, { dateStyle: "short" })}
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {s.endDate
-                        ? new Date(s.endDate).toLocaleDateString("es-MX")
+                        ? formatMX(s.endDate, { dateStyle: "short" })
                         : "—"}
                     </TableCell>
                   </TableRow>
@@ -1118,10 +1116,10 @@ export function BulkIncidentsClient({ catalogs }: { catalogs: Catalogs }) {
                         <TableCell className="align-top">
                           <Input
                             type="datetime-local"
-                            value={toLocalDatetimeInput(row.startedAt)}
+                            value={toDatetimeLocalMX(row.startedAt)}
                             onChange={(e) =>
                               updateRow(row.rowNumber, {
-                                startedAt: fromLocalDatetimeInput(
+                                startedAt: fromBulkDatetimeInput(
                                   e.target.value,
                                 ),
                               })
@@ -1131,10 +1129,10 @@ export function BulkIncidentsClient({ catalogs }: { catalogs: Catalogs }) {
                         <TableCell className="align-top">
                           <Input
                             type="datetime-local"
-                            value={toLocalDatetimeInput(row.resolvedAt)}
+                            value={toDatetimeLocalMX(row.resolvedAt)}
                             onChange={(e) =>
                               updateRow(row.rowNumber, {
-                                resolvedAt: fromLocalDatetimeInput(
+                                resolvedAt: fromBulkDatetimeInput(
                                   e.target.value,
                                 ),
                               })

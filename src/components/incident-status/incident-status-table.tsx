@@ -20,6 +20,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
+import { formatMX } from "@/lib/utils/datetime";
 
 interface IncidentStatus {
   id: number;
@@ -120,7 +121,7 @@ export function IncidentStatusTable({
                   </Badge>
                 </TableCell>
                 <TableCell className="text-sm text-muted-foreground">
-                  {new Date(status.createdAt).toLocaleDateString()}
+                  {formatMX(status.createdAt, { dateStyle: "short" })}
                 </TableCell>
                 <TableCell>
                   <DropdownMenu>

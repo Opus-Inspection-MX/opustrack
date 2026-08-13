@@ -54,6 +54,9 @@ next-env.d.ts
 # The template seed (initial_load/seed.example.ts) IS tracked.
 /initial_load/*.xlsx
 /initial_load/seed.ts
+/initial_load/users.csv
+/initial_load/clientes.csv
+# Pre-CSV intermediates, kept ignored so old checkouts stay clean.
 /initial_load/users.txt
 /initial_load/vics.txt
 

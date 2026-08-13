@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { formatMX, mxDateString, mxHour } from "@/lib/utils/datetime";
 
 interface ScheduledIncident {
   id: number;
@@ -84,8 +85,8 @@ export function ScheduleCalendar({
   // Fetch incidents from backend
   const fetchIncidents = useCallback(async (start: Date, end: Date) => {
     try {
-      const startStr = start.toISOString().split("T")[0];
-      const endStr = end.toISOString().split("T")[0];
+      const startStr = mxDateString(start);
+      const endStr = mxDateString(end);
 
       const response = await fetch(
         `/api/schedules/incidents?start=${startStr}&end=${endStr}`,
@@ -105,8 +106,8 @@ export function ScheduleCalendar({
 
   const fetchSchedules = useCallback(async (start: Date, end: Date) => {
     try {
-      const startStr = start.toISOString().split("T")[0];
-      const endStr = end.toISOString().split("T")[0];
+      const startStr = mxDateString(start);
+      const endStr = mxDateString(end);
       const response = await fetch(
         `/api/schedules?startDate=${startStr}&endDate=${endStr}`,
       );
@@ -191,23 +192,21 @@ export function ScheduleCalendar({
 
   // Get incidents for a specific date (scheduled by scheduledAt, otherwise reportedAt)
   const getIncidentsForDate = (date: Date) => {
-    const dateStr = date.toISOString().split("T")[0];
+    const dateStr = mxDateString(date);
     return incidents.filter((incident) => {
       const dateField = incident.schedule?.scheduledAt || incident.reportedAt;
       if (!dateField) return false;
-      const incidentDate = new Date(dateField).toISOString().split("T")[0];
+      const incidentDate = mxDateString(new Date(dateField));
       return incidentDate === dateStr;
     });
   };
 
   const getSchedulesForDate = (date: Date) => {
-    const dateStr = date.toISOString().split("T")[0];
+    const dateStr = mxDateString(date);
     return schedules.filter((schedule) => {
-      const scheduleDate = new Date(schedule.scheduledAt)
-        .toISOString()
-        .split("T")[0];
+      const scheduleDate = mxDateString(new Date(schedule.scheduledAt));
       if (schedule.endDate) {
-        const endDate = new Date(schedule.endDate).toISOString().split("T")[0];
+        const endDate = mxDateString(new Date(schedule.endDate));
         return dateStr >= scheduleDate && dateStr <= endDate;
       }
       return scheduleDate === dateStr;
@@ -223,7 +222,7 @@ export function ScheduleCalendar({
   };
 
   const getMonthName = (date: Date) => {
-    return date.toLocaleDateString("es-MX", { month: "long", year: "numeric" });
+    return formatMX(date, { month: "long", year: "numeric" });
   };
 
   const getWeekDays = () => {
@@ -427,7 +426,7 @@ export function ScheduleCalendar({
     dayIncidents.forEach((incident) => {
       const dateField = incident.schedule?.scheduledAt || incident.reportedAt;
       if (!dateField) return;
-      const hour = new Date(dateField).getHours();
+      const hour = mxHour(new Date(dateField));
       if (!incidentsByHour[hour]) incidentsByHour[hour] = [];
       incidentsByHour[hour].push(incident);
     });
@@ -435,7 +434,7 @@ export function ScheduleCalendar({
     // Group schedules by hour
     const schedulesByHour: { [key: number]: ScheduleItem[] } = {};
     daySchedules.forEach((schedule) => {
-      const hour = new Date(schedule.scheduledAt).getHours();
+      const hour = mxHour(new Date(schedule.scheduledAt));
       if (!schedulesByHour[hour]) schedulesByHour[hour] = [];
       schedulesByHour[hour].push(schedule);
     });
@@ -446,10 +445,10 @@ export function ScheduleCalendar({
           className={`p-4 rounded-lg border ${isToday ? "bg-purple-500/10 border-purple-500" : ""}`}
         >
           <div className="text-sm text-muted-foreground">
-            {currentDate.toLocaleDateString("es-MX", { weekday: "long" })}
+            {formatMX(currentDate, { weekday: "long" })}
           </div>
           <div className="text-3xl font-bold mt-1">
-            {currentDate.toLocaleDateString("es-MX", {
+            {formatMX(currentDate, {
               day: "numeric",
               month: "long",
               year: "numeric",
@@ -500,18 +499,15 @@ export function ScheduleCalendar({
                       </div>
                       <div className="text-xs text-muted-foreground mt-1">
                         <span className="font-medium">Inicio:</span>{" "}
-                        {new Date(schedule.scheduledAt).toLocaleString(
-                          "es-MX",
-                          {
-                            dateStyle: "short",
-                            timeStyle: "short",
-                          },
-                        )}
+                        {formatMX(schedule.scheduledAt, {
+                          dateStyle: "short",
+                          timeStyle: "short",
+                        })}
                       </div>
                       {schedule.endDate && (
                         <div className="text-xs text-muted-foreground">
                           <span className="font-medium">Fin:</span>{" "}
-                          {new Date(schedule.endDate).toLocaleString("es-MX", {
+                          {formatMX(schedule.endDate, {
                             dateStyle: "short",
                             timeStyle: "short",
                           })}
@@ -601,7 +597,7 @@ export function ScheduleCalendar({
                   <Label>Fecha Inicio</Label>
                   <Input
                     type="date"
-                    value={customStartDate.toISOString().split("T")[0]}
+                    value={mxDateString(customStartDate)}
                     onChange={(e) =>
                       setCustomStartDate(new Date(e.target.value))
                     }
@@ -611,7 +607,7 @@ export function ScheduleCalendar({
                   <Label>Fecha Fin</Label>
                   <Input
                     type="date"
-                    value={customEndDate.toISOString().split("T")[0]}
+                    value={mxDateString(customEndDate)}
                     onChange={(e) => setCustomEndDate(new Date(e.target.value))}
                   />
                 </div>
@@ -621,13 +617,13 @@ export function ScheduleCalendar({
               </Button>
               <div className="text-sm text-muted-foreground text-center">
                 Mostrando incidentes del{" "}
-                {customStartDate.toLocaleDateString("es-MX", {
+                {formatMX(customStartDate, {
                   day: "numeric",
                   month: "short",
                   year: "numeric",
                 })}{" "}
                 al{" "}
-                {customEndDate.toLocaleDateString("es-MX", {
+                {formatMX(customEndDate, {
                   day: "numeric",
                   month: "short",
                   year: "numeric",
@@ -657,9 +653,7 @@ export function ScheduleCalendar({
                           <h4 className="font-medium">{incident.title}</h4>
                           <div className="text-sm text-muted-foreground mt-1">
                             {incident.schedule?.scheduledAt &&
-                              new Date(
-                                incident.schedule.scheduledAt,
-                              ).toLocaleString("es-MX", {
+                              formatMX(incident.schedule.scheduledAt, {
                                 dateStyle: "medium",
                                 timeStyle: "short",
                               })}

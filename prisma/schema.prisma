@@ -264,6 +264,12 @@ model Incident {
   cliente          Cliente? @relation(fields: [clienteId], references: [id])
   reportedById String?
   reportedBy   User?                    @relation("IncidentReporter", fields: [reportedById], references: [id])
+  /// Free text: the actual person who raised it.
+  ///
+  /// A center's account is shared by everyone who works there, so `reportedBy`
+  /// identifies the center, not a human. This is deliberately NOT a User
+  /// relation — the people typing it have no accounts of their own.
+  reporterName String?
   scheduleId   String?
   schedule     Schedule?                @relation(fields: [scheduleId], references: [id])
   lineId       Int?

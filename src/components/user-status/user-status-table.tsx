@@ -19,6 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { formatMX } from "@/lib/utils/datetime";
 
 interface UserStatus {
   id: number;
@@ -79,7 +80,7 @@ export function UserStatusTable({
                   </div>
                 </TableCell>
                 <TableCell>
-                  {new Date(status.createdAt).toLocaleDateString()}
+                  {formatMX(status.createdAt, { dateStyle: "short" })}
                 </TableCell>
                 <TableCell>
                   <DropdownMenu>

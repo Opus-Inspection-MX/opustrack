@@ -75,10 +75,10 @@ describe("store", () => {
   });
 
   it("toast.error usa la variante destructive", () => {
-    toast.error("Solo se pueden asignar FSRs habilitados");
+    toast.error("Uno o más FSR no tienen rol FSR");
 
     expect(getToasts()[0]).toMatchObject({
-      title: "Solo se pueden asignar FSRs habilitados",
+      title: "Uno o más FSR no tienen rol FSR",
       variant: "destructive",
       open: true,
     });

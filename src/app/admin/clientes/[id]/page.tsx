@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/table";
 import { getClienteById } from "@/lib/actions/clientes";
 import { requireRouteAccess } from "@/lib/auth/auth";
+import { formatIncidentDateTime } from "@/lib/utils/datetime";
 
 export default async function ClienteDetailPage({
   params,
@@ -429,7 +430,12 @@ export default async function ClienteDetailPage({
                         )}
                       </TableCell>
                       <TableCell className="text-sm">
-                        {new Date(incident.reportedAt).toLocaleDateString()}
+                        {/* This page is scoped to one center, so show its own
+                            clock (plus CDMX when they differ). */}
+                        {formatIncidentDateTime(
+                          incident.reportedAt,
+                          cliente.state.code,
+                        )}
                       </TableCell>
                       <TableCell className="text-right">
                         <Button variant="ghost" size="sm" asChild>

@@ -18,12 +18,17 @@ export interface TrackingFixture {
   incidentTitle: string;
   assignmentId: string;
   assignmentFolio: number;
-  /** Enabled on the incident (IncidentAssignee) — may be assigned. */
+  /** Enabled on the incident (IncidentAssignee) from the start. */
   enabledFsrId: string;
   enabledFsrName: string;
-  /** Active FSR of the same Cliente but NOT enabled — must be rejected. */
+  enabledFsrEmail: string;
+  /**
+   * Active FSR who is neither enabled on the incident nor assigned to its
+   * Cliente — the subject of the auto-enablement rule.
+   */
   outsiderFsrId: string;
   outsiderFsrName: string;
+  outsiderFsrEmail: string;
 }
 
 /** Any active Cliente that is not the placeholder. */
@@ -39,7 +44,7 @@ async function pickTwoFsrs() {
   const fsrs = await db().user.findMany({
     where: { active: true, role: { name: "FSR" } },
     orderBy: { email: "asc" },
-    select: { id: true, name: true },
+    select: { id: true, name: true, email: true },
     take: 2,
   });
   if (fsrs.length < 2) {
@@ -53,8 +58,10 @@ async function pickTwoFsrs() {
 /**
  * An incident with one assignment, one enabled FSR and one outsider.
  *
- * The outsider is what makes RF-514's rejection testable: a real, active FSR
- * that simply was never enabled on this incident.
+ * The outsider is a real, active FSR who is neither enabled on the incident nor
+ * assigned to its Cliente. That used to make him the subject of a rejection;
+ * now he is the subject of RF-514's auto-enablement, and of the proof that the
+ * Cliente link no longer filters the picker.
  */
 export async function createTrackingFixture(): Promise<TrackingFixture> {
   const prisma = db();
@@ -76,16 +83,18 @@ export async function createTrackingFixture(): Promise<TrackingFixture> {
     select: { id: true },
   });
 
-  // Both FSRs must belong to the Cliente: the tracking table lists candidates
-  // from `getFSRsByClienteId`, so an FSR without a Cliente assignment never
-  // appears in the dropdown and the rejection path would be untestable.
-  for (const fsr of [enabled, outsider]) {
-    await prisma.userClienteAssignment.upsert({
-      where: { userId_clienteId: { userId: fsr.id, clienteId: cliente.id } },
-      update: { active: true },
-      create: { userId: fsr.id, clienteId: cliente.id },
-    });
-  }
+  // Only `enabled` covers this Cliente. The outsider is deliberately left
+  // unlinked: the picker must still offer him, because the Cliente link is a
+  // hint the UI badges, not a filter it applies.
+  await prisma.userClienteAssignment.upsert({
+    where: { userId_clienteId: { userId: enabled.id, clienteId: cliente.id } },
+    update: { active: true },
+    create: { userId: enabled.id, clienteId: cliente.id },
+  });
+  await prisma.userClienteAssignment.updateMany({
+    where: { userId: outsider.id, clienteId: cliente.id },
+    data: { active: false },
+  });
 
   const incidentTitle = `E2E Seguimiento ${suffix}`;
 
@@ -96,8 +105,8 @@ export async function createTrackingFixture(): Promise<TrackingFixture> {
       typeId: type.id,
       statusId: incidentStatus.id,
       clienteId: cliente.id,
-      // Both FSRs must be enabled targets for the *update* flow; the outsider
-      // is deliberately left out so the rejection path has a subject.
+      // The outsider is deliberately left out so the auto-enablement path has
+      // a subject that starts without the row.
       assignees: { create: [{ userId: enabled.id }] },
     },
     select: { id: true },
@@ -123,8 +132,10 @@ export async function createTrackingFixture(): Promise<TrackingFixture> {
     assignmentFolio: assignment.folio,
     enabledFsrId: enabled.id,
     enabledFsrName: enabled.name,
+    enabledFsrEmail: enabled.email,
     outsiderFsrId: outsider.id,
     outsiderFsrName: outsider.name,
+    outsiderFsrEmail: outsider.email,
   };
 }
 

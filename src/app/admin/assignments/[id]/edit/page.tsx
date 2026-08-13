@@ -36,6 +36,7 @@ import { getPartsForSelect } from "@/lib/actions/parts";
 import { isFailure } from "@/lib/actions/result";
 import { deleteWorkPart, getWorkParts } from "@/lib/actions/work-parts";
 import { formatFileSize, getFileIcon } from "@/lib/upload";
+import { formatMX } from "@/lib/utils/datetime";
 
 interface AssignmentStatus {
   id: number;
@@ -520,9 +521,9 @@ export default function EditAssignmentPage({
                         </a>
                         <p className="text-xs text-muted-foreground">
                           {formatFileSize(attachment.size)} •{" "}
-                          {new Date(attachment.uploadedAt).toLocaleDateString(
-                            "es-MX",
-                          )}
+                          {formatMX(attachment.uploadedAt, {
+                            dateStyle: "short",
+                          })}
                         </p>
                         {attachment.description && (
                           <p className="text-xs text-muted-foreground mt-1">

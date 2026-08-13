@@ -27,6 +27,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { formatMX } from "@/lib/utils/datetime";
 
 interface UserType {
   id: string;
@@ -160,7 +161,7 @@ export function UserTable({ users, onDelete }: UserTableProps) {
                       )}
                     </TableCell>
                     <TableCell>
-                      {new Date(user.createdAt).toLocaleDateString()}
+                      {formatMX(user.createdAt, { dateStyle: "short" })}
                     </TableCell>
                     <TableCell>
                       <DropdownMenu>

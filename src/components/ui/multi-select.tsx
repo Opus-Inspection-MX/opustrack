@@ -27,6 +27,8 @@ export interface MultiSelectOption {
 }
 
 interface MultiSelectProps {
+  /** Lands on the trigger button, so a `<Label htmlFor>` still points at it. */
+  id?: string;
   options: MultiSelectOption[];
   value: string[];
   onValueChange: (value: string[]) => void;
@@ -39,6 +41,7 @@ interface MultiSelectProps {
 }
 
 export function MultiSelect({
+  id,
   options,
   value,
   onValueChange,
@@ -81,6 +84,7 @@ export function MultiSelect({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
+          id={id}
           type="button"
           variant="outline"
           aria-expanded={open}

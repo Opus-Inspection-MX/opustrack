@@ -22,6 +22,11 @@ import {
   updateIncident,
 } from "@/lib/actions/incidents";
 import { isFailure } from "@/lib/actions/result";
+import {
+  formatMX,
+  fromDatetimeLocalMX,
+  toDatetimeLocalMX,
+} from "@/lib/utils/datetime";
 
 type IncidentFormProps = {
   incident?: {
@@ -33,6 +38,7 @@ type IncidentFormProps = {
     clienteId: string | null;
     scheduleId: string | null;
     reportedById: string | null;
+    reporterName?: string | null;
     startedAt: Date | null;
     resolvedAt: Date | null;
     assigneeIds?: string[];
@@ -69,20 +75,17 @@ export function IncidentForm({
     clienteId: incident?.clienteId || null,
     scheduleId: incident?.scheduleId || null,
     reportedById: incident?.reportedById || null,
+    reporterName: incident?.reporterName || "",
     startedAt: incident?.startedAt || null,
     resolvedAt: incident?.resolvedAt || null,
     assigneeIds: incident?.assigneeIds || [],
   });
 
   const [startedAtString, setStartedAtString] = useState<string>(
-    incident?.startedAt
-      ? new Date(incident.startedAt).toISOString().slice(0, 16)
-      : "",
+    incident?.startedAt ? toDatetimeLocalMX(incident.startedAt) : "",
   );
   const [resolvedAtString, setResolvedAtString] = useState<string>(
-    incident?.resolvedAt
-      ? new Date(incident.resolvedAt).toISOString().slice(0, 16)
-      : "",
+    incident?.resolvedAt ? toDatetimeLocalMX(incident.resolvedAt) : "",
   );
 
   const fsrCandidates = users.filter((u) => u.roleName === "FSR");
@@ -95,8 +98,8 @@ export function IncidentForm({
     try {
       const submitData = {
         ...formData,
-        startedAt: startedAtString ? new Date(startedAtString) : null,
-        resolvedAt: resolvedAtString ? new Date(resolvedAtString) : null,
+        startedAt: fromDatetimeLocalMX(startedAtString),
+        resolvedAt: fromDatetimeLocalMX(resolvedAtString),
       };
 
       if (incident) {
@@ -245,6 +248,23 @@ export function IncidentForm({
                 searchPlaceholder="Buscar usuario..."
                 emptyMessage="No se encontraron usuarios."
               />
+              <p className="text-xs text-muted-foreground">
+                La cuenta del centro. La persona concreta va en el campo
+                siguiente.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="reporterName">Nombre de quien reporta</Label>
+              <Input
+                id="reporterName"
+                value={formData.reporterName ?? ""}
+                onChange={(e) =>
+                  setFormData({ ...formData, reporterName: e.target.value })
+                }
+                placeholder="Persona que levantó el reporte"
+                maxLength={120}
+              />
             </div>
           </div>
 
@@ -255,7 +275,7 @@ export function IncidentForm({
                 { value: "none", label: "Sin programacion" },
                 ...schedules.map((schedule) => ({
                   value: schedule.id,
-                  label: new Date(schedule.scheduledAt).toLocaleString(),
+                  label: formatMX(schedule.scheduledAt),
                 })),
               ]}
               value={formData.scheduleId || "none"}

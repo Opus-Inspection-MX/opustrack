@@ -9,8 +9,8 @@ import { Button } from "@/components/ui/button";
 import { getClientesForSelect } from "@/lib/actions/clientes";
 import { getIncidentStatuses, getIncidentTypes } from "@/lib/actions/lookups";
 import {
-  getFSRsByClienteId,
   getIncidentsForTracking,
+  getTrackingFsrs,
 } from "@/lib/actions/tracking";
 
 interface Cliente {
@@ -34,6 +34,8 @@ interface FSR {
   id: string;
   name: string;
   email: string;
+  /** Clientes this FSR usually covers — a hint for the picker, not a filter. */
+  clienteIds?: string[];
 }
 
 interface TrackingAssignment {
@@ -91,7 +93,6 @@ export default function TrackingPage() {
     [],
   );
   const [allFsrs, setAllFsrs] = useState<FSR[]>([]);
-  const [fsrsByCliente, setFsrsByCliente] = useState<Record<string, FSR[]>>({});
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState<TrackingFiltersState>({});
 
@@ -110,43 +111,21 @@ export default function TrackingPage() {
 
   const loadInitialData = useCallback(async () => {
     try {
-      const [clientesData, typesResult, statusesResult] = await Promise.all([
-        getClientesForSelect(),
-        getIncidentTypes(),
-        getIncidentStatuses(),
-      ]);
+      // One query for every FSR. This used to fan out into one server call per
+      // Cliente and then de-duplicate the union, because the picker only
+      // offered the FSRs of that center — a filter that no longer exists.
+      const [clientesData, typesResult, statusesResult, fsrsData] =
+        await Promise.all([
+          getClientesForSelect(),
+          getIncidentTypes(),
+          getIncidentStatuses(),
+          getTrackingFsrs(),
+        ]);
 
       setClientes(clientesData);
       setIncidentTypes(typesResult.data);
       setIncidentStatuses(statusesResult.data);
-
-      // Load FSRs for all Clientes in parallel (performance optimization)
-      const fsrsMap: Record<string, FSR[]> = {};
-      const allFsrsArray: FSR[] = [];
-
-      const fsrPromises = clientesData.map(async (cliente) => {
-        try {
-          const clienteFsrs = await getFSRsByClienteId(cliente.id);
-          return { clienteId: cliente.id, fsrs: clienteFsrs };
-        } catch (error) {
-          console.error(`Error loading FSRs for Cliente ${cliente.id}:`, error);
-          return { clienteId: cliente.id, fsrs: [] };
-        }
-      });
-
-      const fsrResults = await Promise.all(fsrPromises);
-
-      for (const result of fsrResults) {
-        fsrsMap[result.clienteId] = result.fsrs;
-        allFsrsArray.push(...result.fsrs);
-      }
-
-      setFsrsByCliente(fsrsMap);
-      // Remove duplicates from allFsrs
-      const uniqueFsrs = allFsrsArray.filter(
-        (fsr, index, self) => index === self.findIndex((f) => f.id === fsr.id),
-      );
-      setAllFsrs(uniqueFsrs);
+      setAllFsrs(fsrsData);
     } catch (error) {
       console.error("Error loading initial data:", error);
     } finally {
@@ -222,7 +201,7 @@ export default function TrackingPage() {
       <div>
         <TrackingTable
           incidents={incidents}
-          fsrsByCliente={fsrsByCliente}
+          fsrs={allFsrs}
           incidentStatuses={incidentStatuses}
           onDataChange={() => loadIncidents(filters)}
         />

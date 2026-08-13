@@ -13,6 +13,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
+import { formatMX } from "@/lib/utils/datetime";
 
 interface Permission {
   id: string | string[];
@@ -197,9 +198,7 @@ export default function PermissionDetailPage() {
                 <p className="text-sm font-medium text-muted-foreground">
                   Created
                 </p>
-                <p className="text-base">
-                  {new Date(permission.createdAt).toLocaleString()}
-                </p>
+                <p className="text-base">{formatMX(permission.createdAt)}</p>
               </div>
             </div>
 
@@ -209,9 +208,7 @@ export default function PermissionDetailPage() {
                 <p className="text-sm font-medium text-muted-foreground">
                   Last Updated
                 </p>
-                <p className="text-base">
-                  {new Date(permission.updatedAt).toLocaleString()}
-                </p>
+                <p className="text-base">{formatMX(permission.updatedAt)}</p>
               </div>
             </div>
 

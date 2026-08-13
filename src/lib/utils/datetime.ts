@@ -96,6 +96,126 @@ export function formatMX(
 }
 
 /**
+ * Fill a `<input type="datetime-local">` from a stored instant.
+ *
+ * The input has no timezone: it shows exactly the characters you give it. The
+ * obvious `toISOString().slice(0, 16)` hands it UTC, so a Mexico City user sees
+ * a time six hours off and — because the same string is parsed back on save —
+ * writes that shifted value into the database. Pair this with
+ * `fromDatetimeLocalMX` and the round trip holds.
+ */
+export function toDatetimeLocalMX(
+  value: Date | string | null | undefined,
+): string {
+  if (!value) return "";
+  const instant = new Date(value);
+  if (Number.isNaN(instant.getTime())) return "";
+  const { date, time } = mxDateAndTime(instant.toISOString());
+  return `${date}T${time}`;
+}
+
+/** Read a `datetime-local` value back as Mexico City wall-clock time. */
+export function fromDatetimeLocalMX(value: string): Date | null {
+  if (!value) return null;
+  const [date, time] = value.split("T");
+  if (!date) return null;
+  return localWallTimeToUTC(date, (time ?? "00:00").slice(0, 5));
+}
+
+/**
+ * Hour of day (0-23) in Mexico City.
+ *
+ * `getHours()` reads the runtime's clock, so an agenda that buckets by hour
+ * puts events in the wrong row for anyone outside CDMX — and in every row on a
+ * UTC server.
+ */
+export function mxHour(date: Date | string): number {
+  return Number(
+    new Date(date).toLocaleString("en-US", {
+      hour: "2-digit",
+      hour12: false,
+      timeZone: APP_TZ,
+    }),
+  );
+}
+
+/** Fill an `<input type="date">` from a stored instant, in CDMX terms. */
+export function toDateInputMX(value: Date | string | null | undefined): string {
+  if (!value) return "";
+  const instant = new Date(value);
+  return Number.isNaN(instant.getTime()) ? "" : mxDateString(instant);
+}
+
+/** Read a `date` input back as the start of that Mexico City day. */
+export function fromDateInputMX(value: string): Date | null {
+  return value ? mxDayRange(value).gte : null;
+}
+
+/**
+ * Mexican states that do NOT run on Mexico City time, by `State.code`.
+ *
+ * Anything absent from this map is Central, which is every state the system
+ * currently has centers in — the map exists so that the day a center opens in
+ * Sonora or Quintana Roo, the times on screen do not quietly become wrong.
+ *
+ * Keyed by code rather than name because the code is the stable identifier in
+ * the State catalog (names carry accents and get edited).
+ */
+const STATE_TIMEZONES: Record<string, string> = {
+  BCN: "America/Tijuana", // Baja California — Pacific
+  BCS: "America/Mazatlan", // Baja California Sur — Mountain
+  CHH: "America/Chihuahua", // Chihuahua — Central since 2022, border strip differs
+  NAY: "America/Mazatlan", // Nayarit — Mountain
+  ROO: "America/Cancun", // Quintana Roo — Eastern, no DST
+  SIN: "America/Mazatlan", // Sinaloa — Mountain
+  SON: "America/Hermosillo", // Sonora — Mountain, no DST
+};
+
+/** IANA zone for a state code; Mexico City for anything unmapped or unknown. */
+export function timezoneForState(stateCode?: string | null): string {
+  if (!stateCode) return APP_TZ;
+  return STATE_TIMEZONES[stateCode.toUpperCase()] ?? APP_TZ;
+}
+
+/**
+ * An incident's timestamp, written for people coordinating across states.
+ *
+ * Renders the time where the center actually is, and appends the Mexico City
+ * time when the two differ — admins all work on CDMX time, so a report that
+ * reads "14:30" in Cancún has to also say what that is on their clock, or a
+ * phone call about "las 2:30" means two different moments.
+ *
+ * When the center is already on Mexico City time (every state in the system
+ * today) the parenthetical is omitted, because repeating the same number twice
+ * is noise.
+ *
+ * Pure `Intl` with an explicit `timeZone`, so it produces the same string on
+ * the server and in the browser — which also rules out the hydration mismatch
+ * a bare `toLocaleString()` risks in client components.
+ */
+export function formatIncidentDateTime(
+  date: Date | string,
+  stateCode?: string | null,
+  opts: Intl.DateTimeFormatOptions = {
+    dateStyle: "short",
+    timeStyle: "short",
+  },
+): string {
+  const instant = new Date(date);
+  const zone = timezoneForState(stateCode);
+  const local = instant.toLocaleString("es-MX", { ...opts, timeZone: zone });
+
+  if (zone === APP_TZ) return local;
+
+  // Only the clock time is worth repeating; the date is implied by the first.
+  const cdmxTime = instant.toLocaleString("es-MX", {
+    timeStyle: "short",
+    timeZone: APP_TZ,
+  });
+  return `${local} (${cdmxTime} CDMX)`;
+}
+
+/**
  * Current-week range (Monday 00:00 → Sunday 23:59:59) in Mexico City time.
  * Returned as Date objects (instants) suitable for the programación calendar.
  */

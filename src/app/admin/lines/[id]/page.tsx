@@ -19,6 +19,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { getLineById } from "@/lib/actions/lines";
+import { formatMX } from "@/lib/utils/datetime";
 
 interface LineDetailPageProps {
   params: Promise<{ id: string }>;
@@ -155,7 +156,9 @@ export default async function LineDetailPage({ params }: LineDetailPageProps) {
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          {new Date(equipment.createdAt).toLocaleDateString()}
+                          {formatMX(equipment.createdAt, {
+                            dateStyle: "short",
+                          })}
                         </TableCell>
                       </TableRow>
                     ))}

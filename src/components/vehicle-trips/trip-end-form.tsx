@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { isFailure } from "@/lib/actions/result";
 import { endVehicleTrip } from "@/lib/actions/vehicle-trips";
 import { normalizeMimeType } from "@/lib/upload";
+import { formatMX } from "@/lib/utils/datetime";
 import { GPSLocationCapture } from "./gps-location-capture";
 
 interface Trip {
@@ -157,9 +158,7 @@ export function TripEndForm({ trip }: TripEndFormProps) {
 
               <div>
                 <div className="text-sm text-muted-foreground">Inicio</div>
-                <div className="font-medium">
-                  {new Date(trip.startedAt).toLocaleString("es-MX")}
-                </div>
+                <div className="font-medium">{formatMX(trip.startedAt)}</div>
               </div>
 
               <div>

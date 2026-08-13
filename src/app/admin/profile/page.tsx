@@ -26,6 +26,7 @@ import {
   updateMyPassword,
   updateMyProfile,
 } from "@/lib/actions/users";
+import { formatMX } from "@/lib/utils/datetime";
 
 type UserProfile = Awaited<ReturnType<typeof getMyProfile>>;
 
@@ -587,7 +588,7 @@ export default function AdminProfilePage() {
               <div>
                 <p className="text-sm text-muted-foreground">Miembro desde</p>
                 <p className="font-medium">
-                  {new Date(user.createdAt).toLocaleDateString("es-MX", {
+                  {formatMX(user.createdAt, {
                     year: "numeric",
                     month: "long",
                     day: "numeric",

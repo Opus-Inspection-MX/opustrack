@@ -13,6 +13,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
+import { formatMX } from "@/lib/utils/datetime";
 
 interface Role {
   id: string | string[];
@@ -207,9 +208,7 @@ export default function RoleDetailPage() {
                 <p className="text-sm font-medium text-muted-foreground">
                   Created
                 </p>
-                <p className="text-base">
-                  {new Date(role.createdAt).toLocaleString()}
-                </p>
+                <p className="text-base">{formatMX(role.createdAt)}</p>
               </div>
             </div>
 
@@ -219,9 +218,7 @@ export default function RoleDetailPage() {
                 <p className="text-sm font-medium text-muted-foreground">
                   Last Updated
                 </p>
-                <p className="text-base">
-                  {new Date(role.updatedAt).toLocaleString()}
-                </p>
+                <p className="text-base">{formatMX(role.updatedAt)}</p>
               </div>
             </div>
           </CardContent>

@@ -9,8 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getMyVehicleTrips } from "@/lib/actions/vehicle-trips";
-
-const TZ = "America/Mexico_City";
+import { APP_TZ, formatMX } from "@/lib/utils/datetime";
 
 interface VehicleTrip {
   id: string;
@@ -41,10 +40,10 @@ export default function VehicleTripsPage() {
   const [trips, setTrips] = useState<VehicleTrip[]>([]);
   const [loading, setLoading] = useState(true);
   const [startDate, setStartDate] = useState(() =>
-    moment().tz(TZ).startOf("isoWeek").format("YYYY-MM-DD"),
+    moment().tz(APP_TZ).startOf("isoWeek").format("YYYY-MM-DD"),
   );
   const [endDate, setEndDate] = useState(() =>
-    moment().tz(TZ).endOf("isoWeek").format("YYYY-MM-DD"),
+    moment().tz(APP_TZ).endOf("isoWeek").format("YYYY-MM-DD"),
   );
 
   const loadTrips = useCallback(async (start: string, end: string) => {
@@ -130,7 +129,7 @@ export default function VehicleTripsPage() {
                               {trip.vehicle.licensePlate}
                             </div>
                             <div className="text-sm text-muted-foreground">
-                              {new Date(trip.startedAt).toLocaleString("es-MX")}
+                              {formatMX(trip.startedAt)}
                             </div>
                           </div>
                         </div>

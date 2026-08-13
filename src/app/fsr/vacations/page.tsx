@@ -19,6 +19,7 @@ import {
   getVacationBalanceData,
 } from "@/lib/actions/vacations";
 import { requireRouteAccess } from "@/lib/auth/auth";
+import { formatMX } from "@/lib/utils/datetime";
 
 const STATUS_BADGE: Record<string, string> = {
   PENDIENTE: "bg-amber-100 text-amber-800 border-amber-300",
@@ -139,10 +140,10 @@ export default async function FsrVacationsPage() {
                 {vacations.map((vacation) => (
                   <TableRow key={vacation.id}>
                     <TableCell>
-                      {vacation.startDate.toLocaleDateString("es-MX")}
+                      {formatMX(vacation.startDate, { dateStyle: "short" })}
                     </TableCell>
                     <TableCell>
-                      {vacation.endDate.toLocaleDateString("es-MX")}
+                      {formatMX(vacation.endDate, { dateStyle: "short" })}
                     </TableCell>
                     <TableCell className="max-w-xs truncate text-sm text-muted-foreground">
                       {vacation.reason ?? "—"}

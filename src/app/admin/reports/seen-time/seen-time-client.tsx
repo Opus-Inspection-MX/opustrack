@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/table";
 import type { SeenTimeData, SeenTimeSummary } from "@/lib/actions/reports";
 import { getSeenTimeData } from "@/lib/actions/reports";
+import { APP_TZ, mxDaysAgoString } from "@/lib/utils/datetime";
 
 interface SeenTimeClientProps {
   initialData: {
@@ -34,17 +35,10 @@ export function SeenTimeClient({ initialData }: SeenTimeClientProps) {
   const [data, setData] = useState(initialData.assignments);
   const [summary, setSummary] = useState(initialData.summary);
 
-  // Date range state — CDMX today / 30 days ago (avoids UTC date drift)
-  const mxDate = (offsetDays = 0) => {
-    const d = new Date();
-    d.setDate(d.getDate() - offsetDays);
-    return new Intl.DateTimeFormat("sv-SE", {
-      timeZone: "America/Mexico_City",
-    }).format(d);
-  };
+  // Date range state — CDMX today / N days ago (avoids UTC date drift)
 
-  const [startDate, setStartDate] = useState(() => mxDate(30));
-  const [endDate, setEndDate] = useState(() => mxDate(0));
+  const [startDate, setStartDate] = useState(() => mxDaysAgoString(30));
+  const [endDate, setEndDate] = useState(() => mxDaysAgoString(0));
 
   const handleDateChange = (newStartDate: string, newEndDate: string) => {
     setStartDate(newStartDate);
@@ -95,7 +89,7 @@ export function SeenTimeClient({ initialData }: SeenTimeClientProps) {
       month: "short",
       hour: "2-digit",
       minute: "2-digit",
-      timeZone: "America/Mexico_City",
+      timeZone: APP_TZ,
     });
   };
 

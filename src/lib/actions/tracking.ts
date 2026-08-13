@@ -4,16 +4,28 @@ import type { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { requirePermission } from "@/lib/auth/auth";
 import { prisma } from "@/lib/database/prisma.singleton";
-import { mxDayRange } from "@/lib/utils/datetime";
+import { notifyAssignmentAssigned } from "@/lib/notifications/notify-events";
+import { syncIncidentState } from "@/lib/state-machine/sync";
+import { localWallTimeToUTC, mxDayRange } from "@/lib/utils/datetime";
+
+/**
+ * Read a `datetime-local` value ("YYYY-MM-DDTHH:mm") as Mexico City time.
+ * Falls back to plain parsing for anything already carrying a zone.
+ */
+function wallClockToUTC(value: string): Date {
+  const [date, time] = value.split("T");
+  if (!date || !time) return new Date(value);
+  return localWallTimeToUTC(date, time.slice(0, 5));
+}
 
 /**
  * Errors that must reach the caller verbatim: business rules the user can act
  * on, and permission failures. Everything else is wrapped, so an unexpected
  * fault does not leak internals into the UI.
  *
- * The catch-all used to replace *every* error with a generic message, which
- * meant the "Solo se pueden asignar FSRs habilitados" guard fired correctly and
- * the user never saw why — and a denied permission looked like a server fault.
+ * The catch-all used to replace *every* error with a generic message, so a rule
+ * fired correctly and the user never saw why — and a denied permission looked
+ * like a server fault.
  */
 function rethrowBusinessError(error: unknown): void {
   if (
@@ -38,8 +50,74 @@ function rejected(message: string) {
   return { success: false as const, error: message };
 }
 
-const FSR_NOT_ENABLED =
-  "Solo se pueden asignar FSRs habilitados en la incidencia";
+const NOT_AN_FSR = "Uno o más FSR no existen o no tienen rol FSR";
+
+/**
+ * Assigning an FSR from Seguimiento also enables them on the incident.
+ *
+ * This screen used to reject anyone who was not already an `IncidentAssignee`,
+ * while `createAssignment` only ever checked the FSR role — so the same person
+ * could be picked when creating an assignment and refused when editing it.
+ * Enabling on assign is the rule that survived; the two paths now agree.
+ *
+ * Enablement only ever grows here. Dropping an FSR from one assignment does not
+ * revoke their `IncidentAssignee` row, because an incident can carry several
+ * assignments and silently pulling their visibility of the whole incident is
+ * not what "quitar de esta asignación" means.
+ */
+async function enableFsrsOnIncident(
+  tx: Prisma.TransactionClient,
+  incidentId: number,
+  userIds: string[],
+): Promise<void> {
+  for (const userId of userIds) {
+    await tx.incidentAssignee.upsert({
+      where: { incidentId_userId: { incidentId, userId } },
+      update: { active: true },
+      create: { incidentId, userId, active: true },
+    });
+  }
+}
+
+/**
+ * Tell the FSRs they were just given work.
+ *
+ * Seguimiento assigned people without ever notifying them — the mirror image of
+ * the bug where incidents notified without assigning. A notification failure is
+ * swallowed: the assignment is already committed and losing it to a mail
+ * problem would be worse than a missing alert.
+ */
+async function notifyNewAssignees(
+  assignmentId: string,
+  incidentId: number,
+  recipientIds: string[],
+  actorId: string,
+): Promise<void> {
+  try {
+    const incident = await prisma.incident.findUnique({
+      where: { id: incidentId },
+      select: { title: true },
+    });
+    await notifyAssignmentAssigned(
+      assignmentId,
+      incident?.title,
+      recipientIds,
+      actorId,
+    );
+  } catch (error) {
+    console.error("Error notifying new assignees:", error);
+  }
+}
+
+/** Same check `createAssignment` runs, so both paths accept the same people. */
+async function assertAreFsrs(userIds: string[]): Promise<boolean> {
+  if (userIds.length === 0) return true;
+  const fsrs = await prisma.user.findMany({
+    where: { id: { in: userIds }, active: true, role: { name: "FSR" } },
+    select: { id: true },
+  });
+  return fsrs.length === new Set(userIds).size;
+}
 
 type FolioQuery =
   | { kind: "incident"; value: number }
@@ -250,87 +328,112 @@ export async function getIncidentsForTracking(filters?: {
   }
 }
 
-export async function getFSRsByClienteId(clienteId: string) {
+/**
+ * Every active FSR, each carrying the Clientes they are assigned to.
+ *
+ * The Cliente link is a hint, not a filter: the UI surfaces it as a badge so an
+ * operator can tell at a glance who usually covers that center, but anyone can
+ * be assigned anywhere. This replaced a per-Cliente query that the tracking
+ * page called once per Cliente and then de-duplicated.
+ */
+export async function getTrackingFsrs() {
   try {
     await requirePermission("tracking:read");
 
     const users = await prisma.user.findMany({
-      where: {
-        clienteAssignments: {
-          some: { clienteId, active: true },
-        },
-        active: true,
-        role: {
-          name: "FSR",
-        },
-      },
+      where: { active: true, role: { name: "FSR" } },
       select: {
         id: true,
         name: true,
         email: true,
+        clienteAssignments: {
+          where: { active: true },
+          select: { clienteId: true },
+        },
       },
-      orderBy: {
-        name: "asc",
-      },
+      orderBy: { name: "asc" },
     });
 
-    return users;
+    return users.map((u) => ({
+      id: u.id,
+      name: u.name,
+      email: u.email,
+      clienteIds: u.clienteAssignments.map((a) => a.clienteId),
+    }));
   } catch (error) {
     rethrowBusinessError(error);
-    console.error("Error fetching FSRs by Cliente:", error);
+    console.error("Error fetching FSRs for tracking:", error);
     throw new Error("Failed to fetch FSRs");
   }
 }
 
 export async function assignFSRToIncident(incidentId: number, fsrId: string) {
   try {
-    await requirePermission("tracking:update");
+    const actor = await requirePermission("tracking:update");
 
-    const authorized = await prisma.incidentAssignee.findFirst({
-      where: { incidentId, userId: fsrId, active: true },
-      select: { id: true },
-    });
-    if (!authorized) {
-      return rejected(FSR_NOT_ENABLED);
+    if (!(await assertAreFsrs([fsrId]))) {
+      return rejected(NOT_AN_FSR);
     }
 
-    const existingAssignment = await prisma.assignment.findFirst({
-      where: {
-        incidentId,
-        active: true,
-      },
-    });
+    const { assignmentId, added } = await prisma.$transaction(async (tx) => {
+      await enableFsrsOnIncident(tx, incidentId, [fsrId]);
 
-    if (existingAssignment) {
-      await prisma.assignmentAssignee.upsert({
-        where: {
-          assignmentId_userId: {
+      const existingAssignment = await tx.assignment.findFirst({
+        where: { incidentId, active: true },
+        select: { id: true },
+        orderBy: { createdAt: "desc" },
+      });
+
+      if (existingAssignment) {
+        const previous = await tx.assignmentAssignee.findUnique({
+          where: {
+            assignmentId_userId: {
+              assignmentId: existingAssignment.id,
+              userId: fsrId,
+            },
+          },
+          select: { active: true },
+        });
+        await tx.assignmentAssignee.upsert({
+          where: {
+            assignmentId_userId: {
+              assignmentId: existingAssignment.id,
+              userId: fsrId,
+            },
+          },
+          update: { active: true },
+          create: {
             assignmentId: existingAssignment.id,
             userId: fsrId,
+            active: true,
           },
-        },
-        update: { active: true },
-        create: {
+        });
+        await syncIncidentState(incidentId, tx);
+        return {
           assignmentId: existingAssignment.id,
-          userId: fsrId,
-          active: true,
-        },
-      });
-    } else {
-      const initialStatus = await prisma.assignmentStatus.findFirst({
+          added: !previous?.active,
+        };
+      }
+
+      const initialStatus = await tx.assignmentStatus.findFirst({
         where: { name: "ASIGNADO" },
       });
 
-      await prisma.assignment.create({
+      const created = await tx.assignment.create({
         data: {
           incidentId,
           statusId: initialStatus?.id,
           assignedAt: new Date(),
-          assignees: {
-            create: [{ userId: fsrId }],
-          },
+          assignees: { create: [{ userId: fsrId }] },
         },
+        select: { id: true },
       });
+      await syncIncidentState(incidentId, tx);
+      return { assignmentId: created.id, added: true };
+    });
+
+    if (added) {
+      await notifyNewAssignees(assignmentId, incidentId, [fsrId], actor.id);
     }
 
     revalidatePath("/admin/tracking");
@@ -347,34 +450,22 @@ export async function updateAssignmentAssignees(
   userIds: string[],
 ) {
   try {
-    await requirePermission("tracking:update");
+    const actor = await requirePermission("tracking:update");
 
     const uniqueIds = Array.from(new Set(userIds.filter(Boolean)));
 
-    if (uniqueIds.length > 0) {
-      const assignment = await prisma.assignment.findUnique({
-        where: { id: assignmentId },
-        select: { incidentId: true },
-      });
-      if (!assignment) {
-        return rejected("La asignación ya no existe.");
-      }
-      const authorized = await prisma.incidentAssignee.findMany({
-        where: {
-          incidentId: assignment.incidentId,
-          active: true,
-          userId: { in: uniqueIds },
-        },
-        select: { userId: true },
-      });
-      const authorizedSet = new Set(authorized.map((a) => a.userId));
-      const unauthorized = uniqueIds.filter((u) => !authorizedSet.has(u));
-      if (unauthorized.length > 0) {
-        return rejected(FSR_NOT_ENABLED);
-      }
+    const assignment = await prisma.assignment.findUnique({
+      where: { id: assignmentId },
+      select: { incidentId: true },
+    });
+    if (!assignment) {
+      return rejected("La asignación ya no existe.");
+    }
+    if (!(await assertAreFsrs(uniqueIds))) {
+      return rejected(NOT_AN_FSR);
     }
 
-    await prisma.$transaction(async (tx) => {
+    const added = await prisma.$transaction(async (tx) => {
       const existing = await tx.assignmentAssignee.findMany({
         where: { assignmentId },
         select: { userId: true, active: true },
@@ -402,7 +493,22 @@ export async function updateAssignmentAssignees(
           create: { assignmentId, userId, active: true },
         });
       }
+
+      await enableFsrsOnIncident(tx, assignment.incidentId, toAdd);
+
+      return toAdd;
     });
+
+    // Only the newcomers. Re-saving an unchanged assignment must not spam
+    // everyone who was already on it.
+    if (added.length > 0) {
+      await notifyNewAssignees(
+        assignmentId,
+        assignment.incidentId,
+        added,
+        actor.id,
+      );
+    }
 
     const updatedAssignment = await prisma.assignment.findUnique({
       where: { id: assignmentId },
@@ -452,8 +558,11 @@ export async function updateIncidentDetails(
       data: {
         title: data.title,
         description: data.description,
-        reportedAt: new Date(data.reportedAt),
-        resolvedAt: data.resolvedAt ? new Date(data.resolvedAt) : null,
+        // The form sends a CDMX wall clock ("YYYY-MM-DDTHH:mm"). `new Date()`
+        // would read it in the server's zone — UTC in production — and shift
+        // every edited timestamp by the offset.
+        reportedAt: wallClockToUTC(data.reportedAt),
+        resolvedAt: data.resolvedAt ? wallClockToUTC(data.resolvedAt) : null,
         statusId: data.statusId,
         lineId: data.lineId || null,
         equipmentId: data.equipmentId || null,

@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/select";
 import { isFailure } from "@/lib/actions/result";
 import { createUser, type UserFormData, updateUser } from "@/lib/actions/users";
+import { toDateInputMX } from "@/lib/utils/datetime";
 
 type UserFormProps = {
   user?: {
@@ -51,9 +52,7 @@ export function UserForm({ user, roles, statuses, clientes }: UserFormProps) {
     userStatusId: user?.userStatusId || statuses[0]?.id || 0,
     clienteId: user?.clienteId || null,
     // The date input wants "YYYY-MM-DD"; the server sends an instant.
-    hireDate: user?.hireDate
-      ? new Date(user.hireDate).toISOString().slice(0, 10)
-      : "",
+    hireDate: user?.hireDate ? toDateInputMX(user.hireDate) : "",
     telephone: user?.userProfile?.telephone || "",
     secondaryTelephone: user?.userProfile?.secondaryTelephone || "",
     emergencyContact: user?.userProfile?.emergencyContact || "",

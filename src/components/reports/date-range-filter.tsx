@@ -10,6 +10,12 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  formatMX,
+  mxDayRange,
+  mxDaysAgoString,
+  mxTodayString,
+} from "@/lib/utils/datetime";
 
 interface DateRangeFilterProps {
   startDate: string;
@@ -32,32 +38,29 @@ export function DateRangeFilter({
 }: DateRangeFilterProps) {
   const [isOpen, setIsOpen] = useState(false);
 
+  // Presets are calendar days in Mexico City. Deriving them from
+  // `toISOString()` projected into UTC, so every afternoon after 18:00 CDMX the
+  // range jumped a day ahead of what the buttons promised.
   const handlePresetClick = (days: number) => {
-    const end = new Date();
-    let start: Date;
+    const end = mxTodayString();
+    let start: string;
 
     if (days === -1) {
-      // Year to date
-      start = new Date(end.getFullYear(), 0, 1);
+      start = `${end.slice(0, 4)}-01-01`; // Year to date
     } else if (days === 0) {
-      // Today
-      start = new Date();
-      start.setHours(0, 0, 0, 0);
+      start = end; // Today
     } else {
-      start = new Date();
-      start.setDate(start.getDate() - days);
+      start = mxDaysAgoString(days);
     }
 
-    onDateChange(
-      start.toISOString().split("T")[0],
-      end.toISOString().split("T")[0],
-    );
+    onDateChange(start, end);
     setIsOpen(false);
   };
 
   const formatDisplayDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString("es-MX", {
+    // `dateStr` is a bare "YYYY-MM-DD", which `new Date()` reads as UTC
+    // midnight — rendered without a zone that showed the previous day.
+    return formatMX(mxDayRange(dateStr).gte, {
       day: "numeric",
       month: "short",
       year: "numeric",

@@ -354,8 +354,11 @@ test("avisa al aprobar cuando hay trabajo programado en esas fechas", async ({
   // Confirming goes through: the warning informs, it does not block.
   await row.getByRole("button", { name: "Aprobar" }).click();
   await page.getByRole("button", { name: "Aprobar de todos modos" }).click();
+  // Assert the toast's own text. Matching any `alert`/`status` role also
+  // catches Next's route announcer, which is always present — so that version
+  // of this assertion could pass without the toast ever appearing.
   await expect(
-    page.getByRole("alert").or(page.getByRole("status")),
+    page.getByText("Solicitud de vacaciones aprobada"),
   ).toBeVisible();
 
   await expect

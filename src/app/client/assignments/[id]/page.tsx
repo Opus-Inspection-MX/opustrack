@@ -25,6 +25,7 @@ import { Separator } from "@/components/ui/separator";
 import { getAssignmentById } from "@/lib/actions/assignments";
 import { requireRouteAccess } from "@/lib/auth/auth";
 import { getFileUrl } from "@/lib/storage/file-storage";
+import { formatMX } from "@/lib/utils/datetime";
 
 export default async function ClientAssignmentDetailPage({
   params,
@@ -61,9 +62,7 @@ export default async function ClientAssignmentDetailPage({
       <div>
         <p className="text-sm font-medium">{label}</p>
         {date && (
-          <p className="text-xs text-muted-foreground">
-            {new Date(date).toLocaleString()}
-          </p>
+          <p className="text-xs text-muted-foreground">{formatMX(date)}</p>
         )}
       </div>
     </div>
@@ -188,9 +187,7 @@ export default async function ClientAssignmentDetailPage({
                       <p>{activity.description}</p>
                       <div className="flex items-center gap-1 text-xs text-muted-foreground">
                         <Calendar className="h-3 w-3" />
-                        <span>
-                          {new Date(activity.performedAt).toLocaleString()}
-                        </span>
+                        <span>{formatMX(activity.performedAt)}</span>
                       </div>
                     </div>
                   </div>

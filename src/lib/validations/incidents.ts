@@ -18,6 +18,11 @@ export const IncidentCreateSchema = z.object({
   clienteId: cuidSchema.nullable().optional(),
   scheduleId: cuidSchema.nullable().optional(),
   reportedById: cuidSchema.nullable().optional(),
+  reporterName: z
+    .string()
+    .max(120, "El nombre de quien reporta no puede exceder 120 caracteres")
+    .nullable()
+    .optional(),
   startedAt: z.date().nullable().optional(),
   resolvedAt: z.date().nullable().optional(),
   assigneeIds: z.array(cuidSchema).optional(),
@@ -36,6 +41,13 @@ export const IncidentClientCreateSchema = z.object({
   typeId: intIdSchema.optional(),
   lineId: intIdSchema.optional(),
   equipmentId: intIdSchema.optional(),
+  // The center's account is shared, so this is the only way to know which
+  // person actually raised it. Optional: pre-existing flows do not send it.
+  reporterName: z
+    .string()
+    .max(120, "El nombre de quien reporta no puede exceder 120 caracteres")
+    .nullable()
+    .optional(),
 });
 
 /**

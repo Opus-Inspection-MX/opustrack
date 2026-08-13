@@ -19,6 +19,7 @@ import {
   getScheduleById,
   updateSchedule,
 } from "@/lib/actions/schedules";
+import { fromDatetimeLocalMX, toDatetimeLocalMX } from "@/lib/utils/datetime";
 
 interface ClienteCenter {
   id: string;
@@ -67,11 +68,9 @@ export default function EditSchedulePage({
           setFormData({
             title: schedule.title,
             description: schedule.description || "",
-            scheduledAt: new Date(schedule.scheduledAt)
-              .toISOString()
-              .slice(0, 16),
+            scheduledAt: toDatetimeLocalMX(schedule.scheduledAt),
             endDate: schedule.endDate
-              ? new Date(schedule.endDate).toISOString().slice(0, 16)
+              ? toDatetimeLocalMX(schedule.endDate)
               : "",
             clienteIds: schedule.clientes
               .filter((sv) => sv.active)
@@ -142,8 +141,8 @@ export default function EditSchedulePage({
       await updateSchedule(id, {
         title: formData.title.trim(),
         description: formData.description?.trim() || undefined,
-        scheduledAt: new Date(formData.scheduledAt),
-        endDate: formData.endDate ? new Date(formData.endDate) : undefined,
+        scheduledAt: fromDatetimeLocalMX(formData.scheduledAt) ?? new Date(),
+        endDate: fromDatetimeLocalMX(formData.endDate) ?? undefined,
         clienteIds: formData.clienteIds,
       });
 

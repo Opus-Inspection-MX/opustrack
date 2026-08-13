@@ -20,6 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { formatMX } from "@/lib/utils/datetime";
 
 interface IncidentType {
   id: number;
@@ -100,7 +101,7 @@ export function IncidentTypeTable({
                   </div>
                 </TableCell>
                 <TableCell>
-                  {new Date(type.createdAt).toLocaleDateString()}
+                  {formatMX(type.createdAt, { dateStyle: "short" })}
                 </TableCell>
                 <TableCell>
                   <DropdownMenu>

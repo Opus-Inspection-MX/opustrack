@@ -9,6 +9,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/hooks/use-toast";
 import { isFailure } from "@/lib/actions/result";
 import { deleteWorkPart, getWorkPartById } from "@/lib/actions/work-parts";
+import { formatMX } from "@/lib/utils/datetime";
 
 interface Part {
   id: string;
@@ -211,9 +212,7 @@ export default function WorkPartDetailPage({
                 <p className="text-sm font-medium text-muted-foreground">
                   Agregado El
                 </p>
-                <p className="text-sm">
-                  {new Date(workPart.createdAt).toLocaleString("es-MX")}
-                </p>
+                <p className="text-sm">{formatMX(workPart.createdAt)}</p>
               </div>
             </div>
 

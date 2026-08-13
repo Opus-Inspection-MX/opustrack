@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/table";
 import type { FSRPerformanceData } from "@/lib/actions/reports";
 import { getFSRPerformanceData, getReportSummary } from "@/lib/actions/reports";
+import { mxDaysAgoString } from "@/lib/utils/datetime";
 
 interface FSRPerformanceClientProps {
   initialData: FSRPerformanceData[];
@@ -33,17 +34,10 @@ export function FSRPerformanceClient({
   const [data, setData] = useState(initialData);
   const [_summary, setSummary] = useState(initialSummary);
 
-  // Date range state — CDMX today / 30 days ago (avoids UTC date drift)
-  const mxDate = (offsetDays = 0) => {
-    const d = new Date();
-    d.setDate(d.getDate() - offsetDays);
-    return new Intl.DateTimeFormat("sv-SE", {
-      timeZone: "America/Mexico_City",
-    }).format(d);
-  };
+  // Date range state — CDMX today / N days ago (avoids UTC date drift)
 
-  const [startDate, setStartDate] = useState(() => mxDate(30));
-  const [endDate, setEndDate] = useState(() => mxDate(0));
+  const [startDate, setStartDate] = useState(() => mxDaysAgoString(30));
+  const [endDate, setEndDate] = useState(() => mxDaysAgoString(0));
 
   const handleDateChange = (newStartDate: string, newEndDate: string) => {
     setStartDate(newStartDate);

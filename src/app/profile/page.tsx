@@ -26,6 +26,7 @@ import {
   updateMyPassword,
   updateMyProfile,
 } from "@/lib/actions/users";
+import { APP_TZ } from "@/lib/utils/datetime";
 
 type UserProfile = Awaited<ReturnType<typeof getMyProfile>>;
 
@@ -579,10 +580,13 @@ export default function ProfilePage() {
               <div>
                 <p className="text-sm text-muted-foreground">Member since</p>
                 <p className="font-medium">
+                  {/* This page is the only English one; keep its locale and
+                      just pin the zone. */}
                   {new Date(user.createdAt).toLocaleDateString("en-US", {
                     year: "numeric",
                     month: "long",
                     day: "numeric",
+                    timeZone: APP_TZ,
                   })}
                 </p>
               </div>

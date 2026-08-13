@@ -2,7 +2,7 @@ import { expect, type Page, test } from "@playwright/test";
 import { account, authFile } from "./fixtures/auth";
 import { db, uniqueSuffix } from "./fixtures/db";
 import { createTrackingFixture, type TrackingFixture } from "./fixtures/flows";
-import { fillStable, pickFromSelect } from "./fixtures/forms";
+import { fillStable, pickFromCombobox } from "./fixtures/forms";
 
 /**
  * Business rules reaching the user — in a PRODUCTION build.
@@ -116,11 +116,35 @@ test("la contraseña actual equivocada se explica, no se generaliza", async ({
   expect(after.sessionVersion).toBe(before.sessionVersion);
 });
 
-test.describe("asignación de un FSR no habilitado", () => {
+test.describe("regla de negocio devuelta desde Seguimiento", () => {
   let fixture: TrackingFixture;
+  /**
+   * An FSR created just for this test.
+   *
+   * It cannot be one of the seed's shared FSRs: the test deactivates it
+   * mid-flight, and the tracking spec runs against those same accounts.
+   */
+  let doomedFsr: { id: string; email: string };
 
   test.beforeAll(async () => {
     fixture = await createTrackingFixture();
+
+    const suffix = uniqueSuffix();
+    const [fsrRole, activeStatus] = await Promise.all([
+      db().role.findUniqueOrThrow({ where: { name: "FSR" } }),
+      db().userStatus.findFirstOrThrow({ where: { name: "ACTIVO" } }),
+    ]);
+    doomedFsr = await db().user.create({
+      data: {
+        email: `e2e.fsr.${suffix}@opusinspection.com`,
+        name: `E2E FSR Efímero ${suffix}`,
+        // Never signed in with; the account exists only to be picked.
+        password: "no-usable",
+        roleId: fsrRole.id,
+        userStatusId: activeStatus.id,
+      },
+      select: { id: true, email: true },
+    });
   });
 
   test("muestra el motivo exacto en un toast", async ({ page }) => {
@@ -144,25 +168,39 @@ test.describe("asignación de un FSR no habilitado", () => {
       .nth(1)
       .click();
 
-    await pickFromSelect(
-      page,
-      page.locator(`#wo-fsr-${fixture.assignmentId}`),
-      new RegExp(fixture.outsiderFsrName),
-    );
+    // Searched by email: the seed's FSR names share a prefix, so a name
+    // substring matches several options and trips strict mode.
+    await pickFromCombobox(page, {
+      trigger: page.locator(`#wo-fsr-${fixture.assignmentId}`),
+      searchPlaceholder: "Buscar FSR...",
+      search: doomedFsr.email,
+      closeAfter: true,
+    });
+
+    // The account is deactivated AFTER the picker loaded it — the same stale
+    // client the catalog test above exercises. The option is still on screen,
+    // so the only thing left is the server guard, and its message has to
+    // survive the trip: a production build of Next replaces the message of
+    // anything a Server Action throws, so this rule is RETURNED, not thrown.
+    await db().user.update({
+      where: { id: doomedFsr.id },
+      data: { active: false },
+    });
+
     await details.getByRole("button", { name: "Guardar" }).first().click();
 
     // Not `alert()` any more, and not React's sanitized message either.
-    await expect(
-      errorToast(page, /Solo se pueden asignar FSRs habilitados/),
-    ).toBeVisible();
+    await expect(errorToast(page, /no tienen rol FSR/)).toBeVisible();
 
-    const written = await db().assignmentAssignee.count({
-      where: {
-        assignmentId: fixture.assignmentId,
-        userId: fixture.outsiderFsrId,
-        active: true,
-      },
-    });
-    expect(written).toBe(0);
+    // And nothing was written.
+    expect(
+      await db().assignmentAssignee.count({
+        where: {
+          assignmentId: fixture.assignmentId,
+          userId: doomedFsr.id,
+          active: true,
+        },
+      }),
+    ).toBe(0);
   });
 });

@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { getFileUrl } from "@/lib/storage/file-utils";
 import { formatFileSize, getFileIcon } from "@/lib/upload";
+import { formatMX } from "@/lib/utils/datetime";
 
 interface AttachmentPreviewProps {
   attachment: {
@@ -92,7 +93,7 @@ export function AttachmentPreview({
           </a>
           <p className="text-xs text-muted-foreground">
             {formatFileSize(attachment.size)} •{" "}
-            {new Date(attachment.uploadedAt).toLocaleDateString("es-MX")}
+            {formatMX(attachment.uploadedAt, { dateStyle: "short" })}
           </p>
           {attachment.description && (
             <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
@@ -161,7 +162,7 @@ export function AttachmentPreview({
             <div className="flex items-center justify-between p-4 pt-0 border-t">
               <p className="text-sm text-muted-foreground">
                 {formatFileSize(attachment.size)} •{" "}
-                {new Date(attachment.uploadedAt).toLocaleString("es-MX")}
+                {formatMX(attachment.uploadedAt)}
               </p>
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" asChild>

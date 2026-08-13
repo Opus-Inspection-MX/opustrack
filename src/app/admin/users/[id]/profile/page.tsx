@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
+import { formatMX } from "@/lib/utils/datetime";
 
 // Mock data - replace with actual API call
 const mockUserProfile = {
@@ -172,12 +173,12 @@ export default function UserProfilePage({
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Calendar className="h-4 w-4" />
                 Joined{" "}
-                {new Date(mockUserProfile.createdAt).toLocaleDateString()}
+                {formatMX(mockUserProfile.createdAt, { dateStyle: "short" })}
               </div>
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <User className="h-4 w-4" />
                 Last login{" "}
-                {new Date(mockUserProfile.lastLogin).toLocaleDateString()}
+                {formatMX(mockUserProfile.lastLogin, { dateStyle: "short" })}
               </div>
             </div>
           </CardContent>

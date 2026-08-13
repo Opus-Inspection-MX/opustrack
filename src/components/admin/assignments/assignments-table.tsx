@@ -17,6 +17,7 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { deleteAssignment } from "@/lib/actions/assignments";
 import { isFailure } from "@/lib/actions/result";
+import { formatMX } from "@/lib/utils/datetime";
 
 type Assignment = {
   id: string;
@@ -151,7 +152,7 @@ export function AssignmentsTable({
                       Desbloqueado
                     </Badge>
                     <span className="text-xs text-muted-foreground">
-                      {new Date(wo.seenAt).toLocaleDateString()}
+                      {formatMX(wo.seenAt, { dateStyle: "short" })}
                     </span>
                     {wo.assignedAt && (
                       <span className="text-xs text-muted-foreground">
@@ -178,7 +179,7 @@ export function AssignmentsTable({
                 <Badge variant="outline">{wo._count.workParts}</Badge>
               </TableCell>
               <TableCell className="text-sm text-muted-foreground">
-                {new Date(wo.createdAt).toLocaleDateString()}
+                {formatMX(wo.createdAt, { dateStyle: "short" })}
               </TableCell>
               <TableCell className="text-right">
                 <div className="flex justify-end gap-2">

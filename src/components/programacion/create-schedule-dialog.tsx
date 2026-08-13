@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { mxDateString } from "@/lib/utils/datetime";
 
 interface CreateScheduleDialogProps {
   open: boolean;
@@ -145,7 +146,7 @@ export function CreateScheduleDialog({
                 <Input
                   type="date"
                   key={`start-${scheduleType}`}
-                  defaultValue={adjustedDates.start.toISOString().split("T")[0]}
+                  defaultValue={mxDateString(adjustedDates.start)}
                   className="pl-10"
                 />
                 <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -162,7 +163,7 @@ export function CreateScheduleDialog({
                 <Input
                   type="date"
                   key={`end-${scheduleType}`}
-                  defaultValue={adjustedDates.end.toISOString().split("T")[0]}
+                  defaultValue={mxDateString(adjustedDates.end)}
                   className="pl-10"
                 />
                 <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />

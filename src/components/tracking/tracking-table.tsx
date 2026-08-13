@@ -31,7 +31,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { MultiSelect } from "@/components/ui/multi-select";
+import {
+  MultiSelect,
+  type MultiSelectOption,
+} from "@/components/ui/multi-select";
 import {
   Select,
   SelectContent,
@@ -59,6 +62,7 @@ import {
   updateAssignmentDetails,
   updateIncidentDetails,
 } from "@/lib/actions/tracking";
+import { APP_TZ, mxDateAndTime } from "@/lib/utils/datetime";
 
 const assignmentStatusLabels: Record<string, string> = {
   PENDING: "Pendiente",
@@ -131,7 +135,7 @@ interface IncidentEditForm {
 }
 
 interface AssignmentEditForm {
-  assignedToId?: string;
+  assigneeIds?: string[];
   notes?: string;
   statusId?: number | string;
   lineId?: number;
@@ -150,19 +154,28 @@ interface EquipmentOption {
   name: string;
 }
 
+interface TrackingFsr {
+  id: string;
+  name: string;
+  email: string;
+  /** Clientes this FSR usually covers. Shown as a badge; never a filter. */
+  clienteIds?: string[];
+}
+
 interface TrackingTableProps {
   incidents: TrackingIncident[];
-  fsrsByCliente: Record<
-    string,
-    Array<{ id: string; name: string; email: string }>
-  >;
+  /**
+   * Every active FSR. Any of them can be assigned to any incident — the
+   * Cliente link only decides who is suggested first.
+   */
+  fsrs: TrackingFsr[];
   incidentStatuses: Array<{ id: number; name: string; color: string }>;
   onDataChange?: () => void;
 }
 
 export function TrackingTable({
   incidents,
-  fsrsByCliente,
+  fsrs,
   incidentStatuses,
   onDataChange,
 }: TrackingTableProps) {
@@ -284,18 +297,26 @@ export function TrackingTable({
 
   const handleEditAssignment = (assignment: TrackingAssignment) => {
     setEditingAssignment(assignment.id);
-    // Format datetime for datetime-local input (YYYY-MM-DDTHH:mm)
-    const startedDateTime = assignment.startedAt
-      ? new Date(assignment.startedAt).toISOString().slice(0, 16)
-      : "";
-    const finishedDateTime = assignment.finishedAt
-      ? new Date(assignment.finishedAt).toISOString().slice(0, 16)
-      : "";
+    // `datetime-local` shows a wall clock and `updateAssignmentDetails` reads it
+    // back as CDMX, so it has to be filled with CDMX too. Filling it from
+    // `toISOString()` handed it UTC, and merely opening the editor and saving
+    // moved the timestamps ~6 hours. Same fix as `handleEditIncident`.
+    const toInput = (value: Date | string) => {
+      const { date, time } = mxDateAndTime(new Date(value).toISOString());
+      return `${date}T${time}`;
+    };
     setAssignmentEditForm({
-      assignedToId: assignment.assignees?.[0]?.user.id || "",
+      // Every current assignee, not just the first. Seeding with `[0]` and
+      // saving the result silently dropped the rest, because the server
+      // deactivates whoever is missing from the list it receives.
+      assigneeIds: assignment.assignees?.map((a) => a.user.id) ?? [],
       statusId: assignment.status?.id,
-      startedAt: startedDateTime || undefined,
-      finishedAt: finishedDateTime || undefined,
+      startedAt: assignment.startedAt
+        ? toInput(assignment.startedAt)
+        : undefined,
+      finishedAt: assignment.finishedAt
+        ? toInput(assignment.finishedAt)
+        : undefined,
     });
   };
 
@@ -305,8 +326,9 @@ export function TrackingTable({
   };
 
   const handleSaveAssignment = async (assignmentId: string) => {
-    if (!assignmentEditForm.assignedToId) {
-      toast.error("Por favor selecciona un FSR");
+    const assigneeIds = assignmentEditForm.assigneeIds ?? [];
+    if (assigneeIds.length === 0) {
+      toast.error("Selecciona al menos un FSR");
       return;
     }
 
@@ -323,17 +345,13 @@ export function TrackingTable({
         startedAt: assignmentEditForm.startedAt || null,
         finishedAt: assignmentEditForm.finishedAt || null,
       });
-      if (assignmentEditForm.assignedToId) {
-        const result = await updateAssignmentAssignees(assignmentId, [
-          assignmentEditForm.assignedToId,
-        ]);
-        // A rejected business rule comes back as a value, not an exception:
-        // Next strips the message of anything a Server Action throws in a
-        // production build. Keeping the editor open lets the user fix it.
-        if (!result.success) {
-          toast.error(result.error);
-          return;
-        }
+      const result = await updateAssignmentAssignees(assignmentId, assigneeIds);
+      // A rejected business rule comes back as a value, not an exception:
+      // Next strips the message of anything a Server Action throws in a
+      // production build. Keeping the editor open lets the user fix it.
+      if (!result.success) {
+        toast.error(result.error);
+        return;
       }
       setEditingAssignment(null);
       setAssignmentEditForm({});
@@ -350,12 +368,16 @@ export function TrackingTable({
 
   const handleEditIncident = async (incident: TrackingIncident) => {
     setEditingIncident(incident.id);
-    // Format datetime for datetime-local input (YYYY-MM-DDTHH:mm)
-    const reportedDateTime = new Date(incident.reportedAt)
-      .toISOString()
-      .slice(0, 16);
+    // `datetime-local` shows a wall clock, so it has to be fed CDMX time.
+    // `toISOString()` here handed it UTC, which put the admin ~6 hours off and
+    // wrote that shifted value straight back on save.
+    const toInput = (value: Date | string) => {
+      const { date, time } = mxDateAndTime(new Date(value).toISOString());
+      return `${date}T${time}`;
+    };
+    const reportedDateTime = toInput(incident.reportedAt);
     const resolvedDateTime = incident.resolvedAt
-      ? new Date(incident.resolvedAt).toISOString().slice(0, 16)
+      ? toInput(incident.resolvedAt)
       : "";
     setEditForm({
       title: incident.title,
@@ -415,10 +437,35 @@ export function TrackingTable({
     }
   };
 
+  /**
+   * FSR picker options for one incident.
+   *
+   * Every FSR is offered. The ones assigned to that incident's Cliente sort
+   * first and carry a badge, which is all the Cliente link means here — it
+   * used to filter the list, so an FSR from another center simply could not be
+   * dispatched even when they were the one who could go.
+   */
+  const buildFsrOptions = (clienteId?: string): MultiSelectOption[] => {
+    const covers = (fsr: TrackingFsr) =>
+      Boolean(clienteId && fsr.clienteIds?.includes(clienteId));
+
+    return [...fsrs]
+      .sort((a, b) => {
+        const diff = Number(covers(b)) - Number(covers(a));
+        return diff !== 0 ? diff : a.name.localeCompare(b.name);
+      })
+      .map((fsr) => ({
+        value: fsr.id,
+        label: fsr.name,
+        sublabel: fsr.email,
+        badge: covers(fsr) ? "Cliente asignado" : undefined,
+      }));
+  };
+
   const handleStartCreateAssignment = (incidentId: number) => {
     setCreatingAssignment(incidentId);
     setNewAssignmentForm({
-      assignedToId: "",
+      assigneeIds: [],
       notes: "",
     });
   };
@@ -436,9 +483,7 @@ export function TrackingTable({
     try {
       const result = await createAssignment({
         incidentId,
-        assigneeIds: newAssignmentForm.assignedToId
-          ? [newAssignmentForm.assignedToId]
-          : [],
+        assigneeIds: newAssignmentForm.assigneeIds ?? [],
         notes: newAssignmentForm.notes || undefined,
         statusId: null,
         startedAt: null,
@@ -516,20 +561,18 @@ export function TrackingTable({
     }
   };
 
-  const formatDate = (dateValue: Date | string) => {
-    const date =
-      typeof dateValue === "string" ? new Date(dateValue) : dateValue;
-    return date.toLocaleDateString("es-MX");
-  };
+  // Both pin the timezone explicitly. Without it these rendered in whatever
+  // zone the admin's browser happened to be in, so the same incident could read
+  // differently to two people looking at it together.
+  const formatDate = (dateValue: Date | string) =>
+    new Date(dateValue).toLocaleDateString("es-MX", { timeZone: APP_TZ });
 
-  const formatTime = (dateValue: Date | string) => {
-    const date =
-      typeof dateValue === "string" ? new Date(dateValue) : dateValue;
-    return date.toLocaleTimeString("es-MX", {
+  const formatTime = (dateValue: Date | string) =>
+    new Date(dateValue).toLocaleTimeString("es-MX", {
       hour: "2-digit",
       minute: "2-digit",
+      timeZone: APP_TZ,
     });
-  };
 
   const getAssignedFSRs = (
     incident: TrackingIncident,
@@ -642,9 +685,7 @@ export function TrackingTable({
           ) : (
             sortedIncidents.map((incident) => {
               const assignedFSRs = getAssignedFSRs(incident);
-              const availableFSRs = incident.cliente?.id
-                ? fsrsByCliente[incident.cliente.id] || []
-                : [];
+              const fsrOptions = buildFsrOptions(incident.cliente?.id);
               const isExpanded = expandedRows.has(incident.id);
 
               // Get status color for row background
@@ -995,11 +1036,7 @@ export function TrackingTable({
                                       FSRs habilitados
                                     </Label>
                                     <MultiSelect
-                                      options={availableFSRs.map((f) => ({
-                                        value: f.id,
-                                        label: f.name,
-                                        sublabel: f.email,
-                                      }))}
+                                      options={fsrOptions}
                                       value={editForm.assigneeIds ?? []}
                                       onValueChange={(ids) =>
                                         setEditForm({
@@ -1007,18 +1044,9 @@ export function TrackingTable({
                                           assigneeIds: ids,
                                         })
                                       }
-                                      placeholder={
-                                        incident.cliente?.id
-                                          ? "Seleccionar FSRs habilitados"
-                                          : "Sin Cliente — no se pueden listar FSRs"
-                                      }
+                                      placeholder="Seleccionar FSRs"
                                       searchPlaceholder="Buscar FSR..."
-                                      emptyMessage={
-                                        availableFSRs.length === 0
-                                          ? "No hay FSRs disponibles para este Cliente"
-                                          : "Sin resultados"
-                                      }
-                                      disabled={!incident.cliente?.id}
+                                      emptyMessage="Sin resultados"
                                     />
                                     <p className="text-xs text-muted-foreground">
                                       Solo estos FSRs podrán tomar la asignación
@@ -1104,51 +1132,25 @@ export function TrackingTable({
                                         <Label
                                           htmlFor={`edit-mode-fsr-${incident.id}`}
                                         >
-                                          FSR Asignado *
+                                          FSRs Asignados
                                         </Label>
-                                        <Select
-                                          value={newAssignmentForm.assignedToId}
-                                          onValueChange={(value) =>
+                                        <MultiSelect
+                                          options={fsrOptions}
+                                          value={
+                                            newAssignmentForm.assigneeIds ?? []
+                                          }
+                                          onValueChange={(ids) =>
                                             setNewAssignmentForm({
                                               ...newAssignmentForm,
-                                              assignedToId: value,
+                                              assigneeIds: ids,
                                             })
                                           }
-                                        >
-                                          <SelectTrigger
-                                            id={`edit-mode-fsr-${incident.id}`}
-                                          >
-                                            <SelectValue placeholder="Seleccionar FSR" />
-                                          </SelectTrigger>
-                                          <SelectContent>
-                                            {(
-                                              fsrsByCliente[
-                                                incident.cliente?.id || ""
-                                              ] || []
-                                            ).map(
-                                              (fsr: {
-                                                id: string;
-                                                name: string;
-                                                email?: string;
-                                              }) => (
-                                                <SelectItem
-                                                  key={fsr.id}
-                                                  value={fsr.id}
-                                                >
-                                                  {fsr.name} - {fsr.email}
-                                                </SelectItem>
-                                              ),
-                                            )}
-                                          </SelectContent>
-                                        </Select>
-                                        {(
-                                          fsrsByCliente[
-                                            incident.cliente?.id || ""
-                                          ] || []
-                                        ).length === 0 && (
+                                          placeholder="Seleccionar FSRs"
+                                          className="w-full"
+                                        />
+                                        {fsrOptions.length === 0 && (
                                           <p className="text-xs text-muted-foreground">
-                                            No hay FSRs disponibles para este
-                                            Cliente
+                                            No hay FSRs registrados
                                           </p>
                                         )}
                                       </div>
@@ -1295,51 +1297,26 @@ export function TrackingTable({
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                   <div className="space-y-2">
                                     <Label htmlFor={`new-fsr-${incident.id}`}>
-                                      FSR Asignado *
+                                      FSRs Asignados
                                     </Label>
-                                    <Select
-                                      value={newAssignmentForm.assignedToId}
-                                      onValueChange={(value) =>
+                                    <MultiSelect
+                                      id={`new-fsr-${incident.id}`}
+                                      options={fsrOptions}
+                                      value={
+                                        newAssignmentForm.assigneeIds ?? []
+                                      }
+                                      onValueChange={(ids) =>
                                         setNewAssignmentForm({
                                           ...newAssignmentForm,
-                                          assignedToId: value,
+                                          assigneeIds: ids,
                                         })
                                       }
-                                    >
-                                      <SelectTrigger
-                                        id={`new-fsr-${incident.id}`}
-                                      >
-                                        <SelectValue placeholder="Seleccionar FSR" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        {(
-                                          fsrsByCliente[
-                                            incident.cliente?.id || ""
-                                          ] || []
-                                        ).map(
-                                          (fsr: {
-                                            id: string;
-                                            name: string;
-                                            email?: string;
-                                          }) => (
-                                            <SelectItem
-                                              key={fsr.id}
-                                              value={fsr.id}
-                                            >
-                                              {fsr.name} - {fsr.email}
-                                            </SelectItem>
-                                          ),
-                                        )}
-                                      </SelectContent>
-                                    </Select>
-                                    {(
-                                      fsrsByCliente[
-                                        incident.cliente?.id || ""
-                                      ] || []
-                                    ).length === 0 && (
+                                      placeholder="Seleccionar FSRs"
+                                      searchPlaceholder="Buscar FSR..."
+                                    />
+                                    {fsrOptions.length === 0 && (
                                       <p className="text-xs text-muted-foreground">
-                                        No hay FSRs disponibles para este
-                                        Cliente
+                                        No hay FSRs registrados
                                       </p>
                                     )}
                                   </div>
@@ -1518,37 +1495,24 @@ export function TrackingTable({
                                                     <Label
                                                       htmlFor={`wo-fsr-${assignment.id}`}
                                                     >
-                                                      FSR Asignado
+                                                      FSRs Asignados
                                                     </Label>
-                                                    <Select
+                                                    <MultiSelect
+                                                      id={`wo-fsr-${assignment.id}`}
+                                                      options={fsrOptions}
                                                       value={
-                                                        assignmentEditForm.assignedToId
+                                                        assignmentEditForm.assigneeIds ??
+                                                        []
                                                       }
-                                                      onValueChange={(value) =>
+                                                      onValueChange={(ids) =>
                                                         setAssignmentEditForm({
                                                           ...assignmentEditForm,
-                                                          assignedToId: value,
+                                                          assigneeIds: ids,
                                                         })
                                                       }
-                                                    >
-                                                      <SelectTrigger
-                                                        id={`wo-fsr-${assignment.id}`}
-                                                      >
-                                                        <SelectValue placeholder="Seleccionar FSR" />
-                                                      </SelectTrigger>
-                                                      <SelectContent>
-                                                        {availableFSRs.map(
-                                                          (fsr) => (
-                                                            <SelectItem
-                                                              key={fsr.id}
-                                                              value={fsr.id}
-                                                            >
-                                                              {fsr.name}
-                                                            </SelectItem>
-                                                          ),
-                                                        )}
-                                                      </SelectContent>
-                                                    </Select>
+                                                      placeholder="Seleccionar FSRs"
+                                                      searchPlaceholder="Buscar FSR..."
+                                                    />
                                                   </div>
                                                   <div className="space-y-2">
                                                     <Label

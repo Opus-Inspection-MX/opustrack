@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
+import { formatMX } from "@/lib/utils/datetime";
 
 interface Cliente {
   id: string;
@@ -307,8 +308,8 @@ export function CreateProgramDialog({
           <p className="text-muted-foreground">
             Esta programación se creará para el rango de fechas:{" "}
             <strong>
-              {dateRange.start.toLocaleDateString("es-MX")} -{" "}
-              {dateRange.end.toLocaleDateString("es-MX")}
+              {formatMX(dateRange.start, { dateStyle: "short" })} -{" "}
+              {formatMX(dateRange.end, { dateStyle: "short" })}
             </strong>
           </p>
         </div>

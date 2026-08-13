@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { VacationPeriodSummary } from "@/lib/actions/vacations";
+import { APP_TZ } from "@/lib/utils/datetime";
 
 const MONTH_NAMES = [
   "Enero",
@@ -51,7 +52,7 @@ function dayKey(year: number, month: number, day: number): string {
 function instantKey(value: Date | string): string {
   const date = new Date(value);
   return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/Mexico_City",
+    timeZone: APP_TZ,
     year: "numeric",
     month: "2-digit",
     day: "2-digit",

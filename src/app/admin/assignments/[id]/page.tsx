@@ -17,6 +17,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getAssignmentActivities } from "@/lib/actions/assignment-activities";
 import { getAssignmentById } from "@/lib/actions/assignments";
 import { getWorkParts } from "@/lib/actions/work-parts";
+import { formatMX } from "@/lib/utils/datetime";
 
 interface Attachment {
   id: string;
@@ -185,17 +186,13 @@ export default async function AssignmentDetailPage({
 
             <div>
               <p className="text-sm text-muted-foreground">Fecha de Creacion</p>
-              <p className="font-medium">
-                {new Date(assignment.createdAt).toLocaleString("es-MX")}
-              </p>
+              <p className="font-medium">{formatMX(assignment.createdAt)}</p>
             </div>
 
             {assignment.assignedAt && (
               <div>
                 <p className="text-sm text-muted-foreground">Asignado</p>
-                <p className="font-medium">
-                  {new Date(assignment.assignedAt).toLocaleString("es-MX")}
-                </p>
+                <p className="font-medium">{formatMX(assignment.assignedAt)}</p>
               </div>
             )}
 
@@ -209,9 +206,7 @@ export default async function AssignmentDetailPage({
                     <CheckCircle className="h-3 w-3 mr-1" />
                     Desbloqueado
                   </Badge>
-                  <p className="text-sm mt-1">
-                    {new Date(assignment.seenAt).toLocaleString("es-MX")}
-                  </p>
+                  <p className="text-sm mt-1">{formatMX(assignment.seenAt)}</p>
                   {assignment.assignedAt && (
                     <p className="text-xs text-muted-foreground">
                       Tiempo hasta desbloqueo:{" "}
@@ -236,18 +231,14 @@ export default async function AssignmentDetailPage({
             {assignment.startedAt && (
               <div>
                 <p className="text-sm text-muted-foreground">Iniciado</p>
-                <p className="font-medium">
-                  {new Date(assignment.startedAt).toLocaleString("es-MX")}
-                </p>
+                <p className="font-medium">{formatMX(assignment.startedAt)}</p>
               </div>
             )}
 
             {assignment.finishedAt && (
               <div>
                 <p className="text-sm text-muted-foreground">Finalizado</p>
-                <p className="font-medium">
-                  {new Date(assignment.finishedAt).toLocaleString("es-MX")}
-                </p>
+                <p className="font-medium">{formatMX(assignment.finishedAt)}</p>
               </div>
             )}
           </CardContent>
@@ -274,7 +265,7 @@ export default async function AssignmentDetailPage({
                     <div className="flex-1">
                       <p className="font-medium">{activity.description}</p>
                       <p className="text-sm text-muted-foreground mt-1">
-                        {new Date(activity.performedAt).toLocaleString("es-MX")}
+                        {formatMX(activity.performedAt)}
                       </p>
                       {activity.workParts.length > 0 && (
                         <div className="mt-2 flex flex-wrap gap-2">

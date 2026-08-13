@@ -18,6 +18,7 @@ import {
   createSchedule,
   getClientesForSchedules,
 } from "@/lib/actions/schedules";
+import { fromDatetimeLocalMX } from "@/lib/utils/datetime";
 
 interface ClienteCenter {
   id: string;
@@ -116,8 +117,8 @@ export default function NewSchedulePage() {
       await createSchedule({
         title: formData.title.trim(),
         description: formData.description?.trim() || undefined,
-        scheduledAt: new Date(formData.scheduledAt),
-        endDate: formData.endDate ? new Date(formData.endDate) : undefined,
+        scheduledAt: fromDatetimeLocalMX(formData.scheduledAt) ?? new Date(),
+        endDate: fromDatetimeLocalMX(formData.endDate) ?? undefined,
         clienteIds: formData.clienteIds,
       });
 

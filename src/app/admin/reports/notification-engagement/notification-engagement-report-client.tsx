@@ -22,10 +22,9 @@ import type {
   NotificationEngagementSummary,
 } from "@/lib/actions/reports";
 import { getNotificationEngagementReport } from "@/lib/actions/reports";
+import { APP_TZ } from "@/lib/utils/datetime";
 
 moment.locale("es");
-
-const TZ = "America/Mexico_City";
 
 interface Props {
   initialRows: NotificationEngagementRow[];
@@ -41,9 +40,11 @@ export function NotificationEngagementReportClient({
   const [summary, setSummary] = useState(initialSummary);
 
   const [startDate, setStartDate] = useState(
-    moment().tz(TZ).subtract(30, "days").format("YYYY-MM-DD"),
+    moment().tz(APP_TZ).subtract(30, "days").format("YYYY-MM-DD"),
   );
-  const [endDate, setEndDate] = useState(moment().tz(TZ).format("YYYY-MM-DD"));
+  const [endDate, setEndDate] = useState(
+    moment().tz(APP_TZ).format("YYYY-MM-DD"),
+  );
 
   const handleDateChange = (s: string, e: string) => {
     setStartDate(s);
@@ -181,7 +182,9 @@ export function NotificationEngagementReportClient({
                   </TableCell>
                   <TableCell>
                     {r.lastReadAt ? (
-                      <span title={moment(r.lastReadAt).tz(TZ).format("LLL")}>
+                      <span
+                        title={moment(r.lastReadAt).tz(APP_TZ).format("LLL")}
+                      >
                         {moment(r.lastReadAt).fromNow()}
                       </span>
                     ) : (

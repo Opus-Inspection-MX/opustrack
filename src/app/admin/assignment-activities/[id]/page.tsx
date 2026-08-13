@@ -12,6 +12,7 @@ import {
   getAssignmentActivityById,
 } from "@/lib/actions/assignment-activities";
 import { isFailure } from "@/lib/actions/result";
+import { formatMX } from "@/lib/utils/datetime";
 
 interface Part {
   id: string;
@@ -182,9 +183,7 @@ export default function AssignmentActivityDetailPage({
                 <p className="text-sm font-medium text-muted-foreground">
                   Realizada El
                 </p>
-                <p className="text-sm">
-                  {new Date(activity.performedAt).toLocaleString("es-MX")}
-                </p>
+                <p className="text-sm">{formatMX(activity.performedAt)}</p>
               </div>
             </div>
 

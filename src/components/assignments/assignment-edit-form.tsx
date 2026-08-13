@@ -23,6 +23,13 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { updateAssignment } from "@/lib/actions/assignments";
 import { isFailure } from "@/lib/actions/result";
+import {
+  formatMX,
+  fromDateInputMX,
+  fromDatetimeLocalMX,
+  toDateInputMX,
+  toDatetimeLocalMX,
+} from "@/lib/utils/datetime";
 
 type AssignmentEditFormProps = {
   assignment: {
@@ -63,10 +70,10 @@ export function AssignmentEditForm({
     notes: assignment.notes || "",
     odtFolio: assignment.odtFolio || "",
     finishedAt: assignment.finishedAt
-      ? new Date(assignment.finishedAt).toISOString().slice(0, 16)
+      ? toDatetimeLocalMX(assignment.finishedAt)
       : "",
     scheduledDate: assignment.scheduledDate
-      ? new Date(assignment.scheduledDate).toISOString().slice(0, 10)
+      ? toDateInputMX(assignment.scheduledDate)
       : "",
   });
 
@@ -91,10 +98,10 @@ export function AssignmentEditForm({
         notes: formData.notes,
         odtFolio: formData.odtFolio,
         finishedAt: formData.finishedAt
-          ? new Date(formData.finishedAt)
+          ? fromDatetimeLocalMX(formData.finishedAt)
           : undefined,
         scheduledDate: formData.scheduledDate
-          ? new Date(`${formData.scheduledDate}T00:00:00`)
+          ? fromDateInputMX(formData.scheduledDate)
           : null,
       });
 
@@ -122,10 +129,10 @@ export function AssignmentEditForm({
       notes: assignment.notes || "",
       odtFolio: assignment.odtFolio || "",
       finishedAt: assignment.finishedAt
-        ? new Date(assignment.finishedAt).toISOString().slice(0, 16)
+        ? toDatetimeLocalMX(assignment.finishedAt)
         : "",
       scheduledDate: assignment.scheduledDate
-        ? new Date(assignment.scheduledDate).toISOString().slice(0, 10)
+        ? toDateInputMX(assignment.scheduledDate)
         : "",
     });
     setError(null);
@@ -380,7 +387,7 @@ export function AssignmentEditForm({
               </p>
               <p className="font-medium">
                 {assignment.finishedAt
-                  ? new Date(assignment.finishedAt).toLocaleString("es-MX")
+                  ? formatMX(assignment.finishedAt)
                   : "Aún no finalizada"}
               </p>
             </div>
@@ -388,9 +395,7 @@ export function AssignmentEditForm({
               <p className="text-sm text-muted-foreground">Fecha programada</p>
               <p className="font-medium">
                 {assignment.scheduledDate
-                  ? new Date(assignment.scheduledDate).toLocaleDateString(
-                      "es-MX",
-                    )
+                  ? formatMX(assignment.scheduledDate, { dateStyle: "short" })
                   : "No especificada"}
               </p>
             </div>

@@ -88,7 +88,7 @@ export async function getIncidents(params?: GetIncidentsParams) {
       include: {
         type: true,
         status: true,
-        cliente: true,
+        cliente: { include: { state: true } },
         reportedBy: {
           select: {
             id: true,
@@ -140,7 +140,7 @@ export async function getMyIncidents() {
     include: {
       type: true,
       status: true,
-      cliente: true,
+      cliente: { include: { state: true } },
       reportedBy: {
         select: {
           id: true,
@@ -170,7 +170,7 @@ export async function getIncidentById(id: number) {
     include: {
       type: true,
       status: true,
-      cliente: true,
+      cliente: { include: { state: true } },
       reportedBy: {
         select: {
           id: true,
@@ -264,13 +264,14 @@ export async function createIncident(data: unknown) {
         clienteId: validated.clienteId || null,
         scheduleId: validated.scheduleId || null,
         reportedById: validated.reportedById || user.id,
+        reporterName: validated.reporterName?.trim() || null,
         startedAt: validated.startedAt ?? null,
         resolvedAt: null,
       },
       include: {
         type: true,
         status: true,
-        cliente: true,
+        cliente: { include: { state: true } },
         reportedBy: true,
       },
     });
@@ -341,13 +342,15 @@ export async function createIncidentAsClient(data: unknown) {
         statusId: initialStatus.id,
         clienteId: userClienteId,
         reportedById: user.id,
+        // Who actually raised it: the account belongs to the whole center.
+        reporterName: validated.reporterName?.trim() || null,
         lineId: validated.lineId || null,
         equipmentId: validated.equipmentId || null,
       },
       include: {
         type: true,
         status: true,
-        cliente: true,
+        cliente: { include: { state: true } },
         reportedBy: {
           select: {
             id: true,
@@ -388,7 +391,7 @@ export async function getClientIncidents() {
     include: {
       type: true,
       status: true,
-      cliente: true,
+      cliente: { include: { state: true } },
       reportedBy: {
         select: {
           id: true,
@@ -495,11 +498,17 @@ export async function updateIncident(id: number, data: IncidentFormData) {
         clienteId: data.clienteId || null,
         scheduleId: data.scheduleId || null,
         startedAt: data.startedAt ?? null,
+        // `undefined` leaves it alone, so an update that omits the field does
+        // not wipe a name someone already typed.
+        reporterName:
+          data.reporterName === undefined
+            ? undefined
+            : data.reporterName?.trim() || null,
       },
       include: {
         type: true,
         status: true,
-        cliente: true,
+        cliente: { include: { state: true } },
         reportedBy: true,
       },
     });

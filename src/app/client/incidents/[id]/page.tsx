@@ -6,6 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { getIncidentById } from "@/lib/actions/incidents";
 import { requireRouteAccess } from "@/lib/auth/auth";
+import { formatIncidentDateTime, formatMX } from "@/lib/utils/datetime";
+import { formatReporter } from "@/lib/utils/incident-display";
 
 function getStatusBadge(
   status: { name: string; color?: string | null } | null,
@@ -101,7 +103,10 @@ export default async function ClientIncidentDetailPage({
               <div>
                 <p className="text-sm text-muted-foreground">Reportado por</p>
                 <p className="font-medium">
-                  {incident.reportedBy?.name || "Desconocido"}
+                  {formatReporter(
+                    incident.reportedBy?.name,
+                    incident.reporterName,
+                  )}
                 </p>
               </div>
             </div>
@@ -113,7 +118,10 @@ export default async function ClientIncidentDetailPage({
                   Fecha de reporte
                 </p>
                 <p className="font-medium">
-                  {new Date(incident.reportedAt).toLocaleString()}
+                  {formatIncidentDateTime(
+                    incident.reportedAt,
+                    incident.cliente?.state?.code,
+                  )}
                 </p>
               </div>
             </div>
@@ -126,7 +134,10 @@ export default async function ClientIncidentDetailPage({
                     Fecha de inicio
                   </p>
                   <p className="font-medium">
-                    {new Date(incident.startedAt).toLocaleString()}
+                    {formatIncidentDateTime(
+                      incident.startedAt,
+                      incident.cliente?.state?.code,
+                    )}
                   </p>
                 </div>
               </div>
@@ -138,7 +149,10 @@ export default async function ClientIncidentDetailPage({
                 <div>
                   <p className="text-sm text-muted-foreground">Resuelto el</p>
                   <p className="font-medium">
-                    {new Date(incident.resolvedAt).toLocaleString()}
+                    {formatIncidentDateTime(
+                      incident.resolvedAt,
+                      incident.cliente?.state?.code,
+                    )}
                   </p>
                 </div>
               </div>
@@ -152,7 +166,7 @@ export default async function ClientIncidentDetailPage({
                 <p className="text-sm text-muted-foreground mb-2">Agenda</p>
                 <p className="font-medium">{incident.schedule.title}</p>
                 <p className="text-sm text-muted-foreground">
-                  {new Date(incident.schedule.scheduledAt).toLocaleString()}
+                  {formatMX(incident.schedule.scheduledAt)}
                 </p>
               </div>
             </>

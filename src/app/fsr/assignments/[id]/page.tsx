@@ -42,6 +42,7 @@ import {
 } from "@/lib/actions/assignments";
 import { isFailure } from "@/lib/actions/result";
 import { getWorkParts } from "@/lib/actions/work-parts";
+import { formatMX } from "@/lib/utils/datetime";
 
 interface AssignmentStatus {
   id: number;
@@ -607,26 +608,26 @@ export default function FSRAssignmentDetailPage({
             {assignment.createdAt && (
               <div>
                 <span className="font-medium">Creada:</span>{" "}
-                {new Date(assignment.createdAt).toLocaleString()}
+                {formatMX(assignment.createdAt)}
               </div>
             )}
             {assignment.seenAt && (
               <div>
                 <span className="font-medium">Vista:</span>{" "}
-                {new Date(assignment.seenAt).toLocaleString()}
+                {formatMX(assignment.seenAt)}
                 {assignment.seenBy?.name && ` por ${assignment.seenBy.name}`}
               </div>
             )}
             {assignment.startedAt && (
               <div>
                 <span className="font-medium">Iniciada:</span>{" "}
-                {new Date(assignment.startedAt).toLocaleString()}
+                {formatMX(assignment.startedAt)}
               </div>
             )}
             {assignment.finishedAt && (
               <div>
                 <span className="font-medium">Cerrada:</span>{" "}
-                {new Date(assignment.finishedAt).toLocaleString()}
+                {formatMX(assignment.finishedAt)}
               </div>
             )}
           </div>

@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
-import { localWallTimeToUTC } from "@/lib/utils/datetime";
+import { formatMX, localWallTimeToUTC } from "@/lib/utils/datetime";
 
 interface IncidentType {
   id: number;
@@ -124,13 +124,10 @@ export function CreateIncidentDialog({
           incidentDateTime > scheduleEnd
         ) {
           setDateRangeError(
-            `La fecha del incidente debe estar entre ${scheduleStart.toLocaleString(
-              "es-MX",
-              {
-                dateStyle: "short",
-                timeStyle: "short",
-              },
-            )} y ${scheduleEnd.toLocaleString("es-MX", {
+            `La fecha del incidente debe estar entre ${formatMX(scheduleStart, {
+              dateStyle: "short",
+              timeStyle: "short",
+            })} y ${formatMX(scheduleEnd, {
               dateStyle: "short",
               timeStyle: "short",
             })}`,
@@ -141,8 +138,8 @@ export function CreateIncidentDialog({
         // If no end date, incident must be on or after schedule start
         if (incidentDateTime < scheduleStart) {
           setDateRangeError(
-            `La fecha del incidente debe ser igual o posterior a ${scheduleStart.toLocaleString(
-              "es-MX",
+            `La fecha del incidente debe ser igual o posterior a ${formatMX(
+              scheduleStart,
               {
                 dateStyle: "short",
                 timeStyle: "short",
@@ -284,24 +281,18 @@ export function CreateIncidentDialog({
                 <div className="text-xs text-blue-600 dark:text-blue-400 mt-2 space-y-1">
                   <div>
                     <span className="font-medium">Inicio:</span>{" "}
-                    {new Date(selectedSchedule.scheduledAt).toLocaleString(
-                      "es-MX",
-                      {
-                        dateStyle: "short",
-                        timeStyle: "short",
-                      },
-                    )}
+                    {formatMX(selectedSchedule.scheduledAt, {
+                      dateStyle: "short",
+                      timeStyle: "short",
+                    })}
                   </div>
                   {selectedSchedule.endDate && (
                     <div>
                       <span className="font-medium">Fin:</span>{" "}
-                      {new Date(selectedSchedule.endDate).toLocaleString(
-                        "es-MX",
-                        {
-                          dateStyle: "short",
-                          timeStyle: "short",
-                        },
-                      )}
+                      {formatMX(selectedSchedule.endDate, {
+                        dateStyle: "short",
+                        timeStyle: "short",
+                      })}
                     </div>
                   )}
                 </div>

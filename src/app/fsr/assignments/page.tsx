@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getMyAssignments } from "@/lib/actions/assignments";
 import { requireRouteAccess } from "@/lib/auth/auth";
+import { formatMX } from "@/lib/utils/datetime";
 
 type AssignmentStatusRef = {
   name: string;
@@ -196,22 +197,20 @@ export default async function FSRAssignmentsPage() {
                         <div className="flex items-center gap-1">
                           <Calendar className="h-3 w-3" />
                           Creada:{" "}
-                          {new Date(wo.createdAt).toLocaleDateString("es-MX")}
+                          {formatMX(wo.createdAt, { dateStyle: "short" })}
                         </div>
                         {wo.startedAt && (
                           <div className="flex items-center gap-1">
                             <Clock className="h-3 w-3" />
                             Iniciada:{" "}
-                            {new Date(wo.startedAt).toLocaleDateString("es-MX")}
+                            {formatMX(wo.startedAt, { dateStyle: "short" })}
                           </div>
                         )}
                         {wo.finishedAt && (
                           <div className="flex items-center gap-1">
                             <CheckCircle className="h-3 w-3" />
                             Completada:{" "}
-                            {new Date(wo.finishedAt).toLocaleDateString(
-                              "es-MX",
-                            )}
+                            {formatMX(wo.finishedAt, { dateStyle: "short" })}
                           </div>
                         )}
                       </div>

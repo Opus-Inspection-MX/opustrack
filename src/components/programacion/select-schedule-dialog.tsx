@@ -14,6 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { formatMX } from "@/lib/utils/datetime";
 
 interface Schedule {
   id: string;
@@ -177,13 +178,10 @@ export function SelectScheduleDialog({
                               Inicio:
                             </div>
                             <div className="text-sm">
-                              {new Date(schedule.scheduledAt).toLocaleString(
-                                "es-MX",
-                                {
-                                  dateStyle: "short",
-                                  timeStyle: "short",
-                                },
-                              )}
+                              {formatMX(schedule.scheduledAt, {
+                                dateStyle: "short",
+                                timeStyle: "short",
+                              })}
                             </div>
                           </div>
                         </div>
@@ -194,13 +192,10 @@ export function SelectScheduleDialog({
                                 Fin:
                               </div>
                               <div className="text-sm">
-                                {new Date(schedule.endDate).toLocaleString(
-                                  "es-MX",
-                                  {
-                                    dateStyle: "short",
-                                    timeStyle: "short",
-                                  },
-                                )}
+                                {formatMX(schedule.endDate, {
+                                  dateStyle: "short",
+                                  timeStyle: "short",
+                                })}
                               </div>
                             </div>
                           </div>

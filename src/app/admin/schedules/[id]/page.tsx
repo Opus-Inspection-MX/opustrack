@@ -26,6 +26,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { getScheduleById } from "@/lib/actions/schedules";
+import { formatMX } from "@/lib/utils/datetime";
 
 interface ScheduleIncident {
   id: number;
@@ -211,7 +212,7 @@ export default function ViewSchedulePage({
                 Fecha y Hora Programada
               </p>
               <p className="text-lg font-semibold">
-                {new Date(schedule.scheduledAt).toLocaleString("es-MX")}
+                {formatMX(schedule.scheduledAt)}
               </p>
             </div>
 
@@ -221,7 +222,7 @@ export default function ViewSchedulePage({
               </p>
               <p className="text-sm">
                 {schedule.endDate
-                  ? new Date(schedule.endDate).toLocaleString("es-MX")
+                  ? formatMX(schedule.endDate)
                   : "Sin fecha de fin"}
               </p>
             </div>
@@ -272,17 +273,13 @@ export default function ViewSchedulePage({
               <p className="text-sm font-medium text-muted-foreground">
                 Creado El
               </p>
-              <p className="text-sm">
-                {new Date(schedule.createdAt).toLocaleString("es-MX")}
-              </p>
+              <p className="text-sm">{formatMX(schedule.createdAt)}</p>
             </div>
             <div>
               <p className="text-sm font-medium text-muted-foreground">
                 Última Actualización
               </p>
-              <p className="text-sm">
-                {new Date(schedule.updatedAt).toLocaleString("es-MX")}
-              </p>
+              <p className="text-sm">{formatMX(schedule.updatedAt)}</p>
             </div>
           </CardContent>
         </Card>
@@ -363,9 +360,7 @@ export default function ViewSchedulePage({
                         )}
                       </TableCell>
                       <TableCell className="hidden sm:table-cell text-sm text-muted-foreground">
-                        {new Date(incident.reportedAt).toLocaleDateString(
-                          "es-MX",
-                        )}
+                        {formatMX(incident.reportedAt, { dateStyle: "short" })}
                       </TableCell>
                       <TableCell>
                         <Link href={`/admin/incidents/${incident.id}`}>

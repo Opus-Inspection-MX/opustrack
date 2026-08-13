@@ -18,6 +18,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { formatMX } from "@/lib/utils/datetime";
 
 interface State {
   id: number;
@@ -101,7 +102,7 @@ export function StateTable({
                   </Badge>
                 </TableCell>
                 <TableCell className="text-sm text-muted-foreground">
-                  {new Date(state.createdAt).toLocaleDateString()}
+                  {formatMX(state.createdAt, { dateStyle: "short" })}
                 </TableCell>
                 <TableCell>
                   <DropdownMenu>

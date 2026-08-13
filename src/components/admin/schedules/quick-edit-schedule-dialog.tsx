@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { isFailure } from "@/lib/actions/result";
 import { getScheduleById, quickUpdateSchedule } from "@/lib/actions/schedules";
+import { fromDatetimeLocalMX, toDatetimeLocalMX } from "@/lib/utils/datetime";
 
 interface ClienteOption {
   id: string;
@@ -29,14 +30,6 @@ interface QuickEditScheduleDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSaved?: () => void;
-}
-
-function toDatetimeLocal(d: Date | string | null | undefined): string {
-  if (!d) return "";
-  const date = typeof d === "string" ? new Date(d) : d;
-  if (Number.isNaN(date.getTime())) return "";
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
 export function QuickEditScheduleDialog({
@@ -66,8 +59,8 @@ export function QuickEditScheduleDialog({
         setClienteIds(
           sched.clientes.filter((sv) => sv.active).map((sv) => sv.clienteId),
         );
-        setScheduledAt(toDatetimeLocal(sched.scheduledAt));
-        setEndDate(toDatetimeLocal(sched.endDate));
+        setScheduledAt(toDatetimeLocalMX(sched.scheduledAt));
+        setEndDate(toDatetimeLocalMX(sched.endDate));
       })
       .catch((e) => {
         if (!cancelled) {
@@ -91,8 +84,12 @@ export function QuickEditScheduleDialog({
       setError("La fecha de inicio es requerida");
       return;
     }
-    const start = new Date(scheduledAt);
-    const end = endDate ? new Date(endDate) : null;
+    const start = fromDatetimeLocalMX(scheduledAt);
+    const end = fromDatetimeLocalMX(endDate);
+    if (!start) {
+      setError("La fecha de inicio no es válida");
+      return;
+    }
     if (end && end < start) {
       setError("La fecha de fin no puede ser anterior a la fecha de inicio");
       return;

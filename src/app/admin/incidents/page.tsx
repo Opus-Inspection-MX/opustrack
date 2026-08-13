@@ -15,6 +15,8 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { toast } from "@/hooks/use-toast";
 import { deleteIncident, getIncidents } from "@/lib/actions/incidents";
 import { isFailure } from "@/lib/actions/result";
+import { formatIncidentDateTime } from "@/lib/utils/datetime";
+import { formatReporter } from "@/lib/utils/incident-display";
 
 type IncidentRow = Awaited<ReturnType<typeof getIncidents>>["data"][number];
 
@@ -76,8 +78,10 @@ const columns: CatalogColumn<IncidentRow>[] = [
     headerClassName: "hidden xl:table-cell",
     className: "hidden xl:table-cell",
     cell: (row) =>
-      row.reportedBy ? (
-        <span className="text-sm">{row.reportedBy.name}</span>
+      row.reportedBy || row.reporterName ? (
+        <span className="text-sm">
+          {formatReporter(row.reportedBy?.name, row.reporterName)}
+        </span>
       ) : (
         <span className="text-muted-foreground text-sm">Desconocido</span>
       ),
@@ -89,10 +93,11 @@ const columns: CatalogColumn<IncidentRow>[] = [
     cell: (row) => <Badge variant="outline">{row._count.assignments}</Badge>,
   },
   {
-    header: "Fecha",
+    header: "Reportado",
     headerClassName: "hidden md:table-cell",
     className: "hidden md:table-cell text-sm text-muted-foreground",
-    cell: (row) => new Date(row.reportedAt).toLocaleDateString(),
+    cell: (row) =>
+      formatIncidentDateTime(row.reportedAt, row.cliente?.state?.code),
   },
 ];
 

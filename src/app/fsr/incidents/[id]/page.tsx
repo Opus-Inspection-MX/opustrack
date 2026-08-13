@@ -20,6 +20,8 @@ import {
 } from "@/components/ui/card";
 import { getIncidentById } from "@/lib/actions/incidents";
 import { requireRouteAccess } from "@/lib/auth/auth";
+import { formatIncidentDateTime } from "@/lib/utils/datetime";
+import { formatReporter } from "@/lib/utils/incident-display";
 
 export default async function FSRIncidentDetailPage({
   params,
@@ -106,23 +108,38 @@ export default async function FSRIncidentDetailPage({
                 <span>{incident.cliente.name}</span>
               </div>
             )}
-            {incident.reportedBy && (
+            {(incident.reportedBy || incident.reporterName) && (
               <div className="flex items-center gap-2">
                 <User className="h-4 w-4 text-muted-foreground" />
                 <span className="font-medium">Reportado por:</span>
-                <span>{incident.reportedBy.name}</span>
+                <span>
+                  {formatReporter(
+                    incident.reportedBy?.name,
+                    incident.reporterName,
+                  )}
+                </span>
               </div>
             )}
             <div className="flex items-center gap-2">
               <Calendar className="h-4 w-4 text-muted-foreground" />
               <span className="font-medium">Fecha:</span>
-              <span>{new Date(incident.reportedAt).toLocaleString()}</span>
+              <span>
+                {formatIncidentDateTime(
+                  incident.reportedAt,
+                  incident.cliente?.state?.code,
+                )}
+              </span>
             </div>
             {incident.resolvedAt && (
               <div className="flex items-center gap-2">
                 <Clock className="h-4 w-4 text-green-500" />
                 <span className="font-medium">Resuelto:</span>
-                <span>{new Date(incident.resolvedAt).toLocaleString()}</span>
+                <span>
+                  {formatIncidentDateTime(
+                    incident.resolvedAt,
+                    incident.cliente?.state?.code,
+                  )}
+                </span>
               </div>
             )}
           </div>

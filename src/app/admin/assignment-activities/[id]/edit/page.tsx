@@ -16,6 +16,7 @@ import {
   updateAssignmentActivity,
 } from "@/lib/actions/assignment-activities";
 import { isFailure } from "@/lib/actions/result";
+import { toDatetimeLocalMX } from "@/lib/utils/datetime";
 
 export default function EditAssignmentActivityPage({
   params,
@@ -40,9 +41,7 @@ export default function EditAssignmentActivityPage({
         if (activity) {
           setFormData({
             description: activity.description,
-            performedAt: new Date(activity.performedAt)
-              .toISOString()
-              .slice(0, 16),
+            performedAt: toDatetimeLocalMX(activity.performedAt),
           });
         }
       } catch (error) {

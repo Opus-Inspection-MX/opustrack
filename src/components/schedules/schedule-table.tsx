@@ -27,6 +27,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { formatMX } from "@/lib/utils/datetime";
 
 interface Schedule {
   id: string;
@@ -149,23 +150,17 @@ export function ScheduleTable({
                             Inicio:
                           </div>
                           <div className="text-sm">
-                            {new Date(schedule.scheduledAt).toLocaleDateString(
-                              "es-MX",
-                              {
-                                day: "2-digit",
-                                month: "short",
-                                year: "numeric",
-                              },
-                            )}
+                            {formatMX(schedule.scheduledAt, {
+                              day: "2-digit",
+                              month: "short",
+                              year: "numeric",
+                            })}
                           </div>
                           <div className="text-xs text-muted-foreground">
-                            {new Date(schedule.scheduledAt).toLocaleTimeString(
-                              "es-MX",
-                              {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              },
-                            )}
+                            {formatMX(schedule.scheduledAt, {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
                           </div>
                         </div>
                       </div>
@@ -176,23 +171,17 @@ export function ScheduleTable({
                               Fin:
                             </div>
                             <div className="text-sm">
-                              {new Date(schedule.endDate).toLocaleDateString(
-                                "es-MX",
-                                {
-                                  day: "2-digit",
-                                  month: "short",
-                                  year: "numeric",
-                                },
-                              )}
+                              {formatMX(schedule.endDate, {
+                                day: "2-digit",
+                                month: "short",
+                                year: "numeric",
+                              })}
                             </div>
                             <div className="text-xs text-muted-foreground">
-                              {new Date(schedule.endDate).toLocaleTimeString(
-                                "es-MX",
-                                {
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                },
-                              )}
+                              {formatMX(schedule.endDate, {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
                             </div>
                           </div>
                         </div>

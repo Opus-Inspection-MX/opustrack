@@ -12,6 +12,8 @@ import {
 } from "@/components/ui/card";
 import { getMyIncidents } from "@/lib/actions/incidents";
 import { requireRouteAccess } from "@/lib/auth/auth";
+import { formatIncidentDateTime } from "@/lib/utils/datetime";
+import { formatReporter } from "@/lib/utils/incident-display";
 
 export default async function FSRIncidentsPage() {
   await requireRouteAccess("/fsr");
@@ -102,16 +104,24 @@ export default async function FSRIncidentsPage() {
                             <span>{incident.cliente.name}</span>
                           </div>
                         )}
-                        {incident.reportedBy && (
+                        {(incident.reportedBy || incident.reporterName) && (
                           <div className="flex items-center gap-1">
                             <User className="h-3 w-3" />
-                            <span>{incident.reportedBy.name}</span>
+                            <span>
+                              {formatReporter(
+                                incident.reportedBy?.name,
+                                incident.reporterName,
+                              )}
+                            </span>
                           </div>
                         )}
                         <div className="flex items-center gap-1">
                           <Calendar className="h-3 w-3" />
                           <span>
-                            {new Date(incident.reportedAt).toLocaleDateString()}
+                            {formatIncidentDateTime(
+                              incident.reportedAt,
+                              incident.cliente?.state?.code,
+                            )}
                           </span>
                         </div>
                       </div>

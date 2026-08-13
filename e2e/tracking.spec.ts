@@ -2,7 +2,12 @@ import { expect, type Locator, type Page, test } from "@playwright/test";
 import { authFile } from "./fixtures/auth";
 import { db } from "./fixtures/db";
 import { createTrackingFixture, type TrackingFixture } from "./fixtures/flows";
-import { fillStable, pickFromSelect, selectByFieldId } from "./fixtures/forms";
+import {
+  fillStable,
+  pickFromCombobox,
+  pickFromSelect,
+  selectByFieldId,
+} from "./fixtures/forms";
 
 /**
  * Seguimiento de Atención (RF-513 … RF-517).
@@ -10,10 +15,10 @@ import { fillStable, pickFromSelect, selectByFieldId } from "./fixtures/forms";
  * The operational screen: filters, folio search, assignment creation and inline
  * editing of incidents and assignments, all on one table.
  *
- * The rule with teeth is RF-514/RF-025: only an FSR *enabled* on the incident
- * may be assigned to its orders — being an FSR of the same Cliente is not
- * enough, and the dropdown deliberately offers both so the rejection is
- * reachable from the UI.
+ * The rule with teeth is RF-514/RF-025: assigning an FSR from here *enables*
+ * them on the incident rather than demanding they already were. The picker
+ * offers every FSR — the Cliente link only decides who is badged and sorted
+ * first — and it is multi-select, so an assignment keeps all of its people.
  */
 
 test.use({ storageState: authFile("admin") });
@@ -72,6 +77,30 @@ async function expandIncident(page: Page) {
 async function editAssignment(details: Locator) {
   await details.getByRole("button", { name: "Edición Rápida" }).nth(1).click();
   await expect(details.getByText("Editar Asignación")).toBeVisible();
+}
+
+/**
+ * Toggle one FSR in the assignment's multi-select.
+ *
+ * Searched by email, not by name: the seed ships "FSR User", "FSR User 2" and
+ * "FSR User 3", so a name substring resolves to three options and trips
+ * Playwright's strict mode. The email is unique and the component searches on
+ * `label + sublabel`, so one option survives the filter.
+ */
+async function pickFsr(page: Page, email: string) {
+  await pickFromCombobox(page, {
+    trigger: page.locator(`#wo-fsr-${fixture.assignmentId}`),
+    searchPlaceholder: "Buscar FSR...",
+    search: email,
+    closeAfter: true,
+  });
+}
+
+/** Active rows linking one FSR to the fixture's assignment. */
+function countAssignee(userId: string) {
+  return db().assignmentAssignee.count({
+    where: { assignmentId: fixture.assignmentId, userId, active: true },
+  });
 }
 
 test("carga el seguimiento con el incidente y su asignación", async ({
@@ -180,7 +209,22 @@ test("edita el incidente en línea y persiste (RF-516)", async ({ page }) => {
   fixture.incidentTitle = newTitle;
 });
 
-test("rechaza un FSR no habilitado en la incidencia (RF-514)", async ({
+test("asigna un FSR a la asignación (RF-515)", async ({ page }) => {
+  await page.goto(PAGE);
+  await searchFolio(page, `INC-${fixture.incidentId}`);
+  const details = await expandIncident(page);
+
+  await editAssignment(details);
+
+  await pickFsr(page, fixture.enabledFsrEmail);
+  await details.getByRole("button", { name: "Guardar" }).first().click();
+
+  await expect
+    .poll(() => countAssignee(fixture.enabledFsrId), { timeout: 15_000 })
+    .toBe(1);
+});
+
+test("asignar a un FSR ajeno al Cliente lo habilita en la incidencia (RF-514)", async ({
   page,
 }) => {
   await page.goto(PAGE);
@@ -189,57 +233,48 @@ test("rechaza un FSR no habilitado en la incidencia (RF-514)", async ({
 
   await editAssignment(details);
 
-  // The outsider IS an FSR of this Cliente — that is why the dropdown offers
-  // them — but was never enabled on this incident.
-  await pickFromSelect(
-    page,
-    page.locator(`#wo-fsr-${fixture.assignmentId}`),
-    new RegExp(fixture.outsiderFsrName),
-  );
+  // The outsider covers a different Cliente and was never enabled on this
+  // incident. The picker still offers him — the Cliente link is a badge, not a
+  // filter — and saving grants the enablement instead of rejecting it. Before,
+  // the same person could be chosen when *creating* an assignment and was
+  // refused when *editing* one, which is the error operators reported.
+  await pickFsr(page, fixture.outsiderFsrEmail);
   await details.getByRole("button", { name: "Guardar" }).first().click();
 
-  // The rejection now arrives as a returned value and is shown in a toast; it
-  // used to be a thrown error, whose message a production build of Next strips.
-  await expect(
-    page.getByRole("alert").filter({ hasText: /Solo se pueden asignar FSRs/ }),
-  ).toBeVisible();
+  await expect
+    .poll(() => countAssignee(fixture.outsiderFsrId), { timeout: 15_000 })
+    .toBe(1);
 
-  // And nothing was written.
-  const assignees = await db().assignmentAssignee.count({
-    where: {
-      assignmentId: fixture.assignmentId,
-      userId: fixture.outsiderFsrId,
-      active: true,
-    },
-  });
-  expect(assignees).toBe(0);
+  // The enablement was created, not required.
+  expect(
+    await db().incidentAssignee.count({
+      where: {
+        incidentId: fixture.incidentId,
+        userId: fixture.outsiderFsrId,
+        active: true,
+      },
+    }),
+  ).toBe(1);
 });
 
-test("asigna un FSR habilitado a la asignación (RF-515)", async ({ page }) => {
+test("reabrir el editor y guardar sin tocar nada conserva a TODOS los FSR", async ({
+  page,
+}) => {
+  // The previous two tests left both FSRs on the assignment. The editor used to
+  // load only `assignees[0]` and send a one-element array, and the server
+  // deactivates whoever is missing from that array — so merely opening and
+  // saving silently dropped everyone but the first.
+  expect(await countAssignee(fixture.enabledFsrId)).toBe(1);
+  expect(await countAssignee(fixture.outsiderFsrId)).toBe(1);
+
   await page.goto(PAGE);
   await searchFolio(page, `INC-${fixture.incidentId}`);
   const details = await expandIncident(page);
 
   await editAssignment(details);
-
-  await pickFromSelect(
-    page,
-    page.locator(`#wo-fsr-${fixture.assignmentId}`),
-    new RegExp(fixture.enabledFsrName),
-  );
   await details.getByRole("button", { name: "Guardar" }).first().click();
+  await expect(details.getByText("Editar Asignación")).toBeHidden();
 
-  await expect
-    .poll(
-      async () =>
-        db().assignmentAssignee.count({
-          where: {
-            assignmentId: fixture.assignmentId,
-            userId: fixture.enabledFsrId,
-            active: true,
-          },
-        }),
-      { timeout: 15_000 },
-    )
-    .toBe(1);
+  expect(await countAssignee(fixture.enabledFsrId)).toBe(1);
+  expect(await countAssignee(fixture.outsiderFsrId)).toBe(1);
 });

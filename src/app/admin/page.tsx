@@ -3,6 +3,8 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getDashboardStats } from "@/lib/actions/dashboard";
+import { formatIncidentDateTime } from "@/lib/utils/datetime";
+import { formatReporter } from "@/lib/utils/incident-display";
 
 export default async function AdminDashboard() {
   const { stats, recentIncidents, pendingAssignments } =
@@ -98,8 +100,15 @@ export default async function AdminDashboard() {
                         <p className="text-sm font-medium">{incident.title}</p>
                         <p className="text-xs text-muted-foreground">
                           Reportado por{" "}
-                          {incident.reportedBy?.name || "Desconocido"} •{" "}
-                          {new Date(incident.reportedAt).toLocaleDateString()}
+                          {formatReporter(
+                            incident.reportedBy?.name,
+                            incident.reporterName,
+                          )}{" "}
+                          •{" "}
+                          {formatIncidentDateTime(
+                            incident.reportedAt,
+                            incident.cliente?.state?.code,
+                          )}
                         </p>
                       </div>
                       <Badge variant="secondary">

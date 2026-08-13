@@ -24,6 +24,8 @@ import {
 } from "@/components/ui/table";
 import { getIncidentById } from "@/lib/actions/incidents";
 import { requireRouteAccess } from "@/lib/auth/auth";
+import { formatIncidentDateTime, formatMX } from "@/lib/utils/datetime";
+import { formatReporter } from "@/lib/utils/incident-display";
 
 function getStatusColor(status: string) {
   switch (status) {
@@ -104,8 +106,7 @@ export default async function IncidentDetailPage({
             </p>
             {incident.cancelledAt && (
               <p className="text-xs text-muted-foreground mt-1">
-                Cancelada el{" "}
-                {new Date(incident.cancelledAt).toLocaleString("es-MX")}
+                Cancelada el {formatMX(incident.cancelledAt)}
               </p>
             )}
           </CardContent>
@@ -155,7 +156,10 @@ export default async function IncidentDetailPage({
               <div>
                 <p className="text-sm text-muted-foreground">Reportado por</p>
                 <p className="font-medium">
-                  {incident.reportedBy?.name || "Desconocido"}
+                  {formatReporter(
+                    incident.reportedBy?.name,
+                    incident.reporterName,
+                  )}
                 </p>
               </div>
             </div>
@@ -167,7 +171,10 @@ export default async function IncidentDetailPage({
                   Fecha de reporte
                 </p>
                 <p className="font-medium">
-                  {new Date(incident.reportedAt).toLocaleString()}
+                  {formatIncidentDateTime(
+                    incident.reportedAt,
+                    incident.cliente?.state?.code,
+                  )}
                 </p>
               </div>
             </div>
@@ -180,7 +187,10 @@ export default async function IncidentDetailPage({
                     Fecha de inicio
                   </p>
                   <p className="font-medium">
-                    {new Date(incident.startedAt).toLocaleString()}
+                    {formatIncidentDateTime(
+                      incident.startedAt,
+                      incident.cliente?.state?.code,
+                    )}
                   </p>
                 </div>
               </div>
@@ -194,7 +204,10 @@ export default async function IncidentDetailPage({
                     Fecha de resolución
                   </p>
                   <p className="font-medium">
-                    {new Date(incident.resolvedAt).toLocaleString()}
+                    {formatIncidentDateTime(
+                      incident.resolvedAt,
+                      incident.cliente?.state?.code,
+                    )}
                   </p>
                 </div>
               </div>
@@ -210,7 +223,7 @@ export default async function IncidentDetailPage({
                 </p>
                 <p className="font-medium">{incident.schedule.title}</p>
                 <p className="text-sm text-muted-foreground">
-                  {new Date(incident.schedule.scheduledAt).toLocaleString()}
+                  {formatMX(incident.schedule.scheduledAt)}
                 </p>
               </div>
             </>
@@ -332,11 +345,11 @@ export default async function IncidentDetailPage({
                         </Badge>
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
-                        {new Date(wo.createdAt).toLocaleDateString()}
+                        {formatMX(wo.createdAt, { dateStyle: "short" })}
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {wo.finishedAt
-                          ? new Date(wo.finishedAt).toLocaleDateString()
+                          ? formatMX(wo.finishedAt, { dateStyle: "short" })
                           : "-"}
                       </TableCell>
                       <TableCell className="text-right">

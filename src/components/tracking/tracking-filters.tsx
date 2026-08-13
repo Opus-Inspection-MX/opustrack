@@ -13,6 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { mxDateString, mxTodayString } from "@/lib/utils/datetime";
 
 interface TrackingFiltersProps {
   clientes: Array<{ id: string; name: string; code: string }>;
@@ -39,7 +40,7 @@ export function TrackingFilters({
   onFilterChange,
   createButton,
 }: TrackingFiltersProps) {
-  const today = new Date().toISOString().split("T")[0];
+  const today = mxTodayString();
   const [showFilters, setShowFilters] = useState(true);
   const [filters, setFilters] = useState({
     clienteId: "",
@@ -90,8 +91,8 @@ export function TrackingFilters({
     const sunday = new Date(monday);
     sunday.setDate(monday.getDate() + 6);
 
-    const startDate = monday.toISOString().split("T")[0];
-    const endDate = sunday.toISOString().split("T")[0];
+    const startDate = mxDateString(monday);
+    const endDate = mxDateString(sunday);
 
     setFilters({ ...filters, startDate, endDate });
   };
@@ -101,8 +102,8 @@ export function TrackingFilters({
     const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
     const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
-    const startDate = firstDay.toISOString().split("T")[0];
-    const endDate = lastDay.toISOString().split("T")[0];
+    const startDate = mxDateString(firstDay);
+    const endDate = mxDateString(lastDay);
 
     setFilters({ ...filters, startDate, endDate });
   };
@@ -165,7 +166,7 @@ export function TrackingFilters({
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  const today = new Date().toISOString().split("T")[0];
+                  const today = mxTodayString();
                   setFilters({ ...filters, startDate: today, endDate: today });
                 }}
                 className="gap-2"

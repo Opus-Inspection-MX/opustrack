@@ -1081,21 +1081,23 @@ async function main() {
           roleName: "FSR",
           clienteId: civ3.id,
         },
-        // CLIENT (one per Cliente — raises incidents from their Cliente)
+        // CLIENT — one generic account per Cliente, named after the center's
+        // code rather than a person: it is shared by everyone working there,
+        // and whoever raises an incident types their own name into it.
         {
-          name: "Client User",
+          name: "IZ59",
           email: "client@opusinspection.com",
           roleName: "CLIENT",
           clienteId: civ.id,
         },
         {
-          name: "Client User 2",
+          name: "IT48",
           email: "client2@opusinspection.com",
           roleName: "CLIENT",
           clienteId: civ2.id,
         },
         {
-          name: "Client User 3",
+          name: "TH61",
           email: "client3@opusinspection.com",
           roleName: "CLIENT",
           clienteId: civ3.id,

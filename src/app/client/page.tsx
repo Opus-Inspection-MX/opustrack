@@ -19,6 +19,7 @@ import {
 import { getClientIncidents } from "@/lib/actions/incidents";
 import { getMyProfile } from "@/lib/actions/users";
 import { requireRouteAccess } from "@/lib/auth/auth";
+import { formatIncidentDateTime } from "@/lib/utils/datetime";
 
 interface IncidentStatus {
   id: number;
@@ -194,7 +195,10 @@ export default async function ClientDashboard() {
                     <div className="flex items-center gap-4 text-sm text-muted-foreground">
                       <span>
                         Reportado:{" "}
-                        {new Date(incident.reportedAt).toLocaleDateString()}
+                        {formatIncidentDateTime(
+                          incident.reportedAt,
+                          incident.cliente?.state?.code,
+                        )}
                       </span>
                       {incident._count?.assignments &&
                         incident._count.assignments > 0 && (

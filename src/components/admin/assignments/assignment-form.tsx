@@ -15,6 +15,7 @@ import {
   updateAssignment,
 } from "@/lib/actions/assignments";
 import { isFailure } from "@/lib/actions/result";
+import { fromDateInputMX, toDateInputMX } from "@/lib/utils/datetime";
 
 type AssignmentFormProps = {
   assignment?: {
@@ -161,14 +162,14 @@ export function AssignmentForm({
               type="date"
               value={
                 formData.scheduledDate
-                  ? new Date(formData.scheduledDate).toISOString().slice(0, 10)
+                  ? toDateInputMX(formData.scheduledDate)
                   : ""
               }
               onChange={(e) =>
                 setFormData({
                   ...formData,
                   scheduledDate: e.target.value
-                    ? new Date(`${e.target.value}T00:00:00`)
+                    ? fromDateInputMX(e.target.value)
                     : null,
                 })
               }

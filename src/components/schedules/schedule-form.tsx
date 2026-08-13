@@ -13,6 +13,7 @@ import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { toDatetimeLocalMX } from "@/lib/utils/datetime";
 
 const scheduleSchema = z.object({
   title: z
@@ -88,8 +89,7 @@ export function ScheduleForm({
   // Format datetime-local input value
   const formatDateTimeLocal = (dateString: string) => {
     if (!dateString) return "";
-    const date = new Date(dateString);
-    return date.toISOString().slice(0, 16);
+    return toDatetimeLocalMX(dateString);
   };
 
   return (

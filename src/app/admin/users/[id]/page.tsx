@@ -21,6 +21,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
+import { formatMX } from "@/lib/utils/datetime";
 
 interface User {
   id: string | string[];
@@ -217,9 +218,7 @@ export default function UserDetailPage() {
                 <p className="text-sm font-medium text-muted-foreground">
                   Created At
                 </p>
-                <p className="text-base">
-                  {new Date(user.createdAt).toLocaleString()}
-                </p>
+                <p className="text-base">{formatMX(user.createdAt)}</p>
               </div>
             </div>
 
@@ -229,9 +228,7 @@ export default function UserDetailPage() {
                 <p className="text-sm font-medium text-muted-foreground">
                   Last Updated
                 </p>
-                <p className="text-base">
-                  {new Date(user.updatedAt).toLocaleString()}
-                </p>
+                <p className="text-base">{formatMX(user.updatedAt)}</p>
               </div>
             </div>
 
