@@ -45,7 +45,10 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
-  reporter: "html",
+  // "list" prints each test's pass/fail live to the terminal — without it,
+  // "html" alone only writes the report file and stays silent until the run
+  // ends, making the run look stuck / indistinguishable from server logs.
+  reporter: [["list"], ["html"]],
   use: {
     baseURL: BASE_URL,
     trace: "on-first-retry",
@@ -83,38 +86,43 @@ export default defineConfig({
     // workers editing the same incident rows race each other.
     {
       name: "flows",
-      testMatch: /(programacion|tracking|errors)\.spec\.ts$/,
+      testMatch: /(programacion|tracking|errors|vacations)\.spec\.ts$/,
       fullyParallel: false,
       use: { ...devices["Desktop Chrome"] },
       dependencies: ["setup"],
     },
     {
       name: "chromium",
-      testIgnore: /(catalogs|programacion|tracking|errors)\.spec\.ts$/,
+      testIgnore:
+        /(catalogs|programacion|tracking|errors|vacations)\.spec\.ts$/,
       use: { ...devices["Desktop Chrome"] },
       dependencies: ["setup"],
     },
     {
       name: "firefox",
-      testIgnore: /(catalogs|programacion|tracking|errors)\.spec\.ts$/,
+      testIgnore:
+        /(catalogs|programacion|tracking|errors|vacations)\.spec\.ts$/,
       use: { ...devices["Desktop Firefox"] },
       dependencies: ["setup"],
     },
     {
       name: "webkit",
-      testIgnore: /(catalogs|programacion|tracking|errors)\.spec\.ts$/,
+      testIgnore:
+        /(catalogs|programacion|tracking|errors|vacations)\.spec\.ts$/,
       use: { ...devices["Desktop Safari"] },
       dependencies: ["setup"],
     },
     {
       name: "Mobile Chrome",
-      testIgnore: /(catalogs|programacion|tracking|errors)\.spec\.ts$/,
+      testIgnore:
+        /(catalogs|programacion|tracking|errors|vacations)\.spec\.ts$/,
       use: { ...devices["Pixel 5"] },
       dependencies: ["setup"],
     },
     {
       name: "Mobile Safari",
-      testIgnore: /(catalogs|programacion|tracking|errors)\.spec\.ts$/,
+      testIgnore:
+        /(catalogs|programacion|tracking|errors|vacations)\.spec\.ts$/,
       use: { ...devices["iPhone 12"] },
       dependencies: ["setup"],
     },

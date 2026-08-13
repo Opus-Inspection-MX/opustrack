@@ -37,6 +37,10 @@ model User {
   notifications       Notification[] // User's notifications
   vacations           Vacation[]               @relation("VacationUser") // Vacation requests owned by this user (RF-701)
   approvedVacations   Vacation[]               @relation("VacationApprover") // Vacations approved/rejected by this user (RF-702)
+  // Nullable: users created before vacation balances existed have no hire date.
+  // Balance features stay blocked (with a clear message) until an admin sets it.
+  hireDate            DateTime?
+  vacationPeriods     VacationPeriod[]         @relation("VacationPeriodUser")
   active              Boolean                  @default(true)
 }
 
@@ -619,6 +623,14 @@ model Vacation {
   approvedById String?
   approvedBy   User?          @relation("VacationApprover", fields: [approvedById], references: [id])
   approvedAt   DateTime?
+  // Nullable because rows created before the balance system have no period to
+  // backfill from (there was no hireDate to derive one). Every new request
+  // resolves one; see resolveVacationPeriod.
+  periodId         String?
+  period           VacationPeriod? @relation(fields: [periodId], references: [id])
+  // Business days this request consumes, snapshotted at creation. Snapshotting
+  // keeps history stable if the Holiday catalog is edited afterwards.
+  businessDaysUsed Int?
   active       Boolean        @default(true)
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
@@ -627,5 +639,64 @@ model Vacation {
   @@index([statusId])
   @@index([userId, startDate, endDate])
   @@index([active, userId])
+  @@index([periodId])
   @@map("vacations")
+}
+
+/// Days-of-entitlement table by years of service (LFT Art. 76, 2023 reform).
+/// A catalog rather than hardcoded constants so the rules can be corrected from
+/// the admin UI if the law changes. Resolution: the row where
+/// minYears <= yearsOfService <= (maxYears ?? infinity).
+model VacationAccrualRule {
+  id        Int      @id @default(autoincrement())
+  minYears  Int      @unique // inclusive lower bound, in completed years of service
+  maxYears  Int? // inclusive upper bound; null = open-ended final tier
+  days      Int
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([active])
+  @@map("vacation_accrual_rules")
+}
+
+/// Singleton configuration row (id is pinned to 1). `graceWindowMonths` is how
+/// long days stay usable AFTER their accrual year closes (LFT Art. 81 grace
+/// window); the law says 6, the business default here is 12.
+model VacationSetting {
+  id                Int      @id @default(1)
+  graceWindowMonths Int      @default(12)
+  updatedAt         DateTime @updatedAt
+
+  @@map("vacation_settings")
+}
+
+/// One anniversary year of service per user.
+///
+/// `accrualStart`/`accrualEnd`/`graceEnd`/`ruleDays` are SNAPSHOTS taken when
+/// the row is created: editing the accrual table or the grace-window setting
+/// must never retroactively resize a period someone already has approved
+/// vacations inside.
+///
+/// There is deliberately no `remainingDays` column — the balance is always
+/// derived (see getPeriodBalance), so raising `overrideDays` can only ever
+/// increase what is available and can never orphan an existing request.
+model VacationPeriod {
+  id           String     @id @default(cuid())
+  userId       String
+  user         User       @relation("VacationPeriodUser", fields: [userId], references: [id], onDelete: Cascade)
+  periodNumber Int // 1-based; equals the year of service used for rule lookup
+  accrualStart DateTime // hireDate + (periodNumber - 1) years, CDMX start of day
+  accrualEnd   DateTime // accrualStart + 1 year - 1 day, CDMX end of day
+  graceEnd     DateTime // accrualEnd + graceWindowMonths as it stood at creation
+  ruleDays     Int // snapshot of the matching VacationAccrualRule.days
+  overrideDays Int? // admin correction; replaces ruleDays when present
+  vacations    Vacation[]
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@unique([userId, periodNumber])
+  @@index([userId])
+  @@index([accrualStart, graceEnd])
+  @@map("vacation_periods")
 }

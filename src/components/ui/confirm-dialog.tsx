@@ -80,7 +80,11 @@ export function ConfirmDialog({
       <DialogContent showCloseButton={false}>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>{message}</DialogDescription>
+          {/* pre-line so a message can list items on their own lines; single
+              line messages are unaffected. */}
+          <DialogDescription className="whitespace-pre-line">
+            {message}
+          </DialogDescription>
         </DialogHeader>
         <DialogFooter>
           <Button variant="outline" onClick={handleCancel} disabled={busy}>

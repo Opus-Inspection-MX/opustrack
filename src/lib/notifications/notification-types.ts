@@ -14,6 +14,11 @@ export const NOTIFICATION_TYPES = {
   INCIDENT_CLOSED: "incident_closed",
   INCIDENT_ASSIGNED: "incident_assigned",
 
+  // Vacation notifications
+  VACATION_REQUESTED: "vacation_requested",
+  VACATION_APPROVED: "vacation_approved",
+  VACATION_REJECTED: "vacation_rejected",
+
   // System notifications
   SYSTEM: "system",
   ANNOUNCEMENT: "announcement",
@@ -30,6 +35,7 @@ export const ENTITY_TYPES = {
   INCIDENT: "incident",
   USER: "user",
   SCHEDULE: "schedule",
+  VACATION: "vacation",
 } as const;
 
 export type EntityType = (typeof ENTITY_TYPES)[keyof typeof ENTITY_TYPES];

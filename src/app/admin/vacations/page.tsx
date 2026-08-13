@@ -12,8 +12,15 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { VacationApprovalButtons } from "@/components/vacations/vacation-approval-buttons";
-import { getVacations } from "@/lib/actions/vacations";
-import { requireRouteAccess } from "@/lib/auth/auth";
+import { VacationPlanner } from "@/components/vacations/vacation-planner";
+import type { CalendarVacation } from "@/components/vacations/vacation-year-calendar";
+import { isFailure } from "@/lib/actions/result";
+import {
+  getFsrsForVacations,
+  getVacationBalanceData,
+  getVacations,
+} from "@/lib/actions/vacations";
+import { canPerform, requireRouteAccess } from "@/lib/auth/auth";
 
 const STATUS_BADGE: Record<string, string> = {
   PENDIENTE: "bg-amber-100 text-amber-800 border-amber-300",
@@ -23,7 +30,15 @@ const STATUS_BADGE: Record<string, string> = {
 
 export default async function AdminVacationsPage() {
   await requireRouteAccess("/admin/vacations");
-  const vacations = await getVacations();
+  const [vacations, fsrs, canManage] = await Promise.all([
+    getVacations(),
+    getFsrsForVacations(),
+    canPerform("vacations:manage"),
+  ]);
+
+  // Default the balance panel to the first FSR; the picker switches from there.
+  const balance =
+    fsrs.length > 0 ? await getVacationBalanceData(fsrs[0].id) : null;
 
   return (
     <div className="space-y-6">
@@ -31,7 +46,7 @@ export default async function AdminVacationsPage() {
         <div>
           <h1 className="text-3xl font-bold">Solicitudes de Vacaciones</h1>
           <p className="text-muted-foreground">
-            Gestione y apruebe las solicitudes de vacaciones de los FSR
+            Gestione días disponibles y apruebe las solicitudes de los FSR
           </p>
         </div>
         <Button asChild>
@@ -41,6 +56,21 @@ export default async function AdminVacationsPage() {
           </Link>
         </Button>
       </div>
+
+      {balance && !isFailure(balance) && (
+        <VacationPlanner
+          initialData={{
+            user: { id: balance.user.id, name: balance.user.name },
+            hasHireDate: balance.hasHireDate,
+            periods: balance.periods,
+            vacations: balance.vacations as CalendarVacation[],
+            holidayDates: balance.holidayDates,
+            year: balance.year,
+          }}
+          fsrs={fsrs}
+          canManage={canManage}
+        />
+      )}
 
       <Card>
         <CardHeader>

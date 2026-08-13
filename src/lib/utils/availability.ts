@@ -64,6 +64,37 @@ export async function isHoliday(dateStr: string): Promise<boolean> {
 }
 
 /**
+ * Every active-holiday date in a calendar year, as a set of "YYYY-MM-DD"
+ * strings in CDMX time.
+ *
+ * Fetches the ~8 holiday rules once and evaluates them in memory across the
+ * year, rather than issuing a query per day: counting business days over a
+ * two-week vacation request would otherwise mean 14 round trips.
+ *
+ * Used by the vacation-balance day counter; `isHoliday` remains the right call
+ * for a one-off single-date check.
+ */
+export async function getHolidayDatesForYear(
+  year: number,
+): Promise<Set<string>> {
+  const rules = await prisma.holiday.findMany({ where: { active: true } });
+
+  const dates = new Set<string>();
+  const cursor = moment.tz(`${year}-01-01`, "YYYY-MM-DD", APP_TZ);
+  const endOfYear = moment.tz(`${year}-12-31`, "YYYY-MM-DD", APP_TZ);
+
+  while (cursor.isSameOrBefore(endOfYear, "day")) {
+    const dateStr = cursor.format("YYYY-MM-DD");
+    if (rules.some((rule) => holidayRuleMatchesDate(rule, dateStr))) {
+      dates.add(dateStr);
+    }
+    cursor.add(1, "day");
+  }
+
+  return dates;
+}
+
+/**
  * Returns true when a given FSR is unavailable on the CDMX calendar day
  * corresponding to `date` (a UTC instant).
  *

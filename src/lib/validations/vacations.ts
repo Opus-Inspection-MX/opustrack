@@ -37,6 +37,13 @@ export type VacationFormData = {
   startDate: Date;
   endDate: Date;
   reason?: string | null;
+  /**
+   * Period to charge. When omitted the oldest period covering the range is
+   * used, so days closest to expiring are spent first. The calendar always
+   * sends the period the user picked, so what the panel shows is what gets
+   * charged.
+   */
+  periodId?: string;
 };
 
 /**

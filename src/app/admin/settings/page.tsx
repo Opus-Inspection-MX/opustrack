@@ -1,6 +1,7 @@
 import {
   ClipboardList,
   Layers,
+  Palmtree,
   Route,
   Settings2,
   Truck,
@@ -55,6 +56,13 @@ export default async function SettingsPage() {
       icon: Route,
       href: "/admin/settings/vehicle-trip-status",
       color: "text-purple-600",
+    },
+    {
+      title: "Días de Vacaciones",
+      description: "Días por antigüedad y vigencia de los períodos",
+      icon: Palmtree,
+      href: "/admin/settings/vacation-accrual",
+      color: "text-teal-600",
     },
   ];
 

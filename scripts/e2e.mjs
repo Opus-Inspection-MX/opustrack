@@ -20,6 +20,7 @@
  *   6. down -v   — always, in a finally
  */
 import { spawnSync } from "node:child_process";
+import { rmSync } from "node:fs";
 import { loadProfile } from "./lib/env-profiles.mjs";
 
 const COMPOSE = ["compose", "-f", "docker-compose.e2e.yml"];
@@ -78,6 +79,12 @@ try {
 
   if (!devMode) {
     console.log("\n🏗️  Compilando la app...");
+    // Always cold: reusing .next/cache/webpack between builds occasionally
+    // corrupts the incremental cache and crashes the build worker with
+    // "TypeError: Cannot read properties of null (reading 'hash')" deep in
+    // webpack's internals. A stale .next from a previous run/build/dev
+    // session on the host is what triggers it — wipe it first every time.
+    rmSync(".next", { recursive: true, force: true });
     run("npx", ["next", "build"]);
   }
 

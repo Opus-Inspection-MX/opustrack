@@ -440,6 +440,111 @@ export async function updateAssignment(id: string, data: AssignmentFormData) {
 }
 
 /**
+ * Ensure the given FSRs have a real, visible Assignment on this incident.
+ *
+ * Incident-level "assign FSR" UI (quick-edit popover, incident edit form,
+ * bulk actions) only used to grant IncidentAssignee eligibility and notify —
+ * without ever creating the Assignment the FSR actually sees in
+ * /fsr/assignments. Callers pass the newly-added FSR ids here right after
+ * granting eligibility so the notification's promise is backed by real work.
+ *
+ * Reuses the incident's current active Assignment if one exists (adding
+ * assignees and reviving it to ASIGNADO if it was PENDIENTE_DE_ASIGNACION),
+ * or creates one. No-op if fsrIds is empty.
+ */
+export async function ensureFsrsAssignedToIncident(
+  incidentId: number,
+  fsrIds: string[],
+  actorId: string,
+): Promise<void> {
+  if (fsrIds.length === 0) return;
+
+  const result = await prisma.$transaction(async (tx) => {
+    const existingAssignment = await tx.assignment.findFirst({
+      where: { incidentId, active: true },
+      select: { id: true, status: { select: { name: true } } },
+      orderBy: { createdAt: "desc" },
+    });
+
+    let assignmentId: string;
+    let toAdd: string[];
+
+    if (existingAssignment) {
+      assignmentId = existingAssignment.id;
+      const existingAssignees = await tx.assignmentAssignee.findMany({
+        where: { assignmentId, active: true },
+        select: { userId: true },
+      });
+      const existingIds = new Set(existingAssignees.map((a) => a.userId));
+      toAdd = fsrIds.filter((u) => !existingIds.has(u));
+
+      for (const userId of toAdd) {
+        await tx.assignmentAssignee.upsert({
+          where: { assignmentId_userId: { assignmentId, userId } },
+          create: { assignmentId, userId, active: true },
+          update: { active: true, assignedAt: new Date() },
+        });
+      }
+
+      if (
+        toAdd.length > 0 &&
+        existingAssignment.status?.name ===
+          ASSIGNMENT_STATE.PENDIENTE_DE_ASIGNACION
+      ) {
+        const statusId = await resolveAssignmentStatusId(
+          tx,
+          ASSIGNMENT_STATE.ASIGNADO,
+        );
+        await tx.assignment.update({
+          where: { id: assignmentId },
+          data: { statusId, assignedAt: new Date() },
+        });
+      }
+    } else {
+      const statusId = await resolveAssignmentStatusId(
+        tx,
+        ASSIGNMENT_STATE.ASIGNADO,
+      );
+      const created = await tx.assignment.create({
+        data: {
+          incidentId,
+          statusId,
+          assignedAt: new Date(),
+          assignees: { create: fsrIds.map((userId) => ({ userId })) },
+        },
+        select: { id: true },
+      });
+      assignmentId = created.id;
+      toAdd = fsrIds;
+    }
+
+    await syncIncidentState(incidentId, tx);
+
+    return { assignmentId, toAdd };
+  });
+
+  if (result.toAdd.length === 0) return;
+
+  const incident = await prisma.incident.findUnique({
+    where: { id: incidentId },
+    select: { title: true },
+  });
+
+  await notifyAssignmentAssigned(
+    result.assignmentId,
+    incident?.title,
+    result.toAdd,
+    actorId,
+  );
+
+  revalidatePath("/admin/assignments");
+  revalidatePath(`/admin/assignments/${result.assignmentId}`);
+  revalidatePath("/fsr/assignments");
+  revalidatePath(`/fsr/assignments/${result.assignmentId}`);
+  revalidatePath(`/admin/incidents/${incidentId}`);
+}
+
+/**
  * Delete assignment (soft delete)
  */
 export async function deleteAssignment(id: string) {

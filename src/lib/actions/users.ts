@@ -10,6 +10,7 @@ import {
   getPrimaryClienteId,
   removeUserFromCliente,
 } from "@/lib/utils/cliente-assignments";
+import { mxDayRange } from "@/lib/utils/datetime";
 import { businessRule, guarded } from "./result";
 
 export type UserFormData = {
@@ -23,6 +24,8 @@ export type UserFormData = {
   secondaryTelephone?: string;
   emergencyContact?: string;
   jobPosition?: string;
+  /** "YYYY-MM-DD" from the date input; drives vacation period accrual. */
+  hireDate?: string | null;
 };
 
 type GetUsersParams = {
@@ -119,6 +122,7 @@ export async function createUser(data: UserFormData) {
         password: hashedPassword,
         roleId: data.roleId,
         userStatusId: data.userStatusId,
+        hireDate: parseHireDate(data.hireDate),
         userProfile: {
           create: {
             telephone: data.telephone || null,
@@ -141,9 +145,24 @@ export async function createUser(data: UserFormData) {
       await assignUserToCliente(user.id, data.clienteId, true);
     }
 
+    // Backfill vacation periods so the balance panel is populated immediately
+    // rather than only after the user's first page visit.
+    if (user.hireDate) {
+      const { ensurePeriodsUpToNow } = await import(
+        "@/lib/services/vacation-periods"
+      );
+      await ensurePeriodsUpToNow(user.id);
+    }
+
     revalidatePath("/admin/users");
     return { data: user };
   });
+}
+
+/** Normalize a "YYYY-MM-DD" hire date to the CDMX start of that day. */
+function parseHireDate(value: string | null | undefined): Date | null {
+  if (!value) return null;
+  return mxDayRange(value).gte;
 }
 
 /**
@@ -152,10 +171,14 @@ export async function createUser(data: UserFormData) {
 export async function updateUser(id: string, data: UserFormData) {
   await requirePermission("users:update");
 
-  // Get current user to detect role/status changes
+  return guarded(async () => updateUserInner(id, data));
+}
+
+async function updateUserInner(id: string, data: UserFormData) {
+  // Get current user to detect role/status/hire-date changes
   const currentUser = await prisma.user.findUnique({
     where: { id },
-    select: { roleId: true, userStatusId: true },
+    select: { roleId: true, userStatusId: true, hireDate: true },
   });
 
   const updateData: Prisma.UserUpdateInput = {
@@ -171,6 +194,35 @@ export async function updateUser(id: string, data: UserFormData) {
   if (data.password) {
     updateData.password = await hashPassword(data.password);
     updateData.sessionVersion = { increment: 1 };
+  }
+
+  // Hire date drives every vacation period, so a correction has to move the
+  // existing windows with it. `recomputePeriodsForNewHireDate` refuses the
+  // change if it would strand a vacation someone already booked, which is what
+  // makes editing a mistyped date safe rather than destructive.
+  const nextHireDate = parseHireDate(data.hireDate);
+  const hireDateChanged =
+    nextHireDate?.getTime() !== currentUser?.hireDate?.getTime();
+
+  if (hireDateChanged) {
+    updateData.hireDate = nextHireDate;
+
+    if (nextHireDate === null) {
+      const periodsWithVacations = await prisma.vacationPeriod.count({
+        where: { userId: id, vacations: { some: { active: true } } },
+      });
+      if (periodsWithVacations > 0) {
+        businessRule(
+          "No se puede quitar la fecha de contratación: el usuario tiene solicitudes de vacaciones registradas.",
+        );
+      }
+      await prisma.vacationPeriod.deleteMany({ where: { userId: id } });
+    } else if (currentUser?.hireDate) {
+      const { recomputePeriodsForNewHireDate } = await import(
+        "@/lib/services/vacation-periods"
+      );
+      await recomputePeriodsForNewHireDate(id, nextHireDate);
+    }
   }
 
   const user = await prisma.user.update({
@@ -227,9 +279,19 @@ export async function updateUser(id: string, data: UserFormData) {
     await invalidateUserSessions(id);
   }
 
+  // Create the periods a newly-set hire date has already earned.
+  if (hireDateChanged && nextHireDate) {
+    const { ensurePeriodsUpToNow } = await import(
+      "@/lib/services/vacation-periods"
+    );
+    await ensurePeriodsUpToNow(id);
+  }
+
   revalidatePath("/admin/users");
   revalidatePath(`/admin/users/${id}`);
-  return { success: true, data: user };
+  revalidatePath("/admin/vacations");
+  revalidatePath("/fsr/vacations");
+  return { data: user };
 }
 
 /**

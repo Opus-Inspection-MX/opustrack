@@ -11,7 +11,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { getMyVacations } from "@/lib/actions/vacations";
+import { VacationPlanner } from "@/components/vacations/vacation-planner";
+import type { CalendarVacation } from "@/components/vacations/vacation-year-calendar";
+import { isFailure } from "@/lib/actions/result";
+import {
+  getMyVacations,
+  getVacationBalanceData,
+} from "@/lib/actions/vacations";
 import { requireRouteAccess } from "@/lib/auth/auth";
 
 const STATUS_BADGE: Record<string, string> = {
@@ -22,7 +28,10 @@ const STATUS_BADGE: Record<string, string> = {
 
 export default async function FsrVacationsPage() {
   await requireRouteAccess("/fsr/vacations");
-  const vacations = await getMyVacations();
+  const [vacations, balance] = await Promise.all([
+    getMyVacations(),
+    getVacationBalanceData(),
+  ]);
 
   const pending = vacations.filter((v) => v.status.name === "PENDIENTE").length;
   const approved = vacations.filter((v) => v.status.name === "APROBADA").length;
@@ -37,7 +46,7 @@ export default async function FsrVacationsPage() {
         <div>
           <h1 className="text-3xl font-bold">Mis Vacaciones</h1>
           <p className="text-muted-foreground">
-            Administre sus solicitudes de vacaciones
+            Consulte sus días disponibles y aparte su período vacacional
           </p>
         </div>
         <Button asChild>
@@ -47,6 +56,20 @@ export default async function FsrVacationsPage() {
           </Link>
         </Button>
       </div>
+
+      {/* Balance + year calendar */}
+      {!isFailure(balance) && (
+        <VacationPlanner
+          initialData={{
+            user: { id: balance.user.id, name: balance.user.name },
+            hasHireDate: balance.hasHireDate,
+            periods: balance.periods,
+            vacations: balance.vacations as CalendarVacation[],
+            holidayDates: balance.holidayDates,
+            year: balance.year,
+          }}
+        />
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4">

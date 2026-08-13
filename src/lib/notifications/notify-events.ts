@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/database/prisma.singleton";
 import { createNotificationsForUsers } from "./notification-service";
 import {
+  ENTITY_TYPES,
   type EntityType,
   NOTIFICATION_PRIORITY,
   NOTIFICATION_TYPES,
@@ -294,6 +295,80 @@ export async function notifyIncidentAssigned(
     entityId: String(incidentId),
     actionUrl: `/fsr/assignments`,
     priority: NOTIFICATION_PRIORITY.MEDIUM,
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Vacation notification helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Fires when a vacation request is created.
+ * Recipients: all active ADMINISTRADOR users, actor excluded — without this
+ * an admin has no signal that a request is waiting for a decision.
+ * Priority: MEDIUM.
+ */
+export async function notifyVacationRequested(
+  vacationId: string,
+  requesterName: string | null | undefined,
+  actorId: string,
+): Promise<void> {
+  const adminIds = await getAdminUserIds();
+  const title = "Solicitud de vacaciones";
+  const message = requesterName
+    ? `${requesterName} solicitó vacaciones y espera autorización`
+    : "Una nueva solicitud de vacaciones espera autorización";
+
+  await emit(adminIds, actorId, {
+    title,
+    message,
+    type: NOTIFICATION_TYPES.VACATION_REQUESTED,
+    entityType: ENTITY_TYPES.VACATION,
+    entityId: vacationId,
+    actionUrl: "/admin/vacations",
+    priority: NOTIFICATION_PRIORITY.MEDIUM,
+  });
+}
+
+/**
+ * Fires when a vacation request is approved.
+ * Recipients: the requester (actor excluded, so self-approval stays silent).
+ * Priority: HIGH — it changes the person's plans.
+ */
+export async function notifyVacationApproved(
+  vacationId: string,
+  requesterId: string,
+  actorId: string,
+): Promise<void> {
+  await emit([requesterId], actorId, {
+    title: "Vacaciones aprobadas",
+    message: "Tu solicitud de vacaciones fue aprobada",
+    type: NOTIFICATION_TYPES.VACATION_APPROVED,
+    entityType: ENTITY_TYPES.VACATION,
+    entityId: vacationId,
+    actionUrl: "/fsr/vacations",
+    priority: NOTIFICATION_PRIORITY.HIGH,
+  });
+}
+
+/**
+ * Fires when a vacation request is rejected.
+ * Recipients: the requester (actor excluded).
+ * Priority: HIGH.
+ */
+export async function notifyVacationRejected(
+  vacationId: string,
+  requesterId: string,
+  actorId: string,
+): Promise<void> {
+  await emit([requesterId], actorId, {
+    title: "Vacaciones rechazadas",
+    message: "Tu solicitud de vacaciones fue rechazada",
+    type: NOTIFICATION_TYPES.VACATION_REJECTED,
+    entityType: ENTITY_TYPES.VACATION,
+    entityId: vacationId,
+    actionUrl: "/fsr/vacations",
+    priority: NOTIFICATION_PRIORITY.HIGH,
   });
 }
 

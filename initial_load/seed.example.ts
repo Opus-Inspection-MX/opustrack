@@ -863,6 +863,14 @@ async function main() {
           resource: "vacations",
           action: "delete",
         },
+        {
+          // Separate from `approve` on purpose: approving decides one request,
+          // while managing changes how many days a whole period is worth.
+          name: "vacations:manage",
+          description: "Set hire dates and override vacation day balances",
+          resource: "vacations",
+          action: "manage",
+        },
       ];
 
       const permissionRecords = [];
@@ -1429,6 +1437,46 @@ async function main() {
         });
       }
       console.log("✅ Seeded VacationStatuses");
+
+      // 8c-bis) Vacation entitlement by years of service — LFT Art. 76 as
+      // amended by the 2023 "Vacaciones Dignas" reform. Seeded as data rather
+      // than hardcoded so the table can be corrected from the admin UI if the
+      // law changes again. The final tier is open-ended so long-tenured staff
+      // always match a rule.
+      const accrualRules: Array<{
+        minYears: number;
+        maxYears: number | null;
+        days: number;
+      }> = [
+        { minYears: 1, maxYears: 1, days: 12 },
+        { minYears: 2, maxYears: 2, days: 14 },
+        { minYears: 3, maxYears: 3, days: 16 },
+        { minYears: 4, maxYears: 4, days: 18 },
+        { minYears: 5, maxYears: 5, days: 20 },
+        { minYears: 6, maxYears: 10, days: 22 },
+        { minYears: 11, maxYears: 15, days: 24 },
+        { minYears: 16, maxYears: 20, days: 26 },
+        { minYears: 21, maxYears: 25, days: 28 },
+        { minYears: 26, maxYears: null, days: 30 },
+      ];
+      for (const rule of accrualRules) {
+        await tx.vacationAccrualRule.upsert({
+          where: { minYears: rule.minYears },
+          update: { maxYears: rule.maxYears, days: rule.days },
+          create: rule,
+        });
+      }
+      console.log(`✅ Seeded VacationAccrualRules (${accrualRules.length})`);
+
+      // 8c-ter) Grace window. The law allows six months past the accrual year
+      // to take earned days; the business default here is a full year. Stored
+      // as a singleton row so admins can change it without a deploy.
+      await tx.vacationSetting.upsert({
+        where: { id: 1 },
+        update: {},
+        create: { id: 1, graceWindowMonths: 12 },
+      });
+      console.log("✅ Seeded VacationSetting (grace window)");
 
       // 8d) Holidays — LFT Art. 74 rules (RF-700)
       // Guard: only insert if the table is empty (no natural unique key).

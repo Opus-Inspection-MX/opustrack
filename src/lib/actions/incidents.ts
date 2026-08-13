@@ -12,7 +12,6 @@ import {
 import { FALLBACK_INCIDENT_TYPE_NAME } from "@/lib/constants/incident-type";
 import { prisma } from "@/lib/database/prisma.singleton";
 import {
-  notifyIncidentAssigned,
   notifyIncidentCreated,
   notifyIncidentUpdated,
 } from "@/lib/notifications";
@@ -284,6 +283,17 @@ export async function createIncident(data: unknown) {
         })),
         skipDuplicates: true,
       });
+
+      // Give the pre-selected FSRs a real Assignment they can see, and
+      // notify them — otherwise they're only "enabled" with no visible work.
+      const { ensureFsrsAssignedToIncident } = await import(
+        "@/lib/actions/assignments"
+      );
+      await ensureFsrsAssignedToIncident(
+        incident.id,
+        validated.assigneeIds,
+        user.id,
+      );
     }
 
     // POST-tx: notify admins of new incident (RF-465). Never throws.
@@ -510,7 +520,10 @@ export async function updateIncident(id: number, data: IncidentFormData) {
       await notifyIncidentUpdated(id, incident.title, existingFsrIds, user.id);
     }
     if (toAdd.length > 0) {
-      await notifyIncidentAssigned(id, incident.title, toAdd, user.id);
+      const { ensureFsrsAssignedToIncident } = await import(
+        "@/lib/actions/assignments"
+      );
+      await ensureFsrsAssignedToIncident(id, toAdd, user.id);
     }
 
     revalidatePath("/admin/incidents");
@@ -557,9 +570,14 @@ export async function updateIncidentFsrs(
 
     const { toAdd } = await syncIncidentAssignees(incidentId, fsrIds);
 
-    // POST-tx: notify new FSRs they were assigned to this incident (RF-468).
+    // POST-tx: give newly-enabled FSRs a real Assignment they can see, and
+    // notify them (RF-468). Eligibility alone used to leave them with a
+    // notification but no visible work.
     if (toAdd.length > 0) {
-      await notifyIncidentAssigned(incidentId, incident.title, toAdd, user.id);
+      const { ensureFsrsAssignedToIncident } = await import(
+        "@/lib/actions/assignments"
+      );
+      await ensureFsrsAssignedToIncident(incidentId, toAdd, user.id);
     }
 
     revalidatePath("/admin/incidents");
@@ -1579,6 +1597,14 @@ export async function createIncidentsFromPreview(
   // Pre-resuelve el typeId fallback una sola vez para todas las filas sin tipo.
   const fallbackTypeId = await resolveTypeIdOrFallback(null);
 
+  // Rows with pre-selected FSRs get a real Assignment after the transaction
+  // commits (see ensureFsrsAssignedToIncident) — skipped for historical
+  // resolvedAt/CERRADO rows, which shouldn't be reopened into ASIGNADO.
+  const pendingAssignments: Array<{
+    incidentId: number;
+    assigneeIds: string[];
+  }> = [];
+
   await prisma.$transaction(async (tx) => {
     for (const row of rows) {
       const incident = await tx.incident.create({
@@ -1602,9 +1628,24 @@ export async function createIncidentsFromPreview(
           })),
           skipDuplicates: true,
         });
+        if (!row.resolvedAt) {
+          pendingAssignments.push({
+            incidentId: incident.id,
+            assigneeIds: row.assigneeIds,
+          });
+        }
       }
     }
   });
+
+  if (pendingAssignments.length > 0) {
+    const { ensureFsrsAssignedToIncident } = await import(
+      "@/lib/actions/assignments"
+    );
+    for (const { incidentId, assigneeIds } of pendingAssignments) {
+      await ensureFsrsAssignedToIncident(incidentId, assigneeIds, user.id);
+    }
+  }
 
   revalidatePath("/admin/incidents");
   revalidatePath("/client/incidents");
@@ -1789,11 +1830,15 @@ export async function bulkAssignIncidents(
   // FSR sync runs outside the transaction to keep behavior identical to
   // updateIncident (and to surface per-incident retire-blocked errors).
   if (changes.fsrIds) {
+    const { ensureFsrsAssignedToIncident } = await import(
+      "@/lib/actions/assignments"
+    );
     const failures: Array<{ incidentId: number; message: string }> = [];
     for (const id of found) {
       try {
+        let toAdd: string[];
         if (changes.fsrIds.mode === "replace") {
-          await syncIncidentAssignees(id, changes.fsrIds.ids);
+          ({ toAdd } = await syncIncidentAssignees(id, changes.fsrIds.ids));
         } else {
           const current = await prisma.incidentAssignee.findMany({
             where: { incidentId: id, active: true },
@@ -1803,7 +1848,12 @@ export async function bulkAssignIncidents(
             ...current.map((c) => c.userId),
             ...changes.fsrIds.ids,
           ]);
-          await syncIncidentAssignees(id, [...merged]);
+          ({ toAdd } = await syncIncidentAssignees(id, [...merged]));
+        }
+        // Give newly-enabled FSRs a real Assignment they can see (see
+        // ensureFsrsAssignedToIncident) instead of eligibility-only + notification.
+        if (toAdd.length > 0) {
+          await ensureFsrsAssignedToIncident(id, toAdd, user.id);
         }
       } catch (e) {
         failures.push({

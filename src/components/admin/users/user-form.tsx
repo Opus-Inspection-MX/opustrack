@@ -25,6 +25,7 @@ type UserFormProps = {
     roleId: number;
     userStatusId: number;
     clienteId: string | null;
+    hireDate: Date | string | null;
     userProfile: {
       telephone: string | null;
       secondaryTelephone: string | null;
@@ -49,6 +50,10 @@ export function UserForm({ user, roles, statuses, clientes }: UserFormProps) {
     roleId: user?.roleId || roles[0]?.id || 0,
     userStatusId: user?.userStatusId || statuses[0]?.id || 0,
     clienteId: user?.clienteId || null,
+    // The date input wants "YYYY-MM-DD"; the server sends an instant.
+    hireDate: user?.hireDate
+      ? new Date(user.hireDate).toISOString().slice(0, 10)
+      : "",
     telephone: user?.userProfile?.telephone || "",
     secondaryTelephone: user?.userProfile?.secondaryTelephone || "",
     emergencyContact: user?.userProfile?.emergencyContact || "",
@@ -61,15 +66,16 @@ export function UserForm({ user, roles, statuses, clientes }: UserFormProps) {
     setError(null);
 
     try {
-      if (user) {
-        await updateUser(user.id, formData);
-      } else {
-        const result = await createUser(formData);
+      const result = user
+        ? await updateUser(user.id, formData)
+        : await createUser(formData);
 
-        if (isFailure(result)) {
-          setError(result.error);
-          return;
-        }
+      if (isFailure(result)) {
+        setError(result.error);
+        // Without this the submit button stays disabled after a rejected save
+        // and the form can never be retried.
+        setLoading(false);
+        return;
       }
       router.push("/admin/users");
       router.refresh();
@@ -219,6 +225,21 @@ export function UserForm({ user, roles, statuses, clientes }: UserFormProps) {
                 searchPlaceholder="Buscar Cliente..."
                 emptyMessage="No se encontraron Cliente."
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="hireDate">Fecha de Contratación</Label>
+              <Input
+                id="hireDate"
+                type="date"
+                value={formData.hireDate ?? ""}
+                onChange={(e) =>
+                  setFormData({ ...formData, hireDate: e.target.value || null })
+                }
+              />
+              <p className="text-xs text-muted-foreground">
+                Determina los períodos y días de vacaciones del usuario.
+              </p>
             </div>
           </div>
         </CardContent>
