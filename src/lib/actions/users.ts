@@ -165,9 +165,12 @@ export async function updateUser(id: string, data: UserFormData) {
     userStatus: { connect: { id: data.userStatusId } },
   };
 
-  // Only update password if provided
+  // Only update password if provided. Bump sessionVersion so any existing
+  // session for this user is forced to re-authenticate, same as when a
+  // user changes their own password via updateMyPassword.
   if (data.password) {
     updateData.password = await hashPassword(data.password);
+    updateData.sessionVersion = { increment: 1 };
   }
 
   const user = await prisma.user.update({

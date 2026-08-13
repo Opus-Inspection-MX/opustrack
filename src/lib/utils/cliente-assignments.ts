@@ -82,25 +82,45 @@ export async function assignUserToCliente(
     });
   }
 
-  return await prisma.userClienteAssignment.upsert({
+  const assignment = await prisma.userClienteAssignment.upsert({
     where: {
       userId_clienteId: { userId, clienteId },
     },
     update: { isPrimary, active: true },
     create: { userId, clienteId, isPrimary },
   });
+
+  // Keep the deprecated User.clienteId scalar in sync: some read paths
+  // (edit form prefill, users list) still rely on it instead of this table.
+  if (isPrimary) {
+    await prisma.user.update({
+      where: { id: userId },
+      data: { clienteId },
+    });
+  }
+
+  return assignment;
 }
 
 /**
  * Remove user from a Cliente (soft delete)
  */
 export async function removeUserFromCliente(userId: string, clienteId: string) {
-  return await prisma.userClienteAssignment.update({
+  const assignment = await prisma.userClienteAssignment.update({
     where: {
       userId_clienteId: { userId, clienteId },
     },
     data: { active: false },
   });
+
+  // Clear the deprecated User.clienteId scalar if it pointed at this Cliente,
+  // so stale reads don't keep showing a removed assignment.
+  await prisma.user.updateMany({
+    where: { id: userId, clienteId },
+    data: { clienteId: null },
+  });
+
+  return assignment;
 }
 
 /**
@@ -125,12 +145,20 @@ export async function setPrimaryCliente(userId: string, clienteId: string) {
   });
 
   // Set this one as primary
-  return await prisma.userClienteAssignment.update({
+  const promoted = await prisma.userClienteAssignment.update({
     where: {
       userId_clienteId: { userId, clienteId },
     },
     data: { isPrimary: true },
   });
+
+  // Keep the deprecated User.clienteId scalar in sync with the new primary.
+  await prisma.user.update({
+    where: { id: userId },
+    data: { clienteId },
+  });
+
+  return promoted;
 }
 
 /**

@@ -8,14 +8,21 @@ vi.mock("@/lib/database/prisma.singleton", () => ({
       findUnique: vi.fn(),
       update: vi.fn(),
       updateMany: vi.fn(),
+      upsert: vi.fn(),
+    },
+    user: {
+      update: vi.fn(),
+      updateMany: vi.fn(),
     },
   },
 }));
 
 import { prisma } from "@/lib/database/prisma.singleton";
 import {
+  assignUserToCliente,
   getPrimaryClienteId,
   getUserClienteIds,
+  removeUserFromCliente,
   setPrimaryCliente,
   userHasAccessToCliente,
 } from "./cliente-assignments";
@@ -25,6 +32,9 @@ const findFirst = vi.mocked(prisma.userClienteAssignment.findFirst);
 const findUnique = vi.mocked(prisma.userClienteAssignment.findUnique);
 const update = vi.mocked(prisma.userClienteAssignment.update);
 const updateMany = vi.mocked(prisma.userClienteAssignment.updateMany);
+const upsert = vi.mocked(prisma.userClienteAssignment.upsert);
+const userUpdate = vi.mocked(prisma.user.update);
+const userUpdateMany = vi.mocked(prisma.user.updateMany);
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -105,6 +115,56 @@ describe("setPrimaryCliente", () => {
     expect(update).toHaveBeenCalledWith({
       where: { userId_clienteId: { userId: "u1", clienteId: "c1" } },
       data: { isPrimary: true },
+    });
+  });
+
+  it("syncs the deprecated User.clienteId scalar with the new primary", async () => {
+    findUnique.mockResolvedValue({ active: true } as never);
+    updateMany.mockResolvedValue({ count: 1 } as never);
+    update.mockResolvedValue({} as never);
+
+    await setPrimaryCliente("u1", "c1");
+
+    expect(userUpdate).toHaveBeenCalledWith({
+      where: { id: "u1" },
+      data: { clienteId: "c1" },
+    });
+  });
+});
+
+describe("assignUserToCliente", () => {
+  it("syncs the deprecated User.clienteId scalar when isPrimary is true", async () => {
+    upsert.mockResolvedValue({} as never);
+    updateMany.mockResolvedValue({ count: 0 } as never);
+    userUpdate.mockResolvedValue({} as never);
+
+    await assignUserToCliente("u1", "c1", true);
+
+    expect(userUpdate).toHaveBeenCalledWith({
+      where: { id: "u1" },
+      data: { clienteId: "c1" },
+    });
+  });
+
+  it("does not touch User.clienteId when isPrimary is false", async () => {
+    upsert.mockResolvedValue({} as never);
+
+    await assignUserToCliente("u1", "c1", false);
+
+    expect(userUpdate).not.toHaveBeenCalled();
+  });
+});
+
+describe("removeUserFromCliente", () => {
+  it("clears the deprecated User.clienteId scalar when it pointed at the removed Cliente", async () => {
+    update.mockResolvedValue({} as never);
+    userUpdateMany.mockResolvedValue({ count: 1 } as never);
+
+    await removeUserFromCliente("u1", "c1");
+
+    expect(userUpdateMany).toHaveBeenCalledWith({
+      where: { id: "u1", clienteId: "c1" },
+      data: { clienteId: null },
     });
   });
 });
