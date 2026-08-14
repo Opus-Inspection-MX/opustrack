@@ -23,7 +23,6 @@ const { prismaMock, requirePermission } = vi.hoisted(() => {
       equipment: model(),
       incident: model(),
       part: model(),
-      workPart: model(),
       role: model(),
       user: model(),
       userRole: model(),
@@ -62,7 +61,6 @@ import { deleteCliente } from "./clientes";
 import { deleteEquipment } from "./equipments";
 import { deleteHoliday } from "./holidays";
 import { deleteLine } from "./lines";
-import { deletePart } from "./parts";
 import { deleteRole } from "./roles";
 import { deleteVehicle } from "./vehicles";
 
@@ -93,13 +91,6 @@ const GUARDED = [
     run: () => deleteEquipment(1),
     child: () => prismaMock.incident,
     parent: () => prismaMock.equipment,
-  },
-  {
-    name: "deletePart",
-    permission: "parts:delete",
-    run: () => deletePart("p1"),
-    child: () => prismaMock.workPart,
-    parent: () => prismaMock.part,
   },
   {
     name: "deleteRole",

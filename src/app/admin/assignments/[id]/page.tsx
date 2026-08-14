@@ -10,13 +10,14 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { AssignmentItems } from "@/components/assignments/assignment-items";
 import { AttachmentPreview } from "@/components/assignments/attachment-preview";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getAssignmentActivities } from "@/lib/actions/assignment-activities";
+import { getAssignmentItems } from "@/lib/actions/assignment-items";
 import { getAssignmentById } from "@/lib/actions/assignments";
-import { getWorkParts } from "@/lib/actions/work-parts";
 import { formatMX } from "@/lib/utils/datetime";
 
 interface Attachment {
@@ -36,10 +37,10 @@ export default async function AssignmentDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [assignment, activities, workParts] = await Promise.all([
+  const [assignment, activities, items] = await Promise.all([
     getAssignmentById(id),
     getAssignmentActivities(id),
-    getWorkParts(id),
+    getAssignmentItems(id),
   ]);
 
   if (!assignment) notFound();
@@ -179,8 +180,10 @@ export default async function AssignmentDetailPage({
                 <p className="text-2xl font-bold">{activities.length}</p>
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Partes Usadas</p>
-                <p className="text-2xl font-bold">{workParts.length}</p>
+                <p className="text-sm text-muted-foreground">
+                  Refacciones y Equipo
+                </p>
+                <p className="text-2xl font-bold">{items.length}</p>
               </div>
             </div>
 
@@ -267,15 +270,6 @@ export default async function AssignmentDetailPage({
                       <p className="text-sm text-muted-foreground mt-1">
                         {formatMX(activity.performedAt)}
                       </p>
-                      {activity.workParts.length > 0 && (
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          {activity.workParts.map((wp) => (
-                            <Badge key={wp.id} variant="outline">
-                              {wp.part.name} x{wp.quantity}
-                            </Badge>
-                          ))}
-                        </div>
-                      )}
                     </div>
                   </div>
                 </div>
@@ -285,51 +279,7 @@ export default async function AssignmentDetailPage({
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Partes Utilizadas</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {workParts.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8">
-              No hay partes registradas
-            </p>
-          ) : (
-            <div className="space-y-2">
-              {workParts.map((wp) => (
-                <div
-                  key={wp.id}
-                  className="flex items-center justify-between py-2 border-b last:border-0"
-                >
-                  <div className="flex-1">
-                    <p className="font-medium">{wp.part.name}</p>
-                    {wp.description && (
-                      <p className="text-sm text-muted-foreground">
-                        {wp.description}
-                      </p>
-                    )}
-                  </div>
-                  <div className="text-right">
-                    <Badge variant="outline">x{wp.quantity}</Badge>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      ${(wp.part.price * wp.quantity).toFixed(2)}
-                    </p>
-                  </div>
-                </div>
-              ))}
-              <div className="pt-4 text-right">
-                <p className="text-sm text-muted-foreground">Total</p>
-                <p className="text-xl font-bold">
-                  $
-                  {workParts
-                    .reduce((sum, wp) => sum + wp.part.price * wp.quantity, 0)
-                    .toFixed(2)}
-                </p>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      <AssignmentItems assignmentId={id} items={items} readOnly />
 
       {/* Attachments */}
       <Card>

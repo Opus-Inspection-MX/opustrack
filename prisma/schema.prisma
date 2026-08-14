@@ -381,8 +381,8 @@ model Assignment {
   endLongitude         Float?
   endAddress           String?
   assignmentActivities AssignmentActivity[]
+  items                AssignmentItem[]
   attachments          AssignmentAttachment[]
-  workParts            WorkPart[]
   vehicleTrips         VehicleTrip[] // Vehicle trips linked to this assignment
   scheduledDate        DateTime? // Optional scheduled date for FSR availability check (RF-708)
   createdAt            DateTime               @default(now())
@@ -420,7 +420,6 @@ model AssignmentActivity {
   assignment   Assignment @relation(fields: [assignmentId], references: [id])
   description  String
   performedAt  DateTime   @default(now())
-  workParts    WorkPart[]
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
   active       Boolean    @default(true)
@@ -444,36 +443,7 @@ model AssignmentAttachment {
   @@index([assignmentId])
 }
 
-model Part {
-  id          String     @id @default(cuid())
-  name        String     @unique
-  description String?
-  price       Float
-  stock       Int
-  workParts   WorkPart[]
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-  active      Boolean    @default(true)
-}
 
-model WorkPart {
-  id           String              @id @default(cuid())
-  partId       String
-  part         Part                @relation(fields: [partId], references: [id])
-  quantity     Int
-  description  String?
-  price        Float
-  assignmentId String?
-  assignment   Assignment?         @relation(fields: [assignmentId], references: [id])
-  activityId   String?
-  activity     AssignmentActivity? @relation(fields: [activityId], references: [id])
-  createdAt    DateTime            @default(now())
-  updatedAt    DateTime            @updatedAt
-  active       Boolean             @default(true)
-
-  @@index([assignmentId])
-  @@index([activityId])
-}
 
 model Line {
   id          Int                     @id @default(autoincrement())
@@ -746,4 +716,26 @@ model VacationPeriod {
   @@index([userId])
   @@index([accrualStart, graceEnd])
   @@map("vacation_periods")
+}
+
+/// Refacciones o equipo usados en una asignación, como lista abierta.
+///
+/// Deliberately NOT a foreign key into a parts catalogue. The previous design
+/// pointed at a `Part` table carrying stock, and maintaining that means running
+/// a warehouse — receiving, counting, reconciling — which is not what this
+/// system does. The technician writes down what was used and what it cost.
+model AssignmentItem {
+  id           String     @id @default(cuid())
+  assignmentId String
+  assignment   Assignment @relation(fields: [assignmentId], references: [id])
+  /// Free text: "Sensor de proximidad", "Manguera 1/2 pulgada".
+  name         String
+  quantity     Int
+  /// Price per unit. The line total is derived, never stored.
+  unitPrice    Float
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  active       Boolean    @default(true)
+
+  @@index([assignmentId])
 }

@@ -8,7 +8,6 @@ import {
   getReportScope,
   incidentScopeWhere,
   vehicleTripScopeWhere,
-  workPartScopeWhere,
 } from "@/lib/auth/report-scope";
 import { whereHasRole } from "@/lib/authz/user-queries";
 import { prisma } from "@/lib/database/prisma.singleton";
@@ -67,14 +66,6 @@ export type FSRTripData = {
   trips: number;
   totalKm: number;
   averageKm: number;
-};
-
-export type PartUsageData = {
-  partId: string;
-  partName: string;
-  totalUsed: number;
-  totalCost: number;
-  currentStock: number;
 };
 
 /**
@@ -464,69 +455,6 @@ export async function getVehicleTripsByFSRData(
 }
 
 /**
- * Get Parts Usage Data
- */
-export async function getPartsUsageData(
-  dateRange?: DateRange,
-): Promise<PartUsageData[]> {
-  const scope = await getReportScope(await requirePermission("reports:view"));
-
-  const startRange = dateRange?.startDate
-    ? mxDayRange(dateRange.startDate)
-    : mxDayRange(mxDaysAgoString(30));
-  const endRange = dateRange?.endDate
-    ? mxDayRange(dateRange.endDate)
-    : mxDayRange(mxTodayString());
-  const startDate = startRange.gte;
-  const endDate = endRange.lte;
-
-  // Get all work parts with their part info
-  const workParts = await prisma.workPart.findMany({
-    where: {
-      active: true,
-      createdAt: {
-        gte: startDate,
-        lte: endDate,
-      },
-      ...workPartScopeWhere(scope),
-    },
-    include: {
-      part: true,
-    },
-  });
-
-  // Group by part
-  const partUsage: Record<
-    string,
-    { name: string; totalUsed: number; totalCost: number; stock: number }
-  > = {};
-
-  workParts.forEach((wp) => {
-    const partId = wp.partId;
-    if (!partUsage[partId]) {
-      partUsage[partId] = {
-        name: wp.part.name,
-        totalUsed: 0,
-        totalCost: 0,
-        stock: wp.part.stock,
-      };
-    }
-    partUsage[partId].totalUsed += wp.quantity;
-    partUsage[partId].totalCost += wp.price * wp.quantity;
-  });
-
-  return Object.entries(partUsage)
-    .map(([partId, data]) => ({
-      partId,
-      partName: data.name,
-      totalUsed: data.totalUsed,
-      totalCost: Math.round(data.totalCost * 100) / 100,
-      currentStock: data.stock,
-    }))
-    .sort((a, b) => b.totalUsed - a.totalUsed);
-}
-
-/**
  * Get Report Summary Statistics
  */
 export async function getReportSummary(dateRange?: DateRange) {
@@ -549,7 +477,6 @@ export async function getReportSummary(dateRange?: DateRange) {
     completedAssignments,
     totalTrips,
     totalKmDriven,
-    partsUsed,
   ] = await Promise.all([
     prisma.incident.count({
       where: {
@@ -596,14 +523,6 @@ export async function getReportSummary(dateRange?: DateRange) {
         ...vehicleTripScopeWhere(scope),
       },
     }),
-    prisma.workPart.aggregate({
-      _sum: { quantity: true },
-      where: {
-        active: true,
-        createdAt: { gte: startDate, lte: endDate },
-        ...workPartScopeWhere(scope),
-      },
-    }),
   ]);
 
   return {
@@ -621,7 +540,6 @@ export async function getReportSummary(dateRange?: DateRange) {
         : 0,
     totalTrips,
     totalKmDriven: totalKmDriven._sum.kmDriven || 0,
-    totalPartsUsed: partsUsed._sum.quantity || 0,
   };
 }
 

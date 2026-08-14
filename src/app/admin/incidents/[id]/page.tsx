@@ -339,11 +339,6 @@ export default async function IncidentDetailPage({
                           {wo._count?.assignmentActivities || 0}
                         </Badge>
                       </TableCell>
-                      <TableCell>
-                        <Badge variant="outline">
-                          {wo._count?.workParts || 0}
-                        </Badge>
-                      </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {formatMX(wo.createdAt, { dateStyle: "short" })}
                       </TableCell>

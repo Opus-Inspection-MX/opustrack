@@ -5,7 +5,6 @@ import {
   Clock,
   FileText,
   Image as ImageIcon,
-  Package,
   User,
   Wrench,
 } from "lucide-react";
@@ -21,7 +20,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import { getAssignmentById } from "@/lib/actions/assignments";
 import { requireRouteAccess } from "@/lib/auth/auth";
 import { getFileUrl } from "@/lib/storage/file-storage";
@@ -197,58 +195,6 @@ export default async function ClientAssignmentDetailPage({
           )}
         </CardContent>
       </Card>
-
-      {/* Parts Used */}
-      {assignment.workParts && assignment.workParts.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Package className="h-5 w-5" />
-              Partes Utilizadas ({assignment.workParts.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {assignment.workParts.map((wp) => (
-                <div
-                  key={wp.id}
-                  className="flex items-center justify-between border rounded-lg p-3"
-                >
-                  <div>
-                    <p className="font-medium">{wp.part?.name || "Parte"}</p>
-                    {wp.description && (
-                      <p className="text-sm text-muted-foreground">
-                        {wp.description}
-                      </p>
-                    )}
-                  </div>
-                  <div className="text-right">
-                    <p className="font-medium">x{wp.quantity}</p>
-                    {wp.price && (
-                      <p className="text-sm text-muted-foreground">
-                        ${Number(wp.price).toFixed(2)} c/u
-                      </p>
-                    )}
-                  </div>
-                </div>
-              ))}
-              <Separator />
-              <div className="flex justify-between font-medium">
-                <span>Total</span>
-                <span>
-                  $
-                  {assignment.workParts
-                    .reduce(
-                      (sum, wp) => sum + Number(wp.price || 0) * wp.quantity,
-                      0,
-                    )
-                    .toFixed(2)}
-                </span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Attachments */}
       {assignment.attachments && assignment.attachments.length > 0 && (

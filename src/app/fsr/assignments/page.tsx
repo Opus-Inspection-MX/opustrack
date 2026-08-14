@@ -186,10 +186,6 @@ export default async function FSRAssignmentsPage() {
                           <span className="font-medium">Actividades:</span>{" "}
                           {wo._count?.assignmentActivities || 0}
                         </div>
-                        <div>
-                          <span className="font-medium">Refacciones:</span>{" "}
-                          {wo._count?.workParts || 0}
-                        </div>
                       </div>
 
                       {/* Dates */}

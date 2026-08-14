@@ -5,7 +5,6 @@ import {
   AlertTriangle,
   ArrowLeft,
   ExternalLink,
-  Package,
   Paperclip,
   Trash2,
 } from "lucide-react";
@@ -15,8 +14,7 @@ import { useCallback, useEffect, useState } from "react";
 import { AssignmentActivityEdit } from "@/components/assignments/assignment-activity-edit";
 import { AssignmentActivityForm } from "@/components/assignments/assignment-activity-form";
 import { AssignmentEditForm } from "@/components/assignments/assignment-edit-form";
-import { WorkPartEdit } from "@/components/assignments/work-part-edit";
-import { WorkPartForm } from "@/components/assignments/work-part-form";
+import { AssignmentItems } from "@/components/assignments/assignment-items";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -27,14 +25,13 @@ import {
   deleteAssignmentActivity,
   getAssignmentActivities,
 } from "@/lib/actions/assignment-activities";
+import { getAssignmentItems } from "@/lib/actions/assignment-items";
 import {
   deleteAssignmentAttachment,
   getAssignmentById,
   getAssignmentFormOptions,
 } from "@/lib/actions/assignments";
-import { getPartsForSelect } from "@/lib/actions/parts";
 import { isFailure } from "@/lib/actions/result";
-import { deleteWorkPart, getWorkParts } from "@/lib/actions/work-parts";
 import { formatFileSize, getFileIcon } from "@/lib/upload";
 import { formatMX } from "@/lib/utils/datetime";
 
@@ -74,23 +71,6 @@ interface AssignmentActivity {
   id: string;
   description: string;
   performedAt: Date;
-  workParts?: WorkPart[];
-}
-
-interface Part {
-  id: string;
-  name: string;
-  price: number;
-  stock: number;
-}
-
-interface WorkPart {
-  id: string;
-  partId: string;
-  quantity: number;
-  price: number;
-  description: string | null;
-  part: { id: string; name: string; stock: number };
 }
 
 interface Attachment {
@@ -119,8 +99,9 @@ export default function EditAssignmentPage({
   const [assignmentId, setAssignmentId] = useState<string | null>(null);
   const [assignment, setAssignment] = useState<Assignment | null>(null);
   const [activities, setActivities] = useState<AssignmentActivity[]>([]);
-  const [workParts, setWorkParts] = useState<WorkPart[]>([]);
-  const [availableParts, setAvailableParts] = useState<Part[]>([]);
+  const [items, setItems] = useState<
+    Awaited<ReturnType<typeof getAssignmentItems>>
+  >([]);
   const [availableUsers, setAvailableUsers] = useState<User[]>([]);
   const [availableIncidents, setAvailableIncidents] = useState<
     Array<{ id: number; assigneeIds: string[] }>
@@ -131,7 +112,6 @@ export default function EditAssignmentPage({
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [loading, setLoading] = useState(true);
   const [showActivityForm, setShowActivityForm] = useState(false);
-  const [showPartForm, setShowPartForm] = useState(false);
 
   useEffect(() => {
     params.then((p) => setAssignmentId(p.id));
@@ -143,26 +123,18 @@ export default function EditAssignmentPage({
     try {
       setLoading(true);
       const { getAssignmentStatuses } = await import("@/lib/actions/lookups");
-      const [
-        woData,
-        activitiesData,
-        partsData,
-        availablePartsData,
-        formOptions,
-        statuses,
-      ] = await Promise.all([
-        getAssignmentById(assignmentId),
-        getAssignmentActivities(assignmentId),
-        getWorkParts(assignmentId),
-        getPartsForSelect(),
-        getAssignmentFormOptions(),
-        getAssignmentStatuses(),
-      ]);
+      const [woData, activitiesData, partsData, formOptions, statuses] =
+        await Promise.all([
+          getAssignmentById(assignmentId),
+          getAssignmentActivities(assignmentId),
+          getAssignmentItems(assignmentId),
+          getAssignmentFormOptions(),
+          getAssignmentStatuses(),
+        ]);
 
       setAssignment(woData);
       setActivities(activitiesData);
-      setWorkParts(partsData);
-      setAvailableParts(availablePartsData);
+      setItems(partsData);
       setAvailableUsers(formOptions.users);
       setAvailableIncidents(
         formOptions.incidents.map((i) => ({
@@ -203,24 +175,6 @@ export default function EditAssignmentPage({
     }
   };
 
-  const handleDeletePart = async (id: string) => {
-    if (!confirm("¿Estás seguro de que deseas eliminar esta refacción?"))
-      return;
-
-    try {
-      const result = await deleteWorkPart(id);
-
-      if (isFailure(result)) {
-        toast.error(result.error);
-        return;
-      }
-      await fetchData();
-    } catch (error) {
-      console.error("Error deleting part:", error);
-      toast.error("Error al eliminar la refacción");
-    }
-  };
-
   const handleDeleteAttachment = async (id: string) => {
     if (!confirm("¿Estás seguro de que deseas eliminar este archivo?")) return;
 
@@ -243,11 +197,6 @@ export default function EditAssignmentPage({
     fetchData();
   };
 
-  const handlePartSuccess = () => {
-    setShowPartForm(false);
-    fetchData();
-  };
-
   if (loading || !assignment) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -255,11 +204,6 @@ export default function EditAssignmentPage({
       </div>
     );
   }
-
-  const totalPartsCost = workParts.reduce(
-    (sum, wp) => sum + wp.price * wp.quantity,
-    0,
-  );
 
   return (
     <div className="space-y-6">
@@ -385,94 +329,20 @@ export default function EditAssignmentPage({
                 onSuccess={fetchData}
               />
             </CardHeader>
-            {activity.workParts && activity.workParts.length > 0 && (
-              <CardContent>
-                <p className="text-sm font-medium mb-2">Refacciones Usadas:</p>
-                <div className="space-y-1">
-                  {activity.workParts.map((wp: WorkPart) => (
-                    <div
-                      key={wp.id}
-                      className="text-sm flex justify-between items-center p-2 bg-muted rounded"
-                    >
-                      <span>
-                        {wp.part?.name} x {wp.quantity}
-                      </span>
-                      <span className="font-medium">
-                        ${(wp.price * wp.quantity).toFixed(2)}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            )}
           </Card>
         ))}
       </div>
 
       <Separator />
 
-      {/* Work Parts Section */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-bold flex items-center gap-2">
-              <Package className="h-6 w-6" />
-              Refacciones Usadas ({workParts.length})
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              Costo Total: ${totalPartsCost.toFixed(2)}
-            </p>
-          </div>
-          <Button
-            onClick={() => setShowPartForm(!showPartForm)}
-            variant={showPartForm ? "outline" : "default"}
-          >
-            {showPartForm ? "Cancelar" : "Agregar Refacción"}
-          </Button>
-        </div>
-
-        {showPartForm && assignmentId && (
-          <WorkPartForm
-            assignmentId={assignmentId}
-            parts={availableParts}
-            onSuccess={handlePartSuccess}
-            onCancel={() => setShowPartForm(false)}
-          />
-        )}
-
-        {workParts.length === 0 && !showPartForm && (
-          <Card>
-            <CardContent className="py-8 text-center text-muted-foreground">
-              Sin refacciones aún. Haz clic en "Agregar Refacción" para
-              registrar.
-            </CardContent>
-          </Card>
-        )}
-
-        {workParts.length > 0 && (
-          <Card>
-            <CardContent className="p-0">
-              <div className="divide-y">
-                {workParts.map((wp) => (
-                  <div key={wp.id} className="flex items-center">
-                    <div className="flex-1">
-                      <WorkPartEdit workPart={wp} onSuccess={fetchData} />
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDeletePart(wp.id)}
-                      className="text-destructive mr-4"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-      </div>
+      {/* Refacciones y equipo usados */}
+      {assignmentId && (
+        <AssignmentItems
+          assignmentId={assignmentId}
+          items={items}
+          onChange={fetchData}
+        />
+      )}
 
       <Separator />
 

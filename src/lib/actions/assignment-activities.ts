@@ -47,9 +47,6 @@ export async function getAllAssignmentActivities() {
           },
         },
       },
-      workParts: {
-        where: { active: true },
-      },
     },
     orderBy: { performedAt: "desc" },
   });
@@ -67,14 +64,6 @@ export async function getAssignmentActivities(assignmentId: string) {
     where: {
       assignmentId,
       active: true,
-    },
-    include: {
-      workParts: {
-        where: { active: true },
-        include: {
-          part: true,
-        },
-      },
     },
     orderBy: { performedAt: "desc" },
   });
@@ -208,12 +197,6 @@ export async function getAssignmentActivityById(id: string) {
             where: { active: true },
             include: { user: true },
           },
-        },
-      },
-      workParts: {
-        where: { active: true },
-        include: {
-          part: true,
         },
       },
     },

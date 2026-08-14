@@ -1,29 +1,24 @@
 "use client";
 
-import { ArrowLeft, Package, Plus, Trash2, Wrench } from "lucide-react";
+import { ArrowLeft, Wrench } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { IncidentForm } from "@/components/admin/incidents/incident-form";
-import { WorkPartEdit } from "@/components/assignments/work-part-edit";
-import { WorkPartForm } from "@/components/assignments/work-part-form";
+import { AssignmentItems } from "@/components/assignments/assignment-items";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
-import { toast } from "@/hooks/use-toast";
+import { getAssignmentItems } from "@/lib/actions/assignment-items";
 import {
   getIncidentById,
   getIncidentFormOptions,
 } from "@/lib/actions/incidents";
-import { getPartsForSelect } from "@/lib/actions/parts";
-import { isFailure } from "@/lib/actions/result";
-import { deleteWorkPart, getWorkParts } from "@/lib/actions/work-parts";
 
 type Incident = Awaited<ReturnType<typeof getIncidentById>>;
 type FormOptions = Awaited<ReturnType<typeof getIncidentFormOptions>>;
-type Part = Awaited<ReturnType<typeof getPartsForSelect>>[number];
-type WorkPart = Awaited<ReturnType<typeof getWorkParts>>[number];
+type AssignmentItem = Awaited<ReturnType<typeof getAssignmentItems>>[number];
 
 export default function EditIncidentPage({
   params,
@@ -34,11 +29,9 @@ export default function EditIncidentPage({
   const [incidentId, setIncidentId] = useState<number | null>(null);
   const [incident, setIncident] = useState<Incident | null>(null);
   const [formOptions, setFormOptions] = useState<FormOptions | null>(null);
-  const [assignmentParts, setAssignmentParts] = useState<
-    Record<string, WorkPart[]>
+  const [assignmentItems, setAssignmentItems] = useState<
+    Record<string, AssignmentItem[]>
   >({});
-  const [availableParts, setAvailableParts] = useState<Part[]>([]);
-  const [showPartForm, setShowPartForm] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -49,33 +42,23 @@ export default function EditIncidentPage({
     if (!incidentId) return;
 
     try {
-      const [incidentData, options, parts] = await Promise.all([
+      const [incidentData, options] = await Promise.all([
         getIncidentById(incidentId),
         getIncidentFormOptions(),
-        getPartsForSelect(),
       ]);
 
       setIncident(incidentData);
       setFormOptions(options);
-      setAvailableParts(parts);
 
-      // Fetch parts for each asignación
+      // The open list of parts/equipment, per assignment.
       if (incidentData?.assignments) {
-        const partsPromises = incidentData.assignments.map(async (wo) => {
-          const parts = await getWorkParts(wo.id);
-          return { id: wo.id.toString(), parts };
-        });
-
-        const partsData = await Promise.all(partsPromises);
-        const partsMap = partsData.reduce(
-          (acc, { id, parts }) => {
-            acc[id] = parts;
-            return acc;
-          },
-          {} as Record<string, WorkPart[]>,
+        const entries = await Promise.all(
+          incidentData.assignments.map(async (wo) => {
+            const items = await getAssignmentItems(wo.id);
+            return [wo.id.toString(), items] as const;
+          }),
         );
-
-        setAssignmentParts(partsMap);
+        setAssignmentItems(Object.fromEntries(entries));
       }
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -89,29 +72,6 @@ export default function EditIncidentPage({
       fetchData();
     }
   }, [incidentId, fetchData]);
-
-  const handleDeletePart = async (_assignmentId: string, partId: string) => {
-    if (!confirm("¿Estás seguro de que deseas eliminar esta refacción?"))
-      return;
-
-    try {
-      const result = await deleteWorkPart(partId);
-
-      if (isFailure(result)) {
-        toast.error(result.error);
-        return;
-      }
-      await fetchData();
-    } catch (error) {
-      console.error("Error deleting part:", error);
-      toast.error("Error al eliminar la refacción");
-    }
-  };
-
-  const handlePartSuccess = (assignmentId: string) => {
-    setShowPartForm({ ...showPartForm, [assignmentId]: false });
-    fetchData();
-  };
 
   if (loading || !incident || !formOptions) {
     return (
@@ -165,11 +125,7 @@ export default function EditIncidentPage({
             </div>
 
             {incident.assignments?.map((wo) => {
-              const parts = assignmentParts[wo.id] || [];
-              const totalCost = parts.reduce(
-                (sum, wp) => sum + wp.price * wp.quantity,
-                0,
-              );
+              const items = assignmentItems[wo.id] || [];
 
               return (
                 <Card key={wo.id}>
@@ -194,79 +150,11 @@ export default function EditIncidentPage({
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h3 className="text-lg font-semibold flex items-center gap-2">
-                            <Package className="h-5 w-5" />
-                            Refacciones Usadas ({parts.length})
-                          </h3>
-                          <p className="text-sm text-muted-foreground">
-                            Costo Total: ${totalCost.toFixed(2)}
-                          </p>
-                        </div>
-                        <Button
-                          size="sm"
-                          onClick={() =>
-                            setShowPartForm({
-                              ...showPartForm,
-                              [wo.id]: !showPartForm[wo.id],
-                            })
-                          }
-                          variant={showPartForm[wo.id] ? "outline" : "default"}
-                        >
-                          {showPartForm[wo.id] ? (
-                            "Cancelar"
-                          ) : (
-                            <>
-                              <Plus className="mr-2 h-4 w-4" />
-                              Agregar Refacción
-                            </>
-                          )}
-                        </Button>
-                      </div>
-
-                      {showPartForm[wo.id] && (
-                        <WorkPartForm
-                          assignmentId={wo.id}
-                          parts={availableParts}
-                          onSuccess={() => handlePartSuccess(wo.id)}
-                          onCancel={() =>
-                            setShowPartForm({ ...showPartForm, [wo.id]: false })
-                          }
-                        />
-                      )}
-
-                      {parts.length === 0 && !showPartForm[wo.id] ? (
-                        <div className="text-center py-8 text-muted-foreground border rounded-lg bg-muted/30">
-                          Sin refacciones aún. Haz clic en "Agregar Refacción"
-                          para registrar.
-                        </div>
-                      ) : (
-                        parts.length > 0 && (
-                          <div className="border rounded-lg divide-y">
-                            {parts.map((wp) => (
-                              <div key={wp.id} className="flex items-center">
-                                <div className="flex-1">
-                                  <WorkPartEdit
-                                    workPart={wp}
-                                    onSuccess={fetchData}
-                                  />
-                                </div>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleDeletePart(wo.id, wp.id)}
-                                  className="text-destructive mr-4"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            ))}
-                          </div>
-                        )
-                      )}
-                    </div>
+                    <AssignmentItems
+                      assignmentId={wo.id}
+                      items={items}
+                      onChange={fetchData}
+                    />
                   </CardContent>
                 </Card>
               );

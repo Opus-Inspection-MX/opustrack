@@ -95,7 +95,6 @@ export async function getAssignments() {
       _count: {
         select: {
           assignmentActivities: true,
-          workParts: true,
         },
       },
       status: true,
@@ -126,20 +125,7 @@ export async function getAssignmentById(id: string) {
       ...assigneesInclude,
       assignmentActivities: {
         where: { active: true },
-        include: {
-          workParts: {
-            include: {
-              part: true,
-            },
-          },
-        },
         orderBy: { performedAt: "desc" },
-      },
-      workParts: {
-        where: { active: true },
-        include: {
-          part: true,
-        },
       },
       attachments: {
         where: { active: true },
@@ -558,7 +544,6 @@ export async function deleteAssignment(id: string) {
           incidentId: true,
           _count: {
             select: {
-              workParts: { where: { active: true } },
               assignmentActivities: { where: { active: true } },
               attachments: { where: { active: true } },
             },
@@ -570,14 +555,11 @@ export async function deleteAssignment(id: string) {
         throw new Error("Assignment not found");
       }
 
-      const hasActiveParts = assignment._count.workParts > 0;
       const hasActiveActivities = assignment._count.assignmentActivities > 0;
       const hasActiveAttachments = assignment._count.attachments > 0;
 
-      if (hasActiveParts || hasActiveActivities || hasActiveAttachments) {
+      if (hasActiveActivities || hasActiveAttachments) {
         const issues = [];
-        if (hasActiveParts)
-          issues.push(`${assignment._count.workParts} parte(s)`);
         if (hasActiveActivities)
           issues.push(
             `${assignment._count.assignmentActivities} actividad(es)`,
@@ -1065,7 +1047,6 @@ export async function getMyAssignments() {
       _count: {
         select: {
           assignmentActivities: true,
-          workParts: true,
         },
       },
       status: true,

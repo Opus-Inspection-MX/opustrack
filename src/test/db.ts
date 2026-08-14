@@ -178,14 +178,12 @@ export async function cleanupTestDatabase() {
     // Delete in order of dependencies
     await prisma.assignmentAttachment.deleteMany();
     await prisma.assignmentActivity.deleteMany();
-    await prisma.workPart.deleteMany();
     await prisma.assignment.deleteMany();
     await prisma.incident.deleteMany();
     await prisma.vehicleTrip.deleteMany();
     await prisma.vehicle.deleteMany();
     await prisma.equipment.deleteMany();
     await prisma.line.deleteMany();
-    await prisma.part.deleteMany();
     await prisma.schedule.deleteMany();
     await prisma.user.deleteMany();
     await prisma.rolePermission.deleteMany();

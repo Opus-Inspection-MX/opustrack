@@ -49,14 +49,6 @@ export function assignmentScopeWhere(
   return { incident: incidentScopeWhere(scope) };
 }
 
-/** WorkPart: reaches the Cliente through assignment → incident. */
-export function workPartScopeWhere(
-  scope: ReportScope,
-): Prisma.WorkPartWhereInput {
-  if (scope.clienteIds === null) return {};
-  return { assignment: assignmentScopeWhere(scope) };
-}
-
 /** User (FSR): scoped by their active Cliente assignments. */
 export function fsrScopeWhere(scope: ReportScope): Prisma.UserWhereInput {
   if (scope.clienteIds === null) return {};

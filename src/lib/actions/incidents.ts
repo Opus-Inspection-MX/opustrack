@@ -216,7 +216,6 @@ export async function getIncidentById(id: number) {
           _count: {
             select: {
               assignmentActivities: true,
-              workParts: true,
             },
           },
         },

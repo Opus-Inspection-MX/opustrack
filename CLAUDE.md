@@ -49,7 +49,6 @@ loads the right profile for each command.
 
 The seed script (`prisma/seed.ts`) creates:
 - 1 VIC (Vehicle Inspection Center) in CDMX
-- 1 Part for testing
 - 4 roles: ADMINISTRADOR, FSR, CLIENT, GUEST
 - 4 test users (one per role) with email pattern: `{role}@opusinspection.com` / password: `password123`
 - Comprehensive permission system with route and resource-based permissions
@@ -176,8 +175,8 @@ Key models:
 - **Permission** - Defines access rules with resource, action, routePath
 - **RolePermission** - Junction table between Role and Permission
 - **Incident** - One-to-many with WorkOrder
-- **WorkOrder** - Contains WorkActivity, WorkPart, and Attachment records
-- **Part** - Inventory management with stock tracking
+- **WorkOrder** - Contains WorkActivity, AssignmentItem, and Attachment records
+- **AssignmentItem** - Free-text list of parts/equipment used (name, quantity, unit price)
 
 ### Application Structure
 
@@ -225,11 +224,11 @@ Each role has a `defaultPath` stored in database that determines where users lan
 - Timestamps for audit trail
 - Multiple activities per work order
 
-**Work Parts** - Inventory management:
-- Link parts used to work orders
-- **Stock Management**: Adding part to work order decrements stock automatically
-- **Stock Restoration**: Deleting work part record restores stock
-- Quantity tracking per work order
+**Refacciones y equipo** (`AssignmentItem`) - an open list, NOT inventory:
+- Free text name, quantity and unit price; the line total is derived
+- **No catalogue and no stock on purpose**: pointing at a parts table with
+  stock means running a warehouse — receiving, counting, reconciling — which
+  this system does not do. The technician records what was used and its cost.
 
 **File Attachments** - Evidence and documentation:
 - Multiple file uploads per work order (10MB limit per file)
@@ -350,16 +349,16 @@ export async function deleteState(id: number) {
 
 // Rule raised from a shared guard or INSIDE a transaction → businessRule + guarded.
 // Returning from a $transaction callback COMMITS it; only throwing rolls back.
-export async function createWorkPart(data: unknown) {
+export async function createAssignmentItem(data: unknown) {
   await requirePermission("assignments:update");   // stays outside: auth must still throw
 
   return guarded(async () => {
     await assertAssignmentEditable(id);             // helper calls businessRule(...)
-    const workPart = await prisma.$transaction(async (tx) => {
-      if (noStock) businessRule(`Stock insuficiente. Disponible: ${part.stock}`);
+    const item = await prisma.$transaction(async (tx) => {
+      if (quantity <= 0) businessRule("La cantidad debe ser mayor que cero.");
       // ...
     });
-    return { data: workPart };                      // `guarded` adds success: true
+    return { data: item };                          // `guarded` adds success: true
   });
 }
 ```
@@ -714,6 +713,29 @@ const displayUrl = getFileUrl(storedUrl, provider);
 
 The provider is automatically determined from `FILE_STORAGE_PROVIDER` environment variable. Each attachment in the database stores which provider was used, ensuring correct deletion even if the provider changes.
 
+## Dependency supply chain
+
+`.npmrc` carries a `before=` cutoff: npm refuses to resolve any version
+published after that instant.
+
+**npm has no `minimumReleaseAge`** — that is a pnpm setting, and the difference
+matters. `minimumReleaseAge` is a rolling window that maintains itself; `before`
+is a fixed date somebody has to move. Left alone it silently freezes the project
+on old versions, security patches included.
+
+```bash
+npm run deps:freeze        # cutoff = 7 days ago
+npm run deps:freeze 14     # cutoff = 14 days ago
+```
+
+Run it before adding or updating a dependency. The 2025 registry compromises
+were malicious versions pulled within hours to a couple of days, so refusing
+anything younger than a week closes most of that window.
+
+It only affects resolving NEW versions. `npm ci` installs exactly what
+`package-lock.json` pins, so CI and the Docker build were never the exposure —
+`npm install`, `npm update` and `npm i <pkg>` on a developer machine are.
+
 ## Environment Variables
 
 Required in `.env`:
@@ -755,7 +777,6 @@ Only three events send email: a new incident and its closure (to whoever holds
 
 ### Data Management
 - **All deletes are soft deletes** - Set `active: false`, never physically delete
-- **Stock management is automatic** - Adding parts to work orders decrements stock, removing restores it
 - All database models have `active` boolean for soft deletes
 - VIC (Vehicle Inspection Center) is the central organizational unit
 

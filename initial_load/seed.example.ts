@@ -254,11 +254,6 @@ async function main() {
           routePath: "/admin/assignment-activities",
         },
         {
-          name: "route:admin-work-parts",
-          description: "Partes de trabajo",
-          routePath: "/admin/work-parts",
-        },
-        {
           name: "route:admin-reports",
           description: "Reportes",
           routePath: "/admin/reports",
@@ -282,11 +277,6 @@ async function main() {
           name: "route:admin-states",
           description: "Estados",
           routePath: "/admin/states",
-        },
-        {
-          name: "route:admin-parts",
-          description: "Inventario",
-          routePath: "/admin/parts",
         },
         {
           name: "route:admin-vehicles",
@@ -534,56 +524,8 @@ async function main() {
         },
 
         // Work part permissions
-        {
-          name: "work-parts:read",
-          description: "View work parts",
-          resource: "work-parts",
-          action: "read",
-        },
-        {
-          name: "work-parts:create",
-          description: "Create work parts",
-          resource: "work-parts",
-          action: "create",
-        },
-        {
-          name: "work-parts:update",
-          description: "Update work parts",
-          resource: "work-parts",
-          action: "update",
-        },
-        {
-          name: "work-parts:delete",
-          description: "Delete work parts",
-          resource: "work-parts",
-          action: "delete",
-        },
 
         // Parts/Inventory permissions
-        {
-          name: "parts:read",
-          description: "View parts",
-          resource: "parts",
-          action: "read",
-        },
-        {
-          name: "parts:create",
-          description: "Create parts",
-          resource: "parts",
-          action: "create",
-        },
-        {
-          name: "parts:update",
-          description: "Update parts",
-          resource: "parts",
-          action: "update",
-        },
-        {
-          name: "parts:delete",
-          description: "Delete parts",
-          resource: "parts",
-          action: "delete",
-        },
 
         // Cliente management permissions
         {
@@ -1050,13 +992,11 @@ async function main() {
         "route:admin-schedules",
         "route:admin-assignments",
         "route:admin-assignment-activities",
-        "route:admin-work-parts",
         "route:admin-reports",
         "route:admin-organization",
         "route:admin-lines",
         "route:admin-equipments",
         "route:admin-states",
-        "route:admin-parts",
         "route:admin-vehicles",
         "route:admin-notifications",
       ];
@@ -1105,10 +1045,6 @@ async function main() {
             "assignment-activities:update",
             "assignment-activities:delete",
             "assignment-activities:complete",
-            "work-parts:read",
-            "work-parts:create",
-            "work-parts:update",
-            "work-parts:delete",
             "schedules:read",
             "schedules:create",
             "schedules:update",
@@ -1125,10 +1061,6 @@ async function main() {
             "equipments:create",
             "equipments:update",
             "equipments:delete",
-            "parts:read",
-            "parts:create",
-            "parts:update",
-            "parts:delete",
             "vehicles:read",
             "vehicles:create",
             "vehicles:update",
@@ -1201,10 +1133,6 @@ async function main() {
             "assignment-activities:create",
             "assignment-activities:update",
             "assignment-activities:complete",
-            "work-parts:read",
-            "work-parts:create",
-            "work-parts:update",
-            "parts:read",
             "schedules:read",
             "users:read",
             "clientes:read",
@@ -1283,7 +1211,6 @@ async function main() {
             "incident-status:read", // Needed to view incident status
             "clientes:read", // Needed to view Clientes
             "assignments:read",
-            "parts:read",
             "schedules:read",
             "lines:read",
             "equipments:read",

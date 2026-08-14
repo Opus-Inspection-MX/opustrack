@@ -6,6 +6,5 @@ export * from "./common";
 export * from "./holidays";
 export * from "./incident-types";
 export * from "./incidents";
-export * from "./parts";
 export * from "./schedules";
 export * from "./vacations";

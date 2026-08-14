@@ -8,7 +8,6 @@ import {
   Eye,
   Lock,
   MapPin,
-  Package,
   Paperclip,
   Pause,
   Play,
@@ -19,6 +18,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { AssignmentActivityEdit } from "@/components/assignments/assignment-activity-edit";
 import { AssignmentActivityForm } from "@/components/assignments/assignment-activity-form";
+import { AssignmentItems } from "@/components/assignments/assignment-items";
 import { AttachmentPreview } from "@/components/assignments/attachment-preview";
 import { OdtFolioCapture } from "@/components/assignments/odt-folio-capture";
 import { Badge } from "@/components/ui/badge";
@@ -31,6 +31,7 @@ import {
   deleteAssignmentActivity,
   getAssignmentActivities,
 } from "@/lib/actions/assignment-activities";
+import { getAssignmentItems } from "@/lib/actions/assignment-items";
 import {
   closeAssignment,
   deleteAssignmentAttachment,
@@ -41,7 +42,6 @@ import {
   startAssignmentWork,
 } from "@/lib/actions/assignments";
 import { isFailure } from "@/lib/actions/result";
-import { getWorkParts } from "@/lib/actions/work-parts";
 import { formatMX } from "@/lib/utils/datetime";
 
 interface AssignmentStatus {
@@ -86,27 +86,10 @@ interface FSRAssignment {
   attachments?: AssignmentAttachment[];
 }
 
-interface AssignmentActivityPart {
-  id: string;
-  partId: string;
-  quantity: number;
-  price?: number | null;
-  part?: { name: string } | null;
-}
-
 interface FSRAssignmentActivity {
   id: string;
   description: string;
   performedAt: Date | string;
-  workParts?: AssignmentActivityPart[];
-}
-
-interface FSRWorkPart {
-  id: string;
-  partId: string;
-  quantity: number;
-  price?: number | null;
-  part?: { name: string } | null;
 }
 
 interface AssignmentAttachment {
@@ -129,7 +112,9 @@ export default function FSRAssignmentDetailPage({
   const [assignmentId, setAssignmentId] = useState<string | null>(null);
   const [assignment, setAssignment] = useState<FSRAssignment | null>(null);
   const [activities, setActivities] = useState<FSRAssignmentActivity[]>([]);
-  const [workParts, setWorkParts] = useState<FSRWorkPart[]>([]);
+  const [items, setItems] = useState<
+    Awaited<ReturnType<typeof getAssignmentItems>>
+  >([]);
   const [attachments, setAttachments] = useState<AssignmentAttachment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -149,12 +134,12 @@ export default function FSRAssignmentDetailPage({
       const [woData, activitiesData, partsData] = await Promise.all([
         getAssignmentById(assignmentId),
         getAssignmentActivities(assignmentId),
-        getWorkParts(assignmentId),
+        getAssignmentItems(assignmentId),
       ]);
 
       setAssignment(woData);
       setActivities(activitiesData);
-      setWorkParts(partsData);
+      setItems(partsData);
       setAttachments(woData?.attachments || []);
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -391,11 +376,6 @@ export default function FSRAssignmentDetailPage({
       </div>
     );
   }
-
-  const totalPartsCost = workParts.reduce(
-    (sum, wp) => sum + (wp.price ?? 0) * wp.quantity,
-    0,
-  );
 
   const currentStatus = assignment.status?.name ?? "";
   const isAssigned = currentStatus === "ASIGNADO";
@@ -768,74 +748,22 @@ export default function FSRAssignmentDetailPage({
                 readOnly={isCompleted}
               />
             </CardHeader>
-            {activity.workParts && activity.workParts.length > 0 && (
-              <CardContent>
-                <p className="text-sm font-medium mb-2">Refacciones Usadas:</p>
-                <div className="space-y-1">
-                  {activity.workParts.map((wp: AssignmentActivityPart) => (
-                    <div
-                      key={wp.id}
-                      className="text-sm flex justify-between items-center p-2 bg-muted rounded"
-                    >
-                      <span>
-                        {wp.part?.name} x {wp.quantity}
-                      </span>
-                      <span className="font-medium">
-                        ${((wp.price ?? 0) * wp.quantity).toFixed(2)}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            )}
           </Card>
         ))}
       </div>
 
       <Separator />
 
-      {/* Parts Summary */}
-      {workParts.length > 0 && (
-        <>
-          <div className="space-y-4">
-            <div>
-              <h2 className="text-2xl font-bold flex items-center gap-2">
-                <Package className="h-6 w-6" />
-                Refacciones Usadas ({workParts.length})
-              </h2>
-              <p className="text-sm text-muted-foreground">
-                Costo Total: ${totalPartsCost.toFixed(2)}
-              </p>
-            </div>
-
-            <Card>
-              <CardContent className="p-0">
-                <div className="divide-y">
-                  {workParts.map((wp) => (
-                    <div
-                      key={wp.id}
-                      className="p-4 flex items-center justify-between"
-                    >
-                      <div>
-                        <p className="font-medium">{wp.part?.name}</p>
-                        <p className="text-sm text-muted-foreground">
-                          Cantidad: {wp.quantity} × $
-                          {(wp.price ?? 0).toFixed(2)}
-                        </p>
-                      </div>
-                      <p className="font-bold">
-                        ${((wp.price ?? 0) * wp.quantity).toFixed(2)}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          <Separator />
-        </>
+      {/* Refacciones y equipo usados: lista abierta, sin catálogo detrás. */}
+      {assignmentId && (
+        <AssignmentItems
+          assignmentId={assignmentId}
+          items={items}
+          onChange={fetchData}
+        />
       )}
+
+      <Separator />
 
       {/* Attachments Section */}
       <div className="space-y-4">

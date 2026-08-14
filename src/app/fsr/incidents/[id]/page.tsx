@@ -190,7 +190,6 @@ export default async function FSRIncidentDetailPage({
                         <span>
                           Actividades: {wo._count?.assignmentActivities || 0}
                         </span>
-                        <span>Partes: {wo._count?.workParts || 0}</span>
                       </div>
                     </div>
                     <Button asChild size="sm">

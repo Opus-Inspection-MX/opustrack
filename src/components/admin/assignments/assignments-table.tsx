@@ -36,7 +36,6 @@ type Assignment = {
   assignees: Array<{ user: { name: string } }>;
   _count: {
     assignmentActivities: number;
-    workParts: number;
   };
 };
 
@@ -175,9 +174,7 @@ export function AssignmentsTable({
                   {wo._count.assignmentActivities}
                 </Badge>
               </TableCell>
-              <TableCell>
-                <Badge variant="outline">{wo._count.workParts}</Badge>
-              </TableCell>
+              <TableCell></TableCell>
               <TableCell className="text-sm text-muted-foreground">
                 {formatMX(wo.createdAt, { dateStyle: "short" })}
               </TableCell>

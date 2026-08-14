@@ -231,10 +231,6 @@ export function AssignmentsReportClient({
             <p className="text-sm text-muted-foreground">Viajes Realizados</p>
             <p className="text-2xl font-bold">{summary.totalTrips}</p>
           </div>
-          <div className="p-4 rounded-lg bg-muted/50">
-            <p className="text-sm text-muted-foreground">Partes Utilizadas</p>
-            <p className="text-2xl font-bold">{summary.totalPartsUsed}</p>
-          </div>
         </div>
       </ChartCard>
     </div>

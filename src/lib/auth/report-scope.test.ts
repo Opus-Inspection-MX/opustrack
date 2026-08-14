@@ -5,7 +5,6 @@ import {
   incidentScopeWhere,
   type ReportScope,
   vehicleTripScopeWhere,
-  workPartScopeWhere,
 } from "./report-scope";
 
 const ADMIN: ReportScope = { clienteIds: null };
@@ -42,18 +41,6 @@ describe("assignmentScopeWhere", () => {
   it("reaches the cliente through the incident", () => {
     expect(assignmentScopeWhere(MANY)).toEqual({
       incident: { clienteId: { in: ["c1", "c2"] } },
-    });
-  });
-});
-
-describe("workPartScopeWhere", () => {
-  it("does not restrict an admin scope", () => {
-    expect(workPartScopeWhere(ADMIN)).toEqual({});
-  });
-
-  it("reaches the cliente through assignment → incident", () => {
-    expect(workPartScopeWhere(ONE)).toEqual({
-      assignment: { incident: { clienteId: { in: ["c1"] } } },
     });
   });
 });
