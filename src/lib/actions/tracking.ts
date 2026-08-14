@@ -645,3 +645,58 @@ export async function updateAssignmentDetails(
     throw new Error("Failed to update assignment");
   }
 }
+
+/**
+ * Everything the tracking screen needs before it can draw its filters.
+ *
+ * One call instead of four. Server Actions are POSTs and Next does not run them
+ * in parallel the way `fetch` would, so four separate round trips on mount cost
+ * four times the latency before anything renders — on top of the incident query
+ * that runs beside them.
+ */
+export async function getTrackingBootstrap() {
+  await requirePermission("tracking:read");
+
+  const [clientes, types, statuses, fsrs] = await Promise.all([
+    prisma.cliente.findMany({
+      where: { active: true },
+      select: { id: true, name: true, code: true },
+      orderBy: { name: "asc" },
+    }),
+    prisma.incidentType.findMany({
+      where: { active: true },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    }),
+    prisma.incidentStatus.findMany({
+      where: { active: true },
+      select: { id: true, name: true, color: true },
+      orderBy: { id: "asc" },
+    }),
+    prisma.user.findMany({
+      where: { active: true, ...whereHasRole("FSR") },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        clienteAssignments: {
+          where: { active: true },
+          select: { clienteId: true },
+        },
+      },
+      orderBy: { name: "asc" },
+    }),
+  ]);
+
+  return {
+    clientes,
+    types,
+    statuses,
+    fsrs: fsrs.map((u) => ({
+      id: u.id,
+      name: u.name,
+      email: u.email,
+      clienteIds: u.clienteAssignments.map((a) => a.clienteId),
+    })),
+  };
+}

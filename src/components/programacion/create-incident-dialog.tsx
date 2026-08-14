@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ResponsiveDialog } from "@/components/ui/responsive-dialog";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import {
   Select,
   SelectContent,
@@ -367,24 +368,21 @@ export function CreateIncidentDialog({
           <Label htmlFor="clienteId">
             Centro <span className="text-destructive">*</span>
           </Label>
-          <Select
+          {/* Searchable: there are over a hundred centres, and scrolling a
+              plain list to find one by code is not a way to work. */}
+          <SearchableSelect
+            options={clientes.map((cliente) => ({
+              value: cliente.id,
+              label: `${cliente.code} — ${cliente.name}`,
+            }))}
             value={formData.clienteId}
             onValueChange={(value) =>
               setFormData({ ...formData, clienteId: value })
             }
-            required
-          >
-            <SelectTrigger id="clienteId">
-              <SelectValue placeholder="Selecciona centro" />
-            </SelectTrigger>
-            <SelectContent>
-              {clientes.map((cliente) => (
-                <SelectItem key={cliente.id} value={cliente.id}>
-                  {cliente.code} — {cliente.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            placeholder="Selecciona centro"
+            searchPlaceholder="Buscar por código o nombre..."
+            emptyMessage="No se encontraron centros."
+          />
         </div>
 
         {/* Scheduled Date and Time */}

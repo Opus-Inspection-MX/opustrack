@@ -7,11 +7,9 @@ import { TrackingFilters } from "@/components/tracking/tracking-filters";
 import { TrackingTable } from "@/components/tracking/tracking-table";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
-import { getClientesForSelect } from "@/lib/actions/clientes";
-import { getIncidentStatuses, getIncidentTypes } from "@/lib/actions/lookups";
 import {
   getIncidentsForTracking,
-  getTrackingFsrs,
+  getTrackingBootstrap,
 } from "@/lib/actions/tracking";
 
 interface Cliente {
@@ -116,21 +114,15 @@ export default function TrackingPage() {
 
   const loadInitialData = useCallback(async () => {
     try {
-      // One query for every FSR. This used to fan out into one server call per
-      // Cliente and then de-duplicate the union, because the picker only
-      // offered the FSRs of that center — a filter that no longer exists.
-      const [clientesData, typesResult, statusesResult, fsrsData] =
-        await Promise.all([
-          getClientesForSelect(),
-          getIncidentTypes(),
-          getIncidentStatuses(),
-          getTrackingFsrs(),
-        ]);
+      // One call, not four. Server Actions are POSTs that Next does not run in
+      // parallel, so four separate round trips cost four times the latency
+      // before the filters can even render.
+      const bootstrap = await getTrackingBootstrap();
 
-      setClientes(clientesData);
-      setIncidentTypes(typesResult.data);
-      setIncidentStatuses(statusesResult.data);
-      setAllFsrs(fsrsData);
+      setClientes(bootstrap.clientes);
+      setIncidentTypes(bootstrap.types);
+      setIncidentStatuses(bootstrap.statuses);
+      setAllFsrs(bootstrap.fsrs);
     } catch (error) {
       console.error("Error loading initial data:", error);
       toast.error(
