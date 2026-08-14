@@ -238,15 +238,19 @@ function buildStaff(workbook: ExcelJS.Workbook): StaffRow[] {
   for (const person of readPersonnelSheet(workbook, "FSR")) {
     add(person.name, "FSR", "FSR - Field Service Representative");
   }
+  // Office staff seed as ROOT because that is what they hold today: the old
+  // ADMINISTRADOR role became ROOT so the migration took nobody's access away.
+  // Narrowing them to ADMIN_OPERACION / ADMIN_VACACIONES / EMPLEADO is a
+  // business decision, made from the users screen, not guessed here.
   for (const person of readPersonnelSheet(workbook, "ADMINISTRATIVO")) {
-    add(person.name, "ADMINISTRADOR", person.jobPosition || "ADMINISTRATIVO");
+    add(person.name, "ROOT", person.jobPosition || "ADMINISTRATIVO");
   }
   for (const person of readPersonnelSheet(workbook, "GRUPO GERENCIAL")) {
-    add(person.name, "ADMINISTRADOR", person.jobPosition || "GERENCIAL");
+    add(person.name, "ROOT", person.jobPosition || "GERENCIAL");
   }
 
   // The system owner is not in the workbook.
-  add("Enrique Abdiel Reyes Rodriguez", "ADMINISTRADOR", "ADMINISTRADOR");
+  add("Enrique Abdiel Reyes Rodriguez", "ROOT", "ADMINISTRADOR");
 
   const takenEmails = new Set<string>();
   const rows: StaffRow[] = [];
@@ -283,7 +287,7 @@ function buildStaff(workbook: ExcelJS.Workbook): StaffRow[] {
   rows.sort((a, b) =>
     a.role === b.role
       ? a.name.localeCompare(b.name, "es")
-      : a.role === "ADMINISTRADOR"
+      : a.role === "ROOT"
         ? -1
         : 1,
   );
@@ -498,7 +502,7 @@ async function main(): Promise<void> {
     "utf8",
   );
 
-  const admins = staff.filter((s) => s.role === "ADMINISTRADOR").length;
+  const admins = staff.filter((s) => s.role === "ROOT").length;
   const fsrs = staff.filter((s) => s.role === "FSR").length;
   const lineTotal = centers.reduce(
     (sum, c) =>
@@ -511,7 +515,7 @@ async function main(): Promise<void> {
   );
 
   console.log(
-    `✅ users.csv    → ${staff.length} personas (${admins} admin, ${fsrs} FSR)`,
+    `✅ users.csv    → ${staff.length} personas (${admins} ROOT, ${fsrs} FSR)`,
   );
   console.log(
     `✅ clientes.csv → ${centers.length} centros, ${lineTotal} líneas, ${centers.length} usuarios CLIENT`,

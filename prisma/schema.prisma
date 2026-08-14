@@ -15,12 +15,17 @@ model User {
   name                String
   email               String                   @unique
   password            String
-  roleId              Int
   userStatusId        Int                      @default(1)
   clienteId               String? // Deprecated - kept for backward compatibility (use clienteAssignments instead)
   clienteIds              String[]                 @default([]) // Deprecated - use clienteAssignments instead
   sessionVersion      Int                      @default(1) // Increment to invalidate all user sessions
-  role                Role                     @relation(fields: [roleId], references: [id])
+  // A user holds MANY roles: someone can administer vacations, administer
+  // operations, and still be an FSR who gets dispatched. There is deliberately
+  // no `roleId` scalar beside this: `clienteId` was left as a "deprecated"
+  // scalar next to `clienteAssignments` and the read paths kept using it while
+  // writes went to the join table, so editing a user's Cliente silently saved
+  // nothing. One source of truth.
+  userRoles           UserRole[]
   userStatus          UserStatus               @relation(fields: [userStatusId], references: [id])
   userProfile         UserProfile?
   cliente                 Cliente? @relation(fields: [clienteId], references: [id])
@@ -61,12 +66,42 @@ model UserClienteAssignment {
   @@index([clienteId])
 }
 
+/// Roles a user holds. A user with several roles gets the UNION of their
+/// permissions, and lands on the `defaultPath` of the highest-priority one.
+model UserRole {
+  id        Int      @id @default(autoincrement())
+  userId    String
+  roleId    Int
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id])
+
+  @@unique([userId, roleId])
+  @@index([userId, active])
+  @@index([roleId])
+  @@map("user_roles")
+}
+
 model Role {
-  id             Int              @id @default(autoincrement())
-  name           String           @unique
-  description    String?
-  defaultPath    String
-  users          User[]
+  id          Int     @id @default(autoincrement())
+  name        String  @unique
+  description String?
+  defaultPath String
+  /// Bypasses every route and permission check. ROOT only.
+  ///
+  /// This replaced the hardcoded `role.name === "ADMINISTRADOR"` check. The old
+  /// name meant four different things at once — bypass, cross-Cliente data
+  /// scope, ownership override, and notification audience — and only the first
+  /// one belongs to a superuser. The other three are permissions now, so an
+  /// operations admin can see every Cliente without being able to grant roles.
+  isSuperuser Boolean @default(false)
+  /// Higher wins when a multi-role user needs one landing page.
+  priority    Int     @default(0)
+
+  userRoles      UserRole[]
   rolePermission RolePermission[]
   active         Boolean          @default(true)
   createdAt      DateTime         @default(now())
@@ -80,6 +115,12 @@ model Permission {
   resource    String? // e.g., "incidents", "users", "assignments"
   action      String? // e.g., "read", "create", "update", "delete"
   routePath   String? // e.g., "/admin", "/incidents", "/fsr"
+  /// Match `routePath` by equality instead of by prefix.
+  ///
+  /// Route coverage is prefix-based, so granting `/admin` grants the whole
+  /// panel. A module admin needs the `/admin` landing page WITHOUT inheriting
+  /// `/admin/incidents`, and that is the only way to express it.
+  exact       Boolean          @default(false)
   roles       RolePermission[]
   active      Boolean          @default(true)
   createdAt   DateTime         @default(now())

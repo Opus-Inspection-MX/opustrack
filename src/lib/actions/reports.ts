@@ -10,6 +10,7 @@ import {
   vehicleTripScopeWhere,
   workPartScopeWhere,
 } from "@/lib/auth/report-scope";
+import { whereHasRole } from "@/lib/authz/user-queries";
 import { prisma } from "@/lib/database/prisma.singleton";
 import {
   APP_TZ,
@@ -103,7 +104,7 @@ export async function getFSRPerformanceData(
   // Get all FSR users
   const fsrUsers = await prisma.user.findMany({
     where: {
-      roleId: fsrRole.id,
+      ...whereHasRole("FSR"),
       active: true,
       ...fsrScopeWhere(scope),
     },
@@ -978,7 +979,7 @@ export async function getNotificationEngagementReport(
   }
 
   const fsrUsers = await prisma.user.findMany({
-    where: { roleId: fsrRole.id, active: true, ...fsrScopeWhere(scope) },
+    where: { ...whereHasRole("FSR"), active: true, ...fsrScopeWhere(scope) },
     select: { id: true, name: true, email: true },
     orderBy: { name: "asc" },
   });
@@ -1127,7 +1128,7 @@ export async function getDailyTripComplianceReport(
   }
 
   const fsrUsers = await prisma.user.findMany({
-    where: { roleId: fsrRole.id, active: true, ...fsrScopeWhere(scope) },
+    where: { ...whereHasRole("FSR"), active: true, ...fsrScopeWhere(scope) },
     select: { id: true, name: true, email: true },
     orderBy: { name: "asc" },
   });

@@ -1,3 +1,4 @@
+import { includeRoles } from "@/lib/authz/user-queries";
 import { prisma } from "@/lib/database/prisma.singleton";
 
 /**
@@ -173,7 +174,7 @@ export async function getClienteUsers(clienteId: string) {
           id: true,
           name: true,
           email: true,
-          role: true,
+          ...includeRoles,
         },
       },
     },

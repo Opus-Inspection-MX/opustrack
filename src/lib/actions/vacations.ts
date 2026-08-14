@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { requirePermission } from "@/lib/auth/auth";
-import { isAdmin } from "@/lib/authz/authz";
+import { userHasPermission } from "@/lib/authz/authz";
+import { whereHasRole } from "@/lib/authz/user-queries";
 import { prisma } from "@/lib/database/prisma.singleton";
 import {
   notifyVacationApproved,
@@ -24,6 +25,17 @@ import {
 } from "@/lib/validations/vacations";
 import { businessRule, guarded, rejected } from "./result";
 
+/**
+ * Whether the caller administers OTHER people's vacations.
+ *
+ * Not "is an admin": every employee holds `vacations:read` for their own
+ * requests, and an operations admin has no business reading them. The
+ * capability belongs to ADMIN_VACACIONES (and ROOT, implicitly).
+ */
+function managesAllVacations(caller: Parameters<typeof userHasPermission>[0]) {
+  return userHasPermission(caller, "vacations:manage");
+}
+
 // ---------------------------------------------------------------------------
 // Read
 // ---------------------------------------------------------------------------
@@ -42,7 +54,7 @@ export async function getVacations(statusId?: number) {
     where: {
       active: true,
       ...(statusId !== undefined ? { statusId } : {}),
-      ...(isAdmin(caller) ? {} : { userId: caller.id }),
+      ...(managesAllVacations(caller) ? {} : { userId: caller.id }),
     },
     include: {
       user: { select: { id: true, name: true, email: true } },
@@ -85,7 +97,7 @@ export async function getVacationById(id: string) {
   const vacation = await prisma.vacation.findFirst({
     where: {
       id,
-      ...(isAdmin(caller) ? {} : { userId: caller.id }),
+      ...(managesAllVacations(caller) ? {} : { userId: caller.id }),
     },
     include: {
       user: { select: { id: true, name: true, email: true } },
@@ -107,7 +119,7 @@ export async function getFsrsForVacations() {
   const fsrs = await prisma.user.findMany({
     where: {
       active: true,
-      role: { name: "FSR" },
+      ...whereHasRole("FSR"),
     },
     select: { id: true, name: true, email: true },
     orderBy: { name: "asc" },
@@ -148,7 +160,7 @@ export async function createVacation(data: VacationFormData) {
   // Resolve target user
   const targetUserId = data.userId ?? caller.id;
 
-  if (targetUserId !== caller.id && !isAdmin(caller)) {
+  if (targetUserId !== caller.id && !managesAllVacations(caller)) {
     return rejected(
       "No tiene permisos para crear vacaciones en nombre de otro usuario.",
     );
@@ -243,7 +255,7 @@ export async function createVacation(data: VacationFormData) {
     await notifyVacationRequested(result.data.id, requester?.name, caller.id);
 
     revalidatePath("/admin/vacations");
-    revalidatePath("/fsr/vacations");
+    revalidatePath("/vacations");
   }
 
   return result;
@@ -310,7 +322,7 @@ async function resolveVacation(
   }
 
   revalidatePath("/admin/vacations");
-  revalidatePath("/fsr/vacations");
+  revalidatePath("/vacations");
   return { success: true, data: vacation };
 }
 
@@ -399,7 +411,7 @@ export async function deleteVacation(id: string) {
   const caller = await requirePermission("vacations:delete");
 
   // FSR ownership check
-  if (!isAdmin(caller)) {
+  if (!managesAllVacations(caller)) {
     const vacation = await prisma.vacation.findUnique({
       where: { id },
       select: { userId: true },
@@ -422,7 +434,7 @@ export async function deleteVacation(id: string) {
   });
 
   revalidatePath("/admin/vacations");
-  revalidatePath("/fsr/vacations");
+  revalidatePath("/vacations");
   return { success: true };
 }
 
@@ -456,7 +468,7 @@ export async function getVacationBalanceData(userId?: string, year?: number) {
   const caller = await requirePermission("vacations:read");
 
   const targetUserId = userId ?? caller.id;
-  if (targetUserId !== caller.id && !isAdmin(caller)) {
+  if (targetUserId !== caller.id && !managesAllVacations(caller)) {
     return rejected(
       "No tiene permisos para consultar el saldo de otro usuario.",
     );
@@ -581,7 +593,7 @@ export async function updatePeriodOverride(
     });
 
     revalidatePath("/admin/vacations");
-    revalidatePath("/fsr/vacations");
+    revalidatePath("/vacations");
     return { data: { id: updated.id, allottedDays: allottedDaysFor(updated) } };
   });
 }

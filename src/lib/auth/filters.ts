@@ -12,7 +12,11 @@
  * - Use getClienteWhereClauseAsync() for async filtering (queries all Cliente assignments)
  */
 
-import type { UserWithPermissions } from "@/lib/authz/authz";
+import {
+  SCOPE_ALL_CLIENTES,
+  type UserWithPermissions,
+  userHasPermission,
+} from "@/lib/authz/authz";
 import { getUserClienteIds } from "@/lib/utils/cliente-assignments";
 
 /**
@@ -112,13 +116,15 @@ export async function getClienteWhereClauseAsync(
 }
 
 /**
- * Helper for checking if user is admin
+ * Whether the user's data scope spans every Cliente.
  *
- * @param user - The user to check
- * @returns true if user has ADMINISTRADOR role
+ * This is NOT "is a superuser". `ADMINISTRADOR` used to mean both, and keeping
+ * them fused would force an operations admin — who must see every center — to
+ * also hold the keys to roles and permissions. ROOT keeps it implicitly; anyone
+ * else needs the permission granted.
  */
 export function isAdmin(user: UserWithPermissions): boolean {
-  return user.role?.name === "ADMINISTRADOR";
+  return userHasPermission(user, SCOPE_ALL_CLIENTES);
 }
 
 /**

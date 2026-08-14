@@ -8,7 +8,12 @@ vi.mock("@/lib/utils/cliente-assignments", () => ({
   getUserClienteIds: vi.fn(),
 }));
 
-import type { UserWithPermissions } from "@/lib/authz/authz";
+import {
+  mergeRoles,
+  type Role,
+  SCOPE_ALL_CLIENTES,
+  type UserWithPermissions,
+} from "@/lib/authz/authz";
 import { getUserClienteIds } from "@/lib/utils/cliente-assignments";
 import {
   assertClienteAccess,
@@ -21,6 +26,19 @@ import {
 
 const getIds = vi.mocked(getUserClienteIds);
 
+function role(overrides: Partial<Role> = {}): Role {
+  return {
+    id: 2,
+    name: "CLIENT",
+    description: null,
+    defaultPath: "/client",
+    isSuperuser: false,
+    priority: 10,
+    permissions: [],
+    ...overrides,
+  };
+}
+
 function user(
   overrides: Partial<UserWithPermissions> = {},
 ): UserWithPermissions {
@@ -28,33 +46,53 @@ function user(
     id: "u1",
     email: "a@b.com",
     name: "Tester",
-    roleId: 2,
     clienteId: null,
-    role: {
-      id: 2,
-      name: "CLIENT",
-      description: null,
-      defaultPath: "/client",
-      permissions: [],
-    },
+    ...mergeRoles([role()]),
     ...overrides,
   };
 }
 
+/**
+ * Cross-Cliente scope is a PERMISSION, not the role name.
+ *
+ * `ADMINISTRADOR` used to mean both "sees every center" and "may grant roles";
+ * an operations admin needs the first without the second, so the two were
+ * split. ROOT still gets it, implicitly, through `isSuperuser`.
+ */
 const admin = user({
-  role: {
-    id: 1,
-    name: "ADMINISTRADOR",
-    description: null,
-    defaultPath: "/admin",
-    permissions: [],
-  },
+  ...mergeRoles([
+    role({
+      id: 1,
+      name: "ADMIN_OPERACION",
+      defaultPath: "/admin/tracking",
+      priority: 80,
+      permissions: [
+        {
+          id: 99,
+          name: SCOPE_ALL_CLIENTES,
+          description: null,
+          resource: "scope",
+          action: "all-clientes",
+          routePath: null,
+          exact: false,
+        },
+      ],
+    }),
+  ]),
+});
+
+const root = user({
+  ...mergeRoles([role({ id: 3, name: "ROOT", isSuperuser: true })]),
 });
 
 describe("isAdmin", () => {
-  it("is true for ADMINISTRADOR and false otherwise", () => {
+  it("is true for anyone holding scope:all-clientes", () => {
     expect(isAdmin(admin)).toBe(true);
     expect(isAdmin(user())).toBe(false);
+  });
+
+  it("is true for ROOT without the permission being seeded", () => {
+    expect(isAdmin(root)).toBe(true);
   });
 });
 

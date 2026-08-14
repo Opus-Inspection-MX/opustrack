@@ -79,11 +79,13 @@ export async function seedTestDatabase() {
 
     // Create test roles
     const adminRole = await prisma.role.upsert({
-      where: { name: "ADMINISTRADOR" },
+      where: { name: "ROOT" },
       update: {},
       create: {
-        name: "ADMINISTRADOR",
-        description: "Administrator",
+        name: "ROOT",
+        description: "Superusuario",
+        isSuperuser: true,
+        priority: 100,
         defaultPath: "/admin",
       },
     });
@@ -126,7 +128,7 @@ export async function seedTestDatabase() {
         name: "Test Admin",
         password:
           "$2a$10$K5JhHUMN.P5k.0HXpZbRs.Nq0QYpF5hU5rHJ3/XP5JhHUMN.P5k.0", // "password123"
-        roleId: adminRole.id,
+        userRoles: { create: [{ roleId: adminRole.id }] },
         userStatusId: activeStatus.id,
       },
     });
@@ -139,7 +141,7 @@ export async function seedTestDatabase() {
         name: "Test FSR",
         password:
           "$2a$10$K5JhHUMN.P5k.0HXpZbRs.Nq0QYpF5hU5rHJ3/XP5JhHUMN.P5k.0", // "password123"
-        roleId: fsrRole.id,
+        userRoles: { create: [{ roleId: fsrRole.id }] },
         userStatusId: activeStatus.id,
         clienteId: cliente.id,
       },
@@ -153,7 +155,7 @@ export async function seedTestDatabase() {
         name: "Test Client",
         password:
           "$2a$10$K5JhHUMN.P5k.0HXpZbRs.Nq0QYpF5hU5rHJ3/XP5JhHUMN.P5k.0", // "password123"
-        roleId: clientRole.id,
+        userRoles: { create: [{ roleId: clientRole.id }] },
         userStatusId: activeStatus.id,
         clienteId: cliente.id,
       },

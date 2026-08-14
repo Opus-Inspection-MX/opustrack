@@ -3,6 +3,7 @@
 import type { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { requirePermission } from "@/lib/auth/auth";
+import { whereHasRole } from "@/lib/authz/user-queries";
 import { prisma } from "@/lib/database/prisma.singleton";
 import { notifyAssignmentAssigned } from "@/lib/notifications/notify-events";
 import { syncIncidentState } from "@/lib/state-machine/sync";
@@ -113,7 +114,7 @@ async function notifyNewAssignees(
 async function assertAreFsrs(userIds: string[]): Promise<boolean> {
   if (userIds.length === 0) return true;
   const fsrs = await prisma.user.findMany({
-    where: { id: { in: userIds }, active: true, role: { name: "FSR" } },
+    where: { id: { in: userIds }, active: true, ...whereHasRole("FSR") },
     select: { id: true },
   });
   return fsrs.length === new Set(userIds).size;
@@ -289,7 +290,6 @@ export async function getIncidentsForTracking(filters?: {
                   id: true,
                   name: true,
                   email: true,
-                  roleId: true,
                 },
               },
             },
@@ -341,7 +341,7 @@ export async function getTrackingFsrs() {
     await requirePermission("tracking:read");
 
     const users = await prisma.user.findMany({
-      where: { active: true, role: { name: "FSR" } },
+      where: { active: true, ...whereHasRole("FSR") },
       select: {
         id: true,
         name: true,

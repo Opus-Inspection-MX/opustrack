@@ -2,8 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { requirePermission } from "@/lib/auth/auth";
+import { clearPermissionsCache } from "@/lib/authz/authz";
+import { assertCanManageRoles } from "@/lib/authz/role-assignment";
 import { prisma } from "@/lib/database/prisma.singleton";
-import { rejected } from "./result";
+import { businessRule, guarded } from "./result";
 
 export type RoleFormData = {
   name: string;
@@ -36,7 +38,7 @@ export async function getRoles(params?: RoleListParams): Promise<{
     description: string | null;
     defaultPath: string;
     rolePermission: Array<{ permission: { id: number; name: string } }>;
-    _count: { users: number };
+    _count: { userRoles: number };
   }>;
   pagination: PaginationMeta;
 }> {
@@ -69,7 +71,7 @@ export async function getRoles(params?: RoleListParams): Promise<{
           },
         },
         _count: {
-          select: { users: true },
+          select: { userRoles: true },
         },
       },
       orderBy: { name: "asc" },
@@ -124,7 +126,7 @@ export async function getRoleById(id: number) {
         },
       },
       _count: {
-        select: { users: true },
+        select: { userRoles: true },
       },
     },
   });
@@ -136,92 +138,111 @@ export async function getRoleById(id: number) {
  * Create new role
  */
 export async function createRole(data: RoleFormData) {
-  await requirePermission("roles:create");
+  const caller = await requirePermission("roles:create");
 
-  const role = await prisma.role.create({
-    data: {
-      name: data.name,
-      description: data.description || null,
-      defaultPath: data.defaultPath,
-    },
-  });
+  // `guarded` so the refusal survives a production build: Next replaces the
+  // message of anything a Server Action throws, and this one has to be read.
+  return guarded(async () => {
+    assertCanManageRoles(caller);
 
-  // Assign permissions if provided
-  if (data.permissionIds && data.permissionIds.length > 0) {
-    await prisma.rolePermission.createMany({
-      data: data.permissionIds.map((permissionId) => ({
-        roleId: role.id,
-        permissionId,
-      })),
+    const role = await prisma.role.create({
+      data: {
+        name: data.name,
+        description: data.description || null,
+        defaultPath: data.defaultPath,
+      },
     });
-  }
 
-  revalidatePath("/admin/roles");
-  return { success: true, data: role };
+    // Assign permissions if provided
+    if (data.permissionIds && data.permissionIds.length > 0) {
+      await prisma.rolePermission.createMany({
+        data: data.permissionIds.map((permissionId) => ({
+          roleId: role.id,
+          permissionId,
+        })),
+      });
+    }
+
+    clearPermissionsCache();
+    revalidatePath("/admin/roles");
+    return { data: role };
+  });
 }
 
 /**
  * Update existing role
  */
 export async function updateRole(id: number, data: RoleFormData) {
-  await requirePermission("roles:update");
+  const caller = await requirePermission("roles:update");
 
-  const role = await prisma.role.update({
-    where: { id },
-    data: {
-      name: data.name,
-      description: data.description || null,
-      defaultPath: data.defaultPath,
-    },
-  });
+  return guarded(async () => {
+    assertCanManageRoles(caller);
 
-  // Update permissions if provided
-  if (data.permissionIds !== undefined) {
-    // Remove all existing permissions
-    await prisma.rolePermission.deleteMany({
-      where: { roleId: id },
+    const role = await prisma.role.update({
+      where: { id },
+      data: {
+        name: data.name,
+        description: data.description || null,
+        defaultPath: data.defaultPath,
+      },
     });
 
-    // Add new permissions
-    if (data.permissionIds.length > 0) {
-      await prisma.rolePermission.createMany({
-        data: data.permissionIds.map((permissionId) => ({
-          roleId: id,
-          permissionId,
-        })),
+    // Update permissions if provided
+    if (data.permissionIds !== undefined) {
+      // Remove all existing permissions
+      await prisma.rolePermission.deleteMany({
+        where: { roleId: id },
       });
-    }
-  }
 
-  revalidatePath("/admin/roles");
-  revalidatePath(`/admin/roles/${id}`);
-  return { success: true, data: role };
+      // Add new permissions
+      if (data.permissionIds.length > 0) {
+        await prisma.rolePermission.createMany({
+          data: data.permissionIds.map((permissionId) => ({
+            roleId: id,
+            permissionId,
+          })),
+        });
+      }
+    }
+
+    // Permissions are cached for five minutes; without this the edit appears
+    // to do nothing until the TTL expires.
+    clearPermissionsCache();
+    revalidatePath("/admin/roles");
+    revalidatePath(`/admin/roles/${id}`);
+    return { data: role };
+  });
 }
 
 /**
  * Delete role (soft delete)
  */
 export async function deleteRole(id: number) {
-  await requirePermission("roles:delete");
+  const caller = await requirePermission("roles:delete");
 
-  // Check if role has users
-  const userCount = await prisma.user.count({
-    where: { roleId: id, active: true },
+  return guarded(async () => {
+    assertCanManageRoles(caller);
+
+    // Check if role has users
+    const userCount = await prisma.userRole.count({
+      where: { roleId: id, active: true, user: { active: true } },
+    });
+
+    if (userCount > 0) {
+      businessRule(
+        `No se puede eliminar: ${userCount} usuario(s) tienen este rol asignado.`,
+      );
+    }
+
+    await prisma.role.update({
+      where: { id },
+      data: { active: false },
+    });
+
+    clearPermissionsCache();
+    revalidatePath("/admin/roles");
+    return { data: null };
   });
-
-  if (userCount > 0) {
-    return rejected(
-      `No se puede eliminar: ${userCount} usuario(s) tienen este rol asignado.`,
-    );
-  }
-
-  await prisma.role.update({
-    where: { id },
-    data: { active: false },
-  });
-
-  revalidatePath("/admin/roles");
-  return { success: true };
 }
 
 /**
@@ -245,36 +266,39 @@ export async function assignPermissionsToRole(
   roleId: number,
   permissionIds: number[],
 ) {
-  await requirePermission("roles:update");
+  const caller = await requirePermission("roles:update");
 
-  // Remove existing permissions
-  await prisma.rolePermission.deleteMany({
-    where: { roleId },
-  });
+  return guarded(async () => {
+    assertCanManageRoles(caller);
 
-  // Add new permissions
-  if (permissionIds.length > 0) {
-    await prisma.rolePermission.createMany({
-      data: permissionIds.map((permissionId) => ({
-        roleId,
-        permissionId,
-      })),
+    // Remove existing permissions
+    await prisma.rolePermission.deleteMany({
+      where: { roleId },
     });
-  }
 
-  // Invalidate sessions for all users with this role
-  const { invalidateRoleSessions } = await import(
-    "@/lib/auth/session-management"
-  );
-  await invalidateRoleSessions(roleId);
+    // Add new permissions
+    if (permissionIds.length > 0) {
+      await prisma.rolePermission.createMany({
+        data: permissionIds.map((permissionId) => ({
+          roleId,
+          permissionId,
+        })),
+      });
+    }
 
-  // Clear the in-memory permissions cache (5 min TTL) so in-flight requests do
-  // not keep serving the role's stale permissions until the cache expires.
-  const { clearPermissionsCache } = await import("@/lib/authz/authz");
-  clearPermissionsCache();
+    // Invalidate sessions for all users with this role
+    const { invalidateRoleSessions } = await import(
+      "@/lib/auth/session-management"
+    );
+    await invalidateRoleSessions(roleId);
 
-  revalidatePath("/admin/roles");
-  revalidatePath(`/admin/roles/${roleId}`);
-  revalidatePath(`/admin/roles/${roleId}/permissions`);
-  return { success: true };
+    // Clear the in-memory permissions cache (5 min TTL) so in-flight requests do
+    // not keep serving the role's stale permissions until the cache expires.
+    clearPermissionsCache();
+
+    revalidatePath("/admin/roles");
+    revalidatePath(`/admin/roles/${roleId}`);
+    revalidatePath(`/admin/roles/${roleId}/permissions`);
+    return { data: null };
+  });
 }

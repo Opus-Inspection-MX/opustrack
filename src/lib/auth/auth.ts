@@ -6,11 +6,11 @@ import { cache } from "react";
 import { authOptions } from "@/lib/auth/auth-options";
 import {
   getAccessibleRoutes,
-  getRoleById,
-  isAdmin,
+  getUserAuthz,
+  isSuperuser,
   type Role,
-  roleCanAccessRoute,
   type UserWithPermissions,
+  userCanAccessRoute,
   userCanPerformAction,
   userHasPermission,
 } from "@/lib/authz/authz";
@@ -46,7 +46,6 @@ export const getAuthenticatedUser = cache(
         id: true,
         email: true,
         name: true,
-        roleId: true,
         clienteId: true,
         sessionVersion: true,
       },
@@ -64,13 +63,13 @@ export const getAuthenticatedUser = cache(
       return null;
     }
 
-    const role = await getRoleById(user.roleId);
-    if (!role) return null;
+    // Union of every active role. A user stripped of all roles resolves to
+    // null rather than to an empty permission set, so they cannot hold a
+    // session that looks valid but authorizes nothing.
+    const authz = await getUserAuthz(user.id);
+    if (!authz) return null;
 
-    return {
-      ...user,
-      role,
-    };
+    return { ...user, ...authz };
   },
 );
 
@@ -135,7 +134,7 @@ export function assertRouteAccess(
   user: UserWithPermissions,
   routePath: string,
 ): void {
-  if (!roleCanAccessRoute(user.role, routePath)) {
+  if (!userCanAccessRoute(user, routePath)) {
     throw new Error(`Access denied to route: ${routePath}`);
   }
 }
@@ -173,11 +172,11 @@ export async function requireRouteAccess(
   const user = await requireAuthPage(callbackUrl);
 
   // Admin can access all routes
-  if (isAdmin(user)) {
+  if (isSuperuser(user)) {
     return user;
   }
 
-  if (!roleCanAccessRoute(user.role, routePath)) {
+  if (!userCanAccessRoute(user, routePath)) {
     redirect("/unauthorized");
   }
 
@@ -211,7 +210,7 @@ export async function canPerformAction(
 export async function canAccessRoute(routePath: string): Promise<boolean> {
   const user = await getAuthenticatedUser();
   if (!user) return false;
-  return roleCanAccessRoute(user.role, routePath);
+  return userCanAccessRoute(user, routePath);
 }
 
 /**
@@ -220,7 +219,7 @@ export async function canAccessRoute(routePath: string): Promise<boolean> {
 export async function getMyAccessibleRoutes(): Promise<string[]> {
   const user = await getAuthenticatedUser();
   if (!user) return [];
-  return getAccessibleRoutes(user.role);
+  return getAccessibleRoutes(user);
 }
 
 /**
@@ -229,15 +228,19 @@ export async function getMyAccessibleRoutes(): Promise<string[]> {
 export async function isCurrentUserAdmin(): Promise<boolean> {
   const user = await getAuthenticatedUser();
   if (!user) return false;
-  return isAdmin(user);
+  return isSuperuser(user);
 }
 
 /**
- * Get current user's role
+ * Get current user's roles.
+ *
+ * Plural: a user can administer vacations, administer operations and still be
+ * an FSR. Callers that need "the" role want `getCurrentUserDefaultPath` or a
+ * permission check instead.
  */
-export async function getCurrentUserRole(): Promise<Role | null> {
+export async function getCurrentUserRoles(): Promise<Role[]> {
   const user = await getAuthenticatedUser();
-  return user?.role || null;
+  return user?.roles ?? [];
 }
 
 /**
@@ -245,7 +248,7 @@ export async function getCurrentUserRole(): Promise<Role | null> {
  */
 export async function getCurrentUserDefaultPath(): Promise<string> {
   const user = await getAuthenticatedUser();
-  return user?.role.defaultPath || "/";
+  return user?.defaultPath || "/";
 }
 
 /**

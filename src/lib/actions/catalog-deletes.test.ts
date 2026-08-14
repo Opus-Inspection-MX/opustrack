@@ -26,11 +26,22 @@ const { prismaMock, requirePermission } = vi.hoisted(() => {
       workPart: model(),
       role: model(),
       user: model(),
+      userRole: model(),
       vehicle: model(),
       vehicleTrip: model(),
       holiday: model(),
     },
-    requirePermission: vi.fn(async (_name: string) => ({ id: "admin" })),
+    // ROOT: `deleteRole` is gated on `isSuperuser`, not on a permission, so a
+    // caller without it is refused before the child-count rule is ever reached.
+    requirePermission: vi.fn(async (_name: string) => ({
+      id: "admin",
+      isSuperuser: true,
+      roles: [],
+      permissions: new Set<string>(),
+      resourceActions: new Set<string>(),
+      routeGrants: { prefixes: [], exact: [] },
+      defaultPath: "/admin",
+    })),
   };
 });
 
@@ -94,7 +105,9 @@ const GUARDED = [
     name: "deleteRole",
     permission: "roles:delete",
     run: () => deleteRole(1),
-    child: () => prismaMock.user,
+    // Users reach a role through the join table now, so that is what gets
+    // counted before the role may be retired.
+    child: () => prismaMock.userRole,
     parent: () => prismaMock.role,
   },
   {

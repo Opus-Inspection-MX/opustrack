@@ -30,13 +30,15 @@ export async function middleware(req: NextRequest) {
   }
 
   // User is authenticated - check route access
-  const roleName = token.roleName as string | undefined;
+  const roleNames = token.roleNames as string[] | undefined;
+  const isSuperuser = Boolean(token.isSuperuser);
   const defaultPath = token.defaultPath as string | undefined;
   const routePaths = token.routePaths as string[] | undefined;
+  const exactRoutePaths = (token.exactRoutePaths as string[] | undefined) ?? [];
 
-  if (!roleName || !defaultPath) {
+  if (!roleNames?.length || !defaultPath) {
     console.error("[Middleware] Missing role data in token:", {
-      roleName,
+      roleNames,
       defaultPath,
     });
     return redirectToLogin(req, pathname, search);
@@ -57,9 +59,15 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL(defaultPath, req.url));
   }
 
-  if (!canAccessRoute(routePaths, roleName, pathname)) {
+  if (
+    !canAccessRoute(
+      { prefixes: routePaths, exact: exactRoutePaths },
+      isSuperuser,
+      pathname,
+    )
+  ) {
     console.warn(
-      `[Middleware] Access denied for role ${roleName} to ${pathname}`,
+      `[Middleware] Access denied for ${roleNames.join("+")} to ${pathname}`,
     );
     return NextResponse.redirect(new URL("/unauthorized", req.url));
   }

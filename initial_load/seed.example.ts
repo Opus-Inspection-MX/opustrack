@@ -181,7 +181,8 @@ async function main() {
         // Route-based permissions
         {
           name: "route:admin",
-          description: "Access to admin dashboard",
+          description:
+            "TODO el panel de administración (prefijo /admin). Para dar solo la página de inicio usa route:admin-panel",
           routePath: "/admin",
         },
         {
@@ -203,6 +204,139 @@ async function main() {
           name: "route:profile",
           description: "Access to the shared profile page",
           routePath: "/profile",
+        },
+        // Self-service vacations. Granted to every staff role — a CLIENT is a
+        // center account, not a person with vacation days.
+        {
+          name: "route:vacations",
+          description: "Acceso a mis vacaciones",
+          routePath: "/vacations",
+        },
+        // The `/admin` landing page WITHOUT the rest of the panel.
+        // Prefix coverage would turn this into "every admin screen", which is
+        // exactly what a module administrator must not get.
+        {
+          name: "route:admin-panel",
+          description: "Panel de inicio de administración",
+          routePath: "/admin",
+          exact: true,
+        },
+        // Fine-grained admin routes, so ADMIN_OPERACION and ADMIN_VACACIONES
+        // can be granted their own module and nothing else.
+        {
+          name: "route:admin-tracking",
+          description: "Seguimiento de atención",
+          routePath: "/admin/tracking",
+        },
+        {
+          name: "route:admin-incidents",
+          description: "Administración de incidentes",
+          routePath: "/admin/incidents",
+        },
+        {
+          name: "route:admin-programacion",
+          description: "Asignación de programación",
+          routePath: "/admin/programacion",
+        },
+        {
+          name: "route:admin-schedules",
+          description: "Programación",
+          routePath: "/admin/schedules",
+        },
+        {
+          name: "route:admin-assignments",
+          description: "Asignaciones",
+          routePath: "/admin/assignments",
+        },
+        {
+          name: "route:admin-assignment-activities",
+          description: "Actividades de trabajo",
+          routePath: "/admin/assignment-activities",
+        },
+        {
+          name: "route:admin-work-parts",
+          description: "Partes de trabajo",
+          routePath: "/admin/work-parts",
+        },
+        {
+          name: "route:admin-reports",
+          description: "Reportes",
+          routePath: "/admin/reports",
+        },
+        {
+          name: "route:admin-organization",
+          description: "Organización: clientes, líneas, equipos, estados",
+          routePath: "/admin/clientes",
+        },
+        {
+          name: "route:admin-lines",
+          description: "Líneas",
+          routePath: "/admin/lines",
+        },
+        {
+          name: "route:admin-equipments",
+          description: "Equipos",
+          routePath: "/admin/equipments",
+        },
+        {
+          name: "route:admin-states",
+          description: "Estados",
+          routePath: "/admin/states",
+        },
+        {
+          name: "route:admin-parts",
+          description: "Inventario",
+          routePath: "/admin/parts",
+        },
+        {
+          name: "route:admin-vehicles",
+          description: "Vehículos",
+          routePath: "/admin/vehicles",
+        },
+        {
+          name: "route:admin-users",
+          description: "Administración de usuarios",
+          routePath: "/admin/users",
+        },
+        {
+          name: "route:admin-roles",
+          description: "Administración de roles",
+          routePath: "/admin/roles",
+        },
+        {
+          name: "route:admin-permissions",
+          description: "Administración de permisos",
+          routePath: "/admin/permissions",
+        },
+        {
+          name: "route:admin-vacations",
+          description: "Administración de vacaciones",
+          routePath: "/admin/vacations",
+        },
+        {
+          name: "route:admin-notifications",
+          description: "Notificaciones",
+          routePath: "/admin/notifications",
+        },
+
+        // Capabilities that the role name ADMINISTRADOR used to imply.
+        {
+          name: "scope:all-clientes",
+          description: "Ver datos de todos los Clientes, no solo los asignados",
+          resource: "scope",
+          action: "all-clientes",
+        },
+        {
+          name: "assignments:manage-all",
+          description: "Modificar asignaciones de las que no se es FSR",
+          resource: "assignments",
+          action: "manage-all",
+        },
+        {
+          name: "vehicle-trips:manage-all",
+          description: "Modificar viajes de vehículo de otros FSR",
+          resource: "vehicle-trips",
+          action: "manage-all",
         },
 
         // Incident permissions
@@ -883,23 +1017,152 @@ async function main() {
               resource: perm.resource || null,
               action: perm.action || null,
               routePath: perm.routePath || null,
+              exact: perm.exact ?? false,
             },
-            create: perm,
+            create: { ...perm, exact: perm.exact ?? false },
           }),
         );
       }
       console.log("✅ Seeded Permissions");
 
       // 5) Roles with permissions
+      // Vacations every staff role administers for itself. A CLIENT is a
+      // center account shared by whoever is on shift, not a person with days.
+      const SELF_SERVICE_VACATIONS = [
+        "route:vacations",
+        "vacations:read",
+        "vacations:create",
+        "vacations:delete",
+      ];
+
+      const OPERATIONS_ROUTES = [
+        "route:admin-panel",
+        "route:admin-tracking",
+        "route:admin-incidents",
+        "route:admin-programacion",
+        "route:admin-schedules",
+        "route:admin-assignments",
+        "route:admin-assignment-activities",
+        "route:admin-work-parts",
+        "route:admin-reports",
+        "route:admin-organization",
+        "route:admin-lines",
+        "route:admin-equipments",
+        "route:admin-states",
+        "route:admin-parts",
+        "route:admin-vehicles",
+        "route:admin-notifications",
+      ];
+
       const rolesData = [
         {
-          name: "ADMINISTRADOR",
+          name: "ROOT",
           description:
-            "Administrator with full system access (not related to Cliente)",
+            "Superusuario: administra catálogos, roles, permisos y usuarios",
           defaultPath: "/admin",
+          isSuperuser: true,
+          priority: 100,
           permissions: [
-            // All permissions (admin has full access)
+            // Everything. `isSuperuser` already bypasses each check; the rows
+            // are seeded anyway so the admin UI shows ROOT holding them.
             ...permissionRecords.map((p) => p.name),
+          ],
+        },
+        {
+          name: "ADMIN_OPERACION",
+          description:
+            "Administra incidentes, programación, asignaciones y organización",
+          defaultPath: "/admin/tracking",
+          priority: 80,
+          permissions: [
+            ...OPERATIONS_ROUTES,
+            "route:profile",
+            ...SELF_SERVICE_VACATIONS,
+            // Sees every center without being able to grant roles: this is the
+            // half of the old ADMINISTRADOR that is about DATA, not power.
+            "scope:all-clientes",
+            "assignments:manage-all",
+            "vehicle-trips:manage-all",
+            "incidents:read",
+            "incidents:create",
+            "incidents:update",
+            "incidents:delete",
+            "incidents:assign",
+            "assignments:read",
+            "assignments:create",
+            "assignments:update",
+            "assignments:delete",
+            "assignments:complete",
+            "assignment-activities:read",
+            "assignment-activities:create",
+            "assignment-activities:update",
+            "assignment-activities:delete",
+            "assignment-activities:complete",
+            "work-parts:read",
+            "work-parts:create",
+            "work-parts:update",
+            "work-parts:delete",
+            "schedules:read",
+            "schedules:create",
+            "schedules:update",
+            "schedules:delete",
+            "clientes:read",
+            "clientes:create",
+            "clientes:update",
+            "clientes:delete",
+            "lines:read",
+            "lines:create",
+            "lines:update",
+            "lines:delete",
+            "equipments:read",
+            "equipments:create",
+            "equipments:update",
+            "equipments:delete",
+            "parts:read",
+            "parts:create",
+            "parts:update",
+            "parts:delete",
+            "vehicles:read",
+            "vehicles:create",
+            "vehicles:update",
+            "vehicles:delete",
+            "vehicle-trips:read",
+            "vehicle-trips:create",
+            "vehicle-trips:update",
+            "vehicle-trips:delete",
+            "incident-types:read",
+            "incident-status:read",
+            "assignment-status:read",
+            // Reads users to pick an FSR; cannot create or edit them.
+            "users:read",
+            "reports:view",
+            "reports:export",
+            "notifications:read",
+            "notifications:update",
+            "notifications:delete",
+            "dashboard:view",
+          ],
+        },
+        {
+          name: "ADMIN_VACACIONES",
+          description: "Administra las vacaciones de todo el personal",
+          defaultPath: "/admin/vacations",
+          priority: 70,
+          permissions: [
+            "route:admin-panel",
+            "route:admin-vacations",
+            "route:profile",
+            ...SELF_SERVICE_VACATIONS,
+            // Approving and configuring other people's vacations.
+            "vacations:approve",
+            "vacations:manage",
+            // Needs the roster to know whose days these are. Read only: user
+            // administration stays with ROOT.
+            "users:read",
+            "notifications:read",
+            "notifications:update",
+            "notifications:delete",
+            "dashboard:view",
           ],
         },
         {
@@ -907,9 +1170,11 @@ async function main() {
           description:
             "Field Service Representative - System user with management capabilities",
           defaultPath: "/fsr",
+          priority: 50,
           permissions: [
             "route:fsr",
             "route:profile",
+            ...SELF_SERVICE_VACATIONS,
             "incidents:read",
             "incidents:update",
             "assignments:read",
@@ -948,16 +1213,27 @@ async function main() {
             "notifications:delete",
             "dashboard:view",
             "assignment-status:read",
-            // Vacation permissions for FSR (RF-706): can manage own vacations
-            "vacations:read",
-            "vacations:create",
-            "vacations:delete",
+          ],
+        },
+        {
+          name: "EMPLEADO",
+          description:
+            "Personal de oficina: solo su perfil y sus propias vacaciones",
+          defaultPath: "/vacations",
+          priority: 30,
+          permissions: [
+            "route:profile",
+            ...SELF_SERVICE_VACATIONS,
+            "notifications:read",
+            "notifications:update",
+            "notifications:delete",
           ],
         },
         {
           name: "CLIENT",
           description: "Client user - Raises incidents from Cliente",
           defaultPath: "/client",
+          priority: 10,
           permissions: [
             "route:client",
             "route:profile",
@@ -980,9 +1256,11 @@ async function main() {
           name: "GUEST",
           description: "Guest user - Read-only access (no create permissions)",
           defaultPath: "/guest",
+          priority: 20,
           permissions: [
             "route:guest",
             "route:profile",
+            ...SELF_SERVICE_VACATIONS,
             "incidents:read",
             "incident-types:read", // Needed to view incident types
             "incident-status:read", // Needed to view incident status
@@ -1007,11 +1285,15 @@ async function main() {
           update: {
             description: roleData.description,
             defaultPath: roleData.defaultPath,
+            isSuperuser: roleData.isSuperuser ?? false,
+            priority: roleData.priority ?? 0,
           },
           create: {
             name: roleData.name,
             description: roleData.description,
             defaultPath: roleData.defaultPath,
+            isSuperuser: roleData.isSuperuser ?? false,
+            priority: roleData.priority ?? 0,
           },
         });
         roleRecords.push(role);
@@ -1134,7 +1416,7 @@ async function main() {
             name: userData.name,
             email: userData.email,
             password: await hashPassword("password123"),
-            roleId: role.id,
+            userRoles: { create: [{ roleId: role.id }] },
             userStatusId: userStatusActivo.id,
             clienteId: userData.clienteId,
           },

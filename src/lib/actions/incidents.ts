@@ -9,6 +9,11 @@ import {
   canAccessCliente,
   getClienteWhereClause,
 } from "@/lib/auth/filters";
+import {
+  includeRoles,
+  roleNamesOf,
+  whereHasRole,
+} from "@/lib/authz/user-queries";
 import { FALLBACK_INCIDENT_TYPE_NAME } from "@/lib/constants/incident-type";
 import { prisma } from "@/lib/database/prisma.singleton";
 import {
@@ -176,7 +181,7 @@ export async function getIncidentById(id: number) {
           id: true,
           name: true,
           email: true,
-          role: true,
+          ...includeRoles,
         },
       },
       schedule: true,
@@ -568,7 +573,7 @@ export async function updateIncidentFsrs(
         where: {
           id: { in: fsrIds },
           active: true,
-          role: { name: "FSR" },
+          ...whereHasRole("FSR"),
         },
         select: { id: true },
       });
@@ -809,7 +814,7 @@ export async function closeIncident(id: number) {
 export async function getFsrsForAssignment() {
   await requirePermission("incidents:update");
   const fsrs = await prisma.user.findMany({
-    where: { active: true, role: { name: "FSR" } },
+    where: { active: true, ...whereHasRole("FSR") },
     select: {
       id: true,
       name: true,
@@ -833,17 +838,9 @@ export async function getFSRUsers() {
   const user = await requirePermission("incidents:assign");
   const clienteFilter = getClienteWhereClause(user);
 
-  const fsrRole = await prisma.role.findUnique({
-    where: { name: "FSR" },
-  });
-
-  if (!fsrRole) {
-    return [];
-  }
-
   const fsrUsers = await prisma.user.findMany({
     where: {
-      roleId: fsrRole.id,
+      ...whereHasRole("FSR"),
       active: true,
       ...clienteFilter, // Only FSRs from same Cliente
     },
@@ -926,7 +923,7 @@ export async function getIncidentFormOptions() {
         id: true,
         name: true,
         email: true,
-        role: true,
+        ...includeRoles,
         clienteAssignments: {
           where: { active: true },
           select: { clienteId: true },
@@ -941,12 +938,13 @@ export async function getIncidentFormOptions() {
     }),
   ]);
 
+  // `roleNames` is plural now: the picker highlights FSRs, and a user can be
+  // an FSR *and* an administrator at the same time.
   const usersWithClienteIds = users.map((u) => ({
     id: u.id,
     name: u.name,
     email: u.email,
-    role: u.role,
-    roleName: u.role?.name ?? null,
+    roleNames: roleNamesOf(u),
     clienteIds: u.clienteAssignments.map((va) => va.clienteId),
   }));
 
@@ -1024,7 +1022,7 @@ export async function getBulkIncidentCatalogs() {
       },
     }),
     prisma.user.findMany({
-      where: { active: true, role: { name: "FSR" } },
+      where: { active: true, ...whereHasRole("FSR") },
       select: {
         id: true,
         name: true,
@@ -1197,7 +1195,7 @@ export async function resolveBulkIncidentRows(
       select: { id: true, code: true },
     }),
     prisma.user.findMany({
-      where: { active: true, role: { name: "FSR" } },
+      where: { active: true, ...whereHasRole("FSR") },
       select: { id: true },
     }),
   ]);
@@ -1517,7 +1515,7 @@ export async function createIncidentsFromPreview(
           where: {
             id: { in: assigneeIds },
             active: true,
-            role: { name: "FSR" },
+            ...whereHasRole("FSR"),
           },
           select: { id: true },
         })
@@ -1785,7 +1783,7 @@ export async function bulkAssignIncidents(
       where: {
         id: { in: changes.fsrIds.ids },
         active: true,
-        role: { name: "FSR" },
+        ...whereHasRole("FSR"),
       },
       select: { id: true },
     });

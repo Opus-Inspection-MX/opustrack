@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requirePermission } from "@/lib/auth/auth";
+import { whereHasRole } from "@/lib/authz/user-queries";
 import { prisma } from "@/lib/database/prisma.singleton";
 import { rejected } from "./result";
 
@@ -215,18 +216,9 @@ export async function getVehicleStatuses() {
 export async function getFsrUsersForAssignment() {
   await requirePermission("vehicles:read");
 
-  // Get the FSR role
-  const fsrRole = await prisma.role.findFirst({
-    where: { name: "FSR", active: true },
-  });
-
-  if (!fsrRole) {
-    return [];
-  }
-
   return prisma.user.findMany({
     where: {
-      roleId: fsrRole.id,
+      ...whereHasRole("FSR"),
       active: true,
     },
     select: {

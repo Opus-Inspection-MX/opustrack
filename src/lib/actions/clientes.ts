@@ -4,6 +4,7 @@ import type { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requirePermission } from "@/lib/auth/auth";
+import { includeRoles, whereHasRole } from "@/lib/authz/user-queries";
 import { prisma } from "@/lib/database/prisma.singleton";
 import { assignUserToCliente } from "@/lib/utils/cliente-assignments";
 import { rejected } from "./result";
@@ -100,7 +101,7 @@ export async function getClientes(params?: GetClientesParams) {
       where: {
         active: true,
         clienteId: { in: clientes.map((c) => c.id) },
-        user: { active: true, roleId: fsrRole.id },
+        user: { active: true, ...whereHasRole("FSR") },
       },
       _count: { userId: true },
     });
@@ -136,7 +137,7 @@ export async function getClienteById(id: string) {
       users: {
         where: { active: true },
         include: {
-          role: true,
+          ...includeRoles,
           userStatus: true,
         },
       },
@@ -252,7 +253,7 @@ export async function updateCliente(id: string, data: ClienteFormData) {
     if (fsrRole) {
       // Get currently assigned FSRs via junction table
       const currentAssignments = await prisma.userClienteAssignment.findMany({
-        where: { clienteId: id, active: true, user: { roleId: fsrRole.id } },
+        where: { clienteId: id, active: true, user: whereHasRole("FSR") },
         select: { userId: true },
       });
 
@@ -301,7 +302,7 @@ export async function updateCliente(id: string, data: ClienteFormData) {
         where: {
           clienteId: id,
           active: true,
-          user: { roleId: clientRole.id },
+          user: whereHasRole("CLIENT"),
         },
         select: { userId: true },
       });
@@ -396,7 +397,7 @@ export async function getFSRUsers() {
 
   const fsrUsers = await prisma.user.findMany({
     where: {
-      roleId: fsrRole.id,
+      ...whereHasRole("FSR"),
       active: true,
     },
     select: {
@@ -435,7 +436,7 @@ export async function getClientUsers() {
 
   const clientUsers = await prisma.user.findMany({
     where: {
-      roleId: clientRole.id,
+      ...whereHasRole("CLIENT"),
       active: true,
     },
     select: {

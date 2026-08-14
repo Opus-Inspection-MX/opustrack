@@ -1,6 +1,9 @@
 "use server";
 
+import type { Prisma } from "@prisma/client";
+
 import { requirePermission } from "@/lib/auth/auth";
+import { whereHasRoleId } from "@/lib/authz/user-queries";
 import { prisma } from "@/lib/database/prisma.singleton";
 import {
   deleteNotification,
@@ -123,11 +126,11 @@ export async function sendBroadcast(
   // Resolve recipients. ANNOUNCEMENT always targets every active user
   // regardless of the selected audience (RF-470); only SYSTEM honors the
   // by-role audience filter.
-  const whereClause =
+  const whereClause: Prisma.UserWhereInput =
     input.type === "announcement"
       ? { active: true }
       : input.audience === "by-role" && input.roleId
-        ? { active: true, roleId: input.roleId }
+        ? { active: true, ...whereHasRoleId(input.roleId) }
         : { active: true };
 
   const recipients = await prisma.user.findMany({

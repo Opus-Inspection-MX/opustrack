@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireAuth, requirePermission } from "@/lib/auth/auth";
+import { userHasPermission } from "@/lib/authz/authz";
 import { prisma } from "@/lib/database/prisma.singleton";
 import {
   assertAllowedUpload,
@@ -98,7 +99,7 @@ export async function getAllVehicleTrips() {
   const user = await requirePermission("vehicle-trips:read");
 
   // Only admin can see all trips
-  if (user.role.name !== "ADMINISTRADOR") {
+  if (!userHasPermission(user, "vehicle-trips:manage-all")) {
     throw new Error("Only administrators can view all trips");
   }
 
@@ -162,7 +163,10 @@ export async function getVehicleTripById(id: string) {
   }
 
   // FSR can only access their own trips (unless admin)
-  if (user.role.name !== "ADMINISTRADOR" && trip.fsrId !== user.id) {
+  if (
+    !userHasPermission(user, "vehicle-trips:manage-all") &&
+    trip.fsrId !== user.id
+  ) {
     throw new Error("Access denied: You can only view your own trips");
   }
 
@@ -221,7 +225,7 @@ export async function startVehicleTrip(formData: FormData) {
     });
     if (!vehicle) throw new Error("Vehículo no encontrado");
     if (
-      user.role.name !== "ADMINISTRADOR" &&
+      !userHasPermission(user, "vehicle-trips:manage-all") &&
       vehicle.status?.name !== "AVAILABLE"
     ) {
       businessRule("El vehículo no está disponible.");
@@ -229,7 +233,7 @@ export async function startVehicleTrip(formData: FormData) {
 
     // If linked to an assignment, ensure the caller is actually an assignee
     // (an FSR shouldn't be able to start a trip against someone else's work).
-    if (assignmentId && user.role.name !== "ADMINISTRADOR") {
+    if (assignmentId && !userHasPermission(user, "vehicle-trips:manage-all")) {
       const isAssignee = await prisma.assignmentAssignee.findFirst({
         where: { assignmentId, userId: user.id, active: true },
         select: { id: true },
@@ -329,7 +333,10 @@ export async function endVehicleTrip(formData: FormData) {
     }
 
     // FSR can only end their own trips
-    if (user.role.name !== "ADMINISTRADOR" && trip.fsrId !== user.id) {
+    if (
+      !userHasPermission(user, "vehicle-trips:manage-all") &&
+      trip.fsrId !== user.id
+    ) {
       businessRule("Solo puedes finalizar tus propios viajes.");
     }
 
@@ -473,7 +480,10 @@ export async function updateVehicleTrip(
     }
 
     // FSR can only update their own trips
-    if (user.role.name !== "ADMINISTRADOR" && trip.fsrId !== user.id) {
+    if (
+      !userHasPermission(user, "vehicle-trips:manage-all") &&
+      trip.fsrId !== user.id
+    ) {
       businessRule("Solo puedes actualizar tus propios viajes.");
     }
 
@@ -517,7 +527,10 @@ export async function deleteVehicleTrip(id: string) {
     }
 
     // FSR can only delete their own trips
-    if (user.role.name !== "ADMINISTRADOR" && trip.fsrId !== user.id) {
+    if (
+      !userHasPermission(user, "vehicle-trips:manage-all") &&
+      trip.fsrId !== user.id
+    ) {
       businessRule("Solo puedes eliminar tus propios viajes.");
     }
 

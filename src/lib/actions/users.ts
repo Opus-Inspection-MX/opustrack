@@ -2,7 +2,10 @@
 
 import type { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
-import { requirePermission } from "@/lib/auth/auth";
+import { type requireAuth, requirePermission } from "@/lib/auth/auth";
+import { clearPermissionsCache } from "@/lib/authz/authz";
+import { assertCanManageRoles } from "@/lib/authz/role-assignment";
+import { includeRoles } from "@/lib/authz/user-queries";
 import { prisma } from "@/lib/database/prisma.singleton";
 import { hashPassword } from "@/lib/security/hash";
 import {
@@ -17,7 +20,8 @@ export type UserFormData = {
   name: string;
   email: string;
   password?: string;
-  roleId: number;
+  /** A user holds many roles; the list replaces whatever they have today. */
+  roleIds: number[];
   userStatusId: number;
   clienteId?: string | null;
   telephone?: string;
@@ -60,7 +64,7 @@ export async function getUsers(params?: GetUsersParams) {
     prisma.user.findMany({
       where,
       include: {
-        role: true,
+        ...includeRoles,
         userStatus: true,
         cliente: true,
         userProfile: true,
@@ -92,7 +96,7 @@ export async function getUserById(id: string) {
   const user = await prisma.user.findUnique({
     where: { id },
     include: {
-      role: true,
+      ...includeRoles,
       userStatus: true,
       cliente: true,
       userProfile: true,
@@ -106,11 +110,21 @@ export async function getUserById(id: string) {
  * Create new user
  */
 export async function createUser(data: UserFormData) {
-  await requirePermission("users:create");
+  const caller = await requirePermission("users:create");
 
   return guarded(async () => {
+    // Creating a user means granting access, so it is ROOT's call. Otherwise a
+    // vacation administrator could mint an account holding every role and log
+    // in as it — escalation with an extra step.
+    assertCanManageRoles(caller);
+
     if (!data.password) {
       businessRule("La contraseña es obligatoria para usuarios nuevos.");
+    }
+
+    const roleIds = Array.from(new Set(data.roleIds ?? []));
+    if (roleIds.length === 0) {
+      businessRule("Selecciona al menos un rol para el usuario.");
     }
 
     const hashedPassword = await hashPassword(data.password);
@@ -120,7 +134,7 @@ export async function createUser(data: UserFormData) {
         name: data.name,
         email: data.email,
         password: hashedPassword,
-        roleId: data.roleId,
+        userRoles: { create: roleIds.map((roleId) => ({ roleId })) },
         userStatusId: data.userStatusId,
         hireDate: parseHireDate(data.hireDate),
         userProfile: {
@@ -133,7 +147,7 @@ export async function createUser(data: UserFormData) {
         },
       },
       include: {
-        role: true,
+        ...includeRoles,
         userStatus: true,
         cliente: true,
         userProfile: true,
@@ -169,22 +183,47 @@ function parseHireDate(value: string | null | undefined): Date | null {
  * Update existing user
  */
 export async function updateUser(id: string, data: UserFormData) {
-  await requirePermission("users:update");
+  const caller = await requirePermission("users:update");
 
-  return guarded(async () => updateUserInner(id, data));
+  return guarded(async () => updateUserInner(caller, id, data));
 }
 
-async function updateUserInner(id: string, data: UserFormData) {
+async function updateUserInner(
+  caller: Awaited<ReturnType<typeof requireAuth>>,
+  id: string,
+  data: UserFormData,
+) {
   // Get current user to detect role/status/hire-date changes
   const currentUser = await prisma.user.findUnique({
     where: { id },
-    select: { roleId: true, userStatusId: true, hireDate: true },
+    select: {
+      userStatusId: true,
+      hireDate: true,
+      userRoles: { where: { active: true }, select: { roleId: true } },
+    },
   });
+
+  const currentRoleIds = (currentUser?.userRoles ?? []).map((ur) => ur.roleId);
+  const nextRoleIds = Array.from(new Set(data.roleIds ?? []));
+  const rolesChanged =
+    nextRoleIds.length > 0 &&
+    (nextRoleIds.length !== currentRoleIds.length ||
+      nextRoleIds.some((roleId) => !currentRoleIds.includes(roleId)));
+
+  // Editing someone's phone number is ordinary user administration; changing
+  // which roles they hold is not. Only the second is gated, so a module admin
+  // keeps a useful form instead of being locked out of the whole screen — and
+  // the attempt is refused out loud rather than silently dropped.
+  if (rolesChanged) {
+    assertCanManageRoles(caller);
+    if (caller.id === id) {
+      businessRule("No puedes cambiar tus propios roles.");
+    }
+  }
 
   const updateData: Prisma.UserUpdateInput = {
     name: data.name,
     email: data.email,
-    role: { connect: { id: data.roleId } },
     userStatus: { connect: { id: data.userStatusId } },
   };
 
@@ -229,7 +268,7 @@ async function updateUserInner(id: string, data: UserFormData) {
     where: { id },
     data: updateData,
     include: {
-      role: true,
+      ...includeRoles,
       userStatus: true,
       cliente: true,
       userProfile: true,
@@ -267,11 +306,30 @@ async function updateUserInner(id: string, data: UserFormData) {
     },
   });
 
-  // Invalidate session if role or status changed
+  // Apply the role change itself. Route grants travel in the JWT, so this also
+  // bumps sessionVersion — without it the person keeps their old menu and old
+  // access until the token expires.
+  if (rolesChanged) {
+    await prisma.$transaction(async (tx) => {
+      await tx.userRole.updateMany({
+        where: { userId: id, roleId: { notIn: nextRoleIds } },
+        data: { active: false },
+      });
+      for (const roleId of nextRoleIds) {
+        await tx.userRole.upsert({
+          where: { userId_roleId: { userId: id, roleId } },
+          update: { active: true },
+          create: { userId: id, roleId, active: true },
+        });
+      }
+    });
+    clearPermissionsCache();
+  }
+
+  // Invalidate session if roles or status changed
   if (
-    currentUser &&
-    (currentUser.roleId !== data.roleId ||
-      currentUser.userStatusId !== data.userStatusId)
+    rolesChanged ||
+    (currentUser && currentUser.userStatusId !== data.userStatusId)
   ) {
     const { invalidateUserSessions } = await import(
       "@/lib/auth/session-management"
@@ -290,7 +348,7 @@ async function updateUserInner(id: string, data: UserFormData) {
   revalidatePath("/admin/users");
   revalidatePath(`/admin/users/${id}`);
   revalidatePath("/admin/vacations");
-  revalidatePath("/fsr/vacations");
+  revalidatePath("/vacations");
   return { data: user };
 }
 
@@ -349,7 +407,7 @@ export async function getMyProfile() {
   const profile = await prisma.user.findUnique({
     where: { id: user.id },
     include: {
-      role: true,
+      ...includeRoles,
       userStatus: true,
       cliente: true,
       userProfile: true,

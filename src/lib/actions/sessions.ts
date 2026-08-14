@@ -1,13 +1,15 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requirePermission } from "@/lib/auth/auth";
+import { requireAuth, requirePermission } from "@/lib/auth/auth";
 import {
   invalidateMultipleUserSessions,
   invalidateRoleSessions,
   invalidateUserSessions,
 } from "@/lib/auth/session-management";
+import { setUserRoles } from "@/lib/authz/role-assignment";
 import { prisma } from "@/lib/database/prisma.singleton";
+import { guarded } from "./result";
 
 /**
  * Invalidate all sessions for a specific user
@@ -85,43 +87,31 @@ export async function forceLogoutUsers(userIds: string[]) {
 }
 
 /**
- * Update user role and invalidate their sessions
- * This ensures the role change takes effect immediately
+ * Replace a user's roles and invalidate their sessions.
+ *
+ * Guarded by `setUserRoles` on `isSuperuser`, not by `users:update`: this used
+ * to accept anyone who could edit a user, which let a module administrator
+ * grant themselves any other module.
  */
-export async function updateUserRoleWithSessionInvalidation(
+export async function updateUserRolesWithSessionInvalidation(
   userId: string,
-  newRoleId: number,
+  roleIds: number[],
 ) {
-  await requirePermission("users:update");
+  const caller = await requireAuth();
 
-  // Verify role exists
-  const role = await prisma.role.findUnique({
-    where: { id: newRoleId },
-    select: { id: true, name: true, defaultPath: true },
-  });
+  return guarded(async () => {
+    await setUserRoles(caller, userId, roleIds);
 
-  if (!role) {
-    throw new Error("Role not found");
-  }
+    revalidatePath("/admin/users");
+    revalidatePath(`/admin/users/${userId}`);
 
-  // Update role and invalidate session in a transaction
-  await prisma.$transaction(async (tx) => {
-    await tx.user.update({
-      where: { id: userId },
+    return {
       data: {
-        roleId: newRoleId,
-        sessionVersion: { increment: 1 }, // Invalidate session
+        message:
+          "Roles actualizados. El usuario deberá volver a iniciar sesión para que apliquen.",
       },
-    });
+    };
   });
-
-  revalidatePath("/admin/users");
-  revalidatePath(`/admin/users/${userId}`);
-
-  return {
-    success: true,
-    message: `User role updated to ${role.name}. User will be logged out on their next request.`,
-  };
 }
 
 /**

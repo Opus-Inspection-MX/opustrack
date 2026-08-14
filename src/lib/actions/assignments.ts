@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requirePermission } from "@/lib/auth/auth";
 import { getClienteWhereClause } from "@/lib/auth/filters";
+import { whereHasPermission, whereHasRole } from "@/lib/authz/user-queries";
 import { prisma } from "@/lib/database/prisma.singleton";
 import {
   getAdminUserIds,
@@ -44,7 +45,6 @@ const assigneesInclude = {
           id: true,
           name: true,
           email: true,
-          role: true,
         },
       },
     },
@@ -58,7 +58,7 @@ const assigneesInclude = {
 async function assertAssigneesAreFsrs(userIds: string[]) {
   if (userIds.length === 0) return;
   const fsrs = await prisma.user.findMany({
-    where: { id: { in: userIds }, active: true, role: { name: "FSR" } },
+    where: { id: { in: userIds }, active: true, ...whereHasRole("FSR") },
     select: { id: true },
   });
   if (fsrs.length !== new Set(userIds).size) {
@@ -648,11 +648,12 @@ async function ensureCallerIsAssigneeOrAdmin(
 ): Promise<boolean> {
   const isAssignee = assignees.some((a) => a.userId === callerId);
   if (isAssignee) return true;
-  const userWithRole = await prisma.user.findUnique({
-    where: { id: callerId },
-    include: { role: true },
+  // Overriding someone else's assignment is a capability, not a role name: an
+  // operations admin needs it, a vacation admin must not have it.
+  const override = await prisma.user.count({
+    where: { id: callerId, ...whereHasPermission("assignments:manage-all") },
   });
-  if (userWithRole?.role?.name === "ADMINISTRADOR") return true;
+  if (override > 0) return true;
   businessRule(
     "Solo un FSR asignado o un administrador puede ejecutar esta acción",
   );
@@ -1096,12 +1097,11 @@ export async function getAssignmentFormOptions() {
       orderBy: { reportedAt: "desc" },
     }),
     prisma.user.findMany({
-      where: { active: true, role: { name: "FSR" } },
+      where: { active: true, ...whereHasRole("FSR") },
       select: {
         id: true,
         name: true,
         email: true,
-        role: true,
         clienteAssignments: {
           where: { active: true },
           select: { clienteId: true },

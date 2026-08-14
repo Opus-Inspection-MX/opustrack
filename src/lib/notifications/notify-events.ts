@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/database/prisma.singleton";
+import { getUserIdsWithPermission } from "@/lib/authz/user-queries";
 import { createNotificationsForUsers } from "./notification-service";
 import {
   ENTITY_TYPES,
@@ -54,18 +54,19 @@ async function emit(
 }
 
 /**
- * Return IDs of all active ADMINISTRADOR users.
+ * Who hears about operational events: incidents, assignments, closures.
+ *
+ * Addressed by capability, not by role name. This used to be "every
+ * ADMINISTRADOR", and once that role split into ROOT, ADMIN_OPERACION and
+ * ADMIN_VACACIONES, the naive reading would have buried the vacation
+ * administrators under incident traffic they have no way to act on.
  */
 export async function getAdminUserIds(): Promise<string[]> {
-  const admins = await prisma.user.findMany({
-    where: {
-      active: true,
-      role: { name: "ADMINISTRADOR" },
-    },
-    select: { id: true },
-  });
-  return admins.map((u) => u.id);
+  return getUserIdsWithPermission(OPERATIONS_AUDIENCE);
 }
+
+/** Being able to act on an incident is what makes someone worth notifying. */
+const OPERATIONS_AUDIENCE = "incidents:update";
 
 // ---------------------------------------------------------------------------
 // Assignment notification helpers (RF-452, RF-461–RF-464)
@@ -346,7 +347,7 @@ export async function notifyVacationApproved(
     type: NOTIFICATION_TYPES.VACATION_APPROVED,
     entityType: ENTITY_TYPES.VACATION,
     entityId: vacationId,
-    actionUrl: "/fsr/vacations",
+    actionUrl: "/vacations",
     priority: NOTIFICATION_PRIORITY.HIGH,
   });
 }
@@ -367,7 +368,7 @@ export async function notifyVacationRejected(
     type: NOTIFICATION_TYPES.VACATION_REJECTED,
     entityType: ENTITY_TYPES.VACATION,
     entityId: vacationId,
-    actionUrl: "/fsr/vacations",
+    actionUrl: "/vacations",
     priority: NOTIFICATION_PRIORITY.HIGH,
   });
 }

@@ -11,6 +11,7 @@
  */
 
 import { redirect } from "next/navigation";
+import { whereHasRoleId } from "@/lib/authz/user-queries";
 import { prisma } from "@/lib/database/prisma.singleton";
 
 /**
@@ -112,7 +113,7 @@ export async function invalidateUserSessions(userId: string): Promise<void> {
  */
 export async function invalidateRoleSessions(roleId: number): Promise<void> {
   const result = await prisma.user.updateMany({
-    where: { roleId, active: true },
+    where: { active: true, ...whereHasRoleId(roleId) },
     data: {
       sessionVersion: { increment: 1 },
     },

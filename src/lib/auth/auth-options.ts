@@ -35,21 +35,35 @@ export const authOptions: NextAuthOptions = {
             email: true,
             name: true,
             password: true,
-            roleId: true,
             clienteId: true,
             sessionVersion: true,
-            role: {
+            // Every active role: a user can administer vacations, administer
+            // operations, and still be an FSR. What travels in the JWT is the
+            // UNION of their route grants.
+            userRoles: {
+              where: { active: true },
               select: {
-                id: true,
-                name: true,
-                defaultPath: true,
-                // Route permissions travel in the JWT so the Edge middleware can
-                // authorize without a DB round-trip — and without a hardcoded
-                // per-role route table.
-                rolePermission: {
+                role: {
                   select: {
-                    permission: {
-                      select: { routePath: true, active: true },
+                    id: true,
+                    name: true,
+                    defaultPath: true,
+                    isSuperuser: true,
+                    priority: true,
+                    active: true,
+                    // Route permissions travel in the JWT so the Edge middleware can
+                    // authorize without a DB round-trip — and without a hardcoded
+                    // per-role route table.
+                    rolePermission: {
+                      select: {
+                        permission: {
+                          select: {
+                            routePath: true,
+                            exact: true,
+                            active: true,
+                          },
+                        },
+                      },
                     },
                   },
                 },
@@ -83,27 +97,43 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Invalid email or password");
         }
 
-        // Distinct, non-null route paths granted to the role.
-        const routePaths = Array.from(
-          new Set(
-            user.role.rolePermission
-              .filter((rp) => rp.permission.active && rp.permission.routePath)
-              .map((rp) => rp.permission.routePath as string),
-          ),
-        );
+        const roles = user.userRoles
+          .map((ur) => ur.role)
+          .filter((role) => role.active);
+
+        // A user stripped of every role cannot be authorized at all. Failing
+        // the sign-in is safer than issuing a token with an empty grant list,
+        // which would look like a valid session that silently denies each page.
+        if (roles.length === 0) {
+          throw new Error("Account has no roles assigned");
+        }
+
+        // Distinct, non-null route paths across ALL roles, split by match mode.
+        const prefixes = new Set<string>();
+        const exact = new Set<string>();
+        for (const role of roles) {
+          for (const rp of role.rolePermission) {
+            const perm = rp.permission;
+            if (!perm.active || !perm.routePath) continue;
+            (perm.exact ? exact : prefixes).add(perm.routePath);
+          }
+        }
+
+        // Highest priority decides where they land after login.
+        const landing = [...roles].sort(
+          (a, b) => b.priority - a.priority || a.id - b.id,
+        )[0];
 
         // Return user object that will be encoded in JWT
         return {
           id: user.id,
           email: user.email,
           name: user.name,
-          roleId: user.roleId,
-          role: {
-            id: user.role.id,
-            name: user.role.name,
-            defaultPath: user.role.defaultPath,
-          },
-          routePaths,
+          roleNames: roles.map((role) => role.name),
+          isSuperuser: roles.some((role) => role.isSuperuser),
+          defaultPath: landing.defaultPath,
+          routePaths: [...prefixes],
+          exactRoutePaths: [...exact],
           sessionVersion: user.sessionVersion,
           clienteId: user.clienteId,
         };
@@ -117,10 +147,11 @@ export const authOptions: NextAuthOptions = {
         token.id = user.id;
         token.email = user.email;
         token.name = user.name;
-        token.roleId = user.roleId;
-        token.roleName = user.role?.name;
-        token.defaultPath = user.role?.defaultPath;
+        token.roleNames = user.roleNames ?? [];
+        token.isSuperuser = user.isSuperuser ?? false;
+        token.defaultPath = user.defaultPath;
         token.routePaths = user.routePaths ?? [];
+        token.exactRoutePaths = user.exactRoutePaths ?? [];
         token.sessionVersion = user.sessionVersion;
         token.clienteId = user.clienteId ?? undefined;
       }
@@ -132,9 +163,14 @@ export const authOptions: NextAuthOptions = {
         session.user.id = token.id as string;
         session.user.email = token.email as string;
         session.user.name = token.name as string;
-        session.user.roleId = token.roleId as number;
-        session.user.roleName = token.roleName as string;
+        session.user.roleNames = (token.roleNames as string[]) ?? [];
+        session.user.isSuperuser = (token.isSuperuser as boolean) ?? false;
         session.user.defaultPath = token.defaultPath as string;
+        // The navigation menu filters against these, so they have to reach the
+        // client — not just the Edge middleware.
+        session.user.routePaths = (token.routePaths as string[]) ?? [];
+        session.user.exactRoutePaths =
+          (token.exactRoutePaths as string[]) ?? [];
         session.user.sessionVersion = token.sessionVersion as number;
         session.user.clienteId = token.clienteId as string | undefined;
       }
