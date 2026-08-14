@@ -219,11 +219,6 @@ export const MENU: MenuSection[] = [
         icon: Wrench,
       },
       {
-        title: "Estado de Línea",
-        url: "/admin/settings/line-status",
-        icon: List,
-      },
-      {
         title: "Estado de Equipo",
         url: "/admin/settings/equipment-status",
         icon: Wrench,

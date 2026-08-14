@@ -25,17 +25,6 @@ async function main() {
       if (!userStatusActivo) throw new Error("UserStatus ACTIVO not found");
       console.log("✅ Seeded UserStatuses");
 
-      // 1b) LineStatus
-      const lineStatuses = ["ACTIVO", "MANTENIMIENTO", "INACTIVO"];
-      for (const name of lineStatuses) {
-        await tx.lineStatus.upsert({
-          where: { name },
-          update: {},
-          create: { name },
-        });
-      }
-      console.log("✅ Seeded LineStatuses");
-
       // 1c) EquipmentStatus
       const equipmentStatuses = ["OPERATIVO", "MANTENIMIENTO", "INACTIVO"];
       for (const name of equipmentStatuses) {
@@ -64,7 +53,7 @@ async function main() {
       console.log("✅ Seeded VehicleStatuses");
 
       // 1e) VehicleTripStatus
-      const vehicleTripStatuses = ["IN_PROGRESS", "COMPLETED", "CANCELLED"];
+      const vehicleTripStatuses = ["EN_CURSO", "COMPLETADO", "CANCELADO"];
       for (const name of vehicleTripStatuses) {
         await tx.vehicleTripStatus.upsert({
           where: { name },

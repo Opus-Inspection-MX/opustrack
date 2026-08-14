@@ -1,6 +1,5 @@
 import {
   ClipboardList,
-  Layers,
   Palmtree,
   Route,
   Settings2,
@@ -22,13 +21,6 @@ export default async function SettingsPage() {
   await requireRouteAccess("/admin/settings");
 
   const statusCategories = [
-    {
-      title: "Estado de Línea",
-      description: "Gestionar estados de línea de verificación",
-      icon: Layers,
-      href: "/admin/settings/line-status",
-      color: "text-blue-600",
-    },
     {
       title: "Estado de Equipo",
       description: "Gestionar estados de equipo",

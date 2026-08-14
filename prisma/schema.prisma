@@ -260,12 +260,6 @@ model AssignmentStatus {
   active      Boolean      @default(true)
 }
 
-model LineStatus {
-  id     Int     @id @default(autoincrement())
-  name   String  @unique
-  lines  Line[]
-  active Boolean @default(true)
-}
 
 model EquipmentStatus {
   id         Int         @id @default(autoincrement())
@@ -449,8 +443,6 @@ model Line {
   id          Int                     @id @default(autoincrement())
   name        String
   description String?
-  statusId    Int                     @default(1)
-  status      LineStatus              @relation(fields: [statusId], references: [id])
   clienteId       String
   cliente         Cliente @relation(fields: [clienteId], references: [id])
   equipments  Equipment[]
@@ -461,7 +453,6 @@ model Line {
 
   @@unique([name, clienteId])
   @@index([clienteId])
-  @@index([statusId])
 }
 
 model Equipment {

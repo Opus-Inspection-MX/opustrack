@@ -119,16 +119,10 @@ async function ensureLineForEquipments(): Promise<void> {
   });
   if (existing) return;
 
-  const status = await prisma.lineStatus.findFirstOrThrow({
-    where: { active: true },
-    select: { id: true },
-  });
-
   await prisma.line.create({
     data: {
       name: "Línea base e2e",
       clienteId: cliente.id,
-      statusId: status.id,
     },
   });
 }
@@ -145,7 +139,6 @@ export const CATALOGS: CatalogSpec[] = [
     "/admin/settings/equipment-status",
     "equipmentStatus",
   ),
-  statusCatalog("line-status", "/admin/settings/line-status", "lineStatus"),
   statusCatalog(
     "vehicle-status",
     "/admin/settings/vehicle-status",

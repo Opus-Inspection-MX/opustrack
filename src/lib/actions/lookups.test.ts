@@ -32,7 +32,6 @@ const { prismaMock, requirePermission } = vi.hoisted(() => ({
     incidentType: { update: vi.fn(), findUnique: vi.fn() },
     incidentStatus: { update: vi.fn() },
     assignmentStatus: { update: vi.fn() },
-    lineStatus: { update: vi.fn() },
     equipmentStatus: { update: vi.fn() },
     vehicleStatus: { update: vi.fn() },
     vehicleTripStatus: { update: vi.fn() },
@@ -93,12 +92,6 @@ const CATALOGS = [
     permission: "assignment-status:delete",
     child: "assignment",
     model: "assignmentStatus",
-  },
-  {
-    action: "deleteLineStatus",
-    permission: "settings:delete",
-    child: "line",
-    model: "lineStatus",
   },
   {
     action: "deleteEquipmentStatus",
