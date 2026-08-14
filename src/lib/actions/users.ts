@@ -457,7 +457,7 @@ export async function updateMyProfile(data: {
   });
 
   revalidatePath("/profile");
-  revalidatePath("/admin/profile");
+  revalidatePath("/profile");
   return { success: true };
 }
 

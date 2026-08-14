@@ -96,7 +96,7 @@ test("la contraseña actual equivocada se explica, no se generaliza", async ({
     select: { sessionVersion: true },
   });
 
-  await page.goto("/admin/profile");
+  await page.goto("/profile");
   await page.getByRole("button", { name: "Cambiar Contraseña" }).click();
 
   await fillStable(page.locator("#currentPassword"), "contrasena-incorrecta");

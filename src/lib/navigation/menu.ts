@@ -204,6 +204,12 @@ export const MENU: MenuSection[] = [
       { title: "Usuarios", url: "/admin/users", icon: Users },
       { title: "Roles", url: "/admin/roles", icon: Shield },
       { title: "Permisos", url: "/admin/permissions", icon: Settings },
+      // Reachable only by typing the URL until now: no sidebar ever listed it.
+      {
+        title: "Enviar Notificación",
+        url: "/admin/notifications/broadcast",
+        icon: Bell,
+      },
     ],
   },
   {

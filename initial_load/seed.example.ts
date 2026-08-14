@@ -313,6 +313,13 @@ async function main() {
           description: "Administración de vacaciones",
           routePath: "/admin/vacations",
         },
+        // Its own permission, NOT `settings:read`: that one carries
+        // /admin/settings and would drag in every status catalog beside it.
+        {
+          name: "route:admin-vacation-accrual",
+          description: "Reglas de acumulación de vacaciones",
+          routePath: "/admin/settings/vacation-accrual",
+        },
         {
           name: "route:admin-notifications",
           description: "Notificaciones",
@@ -1156,6 +1163,16 @@ async function main() {
             // Approving and configuring other people's vacations.
             "vacations:approve",
             "vacations:manage",
+            // Holidays and accrual rules ARE vacation administration: a day off
+            // that lands on a holiday is not charged, and the rules decide how
+            // many days each period grants. Without these the role can approve
+            // requests but not maintain what the balances are computed from.
+            // `holidays:read` carries routePath /admin/holidays.
+            "holidays:read",
+            "holidays:create",
+            "holidays:update",
+            "holidays:delete",
+            "route:admin-vacation-accrual",
             // Needs the roster to know whose days these are. Read only: user
             // administration stays with ROOT.
             "users:read",
