@@ -3,7 +3,6 @@
 import {
   Activity,
   AlertTriangle,
-  ArrowLeft,
   CheckCircle,
   Eye,
   Lock,
@@ -21,6 +20,7 @@ import { AssignmentActivityForm } from "@/components/assignments/assignment-acti
 import { AssignmentItems } from "@/components/assignments/assignment-items";
 import { AttachmentPreview } from "@/components/assignments/attachment-preview";
 import { OdtFolioCapture } from "@/components/assignments/odt-folio-capture";
+import { BackButton } from "@/components/common/back-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -342,11 +342,7 @@ export default function FSRAssignmentDetailPage({
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" asChild>
-            <Link href="/fsr/assignments">
-              <ArrowLeft className="h-4 w-4" />
-            </Link>
-          </Button>
+          <BackButton fallback="/fsr/assignments" />
           <h1 className="text-3xl font-bold">Asignación</h1>
         </div>
         <Card className="border-destructive">
@@ -405,11 +401,7 @@ export default function FSRAssignmentDetailPage({
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" asChild>
-          <Link href="/fsr/assignments">
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
-        </Button>
+        <BackButton fallback="/fsr/assignments" />
         <div className="flex-1">
           <h1 className="text-3xl font-bold">Asignación</h1>
           <p className="text-muted-foreground">

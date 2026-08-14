@@ -1,5 +1,4 @@
 import {
-  ArrowLeft,
   Calendar,
   CheckCircle,
   Clock,
@@ -9,10 +8,9 @@ import {
   Wrench,
 } from "lucide-react";
 import NextImage from "next/image";
-import Link from "next/link";
 import { notFound } from "next/navigation";
+import { BackButton } from "@/components/common/back-button";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -70,18 +68,14 @@ export default async function ClientAssignmentDetailPage({
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Button asChild variant="outline" size="sm">
-          <Link
-            href={
-              assignment.incident
-                ? `/client/incidents/${assignment.incident.id}`
-                : "/client"
-            }
-          >
-            <ArrowLeft className="h-4 w-4 mr-1" />
-            Volver
-          </Link>
-        </Button>
+        <BackButton
+          fallback={
+            assignment.incident
+              ? `/client/incidents/${assignment.incident.id}`
+              : "/client"
+          }
+          label="Volver"
+        />
         <div>
           <h1 className="text-3xl font-bold">
             Asignación AS-{assignment.folio}

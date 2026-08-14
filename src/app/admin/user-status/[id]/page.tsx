@@ -1,6 +1,7 @@
-import { ArrowLeft, Edit } from "lucide-react";
+import { Edit } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { BackButton } from "@/components/common/back-button";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getUserStatusById } from "@/lib/actions/lookups";
@@ -24,11 +25,7 @@ export default async function UserStatusDetailPage({
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Link href="/admin/user-status">
-            <Button variant="ghost" size="icon">
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-          </Link>
+          <BackButton fallback="/admin/user-status" />
           <div>
             <h1 className="text-3xl font-bold">{status.name}</h1>
             <p className="text-muted-foreground">User status details</p>

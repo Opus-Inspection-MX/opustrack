@@ -1,8 +1,9 @@
 "use client";
 
-import { ArrowLeft, Building2, Edit, Trash2 } from "lucide-react";
+import { Building2, Edit, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { use, useEffect, useState } from "react";
+import { BackButton } from "@/components/common/back-button";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
@@ -92,9 +93,7 @@ export default function StateDetailPage({
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => router.back()}>
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
+          <BackButton fallback="/admin/states" />
           <div>
             <h1 className="text-3xl font-bold">Estado No Encontrado</h1>
           </div>
@@ -107,9 +106,7 @@ export default function StateDetailPage({
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => router.back()}>
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
+          <BackButton fallback="/admin/states" />
           <div>
             <h1 className="text-3xl font-bold">{state.name}</h1>
             <p className="text-muted-foreground">

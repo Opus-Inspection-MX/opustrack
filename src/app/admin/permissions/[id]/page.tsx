@@ -1,8 +1,9 @@
 "use client";
 
-import { ArrowLeft, Calendar, Edit, Shield } from "lucide-react";
+import { Calendar, Edit, Shield } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { BackButton } from "@/components/common/back-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -70,10 +71,7 @@ export default function PermissionDetailPage() {
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-4">
-          <Button variant="outline" size="sm" onClick={() => router.back()}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back
-          </Button>
+          <BackButton fallback="/admin/permissions" label="Volver" />
         </div>
         <Card>
           <CardContent className="pt-6">
@@ -90,10 +88,7 @@ export default function PermissionDetailPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Button variant="outline" size="sm" onClick={() => router.back()}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back
-          </Button>
+          <BackButton fallback="/admin/permissions" label="Volver" />
           <div>
             <h1 className="text-3xl font-bold font-mono">{permission.name}</h1>
             <p className="text-muted-foreground">

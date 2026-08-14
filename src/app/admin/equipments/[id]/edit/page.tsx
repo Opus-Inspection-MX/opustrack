@@ -1,8 +1,6 @@
-import { ArrowLeft } from "lucide-react";
-import Link from "next/link";
 import { notFound } from "next/navigation";
+import { BackButton } from "@/components/common/back-button";
 import { EquipmentForm } from "@/components/equipments/equipment-form";
-import { Button } from "@/components/ui/button";
 import { getEquipmentById } from "@/lib/actions/equipments";
 
 interface EditEquipmentPageProps {
@@ -20,11 +18,7 @@ export default async function EditEquipmentPage({
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" asChild>
-            <Link href="/admin/equipments">
-              <ArrowLeft className="h-4 w-4" />
-            </Link>
-          </Button>
+          <BackButton fallback="/admin/equipments" />
           <div>
             <h1 className="text-3xl font-bold">Editar Equipo</h1>
             <p className="text-muted-foreground">

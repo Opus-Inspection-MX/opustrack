@@ -1,15 +1,9 @@
 "use client";
 
-import {
-  AlertTriangle,
-  ArrowLeft,
-  Building,
-  Loader2,
-  Send,
-} from "lucide-react";
-import Link from "next/link";
+import { AlertTriangle, Building, Loader2, Send } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import { BackButton } from "@/components/common/back-button";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -217,12 +211,7 @@ export default function ReportIncidentPage() {
   return (
     <div className="container mx-auto p-4 md:p-6 space-y-6 max-w-4xl">
       <div className="flex items-center gap-4">
-        <Link href="/client">
-          <Button variant="outline" size="sm">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Volver
-          </Button>
-        </Link>
+        <BackButton fallback="/client" label="Volver" />
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 rounded-lg bg-orange-500/10 flex items-center justify-center">
             <AlertTriangle className="h-5 w-5 text-orange-500" />

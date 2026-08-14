@@ -1,6 +1,5 @@
 import {
   AlertTriangle,
-  ArrowLeft,
   Building2,
   Calendar,
   Clock,
@@ -9,6 +8,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { BackButton } from "@/components/common/back-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -60,12 +60,7 @@ export default async function FSRIncidentDetailPage({
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <Button asChild variant="outline" size="sm">
-          <Link href="/fsr/incidents">
-            <ArrowLeft className="h-4 w-4 mr-1" />
-            Volver
-          </Link>
-        </Button>
+        <BackButton fallback="/fsr/incidents" label="Volver" />
         <div>
           <h1 className="text-3xl font-bold">{incident.title}</h1>
           <p className="text-muted-foreground mt-1">Folio: INC-{incident.id}</p>

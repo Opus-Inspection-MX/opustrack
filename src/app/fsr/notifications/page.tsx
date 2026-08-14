@@ -1,6 +1,5 @@
-import { ArrowLeft, Bell } from "lucide-react";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
+import { Bell } from "lucide-react";
+import { BackButton } from "@/components/common/back-button";
 import {
   Card,
   CardContent,
@@ -21,11 +20,7 @@ export default async function FSRNotificationsPage() {
   return (
     <div className="space-y-6 max-w-3xl mx-auto">
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" asChild>
-          <Link href="/fsr">
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
-        </Button>
+        <BackButton fallback="/fsr" />
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-2">
             <Bell className="h-7 w-7" />

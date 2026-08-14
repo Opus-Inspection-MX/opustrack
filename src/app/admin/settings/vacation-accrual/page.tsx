@@ -1,6 +1,5 @@
-import { ArrowLeft, Palmtree } from "lucide-react";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
+import { Palmtree } from "lucide-react";
+import { BackButton } from "@/components/common/back-button";
 import { VacationAccrualClient } from "@/components/vacations/vacation-accrual-client";
 import {
   getAccrualRules,
@@ -19,11 +18,7 @@ export default async function VacationAccrualSettingsPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" asChild>
-          <Link href="/admin/settings">
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
-        </Button>
+        <BackButton fallback="/admin/settings" />
         <div className="flex items-center gap-3">
           <Palmtree className="h-8 w-8" />
           <div>

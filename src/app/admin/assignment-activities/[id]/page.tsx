@@ -1,8 +1,9 @@
 "use client";
 
-import { ArrowLeft, Edit, Trash2 } from "lucide-react";
+import { Edit, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { use, useEffect, useState } from "react";
+import { BackButton } from "@/components/common/back-button";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
@@ -117,9 +118,7 @@ export default function AssignmentActivityDetailPage({
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => router.back()}>
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
+          <BackButton fallback="/admin/assignment-activities" />
           <div>
             <h1 className="text-3xl font-bold">
               Actividad de Trabajo No Encontrada
@@ -134,9 +133,7 @@ export default function AssignmentActivityDetailPage({
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => router.back()}>
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
+          <BackButton fallback="/admin/assignment-activities" />
           <div>
             <h1 className="text-3xl font-bold">Detalles de la Actividad</h1>
             <p className="text-muted-foreground">

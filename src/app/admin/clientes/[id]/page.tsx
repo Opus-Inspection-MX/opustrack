@@ -1,6 +1,5 @@
 import {
   AlertTriangle,
-  ArrowLeft,
   Building,
   Calendar,
   Edit,
@@ -14,6 +13,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { BackButton } from "@/components/common/back-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -52,11 +52,7 @@ export default async function ClienteDetailPage({
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" asChild>
-            <Link href="/admin/clientes">
-              <ArrowLeft className="h-4 w-4" />
-            </Link>
-          </Button>
+          <BackButton fallback="/admin/clientes" />
           <div>
             <h1 className="text-3xl font-bold">{cliente.name}</h1>
             <p className="text-muted-foreground">

@@ -1,7 +1,5 @@
-import { ArrowLeft } from "lucide-react";
-import Link from "next/link";
 import { BulkIncidentsClient } from "@/components/admin/incidents/bulk-incidents-client";
-import { Button } from "@/components/ui/button";
+import { BackButton } from "@/components/common/back-button";
 import { getBulkIncidentCatalogs } from "@/lib/actions/incidents";
 import { requireRouteAccess } from "@/lib/auth/auth";
 
@@ -12,11 +10,7 @@ export default async function BulkIncidentsPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" asChild>
-          <Link href="/admin/incidents">
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
-        </Button>
+        <BackButton fallback="/admin/incidents" />
         <div>
           <h1 className="text-3xl font-bold">Carga masiva de incidentes</h1>
           <p className="text-muted-foreground">

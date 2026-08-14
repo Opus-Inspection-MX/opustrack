@@ -1,6 +1,7 @@
-import { ArrowLeft, Edit, List, Wrench } from "lucide-react";
+import { Edit, List, Wrench } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { BackButton } from "@/components/common/back-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,11 +24,7 @@ export default async function EquipmentDetailPage({
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" asChild>
-              <Link href="/admin/equipments">
-                <ArrowLeft className="h-4 w-4" />
-              </Link>
-            </Button>
+            <BackButton fallback="/admin/equipments" />
             <div>
               <h1 className="text-3xl font-bold">{equipment.name}</h1>
               <p className="text-muted-foreground">Detalles del equipo</p>

@@ -1,9 +1,9 @@
 "use client";
 
-import { ArrowLeft, Calendar, Mail, MapPin, Phone, User } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { Calendar, Mail, MapPin, Phone, User } from "lucide-react";
 import type React from "react";
 import { use, useState } from "react";
+import { BackButton } from "@/components/common/back-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -41,7 +41,6 @@ export default function UserProfilePage({
   params: Promise<{ id: string }>;
 }) {
   const _params = use(params);
-  const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -115,10 +114,7 @@ export default function UserProfilePage({
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <Button variant="outline" size="sm" onClick={() => router.back()}>
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Regresar
-        </Button>
+        <BackButton fallback="/admin/users" label="Volver" />
         <div>
           <h1 className="text-3xl font-bold">Perfil de Usuario</h1>
           <p className="text-muted-foreground">
