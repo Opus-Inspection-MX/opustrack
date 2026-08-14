@@ -2,12 +2,12 @@ import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { VacationForm } from "@/components/vacations/vacation-form";
-import { getFsrsForVacations } from "@/lib/actions/vacations";
+import { getEmployeesForVacations } from "@/lib/actions/vacations";
 import { requireRouteAccess } from "@/lib/auth/auth";
 
 export default async function AdminNewVacationPage() {
   await requireRouteAccess("/admin/vacations");
-  const fsrs = await getFsrsForVacations();
+  const fsrs = await getEmployeesForVacations();
 
   return (
     <div className="space-y-6">

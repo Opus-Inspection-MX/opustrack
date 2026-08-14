@@ -3,7 +3,6 @@
 import { revalidatePath } from "next/cache";
 import { requirePermission } from "@/lib/auth/auth";
 import { userHasPermission } from "@/lib/authz/authz";
-import { whereHasRole } from "@/lib/authz/user-queries";
 import { prisma } from "@/lib/database/prisma.singleton";
 import {
   notifyVacationApproved,
@@ -47,24 +46,51 @@ function managesAllVacations(caller: Parameters<typeof userHasPermission>[0]) {
  * is granted to FSR so they can manage their own requests (RF-706), so the
  * permission alone must not expose other people's `reason`.
  */
-export async function getVacations(statusId?: number) {
+export async function getVacations(params?: {
+  statusId?: number;
+  page?: number;
+  limit?: number;
+}) {
   const caller = await requirePermission("vacations:read");
 
-  const vacations = await prisma.vacation.findMany({
-    where: {
-      active: true,
-      ...(statusId !== undefined ? { statusId } : {}),
-      ...(managesAllVacations(caller) ? {} : { userId: caller.id }),
-    },
-    include: {
-      user: { select: { id: true, name: true, email: true } },
-      status: true,
-      approvedBy: { select: { id: true, name: true } },
-    },
-    orderBy: { startDate: "desc" },
-  });
+  const page = params?.page ?? 1;
+  const limit = params?.limit ?? 20;
+  const skip = (page - 1) * limit;
 
-  return vacations;
+  const where = {
+    active: true,
+    ...(params?.statusId !== undefined ? { statusId: params.statusId } : {}),
+    ...(managesAllVacations(caller) ? {} : { userId: caller.id }),
+  };
+
+  const [rows, total] = await Promise.all([
+    prisma.vacation.findMany({
+      where,
+      include: {
+        user: { select: { id: true, name: true, email: true } },
+        status: true,
+        approvedBy: { select: { id: true, name: true } },
+      },
+      // Pending first, decided last: this table is a work queue, and what needs
+      // a decision has to be on top instead of buried under months of history.
+      // `status.name` sorts PENDIENTE ahead of APROBADA/RECHAZADA only by luck
+      // of the alphabet, so the order is explicit below.
+      orderBy: [{ startDate: "desc" }],
+      skip,
+      take: limit,
+    }),
+    prisma.vacation.count({ where }),
+  ]);
+
+  const rank = (name?: string | null) => (name === "PENDIENTE" ? 0 : 1);
+  const data = [...rows].sort(
+    (a, b) => rank(a.status?.name) - rank(b.status?.name),
+  );
+
+  return {
+    data,
+    pagination: { total, page, limit, totalPages: Math.ceil(total / limit) },
+  };
 }
 
 /**
@@ -110,22 +136,35 @@ export async function getVacationById(id: string) {
 }
 
 /**
- * Get active FSR users available for the vacation FSR-select dropdown.
- * Only available to users who can create vacations.
+ * Everyone who can hold vacation days.
+ *
+ * Was restricted to FSRs, which left every administrative employee unable to
+ * have a request registered for them. Vacations belong to PEOPLE, so the rule
+ * is by exclusion rather than by listing roles:
+ *
+ *   - CLIENT is the shared account of a verification centre, not a person.
+ *   - ROOT is the system superuser, an account rather than an employee.
+ *
+ * Anyone else — FSR, EMPLEADO, the module administrators — accrues days.
  */
-export async function getFsrsForVacations() {
+export async function getEmployeesForVacations() {
   await requirePermission("vacations:create");
 
-  const fsrs = await prisma.user.findMany({
+  return prisma.user.findMany({
     where: {
       active: true,
-      ...whereHasRole("FSR"),
+      NOT: {
+        userRoles: {
+          some: {
+            active: true,
+            role: { name: { in: ["CLIENT", "ROOT"] } },
+          },
+        },
+      },
     },
     select: { id: true, name: true, email: true },
     orderBy: { name: "asc" },
   });
-
-  return fsrs;
 }
 
 // ---------------------------------------------------------------------------

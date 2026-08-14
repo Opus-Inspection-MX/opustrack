@@ -16,7 +16,7 @@ import { VacationPlanner } from "@/components/vacations/vacation-planner";
 import type { CalendarVacation } from "@/components/vacations/vacation-year-calendar";
 import { isFailure } from "@/lib/actions/result";
 import {
-  getFsrsForVacations,
+  getEmployeesForVacations,
   getVacationBalanceData,
   getVacations,
 } from "@/lib/actions/vacations";
@@ -31,13 +31,15 @@ const STATUS_BADGE: Record<string, string> = {
 
 export default async function AdminVacationsPage() {
   await requireRouteAccess("/admin/vacations");
-  const [vacations, fsrs, canManage] = await Promise.all([
+  const [vacationPage, employees, canManage] = await Promise.all([
     getVacations(),
-    getFsrsForVacations(),
+    getEmployeesForVacations(),
     canPerform("vacations:manage"),
   ]);
+  const vacations = vacationPage.data;
+  const fsrs = employees;
 
-  // Default the balance panel to the first FSR; the picker switches from there.
+  // Default the balance panel to the first employee; the picker switches from there.
   const balance =
     fsrs.length > 0 ? await getVacationBalanceData(fsrs[0].id) : null;
 
