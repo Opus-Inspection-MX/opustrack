@@ -36,7 +36,8 @@
     "db:prod:migrate": "node scripts/db-prod.mjs migrate",
     "db:prod:seed": "node scripts/db-prod.mjs seed",
     "db:prod:reset": "node scripts/db-prod.mjs reset",
-    "db:prod:studio": "node scripts/db-prod.mjs studio"
+    "db:prod:studio": "node scripts/db-prod.mjs studio",
+    "deps:freeze": "node scripts/freeze-deps.mjs"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.10.0",
