@@ -205,24 +205,6 @@ export const CATALOGS: CatalogSpec[] = [
 
   // ── react-hook-form ───────────────────────────────────────────────────────
   {
-    key: "parts",
-    model: "part",
-    path: "/admin/parts",
-    searchPlaceholder: "Buscar por nombre o descripción...",
-    fields: [
-      { kind: "label", label: /^Nombre/, value: named("E2E Parte") },
-      {
-        kind: "label",
-        label: /^Descripcion/,
-        value: () => "Parte de la suite e2e",
-      },
-      { kind: "label", label: /^Precio/, value: () => "100" },
-      { kind: "label", label: /^Stock/, value: () => "10" },
-    ],
-    identity: { kind: "label", label: /^Nombre/ },
-    name: named("E2E Parte"),
-  },
-  {
     key: "roles",
     model: "role",
     path: "/admin/roles",

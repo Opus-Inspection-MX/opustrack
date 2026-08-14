@@ -111,10 +111,10 @@ test.describe("El FSR documenta el trabajo", () => {
     await fillFieldById(page, "description", description);
     await evidence(page, testInfo, "actividad capturada antes de guardar");
 
-    await page
-      .getByRole("button", { name: /Guardar|Agregar/ })
-      .last()
-      .click();
+    // Named exactly. A loose /Guardar|Agregar/ with `.last()` picked up the
+    // "Agregar" button of the parts list further down the same page, which sits
+    // disabled until its own name field is filled.
+    await page.getByRole("button", { name: "Guardar Actividad" }).click();
 
     // Wait for the form to close before asserting anything. A bare
     // `getByText(description)` matched the TEXTAREA the text had just been
@@ -141,6 +141,34 @@ test.describe("El FSR documenta el trabajo", () => {
       select: { id: true },
     });
     expect(stored, "la actividad debe persistir").not.toBeNull();
+  });
+
+  test("registra refacciones y equipo usados", async ({ page }, testInfo) => {
+    const part = `Sensor de proximidad ${SUFFIX}`;
+
+    await page.goto(`/fsr/assignments/${assignmentId}`);
+    await fillFieldById(page, "itemName", part);
+    await fillFieldById(page, "itemQuantity", "2");
+    await fillFieldById(page, "itemUnitPrice", "150.5");
+    // Exact: "Agregar Actividad" also starts with "Agregar".
+    await page.getByRole("button", { name: "Agregar", exact: true }).click();
+
+    // Free text, no catalogue: the line total is derived from quantity × price.
+    await expect(page.getByText(part)).toBeVisible({ timeout: 15_000 });
+    const listed = page.getByText("$301.00").first();
+    await expect(listed).toBeVisible();
+    await evidence(
+      page,
+      testInfo,
+      "refaccion registrada con cantidad y precio",
+      listed,
+    );
+
+    const stored = await db().assignmentItem.findFirst({
+      where: { assignmentId, name: part, active: true },
+      select: { quantity: true, unitPrice: true },
+    });
+    expect(stored).toMatchObject({ quantity: 2, unitPrice: 150.5 });
   });
 
   test("pausa y retoma el trabajo", async ({ page }, testInfo) => {
