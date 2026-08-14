@@ -1,6 +1,5 @@
 import {
   AlertTriangle,
-  ArrowLeft,
   Calendar,
   CheckCircle,
   ExternalLink,
@@ -12,6 +11,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AssignmentItems } from "@/components/assignments/assignment-items";
 import { AttachmentPreview } from "@/components/assignments/attachment-preview";
+import { BackButton } from "@/components/common/back-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -76,11 +76,7 @@ export default async function AssignmentDetailPage({
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" asChild>
-          <Link href="/admin/assignments">
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
-        </Button>
+        <BackButton fallback="/admin/assignments" />
         <div className="flex-1">
           <h1 className="text-3xl font-bold">Asignación</h1>
           <p className="text-muted-foreground">{assignment.incident.title}</p>

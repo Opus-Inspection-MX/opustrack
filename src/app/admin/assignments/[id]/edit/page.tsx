@@ -3,7 +3,6 @@
 import {
   Activity,
   AlertTriangle,
-  ArrowLeft,
   ExternalLink,
   Paperclip,
   Trash2,
@@ -15,6 +14,7 @@ import { AssignmentActivityEdit } from "@/components/assignments/assignment-acti
 import { AssignmentActivityForm } from "@/components/assignments/assignment-activity-form";
 import { AssignmentEditForm } from "@/components/assignments/assignment-edit-form";
 import { AssignmentItems } from "@/components/assignments/assignment-items";
+import { BackButton } from "@/components/common/back-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -209,11 +209,7 @@ export default function EditAssignmentPage({
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" asChild>
-          <Link href="/admin/assignments">
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
-        </Button>
+        <BackButton fallback="/admin/assignments" />
         <div className="flex-1">
           <h1 className="text-3xl font-bold">Editar Asignación</h1>
           <p className="text-muted-foreground">

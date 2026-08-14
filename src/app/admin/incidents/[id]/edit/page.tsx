@@ -1,11 +1,12 @@
 "use client";
 
-import { ArrowLeft, Wrench } from "lucide-react";
+import { Wrench } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { IncidentForm } from "@/components/admin/incidents/incident-form";
 import { AssignmentItems } from "@/components/assignments/assignment-items";
+import { BackButton } from "@/components/common/back-button";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -84,11 +85,7 @@ export default function EditIncidentPage({
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" asChild>
-          <Link href="/admin/incidents">
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
-        </Button>
+        <BackButton fallback="/admin/incidents" />
         <div>
           <h1 className="text-3xl font-bold">Editar Incidente</h1>
           <p className="text-muted-foreground">
