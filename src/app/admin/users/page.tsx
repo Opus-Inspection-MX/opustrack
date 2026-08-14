@@ -10,6 +10,7 @@ import type {
 import { CatalogTable } from "@/components/common/catalog-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { RoleBadges } from "@/components/users/role-badges";
 import { useDebounce } from "@/hooks/use-debounce";
 import { toast } from "@/hooks/use-toast";
 import { isFailure } from "@/lib/actions/result";
@@ -35,7 +36,7 @@ const columns: CatalogColumn<UserRow>[] = [
   },
   {
     header: "Rol",
-    cell: (row) => <Badge variant="outline">{row.role.name}</Badge>,
+    cell: (row) => <RoleBadges userRoles={row.userRoles} />,
   },
   {
     header: "Estado",

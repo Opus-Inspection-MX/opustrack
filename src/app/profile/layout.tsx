@@ -4,8 +4,8 @@ import type React from "react";
 import { AppShell } from "@/components/layout/app-shell";
 
 /**
- * The navigation is shared and permission-driven, so this portal no longer
- * carries its own sidebar. See `src/lib/navigation/menu.ts`.
+ * Shared, portal-less route: EMPLEADO lands here and belongs to no portal, so
+ * without this the page would render with no navigation at all.
  */
 export default function Layout({ children }: { children: React.ReactNode }) {
   return <AppShell>{children}</AppShell>;

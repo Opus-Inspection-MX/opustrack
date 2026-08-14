@@ -1,5 +1,3 @@
-"use client";
-
 import {
   Activity,
   AlertTriangle,
@@ -16,11 +14,10 @@ import {
   FileText,
   LayoutDashboard,
   List,
+  type LucideIcon,
   MapPin,
   Package,
   Palmtree,
-  PanelLeftClose,
-  PanelLeftOpen,
   PieChart,
   Settings,
   Shield,
@@ -32,33 +29,70 @@ import {
   Workflow,
   Wrench,
 } from "lucide-react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { LogoutButton } from "@/components/auth/logout-button";
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarRail,
-  SidebarSeparator,
-  useSidebar,
-} from "@/components/ui/sidebar";
-import { ThemeToggle } from "./theme-toggle";
+import { canAccessRoute, type RouteGrants } from "@/lib/authz/route-access";
 
-const menuSections = [
+/**
+ * The one navigation registry.
+ *
+ * There used to be four static sidebars — admin, fsr, client, guest — each
+ * hardcoding what its portal contained and none of them checking permissions.
+ * That cannot express "administers vacations AND works as an FSR", which is now
+ * an ordinary combination, so the menu is derived from what the user can
+ * actually open instead of from which portal they happen to be in.
+ *
+ * Filtering is by ROUTE, not by permission name: route grants already travel in
+ * the JWT for the Edge middleware, so no extra round-trip and no fatter cookie —
+ * and the rule stays honest, because a link is shown exactly when the page
+ * behind it would open.
+ */
+
+export interface MenuItem {
+  title: string;
+  /** Also the permission check: the item shows when this path is reachable. */
+  url: string;
+  icon: LucideIcon;
+}
+
+export interface MenuSection {
+  title: string;
+  items: MenuItem[];
+}
+
+export const MENU: MenuSection[] = [
   {
     title: "Resumen",
     items: [
       { title: "Panel", url: "/admin", icon: LayoutDashboard },
-      { title: "Mi Perfil", url: "/admin/profile", icon: User },
+      { title: "Mi Perfil", url: "/profile", icon: User },
     ],
+  },
+  {
+    title: "Mi Trabajo",
+    items: [
+      { title: "Inicio", url: "/fsr", icon: LayoutDashboard },
+      { title: "Mis Incidentes", url: "/fsr/incidents", icon: AlertTriangle },
+      { title: "Mis Asignaciones", url: "/fsr/assignments", icon: Wrench },
+      { title: "Viajes", url: "/fsr/vehicle-trips", icon: Car },
+    ],
+  },
+  {
+    title: "Mis Vacaciones",
+    items: [
+      // Self-service, for every staff role. A CLIENT is a shared center
+      // account, not a person with days to book.
+      { title: "Mis Vacaciones", url: "/vacations", icon: Palmtree },
+    ],
+  },
+  {
+    title: "Mi Centro",
+    items: [
+      { title: "Inicio", url: "/client", icon: LayoutDashboard },
+      { title: "Reportar Incidente", url: "/client/new", icon: AlertTriangle },
+    ],
+  },
+  {
+    title: "Consulta",
+    items: [{ title: "Inicio", url: "/guest", icon: LayoutDashboard }],
   },
   {
     title: "Gestión de Incidentes",
@@ -153,18 +187,28 @@ const menuSections = [
     ],
   },
   {
+    title: "Administrar Vacaciones",
+    items: [
+      { title: "Solicitudes", url: "/admin/vacations", icon: Palmtree },
+      { title: "Días Festivos", url: "/admin/holidays", icon: Calendar },
+      {
+        title: "Reglas de acumulación",
+        url: "/admin/settings/vacation-accrual",
+        icon: Settings,
+      },
+    ],
+  },
+  {
     title: "Gestión de Usuarios",
     items: [
       { title: "Usuarios", url: "/admin/users", icon: Users },
       { title: "Roles", url: "/admin/roles", icon: Shield },
       { title: "Permisos", url: "/admin/permissions", icon: Settings },
-      { title: "Vacaciones", url: "/admin/vacations", icon: Palmtree },
     ],
   },
   {
     title: "Configuración",
     items: [
-      { title: "Días Festivos", url: "/admin/holidays", icon: Calendar },
       { title: "Ciclo de Vida", url: "/admin/lifecycle", icon: Workflow },
       { title: "Tipos de Incidente", url: "/admin/incident-types", icon: Tag },
       {
@@ -206,94 +250,20 @@ const menuSections = [
   },
 ];
 
-export function AdminSidebar() {
-  const pathname = usePathname();
-  const { toggleSidebar } = useSidebar();
-
-  return (
-    <Sidebar collapsible="icon">
-      <SidebarHeader className="border-b px-6 py-4 group-data-[collapsible=icon]:px-2">
-        <div className="flex items-center justify-between group-data-[collapsible=icon]:justify-center">
-          <Link
-            href="/admin"
-            className="flex items-center gap-2 group-data-[collapsible=icon]:hidden"
-          >
-            <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
-              <Building2 className="h-5 w-5 text-primary-foreground" />
-            </div>
-            <span className="font-semibold">Panel de Admin</span>
-          </Link>
-          <button
-            type="button"
-            onClick={toggleSidebar}
-            className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center hover:bg-primary/90 transition-colors cursor-pointer hidden group-data-[collapsible=icon]:flex"
-            aria-label="Expand Sidebar"
-          >
-            <PanelLeftOpen className="h-5 w-5 text-primary-foreground" />
-          </button>
-          <button
-            type="button"
-            onClick={toggleSidebar}
-            className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center hover:bg-muted/80 transition-colors cursor-pointer group-data-[collapsible=icon]:hidden"
-            aria-label="Collapse Sidebar"
-          >
-            <PanelLeftClose className="h-5 w-5" />
-          </button>
-        </div>
-      </SidebarHeader>
-
-      <SidebarContent className="px-4 py-4 group-data-[collapsible=icon]:px-2">
-        {menuSections.map((section, index) => (
-          <div key={section.title}>
-            <SidebarGroup>
-              <SidebarGroupLabel>{section.title}</SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {section.items.map((item) => (
-                    <SidebarMenuItem key={item.url}>
-                      <SidebarMenuButton
-                        asChild
-                        isActive={
-                          pathname === item.url ||
-                          pathname.startsWith(`${item.url}/`)
-                        }
-                        tooltip={item.title}
-                      >
-                        <Link href={item.url}>
-                          <item.icon className="h-4 w-4" />
-                          <span>{item.title}</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-            {index < menuSections.length - 1 && <SidebarSeparator />}
-          </div>
-        ))}
-      </SidebarContent>
-
-      <SidebarFooter className="border-t p-4 group-data-[collapsible=icon]:p-2">
-        <div className="flex flex-col gap-2 group-data-[collapsible=icon]:items-center">
-          <ThemeToggle />
-          <div className="w-full group-data-[collapsible=icon]:w-auto">
-            <LogoutButton
-              variant="outline"
-              size="sm"
-              className="w-full bg-transparent group-data-[collapsible=icon]:hidden"
-            />
-            <LogoutButton
-              variant="outline"
-              size="icon"
-              className="hidden group-data-[collapsible=icon]:flex"
-              iconOnly
-            />
-          </div>
-        </div>
-      </SidebarFooter>
-
-      <SidebarRail />
-    </Sidebar>
-  );
+/**
+ * The menu this user can actually use.
+ *
+ * Sections whose every item was filtered out disappear entirely — an empty
+ * "Organización" heading reads as a broken page, not as a hidden one.
+ */
+export function visibleMenu(
+  grants: RouteGrants,
+  isSuperuser: boolean,
+): MenuSection[] {
+  return MENU.map((section) => ({
+    ...section,
+    items: section.items.filter((item) =>
+      canAccessRoute(grants, isSuperuser, item.url),
+    ),
+  })).filter((section) => section.items.length > 0);
 }

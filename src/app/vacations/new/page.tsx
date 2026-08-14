@@ -5,13 +5,13 @@ import { VacationForm } from "@/components/vacations/vacation-form";
 import { requireRouteAccess } from "@/lib/auth/auth";
 
 export default async function FsrNewVacationPage() {
-  await requireRouteAccess("/fsr/vacations");
+  await requireRouteAccess("/vacations");
 
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" asChild>
-          <Link href="/fsr/vacations">
+          <Link href="/vacations">
             <ArrowLeft className="h-4 w-4" />
           </Link>
         </Button>
@@ -23,7 +23,7 @@ export default async function FsrNewVacationPage() {
         </div>
       </div>
 
-      <VacationForm showFsrSelect={false} redirectPath="/fsr/vacations" />
+      <VacationForm showFsrSelect={false} redirectPath="/vacations" />
     </div>
   );
 }

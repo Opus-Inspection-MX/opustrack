@@ -30,7 +30,7 @@ type VacationFormProps = {
 export function VacationForm({
   showFsrSelect,
   fsrs = [],
-  redirectPath = "/fsr/vacations",
+  redirectPath = "/vacations",
 }: VacationFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);

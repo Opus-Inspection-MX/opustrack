@@ -19,6 +19,7 @@ import { FormError } from "@/components/ui/form-error";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
+import { RoleBadges } from "@/components/users/role-badges";
 import { toast } from "@/hooks/use-toast";
 import { isFailure } from "@/lib/actions/result";
 import {
@@ -251,7 +252,7 @@ export default function ProfilePage() {
 
                   <div>
                     <p className="text-sm text-muted-foreground mb-2">Role</p>
-                    <Badge variant="outline">{user.role.name}</Badge>
+                    <RoleBadges userRoles={user.userRoles} />
                   </div>
                 </div>
               </>
@@ -277,7 +278,7 @@ export default function ProfilePage() {
                   <Shield className="h-5 w-5 text-muted-foreground" />
                   <div>
                     <p className="text-sm text-muted-foreground">Role</p>
-                    <Badge variant="outline">{user.role.name}</Badge>
+                    <RoleBadges userRoles={user.userRoles} />
                   </div>
                 </div>
 

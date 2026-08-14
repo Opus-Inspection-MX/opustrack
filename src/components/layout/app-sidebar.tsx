@@ -1,87 +1,72 @@
 "use client";
 
-import {
-  AlertTriangle,
-  Car,
-  ClipboardList,
-  Palmtree,
-  PanelLeftClose,
-  PanelLeftOpen,
-  User,
-  Wrench,
-} from "lucide-react";
+import { Building2, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useSession } from "next-auth/react";
+import { useMemo } from "react";
 import { LogoutButton } from "@/components/auth/logout-button";
-import { NotificationBell } from "@/components/notifications";
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
+  SidebarSeparator,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { visibleMenu } from "@/lib/navigation/menu";
 import { ThemeToggle } from "./theme-toggle";
 
-const menuItems = [
-  {
-    title: "Panel",
-    url: "/fsr",
-    icon: ClipboardList,
-  },
-  {
-    title: "Incidentes",
-    url: "/fsr/incidents",
-    icon: AlertTriangle,
-  },
-  {
-    title: "Asignaciones",
-    url: "/fsr/assignments",
-    icon: Wrench,
-  },
-  {
-    title: "Viajes",
-    url: "/fsr/vehicle-trips",
-    icon: Car,
-  },
-  {
-    title: "Vacaciones",
-    url: "/fsr/vacations",
-    icon: Palmtree,
-  },
-  {
-    title: "Mi Perfil",
-    url: "/fsr/profile",
-    icon: User,
-  },
-];
-
-export function FSRSidebar() {
+/**
+ * The single navigation sidebar.
+ *
+ * It replaces four static per-portal sidebars that listed their contents
+ * unconditionally. What a user sees is now derived from the route grants in
+ * their session, so someone holding ADMIN_VACACIONES + FSR gets one menu with
+ * both — and without the operations or user-administration sections they cannot
+ * open anyway.
+ */
+export function AppSidebar() {
   const pathname = usePathname();
   const { toggleSidebar } = useSidebar();
+  const { data: session } = useSession();
+
+  const sections = useMemo(() => {
+    const user = session?.user;
+    if (!user) return [];
+    return visibleMenu(
+      { prefixes: user.routePaths ?? [], exact: user.exactRoutePaths ?? [] },
+      user.isSuperuser ?? false,
+    );
+  }, [session]);
+
+  const home = session?.user?.defaultPath ?? "/";
 
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="border-b px-6 py-4 group-data-[collapsible=icon]:px-2">
         <div className="flex items-center justify-between group-data-[collapsible=icon]:justify-center">
           <Link
-            href="/fsr"
+            href={home}
             className="flex items-center gap-2 group-data-[collapsible=icon]:hidden"
           >
             <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
-              <Wrench className="h-5 w-5 text-primary-foreground" />
+              <Building2 className="h-5 w-5 text-primary-foreground" />
             </div>
-            <span className="font-semibold">Portal FSR</span>
+            <span className="font-semibold">OpusTrack</span>
           </Link>
           <button
             type="button"
             onClick={toggleSidebar}
             className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center hover:bg-primary/90 transition-colors cursor-pointer hidden group-data-[collapsible=icon]:flex"
-            aria-label="Expand Sidebar"
+            aria-label="Expandir menú"
           >
             <PanelLeftOpen className="h-5 w-5 text-primary-foreground" />
           </button>
@@ -89,7 +74,7 @@ export function FSRSidebar() {
             type="button"
             onClick={toggleSidebar}
             className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center hover:bg-muted/80 transition-colors cursor-pointer group-data-[collapsible=icon]:hidden"
-            aria-label="Collapse Sidebar"
+            aria-label="Contraer menú"
           >
             <PanelLeftClose className="h-5 w-5" />
           </button>
@@ -97,32 +82,40 @@ export function FSRSidebar() {
       </SidebarHeader>
 
       <SidebarContent className="px-4 py-4 group-data-[collapsible=icon]:px-2">
-        <SidebarMenu>
-          {menuItems.map((item) => (
-            <SidebarMenuItem key={item.url}>
-              <SidebarMenuButton
-                asChild
-                isActive={
-                  pathname === item.url || pathname.startsWith(`${item.url}/`)
-                }
-                tooltip={item.title}
-              >
-                <Link href={item.url}>
-                  <item.icon className="h-4 w-4" />
-                  <span>{item.title}</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          ))}
-        </SidebarMenu>
+        {sections.map((section, index) => (
+          <div key={section.title}>
+            <SidebarGroup>
+              <SidebarGroupLabel>{section.title}</SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {section.items.map((item) => (
+                    <SidebarMenuItem key={item.url}>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={
+                          pathname === item.url ||
+                          pathname.startsWith(`${item.url}/`)
+                        }
+                        tooltip={item.title}
+                      >
+                        <Link href={item.url}>
+                          <item.icon className="h-4 w-4" />
+                          <span>{item.title}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+            {index < sections.length - 1 && <SidebarSeparator />}
+          </div>
+        ))}
       </SidebarContent>
 
       <SidebarFooter className="border-t p-4 group-data-[collapsible=icon]:p-2">
         <div className="flex flex-col gap-2 group-data-[collapsible=icon]:items-center">
-          <div className="flex items-center gap-2 group-data-[collapsible=icon]:flex-col">
-            <NotificationBell />
-            <ThemeToggle />
-          </div>
+          <ThemeToggle />
           <div className="w-full group-data-[collapsible=icon]:w-auto">
             <LogoutButton
               variant="outline"

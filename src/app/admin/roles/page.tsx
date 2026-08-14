@@ -54,7 +54,9 @@ const columns: CatalogColumn<RoleRow>[] = [
   },
   {
     header: "Usuarios",
-    cell: (row) => <Badge variant="outline">{row._count.users} usuarios</Badge>,
+    cell: (row) => (
+      <Badge variant="outline">{row._count.userRoles} usuarios</Badge>
+    ),
   },
 ];
 
@@ -120,7 +122,7 @@ export default function RolesPage() {
       confirmTitle: "Eliminar rol",
       confirmMessage: (row) =>
         `¿Seguro que deseas eliminar el rol "${row.name}"? Esta acción no se puede deshacer.`,
-      disabled: (row) => row._count.users > 0,
+      disabled: (row) => row._count.userRoles > 0,
       onClick: async (row) => {
         try {
           const result = await deleteRole(row.id);

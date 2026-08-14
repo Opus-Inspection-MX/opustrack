@@ -27,8 +27,8 @@ const STATUS_BADGE: Record<string, string> = {
   RECHAZADA: "bg-red-100 text-red-800 border-red-300",
 };
 
-export default async function FsrVacationsPage() {
-  await requireRouteAccess("/fsr/vacations");
+export default async function MyVacationsPage() {
+  await requireRouteAccess("/vacations");
   const [vacations, balance] = await Promise.all([
     getMyVacations(),
     getVacationBalanceData(),
@@ -51,7 +51,7 @@ export default async function FsrVacationsPage() {
           </p>
         </div>
         <Button asChild>
-          <Link href="/fsr/vacations/new">
+          <Link href="/vacations/new">
             <Plus className="mr-2 h-4 w-4" />
             Solicitar Vacaciones
           </Link>
@@ -122,7 +122,7 @@ export default async function FsrVacationsPage() {
               <CalendarDays className="mx-auto h-12 w-12 mb-4 opacity-50" />
               <p>No tiene solicitudes de vacaciones registradas.</p>
               <Button asChild className="mt-4" variant="outline">
-                <Link href="/fsr/vacations/new">Crear primera solicitud</Link>
+                <Link href="/vacations/new">Crear primera solicitud</Link>
               </Button>
             </div>
           ) : (

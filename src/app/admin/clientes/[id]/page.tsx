@@ -31,6 +31,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { RoleBadges } from "@/components/users/role-badges";
 import { getClienteById } from "@/lib/actions/clientes";
 import { requireRouteAccess } from "@/lib/auth/auth";
 import { formatIncidentDateTime } from "@/lib/utils/datetime";
@@ -265,7 +266,7 @@ export default async function ClienteDetailPage({
                       <TableCell className="font-medium">{user.name}</TableCell>
                       <TableCell>{user.email}</TableCell>
                       <TableCell>
-                        <Badge variant="outline">{user.role.name}</Badge>
+                        <RoleBadges userRoles={user.userRoles} />
                       </TableCell>
                       <TableCell>
                         <Badge

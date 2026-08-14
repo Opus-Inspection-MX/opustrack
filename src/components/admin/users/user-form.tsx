@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { MultiSelect } from "@/components/ui/multi-select";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import {
   Select,
@@ -23,7 +24,7 @@ type UserFormProps = {
     id: string;
     name: string;
     email: string;
-    roleId: number;
+    userRoles: Array<{ role: { id: number; name: string } }>;
     userStatusId: number;
     clienteId: string | null;
     hireDate: Date | string | null;
@@ -48,7 +49,7 @@ export function UserForm({ user, roles, statuses, clientes }: UserFormProps) {
     name: user?.name || "",
     email: user?.email || "",
     password: "",
-    roleId: user?.roleId || roles[0]?.id || 0,
+    roleIds: user?.userRoles?.map((ur) => ur.role.id) ?? [],
     userStatusId: user?.userStatusId || statuses[0]?.id || 0,
     clienteId: user?.clienteId || null,
     // The date input wants "YYYY-MM-DD"; the server sends an instant.
@@ -159,24 +160,25 @@ export function UserForm({ user, roles, statuses, clientes }: UserFormProps) {
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="roleId">Rol *</Label>
-              <Select
-                value={formData.roleId.toString()}
-                onValueChange={(value) =>
-                  setFormData({ ...formData, roleId: parseInt(value, 10) })
+              <Label htmlFor="roleIds">Roles *</Label>
+              {/* Many: a person can administer vacations, administer
+                  operations and still be an FSR who gets dispatched. */}
+              <MultiSelect
+                id="roleIds"
+                options={roles.map((role) => ({
+                  value: role.id.toString(),
+                  label: role.name,
+                }))}
+                value={formData.roleIds.map(String)}
+                onValueChange={(ids) =>
+                  setFormData({
+                    ...formData,
+                    roleIds: ids.map((id) => parseInt(id, 10)),
+                  })
                 }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar rol" />
-                </SelectTrigger>
-                <SelectContent>
-                  {roles.map((role) => (
-                    <SelectItem key={role.id} value={role.id.toString()}>
-                      {role.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                placeholder="Seleccionar roles"
+                searchPlaceholder="Buscar rol..."
+              />
             </div>
 
             <div className="space-y-2">
