@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import { TrackingFilters } from "@/components/tracking/tracking-filters";
 import { TrackingTable } from "@/components/tracking/tracking-table";
 import { Button } from "@/components/ui/button";
+import { toast } from "@/hooks/use-toast";
 import { getClientesForSelect } from "@/lib/actions/clientes";
 import { getIncidentStatuses, getIncidentTypes } from "@/lib/actions/lookups";
 import {
@@ -103,7 +104,11 @@ export default function TrackingPage() {
         setIncidents(result.data as TrackingIncident[]);
         setTotalCount(result.totalCount);
       } catch (error) {
+        // Surfaced, not swallowed. A thrown query used to leave the table at
+        // "Total de incidentes: 0", which reads as "no hay datos" and sent us
+        // hunting through the database for a problem that was in the code.
         console.error("Error loading incidents:", error);
+        toast.error("No se pudieron cargar los incidentes. Intenta de nuevo.");
       }
     },
     [],
@@ -128,6 +133,9 @@ export default function TrackingPage() {
       setAllFsrs(fsrsData);
     } catch (error) {
       console.error("Error loading initial data:", error);
+      toast.error(
+        "No se pudieron cargar los filtros ni la lista de FSR. Intenta de nuevo.",
+      );
     } finally {
       setLoading(false);
     }

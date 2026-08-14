@@ -50,7 +50,14 @@ type IncidentFormProps = {
     id: string;
     name: string;
     clienteIds?: string[];
-    roleName?: string | null;
+    /**
+     * Required, not optional. It used to be a singular `roleName?`, and when
+     * multi-role renamed it the filter below started reading `undefined` on
+     * every user — the FSR list came up empty and nobody could be assigned.
+     * An optional field that stops existing produces no type error, so the
+     * compiler said nothing. Mandatory here means it will.
+     */
+    roleNames: string[];
   }>;
   schedules: Array<{ id: string; scheduledAt: Date }>;
 };
@@ -88,7 +95,9 @@ export function IncidentForm({
     incident?.resolvedAt ? toDatetimeLocalMX(incident.resolvedAt) : "",
   );
 
-  const fsrCandidates = users.filter((u) => u.roleName === "FSR");
+  // Every FSR, not just the ones linked to this incident's Cliente: that link
+  // is a hint for the picker, never a filter.
+  const fsrCandidates = users.filter((u) => u.roleNames.includes("FSR"));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -297,6 +306,13 @@ export function IncidentForm({
               options={fsrCandidates.map((u) => ({
                 value: u.id,
                 label: u.name,
+                // The Cliente link is shown, never applied: it tells the
+                // operator who usually covers that center.
+                badge:
+                  formData.clienteId &&
+                  u.clienteIds?.includes(formData.clienteId)
+                    ? "Cliente asignado"
+                    : undefined,
               }))}
               value={formData.assigneeIds ?? []}
               onValueChange={(ids) =>
@@ -308,8 +324,8 @@ export function IncidentForm({
               disabled={fsrCandidates.length === 0}
             />
             <p className="text-xs text-muted-foreground">
-              Solo estos FSRs podrán asignarse en órdenes derivadas de este
-              incidente.
+              Se les habilita en la incidencia. Asignarlos a una asignación
+              también los habilita, así que esto es un atajo, no un requisito.
             </p>
           </div>
 
