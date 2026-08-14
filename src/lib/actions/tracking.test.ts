@@ -16,14 +16,18 @@ const { prismaMock, requirePermission } = vi.hoisted(() => ({
       findUnique: vi.fn(),
       count: vi.fn(),
       update: vi.fn(),
+      aggregate: vi.fn(),
     },
     assignment: {
       findFirst: vi.fn(),
       findUnique: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
+      aggregate: vi.fn(),
     },
     assignmentStatus: { findFirst: vi.fn(), findUnique: vi.fn() },
+    // `aggregate` lives on both models: the auto-refresh signature asks each
+    // one for a count and the newest updatedAt.
     assignmentAssignee: {
       upsert: vi.fn(),
       findUnique: vi.fn(),
@@ -60,6 +64,7 @@ import { APP_TZ } from "@/lib/utils/datetime";
 import {
   assignFSRToIncident,
   getIncidentsForTracking,
+  getTrackingSignature,
   updateAssignmentAssignees,
   updateAssignmentDetails,
   updateIncidentDetails,
@@ -100,6 +105,112 @@ beforeEach(() => {
   prismaMock.$transaction.mockImplementation(
     async (fn: (tx: unknown) => unknown) => fn(prismaMock),
   );
+  prismaMock.incident.aggregate.mockResolvedValue({
+    _count: { _all: 0 },
+    _max: { updatedAt: null },
+  });
+  prismaMock.assignment.aggregate.mockResolvedValue({
+    _count: { _all: 0 },
+    _max: { updatedAt: null },
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Firma del refresco automático
+// ---------------------------------------------------------------------------
+describe("getTrackingSignature", () => {
+  /** Deja la firma con estos cuatro valores. */
+  function stub(
+    incidents: { count: number; updatedAt: Date | null },
+    assignments: { count: number; updatedAt: Date | null },
+  ) {
+    prismaMock.incident.aggregate.mockResolvedValue({
+      _count: { _all: incidents.count },
+      _max: { updatedAt: incidents.updatedAt },
+    });
+    prismaMock.assignment.aggregate.mockResolvedValue({
+      _count: { _all: assignments.count },
+      _max: { updatedAt: assignments.updatedAt },
+    });
+  }
+
+  it("no trae ninguna fila: solo agregados", async () => {
+    await getTrackingSignature();
+
+    expect(prismaMock.incident.findMany).not.toHaveBeenCalled();
+    expect(prismaMock.incident.aggregate).toHaveBeenCalledTimes(1);
+    expect(prismaMock.assignment.aggregate).toHaveBeenCalledTimes(1);
+  });
+
+  it("usa el mismo where que la consulta real, filtros incluidos", async () => {
+    await getIncidentsForTracking({ clienteId: "c1", folio: "AS-42" });
+    const queryWhere = lastWhere();
+
+    vi.clearAllMocks();
+    prismaMock.incident.aggregate.mockResolvedValue({
+      _count: { _all: 0 },
+      _max: { updatedAt: null },
+    });
+    prismaMock.assignment.aggregate.mockResolvedValue({
+      _count: { _all: 0 },
+      _max: { updatedAt: null },
+    });
+
+    await getTrackingSignature({ clienteId: "c1", folio: "AS-42" });
+
+    expect(prismaMock.incident.aggregate.mock.calls[0][0].where).toEqual(
+      queryWhere,
+    );
+    // Las asignaciones se acotan a los incidentes de ese mismo conjunto.
+    expect(prismaMock.assignment.aggregate.mock.calls[0][0].where).toEqual(
+      expect.objectContaining({ active: true, incident: queryWhere }),
+    );
+  });
+
+  it("cambia cuando se cierra una asignación, aunque el incidente no se toque", async () => {
+    const incidents = { count: 3, updatedAt: new Date("2026-08-14T10:00:00Z") };
+    stub(incidents, { count: 5, updatedAt: new Date("2026-08-14T10:00:00Z") });
+    const before = await getTrackingSignature();
+
+    // Cerrar el trabajo escribe finishedAt en la Asignación: la fila del
+    // Incidente conserva su updatedAt.
+    stub(incidents, { count: 5, updatedAt: new Date("2026-08-14T11:00:00Z") });
+    const after = await getTrackingSignature();
+
+    expect(after).not.toBe(before);
+  });
+
+  it("cambia cuando una asignación se borra en suave, que no mueve ningún updatedAt visible", async () => {
+    const incidents = { count: 3, updatedAt: new Date("2026-08-14T10:00:00Z") };
+    const stamp = new Date("2026-08-14T09:00:00Z");
+    stub(incidents, { count: 5, updatedAt: stamp });
+    const before = await getTrackingSignature();
+
+    stub(incidents, { count: 4, updatedAt: stamp });
+    const after = await getTrackingSignature();
+
+    expect(after).not.toBe(before);
+  });
+
+  it("no cambia si nada cambió", async () => {
+    const state = [
+      { count: 3, updatedAt: new Date("2026-08-14T10:00:00Z") },
+      { count: 5, updatedAt: new Date("2026-08-14T11:00:00Z") },
+    ] as const;
+
+    stub(state[0], state[1]);
+    const first = await getTrackingSignature();
+    stub(state[0], state[1]);
+    const second = await getTrackingSignature();
+
+    expect(second).toBe(first);
+  });
+
+  it("sobrevive a una tabla vacía sin fechas", async () => {
+    stub({ count: 0, updatedAt: null }, { count: 0, updatedAt: null });
+
+    await expect(getTrackingSignature()).resolves.toBe("0:0:0:0");
+  });
 });
 
 // ---------------------------------------------------------------------------

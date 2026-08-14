@@ -146,7 +146,7 @@ function parseFolioQuery(input: string): FolioQuery {
 
 const TRACKING_MAX_RESULTS = 200;
 
-export async function getIncidentsForTracking(filters?: {
+export interface TrackingFilters {
   clienteId?: string;
   typeId?: number;
   statusId?: number;
@@ -154,71 +154,138 @@ export async function getIncidentsForTracking(filters?: {
   endDate?: string;
   assignedFsrId?: string;
   folio?: string;
-}) {
+}
+
+/**
+ * The one place the tracking filters turn into a query.
+ *
+ * `getIncidentsForTracking` and `getTrackingSignature` MUST agree on which rows
+ * they are talking about: a signature computed over a different set than the
+ * table shows would either miss changes or reload forever.
+ */
+function buildTrackingWhere(filters?: TrackingFilters): {
+  where: Prisma.IncidentWhereInput;
+  assignmentsWhere: Prisma.AssignmentWhereInput;
+} {
+  const where: Prisma.IncidentWhereInput = {
+    active: true,
+  };
+
+  if (filters?.clienteId) {
+    where.clienteId = filters.clienteId;
+  }
+
+  if (filters?.typeId) {
+    where.typeId = filters.typeId;
+  }
+
+  if (filters?.statusId) {
+    where.statusId = filters.statusId;
+  }
+
+  if (filters?.startDate || filters?.endDate) {
+    // CDMX day bounds, per the cross-cutting timezone rule. `new Date()` plus
+    // setHours() resolved in the server's local zone — UTC on Vercel — so an
+    // incident reported at 23:30 CDMX fell into the next day's filter.
+    where.reportedAt = {};
+    if (filters.startDate) {
+      where.reportedAt.gte = mxDayRange(filters.startDate).gte;
+    }
+    if (filters.endDate) {
+      where.reportedAt.lte = mxDayRange(filters.endDate).lte;
+    }
+  }
+
+  const assignmentsWhere: Prisma.AssignmentWhereInput = { active: true };
+
+  if (filters?.assignedFsrId) {
+    assignmentsWhere.assignees = {
+      some: { userId: filters.assignedFsrId, active: true },
+    };
+  }
+
+  if (filters?.folio) {
+    const parsed = parseFolioQuery(filters.folio);
+    if (parsed.kind === "incident") {
+      where.id = parsed.value;
+    } else if (parsed.kind === "assignment") {
+      assignmentsWhere.folio = parsed.value;
+    } else if (parsed.kind === "either") {
+      where.OR = [
+        { id: parsed.value },
+        {
+          assignments: { some: { ...assignmentsWhere, folio: parsed.value } },
+        },
+      ];
+    }
+  }
+
+  if (
+    filters?.assignedFsrId ||
+    (filters?.folio && assignmentsWhere.folio !== undefined)
+  ) {
+    where.assignments = {
+      some: assignmentsWhere,
+    };
+  }
+
+  return { where, assignmentsWhere };
+}
+
+/**
+ * "Did anything change?" — the cheap question behind the auto-refresh.
+ *
+ * Four aggregates instead of 200 incidents with their nested assignments,
+ * assignees and catalogues. The screen polls THIS; it only reloads the real
+ * query when the answer differs from the last one it saw.
+ *
+ * The assignment half is not redundant: assigning an FSR, starting the work or
+ * closing it touches the Assignment, never the Incident row, so an
+ * incident-only signature would sit still through the changes operators care
+ * about most. Counts catch soft deletes, which move a row out of the `active`
+ * set without moving any `updatedAt` that remains inside it.
+ */
+export async function getTrackingSignature(filters?: TrackingFilters) {
   try {
     await requirePermission("tracking:read");
 
-    const where: Prisma.IncidentWhereInput = {
-      active: true,
+    const { where, assignmentsWhere } = buildTrackingWhere(filters);
+    const assignmentsOfThese: Prisma.AssignmentWhereInput = {
+      ...assignmentsWhere,
+      incident: where,
     };
 
-    if (filters?.clienteId) {
-      where.clienteId = filters.clienteId;
-    }
+    const [incidents, assignments] = await Promise.all([
+      prisma.incident.aggregate({
+        where,
+        _count: { _all: true },
+        _max: { updatedAt: true },
+      }),
+      prisma.assignment.aggregate({
+        where: assignmentsOfThese,
+        _count: { _all: true },
+        _max: { updatedAt: true },
+      }),
+    ]);
 
-    if (filters?.typeId) {
-      where.typeId = filters.typeId;
-    }
+    return [
+      incidents._count._all,
+      incidents._max.updatedAt?.getTime() ?? 0,
+      assignments._count._all,
+      assignments._max.updatedAt?.getTime() ?? 0,
+    ].join(":");
+  } catch (error) {
+    rethrowBusinessError(error);
+    console.error("Error computing tracking signature:", error);
+    throw new Error("Failed to compute tracking signature");
+  }
+}
 
-    if (filters?.statusId) {
-      where.statusId = filters.statusId;
-    }
+export async function getIncidentsForTracking(filters?: TrackingFilters) {
+  try {
+    await requirePermission("tracking:read");
 
-    if (filters?.startDate || filters?.endDate) {
-      // CDMX day bounds, per the cross-cutting timezone rule. `new Date()` plus
-      // setHours() resolved in the server's local zone — UTC on Vercel — so an
-      // incident reported at 23:30 CDMX fell into the next day's filter.
-      where.reportedAt = {};
-      if (filters.startDate) {
-        where.reportedAt.gte = mxDayRange(filters.startDate).gte;
-      }
-      if (filters.endDate) {
-        where.reportedAt.lte = mxDayRange(filters.endDate).lte;
-      }
-    }
-
-    const assignmentsWhere: Prisma.AssignmentWhereInput = { active: true };
-
-    if (filters?.assignedFsrId) {
-      assignmentsWhere.assignees = {
-        some: { userId: filters.assignedFsrId, active: true },
-      };
-    }
-
-    if (filters?.folio) {
-      const parsed = parseFolioQuery(filters.folio);
-      if (parsed.kind === "incident") {
-        where.id = parsed.value;
-      } else if (parsed.kind === "assignment") {
-        assignmentsWhere.folio = parsed.value;
-      } else if (parsed.kind === "either") {
-        where.OR = [
-          { id: parsed.value },
-          {
-            assignments: { some: { ...assignmentsWhere, folio: parsed.value } },
-          },
-        ];
-      }
-    }
-
-    if (
-      filters?.assignedFsrId ||
-      (filters?.folio && assignmentsWhere.folio !== undefined)
-    ) {
-      where.assignments = {
-        some: assignmentsWhere,
-      };
-    }
+    const { where, assignmentsWhere } = buildTrackingWhere(filters);
 
     const incidentSelect = {
       id: true,

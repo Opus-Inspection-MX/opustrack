@@ -22,6 +22,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useLiveRefresh } from "@/hooks/use-live-refresh";
 import { getFsrsForAssignment } from "@/lib/actions/incidents";
 import { formatMX, mxDateString } from "@/lib/utils/datetime";
 
@@ -177,6 +178,22 @@ export function ScheduleActivities({
   useEffect(() => {
     fetchIncidents();
   }, [fetchIncidents]);
+
+  // Esta pantalla se deja abierta mientras otros asignan y cierran trabajo.
+  // Se consulta la firma, no la tabla; ver `useLiveRefresh`.
+  useLiveRefresh({
+    signature: useCallback(async () => {
+      const startStr = mxDateString(dateRange.start);
+      const endStr = mxDateString(dateRange.end);
+      const response = await fetch(
+        `/api/schedules/incidents?start=${startStr}&end=${endStr}&signature=1`,
+      );
+      if (!response.ok) return null;
+      const result = await response.json();
+      return (result.signature as string) ?? null;
+    }, [dateRange]),
+    onChanged: fetchIncidents,
+  });
 
   useEffect(() => {
     fetchIncidentTypes();

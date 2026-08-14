@@ -64,6 +64,41 @@ export const GET = withPermission("schedules:read", async (request, _user) => {
       where.clienteId = clienteIdParam;
     }
 
+    // `?signature=1` responde "¿cambió algo?" sin traer las filas: cuatro
+    // agregados en lugar del findMany anidado completo. La pantalla lo consulta
+    // cada 30 s y solo recarga de verdad cuando la respuesta cambia.
+    //
+    // Vive dentro de esta ruta a propósito: comparte el mismo `where` que la
+    // consulta real, así la firma no puede quedar hablando de otro conjunto de
+    // filas que el que se muestra.
+    if (searchParams.get("signature") === "1") {
+      const [incidents, assignments] = await Promise.all([
+        prisma.incident.aggregate({
+          where,
+          _count: { _all: true },
+          _max: { updatedAt: true },
+        }),
+        // Asignar un FSR o cerrar el trabajo toca la Asignación, nunca la fila
+        // del Incidente: sin esta mitad la firma se quedaría quieta justo en
+        // los cambios que importan.
+        prisma.assignment.aggregate({
+          where: { active: true, incident: where },
+          _count: { _all: true },
+          _max: { updatedAt: true },
+        }),
+      ]);
+
+      return NextResponse.json({
+        success: true,
+        signature: [
+          incidents._count._all,
+          incidents._max.updatedAt?.getTime() ?? 0,
+          assignments._count._all,
+          assignments._max.updatedAt?.getTime() ?? 0,
+        ].join(":"),
+      });
+    }
+
     // Obtener incidentes con schedules en el rango
     const incidents = await prisma.incident.findMany({
       where,

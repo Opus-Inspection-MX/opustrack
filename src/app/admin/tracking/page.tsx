@@ -6,10 +6,13 @@ import { useCallback, useEffect, useState } from "react";
 import { TrackingFilters } from "@/components/tracking/tracking-filters";
 import { TrackingTable } from "@/components/tracking/tracking-table";
 import { Button } from "@/components/ui/button";
+import { useLiveRefresh } from "@/hooks/use-live-refresh";
 import { toast } from "@/hooks/use-toast";
 import {
   getIncidentsForTracking,
   getTrackingBootstrap,
+  getTrackingSignature,
+  type TrackingFilters as TrackingQueryFilters,
 } from "@/lib/actions/tracking";
 
 interface Cliente {
@@ -73,15 +76,13 @@ interface TrackingIncident {
   equipment?: { id: number; name: string } | null;
 }
 
-interface TrackingFiltersState {
-  startDate?: string;
-  endDate?: string;
-  clienteId?: string;
-  typeId?: number;
-  statusId?: number;
-  fsrId?: string;
-  search?: string;
-}
+/**
+ * What `<TrackingFilters>` emits, which is also exactly what the server action
+ * accepts. It used to declare `fsrId` and `search`, names the filter component
+ * never sends and the query never reads — the object was passed straight
+ * through, so nothing failed and nothing filtered either.
+ */
+type TrackingFiltersState = TrackingQueryFilters;
 
 export default function TrackingPage() {
   const [incidents, setIncidents] = useState<TrackingIncident[]>([]);
@@ -144,6 +145,17 @@ export default function TrackingPage() {
     },
     [loadIncidents],
   );
+
+  // The board is watched all day while other people assign, start and close
+  // work elsewhere. Poll the signature, not the table.
+  useLiveRefresh({
+    enabled: !loading,
+    signature: useCallback(() => getTrackingSignature(filters), [filters]),
+    onChanged: useCallback(
+      () => loadIncidents(filters),
+      [loadIncidents, filters],
+    ),
+  });
 
   if (loading) {
     return (

@@ -11,7 +11,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
  */
 
 const { prismaMock } = vi.hoisted(() => ({
-  prismaMock: { incident: { findMany: vi.fn() } },
+  prismaMock: {
+    incident: { findMany: vi.fn(), aggregate: vi.fn() },
+    assignment: { aggregate: vi.fn() },
+  },
 }));
 
 vi.mock("@/lib/database/prisma.singleton", () => ({ prisma: prismaMock }));
@@ -39,6 +42,14 @@ const end = new Date("2026-06-25");
 beforeEach(() => {
   vi.clearAllMocks();
   prismaMock.incident.findMany.mockResolvedValue([]);
+  prismaMock.incident.aggregate.mockResolvedValue({
+    _count: { _all: 0 },
+    _max: { updatedAt: null },
+  });
+  prismaMock.assignment.aggregate.mockResolvedValue({
+    _count: { _all: 0 },
+    _max: { updatedAt: null },
+  });
 });
 
 describe("GET /api/schedules/incidents · validación", () => {
@@ -139,5 +150,87 @@ describe("GET /api/schedules/incidents · rango (RF-407)", () => {
 
     expect(response.status).toBe(500);
     expect(body.error).not.toContain("10.0.0.4");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// ?signature=1 · la pregunta barata del refresco automático
+// ---------------------------------------------------------------------------
+describe("GET /api/schedules/incidents?signature=1", () => {
+  const sign = (query = RANGE) => call(`${query}&signature=1`);
+
+  const stub = (
+    incidents: { count: number; updatedAt: Date | null },
+    assignments: { count: number; updatedAt: Date | null },
+  ) => {
+    prismaMock.incident.aggregate.mockResolvedValue({
+      _count: { _all: incidents.count },
+      _max: { updatedAt: incidents.updatedAt },
+    });
+    prismaMock.assignment.aggregate.mockResolvedValue({
+      _count: { _all: assignments.count },
+      _max: { updatedAt: assignments.updatedAt },
+    });
+  };
+
+  it("no trae ninguna fila: ese es el punto", async () => {
+    await sign();
+
+    expect(prismaMock.incident.findMany).not.toHaveBeenCalled();
+  });
+
+  it("pregunta por el mismo conjunto de filas que la consulta real", async () => {
+    await call(RANGE);
+    const queryWhere = lastWhere();
+
+    vi.clearAllMocks();
+    stub({ count: 0, updatedAt: null }, { count: 0, updatedAt: null });
+    await sign();
+
+    expect(prismaMock.incident.aggregate.mock.calls[0][0].where).toEqual(
+      queryWhere,
+    );
+    expect(prismaMock.assignment.aggregate.mock.calls[0][0].where).toEqual({
+      active: true,
+      incident: queryWhere,
+    });
+  });
+
+  it("cambia cuando se toca una asignación aunque el incidente siga igual", async () => {
+    const incidents = { count: 4, updatedAt: new Date("2026-06-20T10:00:00Z") };
+    stub(incidents, { count: 7, updatedAt: new Date("2026-06-20T10:00:00Z") });
+    const before = (await (await sign()).json()).signature;
+
+    stub(incidents, { count: 7, updatedAt: new Date("2026-06-20T12:00:00Z") });
+    const after = (await (await sign()).json()).signature;
+
+    expect(after).not.toBe(before);
+  });
+
+  it("es estable mientras nada cambie", async () => {
+    stub(
+      { count: 4, updatedAt: new Date("2026-06-20T10:00:00Z") },
+      { count: 7, updatedAt: new Date("2026-06-20T12:00:00Z") },
+    );
+
+    const first = (await (await sign()).json()).signature;
+    const second = (await (await sign()).json()).signature;
+
+    expect(second).toBe(first);
+  });
+
+  it("respeta el filtro por Cliente", async () => {
+    await sign(`${RANGE}&clienteId=c1`);
+
+    expect(prismaMock.incident.aggregate.mock.calls[0][0].where).toMatchObject({
+      clienteId: "c1",
+    });
+  });
+
+  it("sigue exigiendo start y end", async () => {
+    const response = await call("?signature=1");
+
+    expect(response.status).toBe(400);
+    expect(prismaMock.incident.aggregate).not.toHaveBeenCalled();
   });
 });
