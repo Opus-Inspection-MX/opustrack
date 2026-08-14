@@ -32,3 +32,22 @@ services:
       interval: 2s
       timeout: 3s
       retries: 30
+
+  # Catches every email the app sends during the suite, so the tests can assert
+  # on real delivery instead of on a mock. Nothing leaves the machine.
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: opustrack-e2e-mailpit
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: "true"
+      MP_SMTP_AUTH_ALLOW_INSECURE: "true"
+    ports:
+      - "${E2E_SMTP_PORT:-1025}:1025"
+      - "${E2E_MAILPIT_PORT:-8025}:8025"
+    healthcheck:
+      # `up --wait` blocks on this, so the app never boots pointing at an SMTP
+      # port that is not listening yet.
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 2s
+      timeout: 3s
+      retries: 30

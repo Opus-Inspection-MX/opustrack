@@ -48,13 +48,30 @@ export async function fillStableAll(
   }).toPass({ timeout: 15_000 });
 }
 
+/**
+ * A form field addressed by id, restricted to the one on screen.
+ *
+ * A bare `#id` has intermittently matched TWO inputs, both hidden, and failed
+ * with a strict-mode violation before either became visible — the outgoing page
+ * still in the DOM while the next one mounts. Duplicate ids are invalid HTML
+ * and neither page renders the field twice, so this is a transient state of the
+ * navigation, not a bug in the form.
+ *
+ * Filtering to the visible one turns that race into a wait: with none visible
+ * yet the locator matches nothing and the caller's `toBeVisible()` blocks until
+ * the DOM settles, instead of exploding on the transient duplicate.
+ */
+export function fieldById(page: Page, id: string): Locator {
+  return page.locator(`#${id}:visible`).first();
+}
+
 /** `fillStable` for a field addressed by id. */
 export async function fillFieldById(
   page: Page,
   id: string,
   value: string,
 ): Promise<void> {
-  await fillStable(page.locator(`#${id}`), value);
+  await fillStable(fieldById(page, id), value);
 }
 
 /**
@@ -153,7 +170,11 @@ export async function pickFromSelect(
 
 /** Radix `<Select>` trigger addressed by the `htmlFor` of its label. */
 export function selectByFieldId(page: Page, id: string): Locator {
-  return page.locator(`label[for="${id}"] + button, #${id}`).first();
+  // `:visible` for the same reason as `fieldById`: during a navigation the
+  // outgoing page can still carry a trigger with this id.
+  return page
+    .locator(`label[for="${id}"]:visible + button, #${id}:visible`)
+    .first();
 }
 
 /** The submit button of the form on screen. Labels differ per catalog. */

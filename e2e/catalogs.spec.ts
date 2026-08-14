@@ -7,6 +7,7 @@ import {
 } from "./fixtures/catalogs";
 import { db, uniqueSuffix } from "./fixtures/db";
 import {
+  fieldById,
   fillByLabel,
   fillStable,
   pickFromCombobox,
@@ -40,7 +41,7 @@ async function fillField(
   switch (field.kind) {
     case "text":
     case "number":
-      await fillStable(page.locator(`#${field.id}`), field.value(suffix));
+      await fillStable(fieldById(page, field.id), field.value(suffix));
       break;
     case "label":
       await fillByLabel(page, field.label, field.value(suffix));

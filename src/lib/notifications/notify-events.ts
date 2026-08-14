@@ -1,4 +1,11 @@
 import { getUserIdsWithPermission } from "@/lib/authz/user-queries";
+import { prisma } from "@/lib/database/prisma.singleton";
+import { sendMail } from "@/lib/mail";
+import {
+  incidentClosedEmail,
+  incidentCreatedEmail,
+  vacationRequestedEmail,
+} from "@/lib/mail/templates";
 import { createNotificationsForUsers } from "./notification-service";
 import {
   ENTITY_TYPES,
@@ -21,6 +28,16 @@ interface NotificationPayload {
   entityId?: string;
   actionUrl?: string;
   priority?: NotificationPriority;
+  /**
+   * Also send this one by email.
+   *
+   * Opt-in per event, deliberately. Mailing every notification would turn
+   * "asignación actualizada" into a message on each edit, and a sender that
+   * mails too much gets filtered — taking the few that matter down with it.
+   * Only three events set this: a new incident, its closure, and a vacation
+   * request waiting for approval.
+   */
+  email?: { subject: string; body: string };
 }
 
 /**
@@ -51,22 +68,59 @@ async function emit(
   } catch (error) {
     console.error("[notify-events] Error dispatching notifications:", error);
   }
+
+  // After the notification is written, and separately: a mail failure must not
+  // cost the user their in-app notification.
+  if (payload.email) {
+    await emailRecipients(dedupedIds, payload.email);
+  }
+}
+
+/** Resolve the recipients' addresses and send one message. */
+async function emailRecipients(
+  userIds: string[],
+  email: { subject: string; body: string },
+): Promise<void> {
+  try {
+    const users = await prisma.user.findMany({
+      where: { id: { in: userIds }, active: true },
+      select: { email: true },
+    });
+    await sendMail({
+      to: users.map((u) => u.email).filter(Boolean),
+      subject: email.subject,
+      text: email.body,
+    });
+  } catch (error) {
+    console.error("[notify-events] Error resolving mail recipients:", error);
+  }
 }
 
 /**
- * Who hears about operational events: incidents, assignments, closures.
+ * Audiences, addressed by capability rather than by role name.
  *
- * Addressed by capability, not by role name. This used to be "every
- * ADMINISTRADOR", and once that role split into ROOT, ADMIN_OPERACION and
- * ADMIN_VACACIONES, the naive reading would have buried the vacation
- * administrators under incident traffic they have no way to act on.
+ * There used to be a single `getAdminUserIds()` meaning "every ADMINISTRADOR".
+ * When that role split into ROOT, ADMIN_OPERACION and ADMIN_VACACIONES, keeping
+ * one list sent vacation requests to the operations administrators — who cannot
+ * approve them — while the people who can never heard about them. Who is
+ * notified must follow who can ACT, so each audience names its capability.
  */
-export async function getAdminUserIds(): Promise<string[]> {
-  return getUserIdsWithPermission(OPERATIONS_AUDIENCE);
-}
 
 /** Being able to act on an incident is what makes someone worth notifying. */
 const OPERATIONS_AUDIENCE = "incidents:update";
+
+/** Only someone who can approve a vacation needs to know one is waiting. */
+const VACATION_APPROVERS = "vacations:approve";
+
+/** Incidents, assignments, closures. */
+export async function getOperationsAudience(): Promise<string[]> {
+  return getUserIdsWithPermission(OPERATIONS_AUDIENCE);
+}
+
+/** Whoever decides on a vacation request. */
+export async function getVacationApprovers(): Promise<string[]> {
+  return getUserIdsWithPermission(VACATION_APPROVERS);
+}
 
 // ---------------------------------------------------------------------------
 // Assignment notification helpers (RF-452, RF-461–RF-464)
@@ -194,7 +248,7 @@ export async function notifyIncidentCreated(
   incidentTitle: string | null | undefined,
   actorId: string,
 ): Promise<void> {
-  const adminIds = await getAdminUserIds();
+  const adminIds = await getOperationsAudience();
   const title = "Nuevo incidente reportado";
   const message = incidentTitle
     ? `Se reportó un nuevo incidente: ${incidentTitle}`
@@ -208,6 +262,7 @@ export async function notifyIncidentCreated(
     entityId: String(incidentId),
     actionUrl: `/admin/incidents/${incidentId}`,
     priority: NOTIFICATION_PRIORITY.MEDIUM,
+    email: incidentCreatedEmail(incidentId, incidentTitle),
   });
 }
 
@@ -250,7 +305,7 @@ export async function notifyIncidentClosed(
   reporterIdOrNull: string | null | undefined,
   actorId: string,
 ): Promise<void> {
-  const adminIds = await getAdminUserIds();
+  const adminIds = await getOperationsAudience();
   const recipients = [
     ...(reporterIdOrNull ? [reporterIdOrNull] : []),
     ...adminIds,
@@ -268,6 +323,7 @@ export async function notifyIncidentClosed(
     entityId: String(incidentId),
     actionUrl: `/admin/incidents/${incidentId}`,
     priority: NOTIFICATION_PRIORITY.HIGH,
+    email: incidentClosedEmail(incidentId, incidentTitle),
   });
 }
 
@@ -305,8 +361,10 @@ export async function notifyIncidentAssigned(
 
 /**
  * Fires when a vacation request is created.
- * Recipients: all active ADMINISTRADOR users, actor excluded — without this
- * an admin has no signal that a request is waiting for a decision.
+ * Recipients: whoever can approve it (`vacations:approve`), actor excluded.
+ * Sending this to the operations administrators instead — which is what a
+ * single shared "admins" list did — leaves the request invisible to the only
+ * people who can decide on it.
  * Priority: MEDIUM.
  */
 export async function notifyVacationRequested(
@@ -314,7 +372,7 @@ export async function notifyVacationRequested(
   requesterName: string | null | undefined,
   actorId: string,
 ): Promise<void> {
-  const adminIds = await getAdminUserIds();
+  const adminIds = await getVacationApprovers();
   const title = "Solicitud de vacaciones";
   const message = requesterName
     ? `${requesterName} solicitó vacaciones y espera autorización`
@@ -328,6 +386,7 @@ export async function notifyVacationRequested(
     entityId: vacationId,
     actionUrl: "/admin/vacations",
     priority: NOTIFICATION_PRIORITY.MEDIUM,
+    email: vacationRequestedEmail(requesterName),
   });
 }
 

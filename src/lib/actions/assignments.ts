@@ -7,7 +7,7 @@ import { getClienteWhereClause } from "@/lib/auth/filters";
 import { whereHasPermission, whereHasRole } from "@/lib/authz/user-queries";
 import { prisma } from "@/lib/database/prisma.singleton";
 import {
-  getAdminUserIds,
+  getOperationsAudience,
   notifyAssignmentAssigned,
   notifyAssignmentCompleted,
   notifyAssignmentReopened,
@@ -974,7 +974,7 @@ export async function closeAssignment(formData: FormData) {
     });
 
     const assigneeIds = result.assignment.assignees.map((a) => a.userId);
-    const adminIds = await getAdminUserIds();
+    const adminIds = await getOperationsAudience();
     const completedRecipients = [...assigneeIds, ...adminIds];
     await notifyAssignmentCompleted(
       id,

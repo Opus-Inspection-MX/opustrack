@@ -725,6 +725,24 @@ Optional file storage configuration:
 - `FILE_STORAGE_PROVIDER` - Storage provider: `"vercel-blob"` (default) or `"filesystem"`
 - `BLOB_READ_WRITE_TOKEN` - Required if using Vercel Blob storage (obtain from Vercel Dashboard)
 
+Optional email (`src/lib/mail/`). **Without `SMTP_HOST` the app does not send
+mail**: it logs what it would have sent and carries on, which is what makes a
+developer machine work with no configuration.
+- `SMTP_HOST` - Mail server. Its presence is what switches sending on.
+- `SMTP_PORT` - Default `587`.
+- `SMTP_SECURE` - `"true"` for implicit TLS (port 465). Default `false` (STARTTLS).
+- `SMTP_USER` / `SMTP_PASS` - Omit both for a server that needs no auth.
+- `SMTP_FROM` - Sender, e.g. `OpusTrack <no-reply@opusinspection.com>`.
+
+The e2e suite points these at Mailpit, a throwaway SMTP server in
+`docker-compose.e2e.yml` (`config/e2e.env`). Its web UI is on
+`http://localhost:8025` while the suite runs, and `e2e/fixtures/mail.ts` asserts
+against its API — so the mail tests prove real delivery, not a mock call.
+
+Only three events send email: a new incident and its closure (to whoever holds
+`incidents:update`), and a vacation request (to `vacations:approve`). See
+`NotificationPayload.email` in `src/lib/notifications/notify-events.ts`.
+
 ## Important Notes
 
 ### Security & Authorization
