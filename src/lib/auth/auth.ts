@@ -48,10 +48,22 @@ export const getAuthenticatedUser = cache(
         name: true,
         clienteId: true,
         sessionVersion: true,
+        userStatus: { select: { name: true } },
       },
     });
 
     if (!user) return null;
+
+    // Status is checked on EVERY request, not only at sign-in. The login path
+    // already refuses a non-ACTIVO account, but someone suspended while their
+    // session was open kept it until the JWT expired — up to 30 days of access
+    // after being locked out.
+    if (user.userStatus?.name !== "ACTIVO") {
+      console.log(
+        `[SESSION] Usuario ${user.id} no está ACTIVO (${user.userStatus?.name}); sesión rechazada`,
+      );
+      return null;
+    }
 
     // Validate session version (if JWT has version)
     const jwtVersion = session.user.sessionVersion;
