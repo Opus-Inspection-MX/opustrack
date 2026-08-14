@@ -45,7 +45,9 @@ const DEFINITIONS: Record<
   admin: {
     envKey: "E2E_ADMIN_EMAIL",
     name: "E2E Admin",
-    roleName: "ADMINISTRADOR",
+    // ADMINISTRADOR became ROOT when the monolithic admin split into a
+    // superuser plus per-module administrators.
+    roleName: "ROOT",
     defaultPath: "/admin",
   },
   fsr: {

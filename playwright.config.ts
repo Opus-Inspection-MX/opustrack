@@ -86,7 +86,8 @@ export default defineConfig({
     // workers editing the same incident rows race each other.
     {
       name: "flows",
-      testMatch: /(programacion|tracking|errors|vacations)\.spec\.ts$/,
+      testMatch:
+        /(programacion|tracking|errors|vacations|rbac-roles)\.spec\.ts$/,
       fullyParallel: false,
       use: { ...devices["Desktop Chrome"] },
       dependencies: ["setup"],
@@ -94,35 +95,35 @@ export default defineConfig({
     {
       name: "chromium",
       testIgnore:
-        /(catalogs|programacion|tracking|errors|vacations)\.spec\.ts$/,
+        /(catalogs|programacion|tracking|errors|vacations|rbac-roles)\.spec\.ts$/,
       use: { ...devices["Desktop Chrome"] },
       dependencies: ["setup"],
     },
     {
       name: "firefox",
       testIgnore:
-        /(catalogs|programacion|tracking|errors|vacations)\.spec\.ts$/,
+        /(catalogs|programacion|tracking|errors|vacations|rbac-roles)\.spec\.ts$/,
       use: { ...devices["Desktop Firefox"] },
       dependencies: ["setup"],
     },
     {
       name: "webkit",
       testIgnore:
-        /(catalogs|programacion|tracking|errors|vacations)\.spec\.ts$/,
+        /(catalogs|programacion|tracking|errors|vacations|rbac-roles)\.spec\.ts$/,
       use: { ...devices["Desktop Safari"] },
       dependencies: ["setup"],
     },
     {
       name: "Mobile Chrome",
       testIgnore:
-        /(catalogs|programacion|tracking|errors|vacations)\.spec\.ts$/,
+        /(catalogs|programacion|tracking|errors|vacations|rbac-roles)\.spec\.ts$/,
       use: { ...devices["Pixel 5"] },
       dependencies: ["setup"],
     },
     {
       name: "Mobile Safari",
       testIgnore:
-        /(catalogs|programacion|tracking|errors|vacations)\.spec\.ts$/,
+        /(catalogs|programacion|tracking|errors|vacations|rbac-roles)\.spec\.ts$/,
       use: { ...devices["iPhone 12"] },
       dependencies: ["setup"],
     },

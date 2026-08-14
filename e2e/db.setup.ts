@@ -66,11 +66,20 @@ setup("provision e2e accounts", async () => {
 
     const existing = await prisma.user.findUnique({
       where: { email },
-      select: { id: true, active: true, roleId: true },
+      select: {
+        id: true,
+        active: true,
+        userRoles: { where: { active: true }, select: { roleId: true } },
+      },
     });
 
     if (existing) {
-      if (existing.roleId !== roleRecord.id) {
+      // "Holds" rather than "is": a user can carry several roles, so the check
+      // is membership, not equality.
+      const holdsRole = existing.userRoles.some(
+        (ur) => ur.roleId === roleRecord.id,
+      );
+      if (!holdsRole) {
         throw new Error(
           `La cuenta ${email} no tiene el rol ${roleName}. Revisa las variables E2E_*_EMAIL.`,
         );
@@ -91,7 +100,7 @@ setup("provision e2e accounts", async () => {
         email,
         name,
         password: await hashPassword(password),
-        roleId: roleRecord.id,
+        userRoles: { create: [{ roleId: roleRecord.id }] },
         userStatusId: activeStatus.id,
         active: true,
       },

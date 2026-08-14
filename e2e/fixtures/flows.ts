@@ -42,7 +42,10 @@ async function pickCliente() {
 
 async function pickTwoFsrs() {
   const fsrs = await db().user.findMany({
-    where: { active: true, role: { name: "FSR" } },
+    where: {
+      active: true,
+      userRoles: { some: { active: true, role: { name: "FSR" } } },
+    },
     orderBy: { email: "asc" },
     select: { id: true, name: true, email: true },
     take: 2,

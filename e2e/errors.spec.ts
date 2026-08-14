@@ -140,7 +140,7 @@ test.describe("regla de negocio devuelta desde Seguimiento", () => {
         name: `E2E FSR Efímero ${suffix}`,
         // Never signed in with; the account exists only to be picked.
         password: "no-usable",
-        roleId: fsrRole.id,
+        userRoles: { create: [{ roleId: fsrRole.id }] },
         userStatusId: activeStatus.id,
       },
       select: { id: true, email: true },

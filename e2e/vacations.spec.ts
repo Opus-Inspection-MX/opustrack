@@ -49,7 +49,7 @@ async function createFsrHiredYearsAgo(suffix: string, years: number) {
       email: `e2e-vac-${suffix}@example.com`,
       // Never used to sign in: the spec drives everything as admin.
       password: "not-used",
-      roleId: fsrRole.id,
+      userRoles: { create: [{ roleId: fsrRole.id }] },
       userStatusId: status.id,
       hireDate: mxDay(isoDay(hire)),
     },
@@ -395,7 +395,9 @@ test("el FSR ve su propio saldo sin selector de usuario", async ({
   });
   const page = await fsrContext.newPage();
 
-  await page.goto("/fsr/vacations");
+  // Self-service moved off the FSR portal: EMPLEADO has no portal, so the
+  // page lives at a shared /vacations for every staff role.
+  await page.goto("/vacations");
   await expect(
     page.getByRole("heading", { name: "Mis Vacaciones" }),
   ).toBeVisible();

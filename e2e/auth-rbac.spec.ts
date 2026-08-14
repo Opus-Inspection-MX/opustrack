@@ -110,9 +110,9 @@ for (const role of ROLES) {
 }
 
 // ---------------------------------------------------------------------------
-// RF-103 · Acceso omnipotente del rol ADMINISTRADOR
+// RF-103 · Acceso omnipotente del superusuario (ROOT)
 // ---------------------------------------------------------------------------
-test.describe("RF-103 · Bypass total de ADMINISTRADOR", () => {
+test.describe("RF-103 · Bypass total de ROOT", () => {
   test.use({ storageState: authFile("admin") });
 
   // Only real routes: asserting on a non-existent path passes trivially because
