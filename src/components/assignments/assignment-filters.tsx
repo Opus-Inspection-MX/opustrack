@@ -77,11 +77,19 @@ export function AssignmentFilters({
                 <SelectValue placeholder="Estado" />
               </SelectTrigger>
               <SelectContent>
+                {/* The real assignment states. This list offered
+                    PENDING/IN_PROGRESS/COMPLETED — none of which exist as an
+                    assignment status — so every option matched nothing and the
+                    filter always came back empty. */}
                 <SelectItem value="all">Todos los Estados</SelectItem>
-                <SelectItem value="PENDING">Pendiente</SelectItem>
-                <SelectItem value="IN_PROGRESS">En Progreso</SelectItem>
-                <SelectItem value="COMPLETED">Completada</SelectItem>
-                <SelectItem value="CANCELLED">Cancelada</SelectItem>
+                <SelectItem value="PENDIENTE_DE_ASIGNACION">
+                  Pendiente de asignación
+                </SelectItem>
+                <SelectItem value="ASIGNADO">Asignado</SelectItem>
+                <SelectItem value="VISTO">Visto</SelectItem>
+                <SelectItem value="INICIADO">Iniciado</SelectItem>
+                <SelectItem value="EN_PROGRESO">En progreso</SelectItem>
+                <SelectItem value="CERRADO">Cerrado</SelectItem>
               </SelectContent>
             </Select>
             <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>

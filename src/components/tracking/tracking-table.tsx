@@ -64,18 +64,29 @@ import {
 } from "@/lib/actions/tracking";
 import { APP_TZ, mxDateAndTime } from "@/lib/utils/datetime";
 
+/**
+ * The real assignment states, from `assignment-machine.ts`.
+ *
+ * These maps used to list PENDING/IN_PROGRESS/COMPLETED — trip statuses, not
+ * assignment ones — so every badge fell through to the default and no
+ * assignment ever showed its colour.
+ */
 const assignmentStatusLabels: Record<string, string> = {
-  PENDING: "Pendiente",
-  IN_PROGRESS: "En Progreso",
-  COMPLETED: "Completado",
-  CANCELLED: "Cancelado",
+  PENDIENTE_DE_ASIGNACION: "Pendiente de asignación",
+  ASIGNADO: "Asignado",
+  VISTO: "Visto",
+  INICIADO: "Iniciado",
+  EN_PROGRESO: "En progreso",
+  CERRADO: "Cerrado",
 };
 
 const assignmentStatusColors: Record<string, string> = {
-  PENDING: "bg-gray-100 text-gray-800",
-  IN_PROGRESS: "bg-blue-100 text-blue-800",
-  COMPLETED: "bg-green-100 text-green-800",
-  CANCELLED: "bg-red-100 text-red-800",
+  PENDIENTE_DE_ASIGNACION: "bg-gray-100 text-gray-800",
+  ASIGNADO: "bg-purple-100 text-purple-800",
+  VISTO: "bg-cyan-100 text-cyan-800",
+  INICIADO: "bg-amber-100 text-amber-800",
+  EN_PROGRESO: "bg-blue-100 text-blue-800",
+  CERRADO: "bg-green-100 text-green-800",
 };
 
 // Utility function to convert hex color to rgba for background
@@ -340,11 +351,19 @@ export function TrackingTable({
           : assignmentEditForm.statusId
         : null;
 
-      await updateAssignmentDetails(assignmentId, {
+      // The date rules live here: a state and its dates have to agree, and the
+      // refusal is RETURNED, so ignoring it would let the save look successful
+      // while nothing changed.
+      const details = await updateAssignmentDetails(assignmentId, {
         statusId: statusIdValue,
         startedAt: assignmentEditForm.startedAt || null,
         finishedAt: assignmentEditForm.finishedAt || null,
       });
+      if (isFailure(details)) {
+        toast.error(details.error);
+        return;
+      }
+
       const result = await updateAssignmentAssignees(assignmentId, assigneeIds);
       // A rejected business rule comes back as a value, not an exception:
       // Next strips the message of anything a Server Action throws in a

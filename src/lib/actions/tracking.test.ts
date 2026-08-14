@@ -23,7 +23,7 @@ const { prismaMock, requirePermission } = vi.hoisted(() => ({
       create: vi.fn(),
       update: vi.fn(),
     },
-    assignmentStatus: { findFirst: vi.fn() },
+    assignmentStatus: { findFirst: vi.fn(), findUnique: vi.fn() },
     assignmentAssignee: {
       upsert: vi.fn(),
       findUnique: vi.fn(),
@@ -82,6 +82,9 @@ beforeEach(() => {
   prismaMock.assignment.findFirst.mockResolvedValue(null);
   prismaMock.assignment.findUnique.mockResolvedValue({ incidentId: 1 });
   prismaMock.assignmentStatus.findFirst.mockResolvedValue({ id: 2 });
+  prismaMock.assignmentStatus.findUnique.mockResolvedValue({
+    name: "ASIGNADO",
+  });
   prismaMock.assignmentAssignee.findMany.mockResolvedValue([]);
   prismaMock.assignmentAssignee.findUnique.mockResolvedValue(null);
   prismaMock.incidentAssignee.findFirst.mockResolvedValue({ id: "ia1" });
@@ -461,6 +464,64 @@ describe("updateIncidentDetails (RF-516)", () => {
 });
 
 describe("updateAssignmentDetails (RF-517)", () => {
+  it("no cierra una asignación sin fecha de fin", async () => {
+    prismaMock.assignmentStatus.findUnique.mockResolvedValue({
+      name: "CERRADO",
+    });
+
+    // A closed assignment with no end date is work that finished at no moment:
+    // every report that measures duration silently skips it.
+    const result = await updateAssignmentDetails("a1", {
+      statusId: 6,
+      startedAt: "2026-08-14T09:00",
+    });
+
+    expect(result).toEqual({
+      success: false,
+      error: expect.stringMatching(/sin fecha de fin/),
+    });
+    expect(prismaMock.assignment.update).not.toHaveBeenCalled();
+  });
+
+  it("no inicia una asignación sin fecha de inicio", async () => {
+    prismaMock.assignmentStatus.findUnique.mockResolvedValue({
+      name: "INICIADO",
+    });
+
+    const result = await updateAssignmentDetails("a1", { statusId: 4 });
+
+    expect(result).toEqual({
+      success: false,
+      error: expect.stringMatching(/sin fecha de inicio/),
+    });
+  });
+
+  it("rechaza un fin anterior al inicio", async () => {
+    prismaMock.assignmentStatus.findUnique.mockResolvedValue({
+      name: "CERRADO",
+    });
+
+    const result = await updateAssignmentDetails("a1", {
+      statusId: 6,
+      startedAt: "2026-08-14T15:00",
+      finishedAt: "2026-08-14T09:00",
+    });
+
+    expect(result).toEqual({
+      success: false,
+      error: expect.stringMatching(/anterior a la de inicio/),
+    });
+  });
+
+  it("interpreta las fechas como hora de CDMX", async () => {
+    await updateAssignmentDetails("a1", { startedAt: "2026-08-14T09:00" });
+
+    // Plain `new Date()` reads the wall clock in the SERVER's zone — UTC on
+    // Vercel — so the hour typed by the operator was stored six hours off.
+    const stored = prismaMock.assignment.update.mock.calls[0][0].data.startedAt;
+    expect(stored.toISOString()).toBe("2026-08-14T15:00:00.000Z");
+  });
+
   it("acepta fechas nulas y no aplica la máquina de estados", async () => {
     await updateAssignmentDetails("a1", { statusId: 5 });
 

@@ -27,12 +27,16 @@ export function AssignmentStats({ assignments }: AssignmentStatsProps) {
       </Card>
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Pendiente</CardTitle>
+          <CardTitle className="text-sm font-medium">Sin asignar</CardTitle>
           <Clock className="h-4 w-4 text-yellow-600" />
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">
-            {assignments.filter((wo) => wo.status === "PENDING").length}
+            {
+              assignments.filter(
+                (wo) => wo.status === "PENDIENTE_DE_ASIGNACION",
+              ).length
+            }
           </div>
         </CardContent>
       </Card>
@@ -43,18 +47,18 @@ export function AssignmentStats({ assignments }: AssignmentStatsProps) {
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">
-            {assignments.filter((wo) => wo.status === "IN_PROGRESS").length}
+            {assignments.filter((wo) => wo.status === "EN_PROGRESO").length}
           </div>
         </CardContent>
       </Card>
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Completado</CardTitle>
+          <CardTitle className="text-sm font-medium">Cerrado</CardTitle>
           <CheckCircle className="h-4 w-4 text-green-600" />
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">
-            {assignments.filter((wo) => wo.status === "COMPLETED").length}
+            {assignments.filter((wo) => wo.status === "CERRADO").length}
           </div>
         </CardContent>
       </Card>

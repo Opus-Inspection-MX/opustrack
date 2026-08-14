@@ -156,7 +156,7 @@ export async function deleteVehicle(id: string) {
 
   // Check for active trips
   const activeTripCount = await prisma.vehicleTrip.count({
-    where: { vehicleId: id, status: { name: "IN_PROGRESS" }, active: true },
+    where: { vehicleId: id, status: { name: "EN_CURSO" }, active: true },
   });
 
   if (activeTripCount > 0) {

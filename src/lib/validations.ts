@@ -51,7 +51,7 @@ export type IncidentFormData = z.infer<typeof incidentSchema>;
 export const assignmentSchema = z.object({
   incidentId: z.string().min(1, "Incident is required"),
   assigneeIds: z.array(z.string().min(1)).optional(),
-  status: z.enum(["PENDING", "IN_PROGRESS", "COMPLETED", "CANCELLED"]),
+  status: z.enum(["EN_CURSO", "COMPLETADO", "CANCELADO"]),
   notes: z
     .string()
     .max(2000, "Notes must be less than 2000 characters")

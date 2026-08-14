@@ -6,6 +6,7 @@ import { requirePermission } from "@/lib/auth/auth";
 import { whereHasRole } from "@/lib/authz/user-queries";
 import { prisma } from "@/lib/database/prisma.singleton";
 import { notifyAssignmentAssigned } from "@/lib/notifications/notify-events";
+import { ASSIGNMENT_STATE } from "@/lib/state-machine";
 import { syncIncidentState } from "@/lib/state-machine/sync";
 import { localWallTimeToUTC, mxDayRange } from "@/lib/utils/datetime";
 
@@ -589,17 +590,55 @@ export async function updateAssignmentDetails(
   try {
     await requirePermission("tracking:update");
 
+    // CDMX wall clock, like `updateIncidentDetails` above. A plain `new Date()`
+    // reads "YYYY-MM-DDTHH:mm" in the SERVER's zone — UTC on Vercel — so the
+    // hour the operator typed was stored six hours off.
+    const startedAt = data.startedAt ? wallClockToUTC(data.startedAt) : null;
+    const finishedAt = data.finishedAt ? wallClockToUTC(data.finishedAt) : null;
+
+    // The dates are what the state means, so they are checked together with it.
+    // Closing an assignment with no end date leaves a finished job that never
+    // finished, and every report that measures duration silently skips it.
+    if (data.statusId) {
+      const status = await prisma.assignmentStatus.findUnique({
+        where: { id: data.statusId },
+        select: { name: true },
+      });
+      const name = status?.name;
+
+      if (name === ASSIGNMENT_STATE.CERRADO && !finishedAt) {
+        return rejected(
+          "No se puede cerrar la asignación sin fecha de fin. Captúrala primero.",
+        );
+      }
+      if (
+        (name === ASSIGNMENT_STATE.INICIADO ||
+          name === ASSIGNMENT_STATE.EN_PROGRESO ||
+          name === ASSIGNMENT_STATE.CERRADO) &&
+        !startedAt
+      ) {
+        return rejected(
+          `No se puede marcar como ${name} sin fecha de inicio. Captúrala primero.`,
+        );
+      }
+      if (startedAt && finishedAt && finishedAt < startedAt) {
+        return rejected(
+          "La fecha de fin no puede ser anterior a la de inicio.",
+        );
+      }
+    }
+
     await prisma.assignment.update({
       where: { id: assignmentId },
       data: {
         statusId: data.statusId || null,
-        startedAt: data.startedAt ? new Date(data.startedAt) : null,
-        finishedAt: data.finishedAt ? new Date(data.finishedAt) : null,
+        startedAt,
+        finishedAt,
       },
     });
 
     revalidatePath("/admin/tracking");
-    return { success: true };
+    return { success: true as const };
   } catch (error) {
     rethrowBusinessError(error);
     console.error("Error updating assignment:", error);

@@ -258,9 +258,9 @@ export async function startVehicleTrip(formData: FormData) {
     if (!inUseStatus) throw new Error("Vehicle status IN_USE not found");
 
     const inProgressStatus = await prisma.vehicleTripStatus.findUnique({
-      where: { name: "IN_PROGRESS" },
+      where: { name: "EN_CURSO" },
     });
-    if (!inProgressStatus) throw new Error("Trip status IN_PROGRESS not found");
+    if (!inProgressStatus) throw new Error("Trip status EN_CURSO not found");
 
     await prisma.vehicle.update({
       where: { id: vehicleId },
@@ -340,7 +340,7 @@ export async function endVehicleTrip(formData: FormData) {
       businessRule("Solo puedes finalizar tus propios viajes.");
     }
 
-    if (trip.status?.name !== "IN_PROGRESS") {
+    if (trip.status?.name !== "EN_CURSO") {
       businessRule("El viaje ya está finalizado o cancelado.");
     }
 
@@ -349,9 +349,9 @@ export async function endVehicleTrip(formData: FormData) {
     }
 
     const completedStatus = await prisma.vehicleTripStatus.findUnique({
-      where: { name: "COMPLETED" },
+      where: { name: "COMPLETADO" },
     });
-    if (!completedStatus) throw new Error("Trip status COMPLETED not found");
+    if (!completedStatus) throw new Error("Trip status COMPLETADO not found");
 
     const availableStatus = await prisma.vehicleStatus.findUnique({
       where: { name: "AVAILABLE" },
@@ -432,7 +432,7 @@ export async function getMyAssignmentsForTrips() {
       active: true,
       status: {
         name: {
-          notIn: ["COMPLETED", "CANCELLED", "COMPLETADA", "CANCELADA"],
+          notIn: ["COMPLETADO", "CANCELADO", "COMPLETADA", "CANCELADA"],
         },
       },
     },
@@ -557,8 +557,8 @@ export async function deleteVehicleTrip(id: string) {
       // Continue even if photo deletion fails
     }
 
-    // If trip was IN_PROGRESS, set vehicle back to AVAILABLE
-    if (trip.status?.name === "IN_PROGRESS") {
+    // If trip was EN_CURSO, set vehicle back to AVAILABLE
+    if (trip.status?.name === "EN_CURSO") {
       const availableStatus = await prisma.vehicleStatus.findUnique({
         where: { name: "AVAILABLE" },
       });

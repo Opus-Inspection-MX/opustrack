@@ -176,7 +176,7 @@ export default function EditTripPage({
               />
             </div>
 
-            {trip.status === "COMPLETED" && (
+            {trip.status === "COMPLETADO" && (
               <div>
                 <Label htmlFor="endAddress">Dirección de Fin</Label>
                 <Input
