@@ -73,3 +73,6 @@ config/e2e.local.env
 
 # Local file-storage provider writes here (and the e2e evidence fixture).
 /public/uploads/
+
+# Capturas que la suite e2e genera como evidencia de cada corrida.
+evidencias/

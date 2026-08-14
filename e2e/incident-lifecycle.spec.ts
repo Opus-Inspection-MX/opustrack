@@ -13,6 +13,7 @@ import {
   prepareAssignmentForClose,
   uniqueSuffix,
 } from "./fixtures/db";
+import { evidence } from "./fixtures/evidence";
 import {
   comboboxByLabel,
   fillFieldById,
@@ -32,6 +33,10 @@ import {
  * — is asserted against the database.
  *
  * Serial by nature: every step consumes what the previous one produced.
+ *
+ * Each step photographs what it saw (`evidence`). The pictures land in the HTML
+ * report and in `evidencias/`, so "the operational flow works" is something a
+ * reader can check instead of take on faith.
  */
 
 const SUFFIX = uniqueSuffix();
@@ -54,7 +59,7 @@ test.afterAll(async () => {
 test.describe("1 · El cliente reporta el incidente", () => {
   test.use({ storageState: authFile("client") });
 
-  test("crea el incidente y queda ABIERTO", async ({ page }) => {
+  test("crea el incidente y queda ABIERTO", async ({ page }, testInfo) => {
     await page.goto("/client/new");
 
     await fillFieldById(page, "title", INCIDENT_TITLE);
@@ -76,6 +81,8 @@ test.describe("1 · El cliente reporta el incidente", () => {
     const incident = await findIncidentByTitle(INCIDENT_TITLE);
     expect(incident, "el incidente debe existir").not.toBeNull();
     incidentId = (incident as NonNullable<typeof incident>).id;
+
+    await evidence(page, testInfo, "incidente creado y en estado ABIERTO");
 
     expect(incident?.statusName).toBe("ABIERTO");
     // A CLIENT always reports on behalf of its own Cliente.
@@ -141,7 +148,7 @@ test.describe("2 · El admin programa y asigna", () => {
 
   test("crea la asignación y el incidente pasa a ASIGNADO", async ({
     page,
-  }) => {
+  }, testInfo) => {
     await page.goto("/admin/assignments/new");
 
     await pickFromCombobox(page, {
@@ -171,6 +178,8 @@ test.describe("2 · El admin programa y asigna", () => {
       .click();
     await page.waitForURL("**/admin/assignments**");
 
+    await evidence(page, testInfo, "asignacion creada y FSR despachado");
+
     assignmentId = await expectAssignmentForIncident(incidentId);
 
     // The state machine owns the status: first assignee ⇒ ASIGNADO.
@@ -199,10 +208,12 @@ test.describe("3 · El FSR ejecuta el trabajo", () => {
     permissions: ["geolocation"],
   });
 
-  test("da Visto y el incidente pasa a VISTO", async ({ page }) => {
+  test("da Visto y el incidente pasa a VISTO", async ({ page }, testInfo) => {
     await page.goto(`/fsr/assignments/${assignmentId}`);
 
     await page.getByRole("button", { name: "Marcar como visto" }).click();
+
+    await evidence(page, testInfo, "asignacion marcada como VISTO por el FSR");
 
     const assignment = await expectAssignmentStatus(assignmentId, "VISTO");
     expect(assignment.seenAt, "seenAt se registra al dar visto").not.toBeNull();
@@ -211,7 +222,7 @@ test.describe("3 · El FSR ejecuta el trabajo", () => {
     await expectIncidentStatus(incidentId, "VISTO");
   });
 
-  test("inicia el trabajo y captura GPS", async ({ page }) => {
+  test("inicia el trabajo y captura GPS", async ({ page }, testInfo) => {
     await page.goto(`/fsr/assignments/${assignmentId}`);
 
     // handleStartWork/handleCloseWork use window.confirm(); Playwright
@@ -219,6 +230,12 @@ test.describe("3 · El FSR ejecuta el trabajo", () => {
     page.on("dialog", (dialog) => dialog.accept());
 
     await page.getByRole("button", { name: "Iniciar trabajo" }).click();
+
+    await evidence(
+      page,
+      testInfo,
+      "trabajo iniciado en sitio con GPS capturado",
+    );
 
     const assignment = await expectAssignmentStatus(assignmentId, "INICIADO");
     expect(assignment.startLatitude, "GPS de inicio").not.toBeNull();
@@ -229,7 +246,7 @@ test.describe("3 · El FSR ejecuta el trabajo", () => {
 
   test("cierra el trabajo y el incidente se cierra automáticamente", async ({
     page,
-  }) => {
+  }, testInfo) => {
     // Preconditions the page enforces before enabling "Cerrar trabajo".
     await prepareAssignmentForClose(assignmentId);
 
@@ -239,6 +256,12 @@ test.describe("3 · El FSR ejecuta el trabajo", () => {
     const closeButton = page.getByRole("button", { name: "Cerrar trabajo" });
     await expect(closeButton).toBeEnabled();
     await closeButton.click();
+
+    await evidence(
+      page,
+      testInfo,
+      "trabajo cerrado: el incidente se cierra solo al cerrar su ultima asignacion",
+    );
 
     const assignment = await expectAssignmentStatus(assignmentId, "CERRADO");
     expect(assignment.finishedAt, "finishedAt al cerrar").not.toBeNull();
