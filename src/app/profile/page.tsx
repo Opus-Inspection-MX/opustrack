@@ -137,12 +137,11 @@ export default function FSRProfilePage() {
       setTimeout(() => setSuccessMessage(""), 3000);
     } catch (error) {
       console.error("Error updating profile:", error);
-      setErrors({
-        submit:
-          error instanceof Error
-            ? error.message
-            : "Error al actualizar el perfil",
-      });
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Error al actualizar el perfil",
+      );
     } finally {
       setIsSaving(false);
     }
@@ -196,12 +195,11 @@ export default function FSRProfilePage() {
       setTimeout(() => setSuccessMessage(""), 3000);
     } catch (error) {
       console.error("Error changing password:", error);
-      setErrors({
-        submit:
-          error instanceof Error
-            ? error.message
-            : "Error al cambiar la contraseña",
-      });
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Error al cambiar la contraseña",
+      );
     } finally {
       setIsSaving(false);
     }
@@ -254,8 +252,6 @@ export default function FSRProfilePage() {
           {successMessage}
         </div>
       )}
-
-      {errors.submit && <FormError message={errors.submit} />}
 
       <div className="grid gap-6">
         {/* Personal Information Card */}

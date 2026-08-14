@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { toast } from "@/hooks/use-toast";
 
 type StatusFormData = {
   name: string;
@@ -33,7 +34,6 @@ export function GenericStatusForm({
 }: GenericStatusFormProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const [formData, setFormData] = useState<StatusFormData>({
     name: initialData?.name || "",
@@ -42,7 +42,6 @@ export function GenericStatusForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
     setIsSubmitting(true);
 
     try {
@@ -52,7 +51,7 @@ export function GenericStatusForm({
         router.refresh();
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
+      toast.error(err instanceof Error ? err.message : "An error occurred");
     } finally {
       setIsSubmitting(false);
     }
@@ -65,12 +64,6 @@ export function GenericStatusForm({
           <CardTitle>{title}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {error && (
-            <div className="bg-destructive/15 text-destructive px-4 py-3 rounded-md">
-              {error}
-            </div>
-          )}
-
           <div className="space-y-2">
             <Label htmlFor="name">Name *</Label>
             <Input

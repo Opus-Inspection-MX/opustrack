@@ -13,6 +13,7 @@ import {
   type MultiSelectOption,
 } from "@/components/ui/multi-select";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { toast } from "@/hooks/use-toast";
 import {
   getIncidentProgramReport,
   getScheduleOptions,
@@ -163,7 +164,6 @@ export function IncidentProgramClient({
   // Empty set = no restriction ("todas las programaciones").
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isDownloading, setIsDownloading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const rangeIsValid = Boolean(startDate && endDate && startDate <= endDate);
   const allSelected =
@@ -199,12 +199,11 @@ export function IncidentProgramClient({
   /** Reload the report only — the schedule list is unaffected by the picker. */
   const reloadReport = (next: Parameters<typeof buildFilters>[0]) => {
     if (next.startDate > next.endDate) return;
-    setError(null);
     startTransition(async () => {
       try {
         setReport(await getIncidentProgramReport(buildFilters(next)));
       } catch {
-        setError("No se pudo generar el reporte. Intenta de nuevo.");
+        toast.error("No se pudo generar el reporte. Intenta de nuevo.");
       }
     });
   };
@@ -216,7 +215,6 @@ export function IncidentProgramClient({
    */
   const reloadScope = (next: Parameters<typeof buildFilters>[0]) => {
     if (next.startDate > next.endDate) return;
-    setError(null);
     const filters = buildFilters({ ...next, selectedIds: new Set() });
     startTransition(async () => {
       try {
@@ -233,7 +231,7 @@ export function IncidentProgramClient({
         setSelectedIds(new Set());
         setReport(nextReport);
       } catch {
-        setError("No se pudo cargar la lista de programaciones.");
+        toast.error("No se pudo cargar la lista de programaciones.");
       }
     });
   };
@@ -311,7 +309,6 @@ export function IncidentProgramClient({
 
   const handleDownload = async () => {
     setIsDownloading(true);
-    setError(null);
     try {
       const params = new URLSearchParams({ startDate, endDate });
       if (stateIds.length > 0) params.set("stateIds", stateIds.join(","));
@@ -339,7 +336,7 @@ export function IncidentProgramClient({
       link.remove();
       URL.revokeObjectURL(url);
     } catch {
-      setError("No se pudo descargar el archivo de Excel.");
+      toast.error("No se pudo descargar el archivo de Excel.");
     } finally {
       setIsDownloading(false);
     }
@@ -442,12 +439,6 @@ export function IncidentProgramClient({
         <p className="flex items-center gap-2 text-sm font-medium text-destructive">
           <AlertTriangle className="h-4 w-4" />
           La fecha inicial no puede ser posterior a la final.
-        </p>
-      )}
-
-      {error && (
-        <p className="text-sm font-medium text-destructive" role="alert">
-          {error}
         </p>
       )}
 

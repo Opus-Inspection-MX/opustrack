@@ -9,6 +9,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { SearchableSelect } from "@/components/ui/searchable-select";
+import { toast } from "@/hooks/use-toast";
 import { updateIncidentType } from "@/lib/actions/incidents";
 import { isFailure } from "@/lib/actions/result";
 
@@ -46,13 +47,13 @@ export function QuickEditTypePopover({
       );
 
       if (isFailure(result)) {
-        setError(result.error);
+        toast.error(result.error);
         return;
       }
       setOpen(false);
       onSaved?.();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Error al guardar");
+      toast.error(e instanceof Error ? e.message : "Error al guardar");
     } finally {
       setSubmitting(false);
     }

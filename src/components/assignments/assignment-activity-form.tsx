@@ -8,6 +8,7 @@ import { FileUpload } from "@/components/ui/file-upload";
 import { FormError } from "@/components/ui/form-error";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { toast } from "@/hooks/use-toast";
 import { createAssignmentActivity } from "@/lib/actions/assignment-activities";
 import { uploadAssignmentAttachment } from "@/lib/actions/assignments";
 import { isFailure } from "@/lib/actions/result";
@@ -50,7 +51,10 @@ export function AssignmentActivityForm({
       });
 
       if (isFailure(result)) {
-        setError(result.error);
+        toast.error(result.error);
+        // Without this the submit button stays disabled after a rejected save
+        // and the form can never be retried.
+        setLoading(false);
         return;
       }
 
@@ -98,7 +102,7 @@ export function AssignmentActivityForm({
       }
     } catch (err) {
       console.error("Error creating work activity:", err);
-      setError((err as Error).message || "Error al crear la actividad");
+      toast.error((err as Error).message || "Error al crear la actividad");
       setLoading(false);
     }
   };

@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { toast } from "@/hooks/use-toast";
 import { createRole, type RoleFormData, updateRole } from "@/lib/actions/roles";
 
 type RoleFormProps = {
@@ -21,7 +22,6 @@ type RoleFormProps = {
 export function RoleForm({ role }: RoleFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const [formData, setFormData] = useState<RoleFormData>({
     name: role?.name || "",
@@ -32,7 +32,6 @@ export function RoleForm({ role }: RoleFormProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setError(null);
 
     try {
       if (role) {
@@ -43,19 +42,13 @@ export function RoleForm({ role }: RoleFormProps) {
       router.push("/admin/roles");
       router.refresh();
     } catch (err) {
-      setError((err as Error).message);
+      toast.error((err as Error).message);
       setLoading(false);
     }
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {error && (
-        <div className="bg-destructive/15 text-destructive px-4 py-3 rounded-md">
-          {error}
-        </div>
-      )}
-
       <Card>
         <CardHeader>
           <CardTitle>Información del Rol</CardTitle>

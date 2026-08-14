@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Textarea } from "@/components/ui/textarea";
+import { toast } from "@/hooks/use-toast";
 import {
   type AssignmentFormData,
   createAssignment,
@@ -48,7 +49,6 @@ export function AssignmentForm({
 }: AssignmentFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   // Status is managed by the state machine, not picked here.
   const [formData, setFormData] = useState<AssignmentFormData>({
@@ -62,40 +62,39 @@ export function AssignmentForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setError(null);
 
     try {
       if (assignment) {
         const result = await updateAssignment(assignment.id, formData);
 
         if (isFailure(result)) {
-          setError(result.error);
+          toast.error(result.error);
+          // Without this the submit button stays disabled after a rejected save
+          // and the form can never be retried.
+          setLoading(false);
           return;
         }
       } else {
         const result = await createAssignment(formData);
 
         if (isFailure(result)) {
-          setError(result.error);
+          toast.error(result.error);
+          // Without this the submit button stays disabled after a rejected save
+          // and the form can never be retried.
+          setLoading(false);
           return;
         }
       }
       router.push("/admin/assignments");
       router.refresh();
     } catch (err) {
-      setError((err as Error).message);
+      toast.error((err as Error).message);
       setLoading(false);
     }
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {error && (
-        <div className="bg-destructive/15 text-destructive px-4 py-3 rounded-md">
-          {error}
-        </div>
-      )}
-
       <Card>
         <CardHeader>
           <CardTitle>Detalles de la Asignación</CardTitle>

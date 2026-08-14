@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { toast } from "@/hooks/use-toast";
 import { createHoliday, updateHoliday } from "@/lib/actions/holidays";
 import type { HolidayFormData as ActionHolidayFormData } from "@/lib/validations/holidays";
 
@@ -32,7 +33,6 @@ export function HolidayForm({
 }: HolidayFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   // Infer initial rule type from existing data
   const initialRuleType: RuleType =
@@ -79,7 +79,6 @@ export function HolidayForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setError(null);
 
     try {
       if (holiday) {
@@ -90,19 +89,13 @@ export function HolidayForm({
       router.push(redirectPath);
       router.refresh();
     } catch (err) {
-      setError((err as Error).message);
+      toast.error((err as Error).message);
       setLoading(false);
     }
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {error && (
-        <div className="bg-destructive/15 text-destructive px-4 py-3 rounded-md">
-          {error}
-        </div>
-      )}
-
       <Card>
         <CardHeader>
           <CardTitle>Información del Festivo</CardTitle>

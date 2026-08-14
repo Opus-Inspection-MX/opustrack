@@ -13,6 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { toast } from "@/hooks/use-toast";
 import {
   type BroadcastAudience,
   type BroadcastType,
@@ -37,13 +38,11 @@ export function BroadcastForm({ roles }: BroadcastFormProps) {
   const [audience, setAudience] = useState<BroadcastAudience>("all");
   const [roleId, setRoleId] = useState<string>("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [successCount, setSuccessCount] = useState<number | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setError(null);
     setSuccessCount(null);
 
     try {
@@ -58,7 +57,7 @@ export function BroadcastForm({ roles }: BroadcastFormProps) {
       // Validation comes back as a value, not an exception: Next strips the
       // message of anything a Server Action throws in a production build.
       if (isFailure(result)) {
-        setError(result.error);
+        toast.error(result.error);
         return;
       }
 
@@ -69,7 +68,7 @@ export function BroadcastForm({ roles }: BroadcastFormProps) {
       setAudience("all");
       setRoleId("");
     } catch (err) {
-      setError((err as Error).message);
+      toast.error((err as Error).message);
     } finally {
       setLoading(false);
     }
@@ -82,12 +81,6 @@ export function BroadcastForm({ roles }: BroadcastFormProps) {
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
-          {error && (
-            <div className="bg-destructive/15 text-destructive px-4 py-3 rounded-md text-sm">
-              {error}
-            </div>
-          )}
-
           {successCount !== null && (
             <div className="bg-green-500/15 text-green-700 dark:text-green-400 px-4 py-3 rounded-md text-sm">
               Notificación enviada correctamente a {successCount}{" "}

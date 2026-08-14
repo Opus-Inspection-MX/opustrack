@@ -9,6 +9,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { toast } from "@/hooks/use-toast";
 import { updateIncidentFsrs } from "@/lib/actions/incidents";
 import { isFailure } from "@/lib/actions/result";
 
@@ -33,7 +34,6 @@ export function QuickEditFsrsPopover({
 }: QuickEditFsrsPopoverProps) {
   const [open, setOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string[]>(initialFsrIds);
 
   // FSR assignment is independent of the incident's Cliente — show all FSRs.
@@ -44,19 +44,18 @@ export function QuickEditFsrsPopover({
   }));
 
   const handleSave = async () => {
-    setError(null);
     setSubmitting(true);
     try {
       const result = await updateIncidentFsrs(incidentId, selected);
 
       if (isFailure(result)) {
-        setError(result.error);
+        toast.error(result.error);
         return;
       }
       setOpen(false);
       onSaved?.();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Error al guardar");
+      toast.error(e instanceof Error ? e.message : "Error al guardar");
     } finally {
       setSubmitting(false);
     }
@@ -69,7 +68,6 @@ export function QuickEditFsrsPopover({
         setOpen(next);
         if (next) {
           setSelected(initialFsrIds);
-          setError(null);
         }
       }}
     >
@@ -104,11 +102,6 @@ export function QuickEditFsrsPopover({
             searchPlaceholder="Buscar FSR..."
             emptyMessage="Sin FSRs"
           />
-          {error && (
-            <p className="text-xs text-destructive border border-destructive/40 bg-destructive/5 rounded px-2 py-1">
-              {error}
-            </p>
-          )}
           <div className="flex justify-end gap-2">
             <Button
               variant="outline"

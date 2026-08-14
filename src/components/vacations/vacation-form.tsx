@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { toast } from "@/hooks/use-toast";
 import { isFailure } from "@/lib/actions/result";
 import { createVacation } from "@/lib/actions/vacations";
 import type { VacationFormData } from "@/lib/validations/vacations";
@@ -34,7 +35,6 @@ export function VacationForm({
 }: VacationFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const [selectedUserId, setSelectedUserId] = useState<string>(
     fsrs.length > 0 ? (fsrs[0]?.id ?? "") : "",
@@ -46,7 +46,6 @@ export function VacationForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setError(null);
 
     try {
       const data: VacationFormData = {
@@ -62,25 +61,22 @@ export function VacationForm({
       const result = await createVacation(data);
 
       if (isFailure(result)) {
-        setError(result.error);
+        toast.error(result.error);
+        // Without this the submit button stays disabled after a rejected save
+        // and the form can never be retried.
+        setLoading(false);
         return;
       }
       router.push(redirectPath);
       router.refresh();
     } catch (err) {
-      setError((err as Error).message);
+      toast.error((err as Error).message);
       setLoading(false);
     }
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {error && (
-        <div className="bg-destructive/15 text-destructive px-4 py-3 rounded-md">
-          {error}
-        </div>
-      )}
-
       <Card>
         <CardHeader>
           <CardTitle>Datos de la Solicitud</CardTitle>

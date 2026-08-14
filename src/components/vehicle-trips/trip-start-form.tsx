@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { toast } from "@/hooks/use-toast";
 import { isFailure } from "@/lib/actions/result";
 import {
   getAvailableVehicles,
@@ -75,7 +76,7 @@ export function TripStartForm() {
       setVehicles(vehiclesData);
       setAssignments(assignmentsData);
     } catch (err) {
-      setError("Error al cargar los datos del formulario");
+      toast.error("Error al cargar los datos del formulario");
       console.error(err);
     } finally {
       setLoadingData(false);
@@ -142,13 +143,13 @@ export function TripStartForm() {
       const result = await startVehicleTrip(fd);
 
       if (isFailure(result)) {
-        setError(result.error);
+        toast.error(result.error);
         return;
       }
 
       router.push("/fsr/vehicle-trips");
     } catch (err) {
-      setError(
+      toast.error(
         err instanceof Error ? err.message : "Error al iniciar el viaje",
       );
     } finally {

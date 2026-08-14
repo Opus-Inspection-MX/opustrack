@@ -89,12 +89,11 @@ export default function EditAssignmentActivityPage({
       }
     } catch (error) {
       console.error("Error updating work activity:", error);
-      setErrors({
-        submit:
-          error instanceof Error
-            ? error.message
-            : "Error al actualizar la actividad. Por favor intenta de nuevo.",
-      });
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Error al actualizar la actividad. Por favor intenta de nuevo.",
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -126,8 +125,6 @@ export default function EditAssignmentActivityPage({
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
-            {errors.submit && <FormError message={errors.submit} />}
-
             {/* Description */}
             <div className="space-y-2">
               <Label htmlFor="description">

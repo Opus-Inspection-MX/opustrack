@@ -32,7 +32,6 @@ export function VacationApprovalButtons({
 }: VacationApprovalButtonsProps) {
   const router = useRouter();
   const [loading, setLoading] = useState<"approve" | "reject" | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [conflicts, setConflicts] = useState<
     VacationAssignmentConflict[] | null
   >(null);
@@ -51,12 +50,11 @@ export function VacationApprovalButtons({
     successMessage: string,
   ) => {
     setLoading(action);
-    setError(null);
     try {
       const result = await run();
 
       if (isFailure(result)) {
-        setError(result.error);
+        toast.error(result.error);
         toast.error(result.error);
         return;
       }
@@ -65,7 +63,7 @@ export function VacationApprovalButtons({
       router.refresh();
     } catch (err) {
       const message = (err as Error).message;
-      setError(message);
+      toast.error(message);
       toast.error(message);
     } finally {
       setLoading(null);
@@ -86,7 +84,6 @@ export function VacationApprovalButtons({
    */
   const handleApprove = async () => {
     setLoading("approve");
-    setError(null);
     try {
       const found = await getVacationApprovalConflicts(vacationId);
       if (found.length > 0) {
@@ -147,8 +144,6 @@ export function VacationApprovalButtons({
           {loading === "reject" ? "Procesando..." : "Rechazar"}
         </Button>
       </div>
-      {error && <p className="text-xs text-destructive">{error}</p>}
-
       <ConfirmDialog
         open={conflicts !== null}
         onOpenChange={(open) => !open && setConflicts(null)}

@@ -7,13 +7,13 @@ import { use, useEffect, useState } from "react";
 import { BackButton } from "@/components/common/back-button";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { FormError } from "@/components/ui/form-error";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { toast } from "@/hooks/use-toast";
 import {
   getClientesForSchedules,
   getScheduleById,
@@ -81,7 +81,7 @@ export default function EditSchedulePage({
         setClienteCenters(clientes);
       } catch (error) {
         console.error("Error fetching data:", error);
-        setErrors({ submit: "Error al cargar los datos de la programación" });
+        toast.error("Error al cargar los datos de la programación");
       } finally {
         setLoading(false);
       }
@@ -150,12 +150,11 @@ export default function EditSchedulePage({
       router.refresh();
     } catch (error) {
       console.error("Error updating schedule:", error);
-      setErrors({
-        submit:
-          error instanceof Error
-            ? error.message
-            : "Error al actualizar la programación. Por favor intenta de nuevo.",
-      });
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Error al actualizar la programación. Por favor intenta de nuevo.",
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -189,8 +188,6 @@ export default function EditSchedulePage({
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
-            {errors.submit && <FormError message={errors.submit} />}
-
             <div className="space-y-2">
               <Label htmlFor="title">
                 Título <span className="text-red-500">*</span>

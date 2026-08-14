@@ -11,6 +11,7 @@ import { FormError } from "@/components/ui/form-error";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { toast } from "@/hooks/use-toast";
 
 export default function NewPermissionPage() {
   const router = useRouter();
@@ -50,9 +51,7 @@ export default function NewPermissionPage() {
       router.push("/admin/permissions");
     } catch (error) {
       console.error("Error creating permission:", error);
-      setErrors({
-        submit: "Error al crear el permiso. Por favor intenta de nuevo.",
-      });
+      toast.error("Error al crear el permiso. Por favor intenta de nuevo.");
     } finally {
       setIsSubmitting(false);
     }
@@ -76,8 +75,6 @@ export default function NewPermissionPage() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
-            {errors.submit && <FormError message={errors.submit} />}
-
             {/* Permission Name */}
             <div className="space-y-2">
               <Label htmlFor="name">

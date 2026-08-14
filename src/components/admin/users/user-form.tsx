@@ -15,6 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { toast } from "@/hooks/use-toast";
 import { isFailure } from "@/lib/actions/result";
 import { createUser, type UserFormData, updateUser } from "@/lib/actions/users";
 import { toDateInputMX } from "@/lib/utils/datetime";
@@ -43,7 +44,6 @@ type UserFormProps = {
 export function UserForm({ user, roles, statuses, clientes }: UserFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const [formData, setFormData] = useState<UserFormData>({
     name: user?.name || "",
@@ -63,7 +63,6 @@ export function UserForm({ user, roles, statuses, clientes }: UserFormProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setError(null);
 
     try {
       const result = user
@@ -71,7 +70,7 @@ export function UserForm({ user, roles, statuses, clientes }: UserFormProps) {
         : await createUser(formData);
 
       if (isFailure(result)) {
-        setError(result.error);
+        toast.error(result.error);
         // Without this the submit button stays disabled after a rejected save
         // and the form can never be retried.
         setLoading(false);
@@ -80,19 +79,13 @@ export function UserForm({ user, roles, statuses, clientes }: UserFormProps) {
       router.push("/admin/users");
       router.refresh();
     } catch (err) {
-      setError((err as Error).message);
+      toast.error((err as Error).message);
       setLoading(false);
     }
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {error && (
-        <div className="bg-destructive/15 text-destructive px-4 py-3 rounded-md">
-          {error}
-        </div>
-      )}
-
       <Card>
         <CardHeader>
           <CardTitle>Información Personal</CardTitle>

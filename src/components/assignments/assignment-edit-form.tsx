@@ -5,7 +5,6 @@ import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { FormError } from "@/components/ui/form-error";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -21,6 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { toast } from "@/hooks/use-toast";
 import { updateAssignment } from "@/lib/actions/assignments";
 import { isFailure } from "@/lib/actions/result";
 import {
@@ -59,7 +59,6 @@ export function AssignmentEditForm({
 }: AssignmentEditFormProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
 
   const initialAssigneeIds = assignment.assignees.map((a) => a.user.id);
@@ -88,7 +87,6 @@ export function AssignmentEditForm({
 
   const handleSave = async () => {
     setLoading(true);
-    setError(null);
 
     try {
       const result = await updateAssignment(assignment.id, {
@@ -106,7 +104,7 @@ export function AssignmentEditForm({
       });
 
       if (isFailure(result)) {
-        setError(result.error);
+        toast.error(result.error);
         return;
       }
 
@@ -116,7 +114,9 @@ export function AssignmentEditForm({
       }
     } catch (err) {
       console.error("Error updating asignación:", err);
-      setError((err as Error).message || "Error al actualizar la asignación");
+      toast.error(
+        (err as Error).message || "Error al actualizar la asignación",
+      );
     } finally {
       setLoading(false);
     }
@@ -135,7 +135,6 @@ export function AssignmentEditForm({
         ? toDateInputMX(assignment.scheduledDate)
         : "",
     });
-    setError(null);
     setIsEditing(false);
   };
 
@@ -165,8 +164,6 @@ export function AssignmentEditForm({
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        {error && <FormError message={error} />}
-
         {isEditing ? (
           <>
             <div className="space-y-2">

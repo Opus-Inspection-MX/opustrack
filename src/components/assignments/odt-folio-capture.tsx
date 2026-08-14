@@ -4,8 +4,8 @@ import { Check, FileText, Pencil, X } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { FormError } from "@/components/ui/form-error";
 import { Input } from "@/components/ui/input";
+import { toast } from "@/hooks/use-toast";
 import { updateAssignmentOdtFolio } from "@/lib/actions/assignments";
 import { isFailure } from "@/lib/actions/result";
 
@@ -26,11 +26,9 @@ export function OdtFolioCapture({
   const [value, setValue] = useState(initialValue || "");
   const [saved, setSaved] = useState(initialValue || "");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const handleSave = async () => {
     setLoading(true);
-    setError(null);
     try {
       const trimmed = value.trim();
       const result = await updateAssignmentOdtFolio(
@@ -39,7 +37,7 @@ export function OdtFolioCapture({
       );
 
       if (isFailure(result)) {
-        setError(result.error);
+        toast.error(result.error);
         return;
       }
       const newValue = result.data.odtFolio || "";
@@ -48,7 +46,7 @@ export function OdtFolioCapture({
       setEditing(false);
       onChange?.(newValue || null);
     } catch (err) {
-      setError((err as Error).message || "Error al guardar el folio ODT");
+      toast.error((err as Error).message || "Error al guardar el folio ODT");
     } finally {
       setLoading(false);
     }
@@ -56,7 +54,6 @@ export function OdtFolioCapture({
 
   const handleCancel = () => {
     setValue(saved);
-    setError(null);
     setEditing(false);
   };
 
@@ -69,7 +66,6 @@ export function OdtFolioCapture({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-2">
-        {error && <FormError message={error} />}
         {editing ? (
           <div className="flex gap-2">
             <Input

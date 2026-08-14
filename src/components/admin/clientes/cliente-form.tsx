@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { toast } from "@/hooks/use-toast";
 import {
   type ClienteFormData,
   createCliente,
@@ -63,7 +64,6 @@ export function ClienteForm({
 }: ClienteFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   // Get currently assigned FSR IDs (FSRs that have this Cliente in their clienteIds array)
   const assignedFSRIds = cliente
@@ -138,7 +138,6 @@ export function ClienteForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setError(null);
 
     try {
       const dataWithUsers = {
@@ -155,19 +154,13 @@ export function ClienteForm({
       router.push("/admin/clientes");
       router.refresh();
     } catch (err) {
-      setError((err as Error).message);
+      toast.error((err as Error).message);
       setLoading(false);
     }
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {error && (
-        <div className="bg-destructive/15 text-destructive px-4 py-3 rounded-md">
-          {error}
-        </div>
-      )}
-
       <Card>
         <CardHeader>
           <CardTitle>Información Básica</CardTitle>

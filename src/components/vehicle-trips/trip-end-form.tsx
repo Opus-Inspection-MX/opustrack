@@ -10,6 +10,7 @@ import { FormError } from "@/components/ui/form-error";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { toast } from "@/hooks/use-toast";
 import { isFailure } from "@/lib/actions/result";
 import { endVehicleTrip } from "@/lib/actions/vehicle-trips";
 import { normalizeMimeType } from "@/lib/upload";
@@ -110,13 +111,13 @@ export function TripEndForm({ trip }: TripEndFormProps) {
       const result = await endVehicleTrip(fd);
 
       if (isFailure(result)) {
-        setError(result.error);
+        toast.error(result.error);
         return;
       }
 
       router.push("/fsr/vehicle-trips");
     } catch (err) {
-      setError(
+      toast.error(
         err instanceof Error ? err.message : "Error al finalizar el viaje",
       );
     } finally {

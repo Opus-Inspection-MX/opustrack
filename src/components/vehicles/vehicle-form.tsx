@@ -15,6 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { toast } from "@/hooks/use-toast";
 import { createVehicle, updateVehicle } from "@/lib/actions/vehicles";
 
 interface Vehicle {
@@ -100,7 +101,7 @@ export function VehicleForm({
         router.push(`/admin/vehicles/${vehicle.id}`);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
+      toast.error(err instanceof Error ? err.message : "An error occurred");
     } finally {
       setIsSubmitting(false);
     }

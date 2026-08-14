@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
+import { toast } from "@/hooks/use-toast";
 
 const stateSchema = z.object({
   name: z
@@ -121,7 +122,7 @@ export function StateForm({ initialData, isEditing = false }: StateFormProps) {
         setErrors(fieldErrors);
       } else {
         console.error("Error saving state:", error);
-        setErrors({ submit: "Failed to save state. Please try again." });
+        toast.error("Failed to save state. Please try again.");
       }
     } finally {
       setIsLoading(false);
@@ -142,8 +143,6 @@ export function StateForm({ initialData, isEditing = false }: StateFormProps) {
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
-          {errors.submit && <FormError message={errors.submit} />}
-
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="name">State Name *</Label>

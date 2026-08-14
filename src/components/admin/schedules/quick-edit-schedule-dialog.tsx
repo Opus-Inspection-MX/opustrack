@@ -14,6 +14,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MultiSelect } from "@/components/ui/multi-select";
+import { toast } from "@/hooks/use-toast";
 import { isFailure } from "@/lib/actions/result";
 import { getScheduleById, quickUpdateSchedule } from "@/lib/actions/schedules";
 import { fromDatetimeLocalMX, toDatetimeLocalMX } from "@/lib/utils/datetime";
@@ -64,7 +65,7 @@ export function QuickEditScheduleDialog({
       })
       .catch((e) => {
         if (!cancelled) {
-          setError(
+          toast.error(
             e instanceof Error ? e.message : "Error al cargar la programación",
           );
         }
@@ -103,12 +104,12 @@ export function QuickEditScheduleDialog({
       });
 
       if (isFailure(result)) {
-        setError(result.error);
+        toast.error(result.error);
         return;
       }
       onSaved?.();
     } catch (e) {
-      setError(
+      toast.error(
         e instanceof Error ? e.message : "Error al guardar la programación",
       );
     } finally {

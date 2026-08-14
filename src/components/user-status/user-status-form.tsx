@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
+import { toast } from "@/hooks/use-toast";
 
 interface UserStatusFormProps {
   initialData?: {
@@ -71,7 +72,7 @@ export function UserStatusForm({ initialData }: UserStatusFormProps) {
       router.refresh();
     } catch (error) {
       console.error("Error saving user status:", error);
-      setErrors({ submit: "Failed to save user status. Please try again." });
+      toast.error("Failed to save user status. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -108,8 +109,6 @@ export function UserStatusForm({ initialData }: UserStatusFormProps) {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
-            {errors.submit && <FormError message={errors.submit} />}
-
             <div className="space-y-2">
               <Label htmlFor="name">Name *</Label>
               <Input

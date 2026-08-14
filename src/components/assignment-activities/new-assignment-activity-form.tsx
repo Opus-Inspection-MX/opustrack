@@ -74,12 +74,11 @@ export default function NewAssignmentActivityForm() {
       }
     } catch (error) {
       console.error("Error creating work activity:", error);
-      setErrors({
-        submit:
-          error instanceof Error
-            ? error.message
-            : "Failed to create work activity. Please try again.",
-      });
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to create work activity. Please try again.",
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -103,8 +102,6 @@ export default function NewAssignmentActivityForm() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
-            {errors.submit && <FormError message={errors.submit} />}
-
             {/* Assignment ID */}
             <div className="space-y-2">
               <Label htmlFor="assignmentId">

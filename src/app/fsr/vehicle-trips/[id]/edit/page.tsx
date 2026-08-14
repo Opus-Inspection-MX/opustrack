@@ -8,6 +8,7 @@ import { FormError } from "@/components/ui/form-error";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { toast } from "@/hooks/use-toast";
 import { isFailure } from "@/lib/actions/result";
 import {
   getVehicleTripById,
@@ -82,13 +83,13 @@ export default function EditTripPage({
       });
 
       if (isFailure(result)) {
-        setError(result.error);
+        toast.error(result.error);
         return;
       }
 
       router.push(`/fsr/vehicle-trips/${resolvedParams.id}`);
     } catch (err) {
-      setError(
+      toast.error(
         err instanceof Error ? err.message : "Error al actualizar el viaje",
       );
     } finally {

@@ -10,6 +10,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { toast } from "@/hooks/use-toast";
 import { updateIncidentScheduledDate } from "@/lib/actions/incidents";
 import { isFailure } from "@/lib/actions/result";
 import { localWallTimeToUTC, mxDateAndTime } from "@/lib/utils/datetime";
@@ -45,13 +46,13 @@ export function QuickEditDatePopover({
       const result = await updateIncidentScheduledDate(incidentId, iso);
 
       if (isFailure(result)) {
-        setError(result.error);
+        toast.error(result.error);
         return;
       }
       setOpen(false);
       onSaved?.();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Error al guardar");
+      toast.error(e instanceof Error ? e.message : "Error al guardar");
     } finally {
       setSubmitting(false);
     }

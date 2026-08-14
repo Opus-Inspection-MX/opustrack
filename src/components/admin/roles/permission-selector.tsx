@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { toast } from "@/hooks/use-toast";
 import { assignPermissionsToRole } from "@/lib/actions/roles";
 
 type Permission = {
@@ -36,7 +37,6 @@ export function PermissionSelector({
     new Set(currentPermissionIds),
   );
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   // Group permissions by resource
   const groupedPermissions = allPermissions.reduce(
@@ -94,26 +94,19 @@ export function PermissionSelector({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setError(null);
 
     try {
       await assignPermissionsToRole(roleId, Array.from(selectedIds));
       router.push(`/admin/roles/${roleId}`);
       router.refresh();
     } catch (err) {
-      setError((err as Error).message);
+      toast.error((err as Error).message);
       setLoading(false);
     }
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {error && (
-        <div className="bg-destructive/15 text-destructive px-4 py-3 rounded-md">
-          {error}
-        </div>
-      )}
-
       <div className="flex items-center justify-between bg-muted p-4 rounded-lg">
         <div>
           <p className="text-sm font-medium">Permisos seleccionados</p>

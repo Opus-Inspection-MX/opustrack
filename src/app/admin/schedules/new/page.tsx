@@ -7,13 +7,13 @@ import { useEffect, useState } from "react";
 import { BackButton } from "@/components/common/back-button";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { FormError } from "@/components/ui/form-error";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { toast } from "@/hooks/use-toast";
 import {
   createSchedule,
   getClientesForSchedules,
@@ -57,7 +57,7 @@ export default function NewSchedulePage() {
         setClienteCenters(clientes);
       } catch (error) {
         console.error("Error fetching Cliente centers:", error);
-        setErrors({ submit: "Error al cargar los centros Cliente" });
+        toast.error("Error al cargar los centros Cliente");
       } finally {
         setIsLoading(false);
       }
@@ -126,12 +126,11 @@ export default function NewSchedulePage() {
       router.refresh();
     } catch (error) {
       console.error("Error creating schedule:", error);
-      setErrors({
-        submit:
-          error instanceof Error
-            ? error.message
-            : "Error al crear la programación. Por favor intenta de nuevo.",
-      });
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Error al crear la programación. Por favor intenta de nuevo.",
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -165,7 +164,6 @@ export default function NewSchedulePage() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
-            {errors.submit && <FormError message={errors.submit} />}
             <div className="space-y-2">
               <Label htmlFor="title">
                 Title <span className="text-red-500">*</span>

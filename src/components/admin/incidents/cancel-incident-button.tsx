@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { toast } from "@/hooks/use-toast";
 import { cancelIncident } from "@/lib/actions/incidents";
 import { isFailure } from "@/lib/actions/result";
 
@@ -27,11 +28,9 @@ export function CancelIncidentButton({ incidentId, disabled }: Props) {
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const handleConfirm = async () => {
     setLoading(true);
-    setError(null);
     try {
       const result = await cancelIncident(
         incidentId,
@@ -39,13 +38,13 @@ export function CancelIncidentButton({ incidentId, disabled }: Props) {
       );
 
       if (isFailure(result)) {
-        setError(result.error);
+        toast.error(result.error);
         return;
       }
       setOpen(false);
       router.refresh();
     } catch (e) {
-      setError(
+      toast.error(
         e instanceof Error ? e.message : "Error al cancelar la incidencia",
       );
     } finally {
@@ -87,7 +86,6 @@ export function CancelIncidentButton({ incidentId, disabled }: Props) {
               rows={3}
               disabled={loading}
             />
-            {error && <p className="text-sm text-destructive">{error}</p>}
           </div>
 
           <DialogFooter>

@@ -7,6 +7,7 @@ import { FormError } from "@/components/ui/form-error";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { toast } from "@/hooks/use-toast";
 import { updateAssignmentActivity } from "@/lib/actions/assignment-activities";
 import { isFailure } from "@/lib/actions/result";
 import {
@@ -59,7 +60,7 @@ export function AssignmentActivityEdit({
       });
 
       if (isFailure(result)) {
-        setError(result.error);
+        toast.error(result.error);
         return;
       }
 
@@ -69,7 +70,7 @@ export function AssignmentActivityEdit({
       }
     } catch (err) {
       console.error("Error updating activity:", err);
-      setError((err as Error).message || "Failed to update activity");
+      toast.error((err as Error).message || "Failed to update activity");
     } finally {
       setLoading(false);
     }

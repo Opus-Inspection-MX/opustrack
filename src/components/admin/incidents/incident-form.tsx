@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { toast } from "@/hooks/use-toast";
 import {
   createIncident,
   type IncidentFormData,
@@ -72,7 +73,6 @@ export function IncidentForm({
 }: IncidentFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const [formData, setFormData] = useState<IncidentFormData>({
     title: incident?.title || "",
@@ -102,7 +102,6 @@ export function IncidentForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setError(null);
 
     try {
       const submitData = {
@@ -115,33 +114,33 @@ export function IncidentForm({
         const result = await updateIncident(incident.id, submitData);
 
         if (isFailure(result)) {
-          setError(result.error);
+          toast.error(result.error);
+          // Without this the submit button stays disabled after a rejected save
+          // and the form can never be retried.
+          setLoading(false);
           return;
         }
       } else {
         const result = await createIncident(submitData);
 
         if (isFailure(result)) {
-          setError(result.error);
+          toast.error(result.error);
+          // Without this the submit button stays disabled after a rejected save
+          // and the form can never be retried.
+          setLoading(false);
           return;
         }
       }
       router.push("/admin/incidents");
       router.refresh();
     } catch (err) {
-      setError((err as Error).message);
+      toast.error((err as Error).message);
       setLoading(false);
     }
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {error && (
-        <div className="bg-destructive/15 text-destructive px-4 py-3 rounded-md">
-          {error}
-        </div>
-      )}
-
       <Card>
         <CardHeader>
           <CardTitle>Informacion General</CardTitle>
