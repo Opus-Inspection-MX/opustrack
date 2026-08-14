@@ -49,6 +49,24 @@ export function AppSidebar() {
 
   const home = session?.user?.defaultPath ?? "/";
 
+  /**
+   * The single entry that matches the current path best.
+   *
+   * Prefix matching alone lights up more than one link: standing on
+   * `/admin/incidents` both "Panel" (`/admin`) and "Incidentes" match, and the
+   * first one painted wins — which is why the menu looked stuck on the first
+   * item. The longest match is the specific one, and only it is active.
+   */
+  const activeUrl = useMemo(() => {
+    const candidates = sections
+      .flatMap((section) => section.items.map((item) => item.url))
+      .filter(
+        (url) =>
+          pathname === url || pathname.startsWith(`${url.replace(/\/$/, "")}/`),
+      );
+    return candidates.sort((a, b) => b.length - a.length)[0];
+  }, [sections, pathname]);
+
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="border-b px-6 py-4 group-data-[collapsible=icon]:px-2">
@@ -92,10 +110,7 @@ export function AppSidebar() {
                     <SidebarMenuItem key={item.url}>
                       <SidebarMenuButton
                         asChild
-                        isActive={
-                          pathname === item.url ||
-                          pathname.startsWith(`${item.url}/`)
-                        }
+                        isActive={item.url === activeUrl}
                         tooltip={item.title}
                       >
                         <Link href={item.url}>

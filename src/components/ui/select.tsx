@@ -73,8 +73,12 @@ function SelectContent({
         <SelectPrimitive.Viewport
           className={cn(
             "p-1",
+            // `min-h`, not `h`. A fixed height equal to the trigger clamped the
+            // viewport to a single row, so a long list rendered its items with
+            // nowhere to scroll them into view. The cap below is what makes it
+            // scroll instead of running off the screen.
             position === "popper" &&
-              "h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)] scroll-my-1",
+              "max-h-72 min-h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)] scroll-my-1",
           )}
         >
           {children}

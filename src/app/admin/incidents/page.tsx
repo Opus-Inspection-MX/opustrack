@@ -87,7 +87,7 @@ const columns: CatalogColumn<IncidentRow>[] = [
       ),
   },
   {
-    header: "Órdenes",
+    header: "Asignaciones",
     headerClassName: "hidden sm:table-cell",
     className: "hidden sm:table-cell",
     cell: (row) => <Badge variant="outline">{row._count.assignments}</Badge>,
