@@ -101,6 +101,8 @@ Proveer visibilidad operativa y analítica al administrador sobre el desempeño 
 **Implementación:** `getIncidentTrendData()` en `src/lib/actions/reports.ts`
 **Ruta:** `/admin/reports/incidents`
 
+**Nota RF-219 (precedencia del cierre):** el conteo de `resolved` sigue siendo por estado (`CERRADO`, nunca `resolvedAt != null`). Cuando se necesite el *momento* del cierre —no solo el conteo— la fuente es el `createdAt` del último evento de llegada a cierre (`STATUS_CHANGED → CERRADO`), vía `getIncidentClosureAt()`, no la columna viva `resolvedAt` (queda en `null` durante reaperturas; el original sobrevive en el payload `REOPENED`).
+
 ---
 
 ### RF-504 · Reporte de distribución de incidentes por tipo
@@ -206,6 +208,8 @@ reporte agregado, se construye sobre esa entidad.
 
 **Implementación:** `getAssignmentAgingData()` en `src/lib/actions/reports.ts`
 **Ruta:** `/admin/reports/assignment-aging`
+
+**Nota RF-219 (precedencia del cierre):** cuando un análisis a nivel incidente necesite el cierre original de un incidente reabierto, la fuente es el último evento de llegada a cierre de su bitácora (`getIncidentClosureAt()`), no la columna viva `resolvedAt`.
 
 ---
 

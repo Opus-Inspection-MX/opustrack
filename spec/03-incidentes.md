@@ -183,7 +183,7 @@ La máquina de estados del incidente se define en `src/lib/state-machine/inciden
 - Si todas las asignaciones activas son CERRADO, el incidente pasa a CERRADO y `resolvedAt = now()`.
 - Si alguna asignación es reabierta, el incidente puede retroceder de CERRADO a EN_PROGRESO.
 - Si el incidente está en CANCELADA, `syncIncidentState` hace short-circuit y no modifica el estado.
-- `resolvedAt` se setea a `null` si el incidente deja de estar CERRADO (reapertura).
+- `resolvedAt` se setea a `null` si el incidente deja de estar CERRADO (reapertura). El cierre original sobrevive en el payload del evento `REOPENED` (RF-219).
 
 **Escenario crítico:** Cierre automático
 - DADO un incidente con 2 asignaciones activas; asignación A en CERRADO, asignación B en EN_PROGRESO.
@@ -253,7 +253,7 @@ La máquina de estados del incidente se define en `src/lib/state-machine/inciden
 - **Modo snapshot:** estricto — cualquier error en cualquier fila aborta todo el preview; usa IDs directos.
   - `clienteId` obligatorio y debe existir y ser accesible al usuario.
   - `resolvedAt` no puede ser anterior a `startedAt`.
-- Las filas con `resolvedAt` poblado se crean directamente en estado CERRADO (importación histórica). Las demás se crean en ABIERTO.
+- Las filas con `resolvedAt` poblado se crean directamente en estado CERRADO (importación histórica). Las demás se crean en ABIERTO. Cada fila persiste un evento `BULK_IMPORTED`; un CERRADO histórico sin asignaciones sobrevive a la recalculación por la guardia RF-219.
 - Todo el proceso de persistencia es transaccional: si alguna fila falla la re-validación al guardar, ninguna se crea.
 - El `scheduleId` se valida contra la programación: el Cliente de cada fila debe estar incluido en los Clientes de la programación seleccionada.
 - La acción `resolveBulkIncidentRows` solo valida/resuelve (no escribe). La acción `createIncidentsFromPreview` persiste.
@@ -284,6 +284,7 @@ La máquina de estados del incidente se define en `src/lib/state-machine/inciden
 **Reglas de negocio:**
 - Invoca `syncIncidentState(id)` directamente.
 - Retorna el estado anterior y el estado resultante para auditoría.
+- No reabre silenciosamente un CERRADO histórico sin asignaciones (guardia RF-219: emite `RECALC_SKIPPED`).
 - Permiso requerido: `incidents:update`.
 
 ---
@@ -371,6 +372,40 @@ La máquina de estados del incidente se define en `src/lib/state-machine/inciden
 
 ---
 
+### RF-219 · Bitácora de auditoría del incidente (append-only)
+
+**Descripción:** El sistema mantiene un log append-only `IncidentEvent` que registra cada ocurrencia que afecta el estado de un incidente: creación, transiciones, cambios de FSRs habilitados, cancelaciones, reaperturas, cargas masivas, recálculos omitidos y (reservado) excepciones de administrador. El código de aplicación NUNCA actualiza ni elimina filas de eventos (garantizado por test unitario, no por triggers de BD).
+
+**Reglas de negocio:**
+- Los tipos de evento son un enum cerrado: `CREATED`, `STATUS_CHANGED`, `ASSIGNEE_ADDED`, `ASSIGNEE_REMOVED`, `ASSIGNEE_AUTO_CREATED` / `ASSIGN_DENIED` (exactamente un par activo según la decisión §3.5(a) gate-vs-log; la decisión vigente es LOG: el auto-create se conserva y cada habilitación implícita emite `ASSIGNEE_AUTO_CREATED`), `CANCELLED`, `REOPENED`, `BULK_IMPORTED`, `RECALC_SKIPPED`, `ADMIN_OVERRIDE` (reservado para la decisión §1.3 de excepción de administrador; el mecanismo —acción `overrideIncidentStatus` + evento con actor, borde from→to y motivo obligatorio— ya viaja en este cambio, el permiso viaja en §1.3).
+- Cada evento lleva `incidentId`, `eventType`, `actorId` humano opcional (`null` = sistema), `fromStatus`/`toStatus` donde aplique, un JSON `payload` pequeño (claves permitidas por tipo; incluye snapshots de `resolvedAt` y motivos), y `createdAt`.
+- Las cinco rutas de escritura emiten siempre: transiciones de `syncIncidentState`, `cancelIncident` (en la misma transacción), la reapertura (ANTES de anular `resolvedAt`), `syncIncidentAssignees` en alcance de incidente, y la persistencia de carga masiva (un evento por fila).
+- **Guardia anti-reapertura silenciosa:** la recalculación NO mueve un incidente en `CERRADO` con cero asignaciones activas y un evento `BULK_IMPORTED` previo fuera de `CERRADO`. Emite `RECALC_SKIPPED` y retorna sin cambios; solo una reapertura explícita (registrada) sale de `CERRADO`. Un incidente genuinamente vaciado (asignaciones desactivadas por un admin, sin evento de carga) conserva el comportamiento anterior de recálculo.
+- **Precedencia del timestamp de cierre:** los reportes (RF-503, RF-509) tratan el `createdAt` del último evento de llegada a cierre como el momento de cierre, no la columna viva `resolvedAt` (legítimamente `null` durante una reapertura). Helper: `getIncidentClosureAt()`.
+- Sin backfill de historial: los eventos comienzan en el despliegue.
+- El log es observabilidad, no autoridad: las máquinas de estado siguen siendo las únicas escritoras de `statusId`.
+
+**Escenario crítico:** La reapertura preserva la historia
+- DADO un incidente `CERRADO` con `resolvedAt = T`.
+- CUANDO un admin lo reabre (el `resolvedAt` vivo se anula).
+- ENTONCES existe un evento `REOPENED` con `T` en su payload.
+- Y RF-509 aún puede reportar el cierre original en `T`.
+
+**Escenario crítico:** CERRADO importado sobrevive a la recalculación
+- DADO un incidente importado en `CERRADO` con `resolvedAt` y cero asignaciones.
+- CUANDO corre `syncIncidentState`.
+- ENTONCES sigue en `CERRADO`.
+- Y se registra un evento `RECALC_SKIPPED`.
+
+**Escenario:** Habilitación automática registrada (semántica LOG §3.5a)
+- DADO un FSR sin habilitación previa en el incidente.
+- CUANDO se le asigna desde Seguimiento (auto-create conservado).
+- ENTONCES un evento `ASSIGNEE_AUTO_CREATED` registra al FSR y al admin que actuó.
+
+**Implementación:** `IncidentEvent` + `IncidentEventType` en `prisma/schema.prisma`, `logIncidentEvent()` en `src/lib/state-machine/incident-events.ts`, escritores en `sync.ts` / `incidents.ts` / `incidents-bulk.ts` / `tracking.ts` (`overrideIncidentStatus`) / `shared.ts`, lectura en `getIncidentEvents()` + `IncidentTimeline` en el detalle admin.
+
+---
+
 ## Reglas transversales aplicables
 
 - **El estado del incidente es derivado, no manual:** ninguna acción debe escribir directamente `statusId` excepto la máquina de estados (`syncIncidentState`) y la cancelación (`cancelIncident`). El `updateIncident` ignora explícitamente cualquier `statusId` que el caller provea.
@@ -380,3 +415,4 @@ La máquina de estados del incidente se define en `src/lib/state-machine/inciden
 - **Soft delete global:** incidentes y `IncidentAssignee` usan `active: false`; ningún registro se elimina físicamente.
 - **Transaccionalidad en validaciones de borrado:** la verificación de hijos activos y la desactivación del padre se hacen dentro de una transacción Prisma para evitar condiciones de carrera.
 - **`resolvedAt` automático:** no debe setearse manualmente en edición; es responsabilidad exclusiva de `syncIncidentState` (al pasar a CERRADO) y `cancelIncident` (al cancelar).
+- **Bitácora append-only (RF-219):** ningún código actualiza ni elimina `IncidentEvent`; cada ruta que toca `statusId`, habilitaciones o cancelación emite su evento.
