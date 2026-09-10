@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
  * RF-407 · incidents shown on the programación calendar.
@@ -10,11 +10,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
  * the calendar, so the `OR` is pinned here.
  */
 
-const { prismaMock } = vi.hoisted(() => ({
+const { prismaMock, getUserClienteIds, userBox } = vi.hoisted(() => ({
   prismaMock: {
     incident: { findMany: vi.fn(), aggregate: vi.fn() },
     assignment: { aggregate: vi.fn() },
   },
+  getUserClienteIds: vi.fn(async (_userId: string) => [] as string[]),
+  // Swappable user: superuser by default so the existing tests keep asserting
+  // raw query shapes; the scope block at the bottom replaces it per test.
+  userBox: { user: { id: "admin", isSuperuser: true } },
 }));
 
 vi.mock("@/lib/database/prisma.singleton", () => ({ prisma: prismaMock }));
@@ -24,8 +28,9 @@ vi.mock("@/lib/auth/auth", () => ({
   withPermission:
     (_permission: string, handler: (req: Request, user: unknown) => unknown) =>
     (req: Request) =>
-      handler(req, { id: "admin", role: { name: "ADMINISTRADOR" } }),
+      handler(req, userBox.user),
 }));
+vi.mock("@/lib/utils/cliente-assignments", () => ({ getUserClienteIds }));
 
 import { GET } from "./route";
 
@@ -232,5 +237,55 @@ describe("GET /api/schedules/incidents?signature=1", () => {
 
     expect(response.status).toBe(400);
     expect(prismaMock.incident.aggregate).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Alcance por Cliente (regla transversal #4)
+// ---------------------------------------------------------------------------
+describe("GET /api/schedules/incidents · alcance por Cliente", () => {
+  const scopedUser = {
+    id: "fsr1",
+    isSuperuser: false,
+    permissions: new Set<string>(),
+  };
+
+  beforeEach(() => {
+    userBox.user = scopedUser;
+    getUserClienteIds.mockResolvedValue(["c1", "c2"]);
+  });
+
+  afterEach(() => {
+    userBox.user = { id: "admin", isSuperuser: true };
+  });
+
+  it("aplica el alcance cuando no se pide un Cliente", async () => {
+    await call(RANGE);
+
+    expect(lastWhere().clienteId).toEqual({ in: ["c1", "c2"] });
+  });
+
+  it("respeta un Cliente pedido dentro del alcance", async () => {
+    await call(`${RANGE}&clienteId=c1`);
+
+    expect(lastWhere().clienteId).toBe("c1");
+  });
+
+  it("rechaza con 403 un Cliente fuera del alcance", async () => {
+    const response = await call(`${RANGE}&clienteId=c9`);
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toMatchObject({
+      error: expect.stringContaining("Sin acceso"),
+    });
+    expect(prismaMock.incident.findMany).not.toHaveBeenCalled();
+  });
+
+  it("un usuario sin Clientes no ve nada", async () => {
+    getUserClienteIds.mockResolvedValue([]);
+
+    await call(RANGE);
+
+    expect(lastWhere().clienteId).toEqual({ in: [] });
   });
 });

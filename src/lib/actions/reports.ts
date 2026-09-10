@@ -11,6 +11,7 @@ import {
 } from "@/lib/auth/report-scope";
 import { whereHasRole } from "@/lib/authz/user-queries";
 import { prisma } from "@/lib/database/prisma.singleton";
+import { INCIDENT_STATE } from "@/lib/state-machine/incident-machine";
 import {
   APP_TZ,
   mxDateString,
@@ -261,7 +262,7 @@ export async function getIncidentTrendData(
     },
     select: {
       reportedAt: true,
-      resolvedAt: true,
+      status: { select: { name: true } },
     },
   });
 
@@ -274,7 +275,10 @@ export async function getIncidentTrendData(
       trendByDate[dateStr] = { count: 0, resolved: 0 };
     }
     trendByDate[dateStr].count++;
-    if (incident.resolvedAt) {
+    // Resolved means CERRADO, not "has a resolvedAt timestamp": cancelled
+    // incidents must never count as resolved (and legacy rows may still carry
+    // a resolvedAt from before cancellation stopped setting one).
+    if (incident.status?.name === INCIDENT_STATE.CERRADO) {
       trendByDate[dateStr].resolved++;
     }
   });
@@ -489,7 +493,9 @@ export async function getReportSummary(dateRange?: DateRange) {
       where: {
         active: true,
         reportedAt: { gte: startDate, lte: endDate },
-        resolvedAt: { not: null },
+        // CERRADO state, not `resolvedAt != null`: cancelled incidents must
+        // never count as resolved.
+        status: { name: INCIDENT_STATE.CERRADO },
         ...incidentScopeWhere(scope),
       },
     }),
