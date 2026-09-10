@@ -62,6 +62,8 @@ export const MENU: MenuSection[] = [
     items: [
       { title: "Panel", url: "/admin", icon: LayoutDashboard },
       { title: "Mi Perfil", url: "/profile", icon: User },
+      // Universal inbox: visible to every role holding route:notifications.
+      { title: "Mis Notificaciones", url: "/notifications", icon: Bell },
     ],
   },
   {
@@ -200,7 +202,7 @@ export const MENU: MenuSection[] = [
       { title: "Roles", url: "/admin/roles", icon: Shield },
       // Reachable only by typing the URL until now: no sidebar ever listed it.
       {
-        title: "Enviar Notificación",
+        title: "Difusiones",
         url: "/admin/notifications/broadcast",
         icon: Bell,
       },

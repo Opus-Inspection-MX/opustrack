@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useMemo } from "react";
 import { LogoutButton } from "@/components/auth/logout-button";
+import { NotificationBell } from "@/components/notifications";
 import {
   Sidebar,
   SidebarContent,
@@ -130,7 +131,13 @@ export function AppSidebar() {
 
       <SidebarFooter className="border-t p-4 group-data-[collapsible=icon]:p-2">
         <div className="flex flex-col gap-2 group-data-[collapsible=icon]:items-center">
-          <ThemeToggle />
+          {/* Desktop bell: the header bell only renders below lg, so without
+              this nobody on a wide screen ever sees their notifications. The
+              popover's "Ver todas" leads to the universal inbox. */}
+          <div className="flex items-center gap-1 group-data-[collapsible=icon]:flex-col">
+            <ThemeToggle />
+            <NotificationBell />
+          </div>
           <div className="w-full group-data-[collapsible=icon]:w-auto">
             <LogoutButton
               variant="outline"

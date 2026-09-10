@@ -1,6 +1,7 @@
 "use client";
 
 import { Bell, Loader2 } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
@@ -118,6 +119,13 @@ export function NotificationList({
           </div>
         )}
       </ScrollArea>
+      <div className="border-t p-2">
+        <Button asChild variant="ghost" size="sm" className="w-full">
+          <Link href="/notifications" onClick={onClose}>
+            Ver todas
+          </Link>
+        </Button>
+      </div>
     </div>
   );
 }
