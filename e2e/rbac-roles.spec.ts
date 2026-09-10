@@ -112,7 +112,6 @@ test.describe("ADMIN_VACACIONES", () => {
       "/admin/tracking",
       "/admin/users",
       "/admin/roles",
-      "/admin/permissions",
     ]) {
       expect(await landsOn(page, path), path).toBe("/unauthorized");
     }
@@ -203,7 +202,6 @@ test.describe("ROOT", () => {
       "/admin/vacations",
       "/admin/users",
       "/admin/roles",
-      "/admin/permissions",
       "/vacations",
       "/fsr",
     ]) {

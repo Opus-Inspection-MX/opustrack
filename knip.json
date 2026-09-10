@@ -1,0 +1,20 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": [
+    "next.config.*",
+    "src/app/**/page.tsx",
+    "src/app/**/layout.tsx",
+    "src/app/**/loading.tsx",
+    "src/app/**/route.ts",
+    "e2e/**/*.ts",
+    "scripts/**/*.ts",
+    "scripts/**/*.mjs",
+    "initial_load/**/*.ts",
+    "src/test/**/*"
+  ],
+  "project": ["src/**/*", "e2e/**/*", "scripts/**/*", "prisma/**/*"],
+  "ignore": ["src/components/ui/**"],
+  "ignoreDependencies": ["dotenv-cli"],
+  "vitest": true,
+  "playwright": true
+}
