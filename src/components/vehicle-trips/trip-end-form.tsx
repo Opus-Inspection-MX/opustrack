@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { type FormEvent, useState } from "react";
+import { PendingDrafts } from "@/components/offline/pending-drafts";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
 import { isFailure } from "@/lib/actions/result";
 import { endVehicleTrip } from "@/lib/actions/vehicle-trips";
+import { describeEnqueueFailure, saveDraft } from "@/lib/offline/flush";
 import { normalizeMimeType } from "@/lib/upload";
 import { formatMX } from "@/lib/utils/datetime";
 import { GPSLocationCapture } from "./gps-location-capture";
@@ -95,6 +97,13 @@ export function TripEndForm({ trip }: TripEndFormProps) {
 
     setIsSubmitting(true);
 
+    // Fully offline: freeze the field evidence as a draft without calling.
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      queueEndDraft(endOdometer);
+      setIsSubmitting(false);
+      return;
+    }
+
     try {
       const fd = new FormData();
       fd.append("tripId", trip.id);
@@ -117,136 +126,170 @@ export function TripEndForm({ trip }: TripEndFormProps) {
 
       router.push("/fsr/vehicle-trips");
     } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Error al finalizar el viaje",
+      // Transport failure: freeze the end evidence (odometer + GPS + photo
+      // blob) as a draft. Odometer monotonicity re-runs against live state
+      // at flush time.
+      queueEndDraft(
+        endOdometer,
+        err instanceof Error ? err.message : undefined,
       );
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  const queueEndDraft = (endOdometer: number, cause?: string) => {
+    if (!photo) return;
+    const fields: Record<string, string> = {
+      tripId: trip.id,
+      endOdometer: String(endOdometer),
+      photoMimetype: normalizeMimeType(photo),
+    };
+    if (formData.latitude !== undefined)
+      fields.endLatitude = String(formData.latitude);
+    if (formData.longitude !== undefined)
+      fields.endLongitude = String(formData.longitude);
+    if (formData.address) fields.endAddress = formData.address;
+    if (formData.notes) fields.notes = formData.notes;
+    const queued = saveDraft({ kind: "endVehicleTrip", fields, photo });
+    if (!queued.queued) {
+      toast.error(describeEnqueueFailure(queued.reason));
+      return;
+    }
+    toast.success(
+      `Sin conexión. Fin de viaje guardado como borrador.${cause ? ` (${cause})` : ""}`,
+    );
+  };
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Finalizar Viaje</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {error && <FormError message={error} />}
+    <div className="space-y-4">
+      <PendingDrafts
+        kinds={["endVehicleTrip"]}
+        matchField={{ key: "tripId", value: trip.id }}
+        onFlushed={() => router.push("/fsr/vehicle-trips")}
+      />
+      <Card>
+        <CardHeader>
+          <CardTitle>Finalizar Viaje</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {error && <FormError message={error} />}
 
-          {/* Trip Info */}
-          <Card className="bg-muted">
-            <CardContent className="pt-6 space-y-3">
-              <div>
-                <div className="text-sm text-muted-foreground">Vehículo</div>
-                <div className="font-medium">
-                  {trip.vehicle.make} {trip.vehicle.model} -{" "}
-                  {trip.vehicle.licensePlate}
+            {/* Trip Info */}
+            <Card className="bg-muted">
+              <CardContent className="pt-6 space-y-3">
+                <div>
+                  <div className="text-sm text-muted-foreground">Vehículo</div>
+                  <div className="font-medium">
+                    {trip.vehicle.make} {trip.vehicle.model} -{" "}
+                    {trip.vehicle.licensePlate}
+                  </div>
                 </div>
-              </div>
 
-              {trip.assignment && (
+                {trip.assignment && (
+                  <div>
+                    <div className="text-sm text-muted-foreground">
+                      Asignación
+                    </div>
+                    <div className="font-medium">
+                      AS-{trip.assignment.folio} -{" "}
+                      {trip.assignment.incident.title}
+                    </div>
+                  </div>
+                )}
+
+                <div>
+                  <div className="text-sm text-muted-foreground">Inicio</div>
+                  <div className="font-medium">{formatMX(trip.startedAt)}</div>
+                </div>
+
                 <div>
                   <div className="text-sm text-muted-foreground">
-                    Asignación
+                    Odómetro Inicial
                   </div>
-                  <div className="font-medium">
-                    AS-{trip.assignment.folio} -{" "}
-                    {trip.assignment.incident.title}
-                  </div>
+                  <div className="font-medium">{trip.startOdometer} km</div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <div>
+              <Label htmlFor="endOdometer">Odómetro Final (km) *</Label>
+              <Input
+                id="endOdometer"
+                type="number"
+                value={formData.endOdometer}
+                onChange={(e) =>
+                  setFormData({ ...formData, endOdometer: e.target.value })
+                }
+                placeholder="e.g., 12450"
+                min={trip.startOdometer}
+                required
+              />
+              {kmDriven > 0 && (
+                <div className="mt-2 flex flex-col sm:flex-row sm:items-center gap-2">
+                  <span className="text-sm text-muted-foreground">
+                    Kilómetros recorridos:
+                  </span>
+                  <Badge variant="secondary" className="text-base w-fit">
+                    {kmDriven} km
+                  </Badge>
                 </div>
               )}
+            </div>
 
-              <div>
-                <div className="text-sm text-muted-foreground">Inicio</div>
-                <div className="font-medium">{formatMX(trip.startedAt)}</div>
-              </div>
+            <div>
+              <Label>Foto del Odómetro *</Label>
+              <FileUpload
+                onFilesSelected={(files) => setPhoto(files[0] || null)}
+                maxFiles={1}
+                maxSizeMB={10}
+                label="Captura la lectura del odómetro"
+                showCamera={true}
+                accept="image/*"
+              />
+            </div>
 
-              <div>
-                <div className="text-sm text-muted-foreground">
-                  Odómetro Inicial
-                </div>
-                <div className="font-medium">{trip.startOdometer} km</div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <div>
-            <Label htmlFor="endOdometer">Odómetro Final (km) *</Label>
-            <Input
-              id="endOdometer"
-              type="number"
-              value={formData.endOdometer}
-              onChange={(e) =>
-                setFormData({ ...formData, endOdometer: e.target.value })
-              }
-              placeholder="e.g., 12450"
-              min={trip.startOdometer}
-              required
+            <GPSLocationCapture
+              onLocationCapture={handleLocationCapture}
+              label="Ubicación de Fin (Opcional)"
+              showAddressField={true}
             />
-            {kmDriven > 0 && (
-              <div className="mt-2 flex flex-col sm:flex-row sm:items-center gap-2">
-                <span className="text-sm text-muted-foreground">
-                  Kilómetros recorridos:
-                </span>
-                <Badge variant="secondary" className="text-base w-fit">
-                  {kmDriven} km
-                </Badge>
-              </div>
-            )}
-          </div>
 
-          <div>
-            <Label>Foto del Odómetro *</Label>
-            <FileUpload
-              onFilesSelected={(files) => setPhoto(files[0] || null)}
-              maxFiles={1}
-              maxSizeMB={10}
-              label="Captura la lectura del odómetro"
-              showCamera={true}
-              accept="image/*"
-            />
-          </div>
+            <div>
+              <Label htmlFor="notes">Notas (Opcional)</Label>
+              <Textarea
+                id="notes"
+                value={formData.notes}
+                onChange={(e) =>
+                  setFormData({ ...formData, notes: e.target.value })
+                }
+                placeholder="Problemas, observaciones o notas adicionales"
+                rows={3}
+              />
+            </div>
 
-          <GPSLocationCapture
-            onLocationCapture={handleLocationCapture}
-            label="Ubicación de Fin (Opcional)"
-            showAddressField={true}
-          />
-
-          <div>
-            <Label htmlFor="notes">Notas (Opcional)</Label>
-            <Textarea
-              id="notes"
-              value={formData.notes}
-              onChange={(e) =>
-                setFormData({ ...formData, notes: e.target.value })
-              }
-              placeholder="Problemas, observaciones o notas adicionales"
-              rows={3}
-            />
-          </div>
-
-          <div className="flex flex-col sm:flex-row gap-3 sm:justify-end">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => router.back()}
-              disabled={isSubmitting}
-              className="w-full sm:w-auto order-2 sm:order-1"
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full sm:w-auto order-1 sm:order-2"
-            >
-              {isSubmitting ? "Finalizando Viaje..." : "Finalizar Viaje"}
-            </Button>
-          </div>
-        </form>
-      </CardContent>
-    </Card>
+            <div className="flex flex-col sm:flex-row gap-3 sm:justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => router.back()}
+                disabled={isSubmitting}
+                className="w-full sm:w-auto order-2 sm:order-1"
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full sm:w-auto order-1 sm:order-2"
+              >
+                {isSubmitting ? "Finalizando Viaje..." : "Finalizar Viaje"}
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
   );
 }

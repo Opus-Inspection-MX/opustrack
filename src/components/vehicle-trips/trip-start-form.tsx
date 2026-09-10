@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { type FormEvent, useCallback, useEffect, useState } from "react";
+import { PendingDrafts } from "@/components/offline/pending-drafts";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FileUpload } from "@/components/ui/file-upload";
@@ -23,6 +24,7 @@ import {
   getMyAssignmentsForTrips,
   startVehicleTrip,
 } from "@/lib/actions/vehicle-trips";
+import { describeEnqueueFailure, saveDraft } from "@/lib/offline/flush";
 import { normalizeMimeType } from "@/lib/upload";
 import { GPSLocationCapture } from "./gps-location-capture";
 
@@ -125,6 +127,13 @@ export function TripStartForm() {
 
     setIsSubmitting(true);
 
+    // Fully offline: freeze the field evidence as a draft without calling.
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      queueStartDraft();
+      setIsSubmitting(false);
+      return;
+    }
+
     try {
       const fd = new FormData();
       fd.append("vehicleId", formData.vehicleId);
@@ -149,12 +158,40 @@ export function TripStartForm() {
 
       router.push("/fsr/vehicle-trips");
     } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Error al iniciar el viaje",
-      );
+      // Transport failure: the odometer photo stages as a local blob (never
+      // base64) and the frozen scalars + GPS flush on reconnect.
+      queueStartDraft(err instanceof Error ? err.message : undefined);
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const queueStartDraft = (cause?: string) => {
+    if (!photo) return;
+    const fields: Record<string, string> = {
+      vehicleId: formData.vehicleId,
+      startOdometer: formData.startOdometer,
+      photoMimetype: normalizeMimeType(photo),
+    };
+    if (formData.assignmentId) fields.assignmentId = formData.assignmentId;
+    if (formData.latitude !== undefined)
+      fields.startLatitude = String(formData.latitude);
+    if (formData.longitude !== undefined)
+      fields.startLongitude = String(formData.longitude);
+    if (formData.address) fields.startAddress = formData.address;
+    if (formData.notes) fields.notes = formData.notes;
+    const queued = saveDraft({
+      kind: "startVehicleTrip",
+      fields,
+      photo,
+    });
+    if (!queued.queued) {
+      toast.error(describeEnqueueFailure(queued.reason));
+      return;
+    }
+    toast.success(
+      `Sin conexión. Inicio de viaje guardado como borrador.${cause ? ` (${cause})` : ""}`,
+    );
   };
 
   if (loadingData) {
@@ -183,126 +220,132 @@ export function TripStartForm() {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Iniciar Viaje</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {error && <FormError message={error} />}
+    <div className="space-y-4">
+      <PendingDrafts
+        kinds={["startVehicleTrip"]}
+        onFlushed={() => router.push("/fsr/vehicle-trips")}
+      />
+      <Card>
+        <CardHeader>
+          <CardTitle>Iniciar Viaje</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {error && <FormError message={error} />}
 
-          <div>
-            <Label htmlFor="vehicle">Vehículo *</Label>
-            <Select
-              value={formData.vehicleId}
-              onValueChange={(value) =>
-                setFormData({ ...formData, vehicleId: value })
-              }
-            >
-              <SelectTrigger id="vehicle">
-                <SelectValue placeholder="Selecciona un vehículo" />
-              </SelectTrigger>
-              <SelectContent>
-                {vehicles.map((vehicle) => (
-                  <SelectItem key={vehicle.id} value={vehicle.id}>
-                    {vehicle.make} {vehicle.model} - {vehicle.licensePlate}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+            <div>
+              <Label htmlFor="vehicle">Vehículo *</Label>
+              <Select
+                value={formData.vehicleId}
+                onValueChange={(value) =>
+                  setFormData({ ...formData, vehicleId: value })
+                }
+              >
+                <SelectTrigger id="vehicle">
+                  <SelectValue placeholder="Selecciona un vehículo" />
+                </SelectTrigger>
+                <SelectContent>
+                  {vehicles.map((vehicle) => (
+                    <SelectItem key={vehicle.id} value={vehicle.id}>
+                      {vehicle.make} {vehicle.model} - {vehicle.licensePlate}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-          <div>
-            <Label htmlFor="assignment">Asignación (Opcional)</Label>
-            <Select
-              value={formData.assignmentId || "none"}
-              onValueChange={(value) =>
-                setFormData({
-                  ...formData,
-                  assignmentId: value === "none" ? "" : value,
-                })
-              }
-            >
-              <SelectTrigger id="assignment">
-                <SelectValue placeholder="Ninguna - Viaje personal" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Ninguna - Viaje personal</SelectItem>
-                {assignments.map((a) => (
-                  <SelectItem key={a.id} value={a.id}>
-                    AS-{a.folio} - {a.incident.title}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+            <div>
+              <Label htmlFor="assignment">Asignación (Opcional)</Label>
+              <Select
+                value={formData.assignmentId || "none"}
+                onValueChange={(value) =>
+                  setFormData({
+                    ...formData,
+                    assignmentId: value === "none" ? "" : value,
+                  })
+                }
+              >
+                <SelectTrigger id="assignment">
+                  <SelectValue placeholder="Ninguna - Viaje personal" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Ninguna - Viaje personal</SelectItem>
+                  {assignments.map((a) => (
+                    <SelectItem key={a.id} value={a.id}>
+                      AS-{a.folio} - {a.incident.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-          <div>
-            <Label htmlFor="startOdometer">Odómetro Inicial (km) *</Label>
-            <Input
-              id="startOdometer"
-              type="number"
-              value={formData.startOdometer}
-              onChange={(e) =>
-                setFormData({ ...formData, startOdometer: e.target.value })
-              }
-              placeholder="Ej. 12345"
-              min={0}
-              required
+            <div>
+              <Label htmlFor="startOdometer">Odómetro Inicial (km) *</Label>
+              <Input
+                id="startOdometer"
+                type="number"
+                value={formData.startOdometer}
+                onChange={(e) =>
+                  setFormData({ ...formData, startOdometer: e.target.value })
+                }
+                placeholder="Ej. 12345"
+                min={0}
+                required
+              />
+            </div>
+
+            <div>
+              <Label>Foto del Odómetro *</Label>
+              <FileUpload
+                onFilesSelected={(files) => setPhoto(files[0] || null)}
+                maxFiles={1}
+                maxSizeMB={10}
+                label="Captura la lectura del odómetro"
+                showCamera={true}
+                accept="image/*"
+              />
+            </div>
+
+            <GPSLocationCapture
+              onLocationCapture={handleLocationCapture}
+              label="Ubicación de Inicio (Opcional)"
+              showAddressField={true}
             />
-          </div>
 
-          <div>
-            <Label>Foto del Odómetro *</Label>
-            <FileUpload
-              onFilesSelected={(files) => setPhoto(files[0] || null)}
-              maxFiles={1}
-              maxSizeMB={10}
-              label="Captura la lectura del odómetro"
-              showCamera={true}
-              accept="image/*"
-            />
-          </div>
+            <div>
+              <Label htmlFor="notes">Notas (Opcional)</Label>
+              <Textarea
+                id="notes"
+                value={formData.notes}
+                onChange={(e) =>
+                  setFormData({ ...formData, notes: e.target.value })
+                }
+                placeholder="Propósito del viaje, destino, etc."
+                rows={3}
+              />
+            </div>
 
-          <GPSLocationCapture
-            onLocationCapture={handleLocationCapture}
-            label="Ubicación de Inicio (Opcional)"
-            showAddressField={true}
-          />
-
-          <div>
-            <Label htmlFor="notes">Notas (Opcional)</Label>
-            <Textarea
-              id="notes"
-              value={formData.notes}
-              onChange={(e) =>
-                setFormData({ ...formData, notes: e.target.value })
-              }
-              placeholder="Propósito del viaje, destino, etc."
-              rows={3}
-            />
-          </div>
-
-          <div className="flex flex-col sm:flex-row gap-3 sm:justify-end">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => router.back()}
-              disabled={isSubmitting}
-              className="w-full sm:w-auto order-2 sm:order-1"
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full sm:w-auto order-1 sm:order-2"
-            >
-              {isSubmitting ? "Iniciando Viaje..." : "Iniciar Viaje"}
-            </Button>
-          </div>
-        </form>
-      </CardContent>
-    </Card>
+            <div className="flex flex-col sm:flex-row gap-3 sm:justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => router.back()}
+                disabled={isSubmitting}
+                className="w-full sm:w-auto order-2 sm:order-1"
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full sm:w-auto order-1 sm:order-2"
+              >
+                {isSubmitting ? "Iniciando Viaje..." : "Iniciar Viaje"}
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
   );
 }

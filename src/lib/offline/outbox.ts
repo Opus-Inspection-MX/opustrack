@@ -57,6 +57,15 @@ export const OFFLINE_FRESHNESS_HOURS = 24;
 
 export type StorageLike = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 
+/** Same-tab refresh signal (localStorage `storage` events are cross-tab only). */
+export const OUTBOX_CHANGED_EVENT = "opustrack:outbox-changed";
+
+export function notifyOutboxChanged(): void {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event(OUTBOX_CHANGED_EVENT));
+  }
+}
+
 function defaultStore(): StorageLike | null {
   if (typeof localStorage === "undefined") return null;
   return localStorage;
@@ -112,6 +121,7 @@ export function persistEntries(
   if (!target) return { ok: true };
   try {
     target.setItem(OFFLINE_OUTBOX_KEY, JSON.stringify(entries));
+    notifyOutboxChanged();
     return { ok: true };
   } catch {
     return { ok: false, quotaExceeded: true };
@@ -123,12 +133,13 @@ export type EnqueueResult =
   | {
       entries: OutboxEntry[];
       queued: false;
-      reason: "cap-reached";
+      reason: "cap-reached" | "quota-exceeded";
     };
 
 /**
  * Append a draft. At cap the draft is REFUSED (never silently evicted) so
  * the UI can ask the operator to confirm discarding the oldest entry first.
+ * A full device quota is likewise reported, never thrown.
  */
 export function enqueueEntry(
   entry: OutboxEntry,
@@ -139,7 +150,10 @@ export function enqueueEntry(
     return { entries: current, queued: false, reason: "cap-reached" };
   }
   const next = [...current, entry];
-  persistEntries(next, store);
+  const persisted = persistEntries(next, store);
+  if (!persisted.ok) {
+    return { entries: current, queued: false, reason: "quota-exceeded" };
+  }
   return { entries: next, queued: true };
 }
 

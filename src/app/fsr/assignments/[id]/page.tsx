@@ -21,6 +21,7 @@ import { AssignmentItems } from "@/components/assignments/assignment-items";
 import { AttachmentPreview } from "@/components/assignments/attachment-preview";
 import { OdtFolioCapture } from "@/components/assignments/odt-folio-capture";
 import { BackButton } from "@/components/common/back-button";
+import { PendingDrafts } from "@/components/offline/pending-drafts";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -42,6 +43,7 @@ import {
   startAssignmentWork,
 } from "@/lib/actions/assignments";
 import { isFailure } from "@/lib/actions/result";
+import { describeEnqueueFailure, saveDraft } from "@/lib/offline/flush";
 import { formatMX } from "@/lib/utils/datetime";
 
 interface AssignmentStatus {
@@ -249,13 +251,31 @@ export default function FSRAssignmentDetailPage({
 
   const handleStartWork = async () => {
     if (!assignmentId) return;
+    // GPS is captured BEFORE any network use: without coordinates there is
+    // no field evidence to freeze, so a GPS failure never creates a draft.
+    let coords: { latitude: number; longitude: number };
+    try {
+      coords = await captureGps();
+    } catch (error) {
+      console.error("Error capturing GPS:", error);
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "No se pudo obtener la ubicación",
+      );
+      return;
+    }
+    // Fully offline: skip the call and freeze the draft directly.
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      queueStartDraft(coords.latitude, coords.longitude);
+      return;
+    }
     try {
       setActionLoading(true);
-      const { latitude, longitude } = await captureGps();
       const fd = new FormData();
       fd.append("assignmentId", assignmentId);
-      fd.append("latitude", String(latitude));
-      fd.append("longitude", String(longitude));
+      fd.append("latitude", String(coords.latitude));
+      fd.append("longitude", String(coords.longitude));
       const result = await startAssignmentWork(fd);
 
       if (isFailure(result)) {
@@ -264,11 +284,31 @@ export default function FSRAssignmentDetailPage({
       }
       await fetchData();
     } catch (error) {
+      // Transport failure (connection dropped mid-submit): freeze the
+      // action-time evidence as a draft for retry. Business-rule failures
+      // arrive as values above, never here.
       console.error("Error starting asignación:", error);
-      toast.error("No se pudo iniciar el trabajo");
+      queueStartDraft(coords.latitude, coords.longitude);
     } finally {
       setActionLoading(false);
     }
+  };
+
+  const queueStartDraft = (latitude: number, longitude: number) => {
+    if (!assignmentId) return;
+    const queued = saveDraft({
+      kind: "startAssignmentWork",
+      fields: {
+        assignmentId,
+        latitude: String(latitude),
+        longitude: String(longitude),
+      },
+    });
+    if (!queued.queued) {
+      toast.error(describeEnqueueFailure(queued.reason));
+      return;
+    }
+    toast.success("Sin conexión. Inicio guardado como borrador.");
   };
 
   const handlePauseWork = async () => {
@@ -315,13 +355,28 @@ export default function FSRAssignmentDetailPage({
       )
     )
       return;
+    let coords: { latitude: number; longitude: number };
+    try {
+      coords = await captureGps();
+    } catch (error) {
+      console.error("Error capturing GPS:", error);
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "No se pudo obtener la ubicación",
+      );
+      return;
+    }
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      queueCloseDraft(coords.latitude, coords.longitude);
+      return;
+    }
     try {
       setActionLoading(true);
-      const { latitude, longitude } = await captureGps();
       const fd = new FormData();
       fd.append("assignmentId", assignmentId);
-      fd.append("latitude", String(latitude));
-      fd.append("longitude", String(longitude));
+      fd.append("latitude", String(coords.latitude));
+      fd.append("longitude", String(coords.longitude));
       const result = await closeAssignment(fd);
 
       if (isFailure(result)) {
@@ -331,11 +386,30 @@ export default function FSRAssignmentDetailPage({
       await fetchData();
       toast.success("¡Asignación cerrada exitosamente!");
     } catch (error) {
+      // Transport failure: freeze the close evidence as a draft. The server
+      // re-validates preconditions (evidencia, ODT, estado) at flush time.
       console.error("Error closing asignación:", error);
-      toast.error("No se pudo cerrar la asignación");
+      queueCloseDraft(coords.latitude, coords.longitude);
     } finally {
       setActionLoading(false);
     }
+  };
+
+  const queueCloseDraft = (latitude: number, longitude: number) => {
+    if (!assignmentId) return;
+    const queued = saveDraft({
+      kind: "closeAssignment",
+      fields: {
+        assignmentId,
+        latitude: String(latitude),
+        longitude: String(longitude),
+      },
+    });
+    if (!queued.queued) {
+      toast.error(describeEnqueueFailure(queued.reason));
+      return;
+    }
+    toast.success("Sin conexión. Cierre guardado como borrador.");
   };
 
   if (loading) {
@@ -511,6 +585,14 @@ export default function FSRAssignmentDetailPage({
           )}
         </div>
       </div>
+
+      {assignmentId && (
+        <PendingDrafts
+          kinds={["startAssignmentWork", "closeAssignment"]}
+          matchField={{ key: "assignmentId", value: assignmentId }}
+          onFlushed={() => void fetchData()}
+        />
+      )}
 
       {incidentLocked && (
         <Card
