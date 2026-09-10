@@ -4,6 +4,7 @@ import {
   type NotificationPriority,
   type NotificationType,
 } from "./notification-types";
+import { incidentGoLink, vacationGoLink } from "./go-links";
 
 /**
  * The single registry of notification events.
@@ -80,9 +81,7 @@ function phaseRender(
       title: `Incidente ${phase}`,
       message: `El incidente ${verb}: ${name}`,
       actionUrl:
-        ctx.incidentId !== undefined
-          ? `/admin/incidents/${ctx.incidentId}`
-          : null,
+        ctx.incidentId !== undefined ? incidentGoLink(ctx.incidentId) : null,
       email: {
         subject: `Incidente ${phase}: ${name}`,
         intro: `El incidente ${verb}: ${name}.`,
@@ -190,9 +189,7 @@ export const NOTIFICATION_EVENTS: Record<NotificationType, EventDef> = {
         title: "Nuevo incidente reportado",
         message: `Se reportó un nuevo incidente: ${name}`,
         actionUrl:
-          ctx.incidentId !== undefined
-            ? `/admin/incidents/${ctx.incidentId}`
-            : null,
+          ctx.incidentId !== undefined ? incidentGoLink(ctx.incidentId) : null,
         email: {
           subject: `Nuevo incidente reportado: ${name}`,
           intro: `Se reportó un nuevo incidente: ${name}.`,
@@ -210,7 +207,10 @@ export const NOTIFICATION_EVENTS: Record<NotificationType, EventDef> = {
       return {
         title: "Incidente actualizado",
         message: `El incidente ha sido actualizado: ${name}`,
-        actionUrl: "/fsr/assignments",
+        actionUrl:
+          ctx.incidentId !== undefined
+            ? incidentGoLink(ctx.incidentId)
+            : "/fsr/assignments",
         email: {
           subject: `Incidente actualizado: ${name}`,
           intro: `El incidente ha sido actualizado: ${name}.`,
@@ -228,7 +228,10 @@ export const NOTIFICATION_EVENTS: Record<NotificationType, EventDef> = {
       return {
         title: "Asignado a incidente",
         message: `Se te ha asignado al incidente: ${name}`,
-        actionUrl: "/fsr/assignments",
+        actionUrl:
+          ctx.incidentId !== undefined
+            ? incidentGoLink(ctx.incidentId)
+            : "/fsr/assignments",
         email: {
           subject: `Asignado al incidente: ${name}`,
           intro: `Se te ha asignado al incidente: ${name}.`,
@@ -275,9 +278,7 @@ export const NOTIFICATION_EVENTS: Record<NotificationType, EventDef> = {
         title: "Incidente cerrado",
         message: `El incidente fue cerrado: ${name}`,
         actionUrl:
-          ctx.incidentId !== undefined
-            ? `/admin/incidents/${ctx.incidentId}`
-            : null,
+          ctx.incidentId !== undefined ? incidentGoLink(ctx.incidentId) : null,
         email: {
           subject: `Incidente resuelto: ${name}`,
           intro: `El incidente fue cerrado: ${name}.`,
@@ -296,9 +297,7 @@ export const NOTIFICATION_EVENTS: Record<NotificationType, EventDef> = {
         title: "Incidente cancelado",
         message: `El incidente fue cancelado: ${name}`,
         actionUrl:
-          ctx.incidentId !== undefined
-            ? `/admin/incidents/${ctx.incidentId}`
-            : null,
+          ctx.incidentId !== undefined ? incidentGoLink(ctx.incidentId) : null,
         email: {
           subject: `Incidente cancelado: ${name}`,
           intro: `El incidente fue cancelado: ${name}.`,
@@ -317,9 +316,7 @@ export const NOTIFICATION_EVENTS: Record<NotificationType, EventDef> = {
         title: "Incidente reabierto",
         message: `El incidente fue reabierto: ${name}`,
         actionUrl:
-          ctx.incidentId !== undefined
-            ? `/admin/incidents/${ctx.incidentId}`
-            : null,
+          ctx.incidentId !== undefined ? incidentGoLink(ctx.incidentId) : null,
         email: {
           subject: `Incidente reabierto: ${name}`,
           intro: `El incidente fue reabierto: ${name}.`,
@@ -339,7 +336,7 @@ export const NOTIFICATION_EVENTS: Record<NotificationType, EventDef> = {
       return {
         title: "Solicitud de vacaciones",
         message: `${who} solicitó vacaciones y espera autorización`,
-        actionUrl: "/admin/vacations",
+        actionUrl: ctx.vacationId ? vacationGoLink(ctx.vacationId) : null,
         email: {
           subject: `Solicitud de vacaciones de ${who}`,
           intro: `${who} solicitó vacaciones y espera autorización.`,
@@ -352,10 +349,10 @@ export const NOTIFICATION_EVENTS: Record<NotificationType, EventDef> = {
     group: "Vacaciones",
     priority: NOTIFICATION_PRIORITY.HIGH,
     defaultChannels: { inApp: true, email: true },
-    render: () => ({
+    render: (ctx) => ({
       title: "Vacaciones aprobadas",
       message: "Tu solicitud de vacaciones fue aprobada",
-      actionUrl: "/vacations",
+      actionUrl: ctx.vacationId ? vacationGoLink(ctx.vacationId) : null,
       email: {
         subject: "Vacaciones aprobadas",
         intro: "Tu solicitud de vacaciones fue aprobada.",
@@ -367,10 +364,10 @@ export const NOTIFICATION_EVENTS: Record<NotificationType, EventDef> = {
     group: "Vacaciones",
     priority: NOTIFICATION_PRIORITY.HIGH,
     defaultChannels: { inApp: true, email: true },
-    render: () => ({
+    render: (ctx) => ({
       title: "Vacaciones rechazadas",
       message: "Tu solicitud de vacaciones fue rechazada",
-      actionUrl: "/vacations",
+      actionUrl: ctx.vacationId ? vacationGoLink(ctx.vacationId) : null,
       email: {
         subject: "Vacaciones rechazadas",
         intro: "Tu solicitud de vacaciones fue rechazada.",
@@ -387,7 +384,7 @@ export const NOTIFICATION_EVENTS: Record<NotificationType, EventDef> = {
       message: ctx.requesterName
         ? `${ctx.requesterName} canceló su solicitud de vacaciones`
         : "Una solicitud de vacaciones fue cancelada",
-      actionUrl: "/admin/vacations",
+      actionUrl: ctx.vacationId ? vacationGoLink(ctx.vacationId) : null,
       email: {
         subject: "Vacación cancelada",
         intro: ctx.requesterName
@@ -401,10 +398,10 @@ export const NOTIFICATION_EVENTS: Record<NotificationType, EventDef> = {
     group: "Vacaciones",
     priority: NOTIFICATION_PRIORITY.MEDIUM,
     defaultChannels: { inApp: true, email: false },
-    render: () => ({
+    render: (ctx) => ({
       title: "Tus vacaciones inician mañana",
       message: "Tu período de vacaciones aprobado inicia mañana",
-      actionUrl: "/vacations",
+      actionUrl: ctx.vacationId ? vacationGoLink(ctx.vacationId) : null,
       email: {
         subject: "Tus vacaciones inician mañana",
         intro: "Tu período de vacaciones aprobado inicia mañana.",

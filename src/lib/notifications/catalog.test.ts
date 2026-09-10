@@ -92,7 +92,7 @@ describe("catálogo de eventos", () => {
       }),
     ).toMatchObject({
       title: "Nuevo incidente reportado",
-      actionUrl: "/admin/incidents/7",
+      actionUrl: "/notifications/go/incident/7",
       email: { subject: "Nuevo incidente reportado: Bomba" },
     });
     expect(
