@@ -91,15 +91,6 @@ export async function assignUserToCliente(
     create: { userId, clienteId, isPrimary },
   });
 
-  // Keep the deprecated User.clienteId scalar in sync: some read paths
-  // (edit form prefill, users list) still rely on it instead of this table.
-  if (isPrimary) {
-    await prisma.user.update({
-      where: { id: userId },
-      data: { clienteId },
-    });
-  }
-
   return assignment;
 }
 
@@ -112,13 +103,6 @@ export async function removeUserFromCliente(userId: string, clienteId: string) {
       userId_clienteId: { userId, clienteId },
     },
     data: { active: false },
-  });
-
-  // Clear the deprecated User.clienteId scalar if it pointed at this Cliente,
-  // so stale reads don't keep showing a removed assignment.
-  await prisma.user.updateMany({
-    where: { id: userId, clienteId },
-    data: { clienteId: null },
   });
 
   return assignment;
@@ -153,12 +137,6 @@ export async function setPrimaryCliente(userId: string, clienteId: string) {
     data: { isPrimary: true },
   });
 
-  // Keep the deprecated User.clienteId scalar in sync with the new primary.
-  await prisma.user.update({
-    where: { id: userId },
-    data: { clienteId },
-  });
-
   return promoted;
 }
 
@@ -184,42 +162,4 @@ export async function getClienteUsers(clienteId: string) {
     ...a.user,
     isPrimary: a.isPrimary,
   }));
-}
-
-/**
- * Migrate existing clienteId to clienteAssignments
- * Run this once after deploying the new schema
- */
-export async function migrateClienteAssignments() {
-  const users = await prisma.user.findMany({
-    where: { clienteId: { not: null } },
-    select: { id: true, clienteId: true },
-  });
-
-  let migrated = 0;
-
-  for (const user of users) {
-    if (!user.clienteId) continue;
-
-    // Check if assignment already exists
-    const existing = await prisma.userClienteAssignment.findUnique({
-      where: {
-        userId_clienteId: { userId: user.id, clienteId: user.clienteId },
-      },
-    });
-
-    if (!existing) {
-      await prisma.userClienteAssignment.create({
-        data: {
-          userId: user.id,
-          clienteId: user.clienteId,
-          isPrimary: true, // Existing clienteId becomes primary
-        },
-      });
-      migrated++;
-    }
-  }
-
-  console.log(`Migrated ${migrated} user Cliente assignments`);
-  return migrated;
 }

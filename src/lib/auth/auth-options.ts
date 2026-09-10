@@ -35,7 +35,6 @@ export const authOptions: NextAuthOptions = {
             email: true,
             name: true,
             password: true,
-            clienteId: true,
             sessionVersion: true,
             // Every active role: a user can administer vacations, administer
             // operations, and still be an FSR. What travels in the JWT is the
@@ -124,7 +123,10 @@ export const authOptions: NextAuthOptions = {
           (a, b) => b.priority - a.priority || a.id - b.id,
         )[0];
 
-        // Return user object that will be encoded in JWT
+        // Return user object that will be encoded in JWT.
+        // No per-user Cliente claim travels here: scope resolves from the
+        // UserClienteAssignment junction on every request (getReportScope),
+        // so a re-assignment applies without re-login.
         return {
           id: user.id,
           email: user.email,
@@ -135,7 +137,6 @@ export const authOptions: NextAuthOptions = {
           routePaths: [...prefixes],
           exactRoutePaths: [...exact],
           sessionVersion: user.sessionVersion,
-          clienteId: user.clienteId,
         };
       },
     }),
@@ -153,7 +154,6 @@ export const authOptions: NextAuthOptions = {
         token.routePaths = user.routePaths ?? [];
         token.exactRoutePaths = user.exactRoutePaths ?? [];
         token.sessionVersion = user.sessionVersion;
-        token.clienteId = user.clienteId ?? undefined;
       }
       return token;
     },
@@ -172,7 +172,6 @@ export const authOptions: NextAuthOptions = {
         session.user.exactRoutePaths =
           (token.exactRoutePaths as string[]) ?? [];
         session.user.sessionVersion = token.sessionVersion as number;
-        session.user.clienteId = token.clienteId as string | undefined;
       }
       return session;
     },

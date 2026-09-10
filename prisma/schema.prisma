@@ -16,19 +16,16 @@ model User {
   email               String                   @unique
   password            String
   userStatusId        Int                      @default(1)
-  clienteId               String? // Deprecated - kept for backward compatibility (use clienteAssignments instead)
-  clienteIds              String[]                 @default([]) // Deprecated - use clienteAssignments instead
   sessionVersion      Int                      @default(1) // Increment to invalidate all user sessions
   // A user holds MANY roles: someone can administer vacations, administer
   // operations, and still be an FSR who gets dispatched. There is deliberately
-  // no `roleId` scalar beside this: `clienteId` was left as a "deprecated"
-  // scalar next to `clienteAssignments` and the read paths kept using it while
-  // writes went to the join table, so editing a user's Cliente silently saved
-  // nothing. One source of truth.
+  // no `roleId` scalar beside this. Cliente membership likewise lives ONLY in
+  // the `clienteAssignments` junction table: the deprecated `clienteId` /
+  // `clienteIds` columns were removed (2.7) after every read path moved to
+  // the junction. One source of truth.
   userRoles           UserRole[]
   userStatus          UserStatus               @relation(fields: [userStatusId], references: [id])
   userProfile         UserProfile?
-  cliente                 Cliente? @relation(fields: [clienteId], references: [id])
   clienteAssignments      UserClienteAssignment[] // Cliente assignments for this user
   createdAt           DateTime                 @default(now())
   updatedAt           DateTime                 @updatedAt
@@ -36,7 +33,6 @@ model User {
   incidentAssignees   IncidentAssignee[] // Incidents this user is enabled to work on (RF-025)
   assignmentsSeen     Assignment[]             @relation("AssignmentSeenBy") // Assignments first acknowledged ("visto") by this user
   reportedIncidents   Incident[]               @relation("IncidentReporter")
-  incidents           Incident[]               @relation("IncidentUser") // relación opcional si usas userId en Incident
   vehicleTrips        VehicleTrip[] // Vehicle trips driven by this FSR
   assignedVehicles    Vehicle[]                @relation("AssignedVehicles") // Vehicles assigned to this FSR
   notifications       Notification[] // User's notifications
@@ -174,8 +170,7 @@ model Cliente {
   state           State               @relation(fields: [stateId], references: [id])
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
-  users           User[] // Deprecated - use userAssignments instead
-  userAssignments UserClienteAssignment[] // User assignments for this Cliente
+  userAssignments UserClienteAssignment[] // User assignments for this Cliente (sole membership source)
   scheduleClientes    ScheduleCliente[]
   incidents       Incident[]
   lines           Line[]
@@ -311,10 +306,6 @@ model Incident {
   line         Line?                    @relation(fields: [lineId], references: [id])
   equipmentId  Int?
   equipment    Equipment?               @relation(fields: [equipmentId], references: [id])
-
-  // userId estaba huérfano: definimos relación opcional clara
-  userId String?
-  user   User?   @relation("IncidentUser", fields: [userId], references: [id])
 
   assignments Assignment[]
   assignees   IncidentAssignee[] // RF-025: FSRs habilitados para este incidente

@@ -14,7 +14,7 @@ import {
   removeUserFromCliente,
 } from "@/lib/utils/cliente-assignments";
 import { mxDayRange } from "@/lib/utils/datetime";
-import { businessRule, guarded } from "./result";
+import { type ActionResult, businessRule, guarded, ok } from "./result";
 
 export type UserFormData = {
   name: string;
@@ -60,13 +60,13 @@ export async function getUsers(params?: GetUsersParams) {
       }
     : { active: true };
 
-  const [data, total] = await Promise.all([
+  const [rows, total] = await Promise.all([
     prisma.user.findMany({
       where,
       include: {
         ...includeRoles,
         userStatus: true,
-        cliente: true,
+        ...primaryClienteInclude,
         userProfile: true,
       },
       orderBy: { createdAt: "desc" },
@@ -77,7 +77,7 @@ export async function getUsers(params?: GetUsersParams) {
   ]);
 
   return {
-    data,
+    data: rows.map((row) => ({ ...row, cliente: primaryClienteOf(row) })),
     pagination: {
       total,
       page,
@@ -90,6 +90,35 @@ export async function getUsers(params?: GetUsersParams) {
 /**
  * Get single user by ID
  */
+/** Shape the pages render for a user's Cliente (`row.cliente.name`). */
+type ClienteRef = { id: string; name: string; code: string };
+
+const primaryClienteInclude = {
+  clienteAssignments: {
+    where: { active: true },
+    include: {
+      cliente: { select: { id: true, name: true, code: true } },
+    },
+    orderBy: { isPrimary: "desc" as const },
+  },
+};
+
+/**
+ * The junction table is the only source of truth for Cliente membership
+ * (the deprecated User.clienteId scalar is gone). Pages still render a
+ * singular `cliente`, so each query maps the primary assignment onto that
+ * shape: primary first, else the first active assignment, else null.
+ */
+function primaryClienteOf(row: {
+  clienteAssignments: Array<{ isPrimary: boolean; cliente: ClienteRef }>;
+}): ClienteRef | null {
+  return (
+    row.clienteAssignments.find((a) => a.isPrimary)?.cliente ??
+    row.clienteAssignments[0]?.cliente ??
+    null
+  );
+}
+
 export async function getUserById(id: string) {
   await requirePermission("users:read");
 
@@ -98,13 +127,23 @@ export async function getUserById(id: string) {
     include: {
       ...includeRoles,
       userStatus: true,
-      cliente: true,
       userProfile: true,
+      ...primaryClienteInclude,
     },
   });
 
-  return user;
+  if (!user) return user;
+
+  // Pages render a singular `cliente` and the form edits a singular
+  // `clienteId`: both derive from the assignments now that the deprecated
+  // scalar is gone.
+  const cliente = primaryClienteOf(user);
+  return { ...user, cliente, clienteId: cliente?.id ?? null };
 }
+
+/**
+ * Create new user
+ */
 
 /**
  * Create new user
@@ -149,7 +188,7 @@ export async function createUser(data: UserFormData) {
       include: {
         ...includeRoles,
         userStatus: true,
-        cliente: true,
+        ...primaryClienteInclude,
         userProfile: true,
       },
     });
@@ -169,7 +208,7 @@ export async function createUser(data: UserFormData) {
     }
 
     revalidatePath("/admin/users");
-    return { data: user };
+    return { data: { ...user, cliente: primaryClienteOf(user) } };
   });
 }
 
@@ -270,7 +309,7 @@ async function updateUserInner(
     include: {
       ...includeRoles,
       userStatus: true,
-      cliente: true,
+      ...primaryClienteInclude,
       userProfile: true,
     },
   });
@@ -349,13 +388,13 @@ async function updateUserInner(
   revalidatePath(`/admin/users/${id}`);
   revalidatePath("/admin/vacations");
   revalidatePath("/vacations");
-  return { data: user };
+  return { data: { ...user, cliente: primaryClienteOf(user) } };
 }
 
 /**
  * Delete user (soft delete)
  */
-export async function deleteUser(id: string) {
+export async function deleteUser(id: string): Promise<ActionResult> {
   await requirePermission("users:delete");
 
   await prisma.user.update({
@@ -370,7 +409,7 @@ export async function deleteUser(id: string) {
   await invalidateUserSessions(id);
 
   revalidatePath("/admin/users");
-  return { success: true };
+  return ok();
 }
 
 /**
@@ -409,12 +448,13 @@ export async function getMyProfile() {
     include: {
       ...includeRoles,
       userStatus: true,
-      cliente: true,
+      ...primaryClienteInclude,
       userProfile: true,
     },
   });
 
-  return profile;
+  if (!profile) return profile;
+  return { ...profile, cliente: primaryClienteOf(profile) };
 }
 
 /**
@@ -457,8 +497,7 @@ export async function updateMyProfile(data: {
   });
 
   revalidatePath("/profile");
-  revalidatePath("/profile");
-  return { success: true };
+  return ok();
 }
 
 /**

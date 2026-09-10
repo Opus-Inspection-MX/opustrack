@@ -24,7 +24,6 @@ declare module "next-auth" {
     /** Route paths granted by equality only (`Permission.exact`). */
     exactRoutePaths?: string[];
     sessionVersion?: number;
-    clienteId?: string | null;
   }
 
   interface Session {
@@ -38,7 +37,6 @@ declare module "next-auth" {
       routePaths?: string[];
       exactRoutePaths?: string[];
       sessionVersion?: number;
-      clienteId?: string;
     };
   }
 }
@@ -54,6 +52,5 @@ declare module "next-auth/jwt" {
     routePaths?: string[];
     exactRoutePaths?: string[];
     sessionVersion?: number;
-    clienteId?: string;
   }
 }

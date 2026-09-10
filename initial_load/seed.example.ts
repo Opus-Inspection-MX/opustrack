@@ -1258,23 +1258,23 @@ async function main() {
         roleName: string;
         clienteId: string | null;
       }> = [
-        // ADMINISTRADOR (no Cliente)
+        // ROOT (no Cliente)
         {
           name: "Admin User",
           email: "admin@opusinspection.com",
-          roleName: "ADMINISTRADOR",
+          roleName: "ROOT",
           clienteId: null,
         },
         {
           name: "Admin User 2",
           email: "admin2@opusinspection.com",
-          roleName: "ADMINISTRADOR",
+          roleName: "ROOT",
           clienteId: null,
         },
         {
           name: "Admin User 3",
           email: "admin3@opusinspection.com",
-          roleName: "ADMINISTRADOR",
+          roleName: "ROOT",
           clienteId: null,
         },
         // FSR (one per Cliente)
@@ -1351,7 +1351,6 @@ async function main() {
             password: await hashPassword("password123"),
             userRoles: { create: [{ roleId: role.id }] },
             userStatusId: userStatusActivo.id,
-            clienteId: userData.clienteId,
           },
         });
 

@@ -7,7 +7,7 @@ import { requirePermission } from "@/lib/auth/auth";
 import { includeRoles, whereHasRole } from "@/lib/authz/user-queries";
 import { prisma } from "@/lib/database/prisma.singleton";
 import { assignUserToCliente } from "@/lib/utils/cliente-assignments";
-import { rejected } from "./result";
+import { ok, rejected } from "./result";
 
 export type ClienteFormData = {
   code: string;
@@ -80,7 +80,11 @@ export async function getClientes(params?: GetClientesParams) {
           },
         },
         _count: {
-          select: { users: true, incidents: true, lines: true },
+          select: {
+            userAssignments: true,
+            incidents: true,
+            lines: true,
+          },
         },
       },
       orderBy: { name: "asc" },
@@ -113,6 +117,12 @@ export async function getClientes(params?: GetClientesParams) {
   return {
     data: clientes.map((cliente) => ({
       ...cliente,
+      // The badge counts assigned users: junction rows, not the removed
+      // scalar relation (which only ever held the primary assignment).
+      _count: {
+        ...cliente._count,
+        users: cliente._count.userAssignments,
+      },
       fsrCount: fsrCountByCliente.get(cliente.id) ?? 0,
     })),
     pagination: {
@@ -134,11 +144,17 @@ export async function getClienteById(id: string) {
     where: { id },
     include: {
       state: true,
-      users: {
+      // Assigned users come from the junction table (the deprecated
+      // scalar relation only ever held the primary assignment).
+      userAssignments: {
         where: { active: true },
         include: {
-          ...includeRoles,
-          userStatus: true,
+          user: {
+            include: {
+              ...includeRoles,
+              userStatus: true,
+            },
+          },
         },
       },
       incidents: {
@@ -162,7 +178,7 @@ export async function getClienteById(id: string) {
       },
       _count: {
         select: {
-          users: true,
+          userAssignments: true,
           incidents: true,
           scheduleClientes: true,
           lines: true,
@@ -171,7 +187,16 @@ export async function getClienteById(id: string) {
     },
   });
 
-  return cliente;
+  if (!cliente) return cliente;
+
+  const users = cliente.userAssignments
+    .map((a) => a.user)
+    .filter((u) => u.active);
+  return {
+    ...cliente,
+    users,
+    _count: { ...cliente._count, users: users.length },
+  };
 }
 
 /**
@@ -216,7 +241,7 @@ export async function createCliente(data: ClienteFormData) {
   }
 
   revalidatePath("/admin/clientes");
-  return { success: true, data: cliente };
+  return ok({ data: cliente });
 }
 
 /**
@@ -337,7 +362,7 @@ export async function updateCliente(id: string, data: ClienteFormData) {
 
   revalidatePath("/admin/clientes");
   revalidatePath(`/admin/clientes/${id}`);
-  return { success: true, data: cliente };
+  return ok({ data: cliente });
 }
 
 /**

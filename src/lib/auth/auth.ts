@@ -46,7 +46,6 @@ export const getAuthenticatedUser = cache(
         id: true,
         email: true,
         name: true,
-        clienteId: true,
         sessionVersion: true,
         userStatus: { select: { name: true } },
       },

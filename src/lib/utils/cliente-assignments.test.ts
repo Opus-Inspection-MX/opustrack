@@ -118,35 +118,36 @@ describe("setPrimaryCliente", () => {
     });
   });
 
-  it("syncs the deprecated User.clienteId scalar with the new primary", async () => {
+  it("writes only the junction table (no scalar sync — column removed)", async () => {
     findUnique.mockResolvedValue({ active: true } as never);
     updateMany.mockResolvedValue({ count: 1 } as never);
     update.mockResolvedValue({} as never);
 
     await setPrimaryCliente("u1", "c1");
 
-    expect(userUpdate).toHaveBeenCalledWith({
-      where: { id: "u1" },
-      data: { clienteId: "c1" },
-    });
+    // The deprecated User.clienteId scalar is gone: promotion touches only
+    // UserClienteAssignment rows.
+    expect(userUpdate).not.toHaveBeenCalled();
   });
 });
 
 describe("assignUserToCliente", () => {
-  it("syncs the deprecated User.clienteId scalar when isPrimary is true", async () => {
+  it("upserts only the junction row (no scalar — column removed)", async () => {
     upsert.mockResolvedValue({} as never);
     updateMany.mockResolvedValue({ count: 0 } as never);
     userUpdate.mockResolvedValue({} as never);
 
     await assignUserToCliente("u1", "c1", true);
 
-    expect(userUpdate).toHaveBeenCalledWith({
-      where: { id: "u1" },
-      data: { clienteId: "c1" },
-    });
+    expect(upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { userId_clienteId: { userId: "u1", clienteId: "c1" } },
+      }),
+    );
+    expect(userUpdate).not.toHaveBeenCalled();
   });
 
-  it("does not touch User.clienteId when isPrimary is false", async () => {
+  it("does not touch User rows when isPrimary is false", async () => {
     upsert.mockResolvedValue({} as never);
 
     await assignUserToCliente("u1", "c1", false);
@@ -156,15 +157,18 @@ describe("assignUserToCliente", () => {
 });
 
 describe("removeUserFromCliente", () => {
-  it("clears the deprecated User.clienteId scalar when it pointed at the removed Cliente", async () => {
+  it("deactivates only the junction row (no scalar — column removed)", async () => {
     update.mockResolvedValue({} as never);
     userUpdateMany.mockResolvedValue({ count: 1 } as never);
 
     await removeUserFromCliente("u1", "c1");
 
-    expect(userUpdateMany).toHaveBeenCalledWith({
-      where: { id: "u1", clienteId: "c1" },
-      data: { clienteId: null },
-    });
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { userId_clienteId: { userId: "u1", clienteId: "c1" } },
+        data: { active: false },
+      }),
+    );
+    expect(userUpdateMany).not.toHaveBeenCalled();
   });
 });

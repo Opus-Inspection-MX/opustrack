@@ -133,7 +133,7 @@ export async function seedTestDatabase() {
       },
     });
 
-    await prisma.user.upsert({
+    const fsrUser = await prisma.user.upsert({
       where: { email: "test-fsr@test.com" },
       update: {},
       create: {
@@ -143,11 +143,10 @@ export async function seedTestDatabase() {
           "$2a$10$K5JhHUMN.P5k.0HXpZbRs.Nq0QYpF5hU5rHJ3/XP5JhHUMN.P5k.0", // "password123"
         userRoles: { create: [{ roleId: fsrRole.id }] },
         userStatusId: activeStatus.id,
-        clienteId: cliente.id,
       },
     });
 
-    await prisma.user.upsert({
+    const clientUser = await prisma.user.upsert({
       where: { email: "test-client@test.com" },
       update: {},
       create: {
@@ -157,9 +156,24 @@ export async function seedTestDatabase() {
           "$2a$10$K5JhHUMN.P5k.0HXpZbRs.Nq0QYpF5hU5rHJ3/XP5JhHUMN.P5k.0", // "password123"
         userRoles: { create: [{ roleId: clientRole.id }] },
         userStatusId: activeStatus.id,
-        clienteId: cliente.id,
       },
     });
+
+    // Cliente membership lives only in the junction table: assign both test
+    // users to the test Cliente (primary), replacing the removed scalar.
+    for (const user of [fsrUser, clientUser]) {
+      await prisma.userClienteAssignment.upsert({
+        where: {
+          userId_clienteId: { userId: user.id, clienteId: cliente.id },
+        },
+        update: { isPrimary: true, active: true },
+        create: {
+          userId: user.id,
+          clienteId: cliente.id,
+          isPrimary: true,
+        },
+      });
+    }
 
     return { cliente, adminRole, fsrRole, clientRole, activeStatus };
   } catch (error) {

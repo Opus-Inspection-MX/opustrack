@@ -61,7 +61,6 @@ export type UserWithPermissions = {
   id: string;
   email: string;
   name: string;
-  clienteId: string | null;
 } & UserAuthz;
 
 /**
