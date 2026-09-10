@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import { businessRule } from "@/lib/actions/result";
 
 /**
@@ -61,4 +62,48 @@ export function assertOfflineFreshness(
       "El registro es de hace más de 24 horas y ya no puede enviarse. Capture la acción de nuevo.",
     );
   }
+}
+
+type DedupeReader = {
+  actionIdempotency: {
+    findUnique: (args: {
+      where: { key: string };
+    }) => Promise<{ targetId: string | null } | null>;
+  };
+};
+
+/**
+ * Known key → live target id. The caller reloads the live row and returns
+ * it WITHOUT re-executing the transition or re-firing notifications.
+ */
+export async function findReplayTargetId(
+  db: DedupeReader,
+  key: string,
+): Promise<string | null> {
+  const hit = await db.actionIdempotency.findUnique({ where: { key } });
+  return hit?.targetId ?? null;
+}
+
+/**
+ * Claim a key for a freshly applied target. Only P2002 (a concurrent flush
+ * won the race) is swallowed — any other fault propagates. Sequential
+ * retries never reach here twice: the pre-transaction lookup converges first.
+ */
+export async function claimIdempotencyKey(
+  tx: Prisma.TransactionClient,
+  key: string,
+  action: string,
+  targetId: string,
+): Promise<void> {
+  await tx.actionIdempotency
+    .create({ data: { key, action, targetId } })
+    .catch((error: unknown) => {
+      if (
+        typeof error === "object" &&
+        error !== null &&
+        (error as { code?: string }).code === "P2002"
+      )
+        return;
+      throw error;
+    });
 }

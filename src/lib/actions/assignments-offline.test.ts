@@ -15,13 +15,13 @@ vi.mock("@/lib/auth/auth", () => ({
 }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
-import { closeAssignment } from "./assignments";
+import { closeAssignment, startAssignmentWork } from "./assignments";
 import { isFailure } from "./result";
 
 /**
- * RF-260 close path: idempotent retry + 24h freshness window.
+ * RF-260 start/close paths: idempotent retry + 24h freshness window.
  *
- * A retried close with a known key converges on the live row without
+ * A retried action with a known key converges on the live row without
  * re-executing the transition; a stale draft is rejected in Spanish before
  * any write; online callers without the new params are untouched.
  */
@@ -84,5 +84,31 @@ describe("closeAssignment offline retry", () => {
       closeAssignment(closeForm({ idempotencyKey: "key-new" })),
     ).rejects.toThrow("stop-before-guards");
     expect(prismaMock.$transaction).toHaveBeenCalled();
+  });
+});
+
+describe("startAssignmentWork offline retry", () => {
+  it("replays a known idempotency key without re-executing", async () => {
+    prismaMock.actionIdempotency.findUnique.mockResolvedValue({
+      key: "key-start-1",
+      action: "startAssignmentWork",
+      targetId: "a1",
+    });
+    const result = await startAssignmentWork(
+      closeForm({ idempotencyKey: "key-start-1" }),
+    );
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.id).toBe("a1");
+    expect(prismaMock.$transaction).not.toHaveBeenCalled();
+  });
+
+  it("rejects a stale draft in Spanish before any write", async () => {
+    const stale = new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString();
+    const result = await startAssignmentWork(
+      closeForm({ capturedAt: stale, idempotencyKey: "key-start-stale" }),
+    );
+    expect(isFailure(result)).toBe(true);
+    if (isFailure(result)) expect(result.error).toMatch(/24 horas/);
+    expect(prismaMock.$transaction).not.toHaveBeenCalled();
   });
 });

@@ -18,6 +18,8 @@ import {
 } from "@/lib/notifications";
 import {
   assertOfflineFreshness,
+  claimIdempotencyKey,
+  findReplayTargetId,
   readOfflineFields,
 } from "@/lib/offline/idempotency";
 import {
@@ -620,6 +622,10 @@ export async function markAssignmentSeen(id: string) {
  *  - latitude: number
  *  - longitude: number
  *  - address: string (optional)
+ *
+ * Optional offline draft-and-retry fields (RF-260):
+ *  - idempotencyKey: string — retried drafts converge instead of re-applying
+ *  - capturedAt: string (ISO) — action-time evidence; >24h old is rejected
  */
 export async function startAssignmentWork(formData: FormData) {
   const user = await requirePermission("assignments:update");
@@ -635,6 +641,27 @@ export async function startAssignmentWork(formData: FormData) {
     }
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
       businessRule("Ubicación GPS inválida");
+    }
+
+    // RF-260: offline draft-and-retry — same contract as closeAssignment:
+    // freshness first, known keys converge on the live row, then the
+    // UNCHANGED guards and transition run.
+    const offline = readOfflineFields(formData);
+    if (offline.capturedAt !== undefined) {
+      assertOfflineFreshness(offline.capturedAt);
+    }
+    if (offline.idempotencyKey) {
+      const targetId = await findReplayTargetId(prisma, offline.idempotencyKey);
+      if (targetId) {
+        const live = await prisma.assignment.findUnique({
+          where: { id: targetId },
+          include: { incident: true, ...assigneesInclude, status: true },
+        });
+        if (live) {
+          revalidateAssignmentPaths(targetId, live.incidentId);
+          return { data: live };
+        }
+      }
     }
 
     const result = await prisma.$transaction(async (tx) => {
@@ -675,6 +702,14 @@ export async function startAssignmentWork(formData: FormData) {
         include: { incident: true, ...assigneesInclude, status: true },
       });
       await syncIncidentState(current.incidentId, tx);
+      if (offline.idempotencyKey) {
+        await claimIdempotencyKey(
+          tx,
+          offline.idempotencyKey,
+          "startAssignmentWork",
+          updated.id,
+        );
+      }
       return { assignment: updated, incidentId: current.incidentId };
     });
 
@@ -779,6 +814,10 @@ export async function resumeAssignment(id: string) {
  *  - longitude: number
  *  - address: string (optional)
  *  - notes: string (optional)
+ *
+ * Optional offline draft-and-retry fields (RF-260):
+ *  - idempotencyKey: string — retried drafts converge instead of re-applying
+ *  - capturedAt: string (ISO) — action-time evidence; >24h old is rejected
  */
 export async function closeAssignment(formData: FormData) {
   const user = await requirePermission("assignments:complete");
@@ -805,17 +844,15 @@ export async function closeAssignment(formData: FormData) {
       assertOfflineFreshness(offline.capturedAt);
     }
     if (offline.idempotencyKey) {
-      const replay = await prisma.actionIdempotency.findUnique({
-        where: { key: offline.idempotencyKey },
-      });
-      if (replay?.targetId) {
+      const targetId = await findReplayTargetId(prisma, offline.idempotencyKey);
+      if (targetId) {
         const live = await prisma.assignment.findUnique({
-          where: { id: replay.targetId },
+          where: { id: targetId },
           include: { incident: true, ...assigneesInclude, status: true },
         });
         // No notifications on replay: the first flush already notified.
         if (live) {
-          revalidateAssignmentPaths(replay.targetId, live.incidentId);
+          revalidateAssignmentPaths(targetId, live.incidentId);
           return { data: live };
         }
       }
@@ -872,27 +909,12 @@ export async function closeAssignment(formData: FormData) {
       const { before: incidentBefore, after: incidentAfter } =
         await syncIncidentState(current.incidentId, tx);
       if (offline.idempotencyKey) {
-        // Claim the key so a retried draft converges on this target. Only
-        // P2002 (a concurrent flush won the race) is swallowed — any other
-        // fault propagates. Sequential retries never reach here twice: the
-        // pre-tx lookup above converges first.
-        await tx.actionIdempotency
-          .create({
-            data: {
-              key: offline.idempotencyKey,
-              action: "closeAssignment",
-              targetId: updated.id,
-            },
-          })
-          .catch((error: unknown) => {
-            if (
-              typeof error === "object" &&
-              error !== null &&
-              (error as { code?: string }).code === "P2002"
-            )
-              return;
-            throw error;
-          });
+        await claimIdempotencyKey(
+          tx,
+          offline.idempotencyKey,
+          "closeAssignment",
+          updated.id,
+        );
       }
       return {
         assignment: updated,
