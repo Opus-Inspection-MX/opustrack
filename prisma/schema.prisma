@@ -118,6 +118,10 @@ model Role {
 
   userRoles      UserRole[]
   rolePermission RolePermission[]
+  /// Rows where this role is the SENDER: which roles it may broadcast to.
+  broadcastGrants RoleBroadcastTarget[] @relation("BroadcastSource")
+  /// Rows where this role is a TARGET: which roles may broadcast to it.
+  broadcastReach RoleBroadcastTarget[] @relation("BroadcastTarget")
   active         Boolean          @default(true)
   // RF-550 attribution: null = system row (seed/migration), never backfilled.
   createdById     String?
@@ -169,6 +173,32 @@ model RolePermission {
   deactivatedById String?
 
   @@unique([roleId, permissionId])
+}
+
+/// Which roles each role may broadcast notifications to (Phase 1 RBAC).
+///
+/// A sender role with no rows can broadcast to nobody (fail closed); ROOT
+/// (`isSuperuser`) bypasses the table and reaches every role. Edited from
+/// `/admin/roles/[id]` (Phase 4); seeded for the module admins here.
+model RoleBroadcastTarget {
+  id           Int     @id @default(autoincrement())
+  sourceRoleId Int
+  targetRoleId Int
+  sourceRole   Role    @relation("BroadcastSource", fields: [sourceRoleId], references: [id])
+  targetRole   Role    @relation("BroadcastTarget", fields: [targetRoleId], references: [id])
+  active       Boolean @default(true)
+  // RF-550 attribution: null = system row (seed/migration), never backfilled.
+  createdById     String?
+  updatedById     String?
+  deactivatedAt   DateTime?
+  deactivatedById String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  @@unique([sourceRoleId, targetRoleId])
+  @@index([sourceRoleId])
+  @@index([targetRoleId])
+  @@map("role_broadcast_targets")
 }
 
 model UserStatus {

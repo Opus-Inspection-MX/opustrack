@@ -195,11 +195,19 @@ async function main() {
           routePath: "/profile",
         },
         // Self-service vacations. Granted to every staff role — a REPORTER is a
-        // center account, not a person with vacation days.
+        // center account, not a person with vacation days. GUEST is read-only
+        // (no create permissions, no balance) and is excluded too.
         {
           name: "route:vacations",
           description: "Acceso a mis vacaciones",
           routePath: "/vacations",
+        },
+        // Universal inbox. Every role holds it, so the menu entry and the
+        // page behind it agree for staff, centers and read-only accounts alike.
+        {
+          name: "route:notifications",
+          description: "Acceso a mis notificaciones",
+          routePath: "/notifications",
         },
         // The `/admin` landing page WITHOUT the rest of the panel.
         // Prefix coverage would turn this into "every admin screen", which is
@@ -301,8 +309,27 @@ async function main() {
         },
         {
           name: "route:admin-notifications",
-          description: "Notificaciones",
+          description:
+            "Notificaciones (obsoleto: lo reemplazan notifications:broadcast y route:notifications)",
           routePath: "/admin/notifications",
+        },
+
+        // Broadcasting is a separate capability from reading: without it any
+        // authenticated user could diffuse to everyone (Phase 1 fix).
+        {
+          name: "notifications:broadcast",
+          description: "Difundir notificaciones a roles",
+          resource: "notifications",
+          action: "broadcast",
+          routePath: "/admin/notifications",
+        },
+        // The channel matrix (Phase 2 screen) is admin-only.
+        {
+          name: "notifications:configure",
+          description: "Configurar canales de notificación",
+          resource: "notifications",
+          action: "configure",
+          routePath: "/admin/settings/notifications",
         },
 
         // Capabilities that the role name ADMINISTRADOR used to imply.
@@ -987,7 +1014,9 @@ async function main() {
         "route:admin-equipments",
         "route:admin-states",
         "route:admin-vehicles",
-        "route:admin-notifications",
+        // Reach the broadcast page through notifications:broadcast
+        // (routePath /admin/notifications covers it by prefix), not through
+        // the deactivated route:admin-notifications.
       ];
 
       const rolesData = [
@@ -1013,6 +1042,10 @@ async function main() {
           permissions: [
             ...OPERATIONS_ROUTES,
             "route:profile",
+            "route:notifications",
+            // Diffuses to FSR / REPORTER / GUEST / ADMIN_OPERACION (targets
+            // seeded in RoleBroadcastTarget below).
+            "notifications:broadcast",
             ...SELF_SERVICE_VACATIONS,
             // Sees every center without being able to grant roles: this is the
             // half of the old ADMINISTRADOR that is about DATA, not power.
@@ -1080,6 +1113,10 @@ async function main() {
             "route:admin-panel",
             "route:admin-vacations",
             "route:profile",
+            "route:notifications",
+            // Diffuses to EMPLEADO / FSR / ADMIN_OPERACION / ADMIN_VACACIONES
+            // (targets seeded in RoleBroadcastTarget below).
+            "notifications:broadcast",
             ...SELF_SERVICE_VACATIONS,
             // Approving and configuring other people's vacations.
             "vacations:approve",
@@ -1112,6 +1149,7 @@ async function main() {
           permissions: [
             "route:fsr",
             "route:profile",
+            "route:notifications",
             ...SELF_SERVICE_VACATIONS,
             "incidents:read",
             "incidents:update",
@@ -1157,6 +1195,7 @@ async function main() {
           priority: 30,
           permissions: [
             "route:profile",
+            "route:notifications",
             ...SELF_SERVICE_VACATIONS,
             "notifications:read",
             "notifications:update",
@@ -1171,6 +1210,7 @@ async function main() {
           permissions: [
             "route:reporter",
             "route:profile",
+            "route:notifications",
             "incidents:read",
             "incidents:create",
             "incident-types:read", // Needed to select incident type when creating
@@ -1194,7 +1234,10 @@ async function main() {
           permissions: [
             "route:guest",
             "route:profile",
-            ...SELF_SERVICE_VACATIONS,
+            "route:notifications",
+            // No SELF_SERVICE_VACATIONS: a read-only account holds no balance.
+            // (Re-seeding never REMOVES grants — the Phase 1 data migration
+            // deactivates the four vacation rows on existing databases.)
             "incidents:read",
             "incident-types:read", // Needed to view incident types
             "incident-status:read", // Needed to view incident status
@@ -1249,6 +1292,37 @@ async function main() {
         }
       }
       console.log("✅ Seeded Roles with Permissions");
+
+      // 5b) RoleBroadcastTarget — which roles each sender role may diffuse to.
+      // A sender with no rows reaches nobody (fail closed); ROOT bypasses the
+      // table. Mirrors the Phase 1 data migration so fresh databases (where the
+      // migration ran before any role existed) converge to the same rows.
+      const BROADCAST_TARGETS: Array<[string, string]> = [
+        ["ADMIN_OPERACION", "FSR"],
+        ["ADMIN_OPERACION", "REPORTER"],
+        ["ADMIN_OPERACION", "GUEST"],
+        ["ADMIN_OPERACION", "ADMIN_OPERACION"],
+        ["ADMIN_VACACIONES", "EMPLEADO"],
+        ["ADMIN_VACACIONES", "FSR"],
+        ["ADMIN_VACACIONES", "ADMIN_OPERACION"],
+        ["ADMIN_VACACIONES", "ADMIN_VACACIONES"],
+      ];
+      for (const [sourceName, targetName] of BROADCAST_TARGETS) {
+        const source = roleRecords.find((r) => r.name === sourceName);
+        const target = roleRecords.find((r) => r.name === targetName);
+        if (!source || !target) continue;
+        await tx.roleBroadcastTarget.upsert({
+          where: {
+            sourceRoleId_targetRoleId: {
+              sourceRoleId: source.id,
+              targetRoleId: target.id,
+            },
+          },
+          update: { active: true },
+          create: { sourceRoleId: source.id, targetRoleId: target.id },
+        });
+      }
+      console.log("✅ Seeded RoleBroadcastTarget");
 
       // 6) Users - 3 per role for testing. FSR/REPORTER users are related to a
       // Client (one pair per Client). ADMIN and GUEST are not tied to any Client.
@@ -1334,6 +1408,38 @@ async function main() {
           name: "Guest User 3",
           email: "guest3@opusinspection.com",
           roleName: "GUEST",
+          clientId: null,
+        },
+        // EMPLEADO (office staff, no Client — self-service vacations only)
+        {
+          name: "Empleado User",
+          email: "empleado@opusinspection.com",
+          roleName: "EMPLEADO",
+          clientId: null,
+        },
+        {
+          name: "Empleado User 2",
+          email: "empleado2@opusinspection.com",
+          roleName: "EMPLEADO",
+          clientId: null,
+        },
+        {
+          name: "Empleado User 3",
+          email: "empleado3@opusinspection.com",
+          roleName: "EMPLEADO",
+          clientId: null,
+        },
+        // Module admins (no Client — scope comes from their permissions)
+        {
+          name: "Admin Operacion",
+          email: "admin-operacion@opusinspection.com",
+          roleName: "ADMIN_OPERACION",
+          clientId: null,
+        },
+        {
+          name: "Admin Vacaciones",
+          email: "admin-vacaciones@opusinspection.com",
+          roleName: "ADMIN_VACACIONES",
           clientId: null,
         },
       ];
@@ -1778,6 +1884,15 @@ async function main() {
   );
   console.log(
     "  Guest:  guest@opusinspection.com / password123   (Read-only access)",
+  );
+  console.log(
+    "  Empleado: empleado@opusinspection.com / password123 (Office staff, self-service vacations)",
+  );
+  console.log(
+    "  Admin Operación: admin-operacion@opusinspection.com / password123",
+  );
+  console.log(
+    "  Admin Vacaciones: admin-vacaciones@opusinspection.com / password123",
   );
 }
 
