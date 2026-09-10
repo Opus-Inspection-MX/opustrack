@@ -6,9 +6,11 @@ import { userHasPermission } from "@/lib/authz/authz";
 import { prisma } from "@/lib/database/prisma.singleton";
 import {
   notifyVacationApproved,
+  notifyVacationCancelled,
   notifyVacationRejected,
   notifyVacationRequested,
 } from "@/lib/notifications";
+import { vacationApprovers } from "@/lib/notifications/audiences";
 import {
   allottedDaysFor,
   ensurePeriodsUpToNow,
@@ -447,32 +449,45 @@ export async function rejectVacation(id: string) {
 /**
  * Soft-delete a vacation.
  * FSR can only delete their own; ADMIN can delete any.
+ *
+ * The cancellation notifies whoever still needs to know: the requester
+ * cancelling their own request alerts the approvers (with their name, so the
+ * queue owner knows whose row vanished); an admin cancelling someone else's
+ * alerts the requester. Fires post-commit, never throws.
  */
 export async function deleteVacation(id: string) {
   const caller = await requirePermission("vacations:delete");
 
-  // FSR ownership check
-  if (!managesAllVacations(caller)) {
-    const vacation = await prisma.vacation.findUnique({
-      where: { id },
-      select: { userId: true },
-    });
+  const vacation = await prisma.vacation.findUnique({
+    where: { id },
+    select: { userId: true, user: { select: { name: true } } },
+  });
 
-    if (!vacation) {
-      throw new Error("Solicitud de vacaciones no encontrada.");
-    }
+  if (!vacation) {
+    throw new Error("Solicitud de vacaciones no encontrada.");
+  }
 
-    if (vacation.userId !== caller.id) {
-      return rejected(
-        "Solo puede eliminar sus propias solicitudes de vacaciones.",
-      );
-    }
+  if (!managesAllVacations(caller) && vacation.userId !== caller.id) {
+    return rejected(
+      "Solo puede eliminar sus propias solicitudes de vacaciones.",
+    );
   }
 
   await prisma.vacation.update({
     where: { id },
     data: { active: false },
   });
+
+  const selfCancel = vacation.userId === caller.id;
+  const recipients = selfCancel
+    ? await vacationApprovers()
+    : [vacation.userId];
+  await notifyVacationCancelled(
+    id,
+    selfCancel ? vacation.user.name : null,
+    recipients,
+    caller.id,
+  );
 
   revalidatePath("/admin/vacations");
   revalidatePath("/vacations");

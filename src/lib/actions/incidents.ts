@@ -22,6 +22,7 @@ import {
   syncIncidentAssignees,
 } from "@/lib/incidents/shared";
 import {
+  notifyIncidentCancelled,
   notifyIncidentCreated,
   notifyIncidentUpdated,
 } from "@/lib/notifications";
@@ -1015,6 +1016,18 @@ export async function cancelIncident(incidentId: number, reason?: string) {
     revalidatePath(`/fsr/incidents/${incidentId}`);
     revalidatePath("/reporter");
     revalidatePath(`/reporter/incidents/${incidentId}`);
+
+    // POST-tx (commit-gated by position): the cancellation is terminal and
+    // set directly, so it never flows through the sync collector.
+    await notifyIncidentCancelled(
+      incidentId,
+      {
+        title: result.title,
+        reporterId: result.reportedById,
+        clientId: result.clientId,
+      },
+      user.id,
+    );
 
     return { data: result };
   });
