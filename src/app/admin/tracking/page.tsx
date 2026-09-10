@@ -14,6 +14,7 @@ import {
   getTrackingSignature,
   type TrackingFilters as TrackingQueryFilters,
 } from "@/lib/actions/tracking";
+import type { SlaState } from "@/lib/constants/sla-policy";
 
 interface Cliente {
   id: string;
@@ -67,6 +68,8 @@ interface TrackingIncident {
   statusId?: number | null;
   status?: { id: number; name: string; color: string } | null;
   type?: { id: number; name: string; priority: number } | null;
+  /** RF-218 breach flag, attached server-side by `getIncidentsForTracking`. */
+  sla?: SlaState | null;
   cliente?: { id: string; name: string; code: string } | null;
   reportedBy?: { id: string; name: string } | null;
   assignments: TrackingAssignment[];

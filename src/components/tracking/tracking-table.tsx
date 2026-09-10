@@ -21,6 +21,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import React, { useMemo, useState } from "react";
 import { PriorityBadge } from "@/components/incident-types/priority-badge";
+import { SlaBadge } from "@/components/tracking/sla-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -62,6 +63,7 @@ import {
   updateAssignmentDetails,
   updateIncidentDetails,
 } from "@/lib/actions/tracking";
+import type { SlaState } from "@/lib/constants/sla-policy";
 import { APP_TZ, mxDateAndTime } from "@/lib/utils/datetime";
 
 /**
@@ -124,6 +126,8 @@ interface TrackingIncident {
   statusId?: number | null;
   status?: { id: number; name: string; color: string } | null;
   type?: { id: number; name: string; priority: number } | null;
+  /** RF-218 breach flag, attached by `getIncidentsForTracking`. */
+  sla?: SlaState | null;
   cliente?: { id: string; name: string; code: string } | null;
   reportedBy?: { id: string; name: string } | null;
   assignees?: Array<{ user: { id: string; name: string; email?: string } }>;
@@ -822,6 +826,7 @@ export function TrackingTable({
                         {incident.type?.priority !== undefined && (
                           <PriorityBadge priority={incident.type.priority} />
                         )}
+                        <SlaBadge state={incident.sla} />
                       </div>
                     </TableCell>
                     <TableCell onClick={() => toggleRowExpansion(incident.id)}>
@@ -1280,6 +1285,7 @@ export function TrackingTable({
                                           priority={incident.type.priority}
                                         />
                                       )}
+                                      <SlaBadge state={incident.sla} />
                                     </div>
                                   </div>
                                 </div>

@@ -10,8 +10,10 @@ import {
   type ReportScope,
 } from "@/lib/auth/report-scope";
 import { whereHasRole } from "@/lib/authz/user-queries";
+import { getSlaState, type SlaState } from "@/lib/constants/sla-policy";
 import { prisma } from "@/lib/database/prisma.singleton";
 import { notifyAssignmentAssigned } from "@/lib/notifications/notify-events";
+import { getSlaHolidaySet } from "@/lib/sla/sla-holidays";
 import {
   ASSIGNMENT_STATE,
   type AssignmentState,
@@ -24,7 +26,11 @@ import {
   isAssignmentState,
   isIncidentState,
 } from "@/lib/state-machine";
-import { logIncidentEvent, toIso } from "@/lib/state-machine/incident-events";
+import {
+  getIncidentClosureMap,
+  logIncidentEvent,
+  toIso,
+} from "@/lib/state-machine/incident-events";
 import { syncIncidentState } from "@/lib/state-machine/sync";
 import { localWallTimeToUTC, mxDayRange } from "@/lib/utils/datetime";
 import {
@@ -429,6 +435,7 @@ export async function getIncidentsForTracking(filters?: TrackingFilters) {
           notes: true,
           startedAt: true,
           finishedAt: true,
+          seenAt: true,
           createdAt: true,
           assignees: {
             where: { active: true },
@@ -468,7 +475,49 @@ export async function getIncidentsForTracking(filters?: TrackingFilters) {
       }),
     ]);
 
-    return { data: incidents, totalCount };
+    // RF-218: one SLA state per row, computed on read. Two shared lookups for
+    // the whole page — never per row: the RF-219 closure timestamps in bulk
+    // (audit-trail precedence over the live `resolvedAt` column) and one
+    // holiday set for the years spanned. An empty page skips both queries.
+    const now = new Date();
+    const [closureMap, holidays]: [Map<number, Date>, Set<string>] =
+      incidents.length === 0
+        ? [new Map<number, Date>(), new Set<string>()]
+        : await Promise.all([
+            getIncidentClosureMap(
+              prisma,
+              incidents.map((incident) => incident.id),
+            ),
+            getSlaHolidaySet(
+              incidents.map((incident) => incident.reportedAt),
+              now,
+            ),
+          ]);
+
+    const data = incidents.map((incident) => {
+      // Response clock runs to the first acuse on any active assignment.
+      let firstSeenAt: Date | null = null;
+      for (const assignment of incident.assignments) {
+        if (
+          assignment.seenAt &&
+          (!firstSeenAt || assignment.seenAt < firstSeenAt)
+        ) {
+          firstSeenAt = assignment.seenAt;
+        }
+      }
+      const sla: SlaState = getSlaState({
+        priority: incident.type?.priority ?? 5,
+        createdAt: incident.reportedAt,
+        seenAt: firstSeenAt,
+        resolvedAt: closureMap.get(incident.id) ?? incident.resolvedAt,
+        statusName: incident.status?.name ?? null,
+        now,
+        holidays,
+      });
+      return { ...incident, sla };
+    });
+
+    return { data, totalCount };
   } catch (error) {
     rethrowBusinessError(error);
     console.error("Error fetching incidents for tracking:", error);
