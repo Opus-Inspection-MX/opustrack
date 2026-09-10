@@ -32,6 +32,7 @@ Modela el ciclo de vida completo de un incidente en un Centro de Verificación V
 | userId             | String?                  | FK legada mantenida por compatibilidad                             |
 | assignments        | Assignment[]             | Asignaciones de trabajo (1:N)                                      |
 | assignees          | IncidentAssignee[]       | FSRs habilitados para trabajar en el incidente (RF-025)            |
+| attachments        | IncidentAttachment[]     | Fotos de evidencia reportadas con el incidente (RF-217)            |
 | active             | Boolean                  | Soft delete                                                        |
 
 **Índices relevantes:** `(clienteId)`, `(statusId)`, `(typeId)`, `(reportedAt)`, `(active, reportedAt)`.
@@ -49,6 +50,25 @@ Tabla pivote que habilita a FSRs específicos para trabajar en un incidente. Ind
 | active     | Boolean           | Soft delete de la habilitación                                   |
 | @@unique   | [incidentId, userId]| Evita duplicados                                               |
 | @@map      | "incident_assignees"|                                                               |
+
+### IncidentAttachment (RF-217)
+
+Evidencia reportada junto con el incidente (el "antes" de la falla). Clon campo por campo de `AssignmentAttachment` (RF-259) por diseño — los dos ciclos de vida evolucionan por separado y una tabla compartida los acoplaría.
+
+| Campo       | Tipo               | Notas                                                              |
+|-------------|--------------------|--------------------------------------------------------------------|
+| id          | String (CUID, PK)  |                                                                    |
+| incidentId  | Int (FK → Incident)|                                                                    |
+| filename    | String             | Nombre saneado devuelto por el storage                             |
+| filepath    | String             | URL del blob (vercel-blob) o ruta relativa (filesystem)            |
+| mimetype    | String             | Dentro de la allowlist compartida de `file-storage.ts`             |
+| size        | Int                | Bytes; máximo 10MB por archivo                                     |
+| description | String?            | Opcional                                                           |
+| provider    | String             | `vercel-blob` \| `filesystem`, por fila (default `vercel-blob`)    |
+| uploadedAt  | DateTime           | Timestamp de subida (default: now())                               |
+| active      | Boolean            | Soft delete                                                        |
+
+**Índice:** `(incidentId)`.
 
 ### IncidentType
 
@@ -372,6 +392,40 @@ La máquina de estados del incidente se define en `src/lib/state-machine/inciden
 
 ---
 
+### RF-217 · Fotos de evidencia en el incidente
+
+**Descripción:** El incidente acepta archivos adjuntos propios (`IncidentAttachment`), para capturar el "antes" de la falla. El reportero (CLIENT) puede adjuntar fotos —incluida captura con cámara móvil— al crear desde `/client/new`; la primera foto ya no espera a que un FSR inicie trabajo.
+
+**Reglas de negocio:**
+- Contrato de subida idéntico a RF-259: **10MB** por archivo; allowlist MIME compartida en `src/lib/storage/file-storage.ts`; `FormData` con `File` (nunca base64).
+- El flujo de creación es en dos pasos: primero `createIncidentAsClient`, luego un `uploadIncidentAttachment` por archivo contra el id devuelto. Fallos por archivo se reportan sin invalidar el incidente creado; el detalle permite agregar las fotos faltantes después (vía de reparación).
+- Subida y borrado BLOQUEADOS cuando el incidente está en `CERRADO` o `CANCELADA` (misma regla terminal que RF-259).
+- El borrado es soft-delete en BD + borrado físico en el provider guardado por fila; un fallo físico se loguea y NO falla la operación.
+- A diferencia de RF-259, los adjuntos NUNCA son requeridos: reportar no se bloquea por falta de fotos.
+- Puerta de permiso crear-O-actualizar (`incidents:create` | `incidents:update`): el CLIENT reportero tiene create sin update; el operador tiene update.
+- Todas las lecturas de detalle filtran `where: { active: true }`.
+
+**Escenario crítico:** Foto con cámara al reportar
+- DADO un CLIENT reportando desde `/client/new`.
+- CUANDO captura una foto con la cámara y envía.
+- ENTONCES el incidente se crea Y la foto queda como `IncidentAttachment` con su provider registrado.
+- Y la foto se muestra en el detalle del incidente.
+
+**Escenario crítico:** Archivo sobredimensionado rechazado con mensaje operable
+- DADO un archivo mayor a 10MB (o MIME fuera de la allowlist).
+- CUANDO se intenta subir.
+- ENTONCES la operación se rechaza con mensaje en español que nombra el límite.
+- Y el incidente padre sigue creado y válido.
+
+**Escenario crítico:** Subida bloqueada en incidente cerrado
+- DADO un incidente en `CERRADO` (o `CANCELADA`).
+- CUANDO se intenta subir o borrar contra él.
+- ENTONCES la operación se rechaza y no cambian ni filas ni blobs.
+
+**Implementación:** `IncidentAttachment` en `prisma/schema.prisma`, `uploadIncidentAttachment` / `deleteIncidentAttachment` en `src/lib/actions/incident-attachments.ts`, `FileUpload` (`showCamera`) en `src/app/client/new/page.tsx`, `IncidentAttachments` en el detalle admin y CLIENT.
+
+---
+
 ### RF-219 · Bitácora de auditoría del incidente (append-only)
 
 **Descripción:** El sistema mantiene un log append-only `IncidentEvent` que registra cada ocurrencia que afecta el estado de un incidente: creación, transiciones, cambios de FSRs habilitados, cancelaciones, reaperturas, cargas masivas, recálculos omitidos y (reservado) excepciones de administrador. El código de aplicación NUNCA actualiza ni elimina filas de eventos (garantizado por test unitario, no por triggers de BD).
@@ -412,7 +466,7 @@ La máquina de estados del incidente se define en `src/lib/state-machine/inciden
 - **CANCELADA es terminal e irreversible:** una vez cancelado, el incidente no puede cerrarse, reabrirse ni modificar sus asignaciones.
 - **`typeId NOT NULL`:** la BD requiere tipo en todo incidente. La función `resolveTypeIdOrFallback` garantiza siempre un valor válido.
 - **Acceso escoped por Cliente:** `assertClienteAccessAsync(user, clienteId)` se llama antes de toda mutación individual para garantizar que el usuario solo modifica datos de sus Clientes accesibles.
-- **Soft delete global:** incidentes y `IncidentAssignee` usan `active: false`; ningún registro se elimina físicamente.
+- **Soft delete global:** incidentes, `IncidentAssignee` e `IncidentAttachment` usan `active: false`; ningún registro se elimina físicamente.
 - **Transaccionalidad en validaciones de borrado:** la verificación de hijos activos y la desactivación del padre se hacen dentro de una transacción Prisma para evitar condiciones de carrera.
 - **`resolvedAt` automático:** no debe setearse manualmente en edición; es responsabilidad exclusiva de `syncIncidentState` (al pasar a CERRADO) y `cancelIncident` (al cancelar).
 - **Bitácora append-only (RF-219):** ningún código actualiza ni elimina `IncidentEvent`; cada ruta que toca `statusId`, habilitaciones o cancelación emite su evento.
