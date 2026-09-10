@@ -15,7 +15,7 @@
     "db:down": "docker compose stop db",
     "db:init": "node scripts/with-env.mjs dev -- tsx scripts/db-init.ts",
     "db:migrate": "node scripts/with-env.mjs dev -- prisma migrate dev",
-    "db:drift": "node scripts/with-env.mjs dev -- npx prisma migrate diff --from-migrations ./prisma/migrations --to-schema-datamodel ./prisma/schema.prisma --shadow-database-url \"$SHADOW_DATABASE_URL\" --exit-code",
+    "db:drift": "node scripts/with-env.mjs dev -- node scripts/drift-proof.mjs --compose-file docker-compose.yml --green-only",
     "db:drift:proof": "node scripts/with-env.mjs dev -- node scripts/drift-proof.mjs --compose-file docker-compose.yml",
     "db:studio": "node scripts/with-env.mjs dev -- prisma studio",
     "db:reset": "node scripts/with-env.mjs dev -- prisma migrate reset --skip-seed && npm run db:init",

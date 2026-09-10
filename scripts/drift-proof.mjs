@@ -53,6 +53,10 @@ function usage() {
     "Options:",
     "  --compose-file <file>  Compose file whose database service hosts the",
     "                         shadow database (required).",
+    "  --green-only           Run only the green check (migrations vs schema,",
+    "                         expect exit 0) and skip the sabotage-copy",
+    "                         negative leg. Still creates the shadow database",
+    "                         and always drops it in a finally.",
     "  --help                 Print this help and exit (no side effects).",
     "",
     "Environment (via scripts/with-env.mjs <profile>):",
@@ -60,7 +64,8 @@ function usage() {
     "  SHADOW_DATABASE_URL    Must use host localhost/127.0.0.1. Its database",
     "                         is dropped WITH (FORCE) before and after the run.",
     "",
-    "Exit codes: 0 = PASS (green 0 and negative 2), 1 = any failure.",
+    "Exit codes: 0 = PASS (green 0 and negative 2; green 0 with --green-only),",
+    "             1 = any failure.",
   ].join("\n");
 }
 
@@ -107,10 +112,13 @@ function main() {
   }
 
   let composeFile = null;
+  let greenOnly = false;
   for (let i = 0; i < argv.length; i += 1) {
     if (argv[i] === "--compose-file") {
       composeFile = argv[i + 1] ?? null;
       i += 1;
+    } else if (argv[i] === "--green-only") {
+      greenOnly = true;
     } else {
       fail(`unknown argument "${argv[i]}".\n${usage()}`);
     }
@@ -226,36 +234,44 @@ function main() {
     green = runVisible("npx", diffArgs("./prisma/migrations"));
 
     // Negative control: sabotage a throwaway copy, never the real directory.
-    const scratch = mkdtempSync(path.join(tmpdir(), "drift-proof-"));
-    try {
-      cpSync("./prisma/migrations", path.join(scratch, "migrations"), {
-        recursive: true,
-      });
-      const target = path.join(
-        scratch,
-        "migrations",
-        NEGATIVE_MIGRATION_DIR,
-        "migration.sql",
-      );
-      const lines = readFileSync(target, "utf8").split("\n");
-      const victim = lines.findIndex((line) =>
-        /^\s*ALTER\s+INDEX\s/i.test(line),
-      );
-      if (victim === -1) {
-        fail(
-          `negative setup: no ALTER INDEX line found in ${NEGATIVE_MIGRATION_DIR}.`,
-        );
-      }
-      lines.splice(victim, 1);
-      writeFileSync(target, lines.join("\n"));
-
-      console.log("\n=== drift-proof: negative check (expect exit 2) ===");
-      negative = runVisible("npx", diffArgs(path.join(scratch, "migrations")));
-    } finally {
+    // Skipped entirely with --green-only.
+    if (!greenOnly) {
+      const scratch = mkdtempSync(path.join(tmpdir(), "drift-proof-"));
       try {
-        rmSync(scratch, { recursive: true, force: true });
-      } catch (error) {
-        cleanupWarnings.push(`could not remove scratch dir: ${error.message}`);
+        cpSync("./prisma/migrations", path.join(scratch, "migrations"), {
+          recursive: true,
+        });
+        const target = path.join(
+          scratch,
+          "migrations",
+          NEGATIVE_MIGRATION_DIR,
+          "migration.sql",
+        );
+        const lines = readFileSync(target, "utf8").split("\n");
+        const victim = lines.findIndex((line) =>
+          /^\s*ALTER\s+INDEX\s/i.test(line),
+        );
+        if (victim === -1) {
+          fail(
+            `negative setup: no ALTER INDEX line found in ${NEGATIVE_MIGRATION_DIR}.`,
+          );
+        }
+        lines.splice(victim, 1);
+        writeFileSync(target, lines.join("\n"));
+
+        console.log("\n=== drift-proof: negative check (expect exit 2) ===");
+        negative = runVisible(
+          "npx",
+          diffArgs(path.join(scratch, "migrations")),
+        );
+      } finally {
+        try {
+          rmSync(scratch, { recursive: true, force: true });
+        } catch (error) {
+          cleanupWarnings.push(
+            `could not remove scratch dir: ${error.message}`,
+          );
+        }
       }
     }
   } finally {
@@ -276,8 +292,19 @@ function main() {
   }
 
   console.log(
-    `\ndrift-proof: green=${green} (want 0), negative=${negative} (want 2)`,
+    greenOnly
+      ? `\ndrift-proof: green=${green} (want 0, green-only)`
+      : `\ndrift-proof: green=${green} (want 0), negative=${negative} (want 2)`,
   );
+  if (greenOnly) {
+    if (green === 0) {
+      console.log(
+        "drift-proof: PASS (green-only) — schema matches migrations.",
+      );
+      process.exit(0);
+    }
+    fail(`green check exited ${green}, want 0 (drift detected).`);
+  }
   if (green === 0 && negative === 2) {
     console.log(
       "drift-proof: PASS — schema matches migrations, and the check detects drift.",
