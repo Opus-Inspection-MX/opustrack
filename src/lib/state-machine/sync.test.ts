@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+const { notifyIncidentTransition } = vi.hoisted(() => ({
+  notifyIncidentTransition: vi.fn(),
+}));
+
 vi.mock("@/lib/database/prisma.singleton", () => ({
   prisma: {
     incident: { findUnique: vi.fn(), update: vi.fn() },
@@ -7,6 +11,14 @@ vi.mock("@/lib/database/prisma.singleton", () => ({
     incidentStatus: { findUnique: vi.fn() },
     incidentEvent: { create: vi.fn(), findFirst: vi.fn() },
   },
+}));
+// Immediate collector: the deferral timing itself is pinned in
+// after-commit.test.ts; here only the recorded transition matters.
+vi.mock("@/lib/notifications", () => ({
+  deferAfterCommit: (task: () => Promise<void>) => {
+    void task();
+  },
+  notifyIncidentTransition,
 }));
 
 import { prisma } from "@/lib/database/prisma.singleton";
@@ -258,5 +270,71 @@ describe("syncIncidentState", () => {
       eventType: string;
     };
     expect(event.eventType).toBe("REOPENED");
+  });
+});
+
+describe("syncIncidentState notification recording (Phase 3)", () => {
+  const findUnique = vi.mocked(prisma.incident.findUnique);
+  const update = vi.mocked(prisma.incident.update);
+  const findMany = vi.mocked(prisma.assignment.findMany);
+  const statusFindUnique = vi.mocked(prisma.incidentStatus.findUnique);
+  const eventCreate = vi.mocked(prisma.incidentEvent.create);
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    eventCreate.mockResolvedValue({} as never);
+    vi.mocked(prisma.incidentEvent.findFirst).mockResolvedValue(null);
+    notifyIncidentTransition.mockResolvedValue(undefined);
+  });
+
+  it("records the transition with its snapshot and actor", async () => {
+    findUnique.mockResolvedValue({
+      status: { name: INCIDENT_STATE.ABIERTO },
+      resolvedAt: null,
+      title: "Bomba",
+      reportedById: "rep-1",
+      clientId: "c1",
+    } as never);
+    findMany.mockResolvedValue([
+      { status: { name: ASSIGNMENT_STATE.ASIGNADO } },
+    ] as never);
+    statusFindUnique.mockResolvedValue({ id: 5 } as never);
+
+    const result = await syncIncidentState(1, prisma, { actorId: "admin-1" });
+
+    expect(result).toEqual({
+      before: INCIDENT_STATE.ABIERTO,
+      after: INCIDENT_STATE.ASIGNADO,
+    });
+    expect(notifyIncidentTransition).toHaveBeenCalledTimes(1);
+    expect(notifyIncidentTransition).toHaveBeenCalledWith(
+      1,
+      INCIDENT_STATE.ABIERTO,
+      INCIDENT_STATE.ASIGNADO,
+      "admin-1",
+      { title: "Bomba", reporterId: "rep-1", clientId: "c1" },
+    );
+  });
+
+  it("records nothing when the state does not change", async () => {
+    findUnique.mockResolvedValue({
+      status: { name: INCIDENT_STATE.ABIERTO },
+    } as never);
+    findMany.mockResolvedValue([]);
+
+    await syncIncidentState(1);
+
+    expect(update).not.toHaveBeenCalled();
+    expect(notifyIncidentTransition).not.toHaveBeenCalled();
+  });
+
+  it("records nothing on the CANCELADA short-circuit", async () => {
+    findUnique.mockResolvedValue({
+      status: { name: INCIDENT_STATE.CANCELADA },
+    } as never);
+
+    await syncIncidentState(1);
+
+    expect(notifyIncidentTransition).not.toHaveBeenCalled();
   });
 });

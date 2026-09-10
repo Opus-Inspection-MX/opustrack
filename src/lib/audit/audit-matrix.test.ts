@@ -15,6 +15,15 @@ vi.mock("@/lib/auth/auth", () => ({
   requirePermission: vi.fn(async (_name: string) => ({ id: "admin-1" })),
 }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
+// Notifications stay out of the audit boundary: the collector and the
+// transition router are pinned in their own suites.
+vi.mock("@/lib/notifications", () => ({
+  deferAfterCommit: (task: () => Promise<void>) => {
+    void task();
+  },
+  notifyIncidentTransition: vi.fn(async () => {}),
+  notifyIncidentCancelled: vi.fn(async () => {}),
+}));
 
 import { Prisma } from "@prisma/client";
 import { cancelIncident } from "@/lib/actions/incidents";

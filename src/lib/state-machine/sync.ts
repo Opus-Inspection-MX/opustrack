@@ -1,5 +1,9 @@
 import { IncidentEventType, type Prisma } from "@prisma/client";
 import { prisma } from "@/lib/database/prisma.singleton";
+import {
+  deferAfterCommit,
+  notifyIncidentTransition,
+} from "@/lib/notifications";
 import { ASSIGNMENT_STATE, type AssignmentState } from "./assignment-machine";
 import { logIncidentEvent, toIso } from "./incident-events";
 import { INCIDENT_STATE, type IncidentState } from "./incident-machine";
@@ -64,6 +68,10 @@ type TxClient = Prisma.TransactionClient | typeof prisma;
  * Every committed transition appends an audit event (RF-219). Leaving
  * CERRADO is logged as REOPENED with the closure timestamp preserved in the
  * payload BEFORE the live `resolvedAt` column is nulled.
+ *
+ * The same transition is recorded in the notification collector: inside a
+ * wrapped transaction it dispatches only on commit, outside one it dispatches
+ * right away. No caller passes `before/after` by hand.
  */
 export async function syncIncidentState(
   incidentId: number,
@@ -75,6 +83,9 @@ export async function syncIncidentState(
     select: {
       status: { select: { name: true } },
       resolvedAt: true,
+      title: true,
+      reportedById: true,
+      clientId: true,
     },
   });
   const before = incident?.status?.name ?? null;
@@ -172,6 +183,14 @@ export async function syncIncidentState(
       },
     });
   }
+
+  deferAfterCommit(() =>
+    notifyIncidentTransition(incidentId, before, target, actorId, {
+      title: incident?.title,
+      reporterId: incident?.reportedById,
+      clientId: incident?.clientId,
+    }),
+  );
 
   return { before, after: target };
 }
