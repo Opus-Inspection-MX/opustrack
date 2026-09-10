@@ -310,6 +310,7 @@ model Incident {
   assignments Assignment[]
   assignees   IncidentAssignee[] // RF-025: FSRs habilitados para este incidente
   events      IncidentEvent[] // RF-219: append-only audit trail
+  attachments IncidentAttachment[] // RF-217: evidence photos filed with the report
   createdAt   DateTime           @default(now())
   updatedAt   DateTime           @updatedAt
   active      Boolean            @default(true)
@@ -469,6 +470,29 @@ model AssignmentAttachment {
   active       Boolean    @default(true)
 
   @@index([assignmentId])
+}
+
+/// Evidence filed with the incident report itself (RF-217).
+///
+/// Field-for-field clone of `AssignmentAttachment` by design, not an
+/// abstraction: the two lifecycles (incident vs assignment) evolve
+/// independently, and sharing a table would couple them and force an RF-259
+/// migration. Unlike assignment attachments, these are NEVER required —
+/// reporting must never be blocked for lack of photos.
+model IncidentAttachment {
+  id          String   @id @default(cuid())
+  incidentId  Int
+  incident    Incident @relation(fields: [incidentId], references: [id])
+  filename    String
+  filepath    String
+  mimetype    String
+  size        Int
+  description String?
+  provider    String   @default("vercel-blob") // "vercel-blob" or "filesystem"
+  uploadedAt  DateTime @default(now())
+  active      Boolean  @default(true)
+
+  @@index([incidentId])
 }
 
 
