@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { logger } from "@/lib/observability/logger";
 
 export default function LoginForm() {
   const [loading, setLoading] = useState(false);
@@ -48,7 +49,7 @@ export default function LoginForm() {
         window.location.href = callbackUrl;
       }
     } catch (error) {
-      console.error("Login error:", error);
+      logger.error("Login error:", error);
       setError("Algo salió mal. Por favor, inténtalo de nuevo.");
       setLoading(false);
     }

@@ -14,6 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { logger } from "@/lib/observability/logger";
 import { formatMX } from "@/lib/utils/datetime";
 
 interface Schedule {
@@ -60,7 +61,7 @@ export function SelectScheduleDialog({
       const result = await response.json();
       setSchedules(result.data || []);
     } catch (error) {
-      console.error("Error fetching schedules:", error);
+      logger.error("Error fetching schedules:", error);
       setSchedules([]);
     } finally {
       setLoading(false);

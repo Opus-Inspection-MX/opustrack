@@ -4,6 +4,7 @@ import {
   getUnreadCount,
   getUserNotifications,
 } from "@/lib/notifications/notification-service";
+import { logger } from "@/lib/observability/logger";
 
 export async function GET() {
   try {
@@ -19,7 +20,7 @@ export async function GET() {
       unreadCount,
     });
   } catch (error) {
-    console.error("Error fetching notifications:", error);
+    logger.error("Error fetching notifications:", error);
     return NextResponse.json(
       { error: "Failed to fetch notifications" },
       { status: 500 },

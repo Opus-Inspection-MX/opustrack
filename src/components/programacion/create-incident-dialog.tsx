@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
+import { logger } from "@/lib/observability/logger";
 import { formatMX, localWallTimeToUTC } from "@/lib/utils/datetime";
 
 interface IncidentType {
@@ -84,7 +85,7 @@ export function CreateIncidentDialog({
         }
       }
     } catch (error) {
-      console.error("Error fetching data:", error);
+      logger.error("Error fetching data:", error);
     }
   }, []);
 
@@ -245,7 +246,7 @@ export function CreateIncidentDialog({
       onOpenChange(false);
       router.refresh();
     } catch (error) {
-      console.error("Error creating incident:", error);
+      logger.error("Error creating incident:", error);
       toast.error("Error al crear el incidente");
     } finally {
       setLoading(false);

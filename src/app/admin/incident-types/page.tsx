@@ -15,6 +15,7 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { toast } from "@/hooks/use-toast";
 import { deleteIncidentType, getIncidentTypes } from "@/lib/actions/lookups";
 import { isFailure } from "@/lib/actions/result";
+import { logger } from "@/lib/observability/logger";
 
 type IncidentType = Awaited<
   ReturnType<typeof getIncidentTypes>
@@ -88,7 +89,7 @@ export default function IncidentTypesPage() {
       setTotalItems(result.pagination.total);
       setTotalPages(result.pagination.totalPages);
     } catch (error) {
-      console.error("Error fetching incident types:", error);
+      logger.error("Error fetching incident types:", error);
     } finally {
       setIsLoading(false);
     }
@@ -132,7 +133,7 @@ export default function IncidentTypesPage() {
           }
           await fetchData();
         } catch (error) {
-          console.error("deleteIncidentType failed:", error);
+          logger.error("deleteIncidentType failed:", error);
           toast.error("No se pudo completar la operación. Intenta de nuevo.");
         }
       },

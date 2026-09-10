@@ -23,6 +23,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
 import { updateAssignment } from "@/lib/actions/assignments";
 import { isFailure } from "@/lib/actions/result";
+import { logger } from "@/lib/observability/logger";
 import {
   formatMX,
   fromDateInputMX,
@@ -113,7 +114,7 @@ export function AssignmentEditForm({
         onSuccess();
       }
     } catch (err) {
-      console.error("Error updating asignación:", err);
+      logger.error("Error updating asignación:", err);
       toast.error(
         (err as Error).message || "Error al actualizar la asignación",
       );

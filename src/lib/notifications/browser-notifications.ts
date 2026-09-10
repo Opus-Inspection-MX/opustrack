@@ -3,6 +3,8 @@
  * Handles system-level notifications with graceful fallback
  */
 
+import { logger } from "@/lib/observability/logger";
+
 export type NotificationPermission = "granted" | "denied" | "default";
 
 /**
@@ -84,7 +86,7 @@ export function showBrowserNotification(
 
     return true;
   } catch (error) {
-    console.error("Failed to show browser notification:", error);
+    logger.error("Failed to show browser notification:", error);
     return false;
   }
 }

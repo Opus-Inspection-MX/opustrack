@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
+import { logger } from "@/lib/observability/logger";
 import { formatMX } from "@/lib/utils/datetime";
 
 interface Client {
@@ -78,7 +79,7 @@ export function CreateProgramDialog({
         setStatuses(statusesData.data || []);
       }
     } catch (error) {
-      console.error("Error fetching data:", error);
+      logger.error("Error fetching data:", error);
     }
   }, []);
 
@@ -148,7 +149,7 @@ export function CreateProgramDialog({
       onOpenChange(false);
       router.refresh();
     } catch (error) {
-      console.error("Error creating schedule:", error);
+      logger.error("Error creating schedule:", error);
       toast.error("Error al crear la programación");
     } finally {
       setLoading(false);

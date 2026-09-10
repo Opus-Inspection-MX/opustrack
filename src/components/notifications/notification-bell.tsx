@@ -14,6 +14,7 @@ import {
   requestNotificationPermission,
   showBrowserNotification,
 } from "@/lib/notifications/browser-notifications";
+import { logger } from "@/lib/observability/logger";
 import { NotificationList } from "./notification-list";
 
 interface Notification {
@@ -132,7 +133,7 @@ export function NotificationBell({
           showBrowserNotificationForNewRef.current(data.notifications);
         }
       } catch (error) {
-        console.error("Failed to fetch notifications:", error);
+        logger.error("Failed to fetch notifications:", error);
       } finally {
         setIsLoading(false);
       }

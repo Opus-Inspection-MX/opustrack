@@ -4,6 +4,7 @@ import { withPermission } from "@/lib/auth/auth";
 import { getReportScope, incidentScopeWhere } from "@/lib/auth/report-scope";
 import { FALLBACK_INCIDENT_TYPE_NAME } from "@/lib/constants/incident-type";
 import { prisma } from "@/lib/database/prisma.singleton";
+import { logger } from "@/lib/observability/logger";
 import { INCIDENT_STATE } from "@/lib/state-machine/incident-machine";
 
 /**
@@ -123,7 +124,7 @@ export const POST = withPermission(
         message: "Incidente creado exitosamente",
       });
     } catch (error) {
-      console.error("Error creating incident:", error);
+      logger.error("Error creating incident:", error);
       return NextResponse.json(
         { error: "Error al crear incidente" },
         { status: 500 },
@@ -199,7 +200,7 @@ export const GET = withPermission("incidents:read", async (request, user) => {
       count: incidents.length,
     });
   } catch (error) {
-    console.error("Error fetching incidents:", error);
+    logger.error("Error fetching incidents:", error);
     return NextResponse.json(
       { error: "Error al obtener incidentes" },
       { status: 500 },

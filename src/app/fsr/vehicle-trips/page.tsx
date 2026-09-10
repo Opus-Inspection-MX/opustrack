@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getMyVehicleTrips } from "@/lib/actions/vehicle-trips";
+import { logger } from "@/lib/observability/logger";
 import { APP_TZ, formatMX } from "@/lib/utils/datetime";
 
 interface VehicleTrip {
@@ -52,7 +53,7 @@ export default function VehicleTripsPage() {
       const data = await getMyVehicleTrips({ startDate: start, endDate: end });
       setTrips(data);
     } catch (error) {
-      console.error("Error loading trips:", error);
+      logger.error("Error loading trips:", error);
     } finally {
       setLoading(false);
     }

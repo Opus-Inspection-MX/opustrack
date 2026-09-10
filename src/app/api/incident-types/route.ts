@@ -2,6 +2,7 @@ import type { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { withPermission } from "@/lib/auth/auth";
 import { prisma } from "@/lib/database/prisma.singleton";
+import { logger } from "@/lib/observability/logger";
 
 /**
  * GET /api/incident-types
@@ -64,7 +65,7 @@ export const GET = withPermission(
         },
       });
     } catch (error) {
-      console.error("Error fetching incident types:", error);
+      logger.error("Error fetching incident types:", error);
       return NextResponse.json(
         { error: "Error al obtener tipos de incidentes" },
         { status: 500 },

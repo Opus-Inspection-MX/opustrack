@@ -16,6 +16,7 @@ import {
   notifyAssignmentUpdated,
   notifyIncidentClosed,
 } from "@/lib/notifications";
+import { logger } from "@/lib/observability/logger";
 import {
   assertOfflineFreshness,
   claimIdempotencyKey,
@@ -1210,7 +1211,7 @@ export async function deleteAssignmentAttachment(id: string) {
         attachment.provider as "vercel-blob" | "filesystem",
       );
     } catch (error) {
-      console.error("Error deleting file:", error);
+      logger.error("Error deleting file:", error);
     }
 
     revalidatePath(`/admin/assignments/${attachment.assignmentId}`);

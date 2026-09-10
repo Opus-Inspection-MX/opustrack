@@ -13,6 +13,7 @@ import { whereHasRole } from "@/lib/authz/user-queries";
 import { getSlaState, type SlaState } from "@/lib/constants/sla-policy";
 import { prisma } from "@/lib/database/prisma.singleton";
 import { notifyAssignmentAssigned } from "@/lib/notifications/notify-events";
+import { logger } from "@/lib/observability/logger";
 import { getSlaHolidaySet } from "@/lib/sla/sla-holidays";
 import {
   ASSIGNMENT_STATE,
@@ -174,7 +175,7 @@ async function notifyNewAssignees(
       actorId,
     );
   } catch (error) {
-    console.error("Error notifying new assignees:", error);
+    logger.error("Error notifying new assignees:", error);
   }
 }
 
@@ -359,7 +360,7 @@ export async function getTrackingSignature(filters?: TrackingFilters) {
     ].join(":");
   } catch (error) {
     rethrowBusinessError(error);
-    console.error("Error computing tracking signature:", error);
+    logger.error("Error computing tracking signature:", error);
     throw new Error("Failed to compute tracking signature");
   }
 }
@@ -520,7 +521,7 @@ export async function getIncidentsForTracking(filters?: TrackingFilters) {
     return { data, totalCount };
   } catch (error) {
     rethrowBusinessError(error);
-    console.error("Error fetching incidents for tracking:", error);
+    logger.error("Error fetching incidents for tracking:", error);
     throw new Error("Failed to fetch incidents");
   }
 }
@@ -559,7 +560,7 @@ export async function getTrackingFsrs() {
     }));
   } catch (error) {
     rethrowBusinessError(error);
-    console.error("Error fetching FSRs for tracking:", error);
+    logger.error("Error fetching FSRs for tracking:", error);
     throw new Error("Failed to fetch FSRs");
   }
 }
@@ -637,7 +638,7 @@ export async function assignFSRToIncident(incidentId: number, fsrId: string) {
     return ok();
   } catch (error) {
     rethrowBusinessError(error);
-    console.error("Error assigning FSR to incident:", error);
+    logger.error("Error assigning FSR to incident:", error);
     throw new Error("Failed to assign FSR");
   }
 }
@@ -736,7 +737,7 @@ export async function updateAssignmentAssignees(
     return ok({ assignment: updatedAssignment });
   } catch (error) {
     rethrowBusinessError(error);
-    console.error("Error updating assignment assignees:", error);
+    logger.error("Error updating assignment assignees:", error);
     throw new Error("Failed to update assignment assignees");
   }
 }
@@ -831,7 +832,7 @@ export async function updateIncidentDetails(
       // Business rules must reach `guarded` as exceptions so they are
       // RETURNED to the operator — not veiled as a generic failure.
       if (error instanceof BusinessRuleError) throw error;
-      console.error("Error updating incident:", error);
+      logger.error("Error updating incident:", error);
       throw new Error("Failed to update incident");
     }
   });
@@ -1057,7 +1058,7 @@ export async function updateAssignmentDetails(
       // Business rules must reach `guarded` as exceptions so they are
       // RETURNED to the operator — not veiled as a generic failure.
       if (error instanceof BusinessRuleError) throw error;
-      console.error("Error updating assignment:", error);
+      logger.error("Error updating assignment:", error);
       throw new Error("Failed to update assignment");
     }
   });

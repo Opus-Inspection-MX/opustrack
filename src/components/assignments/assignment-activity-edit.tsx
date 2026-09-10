@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
 import { updateAssignmentActivity } from "@/lib/actions/assignment-activities";
 import { isFailure } from "@/lib/actions/result";
+import { logger } from "@/lib/observability/logger";
 import {
   formatMX,
   fromDatetimeLocalMX,
@@ -69,7 +70,7 @@ export function AssignmentActivityEdit({
         onSuccess();
       }
     } catch (err) {
-      console.error("Error updating activity:", err);
+      logger.error("Error updating activity:", err);
       toast.error((err as Error).message || "Failed to update activity");
     } finally {
       setLoading(false);

@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer";
+import { logger } from "@/lib/observability/logger";
 
 /**
  * Outbound email, behind one interface.
@@ -33,7 +34,7 @@ export interface MailTransport {
 export const noopTransport: MailTransport = {
   name: "noop",
   async send(message) {
-    console.info(
+    logger.info(
       `[mail:noop] Sin SMTP_HOST — no se envió "${message.subject}" a ${message.to.length} destinatario(s)`,
     );
   },

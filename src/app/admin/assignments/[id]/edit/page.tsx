@@ -32,6 +32,7 @@ import {
   getAssignmentFormOptions,
 } from "@/lib/actions/assignments";
 import { isFailure } from "@/lib/actions/result";
+import { logger } from "@/lib/observability/logger";
 import { formatFileSize, getFileIcon } from "@/lib/upload";
 import { formatMX } from "@/lib/utils/datetime";
 
@@ -145,7 +146,7 @@ export default function EditAssignmentPage({
       setAvailableStatuses(statuses.data);
       setAttachments(woData?.attachments || []);
     } catch (error) {
-      console.error("Error fetching data:", error);
+      logger.error("Error fetching data:", error);
     } finally {
       setLoading(false);
     }
@@ -170,7 +171,7 @@ export default function EditAssignmentPage({
       }
       await fetchData();
     } catch (error) {
-      console.error("Error deleting activity:", error);
+      logger.error("Error deleting activity:", error);
       toast.error("Error al eliminar la actividad");
     }
   };
@@ -187,7 +188,7 @@ export default function EditAssignmentPage({
       }
       await fetchData();
     } catch (error) {
-      console.error("Error deleting attachment:", error);
+      logger.error("Error deleting attachment:", error);
       toast.error("Error al eliminar el archivo");
     }
   };

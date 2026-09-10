@@ -17,6 +17,7 @@ import {
   updateAssignmentActivity,
 } from "@/lib/actions/assignment-activities";
 import { isFailure } from "@/lib/actions/result";
+import { logger } from "@/lib/observability/logger";
 import { toDatetimeLocalMX } from "@/lib/utils/datetime";
 
 export default function EditAssignmentActivityPage({
@@ -46,7 +47,7 @@ export default function EditAssignmentActivityPage({
           });
         }
       } catch (error) {
-        console.error("Error fetching work activity:", error);
+        logger.error("Error fetching work activity:", error);
       } finally {
         setIsLoading(false);
       }
@@ -88,7 +89,7 @@ export default function EditAssignmentActivityPage({
         router.push(`/admin/assignment-activities/${id}`);
       }
     } catch (error) {
-      console.error("Error updating work activity:", error);
+      logger.error("Error updating work activity:", error);
       toast.error(
         error instanceof Error
           ? error.message

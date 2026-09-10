@@ -4,6 +4,7 @@ import { use, useEffect, useState } from "react";
 import { StateForm } from "@/components/states/state-form";
 import { Spinner } from "@/components/ui/spinner";
 import { getStateById } from "@/lib/actions/lookups";
+import { logger } from "@/lib/observability/logger";
 
 interface State {
   id: number;
@@ -28,7 +29,7 @@ export default function EditStatePage({
         const data = await getStateById(Number(id));
         setState(data);
       } catch (error) {
-        console.error("Error fetching state:", error);
+        logger.error("Error fetching state:", error);
       } finally {
         setIsLoading(false);
       }

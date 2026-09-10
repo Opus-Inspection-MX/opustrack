@@ -15,6 +15,7 @@ import {
   type TrackingFilters as TrackingQueryFilters,
 } from "@/lib/actions/tracking";
 import type { SlaState } from "@/lib/constants/sla-policy";
+import { logger } from "@/lib/observability/logger";
 
 interface Client {
   id: string;
@@ -109,7 +110,7 @@ export default function TrackingPage() {
         // Surfaced, not swallowed. A thrown query used to leave the table at
         // "Total de incidentes: 0", which reads as "no hay datos" and sent us
         // hunting through the database for a problem that was in the code.
-        console.error("Error loading incidents:", error);
+        logger.error("Error loading incidents:", error);
         toast.error("No se pudieron cargar los incidentes. Intenta de nuevo.");
       }
     },
@@ -128,7 +129,7 @@ export default function TrackingPage() {
       setIncidentStatuses(bootstrap.statuses);
       setAllFsrs(bootstrap.fsrs);
     } catch (error) {
-      console.error("Error loading initial data:", error);
+      logger.error("Error loading initial data:", error);
       toast.error(
         "No se pudieron cargar los filtros ni la lista de FSR. Intenta de nuevo.",
       );

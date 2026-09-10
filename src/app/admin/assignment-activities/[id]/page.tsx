@@ -13,6 +13,7 @@ import {
   getAssignmentActivityById,
 } from "@/lib/actions/assignment-activities";
 import { isFailure } from "@/lib/actions/result";
+import { logger } from "@/lib/observability/logger";
 import { formatMX } from "@/lib/utils/datetime";
 
 interface Part {
@@ -67,7 +68,7 @@ export default function AssignmentActivityDetailPage({
         const data = await getAssignmentActivityById(id);
         setActivity(data);
       } catch (error) {
-        console.error("Error fetching work activity:", error);
+        logger.error("Error fetching work activity:", error);
       } finally {
         setIsLoading(false);
       }
@@ -100,7 +101,7 @@ export default function AssignmentActivityDetailPage({
           : "/admin/assignments",
       );
     } catch (error) {
-      console.error("Error deleting work activity:", error);
+      logger.error("Error deleting work activity:", error);
       toast.error("Error al eliminar la actividad de trabajo");
       setIsDeleting(false);
     }

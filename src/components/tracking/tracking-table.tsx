@@ -64,6 +64,7 @@ import {
   updateIncidentDetails,
 } from "@/lib/actions/tracking";
 import type { SlaState } from "@/lib/constants/sla-policy";
+import { logger } from "@/lib/observability/logger";
 import { APP_TZ, mxDateAndTime } from "@/lib/utils/datetime";
 
 /**
@@ -296,7 +297,7 @@ export function TrackingTable({
    * reaches this catch is a genuine fault, and its text is not for the user.
    */
   const reportFailure = (error: unknown, message: string) => {
-    console.error(message, error);
+    logger.error(message, error);
     toast.error(message);
   };
 
@@ -427,7 +428,7 @@ export function TrackingTable({
           setEquipmentsForEdit([]);
         }
       } catch (error) {
-        console.error("Error loading lines/equipments:", error);
+        logger.error("Error loading lines/equipments:", error);
         setLinesForEdit([]);
         setEquipmentsForEdit([]);
       }
@@ -452,7 +453,7 @@ export function TrackingTable({
         );
         setEquipmentsForEdit(equipments);
       } catch (error) {
-        console.error("Error loading equipments:", error);
+        logger.error("Error loading equipments:", error);
         setEquipmentsForEdit([]);
       }
     } else {

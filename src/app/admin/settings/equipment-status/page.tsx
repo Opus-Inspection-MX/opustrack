@@ -16,6 +16,7 @@ import {
   getEquipmentStatuses,
 } from "@/lib/actions/lookups";
 import { isFailure } from "@/lib/actions/result";
+import { logger } from "@/lib/observability/logger";
 
 type EquipmentStatus = Awaited<
   ReturnType<typeof getEquipmentStatuses>
@@ -74,7 +75,7 @@ export default function EquipmentStatusPage() {
       setTotalItems(result.pagination.total);
       setTotalPages(result.pagination.totalPages);
     } catch (error) {
-      console.error("Error fetching equipment statuses:", error);
+      logger.error("Error fetching equipment statuses:", error);
     } finally {
       setIsLoading(false);
     }
@@ -118,7 +119,7 @@ export default function EquipmentStatusPage() {
           }
           await fetchData();
         } catch (error) {
-          console.error("deleteEquipmentStatus failed:", error);
+          logger.error("deleteEquipmentStatus failed:", error);
           toast.error("No se pudo completar la operación. Intenta de nuevo.");
         }
       },

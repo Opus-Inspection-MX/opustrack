@@ -13,6 +13,7 @@
 import { redirect } from "next/navigation";
 import { whereHasRoleId } from "@/lib/authz/user-queries";
 import { prisma } from "@/lib/database/prisma.singleton";
+import { logger } from "@/lib/observability/logger";
 
 /**
  * Validates that the user's session version matches the database.
@@ -95,7 +96,7 @@ export async function invalidateUserSessions(userId: string): Promise<void> {
     },
   });
 
-  console.log(`[SESSION] Invalidated all sessions for user ${userId}`);
+  logger.info(`[SESSION] Invalidated all sessions for user ${userId}`);
 }
 
 /**
@@ -119,7 +120,7 @@ export async function invalidateRoleSessions(roleId: number): Promise<void> {
     },
   });
 
-  console.log(
+  logger.info(
     `[SESSION] Invalidated sessions for ${result.count} users with role ${roleId}`,
   );
 }
@@ -141,7 +142,7 @@ export async function invalidateMultipleUserSessions(
     },
   });
 
-  console.log(`[SESSION] Invalidated sessions for ${result.count} users`);
+  logger.info(`[SESSION] Invalidated sessions for ${result.count} users`);
 }
 
 /**

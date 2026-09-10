@@ -16,6 +16,7 @@ import {
   getAssignmentStatuses,
 } from "@/lib/actions/lookups";
 import { isFailure } from "@/lib/actions/result";
+import { logger } from "@/lib/observability/logger";
 
 type AssignmentStatus = Awaited<
   ReturnType<typeof getAssignmentStatuses>
@@ -74,7 +75,7 @@ export default function AssignmentStatusPage() {
       setTotalItems(result.pagination.total);
       setTotalPages(result.pagination.totalPages);
     } catch (error) {
-      console.error("Error fetching asignación statuses:", error);
+      logger.error("Error fetching asignación statuses:", error);
     } finally {
       setIsLoading(false);
     }
@@ -118,7 +119,7 @@ export default function AssignmentStatusPage() {
           }
           await fetchData();
         } catch (error) {
-          console.error("deleteAssignmentStatus failed:", error);
+          logger.error("deleteAssignmentStatus failed:", error);
           toast.error("No se pudo completar la operación. Intenta de nuevo.");
         }
       },

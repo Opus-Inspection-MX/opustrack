@@ -19,6 +19,7 @@ import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "@/hooks/use-toast";
+import { logger } from "@/lib/observability/logger";
 
 const stateSchema = z.object({
   name: z
@@ -125,7 +126,7 @@ export function StateForm({ initialData, isEditing = false }: StateFormProps) {
         });
         setErrors(fieldErrors);
       } else {
-        console.error("Error saving state:", error);
+        logger.error("Error saving state:", error);
         toast.error("Failed to save state. Please try again.");
       }
     } finally {

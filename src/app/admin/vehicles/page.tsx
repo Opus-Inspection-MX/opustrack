@@ -10,6 +10,7 @@ import { VehicleTable } from "@/components/vehicles/vehicle-table";
 import { toast } from "@/hooks/use-toast";
 import { isFailure } from "@/lib/actions/result";
 import { deleteVehicle, getVehicles } from "@/lib/actions/vehicles";
+import { logger } from "@/lib/observability/logger";
 
 interface Vehicle {
   id: string;
@@ -41,7 +42,7 @@ export default function VehiclesPage() {
       const data = await getVehicles();
       setVehicles(data);
     } catch (error) {
-      console.error("Error loading vehicles:", error);
+      logger.error("Error loading vehicles:", error);
     } finally {
       setLoading(false);
     }
@@ -62,7 +63,7 @@ export default function VehiclesPage() {
       router.refresh();
       loadVehicles();
     } catch (error) {
-      console.error("deleteVehicle failed:", error);
+      logger.error("deleteVehicle failed:", error);
       toast.error("Error al eliminar el vehículo");
     }
   };

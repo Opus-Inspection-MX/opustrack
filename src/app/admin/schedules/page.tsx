@@ -20,6 +20,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/hooks/use-toast";
 import { isFailure } from "@/lib/actions/result";
 import { deleteSchedule, getSchedules } from "@/lib/actions/schedules";
+import { logger } from "@/lib/observability/logger";
 
 interface Client {
   id: string;
@@ -92,7 +93,7 @@ export default function SchedulesPage() {
       const result = await response.json();
       setClientes(result.data || []);
     } catch (error) {
-      console.error("Error fetching Clientes:", error);
+      logger.error("Error fetching Clientes:", error);
     }
   }, []);
 
@@ -103,7 +104,7 @@ export default function SchedulesPage() {
       const result = await response.json();
       setStatuses(result.data || []);
     } catch (error) {
-      console.error("Error fetching statuses:", error);
+      logger.error("Error fetching statuses:", error);
     }
   }, []);
 
@@ -156,7 +157,7 @@ export default function SchedulesPage() {
       setTotalItems(result.pagination.total);
       setTotalPages(result.pagination.totalPages);
     } catch (error) {
-      console.error("Error fetching schedules:", error);
+      logger.error("Error fetching schedules:", error);
     } finally {
       setIsLoading(false);
     }
@@ -194,7 +195,7 @@ export default function SchedulesPage() {
         }
         await fetchSchedulesData();
       } catch (error) {
-        console.error("Error deleting schedule:", error);
+        logger.error("Error deleting schedule:", error);
         toast.error("Error al eliminar la programación");
       }
     }

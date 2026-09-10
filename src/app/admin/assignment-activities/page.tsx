@@ -12,6 +12,7 @@ import {
   getAllAssignmentActivities,
 } from "@/lib/actions/assignment-activities";
 import { isFailure } from "@/lib/actions/result";
+import { logger } from "@/lib/observability/logger";
 
 interface AssignmentActivityApiResponse {
   id: string;
@@ -75,7 +76,7 @@ export default function AssignmentActivitiesPage() {
         );
         setAssignmentActivities(transformed);
       } catch (error) {
-        console.error("Error fetching work activities:", error);
+        logger.error("Error fetching work activities:", error);
       } finally {
         setIsLoading(false);
       }
@@ -104,7 +105,7 @@ export default function AssignmentActivitiesPage() {
           prev.filter((item) => item.id !== id),
         );
       } catch (error) {
-        console.error("Error deleting work activity:", error);
+        logger.error("Error deleting work activity:", error);
         toast.error("Error al eliminar la actividad de trabajo");
       }
     }

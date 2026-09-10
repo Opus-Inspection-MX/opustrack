@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { withPermission } from "@/lib/auth/auth";
 import { getReportScope, incidentScopeWhere } from "@/lib/auth/report-scope";
 import { prisma } from "@/lib/database/prisma.singleton";
+import { logger } from "@/lib/observability/logger";
 
 /**
  * GET /api/schedules/incidents
@@ -207,7 +208,7 @@ export const GET = withPermission("schedules:read", async (request, user) => {
       },
     });
   } catch (error) {
-    console.error("Error fetching scheduled incidents:", error);
+    logger.error("Error fetching scheduled incidents:", error);
     return NextResponse.json(
       { error: "Error al obtener incidentes programados" },
       { status: 500 },

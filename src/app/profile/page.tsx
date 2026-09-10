@@ -26,6 +26,7 @@ import {
   updateMyPassword,
   updateMyProfile,
 } from "@/lib/actions/users";
+import { logger } from "@/lib/observability/logger";
 import { formatMX } from "@/lib/utils/datetime";
 
 interface UserStatus {
@@ -102,7 +103,7 @@ export default function FSRProfilePage() {
         });
       }
     } catch (error) {
-      console.error("Error fetching profile:", error);
+      logger.error("Error fetching profile:", error);
     } finally {
       setIsLoading(false);
     }
@@ -136,7 +137,7 @@ export default function FSRProfilePage() {
       setSuccessMessage("¡Perfil actualizado exitosamente!");
       setTimeout(() => setSuccessMessage(""), 3000);
     } catch (error) {
-      console.error("Error updating profile:", error);
+      logger.error("Error updating profile:", error);
       toast.error(
         error instanceof Error
           ? error.message
@@ -194,7 +195,7 @@ export default function FSRProfilePage() {
       setSuccessMessage("¡Contraseña cambiada exitosamente!");
       setTimeout(() => setSuccessMessage(""), 3000);
     } catch (error) {
-      console.error("Error changing password:", error);
+      logger.error("Error changing password:", error);
       toast.error(
         error instanceof Error
           ? error.message

@@ -13,6 +13,7 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { toast } from "@/hooks/use-toast";
 import { deleteVehicleStatus, getVehicleStatuses } from "@/lib/actions/lookups";
 import { isFailure } from "@/lib/actions/result";
+import { logger } from "@/lib/observability/logger";
 
 type VehicleStatus = Awaited<
   ReturnType<typeof getVehicleStatuses>
@@ -71,7 +72,7 @@ export default function VehicleStatusPage() {
       setTotalItems(result.pagination.total);
       setTotalPages(result.pagination.totalPages);
     } catch (error) {
-      console.error("Error fetching vehicle statuses:", error);
+      logger.error("Error fetching vehicle statuses:", error);
     } finally {
       setIsLoading(false);
     }
@@ -115,7 +116,7 @@ export default function VehicleStatusPage() {
           }
           await fetchData();
         } catch (error) {
-          console.error("deleteVehicleStatus failed:", error);
+          logger.error("deleteVehicleStatus failed:", error);
           toast.error("No se pudo completar la operación. Intenta de nuevo.");
         }
       },

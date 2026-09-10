@@ -12,6 +12,7 @@ import { toast } from "@/hooks/use-toast";
 import { createAssignmentActivity } from "@/lib/actions/assignment-activities";
 import { uploadAssignmentAttachment } from "@/lib/actions/assignments";
 import { isFailure } from "@/lib/actions/result";
+import { logger } from "@/lib/observability/logger";
 import { normalizeMimeType } from "@/lib/upload";
 
 type AssignmentActivityFormProps = {
@@ -101,7 +102,7 @@ export function AssignmentActivityForm({
         onSuccess();
       }
     } catch (err) {
-      console.error("Error creating work activity:", err);
+      logger.error("Error creating work activity:", err);
       toast.error((err as Error).message || "Error al crear la actividad");
       setLoading(false);
     }

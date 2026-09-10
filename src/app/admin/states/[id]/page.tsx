@@ -10,6 +10,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/hooks/use-toast";
 import { deleteState, getStateById } from "@/lib/actions/lookups";
 import { isFailure } from "@/lib/actions/result";
+import { logger } from "@/lib/observability/logger";
 
 interface ClientCenter {
   id: string;
@@ -46,7 +47,7 @@ export default function StateDetailPage({
         const data = await getStateById(Number(id));
         setState(data);
       } catch (error) {
-        console.error("Error fetching state:", error);
+        logger.error("Error fetching state:", error);
       } finally {
         setIsLoading(false);
       }
@@ -75,7 +76,7 @@ export default function StateDetailPage({
       }
       router.push("/admin/states");
     } catch (error) {
-      console.error("Error deleting state:", error);
+      logger.error("Error deleting state:", error);
       toast.error("Error al eliminar el estado");
       setIsDeleting(false);
     }

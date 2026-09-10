@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { withPermission } from "@/lib/auth/auth";
 import { getReportScope, scheduleScopeWhere } from "@/lib/auth/report-scope";
 import { prisma } from "@/lib/database/prisma.singleton";
+import { logger } from "@/lib/observability/logger";
 
 /**
  * Build an overlap filter so we return schedules whose [scheduledAt, endDate]
@@ -115,7 +116,7 @@ export const GET = withPermission("schedules:read", async (request, user) => {
       },
     });
   } catch (error) {
-    console.error("Error fetching schedules:", error);
+    logger.error("Error fetching schedules:", error);
     return NextResponse.json(
       { error: "Error al obtener programaciones" },
       { status: 500 },
@@ -187,7 +188,7 @@ export const POST = withPermission(
         message: "Programación creada exitosamente",
       });
     } catch (error) {
-      console.error("Error creating schedule:", error);
+      logger.error("Error creating schedule:", error);
       return NextResponse.json(
         { error: "Error al crear programación" },
         { status: 500 },

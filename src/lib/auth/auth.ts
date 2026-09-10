@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { cache } from "react";
+import { BusinessRuleError } from "@/lib/actions/result";
 import { authOptions } from "@/lib/auth/auth-options";
 import {
   getAccessibleRoutes,
@@ -15,6 +16,49 @@ import {
   userHasPermission,
 } from "@/lib/authz/authz";
 import { prisma } from "@/lib/database/prisma.singleton";
+import { logger } from "@/lib/observability/logger";
+
+/**
+ * Authorization denial (RF-557).
+ *
+ * Thrown when a caller is authenticated but not allowed: missing permission,
+ * forbidden action, or route outside their grants. Wrappers translate this
+ * into a 403 WITHOUT an error log — a denial is routine traffic, not a
+ * defect. Every other exception from a handler is a genuine fault: 500 +
+ * `logger.error`.
+ */
+export class AuthorizationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "AuthorizationError";
+  }
+}
+
+/** Next.js `redirect()`/`notFound()` control-flow throws must propagate. */
+function isFrameworkRedirect(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "digest" in error &&
+    typeof (error as { digest: unknown }).digest === "string" &&
+    (error as { digest: string }).digest.startsWith("NEXT_REDIRECT")
+  );
+}
+
+/**
+ * Business rules and framework redirects keep their contract: they
+ * propagate, never log. Everything else reaching this point is a fault.
+ */
+function shouldPropagate(error: unknown): boolean {
+  return error instanceof BusinessRuleError || isFrameworkRedirect(error);
+}
+
+function jsonError(message: string, status: number): Response {
+  return new Response(JSON.stringify({ error: message }), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
+}
 
 /**
  * Get the current session or return null if not authenticated
@@ -58,9 +102,10 @@ export const getAuthenticatedUser = cache(
     // session was open kept it until the JWT expired — up to 30 days of access
     // after being locked out.
     if (user.userStatus?.name !== "ACTIVO") {
-      console.log(
-        `[SESSION] Usuario ${user.id} no está ACTIVO (${user.userStatus?.name}); sesión rechazada`,
-      );
+      logger.debug("auth.session_rejected", {
+        userId: user.id,
+        status: user.userStatus?.name,
+      });
       return null;
     }
 
@@ -68,9 +113,7 @@ export const getAuthenticatedUser = cache(
     const jwtVersion = session.user.sessionVersion;
     if (jwtVersion !== undefined && user.sessionVersion !== jwtVersion) {
       // Session has been invalidated - user needs to re-login
-      console.log(
-        `[SESSION] Invalid session for user ${user.id}: JWT version ${jwtVersion} != DB version ${user.sessionVersion}`,
-      );
+      logger.debug("auth.session_version_mismatch", { userId: user.id });
       return null;
     }
 
@@ -121,7 +164,7 @@ export function assertPermission(
   permissionName: string,
 ): void {
   if (!userHasPermission(user, permissionName)) {
-    throw new Error(`Permission denied: ${permissionName}`);
+    throw new AuthorizationError(`Permission denied: ${permissionName}`);
   }
 }
 
@@ -134,7 +177,7 @@ export function assertAction(
   action: string,
 ): void {
   if (!userCanPerformAction(user, resource, action)) {
-    throw new Error(`Permission denied: ${resource}:${action}`);
+    throw new AuthorizationError(`Permission denied: ${resource}:${action}`);
   }
 }
 
@@ -146,7 +189,7 @@ export function assertRouteAccess(
   routePath: string,
 ): void {
   if (!userCanAccessRoute(user, routePath)) {
-    throw new Error(`Access denied to route: ${routePath}`);
+    throw new AuthorizationError(`Access denied to route: ${routePath}`);
   }
 }
 
@@ -266,21 +309,27 @@ export async function getCurrentUserDefaultPath(): Promise<string> {
  * Authorization wrapper for API routes
  * Usage:
  * export const POST = withAuth(async (req, user) => { ... })
+ *
+ * Split (RF-557): a missing/invalid session is 401; a fault thrown by the
+ * handler is 500 + `logger.error`. Faults used to surface as 401, hiding
+ * production breakage behind "Unauthorized".
  */
 export function withAuth(
   handler: (req: Request, user: UserWithPermissions) => Promise<Response>,
 ) {
   return async (req: Request) => {
+    let user: UserWithPermissions;
     try {
-      const user = await requireAuth();
+      user = await requireAuth();
+    } catch {
+      return jsonError("Unauthorized", 401);
+    }
+    try {
       return await handler(req, user);
     } catch (error) {
-      return new Response(
-        JSON.stringify({
-          error: error instanceof Error ? error.message : "Unauthorized",
-        }),
-        { status: 401, headers: { "Content-Type": "application/json" } },
-      );
+      if (shouldPropagate(error)) throw error;
+      logger.error("api.handler_fault", { error });
+      return jsonError("Internal server error", 500);
     }
   };
 }
@@ -289,47 +338,72 @@ export function withAuth(
  * Authorization wrapper with permission check
  * Usage:
  * export const POST = withPermission("incidents:create", async (req, user) => { ... })
+ *
+ * Split (RF-557): denial is 403 with a generic body and no error log (the
+ * permission name stays out of the response); only genuine handler faults
+ * are 500 and logged. Business rules and redirects propagate untouched.
  */
 export function withPermission(
   permissionName: string,
   handler: (req: Request, user: UserWithPermissions) => Promise<Response>,
 ) {
-  return withAuth(async (req, user) => {
+  return async (req: Request) => {
+    let user: UserWithPermissions;
+    try {
+      user = await requireAuth();
+    } catch {
+      return jsonError("Unauthorized", 401);
+    }
     try {
       assertPermission(user, permissionName);
       return await handler(req, user);
     } catch (error) {
-      return new Response(
-        JSON.stringify({
-          error: error instanceof Error ? error.message : "Forbidden",
-        }),
-        { status: 403, headers: { "Content-Type": "application/json" } },
-      );
+      if (error instanceof AuthorizationError) {
+        logger.debug("api.authorization_denied", {
+          permission: permissionName,
+        });
+        return jsonError("Forbidden", 403);
+      }
+      if (shouldPropagate(error)) throw error;
+      logger.error("api.handler_fault", { permission: permissionName, error });
+      return jsonError("Internal server error", 500);
     }
-  });
+  };
 }
 
 /**
  * Authorization wrapper with action check
  * Usage:
  * export const POST = withAction("incidents", "create", async (req, user) => { ... })
+ *
+ * Same 403/500 split as `withPermission` (RF-557).
  */
 export function withAction(
   resource: string,
   action: string,
   handler: (req: Request, user: UserWithPermissions) => Promise<Response>,
 ) {
-  return withAuth(async (req, user) => {
+  return async (req: Request) => {
+    let user: UserWithPermissions;
+    try {
+      user = await requireAuth();
+    } catch {
+      return jsonError("Unauthorized", 401);
+    }
     try {
       assertAction(user, resource, action);
       return await handler(req, user);
     } catch (error) {
-      return new Response(
-        JSON.stringify({
-          error: error instanceof Error ? error.message : "Forbidden",
-        }),
-        { status: 403, headers: { "Content-Type": "application/json" } },
-      );
+      if (error instanceof AuthorizationError) {
+        logger.debug("api.authorization_denied", {
+          resource,
+          action,
+        });
+        return jsonError("Forbidden", 403);
+      }
+      if (shouldPropagate(error)) throw error;
+      logger.error("api.handler_fault", { resource, action, error });
+      return jsonError("Internal server error", 500);
     }
-  });
+  };
 }

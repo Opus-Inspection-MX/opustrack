@@ -14,6 +14,7 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { toast } from "@/hooks/use-toast";
 import { deleteEquipment, getEquipments } from "@/lib/actions/equipments";
 import { isFailure } from "@/lib/actions/result";
+import { logger } from "@/lib/observability/logger";
 
 type Equipment = Awaited<ReturnType<typeof getEquipments>>["data"][number];
 
@@ -85,7 +86,7 @@ export default function EquipmentsPage() {
       setTotalItems(result.pagination.total);
       setTotalPages(result.pagination.totalPages);
     } catch (error) {
-      console.error("Error fetching equipments:", error);
+      logger.error("Error fetching equipments:", error);
     } finally {
       setIsLoading(false);
     }
@@ -128,7 +129,7 @@ export default function EquipmentsPage() {
           }
           await fetchData();
         } catch (error) {
-          console.error("deleteEquipment failed:", error);
+          logger.error("deleteEquipment failed:", error);
           toast.error("No se pudo completar la operación. Intenta de nuevo.");
         }
       },

@@ -24,6 +24,7 @@ import {
   getMyAssignmentsForTrips,
   startVehicleTrip,
 } from "@/lib/actions/vehicle-trips";
+import { logger } from "@/lib/observability/logger";
 import { describeEnqueueFailure, saveDraft } from "@/lib/offline/flush";
 import { normalizeMimeType } from "@/lib/upload";
 import { GPSLocationCapture } from "./gps-location-capture";
@@ -79,7 +80,7 @@ export function TripStartForm() {
       setAssignments(assignmentsData);
     } catch (err) {
       toast.error("Error al cargar los datos del formulario");
-      console.error(err);
+      logger.error("Error loading trip form data:", err);
     } finally {
       setLoadingData(false);
     }

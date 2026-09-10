@@ -15,6 +15,7 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { toast } from "@/hooks/use-toast";
 import { isFailure } from "@/lib/actions/result";
 import { deleteUser, getUsers } from "@/lib/actions/users";
+import { logger } from "@/lib/observability/logger";
 
 type UserRow = Awaited<ReturnType<typeof getUsers>>["data"][number];
 
@@ -92,7 +93,7 @@ export default function UsersPage() {
       setTotalItems(result.pagination.total);
       setTotalPages(result.pagination.totalPages);
     } catch (error) {
-      console.error("Error al cargar usuarios:", error);
+      logger.error("Error al cargar usuarios:", error);
     } finally {
       setIsLoading(false);
     }
@@ -135,7 +136,7 @@ export default function UsersPage() {
           }
           await fetchData();
         } catch (error) {
-          console.error("deleteUser failed:", error);
+          logger.error("deleteUser failed:", error);
           toast.error("No se pudo completar la operación. Intenta de nuevo.");
         }
       },

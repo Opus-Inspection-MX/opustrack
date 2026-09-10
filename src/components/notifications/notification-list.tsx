@@ -9,6 +9,7 @@ import {
   markAllNotificationsAsRead,
   markNotificationAsRead,
 } from "@/lib/actions/notifications";
+import { logger } from "@/lib/observability/logger";
 import { NotificationItem } from "./notification-item";
 
 interface Notification {
@@ -59,7 +60,7 @@ export function NotificationList({
         setUnreadCount((prev) => Math.max(0, prev - 1));
         router.refresh();
       } catch (error) {
-        console.error("Failed to mark as read:", error);
+        logger.error("Failed to mark as read:", error);
       }
     });
   };
@@ -73,7 +74,7 @@ export function NotificationList({
         setUnreadCount(0);
         router.refresh();
       } catch (error) {
-        console.error("Failed to mark all as read:", error);
+        logger.error("Failed to mark all as read:", error);
       }
     });
   };

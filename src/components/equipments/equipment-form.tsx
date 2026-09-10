@@ -26,6 +26,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { getClientsForSelect } from "@/lib/actions/clients";
 import { createEquipment, updateEquipment } from "@/lib/actions/equipments";
 import { getLinesByClientId } from "@/lib/actions/lines";
+import { logger } from "@/lib/observability/logger";
 
 interface EquipmentFormProps {
   equipment?: {
@@ -72,7 +73,7 @@ export function EquipmentForm({ equipment, mode }: EquipmentFormProps) {
       const data = await getClientsForSelect();
       setClients(data);
     } catch (error) {
-      console.error("Error loading Clientes:", error);
+      logger.error("Error loading Clientes:", error);
       setErrors({ general: "Error al cargar los Cliente" });
     } finally {
       setLoading(false);
@@ -85,7 +86,7 @@ export function EquipmentForm({ equipment, mode }: EquipmentFormProps) {
       const data = await getLinesByClientId(clientId);
       setLines(data);
     } catch (error) {
-      console.error("Error loading lines:", error);
+      logger.error("Error loading lines:", error);
       setErrors({ general: "Error al cargar las líneas" });
     } finally {
       setLoadingLines(false);
@@ -164,7 +165,7 @@ export function EquipmentForm({ equipment, mode }: EquipmentFormProps) {
       router.push("/admin/equipments");
       router.refresh();
     } catch (error) {
-      console.error("Error saving equipment:", error);
+      logger.error("Error saving equipment:", error);
       setErrors({
         general:
           error instanceof Error ? error.message : "Error al guardar el equipo",

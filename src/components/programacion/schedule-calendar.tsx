@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { logger } from "@/lib/observability/logger";
 import { formatMX, mxDateString, mxHour } from "@/lib/utils/datetime";
 
 interface ScheduledIncident {
@@ -99,7 +100,7 @@ export function ScheduleCalendar({
       const result = await response.json();
       setIncidents(result.data || []);
     } catch (error) {
-      console.error("Error fetching incidents:", error);
+      logger.error("Error fetching incidents:", error);
       setIncidents([]);
     }
   }, []);
@@ -115,7 +116,7 @@ export function ScheduleCalendar({
       const result = await response.json();
       setSchedules(result.data || []);
     } catch (error) {
-      console.error("Error fetching schedules:", error);
+      logger.error("Error fetching schedules:", error);
       setSchedules([]);
     }
   }, []);

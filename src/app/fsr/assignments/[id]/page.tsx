@@ -43,6 +43,7 @@ import {
   startAssignmentWork,
 } from "@/lib/actions/assignments";
 import { isFailure } from "@/lib/actions/result";
+import { logger } from "@/lib/observability/logger";
 import { describeEnqueueFailure, saveDraft } from "@/lib/offline/flush";
 import { formatMX } from "@/lib/utils/datetime";
 
@@ -144,7 +145,7 @@ export default function FSRAssignmentDetailPage({
       setItems(partsData);
       setAttachments(woData?.attachments || []);
     } catch (error) {
-      console.error("Error fetching data:", error);
+      logger.error("Error fetching data:", error);
       setError(
         error instanceof Error
           ? error.message
@@ -174,7 +175,7 @@ export default function FSRAssignmentDetailPage({
       }
       await fetchData();
     } catch (error) {
-      console.error("Error deleting activity:", error);
+      logger.error("Error deleting activity:", error);
       toast.error("Error al eliminar la actividad");
     }
   };
@@ -191,7 +192,7 @@ export default function FSRAssignmentDetailPage({
       }
       await fetchData();
     } catch (error) {
-      console.error("Error deleting attachment:", error);
+      logger.error("Error deleting attachment:", error);
       toast.error("Error al eliminar el archivo");
     }
   };
@@ -242,7 +243,7 @@ export default function FSRAssignmentDetailPage({
       }
       await fetchData();
     } catch (error) {
-      console.error("Error marking asignación as seen:", error);
+      logger.error("Error marking asignación as seen:", error);
       toast.error("Error al marcar como vista");
     } finally {
       setActionLoading(false);
@@ -257,7 +258,7 @@ export default function FSRAssignmentDetailPage({
     try {
       coords = await captureGps();
     } catch (error) {
-      console.error("Error capturing GPS:", error);
+      logger.error("Error capturing GPS:", error);
       toast.error(
         error instanceof Error
           ? error.message
@@ -287,7 +288,7 @@ export default function FSRAssignmentDetailPage({
       // Transport failure (connection dropped mid-submit): freeze the
       // action-time evidence as a draft for retry. Business-rule failures
       // arrive as values above, never here.
-      console.error("Error starting asignación:", error);
+      logger.error("Error starting asignación:", error);
       queueStartDraft(coords.latitude, coords.longitude);
     } finally {
       setActionLoading(false);
@@ -322,7 +323,7 @@ export default function FSRAssignmentDetailPage({
       }
       await fetchData();
     } catch (error) {
-      console.error("Error pausing asignación:", error);
+      logger.error("Error pausing asignación:", error);
       toast.error("Error al pausar la asignación");
     } finally {
       setActionLoading(false);
@@ -340,7 +341,7 @@ export default function FSRAssignmentDetailPage({
       }
       await fetchData();
     } catch (error) {
-      console.error("Error resuming asignación:", error);
+      logger.error("Error resuming asignación:", error);
       toast.error("Error al retomar el trabajo");
     } finally {
       setActionLoading(false);
@@ -359,7 +360,7 @@ export default function FSRAssignmentDetailPage({
     try {
       coords = await captureGps();
     } catch (error) {
-      console.error("Error capturing GPS:", error);
+      logger.error("Error capturing GPS:", error);
       toast.error(
         error instanceof Error
           ? error.message
@@ -388,7 +389,7 @@ export default function FSRAssignmentDetailPage({
     } catch (error) {
       // Transport failure: freeze the close evidence as a draft. The server
       // re-validates preconditions (evidencia, ODT, estado) at flush time.
-      console.error("Error closing asignación:", error);
+      logger.error("Error closing asignación:", error);
       queueCloseDraft(coords.latitude, coords.longitude);
     } finally {
       setActionLoading(false);

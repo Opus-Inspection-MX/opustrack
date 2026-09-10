@@ -26,6 +26,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { getScheduleById } from "@/lib/actions/schedules";
+import { logger } from "@/lib/observability/logger";
 import { formatMX } from "@/lib/utils/datetime";
 
 interface ScheduleIncident {
@@ -71,7 +72,7 @@ export default function ViewSchedulePage({
         const data = await getScheduleById(id);
         setSchedule(data as Schedule);
       } catch (error) {
-        console.error("Error fetching schedule:", error);
+        logger.error("Error fetching schedule:", error);
       } finally {
         setLoading(false);
       }

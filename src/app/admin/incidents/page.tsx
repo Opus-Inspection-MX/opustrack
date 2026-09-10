@@ -15,6 +15,7 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { toast } from "@/hooks/use-toast";
 import { deleteIncident, getIncidents } from "@/lib/actions/incidents";
 import { isFailure } from "@/lib/actions/result";
+import { logger } from "@/lib/observability/logger";
 import { formatIncidentDateTime } from "@/lib/utils/datetime";
 import { formatReporter } from "@/lib/utils/incident-display";
 
@@ -124,7 +125,7 @@ export default function IncidentsPage() {
       setTotalItems(result.pagination.total);
       setTotalPages(result.pagination.totalPages);
     } catch (error) {
-      console.error("Error al cargar incidentes:", error);
+      logger.error("Error al cargar incidentes:", error);
     } finally {
       setIsLoading(false);
     }
@@ -167,7 +168,7 @@ export default function IncidentsPage() {
           }
           await fetchData();
         } catch (error) {
-          console.error("deleteIncident failed:", error);
+          logger.error("deleteIncident failed:", error);
           toast.error("No se pudo completar la operación. Intenta de nuevo.");
         }
       },

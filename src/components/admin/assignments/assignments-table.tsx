@@ -17,6 +17,7 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { deleteAssignment } from "@/lib/actions/assignments";
 import { isFailure } from "@/lib/actions/result";
+import { logger } from "@/lib/observability/logger";
 import { formatMX } from "@/lib/utils/datetime";
 
 type Assignment = {
@@ -76,7 +77,7 @@ export function AssignmentsTable({
       }
       router.refresh();
     } catch (error) {
-      console.error("deleteAssignment failed:", error);
+      logger.error("deleteAssignment failed:", error);
       toast.error("Error al eliminar asignación");
     } finally {
       setDeleting(null);

@@ -20,6 +20,7 @@ import {
   getScheduleById,
   updateSchedule,
 } from "@/lib/actions/schedules";
+import { logger } from "@/lib/observability/logger";
 import { fromDatetimeLocalMX, toDatetimeLocalMX } from "@/lib/utils/datetime";
 
 interface ClientCenter {
@@ -81,7 +82,7 @@ export default function EditSchedulePage({
         }
         setClientCenters(clients);
       } catch (error) {
-        console.error("Error fetching data:", error);
+        logger.error("Error fetching data:", error);
         toast.error("Error al cargar los datos de la programación");
       } finally {
         setLoading(false);
@@ -157,7 +158,7 @@ export default function EditSchedulePage({
       router.push(`/admin/schedules/${id}`);
       router.refresh();
     } catch (error) {
-      console.error("Error updating schedule:", error);
+      logger.error("Error updating schedule:", error);
       toast.error(
         error instanceof Error
           ? error.message

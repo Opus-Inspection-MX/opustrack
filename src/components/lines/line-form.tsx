@@ -24,6 +24,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { getClientsForSelect } from "@/lib/actions/clients";
 import { createLine, updateLine } from "@/lib/actions/lines";
+import { logger } from "@/lib/observability/logger";
 
 interface LineFormProps {
   line?: {
@@ -55,7 +56,7 @@ export function LineForm({ line, mode }: LineFormProps) {
       const data = await getClientsForSelect();
       setClients(data);
     } catch (error) {
-      console.error("Error loading Clientes:", error);
+      logger.error("Error loading Clientes:", error);
       setErrors({ general: "Error al cargar los Cliente" });
     } finally {
       setLoading(false);
@@ -116,7 +117,7 @@ export function LineForm({ line, mode }: LineFormProps) {
       router.push("/admin/lines");
       router.refresh();
     } catch (error) {
-      console.error("Error saving line:", error);
+      logger.error("Error saving line:", error);
       setErrors({
         general:
           error instanceof Error ? error.message : "Error al guardar la línea",

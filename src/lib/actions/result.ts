@@ -14,8 +14,9 @@
  * toast would only hide them.
  */
 
-export type ActionFailure = { success: false; error: string };
+import { logger } from "@/lib/observability/logger";
 
+export type ActionFailure = { success: false; error: string };
 export type ActionResult<T extends object = object> =
   | ({ success: true } & T)
   | ActionFailure;
@@ -70,7 +71,8 @@ export function businessRule(message: string): never {
  *
  * Everything else keeps propagating untouched: seed invariants, Prisma faults,
  * `requirePermission` redirects and `redirect()` itself all still throw, which
- * is what they must do.
+ * is what they must do. Genuine defects (anything that is NOT a
+ * `BusinessRuleError`) are error-logged first — returned rules never are.
  */
 export async function guarded<T extends object>(
   run: () => Promise<T | ActionFailure>,
@@ -82,6 +84,7 @@ export async function guarded<T extends object>(
     if (error instanceof BusinessRuleError) {
       return rejected(error.message);
     }
+    logger.error("action.defect", { error });
     throw error;
   }
 }

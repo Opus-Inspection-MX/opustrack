@@ -6,6 +6,7 @@ import {
   incidentCreatedEmail,
   vacationRequestedEmail,
 } from "@/lib/mail/templates";
+import { logger } from "@/lib/observability/logger";
 import { createNotificationsForUsers } from "./notification-service";
 import {
   ENTITY_TYPES,
@@ -66,7 +67,7 @@ async function emit(
       priority: payload.priority ?? NOTIFICATION_PRIORITY.LOW,
     });
   } catch (error) {
-    console.error("[notify-events] Error dispatching notifications:", error);
+    logger.error("[notify-events] Error dispatching notifications:", error);
   }
 
   // After the notification is written, and separately: a mail failure must not
@@ -92,7 +93,7 @@ async function emailRecipients(
       text: email.body,
     });
   } catch (error) {
-    console.error("[notify-events] Error resolving mail recipients:", error);
+    logger.error("[notify-events] Error resolving mail recipients:", error);
   }
 }
 

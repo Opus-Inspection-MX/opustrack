@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { canAccessRoute, isPublicRoute } from "@/lib/authz/route-access";
+import { logger } from "@/lib/observability/logger";
 
 export async function middleware(req: NextRequest) {
   const { pathname, search } = req.nextUrl;
@@ -37,7 +38,7 @@ export async function middleware(req: NextRequest) {
   const exactRoutePaths = (token.exactRoutePaths as string[] | undefined) ?? [];
 
   if (!roleNames?.length || !defaultPath) {
-    console.error("[Middleware] Missing role data in token:", {
+    logger.error("[Middleware] Missing role data in token:", {
       roleNames,
       defaultPath,
     });
@@ -48,7 +49,7 @@ export async function middleware(req: NextRequest) {
   // before that field existed cannot be authorized safely, so force a re-login
   // rather than falling back to a permissive default.
   if (!Array.isArray(routePaths)) {
-    console.warn(
+    logger.warn(
       "[Middleware] Token predates routePaths — forcing re-authentication",
     );
     return redirectToLogin(req, pathname, search);
@@ -66,7 +67,7 @@ export async function middleware(req: NextRequest) {
       pathname,
     )
   ) {
-    console.warn(
+    logger.warn(
       `[Middleware] Access denied for ${roleNames.join("+")} to ${pathname}`,
     );
     return NextResponse.redirect(new URL("/unauthorized", req.url));

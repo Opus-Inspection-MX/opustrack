@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { requireAuth, requirePermission } from "@/lib/auth/auth";
 import { userHasPermission } from "@/lib/authz/authz";
 import { prisma } from "@/lib/database/prisma.singleton";
+import { logger } from "@/lib/observability/logger";
 import {
   assertOfflineFreshness,
   claimIdempotencyKey,
@@ -626,7 +627,7 @@ export async function deleteVehicleTrip(id: string) {
         );
       }
     } catch (error) {
-      console.error("Error deleting trip photos:", error);
+      logger.error("Error deleting trip photos:", error);
       // Continue even if photo deletion fails
     }
 

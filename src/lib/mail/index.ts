@@ -1,3 +1,4 @@
+import { logger } from "@/lib/observability/logger";
 import {
   createSmtpTransport,
   type MailMessage,
@@ -39,7 +40,7 @@ export async function sendMail(message: MailMessage): Promise<void> {
   try {
     await getMailTransport().send(message);
   } catch (error) {
-    console.error(
+    logger.error(
       `[mail] No se pudo enviar "${message.subject}" a ${message.to.length} destinatario(s):`,
       error,
     );

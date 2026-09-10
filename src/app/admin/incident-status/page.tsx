@@ -17,6 +17,7 @@ import {
   getIncidentStatuses,
 } from "@/lib/actions/lookups";
 import { isFailure } from "@/lib/actions/result";
+import { logger } from "@/lib/observability/logger";
 
 type IncidentStatus = Awaited<
   ReturnType<typeof getIncidentStatuses>
@@ -100,7 +101,7 @@ export default function IncidentStatusPage() {
       setTotalItems(result.pagination.total);
       setTotalPages(result.pagination.totalPages);
     } catch (error) {
-      console.error("Error fetching incident statuses:", error);
+      logger.error("Error fetching incident statuses:", error);
     } finally {
       setIsLoading(false);
     }
@@ -144,7 +145,7 @@ export default function IncidentStatusPage() {
           }
           await fetchData();
         } catch (error) {
-          console.error("deleteIncidentStatus failed:", error);
+          logger.error("deleteIncidentStatus failed:", error);
           toast.error("No se pudo completar la operación. Intenta de nuevo.");
         }
       },

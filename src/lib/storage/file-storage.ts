@@ -8,6 +8,7 @@
  */
 
 import { del, put } from "@vercel/blob";
+import { logger } from "@/lib/observability/logger";
 
 export type FileUploadResult = {
   url: string;
@@ -28,7 +29,7 @@ export function getStorageProvider(): "vercel-blob" | "filesystem" {
   const provider = process.env.FILE_STORAGE_PROVIDER || "vercel-blob";
 
   if (provider !== "vercel-blob" && provider !== "filesystem") {
-    console.warn(
+    logger.warn(
       `Invalid FILE_STORAGE_PROVIDER: ${provider}. Using vercel-blob.`,
     );
     return "vercel-blob";
@@ -66,7 +67,7 @@ async function uploadToVercelBlob(
       provider: "vercel-blob",
     };
   } catch (error) {
-    console.error("Error uploading to Vercel Blob:", error);
+    logger.error("Error uploading to Vercel Blob:", error);
     throw new Error("Failed to upload file to Vercel Blob");
   }
 }
@@ -105,7 +106,7 @@ async function uploadToFilesystem(
       provider: "filesystem",
     };
   } catch (error) {
-    console.error("Error uploading to filesystem:", error);
+    logger.error("Error uploading to filesystem:", error);
     throw new Error("Failed to upload file to filesystem");
   }
 }
@@ -212,7 +213,7 @@ async function deleteFromVercelBlob(url: string): Promise<void> {
   try {
     await del(url);
   } catch (error) {
-    console.error("Error deleting from Vercel Blob:", error);
+    logger.error("Error deleting from Vercel Blob:", error);
     throw new Error("Failed to delete file from Vercel Blob");
   }
 }
@@ -228,7 +229,7 @@ async function deleteFromFilesystem(filepath: string): Promise<void> {
     const fullPath = path.join(process.cwd(), "public", filepath);
     await fs.unlink(fullPath);
   } catch (error) {
-    console.error("Error deleting from filesystem:", error);
+    logger.error("Error deleting from filesystem:", error);
     // Don't throw - file might already be deleted
   }
 }

@@ -1,5 +1,6 @@
 import { execSync } from "node:child_process";
 import { PrismaClient } from "@prisma/client";
+import { logger } from "@/lib/observability/logger";
 
 // Use a separate test database
 const TEST_DATABASE_URL =
@@ -40,7 +41,7 @@ export async function resetTestDatabase() {
       stdio: "inherit",
     });
   } catch (error) {
-    console.error("Failed to reset test database:", error);
+    logger.error("Failed to reset test database:", error);
     throw error;
   }
 }
@@ -177,7 +178,7 @@ export async function seedTestDatabase() {
 
     return { client, adminRole, fsrRole, reporterRole, activeStatus };
   } catch (error) {
-    console.error("Failed to seed test database:", error);
+    logger.error("Failed to seed test database:", error);
     throw error;
   }
 }
@@ -209,7 +210,7 @@ export async function cleanupTestDatabase() {
     await prisma.state.deleteMany();
     await prisma.userStatus.deleteMany();
   } catch (error) {
-    console.error("Failed to cleanup test database:", error);
+    logger.error("Failed to cleanup test database:", error);
     throw error;
   }
 }

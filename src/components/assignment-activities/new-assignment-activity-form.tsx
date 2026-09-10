@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
 import { createAssignmentActivity } from "@/lib/actions/assignment-activities";
 import { isFailure } from "@/lib/actions/result";
+import { logger } from "@/lib/observability/logger";
 import { toDatetimeLocalMX } from "@/lib/utils/datetime";
 
 export default function NewAssignmentActivityForm() {
@@ -73,7 +74,7 @@ export default function NewAssignmentActivityForm() {
         router.push(`/admin/assignments/${formData.assignmentId}`);
       }
     } catch (error) {
-      console.error("Error creating work activity:", error);
+      logger.error("Error creating work activity:", error);
       toast.error(
         error instanceof Error
           ? error.message

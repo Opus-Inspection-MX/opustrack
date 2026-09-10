@@ -19,6 +19,7 @@ import {
   createSchedule,
   getClientsForSchedules,
 } from "@/lib/actions/schedules";
+import { logger } from "@/lib/observability/logger";
 import { fromDatetimeLocalMX } from "@/lib/utils/datetime";
 
 interface ClientCenter {
@@ -57,7 +58,7 @@ export default function NewSchedulePage() {
         const clients = await getClientsForSchedules();
         setClientCenters(clients);
       } catch (error) {
-        console.error("Error fetching Cliente centers:", error);
+        logger.error("Error fetching Cliente centers:", error);
         toast.error("Error al cargar los centros Cliente");
       } finally {
         setIsLoading(false);
@@ -133,7 +134,7 @@ export default function NewSchedulePage() {
       router.push("/admin/schedules");
       router.refresh();
     } catch (error) {
-      console.error("Error creating schedule:", error);
+      logger.error("Error creating schedule:", error);
       toast.error(
         error instanceof Error
           ? error.message

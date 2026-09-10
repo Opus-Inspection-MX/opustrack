@@ -10,6 +10,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { logger } from "@/lib/observability/logger";
 
 interface LogoutButtonProps {
   variant?:
@@ -44,7 +45,7 @@ export function LogoutButton({
         redirect: true,
       });
     } catch (error) {
-      console.error("Error logging out:", error);
+      logger.error("Error logging out:", error);
       setIsLoggingOut(false);
     }
   };

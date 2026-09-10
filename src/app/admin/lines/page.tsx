@@ -14,6 +14,7 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { toast } from "@/hooks/use-toast";
 import { deleteLine, getLines } from "@/lib/actions/lines";
 import { isFailure } from "@/lib/actions/result";
+import { logger } from "@/lib/observability/logger";
 
 type Line = Awaited<ReturnType<typeof getLines>>["data"][number];
 
@@ -87,7 +88,7 @@ export default function LinesPage() {
       setTotalItems(result.pagination.total);
       setTotalPages(result.pagination.totalPages);
     } catch (error) {
-      console.error("Error fetching lines:", error);
+      logger.error("Error fetching lines:", error);
     } finally {
       setIsLoading(false);
     }
@@ -131,7 +132,7 @@ export default function LinesPage() {
           }
           await fetchData();
         } catch (error) {
-          console.error("deleteLine failed:", error);
+          logger.error("deleteLine failed:", error);
           toast.error("No se pudo completar la operación. Intenta de nuevo.");
         }
       },

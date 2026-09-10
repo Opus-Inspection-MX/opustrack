@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/table";
 import { useLiveRefresh } from "@/hooks/use-live-refresh";
 import { getFsrsForAssignment } from "@/lib/actions/incidents";
+import { logger } from "@/lib/observability/logger";
 import { formatMX, mxDateString } from "@/lib/utils/datetime";
 
 interface Incident {
@@ -126,7 +127,7 @@ export function ScheduleActivities({
       const result = await response.json();
       setIncidents(result.data || []);
     } catch (error) {
-      console.error("Error fetching incidents:", error);
+      logger.error("Error fetching incidents:", error);
       setIncidents([]);
     } finally {
       setLoading(false);
@@ -140,7 +141,7 @@ export function ScheduleActivities({
       const result = await response.json();
       setIncidentTypes(result.data || []);
     } catch (error) {
-      console.error("Error fetching incident types:", error);
+      logger.error("Error fetching incident types:", error);
     }
   }, []);
 
@@ -151,7 +152,7 @@ export function ScheduleActivities({
       const result = await response.json();
       setSchedules(result.data || []);
     } catch (error) {
-      console.error("Error fetching schedules:", error);
+      logger.error("Error fetching schedules:", error);
     }
   }, []);
 
@@ -162,7 +163,7 @@ export function ScheduleActivities({
       const result = await response.json();
       setClientes(result.data || []);
     } catch (error) {
-      console.error("Error fetching Clientes:", error);
+      logger.error("Error fetching Clientes:", error);
     }
   }, []);
 
@@ -171,7 +172,7 @@ export function ScheduleActivities({
       const result = await getFsrsForAssignment();
       setFsrs(result);
     } catch (error) {
-      console.error("Error fetching FSRs:", error);
+      logger.error("Error fetching FSRs:", error);
     }
   }, []);
 

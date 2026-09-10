@@ -14,6 +14,7 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { toast } from "@/hooks/use-toast";
 import { deleteState, getStatesAdmin } from "@/lib/actions/lookups";
 import { isFailure } from "@/lib/actions/result";
+import { logger } from "@/lib/observability/logger";
 
 type State = Awaited<ReturnType<typeof getStatesAdmin>>["data"][number];
 
@@ -74,7 +75,7 @@ export default function StatesPage() {
       setTotalItems(result.pagination.total);
       setTotalPages(result.pagination.totalPages);
     } catch (error) {
-      console.error("Error fetching states:", error);
+      logger.error("Error fetching states:", error);
     } finally {
       setIsLoading(false);
     }
@@ -118,7 +119,7 @@ export default function StatesPage() {
           }
           await fetchData();
         } catch (error) {
-          console.error("deleteState failed:", error);
+          logger.error("deleteState failed:", error);
           toast.error("No se pudo completar la operación. Intenta de nuevo.");
         }
       },

@@ -5,6 +5,7 @@ import { requireAuth } from "@/lib/auth/auth";
 import { assertClientAccessAsync } from "@/lib/auth/filters";
 import { userHasPermission } from "@/lib/authz/authz";
 import { prisma } from "@/lib/database/prisma.singleton";
+import { logger } from "@/lib/observability/logger";
 import { businessRule, guarded } from "./result";
 
 /**
@@ -189,7 +190,7 @@ export async function deleteIncidentAttachment(id: string) {
         attachment.provider as "vercel-blob" | "filesystem",
       );
     } catch (error) {
-      console.error("Error deleting file:", error);
+      logger.error("Error deleting file:", error);
     }
 
     revalidateIncidentAttachmentPaths(attachment.incidentId);

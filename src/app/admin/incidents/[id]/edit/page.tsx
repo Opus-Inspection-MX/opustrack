@@ -16,6 +16,7 @@ import {
   getIncidentById,
   getIncidentFormOptions,
 } from "@/lib/actions/incidents";
+import { logger } from "@/lib/observability/logger";
 
 type Incident = Awaited<ReturnType<typeof getIncidentById>>;
 type FormOptions = Awaited<ReturnType<typeof getIncidentFormOptions>>;
@@ -62,7 +63,7 @@ export default function EditIncidentPage({
         setAssignmentItems(Object.fromEntries(entries));
       }
     } catch (error) {
-      console.error("Error fetching data:", error);
+      logger.error("Error fetching data:", error);
     } finally {
       setLoading(false);
     }

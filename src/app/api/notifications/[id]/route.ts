@@ -5,6 +5,7 @@ import {
   getNotificationById,
   markAsRead,
 } from "@/lib/notifications/notification-service";
+import { logger } from "@/lib/observability/logger";
 
 export async function GET(
   _request: NextRequest,
@@ -25,7 +26,7 @@ export async function GET(
 
     return NextResponse.json(notification);
   } catch (error) {
-    console.error("Error fetching notification:", error);
+    logger.error("Error fetching notification:", error);
     return NextResponse.json(
       { error: "Failed to fetch notification" },
       { status: 500 },
@@ -50,7 +51,7 @@ export async function PATCH(
 
     return NextResponse.json({ error: "Invalid operation" }, { status: 400 });
   } catch (error) {
-    console.error("Error updating notification:", error);
+    logger.error("Error updating notification:", error);
     return NextResponse.json(
       { error: "Failed to update notification" },
       { status: 500 },
@@ -70,7 +71,7 @@ export async function DELETE(
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Error deleting notification:", error);
+    logger.error("Error deleting notification:", error);
     return NextResponse.json(
       { error: "Failed to delete notification" },
       { status: 500 },
