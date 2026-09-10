@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BackButton } from "@/components/common/back-button";
+import { BroadcastTargetsForm } from "@/components/roles/broadcast-targets-form";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -10,8 +11,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { getRoleById } from "@/lib/actions/roles";
-import { requireRouteAccess } from "@/lib/auth/auth";
+import { getRoleBroadcastTargets } from "@/lib/actions/broadcasts";
+import { getRoleById, getRolesForSelect } from "@/lib/actions/roles";
+import { getAuthenticatedUser, requireRouteAccess } from "@/lib/auth/auth";
 
 function Row({
   label,
@@ -40,6 +42,15 @@ export default async function RoleDetailPage({
   if (!role) notFound();
 
   const permissions = role.rolePermission.map((rp) => rp.permission);
+
+  // "Puede difundir a" is ROOT-only (granting reach is granting power).
+  // The form action re-checks with `assertCanManageRoles`, so hiding it
+  // here is UX, not the gate.
+  const me = await getAuthenticatedUser();
+  const showBroadcastTargets = me?.isSuperuser === true;
+  const [broadcastTargets, allRoles] = showBroadcastTargets
+    ? await Promise.all([getRoleBroadcastTargets(role.id), getRolesForSelect()])
+    : [{ targetIds: [] }, []];
 
   return (
     <div className="space-y-6">
@@ -115,6 +126,15 @@ export default async function RoleDetailPage({
           </CardContent>
         </Card>
       </div>
+
+      {showBroadcastTargets && (
+        <BroadcastTargetsForm
+          roleId={role.id}
+          roleName={role.name}
+          allRoles={allRoles}
+          initialTargetIds={broadcastTargets.targetIds}
+        />
+      )}
     </div>
   );
 }
