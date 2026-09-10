@@ -336,17 +336,21 @@ con un error claro en español neutro y la actividad no se persiste.
 
 El sistema siembra los siguientes permisos y los asigna a los roles:
 
-| Permiso | ADMIN_VACACIONES | FSR | CLIENT | GUEST |
-|---|:---:|:---:|:---:|:---:|
-| `holidays:read` | ✓ | — | — | — |
-| `holidays:create` | ✓ | — | — | — |
-| `holidays:update` | ✓ | — | — | — |
-| `holidays:delete` | ✓ | — | — | — |
-| `vacations:read` | ✓ | ✓ (propias) | — | — |
-| `vacations:create` | ✓ | ✓ (propias) | — | — |
-| `vacations:approve` | ✓ | — | — | — |
-| `vacations:delete` | ✓ | ✓ (propias) | — | — |
-| `vacations:manage` | ✓ | — | — | — |
+| Permiso | ADMIN_VACACIONES | FSR | EMPLEADO | CLIENT | GUEST |
+|---|:---:|:---:|:---:|:---:|:---:|
+| `holidays:read` | ✓ | — | — | — | — |
+| `holidays:create` | ✓ | — | — | — | — |
+| `holidays:update` | ✓ | — | — | — | — |
+| `holidays:delete` | ✓ | — | — | — | — |
+| `vacations:read` | ✓ | ✓ (propias) | ✓ (propias) | — | — |
+| `vacations:create` | ✓ | ✓ (propias) | ✓ (propias) | — | — |
+| `vacations:approve` | ✓ | — | — | — | — |
+| `vacations:delete` | ✓ | ✓ (propias) | ✓ (propias) | — | — |
+| `vacations:manage` | ✓ | — | — | — | — |
+
+GUEST no tiene vacaciones de autoservicio: es cuenta de consulta read-only,
+igual que REPORTER (ver RF-112 en [01](./01-auth-rbac.md)). EMPLEADO vive en
+`/vacations` (su `defaultPath`) con autoservicio completo de las propias.
 
 Rutas (el acceso se resuelve por prefijo con `routePaths` del JWT; solo ROOT pasa todos los checks, ver [01](./01-auth-rbac.md)):
 
@@ -409,11 +413,56 @@ cambia, se editan reglas en vez de desplegar.
 
 ---
 
+### RF-709 · Cancelación de vacación con aviso (`vacation_cancelled`)
+
+`deleteVacation` es soft-delete y avisa a quien todavía necesita saberlo. La
+audiencia depende de quién cancela:
+
+- Si el **solicitante** cancela su propia solicitud → se avisa a los
+  aprobadores (`vacations:approve`), con el nombre del solicitante en el texto
+  para que el dueño de la cola sepa qué fila desapareció.
+- Si un **admin** cancela la solicitud de otro → se avisa al solicitante.
+
+Tipo `VACATION_CANCELLED`, prioridad `MEDIUM`, solo in-app por defecto. Se
+dispara post-commit y nunca lanza (contrato de `dispatch`, ver RF-471 en
+[08](./08-notificaciones.md)).
+
+#### Escenario: El solicitante cancela la propia
+
+- DADO una vacación PENDIENTE o APROBADA del FSR "Alicia"
+- CUANDO Alicia la elimina
+- ENTONCES los aprobadores reciben `vacation_cancelled` con su nombre y Alicia
+  no se auto-notifica (exclusión del actor)
+
+#### Escenario: El admin cancela la de otro
+
+- DADO una vacación de "Alicia"
+- CUANDO un ADMIN_VACACIONES la elimina
+- ENTONCES Alicia recibe `vacation_cancelled` y los aprobadores no
+
+---
+
+### RF-710 · Recordatorio de inicio (`vacation_starting_soon`, idempotente)
+
+El cron (RF-474 en [08](./08-notificaciones.md)) busca cada corrida las
+vacaciones APROBADAS cuyo `startDate` cae en el día calendario de mañana en
+CDMX y recuerda al solicitante.
+
+**Reglas de negocio:**
+- Tipo `VACATION_STARTING_SOON`, prioridad `MEDIUM`, solo in-app por defecto;
+  la matriz sigue decidiendo el canal.
+- Idempotencia: la vacación que ya tiene una `Notification` de ese tipo
+  apuntándole (mismo tipo + entidad vacación) se omite, así que corridos
+  solapados nunca duplican.
+- Una vacación envenenada no silencia el resto del lote; el resumen cuenta
+  `{ checked, sent, skipped }`. Nunca lanza.
+
+---
+
 ## No-objetivos (confirmados, fuera de alcance)
 
 - Vacaciones con granularidad sub-día (medio día).
 - Reasignación automática de asignaciones existentes al aprobar una vacación.
-- Notificaciones de aprobación de vacación (dependen del gap de notificaciones, RF-450+).
 - Auto-siembra de día electoral (el ADMIN lo crea manualmente como festivo de ocurrencia única).
 - Días de vacación no contiguos (solo modelo de rango).
 - Bloqueo en la habilitación de `IncidentAssignee` (no hay fecha de trabajo en esa entidad; la
@@ -429,6 +478,8 @@ La lógica pura de este dominio está cubierta por pruebas unitarias (Vitest):
   `isFsrUnavailable`, `unavailableFsrsForDate`.
 - `src/lib/validations/holidays.test.ts` — `HolidayCreateSchema`, `validateHolidayXOR`.
 - `src/lib/validations/vacations.test.ts` — `VacationCreateSchema`, `validateVacationDates`.
+- `src/lib/notifications/vacation-reminders.test.ts` — idempotencia de
+  `vacation_starting_soon` (detalle en [08](./08-notificaciones.md)).
 
 ---
 
