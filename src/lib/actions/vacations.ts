@@ -19,10 +19,11 @@ import { getHolidayDatesForYear } from "@/lib/utils/availability";
 import { mxDayRange } from "@/lib/utils/datetime";
 import { countBusinessDays } from "@/lib/utils/vacation-balance";
 import {
+  VacationCreateSchema,
   type VacationFormData,
   validateVacationDates,
 } from "@/lib/validations/vacations";
-import { businessRule, guarded, rejected } from "./result";
+import { businessRule, guarded, ok, rejected } from "./result";
 
 /**
  * Whether the caller administers OTHER people's vacations.
@@ -188,6 +189,7 @@ export async function getEmployeesForVacations() {
 export async function createVacation(data: VacationFormData) {
   const caller = await requirePermission("vacations:create");
 
+  VacationCreateSchema.parse(data);
   validateVacationDates(data);
 
   // Normalize the picked calendar dates to CDMX day bounds so single-day and
@@ -362,7 +364,7 @@ async function resolveVacation(
 
   revalidatePath("/admin/vacations");
   revalidatePath("/vacations");
-  return { success: true, data: vacation };
+  return ok({ data: vacation });
 }
 
 export interface VacationAssignmentConflict {
@@ -474,7 +476,7 @@ export async function deleteVacation(id: string) {
 
   revalidatePath("/admin/vacations");
   revalidatePath("/vacations");
-  return { success: true };
+  return ok();
 }
 
 // ---------------------------------------------------------------------------

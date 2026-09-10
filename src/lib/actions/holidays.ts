@@ -5,9 +5,12 @@ import { redirect } from "next/navigation";
 import { requirePermission } from "@/lib/auth/auth";
 import { prisma } from "@/lib/database/prisma.singleton";
 import {
+  HolidayCreateSchema,
   type HolidayFormData,
+  HolidayUpdateSchema,
   validateHolidayXOR,
 } from "@/lib/validations/holidays";
+import { ok } from "./result";
 
 /**
  * Get all active holidays ordered by month and day.
@@ -42,6 +45,7 @@ export async function getHolidayById(id: number) {
 export async function createHoliday(data: HolidayFormData) {
   await requirePermission("holidays:create");
 
+  HolidayCreateSchema.parse(data);
   validateHolidayXOR(data);
 
   const holiday = await prisma.holiday.create({
@@ -56,7 +60,7 @@ export async function createHoliday(data: HolidayFormData) {
   });
 
   revalidatePath("/admin/holidays");
-  return { success: true, data: holiday };
+  return ok({ data: holiday });
 }
 
 /**
@@ -65,6 +69,7 @@ export async function createHoliday(data: HolidayFormData) {
 export async function updateHoliday(id: number, data: HolidayFormData) {
   await requirePermission("holidays:update");
 
+  HolidayUpdateSchema.parse(data);
   validateHolidayXOR(data);
 
   const holiday = await prisma.holiday.update({
@@ -81,7 +86,7 @@ export async function updateHoliday(id: number, data: HolidayFormData) {
 
   revalidatePath("/admin/holidays");
   revalidatePath(`/admin/holidays/${id}/edit`);
-  return { success: true, data: holiday };
+  return ok({ data: holiday });
 }
 
 /**
