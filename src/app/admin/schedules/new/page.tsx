@@ -14,6 +14,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
+import { isFailure } from "@/lib/actions/result";
 import {
   createSchedule,
   getClientesForSchedules,
@@ -114,13 +115,20 @@ export default function NewSchedulePage() {
     setIsSubmitting(true);
 
     try {
-      await createSchedule({
+      const result = await createSchedule({
         title: formData.title.trim(),
         description: formData.description?.trim() || undefined,
         scheduledAt: fromDatetimeLocalMX(formData.scheduledAt) ?? new Date(),
         endDate: fromDatetimeLocalMX(formData.endDate) ?? undefined,
         clienteIds: formData.clienteIds,
       });
+
+      // A denied Cliente is a RETURNED rule now, not a throw: without this
+      // check the form would navigate away as if the schedule existed.
+      if (isFailure(result)) {
+        toast.error(result.error);
+        return;
+      }
 
       router.push("/admin/schedules");
       router.refresh();

@@ -9,40 +9,42 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
  * programación with no Clientes is reachable by anyone.
  */
 
-const { prismaMock, requirePermission, canAccessCliente } = vi.hoisted(() => ({
-  prismaMock: {
-    schedule: {
-      findMany: vi.fn(),
-      count: vi.fn(),
-      findUnique: vi.fn(),
-      create: vi.fn(),
-      update: vi.fn(),
+const { prismaMock, requirePermission, canAccessClienteAsync } = vi.hoisted(
+  () => ({
+    prismaMock: {
+      schedule: {
+        findMany: vi.fn(),
+        count: vi.fn(),
+        findUnique: vi.fn(),
+        create: vi.fn(),
+        update: vi.fn(),
+      },
+      scheduleCliente: {
+        createMany: vi.fn(),
+        updateMany: vi.fn(),
+        findMany: vi.fn(),
+        upsert: vi.fn(),
+      },
+      incident: { count: vi.fn() },
+      cliente: { findMany: vi.fn() },
+      $transaction: vi.fn(),
     },
-    scheduleCliente: {
-      createMany: vi.fn(),
-      updateMany: vi.fn(),
-      findMany: vi.fn(),
-      upsert: vi.fn(),
-    },
-    incident: { count: vi.fn() },
-    cliente: { findMany: vi.fn() },
-    $transaction: vi.fn(),
-  },
-  requirePermission: vi.fn(async (_name: string) => ({
-    id: "u1",
-    role: { name: "ADMINISTRADOR" },
-  })),
-  canAccessCliente: vi.fn((_user: unknown, _clienteId: unknown) => true),
-}));
+    requirePermission: vi.fn(async (_name: string) => ({
+      id: "u1",
+      role: { name: "ADMINISTRADOR" },
+    })),
+    canAccessClienteAsync: vi.fn((_user: unknown, _clienteId: unknown) => true),
+  }),
+);
 
 vi.mock("@/lib/database/prisma.singleton", () => ({ prisma: prismaMock }));
 vi.mock("@/lib/auth/auth", () => ({
   requirePermission: (name: string) => requirePermission(name),
 }));
 vi.mock("@/lib/auth/filters", () => ({
-  canAccessCliente: (user: unknown, clienteId: unknown) =>
-    canAccessCliente(user, clienteId),
-  getClienteWhereClause: () => ({}),
+  canAccessClienteAsync: (user: unknown, clienteId: unknown) =>
+    canAccessClienteAsync(user, clienteId),
+  getClienteWhereClauseAsync: async () => ({}),
 }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
@@ -65,7 +67,7 @@ const lastWhere = () =>
 
 beforeEach(() => {
   vi.clearAllMocks();
-  canAccessCliente.mockReturnValue(true);
+  canAccessClienteAsync.mockReturnValue(true);
   prismaMock.schedule.findMany.mockResolvedValue([]);
   prismaMock.schedule.count.mockResolvedValue(0);
   prismaMock.schedule.create.mockResolvedValue({ id: "s1" });
@@ -136,30 +138,40 @@ describe("createSchedule · acceso a Clientes (RF-409)", () => {
   const base = {
     title: "Programación",
     scheduledAt: new Date("2026-06-10T09:00:00.000Z"),
-    clienteIds: ["c1", "c2"],
+    clienteIds: ["c100000001", "c200000002"],
   };
 
   it("verifica el acceso a cada Cliente", async () => {
     await createSchedule(base);
 
-    expect(canAccessCliente).toHaveBeenCalledTimes(2);
+    expect(canAccessClienteAsync).toHaveBeenCalledTimes(2);
   });
 
   it("rechaza y no escribe si falta acceso a alguno", async () => {
-    canAccessCliente.mockImplementation(
-      (_u: unknown, id: unknown) => id !== "c2",
+    canAccessClienteAsync.mockImplementation(
+      (_u: unknown, id: unknown) => id !== "c200000002",
     );
 
-    await expect(createSchedule(base)).rejects.toThrow(/c2/);
+    // A denied rule is RETURNED, never thrown: production strips the message
+    // of anything a Server Action throws, so the rejection must cross the
+    // boundary as a value the UI can show.
+    const result = await createSchedule(base);
+    expect(result).toEqual({
+      success: false,
+      error: expect.stringMatching(/c2/),
+    });
     expect(prismaMock.schedule.create).not.toHaveBeenCalled();
   });
 
   it("deduplica los Clientes recibidos", async () => {
-    await createSchedule({ ...base, clienteIds: ["c1", "c1", "c1"] });
+    await createSchedule({
+      ...base,
+      clienteIds: ["c100000001", "c100000001", "c100000001"],
+    });
 
     expect(prismaMock.scheduleCliente.createMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: [{ scheduleId: "s1", clienteId: "c1" }],
+        data: [{ scheduleId: "s1", clienteId: "c100000001" }],
       }),
     );
   });
@@ -167,7 +179,7 @@ describe("createSchedule · acceso a Clientes (RF-409)", () => {
   it("una programación global (sin Clientes) no verifica acceso", async () => {
     await createSchedule({ ...base, clienteIds: [] });
 
-    expect(canAccessCliente).not.toHaveBeenCalled();
+    expect(canAccessClienteAsync).not.toHaveBeenCalled();
     expect(prismaMock.schedule.create).toHaveBeenCalled();
   });
 });

@@ -6,7 +6,6 @@ import {
   CheckCircle,
   CheckCircle2,
   ClipboardList,
-  Package,
   TrendingUp,
   Users,
   Wrench,
@@ -55,14 +54,6 @@ const reports = [
     href: "/admin/reports/vehicle-trips",
     icon: Car,
     color: "bg-violet-500",
-  },
-  {
-    title: "Uso de Partes",
-    description:
-      "Consumo de inventario, partes mas utilizadas y costos asociados.",
-    href: "/admin/reports/parts-usage",
-    icon: Package,
-    color: "bg-pink-500",
   },
   {
     title: "Cumplimiento Diario de Viajes",

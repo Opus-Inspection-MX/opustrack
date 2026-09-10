@@ -2,8 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { requirePermission } from "@/lib/auth/auth";
-import { getClienteWhereClause } from "@/lib/auth/filters";
+import { resolveAssignmentStatusId } from "@/lib/assignments/ensure-fsrs";
+import { requireAuth, requirePermission } from "@/lib/auth/auth";
+import { assertClienteAccessAsync } from "@/lib/auth/filters";
+import { getReportScope, incidentScopeWhere } from "@/lib/auth/report-scope";
 import { whereHasPermission, whereHasRole } from "@/lib/authz/user-queries";
 import { prisma } from "@/lib/database/prisma.singleton";
 import {
@@ -23,6 +25,10 @@ import {
   syncIncidentState,
 } from "@/lib/state-machine";
 import { isFsrUnavailable } from "@/lib/utils/availability";
+import {
+  AssignmentCreateSchema,
+  AssignmentUpdateSchema,
+} from "@/lib/validations/assignments";
 import { businessRule, guarded } from "./result";
 
 export type AssignmentFormData = {
@@ -72,12 +78,12 @@ async function assertAssigneesAreFsrs(userIds: string[]) {
  */
 export async function getAssignments() {
   const user = await requirePermission("assignments:read");
-  const clienteFilter = getClienteWhereClause(user);
+  const scope = await getReportScope(user);
 
   const assignments = await prisma.assignment.findMany({
     where: {
       active: true,
-      incident: { ...clienteFilter },
+      incident: { ...incidentScopeWhere(scope) },
     },
     include: {
       incident: {
@@ -135,32 +141,10 @@ export async function getAssignmentById(id: string) {
   });
 
   if (assignment?.incident?.clienteId) {
-    const { assertClienteAccess } = await import("@/lib/auth/filters");
-    assertClienteAccess(user, assignment.incident.clienteId);
+    await assertClienteAccessAsync(user, assignment.incident.clienteId);
   }
 
   return assignment;
-}
-
-/**
- * Resolve an AssignmentStatus id by name within a transaction (or default client).
- * Throws if the catalog row is missing — state-machine code requires the seed
- * to be present.
- */
-async function resolveAssignmentStatusId(
-  client:
-    | typeof prisma
-    | Parameters<Parameters<typeof prisma.$transaction>[0]>[0],
-  name: AssignmentState,
-): Promise<number> {
-  const row = await client.assignmentStatus.findUnique({
-    where: { name },
-    select: { id: true },
-  });
-  if (!row) {
-    throw new Error(`AssignmentStatus '${name}' no existe en el catálogo`);
-  }
-  return row.id;
 }
 
 /**
@@ -173,6 +157,9 @@ export async function createAssignment(data: AssignmentFormData) {
   const user = await requirePermission("assignments:create");
 
   return guarded(async () => {
+    // Validation-only: the schema rejects malformed payloads up front; the
+    // body keeps using `data` so optional-field behavior is unchanged.
+    AssignmentCreateSchema.parse(data);
     const uniqueAssignees = Array.from(new Set(data.assigneeIds));
 
     await assertAssigneesAreFsrs(uniqueAssignees);
@@ -247,6 +234,9 @@ export async function updateAssignment(id: string, data: AssignmentFormData) {
   const user = await requirePermission("assignments:update");
 
   return guarded(async () => {
+    // The action takes `id` separately, so the schema's `id` is omitted —
+    // the payload itself is still validated.
+    AssignmentUpdateSchema.omit({ id: true }).parse(data);
     const uniqueAssignees = Array.from(new Set(data.assigneeIds));
 
     const existingAssignment = await prisma.assignment.findUnique({
@@ -426,111 +416,6 @@ export async function updateAssignment(id: string, data: AssignmentFormData) {
 }
 
 /**
- * Ensure the given FSRs have a real, visible Assignment on this incident.
- *
- * Incident-level "assign FSR" UI (quick-edit popover, incident edit form,
- * bulk actions) only used to grant IncidentAssignee eligibility and notify —
- * without ever creating the Assignment the FSR actually sees in
- * /fsr/assignments. Callers pass the newly-added FSR ids here right after
- * granting eligibility so the notification's promise is backed by real work.
- *
- * Reuses the incident's current active Assignment if one exists (adding
- * assignees and reviving it to ASIGNADO if it was PENDIENTE_DE_ASIGNACION),
- * or creates one. No-op if fsrIds is empty.
- */
-export async function ensureFsrsAssignedToIncident(
-  incidentId: number,
-  fsrIds: string[],
-  actorId: string,
-): Promise<void> {
-  if (fsrIds.length === 0) return;
-
-  const result = await prisma.$transaction(async (tx) => {
-    const existingAssignment = await tx.assignment.findFirst({
-      where: { incidentId, active: true },
-      select: { id: true, status: { select: { name: true } } },
-      orderBy: { createdAt: "desc" },
-    });
-
-    let assignmentId: string;
-    let toAdd: string[];
-
-    if (existingAssignment) {
-      assignmentId = existingAssignment.id;
-      const existingAssignees = await tx.assignmentAssignee.findMany({
-        where: { assignmentId, active: true },
-        select: { userId: true },
-      });
-      const existingIds = new Set(existingAssignees.map((a) => a.userId));
-      toAdd = fsrIds.filter((u) => !existingIds.has(u));
-
-      for (const userId of toAdd) {
-        await tx.assignmentAssignee.upsert({
-          where: { assignmentId_userId: { assignmentId, userId } },
-          create: { assignmentId, userId, active: true },
-          update: { active: true, assignedAt: new Date() },
-        });
-      }
-
-      if (
-        toAdd.length > 0 &&
-        existingAssignment.status?.name ===
-          ASSIGNMENT_STATE.PENDIENTE_DE_ASIGNACION
-      ) {
-        const statusId = await resolveAssignmentStatusId(
-          tx,
-          ASSIGNMENT_STATE.ASIGNADO,
-        );
-        await tx.assignment.update({
-          where: { id: assignmentId },
-          data: { statusId, assignedAt: new Date() },
-        });
-      }
-    } else {
-      const statusId = await resolveAssignmentStatusId(
-        tx,
-        ASSIGNMENT_STATE.ASIGNADO,
-      );
-      const created = await tx.assignment.create({
-        data: {
-          incidentId,
-          statusId,
-          assignedAt: new Date(),
-          assignees: { create: fsrIds.map((userId) => ({ userId })) },
-        },
-        select: { id: true },
-      });
-      assignmentId = created.id;
-      toAdd = fsrIds;
-    }
-
-    await syncIncidentState(incidentId, tx);
-
-    return { assignmentId, toAdd };
-  });
-
-  if (result.toAdd.length === 0) return;
-
-  const incident = await prisma.incident.findUnique({
-    where: { id: incidentId },
-    select: { title: true },
-  });
-
-  await notifyAssignmentAssigned(
-    result.assignmentId,
-    incident?.title,
-    result.toAdd,
-    actorId,
-  );
-
-  revalidatePath("/admin/assignments");
-  revalidatePath(`/admin/assignments/${result.assignmentId}`);
-  revalidatePath("/fsr/assignments");
-  revalidatePath(`/fsr/assignments/${result.assignmentId}`);
-  revalidatePath(`/admin/incidents/${incidentId}`);
-}
-
-/**
  * Delete assignment (soft delete)
  */
 export async function deleteAssignment(id: string) {
@@ -546,6 +431,7 @@ export async function deleteAssignment(id: string) {
             select: {
               assignmentActivities: { where: { active: true } },
               attachments: { where: { active: true } },
+              items: { where: { active: true } },
             },
           },
         },
@@ -557,8 +443,9 @@ export async function deleteAssignment(id: string) {
 
       const hasActiveActivities = assignment._count.assignmentActivities > 0;
       const hasActiveAttachments = assignment._count.attachments > 0;
+      const hasActiveItems = assignment._count.items > 0;
 
-      if (hasActiveActivities || hasActiveAttachments) {
+      if (hasActiveActivities || hasActiveAttachments || hasActiveItems) {
         const issues = [];
         if (hasActiveActivities)
           issues.push(
@@ -566,6 +453,9 @@ export async function deleteAssignment(id: string) {
           );
         if (hasActiveAttachments)
           issues.push(`${assignment._count.attachments} archivo(s)`);
+        // RF-250: recorded parts are cost records. Deleting the assignment
+        // with them active would orphan spend without a trace.
+        if (hasActiveItems) issues.push(`${assignment._count.items} parte(s)`);
         businessRule(
           `No se puede eliminar. La asignación tiene: ${issues.join(", ")} activos.`,
         );
@@ -737,7 +627,7 @@ export async function startAssignmentWork(formData: FormData) {
     const address = formData.get("address");
 
     if (typeof id !== "string" || id.trim() === "") {
-      throw new Error("assignmentId requerido");
+      businessRule("assignmentId requerido");
     }
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
       businessRule("Ubicación GPS inválida");
@@ -802,35 +692,38 @@ export async function startAssignmentWork(formData: FormData) {
  */
 export async function pauseAssignment(id: string) {
   const user = await requirePermission("assignments:update");
-  const result = await prisma.$transaction(async (tx) => {
-    const current = await loadAssignmentForTransition(tx, id);
-    await ensureCallerIsAssigneeOrAdmin(user.id, current.assignees);
-    await assertIncidentEditable(tx, current.incidentId);
-    const from = current.status?.name as AssignmentState;
-    assertAssignmentTransition(from, ASSIGNMENT_STATE.EN_PROGRESO);
-    const statusId = await resolveAssignmentStatusId(
-      tx,
-      ASSIGNMENT_STATE.EN_PROGRESO,
-    );
-    const updated = await tx.assignment.update({
-      where: { id },
-      data: { statusId },
-      include: { incident: true, ...assigneesInclude, status: true },
+
+  return guarded(async () => {
+    const result = await prisma.$transaction(async (tx) => {
+      const current = await loadAssignmentForTransition(tx, id);
+      await ensureCallerIsAssigneeOrAdmin(user.id, current.assignees);
+      await assertIncidentEditable(tx, current.incidentId);
+      const from = current.status?.name as AssignmentState;
+      assertAssignmentTransition(from, ASSIGNMENT_STATE.EN_PROGRESO);
+      const statusId = await resolveAssignmentStatusId(
+        tx,
+        ASSIGNMENT_STATE.EN_PROGRESO,
+      );
+      const updated = await tx.assignment.update({
+        where: { id },
+        data: { statusId },
+        include: { incident: true, ...assigneesInclude, status: true },
+      });
+      await syncIncidentState(current.incidentId, tx);
+      return { assignment: updated, incidentId: current.incidentId };
     });
-    await syncIncidentState(current.incidentId, tx);
-    return { assignment: updated, incidentId: current.incidentId };
+
+    const assigneeIds = result.assignment.assignees.map((a) => a.userId);
+    await notifyAssignmentUpdated(
+      id,
+      result.assignment.incident?.title,
+      assigneeIds,
+      user.id,
+    );
+
+    revalidateAssignmentPaths(id, result.incidentId);
+    return { data: result.assignment };
   });
-
-  const assigneeIds = result.assignment.assignees.map((a) => a.userId);
-  await notifyAssignmentUpdated(
-    id,
-    result.assignment.incident?.title,
-    assigneeIds,
-    user.id,
-  );
-
-  revalidateAssignmentPaths(id, result.incidentId);
-  return { success: true, data: result.assignment };
 }
 
 /**
@@ -838,35 +731,38 @@ export async function pauseAssignment(id: string) {
  */
 export async function resumeAssignment(id: string) {
   const user = await requirePermission("assignments:update");
-  const result = await prisma.$transaction(async (tx) => {
-    const current = await loadAssignmentForTransition(tx, id);
-    await ensureCallerIsAssigneeOrAdmin(user.id, current.assignees);
-    await assertIncidentEditable(tx, current.incidentId);
-    const from = current.status?.name as AssignmentState;
-    assertAssignmentTransition(from, ASSIGNMENT_STATE.INICIADO);
-    const statusId = await resolveAssignmentStatusId(
-      tx,
-      ASSIGNMENT_STATE.INICIADO,
-    );
-    const updated = await tx.assignment.update({
-      where: { id },
-      data: { statusId },
-      include: { incident: true, ...assigneesInclude, status: true },
+
+  return guarded(async () => {
+    const result = await prisma.$transaction(async (tx) => {
+      const current = await loadAssignmentForTransition(tx, id);
+      await ensureCallerIsAssigneeOrAdmin(user.id, current.assignees);
+      await assertIncidentEditable(tx, current.incidentId);
+      const from = current.status?.name as AssignmentState;
+      assertAssignmentTransition(from, ASSIGNMENT_STATE.INICIADO);
+      const statusId = await resolveAssignmentStatusId(
+        tx,
+        ASSIGNMENT_STATE.INICIADO,
+      );
+      const updated = await tx.assignment.update({
+        where: { id },
+        data: { statusId },
+        include: { incident: true, ...assigneesInclude, status: true },
+      });
+      await syncIncidentState(current.incidentId, tx);
+      return { assignment: updated, incidentId: current.incidentId };
     });
-    await syncIncidentState(current.incidentId, tx);
-    return { assignment: updated, incidentId: current.incidentId };
+
+    const assigneeIds = result.assignment.assignees.map((a) => a.userId);
+    await notifyAssignmentUpdated(
+      id,
+      result.assignment.incident?.title,
+      assigneeIds,
+      user.id,
+    );
+
+    revalidateAssignmentPaths(id, result.incidentId);
+    return { data: result.assignment };
   });
-
-  const assigneeIds = result.assignment.assignees.map((a) => a.userId);
-  await notifyAssignmentUpdated(
-    id,
-    result.assignment.incident?.title,
-    assigneeIds,
-    user.id,
-  );
-
-  revalidateAssignmentPaths(id, result.incidentId);
-  return { success: true, data: result.assignment };
 }
 
 /**
@@ -891,7 +787,7 @@ export async function closeAssignment(formData: FormData) {
     const notes = formData.get("notes");
 
     if (typeof id !== "string" || id.trim() === "") {
-      throw new Error("assignmentId requerido");
+      businessRule("assignmentId requerido");
     }
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
       businessRule("Ubicación GPS final inválida");
@@ -992,36 +888,39 @@ export async function closeAssignment(formData: FormData) {
  */
 export async function reopenAssignment(id: string) {
   const user = await requirePermission("assignments:reopen");
-  const result = await prisma.$transaction(async (tx) => {
-    const current = await loadAssignmentForTransition(tx, id);
-    const from = current.status?.name as AssignmentState;
-    assertAssignmentTransition(from, ASSIGNMENT_STATE.EN_PROGRESO);
-    const statusId = await resolveAssignmentStatusId(
-      tx,
-      ASSIGNMENT_STATE.EN_PROGRESO,
-    );
-    const updated = await tx.assignment.update({
-      where: { id },
-      data: {
-        statusId,
-        finishedAt: null,
-      },
-      include: { incident: true, ...assigneesInclude, status: true },
+
+  return guarded(async () => {
+    const result = await prisma.$transaction(async (tx) => {
+      const current = await loadAssignmentForTransition(tx, id);
+      const from = current.status?.name as AssignmentState;
+      assertAssignmentTransition(from, ASSIGNMENT_STATE.EN_PROGRESO);
+      const statusId = await resolveAssignmentStatusId(
+        tx,
+        ASSIGNMENT_STATE.EN_PROGRESO,
+      );
+      const updated = await tx.assignment.update({
+        where: { id },
+        data: {
+          statusId,
+          finishedAt: null,
+        },
+        include: { incident: true, ...assigneesInclude, status: true },
+      });
+      await syncIncidentState(current.incidentId, tx);
+      return { assignment: updated, incidentId: current.incidentId };
     });
-    await syncIncidentState(current.incidentId, tx);
-    return { assignment: updated, incidentId: current.incidentId };
+
+    const assigneeIds = result.assignment.assignees.map((a) => a.userId);
+    await notifyAssignmentReopened(
+      id,
+      result.assignment.incident?.title,
+      assigneeIds,
+      user.id,
+    );
+
+    revalidateAssignmentPaths(id, result.incidentId);
+    return { data: result.assignment };
   });
-
-  const assigneeIds = result.assignment.assignees.map((a) => a.userId);
-  await notifyAssignmentReopened(
-    id,
-    result.assignment.incident?.title,
-    assigneeIds,
-    user.id,
-  );
-
-  revalidateAssignmentPaths(id, result.incidentId);
-  return { success: true, data: result.assignment };
 }
 
 /**
@@ -1029,11 +928,13 @@ export async function reopenAssignment(id: string) {
  */
 export async function getMyAssignments() {
   const user = await requirePermission("assignments:read");
+  const scope = await getReportScope(user);
 
   const assignments = await prisma.assignment.findMany({
     where: {
       assignees: { some: { userId: user.id, active: true } },
       active: true,
+      incident: { ...incidentScopeWhere(scope) },
     },
     include: {
       incident: {
@@ -1061,11 +962,12 @@ export async function getMyAssignments() {
  * Get form options for assignments
  */
 export async function getAssignmentFormOptions() {
-  await requirePermission("assignments:read");
+  const user = await requirePermission("assignments:read");
+  const scope = await getReportScope(user);
 
   const [incidents, users, assignmentStatuses] = await Promise.all([
     prisma.incident.findMany({
-      where: { active: true },
+      where: { active: true, ...incidentScopeWhere(scope) },
       include: {
         type: true,
         status: true,
@@ -1134,7 +1036,7 @@ export async function uploadAssignmentAttachment(formData: FormData) {
     const descriptionField = formData.get("description");
 
     if (typeof assignmentId !== "string" || assignmentId.trim() === "") {
-      throw new Error("assignmentId requerido");
+      businessRule("assignmentId requerido");
     }
     if (!(file instanceof File)) {
       businessRule("Archivo inválido");
@@ -1145,6 +1047,10 @@ export async function uploadAssignmentAttachment(formData: FormData) {
       file.type ||
       "application/octet-stream";
 
+    // Dynamic import on purpose: file-storage pulls in `@vercel/blob`, which
+    // every assignment read would otherwise pay for. The auth/filters
+    // await-imports that used to sit next to these were dead cycle-breakers
+    // (no cycle exists) and are now static imports at the top of this file.
     const { assertAllowedUpload, uploadFileFromBuffer } = await import(
       "@/lib/storage/file-storage"
     );
@@ -1160,10 +1066,8 @@ export async function uploadAssignmentAttachment(formData: FormData) {
     }
     await assertIncidentEditable(prisma, assignment.incidentId);
     if (assignment.incident?.clienteId) {
-      const { assertClienteAccess } = await import("@/lib/auth/filters");
-      const { requireAuth } = await import("@/lib/auth/auth");
       const user = await requireAuth();
-      assertClienteAccess(user, assignment.incident.clienteId);
+      await assertClienteAccessAsync(user, assignment.incident.clienteId);
     }
 
     const arrayBuffer = await file.arrayBuffer();
@@ -1317,7 +1221,7 @@ export async function updateAssignmentStatus(id: string, statusId: number) {
       // For state-machine-managed transitions that require GPS/timestamps,
       // bail out early to force callers to use the dedicated actions.
       if (to === ASSIGNMENT_STATE.INICIADO || to === ASSIGNMENT_STATE.CERRADO) {
-        throw new Error(
+        businessRule(
           `Para transicionar a ${to} usa la acción dedicada (captura GPS requerida)`,
         );
       }

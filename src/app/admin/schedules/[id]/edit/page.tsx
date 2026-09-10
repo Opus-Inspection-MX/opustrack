@@ -14,6 +14,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
+import { isFailure } from "@/lib/actions/result";
 import {
   getClientesForSchedules,
   getScheduleById,
@@ -138,13 +139,20 @@ export default function EditSchedulePage({
     setIsSubmitting(true);
 
     try {
-      await updateSchedule(id, {
+      const result = await updateSchedule(id, {
         title: formData.title.trim(),
         description: formData.description?.trim() || undefined,
         scheduledAt: fromDatetimeLocalMX(formData.scheduledAt) ?? new Date(),
         endDate: fromDatetimeLocalMX(formData.endDate) ?? undefined,
         clienteIds: formData.clienteIds,
       });
+
+      // A denied Cliente is a RETURNED rule now, not a throw: without this
+      // check the form would navigate away as if the save had happened.
+      if (isFailure(result)) {
+        toast.error(result.error);
+        return;
+      }
 
       router.push(`/admin/schedules/${id}`);
       router.refresh();

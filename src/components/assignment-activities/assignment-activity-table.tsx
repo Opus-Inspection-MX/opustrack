@@ -34,7 +34,6 @@ interface AssignmentActivity {
   performedAt: string;
   assignmentId: string;
   assignmentTitle: string;
-  partsCount: number;
   active: boolean;
   createdAt: string;
   updatedAt: string;
@@ -70,7 +69,6 @@ export function AssignmentActivityTable({
               <TableHead>Descripción</TableHead>
               <TableHead>Asignación</TableHead>
               <TableHead>Realizado</TableHead>
-              <TableHead>Partes Usadas</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="w-[70px]">Acciones</TableHead>
             </TableRow>
@@ -97,9 +95,6 @@ export function AssignmentActivityTable({
                   </div>
                 </TableCell>
                 <TableCell>{formatMX(activity.performedAt)}</TableCell>
-                <TableCell>
-                  <Badge variant="outline">{activity.partsCount} partes</Badge>
-                </TableCell>
                 <TableCell>
                   <Badge variant={activity.active ? "default" : "secondary"}>
                     {activity.active ? "Activo" : "Inactivo"}

@@ -4,9 +4,17 @@ import type { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requirePermission } from "@/lib/auth/auth";
-import { canAccessCliente, getClienteWhereClause } from "@/lib/auth/filters";
+import {
+  canAccessClienteAsync,
+  getClienteWhereClauseAsync,
+} from "@/lib/auth/filters";
 import { prisma } from "@/lib/database/prisma.singleton";
-import { rejected } from "./result";
+import {
+  ScheduleCreateSchema,
+  ScheduleQuickUpdateSchema,
+  ScheduleUpdateSchema,
+} from "@/lib/validations/schedules";
+import { businessRule, guarded, rejected } from "./result";
 
 export type ScheduleFormData = {
   title: string;
@@ -154,8 +162,8 @@ async function assertAllClienteAccess(
   clienteIds: string[],
 ) {
   for (const v of clienteIds) {
-    if (!canAccessCliente(user, v)) {
-      throw new Error(`Sin acceso al Cliente ${v}`);
+    if (!(await canAccessClienteAsync(user, v))) {
+      businessRule(`Sin acceso al Cliente ${v}`);
     }
   }
 }
@@ -165,35 +173,39 @@ async function assertAllClienteAccess(
  */
 export async function createSchedule(data: ScheduleFormData) {
   const user = await requirePermission("schedules:create");
-  const clienteIds = [...new Set(data.clienteIds)];
-  await assertAllClienteAccess(user, clienteIds);
 
-  const schedule = await prisma.$transaction(async (tx) => {
-    const created = await tx.schedule.create({
-      data: {
-        title: data.title,
-        description: data.description || null,
-        scheduledAt: data.scheduledAt,
-        endDate: data.endDate || null,
-        statusId: data.statusId ?? null,
-      },
+  return guarded(async () => {
+    ScheduleCreateSchema.parse(data);
+    const clienteIds = [...new Set(data.clienteIds)];
+    await assertAllClienteAccess(user, clienteIds);
+
+    const schedule = await prisma.$transaction(async (tx) => {
+      const created = await tx.schedule.create({
+        data: {
+          title: data.title,
+          description: data.description || null,
+          scheduledAt: data.scheduledAt,
+          endDate: data.endDate || null,
+          statusId: data.statusId ?? null,
+        },
+      });
+      await tx.scheduleCliente.createMany({
+        data: clienteIds.map((clienteId) => ({
+          scheduleId: created.id,
+          clienteId,
+        })),
+        skipDuplicates: true,
+      });
+      return tx.schedule.findUnique({
+        where: { id: created.id },
+        include: scheduleInclude,
+      });
     });
-    await tx.scheduleCliente.createMany({
-      data: clienteIds.map((clienteId) => ({
-        scheduleId: created.id,
-        clienteId,
-      })),
-      skipDuplicates: true,
-    });
-    return tx.schedule.findUnique({
-      where: { id: created.id },
-      include: scheduleInclude,
-    });
+
+    revalidatePath("/admin/schedules");
+    revalidatePath("/admin/programacion");
+    return { data: schedule };
   });
-
-  revalidatePath("/admin/schedules");
-  revalidatePath("/admin/programacion");
-  return { success: true, data: schedule };
 }
 
 async function syncScheduleClientes(
@@ -244,31 +256,36 @@ async function syncScheduleClientes(
  */
 export async function updateSchedule(id: string, data: ScheduleFormData) {
   const user = await requirePermission("schedules:update");
-  const clienteIds = [...new Set(data.clienteIds)];
-  await assertAllClienteAccess(user, clienteIds);
 
-  const schedule = await prisma.$transaction(async (tx) => {
-    await tx.schedule.update({
-      where: { id },
-      data: {
-        title: data.title,
-        description: data.description || null,
-        scheduledAt: data.scheduledAt,
-        endDate: data.endDate || null,
-        statusId: data.statusId ?? null,
-      },
+  return guarded(async () => {
+    // The action takes `id` separately, so the schema's `id` is omitted.
+    ScheduleUpdateSchema.omit({ id: true }).parse(data);
+    const clienteIds = [...new Set(data.clienteIds)];
+    await assertAllClienteAccess(user, clienteIds);
+
+    const schedule = await prisma.$transaction(async (tx) => {
+      await tx.schedule.update({
+        where: { id },
+        data: {
+          title: data.title,
+          description: data.description || null,
+          scheduledAt: data.scheduledAt,
+          endDate: data.endDate || null,
+          statusId: data.statusId ?? null,
+        },
+      });
+      await syncScheduleClientes(tx, id, clienteIds);
+      return tx.schedule.findUnique({
+        where: { id },
+        include: scheduleInclude,
+      });
     });
-    await syncScheduleClientes(tx, id, clienteIds);
-    return tx.schedule.findUnique({
-      where: { id },
-      include: scheduleInclude,
-    });
+
+    revalidatePath("/admin/schedules");
+    revalidatePath(`/admin/schedules/${id}`);
+    revalidatePath("/admin/programacion");
+    return { data: schedule };
   });
-
-  revalidatePath("/admin/schedules");
-  revalidatePath(`/admin/schedules/${id}`);
-  revalidatePath("/admin/programacion");
-  return { success: true, data: schedule };
 }
 
 /**
@@ -280,29 +297,33 @@ export async function quickUpdateSchedule(
   data: ScheduleQuickUpdateData,
 ) {
   const user = await requirePermission("schedules:update");
-  const clienteIds = [...new Set(data.clienteIds)];
-  if (data.endDate && data.endDate < data.scheduledAt) {
-    return rejected(
-      "La fecha de fin no puede ser anterior a la fecha de inicio",
-    );
-  }
-  await assertAllClienteAccess(user, clienteIds);
 
-  await prisma.$transaction(async (tx) => {
-    await tx.schedule.update({
-      where: { id },
-      data: {
-        scheduledAt: data.scheduledAt,
-        endDate: data.endDate ?? null,
-      },
+  return guarded(async () => {
+    ScheduleQuickUpdateSchema.parse(data);
+    const clienteIds = [...new Set(data.clienteIds)];
+    if (data.endDate && data.endDate < data.scheduledAt) {
+      return rejected(
+        "La fecha de fin no puede ser anterior a la fecha de inicio",
+      );
+    }
+    await assertAllClienteAccess(user, clienteIds);
+
+    await prisma.$transaction(async (tx) => {
+      await tx.schedule.update({
+        where: { id },
+        data: {
+          scheduledAt: data.scheduledAt,
+          endDate: data.endDate ?? null,
+        },
+      });
+      await syncScheduleClientes(tx, id, clienteIds);
     });
-    await syncScheduleClientes(tx, id, clienteIds);
-  });
 
-  revalidatePath("/admin/schedules");
-  revalidatePath(`/admin/schedules/${id}`);
-  revalidatePath("/admin/programacion");
-  return { success: true };
+    revalidatePath("/admin/schedules");
+    revalidatePath(`/admin/schedules/${id}`);
+    revalidatePath("/admin/programacion");
+    return {};
+  });
 }
 
 /**
@@ -337,7 +358,7 @@ export async function getClientesForSchedules() {
   const user = await requirePermission("schedules:read");
 
   const clientes = await prisma.cliente.findMany({
-    where: { active: true, ...getClienteWhereClause(user) },
+    where: { active: true, ...(await getClienteWhereClauseAsync(user)) },
     orderBy: { name: "asc" },
   });
 

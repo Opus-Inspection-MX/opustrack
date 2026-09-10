@@ -23,7 +23,6 @@ interface AssignmentActivityApiResponse {
       title: string;
     } | null;
   } | null;
-  workParts?: unknown[];
   active: boolean;
   createdAt: Date | string;
   updatedAt: Date | string;
@@ -35,7 +34,6 @@ interface AssignmentActivity {
   performedAt: string;
   assignmentId: string;
   assignmentTitle: string;
-  partsCount: number;
   active: boolean;
   createdAt: string;
   updatedAt: string;
@@ -64,7 +62,6 @@ export default function AssignmentActivitiesPage() {
             assignmentId: activity.assignmentId,
             assignmentTitle:
               activity.assignment?.incident?.title || "No incident linked",
-            partsCount: activity.workParts?.length || 0,
             active: activity.active,
             createdAt:
               typeof activity.createdAt === "string"
