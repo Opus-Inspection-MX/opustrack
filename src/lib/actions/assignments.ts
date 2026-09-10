@@ -17,6 +17,10 @@ import {
   notifyIncidentClosed,
 } from "@/lib/notifications";
 import {
+  assertOfflineFreshness,
+  readOfflineFields,
+} from "@/lib/offline/idempotency";
+import {
   ASSIGNMENT_STATE,
   type AssignmentState,
   assertAssignmentPreconditions,
@@ -793,6 +797,30 @@ export async function closeAssignment(formData: FormData) {
       businessRule("Ubicación GPS final inválida");
     }
 
+    // RF-260: offline draft-and-retry. Freshness is enforced before any
+    // write; a known idempotency key converges on the live row instead of
+    // re-executing the transition (a retried close never double-applies).
+    const offline = readOfflineFields(formData);
+    if (offline.capturedAt !== undefined) {
+      assertOfflineFreshness(offline.capturedAt);
+    }
+    if (offline.idempotencyKey) {
+      const replay = await prisma.actionIdempotency.findUnique({
+        where: { key: offline.idempotencyKey },
+      });
+      if (replay?.targetId) {
+        const live = await prisma.assignment.findUnique({
+          where: { id: replay.targetId },
+          include: { incident: true, ...assigneesInclude, status: true },
+        });
+        // No notifications on replay: the first flush already notified.
+        if (live) {
+          revalidateAssignmentPaths(replay.targetId, live.incidentId);
+          return { data: live };
+        }
+      }
+    }
+
     const result = await prisma.$transaction(async (tx) => {
       const current = await loadAssignmentForTransition(tx, id);
       await ensureCallerIsAssigneeOrAdmin(user.id, current.assignees);
@@ -843,6 +871,29 @@ export async function closeAssignment(formData: FormData) {
       });
       const { before: incidentBefore, after: incidentAfter } =
         await syncIncidentState(current.incidentId, tx);
+      if (offline.idempotencyKey) {
+        // Claim the key so a retried draft converges on this target. Only
+        // P2002 (a concurrent flush won the race) is swallowed — any other
+        // fault propagates. Sequential retries never reach here twice: the
+        // pre-tx lookup above converges first.
+        await tx.actionIdempotency
+          .create({
+            data: {
+              key: offline.idempotencyKey,
+              action: "closeAssignment",
+              targetId: updated.id,
+            },
+          })
+          .catch((error: unknown) => {
+            if (
+              typeof error === "object" &&
+              error !== null &&
+              (error as { code?: string }).code === "P2002"
+            )
+              return;
+            throw error;
+          });
+      }
       return {
         assignment: updated,
         incidentId: current.incidentId,

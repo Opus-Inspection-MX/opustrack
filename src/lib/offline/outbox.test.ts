@@ -8,13 +8,13 @@ import {
   newOutboxKey,
   OUTBOX_BACKOFF_MS,
   OUTBOX_MAX_ENTRIES,
+  type OutboxEntry,
   persistEntries,
   recordAttempt,
   removeEntry,
+  type StorageLike,
   stagePhoto,
   takeStagedPhoto,
-  type OutboxEntry,
-  type StorageLike,
 } from "./outbox";
 
 /**

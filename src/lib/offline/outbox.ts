@@ -173,9 +173,7 @@ export function recordAttempt(
   store?: StorageLike | null,
 ): OutboxEntry[] {
   const next = readRaw(store ?? defaultStore()).map((e) =>
-    e.key === key
-      ? { ...e, attempts: e.attempts + 1, lastError }
-      : e,
+    e.key === key ? { ...e, attempts: e.attempts + 1, lastError } : e,
   );
   persistEntries(next, store);
   return next;

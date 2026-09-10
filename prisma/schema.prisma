@@ -767,6 +767,19 @@ model VacationPeriod {
   @@map("vacation_periods")
 }
 
+/// Dedupe record for offline draft-and-retry (RF-260, RF-261).
+/// One row per flushed idempotency key: a retried draft with a known key
+/// converges on the live target instead of re-executing the transition.
+/// Rows are observability, never authority — guards always re-run.
+model ActionIdempotency {
+  key       String   @id
+  action    String
+  targetId  String?
+  createdAt DateTime @default(now())
+
+  @@map("action_idempotency")
+}
+
 /// Refacciones o equipo usados en una asignación, como lista abierta.
 ///
 /// Deliberately NOT a foreign key into a parts catalogue. The previous design
