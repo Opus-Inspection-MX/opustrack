@@ -46,6 +46,7 @@ export const ENTITY_TYPES = {
   USER: "user",
   SCHEDULE: "schedule",
   VACATION: "vacation",
+  BROADCAST: "broadcast",
 } as const;
 
 export type EntityType = (typeof ENTITY_TYPES)[keyof typeof ENTITY_TYPES];

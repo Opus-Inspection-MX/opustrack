@@ -16,7 +16,8 @@ import type {
  * `dispatch` dedupes the recipients, excludes the actor (unless the caller
  * opts them back in), renders the copy from the catalog, then consults the
  * channel policy: in-app rows go through `createNotificationsForUsers`, mail
- * goes through the outbox (queued, then sent immediately). NEVER throws — a
+ * goes through the outbox (queued, then sent immediately). A caller-supplied
+ * `channels` override (broadcasts) skips the matrix lookup. NEVER throws — a
  * notification failure must never roll back the business operation behind it.
  *
  * Policy lookup is cached in memory for 60 s; `clearChannelPolicyCache()`
@@ -38,9 +39,15 @@ export interface DispatchOptions {
   includeActor?: boolean;
   entity?: DispatchEntity;
   broadcastId?: string;
+  /**
+   * Per-call channel switches. Broadcasts carry their own (the composer picks
+   * Notificación/Correo per broadcast); automatic events omit this and fall
+   * back to the channel-policy matrix.
+   */
+  channels?: ChannelPolicy;
 }
 
-interface ChannelPolicy {
+export interface ChannelPolicy {
   inApp: boolean;
   email: boolean;
 }
@@ -130,7 +137,7 @@ export async function dispatch(
 
     const def = NOTIFICATION_EVENTS[type];
     const rendered = def.render(options.ctx);
-    const channels = await getEventChannels(type);
+    const channels = options.channels ?? (await getEventChannels(type));
     if (!channels.inApp && !channels.email) return;
 
     const priority: NotificationPriority = def.priority;
