@@ -109,5 +109,4 @@ describe("cron de notificaciones", () => {
     expect(body.broadcasts).toEqual({ claimed: 0, delivered: 0 });
     expect(body.emails).toEqual({ attempted: 2, sent: 1, failed: 1 });
   });
-
 });

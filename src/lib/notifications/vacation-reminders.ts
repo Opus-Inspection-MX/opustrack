@@ -78,10 +78,7 @@ export async function sendVacationStartingSoonReminders(
         summary.sent += 1;
       } catch (error) {
         // One poisoned vacation must not silence the rest of the batch.
-        logger.error(
-          "[vacation-reminders] Error reminding vacation:",
-          error,
-        );
+        logger.error("[vacation-reminders] Error reminding vacation:", error);
         summary.skipped += 1;
       }
     }

@@ -122,5 +122,4 @@ describe("fachada de eventos", () => {
       }),
     );
   });
-
 });
