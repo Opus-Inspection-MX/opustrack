@@ -212,6 +212,11 @@ export const MENU: MenuSection[] = [
     title: "Configuración",
     items: [
       { title: "Ciclo de Vida", url: "/admin/lifecycle", icon: Workflow },
+      {
+        title: "Canales de notificación",
+        url: "/admin/settings/notifications",
+        icon: Bell,
+      },
       { title: "Tipos de Incidente", url: "/admin/incident-types", icon: Tag },
       {
         title: "Estado de Incidente",

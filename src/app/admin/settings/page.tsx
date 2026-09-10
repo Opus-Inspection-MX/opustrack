@@ -1,4 +1,5 @@
 import {
+  BellRing,
   ClipboardList,
   Palmtree,
   Route,
@@ -55,6 +56,13 @@ export default async function SettingsPage() {
       icon: Palmtree,
       href: "/admin/settings/vacation-accrual",
       color: "text-teal-600",
+    },
+    {
+      title: "Canales de Notificación",
+      description: "Eventos por notificación o correo, y estado SMTP",
+      icon: BellRing,
+      href: "/admin/settings/notifications",
+      color: "text-blue-600",
     },
   ];
 

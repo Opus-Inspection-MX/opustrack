@@ -85,7 +85,9 @@ export const AUDIT_PAYLOAD_ALLOWLIST: Record<AuditEntity, readonly string[]> = {
     "reason",
   ],
   // Phase 2 channel matrix: identifiers and switches only, no free text.
-  [AuditEntity.NOTIFICATION_CHANNEL]: ["type", "inApp", "email", "reason"],
+  // ("email" the channel switch stays OUT: the key trips the PII DENYLIST,
+  // so the matrix save audits {reason} plus the event type, never the flag.)
+  [AuditEntity.NOTIFICATION_CHANNEL]: ["type", "inApp", "reason"],
 };
 
 function truncateValue(value: unknown): unknown {
