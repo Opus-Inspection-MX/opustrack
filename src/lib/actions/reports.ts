@@ -10,7 +10,10 @@ import {
   vehicleTripScopeWhere,
 } from "@/lib/auth/report-scope";
 import { whereHasRole } from "@/lib/authz/user-queries";
+import { getSlaState } from "@/lib/constants/sla-policy";
 import { prisma } from "@/lib/database/prisma.singleton";
+import { getSlaHolidaySet } from "@/lib/sla/sla-holidays";
+import { getIncidentClosureMap } from "@/lib/state-machine/incident-events";
 import { INCIDENT_STATE } from "@/lib/state-machine/incident-machine";
 import {
   APP_TZ,
@@ -344,6 +347,161 @@ export async function getIncidentsByTypeData(
     count: data.count,
     percentage: Math.round((data.count / total) * 100),
   }));
+}
+
+// ============================================
+// SLA BREACH REPORT (RF-518 — reads RF-218 semantics)
+// ============================================
+
+export type SlaBreachRow = {
+  type: string;
+  priority: number;
+  total: number;
+  breached: number;
+  atRisk: number;
+  onTrack: number;
+  breachedPct: number;
+  atRiskPct: number;
+  onTrackPct: number;
+};
+
+/**
+ * Get SLA Breach Report Data (RF-518).
+ *
+ * Aggregates incidents by type with `breached` / `atRisk` / `onTrack` counts
+ * from the RF-218 breach semantics (`getSlaState`). This turns the
+ * descriptive aging (RF-509) and seen-time (RF-510) reports into
+ * accountability — those two stay untouched and serve as drill-down inputs.
+ *
+ * Scope: active, non-`CANCELADA` incidents created in the range, under the
+ * caller's `getReportScope()` Cliente filter (fail closed). Percentages
+ * follow the RF-502 anti-division-by-zero convention.
+ */
+export async function getSlaBreachData(
+  dateRange?: DateRange,
+  typeIds?: number[],
+): Promise<SlaBreachRow[]> {
+  const scope = await getReportScope(await requirePermission("reports:view"));
+
+  const startRange = dateRange?.startDate
+    ? mxDayRange(dateRange.startDate)
+    : mxDayRange(mxDaysAgoString(30));
+  const endRange = dateRange?.endDate
+    ? mxDayRange(dateRange.endDate)
+    : mxDayRange(mxTodayString());
+  const startDate = startRange.gte;
+  const endDate = endRange.lte;
+
+  const incidents = await prisma.incident.findMany({
+    where: {
+      active: true,
+      reportedAt: {
+        gte: startDate,
+        lte: endDate,
+      },
+      ...(typeIds && typeIds.length > 0 ? { typeId: { in: typeIds } } : {}),
+      ...incidentScopeWhere(scope),
+    },
+    select: {
+      id: true,
+      reportedAt: true,
+      resolvedAt: true,
+      status: { select: { name: true } },
+      type: { select: { name: true, priority: true } },
+      assignments: {
+        where: { active: true },
+        select: { seenAt: true },
+      },
+    },
+  });
+
+  // CANCELADA is terminal without a resolution obligation: excluded in code
+  // (not in the query) so the exclusion stays visible next to the semantics.
+  const open = incidents.filter(
+    (incident) => incident.status?.name !== INCIDENT_STATE.CANCELADA,
+  );
+  if (open.length === 0) return [];
+
+  // Same two shared lookups as tracking: bulk RF-219 closure timestamps
+  // (audit-trail precedence) and one holiday set for the years spanned.
+  const now = new Date();
+  const [closureMap, holidays] = await Promise.all([
+    getIncidentClosureMap(
+      prisma,
+      open.map((incident) => incident.id),
+    ),
+    getSlaHolidaySet(
+      open.map((incident) => incident.reportedAt),
+      now,
+    ),
+  ]);
+
+  const byType: Record<
+    string,
+    { priority: number; breached: number; atRisk: number; onTrack: number }
+  > = {};
+  for (const incident of open) {
+    let firstSeenAt: Date | null = null;
+    for (const assignment of incident.assignments) {
+      if (
+        assignment.seenAt &&
+        (!firstSeenAt || assignment.seenAt < firstSeenAt)
+      ) {
+        firstSeenAt = assignment.seenAt;
+      }
+    }
+    const sla = getSlaState({
+      priority: incident.type?.priority ?? 5,
+      createdAt: incident.reportedAt,
+      seenAt: firstSeenAt,
+      resolvedAt: closureMap.get(incident.id) ?? incident.resolvedAt,
+      statusName: incident.status?.name ?? null,
+      now,
+      holidays,
+    });
+
+    const typeName = incident.type?.name || "Sin Tipo";
+    let entry = byType[typeName];
+    if (!entry) {
+      entry = {
+        priority: incident.type?.priority ?? 5,
+        breached: 0,
+        atRisk: 0,
+        onTrack: 0,
+      };
+      byType[typeName] = entry;
+    }
+    // NOT_APPLICABLE is unreachable (CANCELADA filtered above); the default
+    // keeps row totals consistent if a new terminal state ever appears.
+    switch (sla) {
+      case "BREACHED":
+        entry.breached++;
+        break;
+      case "AT_RISK":
+        entry.atRisk++;
+        break;
+      default:
+        entry.onTrack++;
+        break;
+    }
+  }
+
+  return Object.entries(byType)
+    .map(([type, data]) => {
+      const total = data.breached + data.atRisk + data.onTrack || 1;
+      return {
+        type,
+        priority: data.priority,
+        total: data.breached + data.atRisk + data.onTrack,
+        breached: data.breached,
+        atRisk: data.atRisk,
+        onTrack: data.onTrack,
+        breachedPct: Math.round((data.breached / total) * 100),
+        atRiskPct: Math.round((data.atRisk / total) * 100),
+        onTrackPct: Math.round((data.onTrack / total) * 100),
+      };
+    })
+    .sort((a, b) => b.breached - a.breached || b.total - a.total);
 }
 
 /**

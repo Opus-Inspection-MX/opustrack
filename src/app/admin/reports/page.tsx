@@ -6,6 +6,7 @@ import {
   CheckCircle,
   CheckCircle2,
   ClipboardList,
+  ShieldAlert,
   TrendingUp,
   Users,
   Wrench,
@@ -46,6 +47,14 @@ const reports = [
     href: "/admin/reports/incidents",
     icon: AlertTriangle,
     color: "bg-amber-500",
+  },
+  {
+    title: "Incumplimiento SLA",
+    description:
+      "Incidentes vencidos, en riesgo y en tiempo por tipo, segun los objetivos SLA de su prioridad.",
+    href: "/admin/reports/sla-breach",
+    icon: ShieldAlert,
+    color: "bg-red-500",
   },
   {
     title: "Viajes de Vehiculos",
