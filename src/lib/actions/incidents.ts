@@ -49,6 +49,76 @@ type GetIncidentsParams = {
 };
 
 /**
+ * Paginated audit-trail read for one incident (RF-219).
+ * Admin-only surface: chronological events with resolved actor names.
+ * Fail closed — no Cliente assignment or no access means no rows.
+ */
+const INCIDENT_EVENTS_PAGE_SIZE = 50;
+
+function eventPayloadUserId(payload: unknown): string | null {
+  if (typeof payload !== "object" || payload === null) return null;
+  const record = payload as Record<string, unknown>;
+  for (const key of ["userId", "deniedUserId"]) {
+    const value = record[key];
+    if (typeof value === "string" && value.length > 0) return value;
+  }
+  return null;
+}
+
+export async function getIncidentEvents(incidentId: number, page = 1) {
+  const user = await requirePermission("incidents:read");
+
+  const incident = await prisma.incident.findUnique({
+    where: { id: incidentId },
+    select: { clienteId: true },
+  });
+  if (!incident) {
+    throw new Error("Incident not found");
+  }
+  await assertClienteAccessAsync(user, incident.clienteId);
+
+  const safePage = Math.max(1, Math.floor(page) || 1);
+  const [events, total] = await Promise.all([
+    prisma.incidentEvent.findMany({
+      where: { incidentId },
+      orderBy: { createdAt: "asc" },
+      skip: (safePage - 1) * INCIDENT_EVENTS_PAGE_SIZE,
+      take: INCIDENT_EVENTS_PAGE_SIZE,
+    }),
+    prisma.incidentEvent.count({ where: { incidentId } }),
+  ]);
+
+  const userIds = new Set<string>();
+  for (const event of events) {
+    if (event.actorId) userIds.add(event.actorId);
+    const mentioned = eventPayloadUserId(event.payload);
+    if (mentioned) userIds.add(mentioned);
+  }
+  const users =
+    userIds.size > 0
+      ? await prisma.user.findMany({
+          where: { id: { in: [...userIds] } },
+          select: { id: true, name: true },
+        })
+      : [];
+  const names = new Map(users.map((u) => [u.id, u.name] as const));
+
+  return {
+    events: events.map((event) => ({
+      ...event,
+      actorName: event.actorId ? (names.get(event.actorId) ?? null) : null,
+    })),
+    userNames: Object.fromEntries(names),
+    pagination: {
+      total,
+      page: safePage,
+      pageSize: INCIDENT_EVENTS_PAGE_SIZE,
+      totalPages: Math.max(1, Math.ceil(total / INCIDENT_EVENTS_PAGE_SIZE)),
+    },
+  };
+}
+
+/**
  * Get incidents with relations, paginated and searchable (title, description).
  * Filtered by user's Cliente (except ADMINISTRADOR who sees all).
  */

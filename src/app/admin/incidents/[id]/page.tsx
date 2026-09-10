@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { CancelIncidentButton } from "@/components/admin/incidents/cancel-incident-button";
+import { IncidentTimeline } from "@/components/admin/incidents/incident-timeline";
 import { BackButton } from "@/components/common/back-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -43,13 +44,19 @@ function getStatusColor(status: string) {
 
 export default async function IncidentDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams?: Promise<{ historial?: string }>;
 }) {
   await requireRouteAccess("/admin/incidents");
 
   const { id } = await params;
   const incident = await getIncidentById(Number.parseInt(id, 10));
+  const historyPage = Math.max(
+    1,
+    Number.parseInt((await searchParams)?.historial ?? "1", 10) || 1,
+  );
 
   return (
     <div className="space-y-6">
@@ -366,6 +373,9 @@ export default async function IncidentDetailPage({
           </Card>
         )}
       </div>
+
+      {/* Audit trail (RF-219): append-only event history, read-only. */}
+      <IncidentTimeline incidentId={incident.id} page={historyPage} />
     </div>
   );
 }
