@@ -6,6 +6,7 @@ import {
   renderIncidentProgramWorkbook,
   workbookFileName,
 } from "@/lib/reports/incident-program/excel";
+import { INCIDENT_PROGRAM_CLIENT_IDS_PARAM } from "@/lib/reports/incident-program/query-params";
 
 /** ExcelJS needs the Node runtime; it is not Edge-compatible. */
 export const runtime = "nodejs";
@@ -84,7 +85,9 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const clientIds = parseIdListParam(searchParams.get("clientIds"));
+  const clientIds = parseIdListParam(
+    searchParams.get(INCIDENT_PROGRAM_CLIENT_IDS_PARAM),
+  );
   const stateIds = parseIdListParam(searchParams.get("stateIds"))
     ?.map((id) => parseIdParam(id))
     .filter((id): id is number => id !== undefined);

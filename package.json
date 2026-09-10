@@ -15,6 +15,7 @@
     "db:down": "docker compose stop db",
     "db:init": "node scripts/with-env.mjs dev -- tsx scripts/db-init.ts",
     "db:migrate": "node scripts/with-env.mjs dev -- prisma migrate dev",
+    "db:drift": "node scripts/with-env.mjs dev -- prisma migrate diff --from-migrations ./prisma/migrations --to-schema-datamodel ./prisma/schema.prisma --exit-code",
     "db:studio": "node scripts/with-env.mjs dev -- prisma studio",
     "db:reset": "node scripts/with-env.mjs dev -- prisma migrate reset --skip-seed && npm run db:init",
     "check": "biome check && tsc --noEmit && knip --include files",

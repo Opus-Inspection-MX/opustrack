@@ -67,6 +67,6 @@ Resequence note (finding e): PR3/PR4 labels explicitly swapped — the old PR4 (
 
 ## Phase 6: Pending hardening from design review (all pending, ride with PR3/PR4)
 
-- [ ] 6.1 Shared constant for the `clientIds` query-param pair: `src/app/admin/reports/incident-program/incident-program-client.tsx:315-316` writes `clientIds` while `src/app/api/reports/incident-program/route.ts:87` reads it — a half-rename silently returns more rows. Require one shared constant imported on both sides, plus a test proving writer and reader agree
-- [ ] 6.2 Audit 7 `vi.mock()` paths (not 5): enumerate all 7 mock paths and confirm each targets the real DB helper path; stale mocks pass against the real helper for the wrong reason
-- [ ] 6.3 Drift-check validation: no `shadowDatabaseUrl` is configured — configure it, run the migration drift check green, then negative-test it (omit one ALTER INDEX, confirm the check fails, restore)
+- [x] 6.1 Shared constant for the `clientIds` query-param pair: `src/lib/reports/incident-program/query-params.ts` (`INCIDENT_PROGRAM_CLIENT_IDS_PARAM`) imported by both `src/app/admin/reports/incident-program/incident-program-client.tsx` (writer) and `src/app/api/reports/incident-program/route.ts` (reader); `query-params.test.ts` proves writer and reader agree
+- [x] 6.2 Audit 7 `vi.mock()` paths (not 5): all 7 mock `@/lib/utils/client-assignments` (the real helper path; zero `cliente-assignments` references remain) and provide `getUserClientIds`, which the real module exports — no stale paths, no fixes needed
+- [ ] 6.3 Drift-check validation — PARTIAL (wiring done, live proof pending): `shadowDatabaseUrl = env("SHADOW_DATABASE_URL")` in `prisma/schema.prisma`, `npm run db:drift` script, `SHADOW_DATABASE_URL` defaults in `config/e2e.env` + `.env.example`. Green + negative-test proof requires Docker (unavailable in this environment); prove in the e2e lane with the commands in the PH6 return notes, then check this box

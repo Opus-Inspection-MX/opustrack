@@ -18,6 +18,7 @@ import {
   getIncidentProgramReport,
   getScheduleOptions,
 } from "@/lib/actions/incident-program";
+import { INCIDENT_PROGRAM_CLIENT_IDS_PARAM } from "@/lib/reports/incident-program/query-params";
 import {
   HOLIDAY_CELL_LABEL,
   type IncidentProgramReport,
@@ -313,7 +314,7 @@ export function IncidentProgramClient({
       const params = new URLSearchParams({ startDate, endDate });
       if (stateIds.length > 0) params.set("stateIds", stateIds.join(","));
       if (clientIds.length > 0) {
-        params.set("clientIds", clientIds.join(","));
+        params.set(INCIDENT_PROGRAM_CLIENT_IDS_PARAM, clientIds.join(","));
       }
       if (selectedIds.size > 0) {
         params.set("scheduleIds", [...selectedIds].join(","));

@@ -8,6 +8,10 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  // Disposable scratch database for `prisma migrate diff` drift checks
+  // (`npm run db:drift`). Prisma creates it automatically; it never holds
+  // real data. See SHADOW_DATABASE_URL in .env.example / config/e2e.env.
+  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
 }
 
 model User {
