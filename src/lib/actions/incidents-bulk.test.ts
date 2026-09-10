@@ -30,7 +30,9 @@ const { prismaMock, requirePermission, canAccessClienteAsync } = vi.hoisted(
       schedule: { findFirst: vi.fn(), findMany: vi.fn() },
       user: { findMany: vi.fn() },
       incidentAssignee: { createMany: vi.fn(), updateMany: vi.fn() },
+      incidentEvent: { create: vi.fn() },
       assignment: { findMany: vi.fn() },
+      $transaction: vi.fn(),
     },
     requirePermission: vi.fn(async (_name: string) => ({ id: "admin" })),
     canAccessClienteAsync: vi.fn(
@@ -173,6 +175,57 @@ describe("createIncidentsFromPreview · límites", () => {
     }
     expect(prismaMock.incident.create).not.toHaveBeenCalled();
     expect(prismaMock.incident.createMany).not.toHaveBeenCalled();
+  });
+
+  it("emits BULK_IMPORTED per persisted row with initial status", async () => {
+    prismaMock.incidentStatus.findUnique
+      .mockResolvedValueOnce({ id: 1 })
+      .mockResolvedValueOnce({ id: 6 });
+    prismaMock.cliente.findMany.mockResolvedValue([{ id: "c1" }]);
+    prismaMock.incidentType.findMany.mockResolvedValue([{ id: 3 }]);
+    prismaMock.incidentType.findUnique.mockResolvedValue({ id: 9 });
+    prismaMock.incident.create.mockResolvedValue({ id: 42 });
+    prismaMock.$transaction.mockImplementation(
+      async (fn: (tx: unknown) => unknown) => fn(prismaMock),
+    );
+
+    const result = await createIncidentsFromPreview(
+      [
+        {
+          rowNumber: 2,
+          title: "Falla histórica",
+          description: "Importada cerrada",
+          startedAt: "2026-06-01T12:00:00.000Z",
+          resolvedAt: "2026-07-01T12:00:00.000Z",
+          clienteId: "c1",
+          clienteCodeRaw: null,
+          clienteResolved: true,
+          typeId: 3,
+          typeNameRaw: null,
+          typeResolved: true,
+          assigneeIds: [],
+          fieldErrors: {},
+        },
+      ],
+      null,
+    );
+
+    expect(result).toEqual({ ok: true, created: 1 });
+    expect(prismaMock.incidentEvent.create).toHaveBeenCalledTimes(1);
+    expect(prismaMock.incidentEvent.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          incidentId: 42,
+          eventType: "BULK_IMPORTED",
+          actorId: "admin",
+          toStatus: "CERRADO",
+          payload: expect.objectContaining({
+            rowNumber: 2,
+            initialStatus: "CERRADO",
+          }),
+        }),
+      }),
+    );
   });
 });
 

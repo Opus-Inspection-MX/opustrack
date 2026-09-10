@@ -906,7 +906,9 @@ export async function reopenAssignment(id: string) {
         },
         include: { incident: true, ...assigneesInclude, status: true },
       });
-      await syncIncidentState(current.incidentId, tx);
+      // The actor rides along so a reopened incident logs REOPENED with the
+      // admin attached, and the prior closure timestamp in the payload.
+      await syncIncidentState(current.incidentId, tx, { actorId: user.id });
       return { assignment: updated, incidentId: current.incidentId };
     });
 

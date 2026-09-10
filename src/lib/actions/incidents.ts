@@ -1,6 +1,7 @@
 "use server";
 
 import type { Prisma } from "@prisma/client";
+import { IncidentEventType } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requirePermission } from "@/lib/auth/auth";
@@ -25,6 +26,7 @@ import {
   notifyIncidentUpdated,
 } from "@/lib/notifications";
 import { INCIDENT_STATE, syncIncidentState } from "@/lib/state-machine";
+import { logIncidentEvent } from "@/lib/state-machine/incident-events";
 import { getPrimaryClienteId } from "@/lib/utils/cliente-assignments";
 import {
   IncidentClientCreateSchema,
@@ -283,6 +285,19 @@ export async function createIncident(data: unknown) {
       await ensureFsrsAssignedToIncident(incident.id, validated.assigneeIds);
     }
 
+    // RF-219: creation opens the audit trail. Assignee grants at creation
+    // ride along in the payload instead of fanning out into ADDED events.
+    await logIncidentEvent(prisma, {
+      incidentId: incident.id,
+      eventType: IncidentEventType.CREATED,
+      actorId: user.id,
+      toStatus: INCIDENT_STATE.ABIERTO,
+      payload: {
+        source: "single",
+        assigneeIds: validated.assigneeIds ?? [],
+      },
+    });
+
     // POST-tx: notify admins of new incident (RF-465). Never throws.
     await notifyIncidentCreated(incident.id, incident.title, user.id);
 
@@ -349,6 +364,14 @@ export async function createIncidentAsClient(data: unknown) {
 
     // POST-tx: notify admins of new incident (RF-465). Never throws.
     await notifyIncidentCreated(incident.id, incident.title, user.id);
+
+    await logIncidentEvent(prisma, {
+      incidentId: incident.id,
+      eventType: IncidentEventType.CREATED,
+      actorId: user.id,
+      toStatus: INCIDENT_STATE.ABIERTO,
+      payload: { source: "client" },
+    });
 
     revalidatePath("/client/incidents");
     revalidatePath("/admin/incidents");
@@ -449,7 +472,9 @@ export async function updateIncident(id: number, data: IncidentFormData) {
 
     let toAdd: string[] = [];
     if (data.assigneeIds !== undefined) {
-      ({ toAdd } = await syncIncidentAssignees(id, data.assigneeIds));
+      ({ toAdd } = await syncIncidentAssignees(id, data.assigneeIds, {
+        actorId: user.id,
+      }));
     }
 
     // POST-tx: notify incident FSR events (RF-466, RF-468). Both never-throw.
@@ -511,7 +536,9 @@ export async function updateIncidentFsrs(
       }
     }
 
-    const { toAdd } = await syncIncidentAssignees(incidentId, fsrIds);
+    const { toAdd } = await syncIncidentAssignees(incidentId, fsrIds, {
+      actorId: user.id,
+    });
 
     // POST-tx: give newly-enabled FSRs a real Assignment they can see, and
     // notify them (RF-468). Eligibility alone used to leave them with a
@@ -835,13 +862,17 @@ export async function getIncidentFormOptions() {
  * Once cancelled, all child assignment mutations are blocked.
  */
 export async function cancelIncident(incidentId: number, reason?: string) {
-  await requirePermission("incidents:cancel");
+  const user = await requirePermission("incidents:cancel");
 
   return guarded(async () => {
     const result = await prisma.$transaction(async (tx) => {
       const incident = await tx.incident.findUnique({
         where: { id: incidentId },
-        select: { id: true, status: { select: { name: true } } },
+        select: {
+          id: true,
+          status: { select: { name: true } },
+          resolvedAt: true,
+        },
       });
       if (!incident) throw new Error("Incidencia no encontrada");
 
@@ -876,6 +907,17 @@ export async function cancelIncident(incidentId: number, reason?: string) {
           // metrics (trend, summary) never count a cancellation as a fix.
           resolvedAt: null,
         },
+      });
+
+      // RF-219: the cancellation joins the same transaction as the mutation,
+      // so a rolled-back cancel leaves no orphan event behind.
+      await logIncidentEvent(tx, {
+        incidentId,
+        eventType: IncidentEventType.CANCELLED,
+        actorId: user.id,
+        fromStatus: currentStatus ?? null,
+        toStatus: INCIDENT_STATE.CANCELADA,
+        payload: { reason: trimmedReason, fromStatus: currentStatus },
       });
 
       return updated;

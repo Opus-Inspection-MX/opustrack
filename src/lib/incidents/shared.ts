@@ -1,6 +1,8 @@
+import { IncidentEventType } from "@prisma/client";
 import { businessRule } from "@/lib/actions/result";
 import { FALLBACK_INCIDENT_TYPE_NAME } from "@/lib/constants/incident-type";
 import { prisma } from "@/lib/database/prisma.singleton";
+import { logIncidentEvent } from "@/lib/state-machine/incident-events";
 
 /**
  * Helpers shared by the single-incident actions (`actions/incidents.ts`) and
@@ -34,10 +36,15 @@ export async function resolveTypeIdOrFallback(
  * Reconcile the active set of IncidentAssignee rows for an incident.
  * Throws if removing an FSR that is currently active on an Assignment of
  * this incident (would orphan the work order).
+ *
+ * Every add/remove appends an audit event (RF-219) attributed to the acting
+ * user. Bulk imports skip this helper and log a single BULK_IMPORTED row
+ * instead, so a 500-row load does not fan out into thousands of events.
  */
 export async function syncIncidentAssignees(
   incidentId: number,
   desiredIds: string[],
+  options?: { actorId?: string | null },
 ): Promise<{ toAdd: string[] }> {
   const desired = new Set(desiredIds);
   const current = await prisma.incidentAssignee.findMany({
@@ -48,6 +55,8 @@ export async function syncIncidentAssignees(
 
   const toRemove = [...currentSet].filter((u) => !desired.has(u));
   const toAdd = [...desired].filter((u) => !currentSet.has(u));
+
+  const actorId = options?.actorId ?? null;
 
   if (toRemove.length) {
     const inUse = await prisma.assignmentAssignee.findMany({
@@ -68,6 +77,14 @@ export async function syncIncidentAssignees(
       where: { incidentId, userId: { in: toRemove }, active: true },
       data: { active: false },
     });
+    for (const userId of toRemove) {
+      await logIncidentEvent(prisma, {
+        incidentId,
+        eventType: IncidentEventType.ASSIGNEE_REMOVED,
+        actorId,
+        payload: { userId },
+      });
+    }
   }
 
   if (toAdd.length) {
@@ -79,6 +96,14 @@ export async function syncIncidentAssignees(
       where: { incidentId, userId: { in: toAdd } },
       data: { active: true },
     });
+    for (const userId of toAdd) {
+      await logIncidentEvent(prisma, {
+        incidentId,
+        eventType: IncidentEventType.ASSIGNEE_ADDED,
+        actorId,
+        payload: { userId },
+      });
+    }
   }
 
   return { toAdd };

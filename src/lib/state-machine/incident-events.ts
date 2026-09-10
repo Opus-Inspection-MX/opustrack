@@ -62,7 +62,7 @@ const MAX_TEXT_LENGTH = 500;
 function sanitizePayload(
   eventType: IncidentEventType,
   payload: Record<string, unknown> | null | undefined,
-): Record<string, unknown> | undefined {
+): Prisma.InputJsonValue | undefined {
   if (!payload) return undefined;
   const allowed = PAYLOAD_ALLOWLIST[eventType] ?? [];
   const clean: Record<string, unknown> = {};
@@ -74,7 +74,7 @@ function sanitizePayload(
         ? value.slice(0, MAX_TEXT_LENGTH)
         : value;
   }
-  return clean;
+  return clean as Prisma.InputJsonValue;
 }
 
 function toIso(value: unknown): string | null {

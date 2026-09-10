@@ -26,7 +26,7 @@ describe("logIncidentEvent", () => {
       payload: { reason: "Duplicado", fromStatus: "ABIERTO" },
     });
 
-    const data = create.mock.calls[0]?.[0]?.data as {
+    const data = create.mock.calls[0]?.[0]?.data as unknown as {
       actorId: string | null;
       payload: Record<string, unknown>;
     };
@@ -44,7 +44,7 @@ describe("logIncidentEvent", () => {
       payload: { reason: "x", injected: "DROP ME" },
     });
 
-    const data = create.mock.calls[0]?.[0]?.data as {
+    const data = create.mock.calls[0]?.[0]?.data as unknown as {
       payload: Record<string, unknown>;
     };
     expect(data.payload).toEqual({ reason: "x" });
@@ -58,7 +58,7 @@ describe("logIncidentEvent", () => {
       payload: { reason: "r".repeat(600) },
     });
 
-    const data = create.mock.calls[0]?.[0]?.data as {
+    const data = create.mock.calls[0]?.[0]?.data as unknown as {
       payload: { reason: string };
     };
     expect(data.payload.reason).toHaveLength(500);

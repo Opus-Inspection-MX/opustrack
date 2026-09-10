@@ -181,7 +181,7 @@ describe("syncIncidentState", () => {
     await syncIncidentState(1);
 
     expect(eventCreate).toHaveBeenCalledTimes(1);
-    const event = eventCreate.mock.calls[0]?.[0]?.data as {
+    const event = eventCreate.mock.calls[0]?.[0]?.data as unknown as {
       eventType: string;
       fromStatus: string;
       toStatus: string;
@@ -207,7 +207,7 @@ describe("syncIncidentState", () => {
     await syncIncidentState(1, prisma, { actorId: "admin-1" });
 
     expect(eventCreate).toHaveBeenCalledTimes(1);
-    const event = eventCreate.mock.calls[0]?.[0]?.data as {
+    const event = eventCreate.mock.calls[0]?.[0]?.data as unknown as {
       eventType: string;
       actorId: string | null;
       payload: { priorResolvedAt: string };
@@ -233,7 +233,7 @@ describe("syncIncidentState", () => {
     });
     expect(update).not.toHaveBeenCalled();
     expect(eventCreate).toHaveBeenCalledTimes(1);
-    const event = eventCreate.mock.calls[0]?.[0]?.data as {
+    const event = eventCreate.mock.calls[0]?.[0]?.data as unknown as {
       eventType: string;
     };
     expect(event.eventType).toBe("RECALC_SKIPPED");
@@ -254,7 +254,7 @@ describe("syncIncidentState", () => {
     // reopen, because this row has no bulk-import history to protect.
     expect(result.after).toBe(INCIDENT_STATE.ABIERTO);
     expect(update).toHaveBeenCalledTimes(1);
-    const event = eventCreate.mock.calls[0]?.[0]?.data as {
+    const event = eventCreate.mock.calls[0]?.[0]?.data as unknown as {
       eventType: string;
     };
     expect(event.eventType).toBe("REOPENED");

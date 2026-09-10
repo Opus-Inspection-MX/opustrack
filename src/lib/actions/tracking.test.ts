@@ -41,6 +41,7 @@ const { prismaMock, requirePermission, getUserClienteIds } = vi.hoisted(() => ({
       findMany: vi.fn(),
       upsert: vi.fn(),
     },
+    incidentEvent: { create: vi.fn(), findFirst: vi.fn() },
     user: { findMany: vi.fn() },
     $transaction: vi.fn(),
   },
@@ -75,6 +76,7 @@ import {
   assignFSRToIncident,
   getIncidentsForTracking,
   getTrackingSignature,
+  overrideIncidentStatus,
   updateAssignmentAssignees,
   updateAssignmentDetails,
   updateIncidentDetails,
@@ -423,6 +425,35 @@ describe("assignFSRToIncident (RF-514)", () => {
   it("exige el permiso tracking:update", async () => {
     await assignFSRToIncident(1, "fsr1");
     expect(requirePermission).toHaveBeenCalledWith("tracking:update");
+  });
+
+  it("logs ASSIGNEE_AUTO_CREATED when the FSR was not enabled on the incident", async () => {
+    prismaMock.assignment.findFirst.mockResolvedValue({ id: "a1" });
+    prismaMock.incidentAssignee.findMany.mockResolvedValue([]);
+
+    await assignFSRToIncident(1, "fsr1");
+
+    expect(prismaMock.incidentEvent.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          incidentId: 1,
+          eventType: "ASSIGNEE_AUTO_CREATED",
+          actorId: "admin",
+          payload: { userId: "fsr1", via: "assignment" },
+        }),
+      }),
+    );
+  });
+
+  it("does not log auto-create when the FSR was already enabled", async () => {
+    prismaMock.assignment.findFirst.mockResolvedValue({ id: "a1" });
+    prismaMock.incidentAssignee.findMany.mockResolvedValue([
+      { userId: "fsr1" },
+    ]);
+
+    await assignFSRToIncident(1, "fsr1");
+
+    expect(prismaMock.incidentEvent.create).not.toHaveBeenCalled();
   });
 });
 
@@ -975,5 +1006,87 @@ describe("incident terminal · ningún editor es puerta trasera", () => {
     });
     expect(prismaMock.assignmentAssignee.updateMany).not.toHaveBeenCalled();
     expect(prismaMock.assignmentAssignee.upsert).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// overrideIncidentStatus · RF-219 §1.3 mechanism (WITH audit)
+// ---------------------------------------------------------------------------
+describe("overrideIncidentStatus (RF-219 §1.3 mechanism)", () => {
+  it("records ADMIN_OVERRIDE with actor, edge and reason", async () => {
+    requirePermission.mockResolvedValue({ id: "admin", isSuperuser: true });
+    prismaMock.incident.findUnique.mockResolvedValue({
+      status: { name: "ABIERTO" },
+      resolvedAt: null,
+    });
+    prismaMock.incidentStatus.findUnique.mockResolvedValue({ id: 5 });
+
+    const result = await overrideIncidentStatus(
+      1,
+      "EN_PROGRESO",
+      "  Orden directa del cliente.  ",
+    );
+
+    expect(result).toEqual({
+      success: true,
+      before: "ABIERTO",
+      after: "EN_PROGRESO",
+    });
+    expect(prismaMock.incident.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 1 },
+        data: expect.objectContaining({ statusId: 5 }),
+      }),
+    );
+    expect(prismaMock.incidentEvent.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          incidentId: 1,
+          eventType: "ADMIN_OVERRIDE",
+          actorId: "admin",
+          fromStatus: "ABIERTO",
+          toStatus: "EN_PROGRESO",
+          payload: expect.objectContaining({
+            reason: "Orden directa del cliente.",
+          }),
+        }),
+      }),
+    );
+  });
+
+  it("rejects an override without a reason", async () => {
+    const result = await overrideIncidentStatus(1, "EN_PROGRESO", "   ");
+
+    expect(result).toEqual({
+      success: false,
+      error: expect.stringMatching(/motivo/i),
+    });
+    expect(prismaMock.incident.update).not.toHaveBeenCalled();
+    expect(prismaMock.incidentEvent.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects CANCELADA as a target (use the cancel action)", async () => {
+    const result = await overrideIncidentStatus(1, "CANCELADA", "porque sí");
+
+    expect(result).toEqual({
+      success: false,
+      error: expect.stringMatching(/cancelación/),
+    });
+    expect(prismaMock.incidentEvent.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects overriding a cancelled incident", async () => {
+    prismaMock.incident.findUnique.mockResolvedValue({
+      status: { name: "CANCELADA" },
+      resolvedAt: null,
+    });
+
+    const result = await overrideIncidentStatus(1, "ABIERTO", "reabrir");
+
+    expect(result).toEqual({
+      success: false,
+      error: expect.stringMatching(/cancelada/),
+    });
+    expect(prismaMock.incidentEvent.create).not.toHaveBeenCalled();
   });
 });

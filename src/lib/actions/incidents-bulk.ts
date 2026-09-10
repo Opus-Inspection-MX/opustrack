@@ -1,6 +1,7 @@
 "use server";
 
 import type { Prisma } from "@prisma/client";
+import { IncidentEventType } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { requirePermission } from "@/lib/auth/auth";
 import { canAccessClienteAsync } from "@/lib/auth/filters";
@@ -16,6 +17,7 @@ import {
   syncIncidentAssignees,
 } from "@/lib/incidents/shared";
 import { INCIDENT_STATE } from "@/lib/state-machine";
+import { logIncidentEvent, toIso } from "@/lib/state-machine/incident-events";
 import { parseMxDateTime } from "@/lib/utils/datetime";
 import {
   BulkIncidentSnapshotRowSchema,
@@ -707,6 +709,26 @@ export async function createIncidentsFromPreview(
           });
         }
       }
+      // RF-219: one event per persisted row, in the same transaction. The
+      // initial status + resolvedAt ride in the payload, so a historical
+      // CERRADO row is recognizable to the silent-reopen guard. Assignee
+      // grants ride along here instead of fanning out into ADDED events.
+      await logIncidentEvent(tx, {
+        incidentId: incident.id,
+        eventType: IncidentEventType.BULK_IMPORTED,
+        actorId: user.id,
+        toStatus: row.resolvedAt
+          ? INCIDENT_STATE.CERRADO
+          : INCIDENT_STATE.ABIERTO,
+        payload: {
+          rowNumber: row.rowNumber,
+          initialStatus: row.resolvedAt
+            ? INCIDENT_STATE.CERRADO
+            : INCIDENT_STATE.ABIERTO,
+          resolvedAt: toIso(row.resolvedAt),
+          assigneeIds: row.assigneeIds,
+        },
+      });
     }
   });
 
@@ -910,7 +932,9 @@ export async function bulkAssignIncidents(
       try {
         let toAdd: string[];
         if (changes.fsrIds.mode === "replace") {
-          ({ toAdd } = await syncIncidentAssignees(id, changes.fsrIds.ids));
+          ({ toAdd } = await syncIncidentAssignees(id, changes.fsrIds.ids, {
+            actorId: user.id,
+          }));
         } else {
           const current = await prisma.incidentAssignee.findMany({
             where: { incidentId: id, active: true },
@@ -920,7 +944,9 @@ export async function bulkAssignIncidents(
             ...current.map((c) => c.userId),
             ...changes.fsrIds.ids,
           ]);
-          ({ toAdd } = await syncIncidentAssignees(id, [...merged]));
+          ({ toAdd } = await syncIncidentAssignees(id, [...merged], {
+            actorId: user.id,
+          }));
         }
         // Give newly-enabled FSRs a real Assignment they can see (see
         // ensureFsrsAssignedToIncident) instead of eligibility-only + notification.

@@ -1,6 +1,7 @@
 "use server";
 
 import type { Prisma } from "@prisma/client";
+import { IncidentEventType } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { requirePermission } from "@/lib/auth/auth";
 import {
@@ -23,6 +24,7 @@ import {
   isAssignmentState,
   isIncidentState,
 } from "@/lib/state-machine";
+import { logIncidentEvent, toIso } from "@/lib/state-machine/incident-events";
 import { syncIncidentState } from "@/lib/state-machine/sync";
 import { localWallTimeToUTC, mxDayRange } from "@/lib/utils/datetime";
 import {
@@ -106,18 +108,37 @@ function assertIncidentMutable(incidentState: string | null): void {
  * revoke their `IncidentAssignee` row, because an incident can carry several
  * assignments and silently pulling their visibility of the whole incident is
  * not what "quitar de esta asignación" means.
+ *
+ * The §3.5(a) decision kept auto-create (LOG semantics): every implicit grant
+ * appends an ASSIGNEE_AUTO_CREATED event, so the log shows who was enabled,
+ * by whom, and through which assignment flow.
  */
 async function enableFsrsOnIncident(
   tx: Prisma.TransactionClient,
   incidentId: number,
   userIds: string[],
+  actorId?: string | null,
 ): Promise<void> {
+  if (userIds.length === 0) return;
+  const alreadyEnabled = await tx.incidentAssignee.findMany({
+    where: { incidentId, userId: { in: userIds }, active: true },
+    select: { userId: true },
+  });
+  const already = new Set(alreadyEnabled.map((r) => r.userId));
   for (const userId of userIds) {
     await tx.incidentAssignee.upsert({
       where: { incidentId_userId: { incidentId, userId } },
       update: { active: true },
       create: { incidentId, userId, active: true },
     });
+    if (!already.has(userId)) {
+      await logIncidentEvent(tx, {
+        incidentId,
+        eventType: IncidentEventType.ASSIGNEE_AUTO_CREATED,
+        actorId: actorId ?? null,
+        payload: { userId, via: "assignment" },
+      });
+    }
   }
 }
 
@@ -503,7 +524,7 @@ export async function assignFSRToIncident(incidentId: number, fsrId: string) {
     }
 
     const { assignmentId, added } = await prisma.$transaction(async (tx) => {
-      await enableFsrsOnIncident(tx, incidentId, [fsrId]);
+      await enableFsrsOnIncident(tx, incidentId, [fsrId], actor.id);
 
       const existingAssignment = await tx.assignment.findFirst({
         where: { incidentId, active: true },
@@ -628,7 +649,7 @@ export async function updateAssignmentAssignees(
         });
       }
 
-      await enableFsrsOnIncident(tx, assignment.incidentId, toAdd);
+      await enableFsrsOnIncident(tx, assignment.incidentId, toAdd, actor.id);
 
       return toAdd;
     });
@@ -764,6 +785,98 @@ export async function updateIncidentDetails(
       console.error("Error updating incident:", error);
       throw new Error("Failed to update incident");
     }
+  });
+}
+
+/**
+ * Tracking admin override (RF-219 §1.3 mechanism).
+ *
+ * The §1.3 override decision is only safe once every override is recorded:
+ * this action sets the incident status directly — bypassing the derived-state
+ * sync and the allowed-edge table — and appends an ADMIN_OVERRIDE event with
+ * the actor, the from→to edge, and the mandatory reason in the same
+ * transaction. The permission itself ships with §1.3; the audit mechanism
+ * ships here.
+ *
+ * Rules: the reason is mandatory (an unexplained override defeats the log);
+ * CANCELADA is never a target (use `cancelIncident`) and never a source
+ * (terminal and irreversible).
+ */
+export async function overrideIncidentStatus(
+  incidentId: number,
+  toStatusName: string,
+  reason: string,
+) {
+  const actor = await requirePermission("tracking:update");
+
+  return guarded(async () => {
+    const trimmedReason = reason?.trim() ?? "";
+    if (!trimmedReason) {
+      businessRule(
+        "El motivo es obligatorio: queda registrado en la bitácora.",
+      );
+    }
+    if (!isIncidentState(toStatusName)) {
+      businessRule("Estado de incidencia no válido.");
+    }
+    if (toStatusName === INCIDENT_STATE.CANCELADA) {
+      businessRule(
+        "Para cancelar una incidencia usa la acción de cancelación.",
+      );
+    }
+
+    const incident = await prisma.incident.findUnique({
+      where: { id: incidentId },
+      select: {
+        status: { select: { name: true } },
+        resolvedAt: true,
+      },
+    });
+    if (!incident) businessRule("La incidencia ya no existe.");
+    const from = incident.status?.name ?? null;
+    if (from === INCIDENT_STATE.CANCELADA) {
+      businessRule("La incidencia está cancelada. No se pueden hacer cambios.");
+    }
+    if (from === toStatusName) {
+      businessRule(`La incidencia ya está en ${toStatusName}.`);
+    }
+
+    const target = await prisma.incidentStatus.findUnique({
+      where: { name: toStatusName },
+      select: { id: true },
+    });
+    if (!target) {
+      throw new Error(
+        `IncidentStatus '${toStatusName}' no existe en el catálogo`,
+      );
+    }
+
+    const resolvedAt =
+      toStatusName === INCIDENT_STATE.CERRADO ? new Date() : null;
+    await prisma.$transaction(async (tx) => {
+      await tx.incident.update({
+        where: { id: incidentId },
+        data: { statusId: target.id, resolvedAt },
+      });
+      await logIncidentEvent(tx, {
+        incidentId,
+        eventType: IncidentEventType.ADMIN_OVERRIDE,
+        actorId: actor.id,
+        fromStatus: from,
+        toStatus: toStatusName,
+        payload: {
+          reason: trimmedReason,
+          fromStatus: from,
+          toStatus: toStatusName,
+          priorResolvedAt: toIso(incident.resolvedAt),
+        },
+      });
+    });
+
+    revalidatePath("/admin/tracking");
+    revalidatePath("/admin/incidents");
+    revalidatePath(`/admin/incidents/${incidentId}`);
+    return ok({ before: from, after: toStatusName });
   });
 }
 
