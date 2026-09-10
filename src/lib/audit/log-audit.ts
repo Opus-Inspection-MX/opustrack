@@ -84,6 +84,8 @@ export const AUDIT_PAYLOAD_ALLOWLIST: Record<AuditEntity, readonly string[]> = {
     "active",
     "reason",
   ],
+  // Phase 2 channel matrix: identifiers and switches only, no free text.
+  [AuditEntity.NOTIFICATION_CHANNEL]: ["type", "inApp", "email", "reason"],
 };
 
 function truncateValue(value: unknown): unknown {

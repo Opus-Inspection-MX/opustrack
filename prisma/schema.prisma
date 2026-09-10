@@ -555,6 +555,7 @@ enum AuditEntity {
   VEHICLE
   VEHICLE_TRIP
   SCHEDULE
+  NOTIFICATION_CHANNEL
 }
 
 /// Closed action vocabulary. Status transitions are NOT here — they belong
@@ -858,6 +859,58 @@ model Notification {
   @@index([userId, createdAt]) // Fast "recent notifications" queries
   @@index([type]) // Filter by notification type
   @@index([active, createdAt]) // Cleanup queries
+}
+
+/// Per-event delivery switches (Phase 2 channel matrix).
+///
+/// One row per notification type, keyed by the type string itself — a new
+/// event needs no migration, only a catalog entry plus a seed row. When both
+/// switches are off the event is disabled. No `active` column on purpose:
+/// rows are keyed configuration, never deleted (log-shaped like AuditLog,
+/// unlike the soft-deleted domain models the attribution matrix test pins).
+model NotificationChannelPolicy {
+  type      String  @id
+  inApp     Boolean @default(true)
+  email     Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  // RF-550 attribution: null = system row (seed/migration), never backfilled.
+  createdById     String?
+  updatedById     String?
+  deactivatedAt   DateTime?
+  deactivatedById String?
+
+  @@map("notification_channel_policies")
+}
+
+/// One row per outbound message: visibility plus retries (Phase 2).
+///
+/// Log-shaped (no `active`, like AuditLog): a retry UPDATES the row's
+/// status/attempts, nothing ever soft-deletes it. `lastError` carries the
+/// failure kind only — never addresses or bodies (PII-free by construction).
+model EmailOutbox {
+  id               String           @id @default(cuid())
+  notificationType String
+  subject          String
+  text             String
+  html             String
+  recipients       String[]
+  status           EmailOutboxStatus @default(PENDIENTE)
+  attempts         Int              @default(0)
+  lastError        String?
+  nextAttemptAt    DateTime?
+  broadcastId      String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  @@index([status, nextAttemptAt])
+  @@map("email_outbox")
+}
+
+enum EmailOutboxStatus {
+  PENDIENTE
+  ENVIADO
+  FALLIDO
 }
 
 // ─── Holidays & Vacations (RF-700–RF-749) ────────────────────────────────────
