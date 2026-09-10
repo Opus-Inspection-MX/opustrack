@@ -5,6 +5,7 @@ vi.mock("@/lib/database/prisma.singleton", () => ({
     incident: { findUnique: vi.fn(), update: vi.fn() },
     assignment: { findMany: vi.fn() },
     incidentStatus: { findUnique: vi.fn() },
+    incidentEvent: { create: vi.fn(), findFirst: vi.fn() },
   },
 }));
 
@@ -77,9 +78,13 @@ describe("syncIncidentState", () => {
   const update = vi.mocked(prisma.incident.update);
   const findMany = vi.mocked(prisma.assignment.findMany);
   const statusFindUnique = vi.mocked(prisma.incidentStatus.findUnique);
+  const eventCreate = vi.mocked(prisma.incidentEvent.create);
+  const eventFindFirst = vi.mocked(prisma.incidentEvent.findFirst);
 
   beforeEach(() => {
     vi.clearAllMocks();
+    eventCreate.mockResolvedValue({} as never);
+    eventFindFirst.mockResolvedValue(null);
   });
 
   it("short-circuits on CANCELADA and never touches assignments or update", async () => {
@@ -161,5 +166,97 @@ describe("syncIncidentState", () => {
     await expect(syncIncidentState(1)).rejects.toThrow(
       /no existe en el catálogo/,
     );
+  });
+
+  it("emits STATUS_CHANGED with from→to and a resolvedAt snapshot", async () => {
+    findUnique.mockResolvedValue({
+      status: { name: INCIDENT_STATE.ABIERTO },
+      resolvedAt: null,
+    } as never);
+    findMany.mockResolvedValue([
+      { status: { name: ASSIGNMENT_STATE.ASIGNADO } },
+    ] as never);
+    statusFindUnique.mockResolvedValue({ id: 5 } as never);
+
+    await syncIncidentState(1);
+
+    expect(eventCreate).toHaveBeenCalledTimes(1);
+    const event = eventCreate.mock.calls[0]?.[0]?.data as {
+      eventType: string;
+      fromStatus: string;
+      toStatus: string;
+      actorId: string | null;
+    };
+    expect(event.eventType).toBe("STATUS_CHANGED");
+    expect(event.fromStatus).toBe(INCIDENT_STATE.ABIERTO);
+    expect(event.toStatus).toBe(INCIDENT_STATE.ASIGNADO);
+    expect(event.actorId).toBeNull();
+  });
+
+  it("emits REOPENED with the prior closure timestamp when leaving CERRADO", async () => {
+    const closedAt = new Date("2026-08-01T12:00:00Z");
+    findUnique.mockResolvedValue({
+      status: { name: INCIDENT_STATE.CERRADO },
+      resolvedAt: closedAt,
+    } as never);
+    findMany.mockResolvedValue([
+      { status: { name: ASSIGNMENT_STATE.EN_PROGRESO } },
+    ] as never);
+    statusFindUnique.mockResolvedValue({ id: 7 } as never);
+
+    await syncIncidentState(1, prisma, { actorId: "admin-1" });
+
+    expect(eventCreate).toHaveBeenCalledTimes(1);
+    const event = eventCreate.mock.calls[0]?.[0]?.data as {
+      eventType: string;
+      actorId: string | null;
+      payload: { priorResolvedAt: string };
+    };
+    expect(event.eventType).toBe("REOPENED");
+    expect(event.actorId).toBe("admin-1");
+    expect(event.payload.priorResolvedAt).toBe(closedAt.toISOString());
+  });
+
+  it("does not silently reopen a bulk-imported CERRADO row with no assignments", async () => {
+    findUnique.mockResolvedValue({
+      status: { name: INCIDENT_STATE.CERRADO },
+      resolvedAt: new Date("2026-07-01T12:00:00Z"),
+    } as never);
+    findMany.mockResolvedValue([]);
+    eventFindFirst.mockResolvedValue({ id: "bulk-event" } as never);
+
+    const result = await syncIncidentState(1);
+
+    expect(result).toEqual({
+      before: INCIDENT_STATE.CERRADO,
+      after: INCIDENT_STATE.CERRADO,
+    });
+    expect(update).not.toHaveBeenCalled();
+    expect(eventCreate).toHaveBeenCalledTimes(1);
+    const event = eventCreate.mock.calls[0]?.[0]?.data as {
+      eventType: string;
+    };
+    expect(event.eventType).toBe("RECALC_SKIPPED");
+  });
+
+  it("still recalculates a genuinely emptied CERRADO incident (no BULK_IMPORTED event)", async () => {
+    findUnique.mockResolvedValue({
+      status: { name: INCIDENT_STATE.CERRADO },
+      resolvedAt: null,
+    } as never);
+    findMany.mockResolvedValue([]);
+    eventFindFirst.mockResolvedValue(null);
+    statusFindUnique.mockResolvedValue({ id: 3 } as never);
+
+    const result = await syncIncidentState(1);
+
+    // Zero assignments derive ABIERTO: the transition stands, logged as a
+    // reopen, because this row has no bulk-import history to protect.
+    expect(result.after).toBe(INCIDENT_STATE.ABIERTO);
+    expect(update).toHaveBeenCalledTimes(1);
+    const event = eventCreate.mock.calls[0]?.[0]?.data as {
+      eventType: string;
+    };
+    expect(event.eventType).toBe("REOPENED");
   });
 });

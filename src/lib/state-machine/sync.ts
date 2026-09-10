@@ -1,6 +1,7 @@
-import type { Prisma } from "@prisma/client";
+import { IncidentEventType, type Prisma } from "@prisma/client";
 import { prisma } from "@/lib/database/prisma.singleton";
 import { ASSIGNMENT_STATE, type AssignmentState } from "./assignment-machine";
+import { logIncidentEvent, toIso } from "./incident-events";
 import { INCIDENT_STATE, type IncidentState } from "./incident-machine";
 
 /**
@@ -59,14 +60,22 @@ type TxClient = Prisma.TransactionClient | typeof prisma;
  *
  * Short-circuits when the incident is in CANCELADA — that terminal state is
  * set directly by admin and must never be overwritten by sync.
+ *
+ * Every committed transition appends an audit event (RF-219). Leaving
+ * CERRADO is logged as REOPENED with the closure timestamp preserved in the
+ * payload BEFORE the live `resolvedAt` column is nulled.
  */
 export async function syncIncidentState(
   incidentId: number,
   client: TxClient = prisma,
+  options?: { actorId?: string | null },
 ): Promise<{ before: string | null; after: IncidentState | null }> {
   const incident = await client.incident.findUnique({
     where: { id: incidentId },
-    select: { status: { select: { name: true } } },
+    select: {
+      status: { select: { name: true } },
+      resolvedAt: true,
+    },
   });
   const before = incident?.status?.name ?? null;
 
@@ -87,6 +96,37 @@ export async function syncIncidentState(
 
   if (before === target) return { before, after: target };
 
+  // Silent-reopen guard (RF-219): historical CERRADO rows from bulk import
+  // carry zero assignments, so a plain recalculation would "derive" ABIERTO
+  // and silently reopen them. They leave CERRADO only via an explicit,
+  // logged reopen. A genuinely emptied incident (assignments soft-deleted by
+  // an admin, no BULK_IMPORTED event) keeps the current recalc behavior.
+  if (
+    before === INCIDENT_STATE.CERRADO &&
+    assignments.length === 0 &&
+    target !== INCIDENT_STATE.CERRADO
+  ) {
+    const historical = await client.incidentEvent.findFirst({
+      where: { incidentId, eventType: IncidentEventType.BULK_IMPORTED },
+      select: { id: true },
+    });
+    if (historical) {
+      await logIncidentEvent(client, {
+        incidentId,
+        eventType: IncidentEventType.RECALC_SKIPPED,
+        actorId: options?.actorId ?? null,
+        fromStatus: before,
+        payload: {
+          fromStatus: before,
+          attemptedTarget: target,
+          reason:
+            "Fila histórica en CERRADO sin asignaciones: se requiere reapertura explícita",
+        },
+      });
+      return { before, after: before };
+    }
+  }
+
   const status = await client.incidentStatus.findUnique({
     where: { name: target },
     select: { id: true },
@@ -95,13 +135,43 @@ export async function syncIncidentState(
     throw new Error(`IncidentStatus '${target}' no existe en el catálogo`);
   }
 
+  const resolvedAt = target === INCIDENT_STATE.CERRADO ? new Date() : null;
   await client.incident.update({
     where: { id: incidentId },
     data: {
       statusId: status.id,
-      resolvedAt: target === INCIDENT_STATE.CERRADO ? new Date() : null,
+      resolvedAt,
     },
   });
+
+  const actorId = options?.actorId ?? null;
+  if (before === INCIDENT_STATE.CERRADO) {
+    await logIncidentEvent(client, {
+      incidentId,
+      eventType: IncidentEventType.REOPENED,
+      actorId,
+      fromStatus: before,
+      toStatus: target,
+      payload: {
+        priorResolvedAt: toIso(incident?.resolvedAt),
+        fromStatus: before,
+        toStatus: target,
+      },
+    });
+  } else {
+    await logIncidentEvent(client, {
+      incidentId,
+      eventType: IncidentEventType.STATUS_CHANGED,
+      actorId,
+      fromStatus: before,
+      toStatus: target,
+      payload: {
+        resolvedAt: toIso(resolvedAt),
+        fromStatus: before,
+        toStatus: target,
+      },
+    });
+  }
 
   return { before, after: target };
 }
