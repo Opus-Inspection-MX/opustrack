@@ -52,7 +52,7 @@ Restricción de regla (XOR): **exactamente uno** de `day` o `nthMonday` debe est
 | `color` | `String` | Color del badge |
 | `active` | `Boolean` | Soft delete |
 
-Sigue el patrón de `ScheduleStatus`. Gestionado solo por ADMINISTRADOR.
+Sigue el patrón de `ScheduleStatus`. Gestionado por el rol ADMIN_VACACIONES (permisos `holidays:*` / `vacations:*`).
 
 ### Vacation
 
@@ -80,7 +80,7 @@ crear o actualizar una asignación (ver RF-704).
 
 ### RF-700 · Catálogo de festivos (CRUD de admin)
 
-El sistema mantiene un catálogo de días no laborables oficiales (LFT Art. 74). Un ADMINISTRADOR
+El sistema mantiene un catálogo de días no laborables oficiales (LFT Art. 74). Un ADMIN_VACACIONES
 puede crear, actualizar y dar de baja (soft delete) festivos. Las reglas soportadas son:
 
 - **Fecha fija**: `month` + `day`; se repite cada año cuando `isRecurring: true`.
@@ -110,33 +110,33 @@ en reglas de ocurrencia única el año de la fecha debe igualar `year`. Una regl
 
 #### Escenario: Crear festivo de fecha fija
 
-- DADO un ADMINISTRADOR autenticado con permiso `holidays:create`
+- DADO un usuario autenticado con permiso `holidays:create`
 - CUANDO envía un festivo con `month: 1`, `day: 1`, `isRecurring: true`
 - ENTONCES se persiste con `active: true` y aparece en el catálogo
 
 #### Escenario: Crear festivo de n-ésimo lunes
 
-- DADO un ADMINISTRADOR autenticado con permiso `holidays:create`
+- DADO un usuario autenticado con permiso `holidays:create`
 - CUANDO envía `month: 2`, `nthMonday: 1`, `isRecurring: true`
 - ENTONCES se persiste y `isFsrUnavailable` lo resuelve como el primer lunes de febrero para
   cualquier año consultado
 
 #### Escenario: Rechazo de regla ambigua (XOR)
 
-- DADO un ADMINISTRADOR creando un festivo
+- DADO un usuario creando un festivo
 - CUANDO envía a la vez `day` y `nthMonday`, o no envía ninguno de los dos
 - ENTONCES la validación rechaza la operación con un error en español
 
 #### Escenario: Festivo de ocurrencia única requiere año
 
-- DADO un ADMINISTRADOR creando un festivo con `isRecurring: false`
+- DADO un usuario creando un festivo con `isRecurring: false`
 - CUANDO no especifica `year`
 - ENTONCES la validación rechaza la operación
 
 #### Escenario: Soft delete de festivo
 
 - DADO un festivo activo en el catálogo
-- CUANDO el ADMINISTRADOR lo elimina
+- CUANDO lo elimina
 - ENTONCES `active` pasa a `false` y el festivo se excluye de los chequeos de disponibilidad
 
 #### Escenario: Un no-admin no puede gestionar festivos
@@ -149,7 +149,7 @@ en reglas de ocurrencia única el año de la fecha debe igualar `year`. Una regl
 
 ### RF-701 · Solicitud de vacación (el FSR crea la propia; el ADMIN crea para cualquier FSR)
 
-El sistema permite a un FSR registrar solicitudes de ausencia para sí mismo. Un ADMINISTRADOR
+El sistema permite a un FSR registrar solicitudes de ausencia para sí mismo. Un ADMIN_VACACIONES
 puede crear vacaciones a nombre de cualquier FSR (incapacidades o permisos aprobados).
 
 Una vacación se define como un rango de fechas inclusivo (`startDate`–`endDate`) con granularidad
@@ -168,7 +168,7 @@ existente.startDate`). Rangos adyacentes (que no se solapan) sí se permiten.
 
 #### Escenario: El ADMIN crea vacación para otro FSR
 
-- DADO un ADMINISTRADOR autenticado con permiso `vacations:create`
+- DADO un usuario autenticado con permiso `vacations:create`
 - CUANDO envía una vacación con `userId` = cualquier FSR
 - ENTONCES se crea con `statusId` = PENDIENTE y el `userId` indicado
 
@@ -188,7 +188,7 @@ existente.startDate`). Rangos adyacentes (que no se solapan) sí se permiten.
 
 ### RF-702 · Aprobación de vacación (el ADMIN aprueba o rechaza)
 
-Un ADMINISTRADOR puede transicionar una vacación de PENDIENTE a APROBADA o RECHAZADA. El sistema
+Un ADMIN_VACACIONES (permiso `vacations:approve`) puede transicionar una vacación de PENDIENTE a APROBADA o RECHAZADA. El sistema
 registra `approvedById` y `approvedAt`.
 
 Aprobar una vacación que se solapa con asignaciones existentes del FSR **debe tener éxito sin
@@ -336,26 +336,27 @@ con un error claro en español neutro y la actividad no se persiste.
 
 El sistema siembra los siguientes permisos y los asigna a los roles:
 
-| Permiso | ADMINISTRADOR | FSR | CLIENT | GUEST |
+| Permiso | ADMIN_VACACIONES | FSR | CLIENT | GUEST |
 |---|:---:|:---:|:---:|:---:|
 | `holidays:read` | ✓ | — | — | — |
 | `holidays:create` | ✓ | — | — | — |
 | `holidays:update` | ✓ | — | — | — |
 | `holidays:delete` | ✓ | — | — | — |
-| `vacations:read` | ✓ | ✓ | — | — |
-| `vacations:create` | ✓ | ✓ | — | — |
+| `vacations:read` | ✓ | ✓ (propias) | — | — |
+| `vacations:create` | ✓ | ✓ (propias) | — | — |
 | `vacations:approve` | ✓ | — | — | — |
-| `vacations:delete` | ✓ | ✓ | — | — |
+| `vacations:delete` | ✓ | ✓ (propias) | — | — |
+| `vacations:manage` | ✓ | — | — | — |
 
-Rutas (el acceso se resuelve por prefijo; ADMINISTRADOR pasa todos los checks, ver [01](./01-auth-rbac.md)):
+Rutas (el acceso se resuelve por prefijo con `routePaths` del JWT; solo ROOT pasa todos los checks, ver [01](./01-auth-rbac.md)):
 
 | Prefijo de ruta | Roles permitidos |
 |---|---|
-| `/admin/holidays` | ADMINISTRADOR |
-| `/admin/vacations` | ADMINISTRADOR |
+| `/admin/holidays` | ADMIN_VACACIONES |
+| `/admin/vacations` | ADMIN_VACACIONES |
 | `/fsr/vacations` | FSR |
 
-Los FSR solo ven y gestionan sus propias vacaciones (`userId` = el propio). El ADMIN ve todas.
+Los FSR solo ven y gestionan sus propias vacaciones (`userId` = el propio). ADMIN_VACACIONES ve todas.
 
 #### Escenario: El FSR accede a su lista de vacaciones
 
@@ -369,9 +370,9 @@ Los FSR solo ven y gestionan sus propias vacaciones (`userId` = el propio). El A
 - CUANDO intenta acceder a `/admin/vacations`
 - ENTONCES el control de acceso lo redirige a `/unauthorized`
 
-#### Escenario: El ADMIN ve todas las vacaciones
+#### Escenario: ADMIN_VACACIONES ve todas las vacaciones
 
-- DADO un ADMINISTRADOR autenticado
+- DADO un ADMIN_VACACIONES autenticado
 - CUANDO navega a `/admin/vacations`
 - ENTONCES ve los registros de vacaciones de todos los FSR
 
@@ -388,7 +389,23 @@ El sistema siembra un catálogo `VacationStatus` (siguiendo el patrón de `Sched
 | APROBADA | Verde (`#10B981`) |
 | RECHAZADA | Rojo (`#EF4444`) |
 
-Soft delete: `active: false`. Gestionado solo por ADMINISTRADOR.
+Soft delete: `active: false`. Gestionado por el rol ADMIN_VACACIONES (permisos `holidays:*` / `vacations:*`).
+
+---
+
+### RF-708 · Reglas de acumulación de vacaciones (datos, no código)
+
+**Descripción:** Los días por años de servicio y la ventana de gracia viven en
+tablas editables desde `/admin/settings/vacation-accrual`
+(`vacationAccrualRules.ts`, permiso `settings:*`), no hardcodeados: si la LFT
+cambia, se editan reglas en vez de desplegar.
+
+**Reglas de negocio:**
+- `VacationAccrualRule { minYears, maxYears?, days }`: tramos por antigüedad,
+  CRUD admin con soft delete.
+- `getVacationSetting()`: ventana de gracia y knobs globales del cómputo.
+- El cómputo de derecho usa `hireDate + (periodNumber − 1)` años con inicio de
+  día CDMX (`accrualStart`).
 
 ---
 

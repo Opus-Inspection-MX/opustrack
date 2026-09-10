@@ -45,12 +45,16 @@ Cliente reporta incidente
 
 | Rol | Alcance | defaultPath |
 |-----|---------|-------------|
-| **ADMINISTRADOR** | Acceso omnipotente a todas las rutas y recursos. No ligado a ningún Cliente. | `/admin` |
-| **FSR** | Usuario operativo del sistema; ejecuta asignaciones y viajes. Ligado a Cliente(s). | `/fsr` |
-| **CLIENT** | Levanta incidentes desde su Cliente; permisos de creación acotados. | `/client` |
-| **GUEST** | Solo lectura, sin permisos de creación. | `/guest` |
+| **ROOT** | Superusuario (`isSuperuser`): omite todo check. Sin Cliente. | `/admin` |
+| **ADMIN_OPERACION** | Todo el alcance operativo + `scope:all-clientes` (ve todos los centros sin poder otorgar roles). | `/admin/tracking` |
+| **ADMIN_VACACIONES** | Solo su módulo y sus propias vacaciones; sin alcance global. | `/admin/vacations` |
+| **FSR** | Ejecuta asignaciones y viajes. Ligado a Cliente(s). | `/fsr` |
+| **EMPLEADO** | Vacaciones propias. | `/vacations` |
+| **CLIENT** | Levanta incidentes desde su Cliente; creación acotada. | `/client` |
+| **GUEST** | Solo lectura, sin creación. | `/guest` |
 
-El detalle del modelo RBAC (database-driven, JWT + Edge Runtime, caché de permisos) está en
+Un usuario puede tener varios roles a la vez. El detalle (JWT + Edge
+Runtime, `sessionVersion`, multi-Cliente) está en
 [01 · Autenticación y RBAC](./01-auth-rbac.md).
 
 ---
@@ -69,7 +73,7 @@ y se preservan con su número original aunque queden fuera del rango de su domin
 | RF-150 – RF-199 | Clientes y jerarquía | [02](./02-clientes-jerarquia.md) |
 | RF-200 – RF-249 | Incidentes | [03](./03-incidentes.md) |
 | RF-250 – RF-299 | Asignaciones | [04](./04-asignaciones.md) |
-| RF-300 – RF-349 | Partes e inventario | [05](./05-partes-inventario.md) |
+| RF-300 – RF-349 | Partes usadas (`AssignmentItem`) | [05](./05-partes-inventario.md) |
 | RF-350 – RF-399 | Vehículos y viajes | [06](./06-vehiculos-viajes.md) |
 | RF-400 – RF-449 | Programación | [07](./07-programacion.md) |
 | RF-450 – RF-499 | Notificaciones | [08](./08-notificaciones.md) |
@@ -89,7 +93,8 @@ No reutilices números ni renumeres requisitos existentes (se referencian de for
 
 2. **RBAC database-driven.** No hay checks de permiso hardcodeados. Cada página usa
    `requireRouteAccess()`, cada API/Server Action usa `requirePermission()` / `requireAction()`
-   o sus wrappers. ADMINISTRADOR pasa todos los checks.
+   o sus wrappers. Solo ROOT (`isSuperuser`) pasa todos los checks; el alcance
+   de datos es un permiso aparte (`scope:all-clientes`).
 
 3. **JWT + Edge Runtime.** El middleware enruta con datos del JWT (rápido, sin DB). Las rutas
    permitidas del rol (`Permission.routePath`) se embeben en el token al iniciar sesión y se
@@ -99,12 +104,12 @@ No reutilices números ni renumeres requisitos existentes (se referencian de for
    permisos finos. Cambios de rol/permiso requieren re-login. Detalle en
    [01](./01-auth-rbac.md).
 
-4. **Scoping por Cliente.** Los usuarios no ADMINISTRADOR solo ven datos de su(s) Cliente(s).
-   Las consultas filtran por el/los Cliente(s) asignados (`UserClienteAssignment`). Un permiso
-   no implica alcance: reportes y dashboard aplican `src/lib/auth/report-scope.ts`, que falla
-   cerrado (sin Cliente asignado ⇒ no ve nada). Las lecturas de datos personales
-   (p. ej. vacaciones) además verifican propiedad, porque el permiso se comparte con el dueño
-   del registro.
+4. **Scoping por Cliente.** Sin el permiso `scope:all-clientes`, un usuario solo
+   ve datos de su(s) Cliente(s). Las consultas filtran por los Clientes
+   asignados (`UserClienteAssignment`) vía `getReportScope()` +
+   `*ScopeWhere()`, que falla cerrado (sin asignación ⇒ no ve nada). Las
+   lecturas de datos personales (p. ej. vacaciones) además verifican
+   propiedad, porque el permiso se comparte con el dueño del registro.
 
 5. **Revalidación de cache.** Toda mutación llama `revalidatePath()` sobre las rutas afectadas
    (tanto `/admin/...` como las específicas del rol).
@@ -129,7 +134,7 @@ No reutilices números ni renumeres requisitos existentes (se referencian de for
 | 02 | Clientes y jerarquía | State, Cliente, Line, Equipment |
 | 03 | Incidentes | Incident, IncidentType, IncidentStatus, IncidentAssignee |
 | 04 | Asignaciones | Assignment, AssignmentAssignee, AssignmentActivity, AssignmentAttachment |
-| 05 | Partes e inventario | Part, WorkPart |
+| 05 | Partes usadas | AssignmentItem (lista de uso por asignación; **no** es inventario) |
 | 06 | Vehículos y viajes | Vehicle, VehicleTrip, VehicleStatus, VehicleTripStatus |
 | 07 | Programación | Schedule, ScheduleCliente, ScheduleStatus |
 | 08 | Notificaciones | Notification |
@@ -149,9 +154,10 @@ SDD futuros. Los hallazgos ya resueltos se retiran de esta lista al corregirse.
   de Vercel Blob. Tratar `filesystem` como proveedor de desarrollo únicamente.
 
 **Integridad de datos**
-- `PartCreateSchema` (Zod) acepta `clienteId` opcional, pero el modelo `Part` **no tiene esa
-  columna** y `createPart` no lo persiste: feature diseñada y no migrada (05). Mientras no se
-  migre, ninguna consulta debe filtrar `Part` por Cliente.
+- El dominio de inventario (`Part` / `WorkPart` con stock) se retiró: no existe
+  en el schema y la spec 05 ahora describe `AssignmentItem` (lista de uso sin
+  catálogo). Queda pendiente un reporte agregado sobre esa entidad (RF-507
+  retirado).
 
 **Consistencia funcional**
 - `/admin/programacion` es Client Component que consume API REST, excepción al patrón
@@ -212,6 +218,6 @@ SDD futuros. Los hallazgos ya resueltos se retiran de esta lista al corregirse.
 
 ## Nota sobre CLAUDE.md
 
-`CLAUDE.md` describe una versión anterior del dominio (**VIC** en vez de Cliente, **WorkOrder**
-en vez de Assignment). Estos specs reflejan el **código actual** y son la fuente de verdad del
-dominio. CLAUDE.md sigue siendo válido para patrones de arquitectura y comandos de desarrollo.
+`CLAUDE.md` describe el código actual (Cliente, Assignment, RBAC multi-rol) y
+es válido para arquitectura y comandos. Estos specs son la fuente de verdad
+del dominio y sus reglas.

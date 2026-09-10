@@ -96,7 +96,7 @@ El campo `color` es hexadecimal y se usa para renderizar badges en UI.
 - Se requiere permiso `schedules:create`.
 - `clienteIds` es **opcional**: puede ser un arreglo vacío. Una programación sin Clientes es válida y se trata como "global" (sin restricción de Cliente).
 - Se eliminan duplicados en `clienteIds` antes de procesarlos (`new Set()`).
-- El usuario debe tener acceso a cada Cliente indicado (`canAccessCliente`). Si no, se lanza error "Sin acceso al Cliente {id}".
+- El usuario debe tener acceso a cada Cliente indicado (`canAccessClienteAsync`). Sin acceso se devuelve "Sin acceso al Cliente {id}".
 - La creación del `Schedule` y los registros `ScheduleCliente` ocurren en una única transacción (`$transaction`).
 - Se usa `skipDuplicates: true` al crear los `ScheduleCliente`.
 - Después de crear, se invalida caché de `/admin/schedules` y `/admin/programacion`.
@@ -150,7 +150,7 @@ El campo `color` es hexadecimal y se usa para renderizar badges en UI.
 
 **Reglas de negocio:**
 - Se requiere permiso `schedules:read`.
-- El resultado se filtra con `getClienteWhereClause(user)`, que restringe los Clientes según el rol y los Clientes asignados al usuario.
+- El resultado se filtra por alcance con `scheduleScopeWhere()` (ver 01 RF-104): vinculadas a los Clientes del usuario más las globales (sin Clientes).
 - Ordenado por nombre ascendente.
 
 ---
@@ -199,9 +199,8 @@ El campo `color` es hexadecimal y se usa para renderizar badges en UI.
 **Descripción:** Las operaciones de creación y modificación verifican que el usuario tenga acceso a cada Cliente que intenta asociar a una programación.
 
 **Reglas de negocio:**
-- La verificación usa `canAccessCliente(user, clienteId)` del módulo de filtros de autenticación.
-- Si el usuario intenta asociar un Cliente al que no tiene acceso, se lanza error inmediatamente ("Sin acceso al Cliente {id}").
-- El ADMINISTRADOR tiene acceso a todos los Clientes.
+- La verificación usa `canAccessClienteAsync(user, clienteId)`; sin acceso se levanta `businessRule("Sin acceso al Cliente {id}")`, devuelta al operador vía `guarded()`.
+- Los tenedores de `scope:all-clientes` (ROOT, admins de operación) tienen acceso a todos los Clientes.
 - Los demás roles solo tienen acceso a los Clientes explícitamente asignados.
 - Un schedule **sin Clientes vinculados** es considerado "global": cualquier usuario puede acceder a él en operaciones de lectura y en la asignación de incidentes. La verificación de acceso a Clientes se omite cuando el schedule no tiene ningún `ScheduleCliente` activo.
 
@@ -230,4 +229,4 @@ Los estados son manuales: no hay transiciones automáticas en el código actual.
 - **`endDate` opcional**: si `endDate` es null, el schedule es puntual. La lógica de solapamiento trata este caso como `scheduledAt = endDate` para fines de filtrado.
 - **Sincronización incremental de Clientes**: la función `syncScheduleClientes` no borra ni crea ciegamente, sino que reutiliza registros inactivos y desactiva los que salen. Esto preserva el historial de la relación.
 - **Historial de `ScheduleType` eliminado**: una migración previa (`20260509070000_add_schedule_type`) agregó un enum `ScheduleType` (DIARIA | MENSUAL) al modelo Schedule. Una migración posterior (`20260515103000_schedule_multi_vic`) eliminó ese tipo y la columna. El esquema actual **no tiene campo `type` en Schedule**.
-- **Permisos de escritura**: `schedules:create`, `schedules:update` y `schedules:delete` se asignan solo al rol ADMINISTRADOR. Los roles FSR, CLIENT y GUEST tienen únicamente `schedules:read`.
+- **Permisos de escritura**: `schedules:create`, `schedules:update` y `schedules:delete` se otorgan por permiso, no por nombre de rol (ver 01). Los listados se acotan por alcance vía `scheduleScopeWhere`.

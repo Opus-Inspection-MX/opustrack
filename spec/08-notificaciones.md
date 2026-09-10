@@ -222,6 +222,25 @@ ANNOUNCEMENT          — comunicado general
 
 ---
 
+### RF-461 · Entrega por correo (SMTP / Mailpit)
+
+**Descripción:** Tres eventos además mandan correo real; el resto es solo
+in-app. Sin `SMTP_HOST` la app registra lo que habría mandado y sigue (modo
+noop para desarrollo).
+
+**Reglas de negocio:**
+- Eventos con correo: incidente creado (`incidentCreatedEmail`), incidente
+  cerrado (`incidentClosedEmail`), vacación solicitada
+  (`vacationRequestedEmail`). Viajan en `NotificationPayload.email` y se
+  resuelven a direcciones en `emailRecipients()`.
+- Transporte en `src/lib/mail/` (`SMTP_HOST/PORT/USER/PASS/FROM`; STARTTLS por
+  defecto, TLS implícito con `SMTP_SECURE=true`).
+- La suite e2e apunta el SMTP a Mailpit (`docker-compose.e2e.yml`,
+  `config/e2e.env`) y `e2e/fixtures/mail.ts` afirma contra su API: las
+  pruebas de correo prueban entrega real, no un mock.
+
+---
+
 ## Reglas transversales aplicables
 
 - **Propiedad**: ninguna operación de lectura, actualización o eliminación opera sobre notificaciones de otro usuario. La verificación de `userId` es obligatoria en todas las operaciones individuales.

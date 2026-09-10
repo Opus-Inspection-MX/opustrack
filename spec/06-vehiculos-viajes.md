@@ -66,9 +66,9 @@ Gestionar la flota de vehículos de la empresa y registrar los viajes realizados
 
 | Nombre        | Descripción                          |
 |---------------|--------------------------------------|
-| `IN_PROGRESS` | Viaje en curso                       |
-| `COMPLETED`   | Viaje finalizado con éxito           |
-| `CANCELLED`   | Viaje cancelado                      |
+| `EN_CURSO` | Viaje en curso                       |
+| `COMPLETADO`   | Viaje finalizado con éxito           |
+| `CANCELADO`   | Viaje cancelado                      |
 
 ---
 
@@ -76,7 +76,7 @@ Gestionar la flota de vehículos de la empresa y registrar los viajes realizados
 
 ### RF-350 · Listar vehículos de la flota
 
-**Descripción:** El sistema permite obtener todos los vehículos activos de la empresa, incluyendo su estado actual, FSR asignado y conteo total de viajes. No se filtra por VIC: la flota es global (company-wide).
+**Descripción:** El sistema permite obtener todos los vehículos activos de la empresa, incluyendo su estado actual, FSR asignado y conteo total de viajes. No se filtra por Cliente: la flota es global (company-wide).
 
 **Reglas de negocio:**
 - Se requiere permiso `vehicles:read`.
@@ -107,7 +107,7 @@ Gestionar la flota de vehículos de la empresa y registrar los viajes realizados
 - `vin` es opcional pero, si se ingresa, debe ser único (constraint de base de datos).
 - El estado se busca por nombre en la tabla `VehicleStatus`; si no se encuentra, se usa `statusId = 1` como fallback.
 - `assignedFsrId` debe corresponder a un usuario con rol FSR, aunque la validación es responsabilidad del llamador (no se valida en la acción).
-- Después de crear, se invalida caché de `/admin/vehicles` y `/fsr/vehicles`.
+- Después de crear, se invalida caché de `/admin/vehicles` y `/fsr/vehicle-trips`.
 
 ---
 
@@ -119,7 +119,7 @@ Gestionar la flota de vehículos de la empresa y registrar los viajes realizados
 - Se requiere permiso `vehicles:update`.
 - Mismas reglas de unicidad que en RF-352.
 - El estado se resuelve por nombre, con fallback a `statusId = 1` si no se encuentra.
-- Después de actualizar, se invalida caché de `/admin/vehicles`, `/admin/vehicles/{id}` y `/fsr/vehicles`.
+- Después de actualizar, se invalida caché de `/admin/vehicles`, `/admin/vehicles/{id}` y `/fsr/vehicle-trips`.
 
 ---
 
@@ -139,7 +139,7 @@ Gestionar la flota de vehículos de la empresa y registrar los viajes realizados
 
 **Reglas de negocio:**
 - Se requiere permiso `vehicles:delete`.
-- No se puede eliminar un vehículo si tiene viajes con estado `IN_PROGRESS` activos.
+- No se puede eliminar un vehículo si tiene viajes con estado `EN_CURSO` activos.
 - Si hay viajes en curso, se lanza error con el conteo exacto de viajes activos.
 - Después de la eliminación se redirige a `/admin/vehicles`.
 
@@ -151,7 +151,7 @@ Gestionar la flota de vehículos de la empresa y registrar los viajes realizados
 
 **Reglas de negocio:**
 - Se requiere permiso `vehicles:read`.
-- Solo se incluyen usuarios con `roleId` correspondiente al rol de nombre "FSR" y `active: true`.
+- Solo se incluyen usuarios activos con rol FSR (`whereHasRole("FSR")`).
 
 ---
 
@@ -162,18 +162,18 @@ Gestionar la flota de vehículos de la empresa y registrar los viajes realizados
 **Reglas de negocio:**
 - Se requiere permiso `vehicle-trips:create`.
 - La foto del odómetro es obligatoria (campo `photo`, `File.size > 0`). Sin foto, se lanza error.
-- Si el caller no es ADMINISTRADOR, el vehículo debe tener estado `AVAILABLE`. Los administradores pueden iniciar un viaje en vehículos con cualquier estado.
-- Si se vincula un `assignmentId`, el FSR debe ser assignee activo de esa asignación (salvo si es ADMINISTRADOR).
+- Sin el permiso `vehicle-trips:manage-all`, el vehículo debe estar `AVAILABLE`. Con él se puede iniciar un viaje en cualquier estado.
+- Si se vincula un `assignmentId`, el FSR debe ser assignee activo de esa asignación (salvo con `vehicle-trips:manage-all`).
 - El archivo se valida con `assertAllowedUpload`: tamaño máximo 10 MB, MIME debe estar en el allowlist (imágenes, videos, PDF, Office, texto plano).
 - Al crear el viaje, el vehículo pasa automáticamente a estado `IN_USE`.
-- El viaje se crea con estado `IN_PROGRESS`.
+- El viaje se crea con estado `EN_CURSO`.
 - Las coordenadas GPS (`startLatitude`, `startLongitude`) y la dirección (`startAddress`) son opcionales.
 - El campo `fsrId` del viaje se fija al usuario autenticado (no es editable por el caller).
 
 **Escenario crítico — inicio de viaje:**
 - DADO un FSR autenticado con permiso `vehicle-trips:create` y un vehículo en estado `AVAILABLE`
 - CUANDO el FSR envía el formulario con `startOdometer = 45000` y una foto válida del odómetro
-- ENTONCES se crea un `VehicleTrip` con `startOdometer = 45000`, `statusId → IN_PROGRESS`, `fsrId = usuario.id`, el vehículo pasa a estado `IN_USE`, y se devuelve `{ success: true, data: trip }`
+- ENTONCES se crea un `VehicleTrip` con `startOdometer = 45000`, `statusId → EN_CURSO`, `fsrId = usuario.id`, el vehículo pasa a estado `IN_USE`, y se devuelve `{ success: true, data: trip }`
 
 ---
 
@@ -185,20 +185,20 @@ Gestionar la flota de vehículos de la empresa y registrar los viajes realizados
 - Se requiere permiso `vehicle-trips:update`.
 - La foto del odómetro de fin es obligatoria.
 - El archivo se valida con `assertAllowedUpload` (mismo allowlist que RF-357).
-- El viaje debe estar en estado `IN_PROGRESS`; si está en otro estado, se lanza error "Trip is already completed or cancelled".
-- Un FSR solo puede finalizar sus propios viajes (`fsrId === user.id`). El ADMINISTRADOR puede finalizar cualquiera.
+- El viaje debe estar en estado `EN_CURSO`; si está en otro estado, se lanza error "Trip is already completed or cancelled".
+- Un FSR solo puede finalizar sus propios viajes (`fsrId === user.id`). Con `vehicle-trips:manage-all` se puede finalizar cualquiera.
 - `endOdometer` debe ser mayor o igual a `startOdometer`. Si es menor, se lanza error "End odometer reading cannot be less than start reading".
 - `kmDriven` se calcula como `endOdometer - startOdometer` y se persiste.
 - Al finalizar, el vehículo vuelve automáticamente a estado `AVAILABLE`.
-- El viaje pasa a estado `COMPLETED` y se registra `endedAt = new Date()`.
+- El viaje pasa a estado `COMPLETADO` y se registra `endedAt = new Date()`.
 
 **Escenario crítico — cálculo de km y validación de odómetro:**
-- DADO un viaje con `startOdometer = 45000` en estado `IN_PROGRESS`
+- DADO un viaje con `startOdometer = 45000` en estado `EN_CURSO`
 - CUANDO el FSR envía `endOdometer = 45250` con foto válida
-- ENTONCES el viaje se marca `COMPLETED`, `kmDriven = 250`, `endedAt` se registra con timestamp actual, y el vehículo pasa a `AVAILABLE`
+- ENTONCES el viaje se marca `COMPLETADO`, `kmDriven = 250`, `endedAt` se registra con timestamp actual, y el vehículo pasa a `AVAILABLE`
 
 **Escenario crítico — odómetro inválido:**
-- DADO un viaje con `startOdometer = 45000` en estado `IN_PROGRESS`
+- DADO un viaje con `startOdometer = 45000` en estado `EN_CURSO`
 - CUANDO el FSR envía `endOdometer = 44999`
 - ENTONCES el sistema lanza error "End odometer reading cannot be less than start reading" y el viaje no se modifica
 
@@ -223,7 +223,7 @@ Gestionar la flota de vehículos de la empresa y registrar los viajes realizados
 
 **Reglas de negocio:**
 - Se requiere permiso `vehicle-trips:read`.
-- Si el usuario no tiene rol `ADMINISTRADOR`, se lanza error "Only administrators can view all trips" aunque tenga el permiso.
+- Sin el permiso `vehicle-trips:manage-all` se lanza "Only administrators can view all trips".
 - Incluye datos del vehículo, del FSR y de la asignación vinculada.
 
 ---
@@ -234,7 +234,7 @@ Gestionar la flota de vehículos de la empresa y registrar los viajes realizados
 
 **Reglas de negocio:**
 - Se requiere permiso `vehicle-trips:read`.
-- Un FSR solo puede acceder a sus propios viajes. El ADMINISTRADOR puede acceder a cualquiera.
+- Un FSR solo accede a sus propios viajes. Con `vehicle-trips:manage-all` se accede a cualquiera.
 - Si el viaje no existe, se lanza error "Trip not found".
 - Si el FSR intenta acceder a un viaje ajeno, se lanza error "Access denied: You can only view your own trips".
 
@@ -247,7 +247,7 @@ Gestionar la flota de vehículos de la empresa y registrar los viajes realizados
 **Reglas de negocio:**
 - Se requiere permiso `vehicle-trips:update`.
 - Solo se pueden actualizar `notes`, `startAddress` y `endAddress`.
-- Un FSR solo puede actualizar sus propios viajes (excepto ADMINISTRADOR).
+- Un FSR solo actualiza sus propios viajes (salvo `vehicle-trips:manage-all`).
 
 ---
 
@@ -257,10 +257,10 @@ Gestionar la flota de vehículos de la empresa y registrar los viajes realizados
 
 **Reglas de negocio:**
 - Se requiere permiso `vehicle-trips:delete`.
-- Un FSR solo puede eliminar sus propios viajes (excepto ADMINISTRADOR).
+- Un FSR solo elimina sus propios viajes (salvo `vehicle-trips:manage-all`).
 - Se realiza soft delete (`active: false`).
 - Las fotos de inicio y fin se eliminan del proveedor de almacenamiento configurado. Si la eliminación falla, el proceso continúa (error no bloquea el soft delete).
-- Si el viaje estaba en estado `IN_PROGRESS` al momento de eliminarse, el vehículo vuelve automáticamente a estado `AVAILABLE`.
+- Si el viaje estaba en estado `EN_CURSO` al momento de eliminarse, el vehículo vuelve automáticamente a estado `AVAILABLE`.
 - Después de eliminar, se redirige a `/fsr/vehicle-trips`.
 
 ---
@@ -281,7 +281,7 @@ Gestionar la flota de vehículos de la empresa y registrar los viajes realizados
 
 **Reglas de negocio:**
 - Se requiere autenticación (`requireAuth`).
-- Solo se muestran asignaciones donde el usuario es assignee activo, con estado distinto de `COMPLETED`, `CANCELLED`, `COMPLETADA` o `CANCELADA`, y `active: true`.
+- Solo se muestran asignaciones donde el usuario es assignee activo, con estado distinto de `COMPLETADO`, `CANCELADO`, `COMPLETADA` o `CANCELADA`, y `active: true`.
 - Se devuelven las últimas 20 asignaciones, ordenadas por `createdAt` descendente.
 - El vínculo se establece en `VehicleTrip.assignmentId` al crear el viaje.
 
@@ -301,16 +301,16 @@ AVAILABLE ──(iniciar viaje)──► IN_USE ──(finalizar/eliminar viaje)
 | Transición automática        | Acción que la dispara            |
 |------------------------------|----------------------------------|
 | `AVAILABLE → IN_USE`         | `startVehicleTrip`               |
-| `IN_USE → AVAILABLE`         | `endVehicleTrip` / `deleteVehicleTrip` (si viaje era IN_PROGRESS) |
+| `IN_USE → AVAILABLE`         | `endVehicleTrip` / `deleteVehicleTrip` (si viaje era EN_CURSO) |
 
 ### Viaje (VehicleTripStatus)
 
 ```
-IN_PROGRESS ──(endVehicleTrip)──► COMPLETED
-IN_PROGRESS ──(cancelación manual de estado)──► CANCELLED
+EN_CURSO ──(endVehicleTrip)──► COMPLETADO
+EN_CURSO ──(cancelación manual de estado)──► CANCELADO
 ```
 
-> `CANCELLED` no tiene acción server dedicada en el código actual; solo existe como estado de catálogo.
+> `CANCELADO` no tiene acción server dedicada en el código actual; solo existe como estado de catálogo.
 
 ---
 
@@ -321,5 +321,5 @@ IN_PROGRESS ──(cancelación manual de estado)──► CANCELLED
 - **Allowlist de archivos**: las fotos se validan con `assertAllowedUpload` (máx. 10 MB; MIME permitidos: imágenes, videos, PDF, Office, texto plano). Esto es una validación server-side de defensa en profundidad, independiente del cliente.
 - **Proveedor de almacenamiento**: la foto almacena el proveedor utilizado (`startPhotoProvider`, `endPhotoProvider`), permitiendo eliminación correcta si el proveedor cambia entre ambas operaciones.
 - **GPS opcional**: las coordenadas GPS y dirección son opcionales en inicio y fin. Su ausencia no bloquea ninguna operación.
-- **Permisos de flota solo para ADMINISTRADOR**: `vehicles:create`, `vehicles:update` y `vehicles:delete` no se asignan al rol FSR en el seed. El FSR solo tiene `vehicles:read` y los permisos completos de `vehicle-trips`.
-- **Aislamiento de datos por FSR**: un FSR nunca puede leer, modificar ni eliminar viajes de otro FSR. La única excepción es el rol ADMINISTRADOR.
+- **Permisos de flota por permiso, no por rol**: `vehicles:create/update/delete` no están en el seed del FSR (solo `vehicles:read` + `vehicle-trips`).
+- **Aislamiento de datos por FSR**: un FSR nunca lee, modifica ni elimina viajes de otro FSR. La única excepción es `vehicle-trips:manage-all`.

@@ -64,7 +64,7 @@ Tabla pivote que vincula usuarios (FSR o CLIENT) con Clientes.
 | id          | Int (PK)            | Autoincrement                                      |
 | name        | String              | Nombre de la línea                                 |
 | description | String?             | Descripción opcional                               |
-| statusId    | Int (FK → LineStatus)| Estado operacional: ACTIVO, MANTENIMIENTO, INACTIVO |
+| statusId    | — | **Sin columna de estado**: la línea no tiene `statusId` ni modelo `LineStatus`. Mostrar/ocultar es el flag `active` (ver `toggleLineStatus`) |
 | clienteId   | String (FK → Cliente)| Cliente dueño de la línea                         |
 | active      | Boolean             | Soft delete                                        |
 | equipments  | Equipment[]         | Equipos en esta línea                              |
@@ -174,7 +174,7 @@ Tabla pivote que vincula usuarios (FSR o CLIENT) con Clientes.
 **Reglas de negocio:**
 - El nombre de la línea debe ser único por Cliente (`@@unique [name, clienteId]`).
 - Al eliminar, se aplica soft delete sin validar equipos hijos (a diferencia de Cliente). La función `deleteLine` en el código no verifica equipos activos antes de desactivar.
-- La función `toggleLineStatus` alterna el flag `active` (no el campo `statusId`); sirve para mostrar/ocultar líneas sin borrarlas.
+- La función `toggleLineStatus` alterna el flag `active`; sirve para mostrar/ocultar líneas sin borrarlas. La línea no tiene columna de estado (no existe `LineStatus`).
 - El campo `statusId` (ACTIVO / MANTENIMIENTO / INACTIVO) es independiente del flag `active`.
 - Permiso requerido: `lines:create` / `lines:read` / `lines:update` / `lines:delete`.
 
@@ -210,10 +210,10 @@ Tabla pivote que vincula usuarios (FSR o CLIENT) con Clientes.
 **Descripción:** Las vistas de incidentes y FSRs disponibles filtran automáticamente por el/los Clientes accesibles al usuario en sesión.
 
 **Reglas de negocio:**
-- Usuarios con rol ADMINISTRADOR ven todos los Clientes (sin filtro).
+- Usuarios con el permiso `scope:all-clientes` (ROOT, admins de operación) ven todos los Clientes (sin filtro).
 - Usuarios FSR y CLIENT solo ven datos de los Clientes asignados en `UserClienteAssignment`.
-- El filtro se aplica vía `getClienteWhereClause(user)` en cada consulta.
-- Un usuario CLIENT con `clienteId = null` (sin asignación primaria) recibe lista vacía en `getClientIncidents`.
+- El filtro se aplica vía `getReportScope()` + `*ScopeWhere()` (ver 01 RF-104); todo async, fail closed.
+- Un usuario CLIENT sin asignaciones recibe lista vacía.
 
 ---
 

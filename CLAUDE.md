@@ -1,14 +1,29 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for AI assistants working in this repository. The domain specs in
+`spec/` are the source of truth for business rules; this file covers how the
+code is organized and which commands to run.
 
 ## Project Overview
 
-OpusTrack is a professional incident management and work order tracking system for Vehicle Inspection Centers (VICs) in Mexico. Built with Next.js 15, Prisma, NextAuth, and PostgreSQL with a **database-driven role-based access control (RBAC)** system.
+OpusTrack is an incident management and work-order tracking system for vehicle
+inspection **Clientes** in Mexico. Next.js 15 (App Router), Prisma,
+NextAuth (credentials + JWT), PostgreSQL, shadcn/ui + Tailwind 4.
+
+| Term | Code | Notes |
+|------|------|-------|
+| Cliente | `Cliente` | Inspection center. Central tenant unit (multi-tenant scoping). |
+| State | `State` | Mexican state, geographic level above Cliente. |
+| Línea / Equipo | `Line` / `Equipment` | Inspection line and physical equipment inside a Cliente. |
+| Incidente | `Incident` | Reported failure. Status is **derived** from its assignments (except cancel). |
+| Asignación | `Assignment` | Work order an FSR executes. One incident → many assignments. |
+| FSR | role | Field technician. Executes assignments and vehicle trips. |
+| AssignmentItem | `AssignmentItem` | Free-text parts/equipment used + cost. **Not inventory**: no catalog, no stock. |
+| Viaje | `VehicleTrip` | Vehicle run with odometer + photo + GPS. |
+| Programación | `Schedule` | Calendar linking Clientes and incidents. |
 
 ## Development Commands
 
-### Running the Application
 ```bash
 npm run dev          # Full stack in Docker: database + Next server (hot reload)
 npm run dev:host     # Next on the host, database still in Docker
@@ -17,780 +32,129 @@ npm run build        # Production build — this is what Vercel runs
 npm start            # Production server
 ```
 
-The local stack is defined in `docker-compose.yml`: a `opustrack-db` Postgres
-container and an `opustrack-app` container built from `Dockerfile`. Uploads use
-`FILE_STORAGE_PROVIDER="filesystem"` and live in a named volume.
-
-### Code Quality
 ```bash
-npm run lint         # Check code with Biome
-npm run format       # Format code with Biome (writes changes)
+npm run check        # biome + tsc + knip (unused files fail CI) — must stay clean
+npm run format       # Format with Biome (writes changes)
+npm run test:unit    # Vitest, 75% thresholds
+npm run test:e2e     # Playwright against an ephemeral Docker DB (never the real one)
 ```
 
-### Database Operations
 ```bash
-npm run db:up        # Start the local Postgres container (creates it if missing)
+npm run db:up        # Start the local Postgres container
 npm run db:init      # Migrate, then seed ONLY if the database is empty
 npm run db:migrate   # Create a new migration
-npm run db:studio    # Open Prisma Studio (database GUI)
+npm run db:studio    # Open Prisma Studio
 npm run db:reset     # Drop and rebuild from scratch
 ```
 
-**Safety**: every `db:*` command refuses to run against a non-local host
-(`scripts/lib/db-guard.ts`). Production lives on Neon and is managed from
-Vercel, never from these scripts.
+**Safety**: every `db:*` command refuses non-local hosts
+(`scripts/lib/db-guard.ts`). Production lives on Neon, managed from Vercel.
 
-**Important**: After schema changes, always run `npm run db:migrate` to create a migration and regenerate the Prisma client.
+**Seed**: `scripts/db-init.ts` runs `initial_load/seed.ts` when the DB is
+empty (gitignored real data); the tracked template is
+`initial_load/seed.example.ts`. There is no `prisma/seed.ts`. After schema
+changes run `npm run db:migrate` to regenerate the Prisma client.
 
-**Environments**: `.env.development` (local container) · `.env.production`
-(Neon, for local production builds only) · `config/e2e.env` (throwaway e2e
-container) · Vercel Dashboard (the real deployment). `scripts/with-env.mjs`
-loads the right profile for each command.
-
-The seed script (`prisma/seed.ts`) creates:
-- 1 VIC (Vehicle Inspection Center) in CDMX
-- 4 roles: ADMINISTRADOR, FSR, CLIENT, GUEST
-- 4 test users (one per role) with email pattern: `{role}@opusinspection.com` / password: `password123`
-- Comprehensive permission system with route and resource-based permissions
-
-**Role Structure**:
-- **ADMINISTRADOR**: Full system access, not related to any VIC
-- **FSR** (Field Service Representative): System user with management capabilities, assigned to VIC
-- **CLIENT**: Raises incidents from VIC, has create permissions
-- **GUEST**: Read-only access, no create permissions
+Seeded roles (`defaultPath`): **ROOT** (`/admin`, `isSuperuser`),
+**ADMIN_OPERACION** (`/admin/tracking`), **ADMIN_VACACIONES**
+(`/admin/vacations`), **FSR** (`/fsr`), **EMPLEADO** (`/vacations`),
+**CLIENT** (`/client`), **GUEST** (`/guest`). Test users follow
+`{role}@opusinspection.com` / `password123` (e.g. `admin@`,
+`fsr@`, `client@`, `guest@`, three accounts per main role).
 
 ## Architecture
 
-### Database-Driven RBAC System
-
-**Core Principle**: All permissions, roles, and access rules are stored in the database and loaded at runtime. No hardcoded permission checks in code.
-
-#### Permission Model (`prisma/schema.prisma:42-56`)
-Permissions have multiple dimensions:
-- `name`: Unique identifier (e.g., "incidents:read", "route:admin")
-- `resource`: Resource type (e.g., "incidents", "users")
-- `action`: Action type (e.g., "read", "create", "update", "delete")
-- `routePath`: Route the permission grants access to (e.g., "/admin", "/incidents")
-
-#### Role Model (`prisma/schema.prisma:33-43`)
-- Roles have a `defaultPath` where users are redirected after login
-- Roles connect to permissions via `RolePermission` junction table
-- All role configuration is stored in database
-
-### Authentication Flow
-
-**NextAuth Configuration** (`src/app/api/auth/[...nextauth]/route.ts`)
-1. Credentials-based authentication with bcrypt password hashing
-2. JWT session strategy with 30-day expiration
-3. User status check (must be "ACTIVO")
-4. Session includes: `id`, `email`, `name`, `roleId`, `defaultPath`
-
-**Login Flow**:
-1. User submits credentials → `/api/auth/callback/credentials`
-2. `authorize()` validates credentials and user status
-3. JWT token created with user data
-4. Middleware intercepts next request
-5. Middleware loads user's role and permissions from database
-6. User redirected to their `defaultPath` or requested route (if authorized)
-
-### Authorization System
-
-**Authorization Library** (`src/lib/authz/authz.ts`)
-Database-driven functions with 5-minute caching:
-- `getAllRoles()` - Get all roles with permissions
-- `getRoleById(roleId)` - Get specific role with permissions
-- `roleCanAccessRoute(role, path)` - Check route access
-- `getAccessibleRoutes(role)` - Get all routes user can access
-- `roleHasPermission(role, name)` - Check specific permission
-- `clearPermissionsCache()` - Clear cache after updates
-
-**Authentication Helpers** (`src/lib/auth/auth.ts`)
-Server-side functions for route handlers and pages:
-
-For API Routes:
-```typescript
-// Basic auth
-const user = await requireAuth();
-
-// Auth + permission check
-const user = await requirePermission("incidents:create");
-
-// Auth + resource action check
-const user = await requireAction("incidents", "update");
-
-// Wrapper pattern
-export const POST = withPermission("incidents:create", async (req, user) => {
-  // user is authenticated and authorized
-});
-```
-
-For Pages:
-```typescript
-// In page.tsx
-const user = await requireRouteAccess("/admin");
-
-// Get accessible routes
-const routes = await getMyAccessibleRoutes();
-
-// Check specific permission
-const canCreate = await canPerform("incidents:create");
-```
-
-**Middleware** (`src/middleware.ts`)
-Runs on every request:
-1. Allow public routes (`/login`, `/signup`, `/api/auth/*`, `/_next/*`)
-2. Check authentication (JWT token)
-3. Load user's role with permissions from database
-4. Redirect `/` to user's `defaultPath`
-5. Admin role (`ADMINISTRADOR`) gets access to all routes
-6. Check route access via `roleCanAccessRoute()`
-7. Redirect to `/unauthorized` if access denied
-
-### JWT + Edge Runtime Architecture
-
-**Critical Design Decision**: Middleware runs on Edge Runtime (cannot use Prisma directly).
-
-**The Pattern**:
-1. **JWT Token** stores: `id`, `email`, `name`, `roleId`, `defaultPath`, `roleName`
-2. **Middleware** uses JWT data for fast route protection (1-5ms, no DB calls)
-3. **API Routes/Pages** still query database for fine-grained permission checks
-4. **Trade-off**: Role/permission changes require user to re-login to take effect
-
-**Why This Matters**:
-- Middleware runs on EVERY request - must be fast
-- Direct Prisma calls in middleware would be 25x slower (50-200ms vs 1-5ms)
-- Hybrid approach: JWT for routing speed, DB for permission accuracy
-
-### Database Layer
-
-**Prisma Client** (`src/lib/database/prisma.singleton.ts`)
-- Always import from: `@/lib/database/prisma.singleton`
-- Singleton pattern with HMR-safe globalThis caching
-- Query logging in development, errors only in production
-
-**Schema Structure** (`prisma/schema.prisma`):
-Key models:
-- **User** - Links to Role (roleId), VIC (vicId), UserStatus
-- **Role** - Has many Permissions via RolePermission
-- **Permission** - Defines access rules with resource, action, routePath
-- **RolePermission** - Junction table between Role and Permission
-- **Incident** - One-to-many with WorkOrder
-- **WorkOrder** - Contains WorkActivity, AssignmentItem, and Attachment records
-- **AssignmentItem** - Free-text list of parts/equipment used (name, quantity, unit price)
-
-### Application Structure
-
-**App Router**: Next.js 15 App Router with role-based routing
-- `/login`, `/signup`, `/logout` - Authentication pages
-- `/admin` - Administrator dashboard (requires `route:admin` permission)
-- `/fsr` - System user dashboard (requires `route:fsr` permission)
-- `/client` - External user dashboard (requires `route:client` permission)
-- `/guest` - Guest/staff dashboard (requires `route:guest` permission)
-- `/incidents` - Incident management (requires `incidents:read` permission)
-- `/unauthorized` - Access denied page
-
-Each role has a `defaultPath` stored in database that determines where users land after login.
-
-**Component Organization**:
-- `src/components/ui/` - shadcn/ui components (New York style)
-- `src/components/{entity}/` - Domain-specific components
-- `src/components/layout/` - Navigation sidebars and navbars per role
-- `src/components/common/` - Shared components
-
-**Styling**: Tailwind CSS 4 with shadcn/ui
-- Theme provider with dark mode support (`next-themes`)
-- CSS variables for theming
-- Path aliases: `@/*` maps to `src/*`
-
-### Core Business Workflows
-
-#### Incident-to-Resolution Flow
-1. **CLIENT** creates incident (with photos/evidence)
-2. **ADMIN** reviews and creates work order(s), assigns to FSR
-3. **FSR** performs work, documents activities, records parts used, uploads evidence
-4. **System** automatically closes incident when ALL work orders are completed
-5. All stakeholders track real-time progress
-
-#### Incident-Work Order Relationship
-- **One incident → Many work orders** (one-to-many)
-- Bidirectional navigation: Incident detail shows all work orders, work order shows parent incident
-- **Automatic closure logic**: Incident status changes when all related work orders complete
-- Work orders can be created independently or from incidents
-
-#### Work Order Management
-
-**Work Activities** - Document work performed:
-- Free-text description of work done
-- Timestamps for audit trail
-- Multiple activities per work order
-
-**Refacciones y equipo** (`AssignmentItem`) - an open list, NOT inventory:
-- Free text name, quantity and unit price; the line total is derived
-- **No catalogue and no stock on purpose**: pointing at a parts table with
-  stock means running a warehouse — receiving, counting, reconciling — which
-  this system does not do. The technician records what was used and its cost.
-
-**File Attachments** - Evidence and documentation:
-- Multiple file uploads per work order (10MB limit per file)
-- Support for images, PDFs, and common file types
-- **Mobile Camera Support**: HTML5 `capture="environment"` attribute for rear camera
-- Provider-specific storage (Vercel Blob or Filesystem)
-- Each attachment stores which provider was used
-
-## Common Development Patterns
-
-### CRITICAL: Security-First Development
-
-**EVERY PAGE AND API MUST HAVE RBAC/AUTH CHECKS**:
-- ✅ **ALWAYS** use `requireRouteAccess()`, `requirePermission()`, or `requireAuth()`
-- ✅ **ALWAYS** check permissions before ANY database operation
-- ✅ **NEVER** trust client-side data or assume user has permission
-- ❌ **NEVER** skip authorization checks "temporarily" or for "testing"
-
-**Example violations to avoid**:
-```typescript
-// ❌ BAD - No auth check
-export async function DELETE(req: Request) {
-  await prisma.incident.delete({ where: { id } });
-}
-
-// ✅ GOOD - Auth + permission check
-export async function DELETE(req: Request) {
-  await requirePermission("incidents:delete");
-  await prisma.incident.delete({ where: { id } });
-}
-```
-
-### CRUD Implementation Pattern (Preferred)
-
-**Choose the right approach based on interactivity needs**:
-
-#### 1. React Server Components (PREFERRED for low interactivity)
-
-**Use for**: CRUD pages, list views, detail pages, forms without complex interactions
-
-**Benefits**:
-- Direct database access (no API layer needed)
-- Faster performance (no client-server roundtrips)
-- SEO-friendly
-- Simpler code
-
-**Structure**:
-```
-src/app/admin/incidents/
-├── page.tsx                    # Server component - list view
-├── [id]/page.tsx              # Server component - detail view
-├── new/page.tsx               # Server component - create form
-├── [id]/edit/page.tsx         # Server component - edit form
-```
-
-**Pattern with Server Actions**:
-```typescript
-// src/app/admin/incidents/new/page.tsx
-import { requireRouteAccess } from "@/lib/auth/auth";
-import { createIncident } from "@/lib/actions/incidents";
-
-export default async function NewIncidentPage() {
-  // ✅ ALWAYS check route access
-  await requireRouteAccess("/admin/incidents/new");
-
-  return (
-    <form action={createIncident}>
-      {/* Form fields */}
-      <button type="submit">Create</button>
-    </form>
-  );
-}
-
-// src/lib/actions/incidents.ts
-"use server";
-import { requirePermission } from "@/lib/auth/auth";
-import { prisma } from "@/lib/database/prisma.singleton";
-import { revalidatePath } from "next/cache";
-
-export async function createIncident(formData: FormData) {
-  // ✅ ALWAYS check permissions
-  const user = await requirePermission("incidents:create");
-
-  const data = {
-    title: formData.get("title") as string,
-    // ... extract data
-  };
-
-  const incident = await prisma.incident.create({ data });
-
-  revalidatePath("/admin/incidents");
-  return { success: true, incident };
-}
-```
-
-### CRITICAL: Business rules are RETURNED, never thrown
-
-A **production** build of Next replaces the message of anything a Server Action
-throws with *"An error occurred in the Server Components render. The specific
-message is omitted in production builds…"*. A thrown rule reaches the UI under
-`next dev` and silently disappears under `next start` — which is what ships.
-
-Use `src/lib/actions/result.ts`:
-
-```typescript
-import { businessRule, guarded, ok, rejected } from "@/lib/actions/result";
-
-// Straight-line guard, before any write → return it.
-export async function deleteState(id: number) {
-  await requirePermission("states:delete");
-
-  const count = await prisma.cliente.count({ where: { stateId: id, active: true } });
-  if (count > 0) {
-    return rejected(`No se puede eliminar: ${count} Cliente(s) pertenecen a este estado.`);
-  }
-  // ...
-}
-
-// Rule raised from a shared guard or INSIDE a transaction → businessRule + guarded.
-// Returning from a $transaction callback COMMITS it; only throwing rolls back.
-export async function createAssignmentItem(data: unknown) {
-  await requirePermission("assignments:update");   // stays outside: auth must still throw
-
-  return guarded(async () => {
-    await assertAssignmentEditable(id);             // helper calls businessRule(...)
-    const item = await prisma.$transaction(async (tx) => {
-      if (quantity <= 0) businessRule("La cantidad debe ser mayor que cero.");
-      // ...
-    });
-    return { data: item };                          // `guarded` adds success: true
-  });
-}
-```
-
-At the call site:
-
-```typescript
-const result = await deleteState(id);
-if (isFailure(result)) {
-  toast.error(result.error);   // or setError(result.error) where the form shows it inline
-  return;
-}
-```
-
-**What still throws**: seed invariants (`Estado 'PENDIENTE' no encontrado`),
-`requirePermission` failures, `redirect()`, and infrastructure wrappers. Those
-are defects or authentication, not decisions the user can revisit.
-
-The rule of thumb, enforced by `src/lib/actions/actions-contract.test.ts`:
-**a message written in Spanish is for the operator and must be returned; an
-English one describes a defect and keeps throwing.**
-
-User-facing messages are shown with the in-house toast
-(`import { toast } from "@/hooks/use-toast"`). Never `alert()`.
-
-#### 2. API Routes + Client Components (for high interactivity)
-
-**Use for**: Real-time updates, complex client interactions, external integrations
-
-**Structure**:
-```
-src/app/api/incidents/
-├── route.ts                   # GET, POST
-├── [id]/route.ts             # GET, PUT, DELETE
-src/components/incidents/
-└── InteractiveIncidentForm.tsx  # Client component
-```
-
-**API Route Pattern**:
-```typescript
-// src/app/api/incidents/route.ts
-import { requirePermission, withPermission } from "@/lib/auth/auth";
-
-// Option 1: Manual check
-export async function GET(req: Request) {
-  // ✅ ALWAYS check permissions
-  const user = await requirePermission("incidents:read");
-
-  const incidents = await prisma.incident.findMany({
-    where: { active: true }
-  });
-
-  return Response.json(incidents);
-}
-
-// Option 2: Wrapper pattern (preferred)
-export const POST = withPermission("incidents:create", async (req, user) => {
-  // user is already authenticated and authorized
-  const body = await req.json();
-
-  const incident = await prisma.incident.create({
-    data: body
-  });
-
-  return Response.json(incident);
-});
-
-// Option 3: Resource/action check
-import { withAction } from "@/lib/auth/auth";
-
-export const PUT = withAction("incidents", "update", async (req, user) => {
-  // user can update incidents
-  const body = await req.json();
-  return Response.json({ success: true });
-});
-```
-
-**Client Component Pattern**:
-```typescript
-// src/components/incidents/InteractiveIncidentForm.tsx
-"use client";
-
-export function InteractiveIncidentForm() {
-  const handleSubmit = async (data: FormData) => {
-    // Call API route
-    const response = await fetch("/api/incidents", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-
-    // Handle response
-  };
-
-  return <form>{/* Interactive form */}</form>;
-}
-```
-
-### Decision Guide: Server Component vs API Route?
-
-| Scenario | Use Server Components | Use API Routes |
-|----------|----------------------|----------------|
-| Simple CRUD list/detail pages | ✅ | |
-| Forms without complex validation | ✅ | |
-| Static or mostly static content | ✅ | |
-| Real-time updates (polling/websockets) | | ✅ |
-| Complex client-side state management | | ✅ |
-| Third-party integrations | | ✅ |
-| File uploads with progress tracking | | ✅ |
-| Multi-step wizards with client state | | ✅ |
-
-**Default Rule**: **Start with Server Components**. Only add API routes when you need client-side interactivity.
-
-### Authorization Checklist (Use for EVERY feature)
-
-**Before deploying ANY feature, verify**:
-
-1. **Page Protection** (Server Components):
-   - ✅ `requireRouteAccess("/path")` at top of page
-   - ✅ Redirects to `/unauthorized` if user lacks permission
-
-2. **API Protection** (API Routes):
-   - ✅ `requirePermission()`, `requireAuth()`, or wrapper functions
-   - ✅ Returns 401/403 for unauthorized requests
-
-3. **Server Action Protection**:
-   - ✅ Every server action has permission check
-   - ✅ Cannot be bypassed by direct function calls
-
-4. **Data Filtering** (if applicable):
-   - ✅ Users only see their VIC's data (unless ADMINISTRADOR)
-   - ✅ Queries filter by `where: { vicId: user.vicId }`
-
-5. **Cache Revalidation**:
-   - ✅ All mutations revalidate affected paths
-   - ✅ Both admin and role-specific paths revalidated
-
-**Security Test Questions**:
-- Can a CLIENT user access FSR routes? → Should be NO
-- Can a GUEST user create incidents? → Should be NO
-- Can a user modify another VIC's data? → Should be NO (unless ADMIN)
-- What happens if I call the API without auth? → Should return 401
-- What happens if JWT is tampered with? → Should be rejected
-
-### Next.js 15 Async Params Pattern
-
-**IMPORTANT**: All dynamic route params must be awaited in Next.js 15:
-
-```typescript
-// src/app/admin/incidents/[id]/page.tsx
-import { requireRouteAccess } from "@/lib/auth/auth";
-import { prisma } from "@/lib/database/prisma.singleton";
-
-export default async function IncidentDetailPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  // ✅ ALWAYS check authorization first
-  const user = await requireRouteAccess("/admin/incidents");
-
-  const { id } = await params; // Must await!
-
-  const incident = await prisma.incident.findUnique({
-    where: { id: Number.parseInt(id) }
-  });
-
-  return <div>{/* ... */}</div>;
-}
-```
-
-### Soft Delete Pattern
-
-**All deletes are soft deletes** - records are never physically removed:
-- Set `active: false` instead of deleting
-- Validates no active child records exist before deletion
-- Maintains data integrity and audit trail
-- Filter queries with `where: { active: true }`
-
-**Example**:
-```typescript
-// Before soft delete, check for children
-const workOrderCount = await prisma.workOrder.count({
-  where: { incidentId: id, active: true }
-});
-
-if (workOrderCount > 0) {
-  throw new Error("Cannot delete incident with active work orders");
-}
-
-// Soft delete
-await prisma.incident.update({
-  where: { id },
-  data: { active: false }
-});
-```
-
-### Cache Revalidation Pattern
-
-**All mutations MUST revalidate affected paths**:
-- Revalidate both `/admin/...` and role-specific paths
-- Use `revalidatePath()` after create/update/delete operations
-
-```typescript
-import { revalidatePath } from "next/cache";
-
-// After mutation
-revalidatePath("/admin/work-orders");
-revalidatePath("/fsr/work-orders");  // If FSR can access
-revalidatePath(`/client/incidents/${incidentId}`);  // Specific pages too
-```
-
-### Adding New Permissions
-
-Permissions are managed in the database. To add new permissions:
-
-1. Update seed file (`prisma/seed.ts`) with new permission:
-```typescript
-{ name: "resource:action", description: "...", resource: "resource", action: "action" }
-```
-
-2. Assign permission to roles in seed file:
-```typescript
-permissions: ["resource:action", ...otherPermissions]
-```
-
-3. Reset and seed database:
-```bash
-npm run db:reset
-npm run db:seed
-```
-
-Alternatively, create permissions via API or admin UI (when built).
-
-### Checking Permissions in Components
-
-```typescript
-import { canPerform, getMyAccessibleRoutes } from "@/lib/auth/auth";
-
-export default async function MyComponent() {
-  const canCreateIncidents = await canPerform("incidents:create");
-  const accessibleRoutes = await getMyAccessibleRoutes();
-
-  return (
-    <div>
-      {canCreateIncidents && <button>Create Incident</button>}
-      <nav>
-        {accessibleRoutes.map(route => <a href={route}>{route}</a>)}
-      </nav>
-    </div>
-  );
-}
-```
-
-### Getting User's Accessible Routes
-
-```typescript
-import { getMyAccessibleRoutes } from "@/lib/auth/auth";
-
-// In a server component
-const routes = await getMyAccessibleRoutes();
-// Returns: ["/admin", "/incidents", "/users", ...]
-```
-
-This is useful for building dynamic navigation menus.
-
-### Creating New Roles
-
-1. Add role to database via seed file or admin UI:
-```typescript
-{
-  name: "NEW_ROLE",
-  description: "Description",
-  defaultPath: "/new-role-home",
-  permissions: ["permission1", "permission2", ...]
-}
-```
-
-2. Create the route in `src/app/new-role-home/page.tsx`
-
-3. Add route permission:
-```typescript
-{ name: "route:new-role-home", routePath: "/new-role-home" }
-```
-
-### Admin Access Pattern
-
-Admin users (role: `ADMINISTRADOR`) automatically have access to ALL routes and permissions. This is enforced in:
-- `src/middleware.ts:56` - Admin check in middleware
-- `src/lib/authz/authz.ts:167` - Admin check in route access
-- `src/lib/auth/auth.ts:147` - Admin check in requireRouteAccess
-
-### Database Queries
-
-Always use the singleton Prisma client:
-```typescript
-import { prisma } from "@/lib/database/prisma.singleton";
-
-const incidents = await prisma.incident.findMany({
-  where: { active: true },
-  include: { type: true, status: true }
-});
-```
-
-### Modifying the Schema
-
-1. Edit `prisma/schema.prisma`
-2. Create and apply migration:
-```bash
-npm run db:migrate -- --name description_of_change
-```
-3. Update seed file if needed (`prisma/seed.ts`)
-4. Re-seed database:
-```bash
-npm run db:seed
-```
-
-### File Storage
-
-The application supports two file storage backends:
-
-**Vercel Blob (Default)**: Cloud-based storage, recommended for production
-- Set `FILE_STORAGE_PROVIDER="vercel-blob"` in `.env`
-- Requires `BLOB_READ_WRITE_TOKEN` from Vercel Dashboard
-- Files are stored in Vercel's cloud storage
-- Automatically handles CDN distribution
-
-**Filesystem**: Local file storage, useful for development
-- Set `FILE_STORAGE_PROVIDER="filesystem"` in `.env`
-- Files stored in `public/uploads/` directory
-- No additional configuration needed
-
-**Using the storage abstraction** (`src/lib/storage/file-storage.ts`):
-
-```typescript
-import { uploadFile, deleteFile, getFileUrl } from "@/lib/storage/file-storage";
-
-// Upload a file (automatically uses configured provider)
-const result = await uploadFile(
-  filename,
-  base64Data,
-  mimetype,
-  { subfolder: "work-orders" }
-);
-// Returns: { url, filename, size, mimetype, provider }
-
-// Delete a file
-await deleteFile(url, provider);
-
-// Get file URL for display
-const displayUrl = getFileUrl(storedUrl, provider);
-```
-
-The provider is automatically determined from `FILE_STORAGE_PROVIDER` environment variable. Each attachment in the database stores which provider was used, ensuring correct deletion even if the provider changes.
-
-## Dependency supply chain
-
-`.npmrc` carries a `before=` cutoff: npm refuses to resolve any version
-published after that instant.
-
-**npm has no `minimumReleaseAge`** — that is a pnpm setting, and the difference
-matters. `minimumReleaseAge` is a rolling window that maintains itself; `before`
-is a fixed date somebody has to move. Left alone it silently freezes the project
-on old versions, security patches included.
-
-```bash
-npm run deps:freeze        # cutoff = 7 days ago
-npm run deps:freeze 14     # cutoff = 14 days ago
-```
-
-Run it before adding or updating a dependency. The 2025 registry compromises
-were malicious versions pulled within hours to a couple of days, so refusing
-anything younger than a week closes most of that window.
-
-It only affects resolving NEW versions. `npm ci` installs exactly what
-`package-lock.json` pins, so CI and the Docker build were never the exposure —
-`npm install`, `npm update` and `npm i <pkg>` on a developer machine are.
-
-## Environment Variables
-
-Required in `.env`:
-- `DATABASE_URL` - PostgreSQL connection string
-- `NEXTAUTH_SECRET` - Secret for JWT signing (generate with: `openssl rand -base64 32`)
-- `NEXTAUTH_URL` - Base URL for NextAuth (e.g., `http://localhost:3000`)
-
-Optional file storage configuration:
-- `FILE_STORAGE_PROVIDER` - Storage provider: `"vercel-blob"` (default) or `"filesystem"`
-- `BLOB_READ_WRITE_TOKEN` - Required if using Vercel Blob storage (obtain from Vercel Dashboard)
-
-Optional email (`src/lib/mail/`). **Without `SMTP_HOST` the app does not send
-mail**: it logs what it would have sent and carries on, which is what makes a
-developer machine work with no configuration.
-- `SMTP_HOST` - Mail server. Its presence is what switches sending on.
-- `SMTP_PORT` - Default `587`.
-- `SMTP_SECURE` - `"true"` for implicit TLS (port 465). Default `false` (STARTTLS).
-- `SMTP_USER` / `SMTP_PASS` - Omit both for a server that needs no auth.
-- `SMTP_FROM` - Sender, e.g. `OpusTrack <no-reply@opusinspection.com>`.
-
-The e2e suite points these at Mailpit, a throwaway SMTP server in
-`docker-compose.e2e.yml` (`config/e2e.env`). Its web UI is on
-`http://localhost:8025` while the suite runs, and `e2e/fixtures/mail.ts` asserts
-against its API — so the mail tests prove real delivery, not a mock call.
-
-Only three events send email: a new incident and its closure (to whoever holds
-`incidents:update`), and a vacation request (to `vacations:approve`). See
-`NotificationPayload.email` in `src/lib/notifications/notify-events.ts`.
-
-## Important Notes
-
-### Security & Authorization
-- **All permissions are database-driven** - No hardcoded permission checks
-- **Admin role** (`ADMINISTRADOR`) has unrestricted access to all routes and resources
-- Permissions are cached for 5 minutes - call `clearPermissionsCache()` after updates
-- JWT tokens expire after 30 days
-- Middleware runs on every request to enforce authorization
-- Role changes require re-login to take effect (JWT-based routing)
-
-### Data Management
-- **All deletes are soft deletes** - Set `active: false`, never physically delete
-- All database models have `active` boolean for soft deletes
-- VIC (Vehicle Inspection Center) is the central organizational unit
-
-### Development
-- TypeScript strict mode enabled
-- Biome used for linting and formatting (not ESLint/Prettier)
-- Next.js 15 requires `await params` in dynamic routes
-- All CRUD uses Server Actions (NOT API routes)
-- Always revalidate cache after mutations
-
-## Testing Credentials
-
-After seeding, use these credentials to test different roles:
-- **Admin**: admin@opusinspection.com / password123
-- **System User**: system@opusinspection.com / password123
-- **Staff**: staff@opusinspection.com / password123
-- **Client**: client@opusinspection.com / password123
+### Multi-role RBAC (database-driven)
+
+- A user holds **many roles** via `UserRole` — there is deliberately no
+  `roleId` scalar on `User`. Use `whereHasRole()` / `whereHasPermission()`
+  (`src/lib/authz/user-queries.ts`), never a role-name comparison.
+- `isSuperuser` (ROOT only) bypasses every route and permission check. It is
+  **not** "sees every Cliente": cross-Cliente data scope is the
+  `scope:all-clientes` permission (`SCOPE_ALL_CLIENTES`), so an operations
+  admin sees all centers without holding the keys to roles.
+- JWT carries `roleNames[]`, `isSuperuser`, `defaultPath`, `routePaths[]`,
+  `exactRoutePaths[]`, `sessionVersion`, `clienteId`. Middleware
+  (`src/middleware.ts`, Edge Runtime, no DB) enforces routing with
+  `canAccessRoute()` (`src/lib/authz/route-access.ts`); tokens predating
+  `routePaths` force re-login. API routes and pages re-check against the DB.
+- Multi-Cliente scoping: `getReportScope()` + `*ScopeWhere()` in
+  `src/lib/auth/report-scope.ts`. Fail closed — no Cliente assignment means
+  matching nothing. No sync single-Cliente helpers exist; everything is async.
+
+### Auth helpers (`src/lib/auth/auth.ts`)
+
+| Helper | Use |
+|--------|-----|
+| `requireAuth()` | API routes / actions needing a user |
+| `requirePermission(name)` / `requireAction(res, act)` | Fine-grained checks (throw on deny) |
+| `requireRouteAccess(path)` | Pages (redirects) |
+| `withPermission(name, handler)` | API route wrapper (403 on deny) |
+| `canPerform()` / `getMyAccessibleRoutes()` | Conditional UI in Server Components |
+
+### State machines own status
+
+`src/lib/state-machine/` (assignment + incident machines, `syncIncidentState`).
+Incident status derives from active assignments; `CANCELADA` is terminal and
+set only by `cancelIncident()`. Never write `statusId` from a generic form —
+route edits through the machines (see `updateAssignmentDetails`,
+`updateIncidentDetails` in `src/lib/actions/tracking.ts`).
+
+### Business rules are RETURNED, never thrown
+
+Production Next strips the message of anything a Server Action throws. Use
+`src/lib/actions/result.ts`:
+
+- `return rejected("…")` for rules on the straight-line path.
+- `businessRule("…")` inside `guarded(...)` for shared guards and
+  `prisma.$transaction` callbacks (only throwing rolls back).
+- Spanish message = operator-facing (returned). English = defect (throws).
+  Enforced by `actions-contract.test.ts`.
+
+### Conventions
+
+- **Soft delete everywhere**: `active: false`, validate no active children
+  first (e.g. `deleteAssignment` also blocks on active `AssignmentItem`s,
+  RF-250). Filter `where: { active: true }`.
+- **Server Components + Server Actions first**; API routes only for
+  high-interactivity screens (`/admin/programacion`, calendar signature
+  endpoints). `revalidatePath()` every mutation (admin + role paths).
+- Next.js 15: `await params` in dynamic routes.
+- Prisma client always from `@/lib/database/prisma.singleton`.
+- UI toasts via `@/hooks/use-toast`; never `alert()`.
+- `knip --include files` runs in `npm run check`: no unused files allowed.
+
+### File storage & email
+
+- `FILE_STORAGE_PROVIDER`: `vercel-blob` (needs `BLOB_READ_WRITE_TOKEN`) or
+  `filesystem`. Each attachment stores its provider
+  (`src/lib/storage/file-storage.ts`).
+- Without `SMTP_HOST` the app logs mail instead of sending (`src/lib/mail/`).
+  Only three events email: incident created, incident closed, vacation
+  requested (`NotificationPayload.email`). E2E proves delivery via Mailpit.
+
+### Dependency supply chain
+
+`.npmrc` carries a `before=` cutoff: npm refuses versions published after that
+date. Run `npm run deps:freeze` (7-day window) before adding/updating a
+dependency. Never float versions as a side effect of an unrelated install.
+
+## Testing credentials
+
+Seeded accounts (password `password123`): `admin@`, `fsr@`, `client@`,
+`guest@` (+ numbered variants) `@opusinspection.com`.
+
+## Where the domain lives
+
+| Area | Spec |
+|------|------|
+| Rules cutting across domains | `spec/00-overview.md` |
+| Auth, RBAC, sessions | `spec/01-auth-rbac.md` |
+| Clientes, lines, equipment | `spec/02-clientes-jerarquia.md` |
+| Incidents | `spec/03-incidentes.md` |
+| Assignments, ODT, activities, items | `spec/04-asignaciones.md` + `spec/05-partes-inventario.md` |
+| Vehicles, trips | `spec/06-vehiculos-viajes.md` |
+| Schedules | `spec/07-programacion.md` |
+| Notifications + email | `spec/08-notificaciones.md` |
+| Reports, tracking, dashboard | `spec/09-reportes-tracking.md` |
+| Holidays, vacations, accrual | `spec/10-festivos-vacaciones.md` |

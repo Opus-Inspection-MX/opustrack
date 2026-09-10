@@ -53,8 +53,10 @@ Restricción única: `(assignmentId, userId)`.
 | `assignmentId` | `String` | FK → Assignment |
 | `description` | `String` | Texto libre que describe el trabajo realizado |
 | `performedAt` | `DateTime` | Momento de ejecución (por defecto `now()`) |
-| `workParts` | `WorkPart[]` | Partes usadas en esta actividad específica |
 | `active` | `Boolean` | Soft delete |
+
+> Las actividades no tienen partes: el registro de partes usadas es
+> `AssignmentItem` a nivel de asignación (ver 05).
 
 ### AssignmentAttachment
 
@@ -259,7 +261,7 @@ Restricción única: `(assignmentId, userId)`.
 - Requiere permiso `assignments:update` para crear/actualizar; `assignments:delete` para eliminar.
 - No se puede crear/modificar/eliminar si la incidencia padre está en `CERRADO` o `CANCELADA`.
 - Eliminación es soft delete.
-- Una actividad puede tener partes asociadas (`WorkPart`).
+- Las actividades **no** tienen partes: el registro de partes usadas es `AssignmentItem` a nivel de asignación (ver 05).
 - `performedAt` tiene como valor por defecto `now()` si no se provee.
 
 ---
@@ -290,4 +292,4 @@ Restricción única: `(assignmentId, userId)`.
   - `assignments:delete` — eliminar asignación/actividades.
   - `assignments:complete` — cerrar asignación.
   - `assignments:reopen` — reabrir (solo admin).
-- **Filtrado por Cliente**: los usuarios no ADMINISTRADOR solo ven asignaciones cuya incidencia pertenece a su(s) Cliente(s). ADMINISTRADOR ve todo.
+- **Filtrado por Cliente**: `assignmentScopeWhere()` (ver 01 RF-104). Sin el permiso `scope:all-clientes` solo se ven asignaciones cuya incidencia pertenece a los Clientes del usuario.

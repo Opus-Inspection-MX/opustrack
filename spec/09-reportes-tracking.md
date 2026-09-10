@@ -4,7 +4,7 @@
 
 ## Propósito
 
-Proveer visibilidad operativa y analítica al administrador sobre el desempeño de FSRs, el estado de asignaciones e incidentes, la utilización de partes, el cumplimiento de viajes, y el nivel de atención a notificaciones. El módulo de tracking permite además gestión activa de incidentes y asignaciones en tiempo real desde una vista centralizada.
+Proveer visibilidad operativa y analítica al administrador sobre el desempeño de FSRs, el estado de asignaciones e incidentes, el cumplimiento de viajes, y el nivel de atención a notificaciones. El módulo de tracking permite además gestión activa de incidentes y asignaciones en tiempo real desde una vista centralizada.
 
 ---
 
@@ -16,7 +16,6 @@ Proveer visibilidad operativa y analítica al administrador sobre el desempeño 
 | `Assignment`      | Assignment            | Rendimiento FSR, aging, seen-time, tracking          |
 | `AssignmentStatus`| AssignmentStatus      | Distribución de estados                              |
 | `VehicleTrip`     | VehicleTrip           | Viajes por día/FSR, cumplimiento diario              |
-| `WorkPart`        | WorkPart              | Uso de partes                                        |
 | `Notification`    | Notification          | Engagement de notificaciones                         |
 | `User` (FSR)      | User (role = FSR)     | Todos los reportes de FSR                            |
 
@@ -93,7 +92,7 @@ Proveer visibilidad operativa y analítica al administrador sobre el desempeño 
 
 **Reglas de negocio:**
 - Agrupa por fecha de `reportedAt` (formato `YYYY-MM-DD` en zona `America/Mexico_City`).
-- Para cada día calcula: `count` (incidentes creados) y `resolved` (incidentes que tienen `resolvedAt != null` y fueron creados ese día).
+- Para cada día calcula: `count` (incidentes creados) y `resolved` (incidentes en estado `CERRADO`; nunca por `resolvedAt != null`: una cancelación no es una resolución).
 - Resultado ordenado por fecha ASC.
 - Soporta filtrado adicional por `typeId` (uno o varios tipos de incidente).
 
@@ -156,22 +155,14 @@ Proveer visibilidad operativa y analítica al administrador sobre el desempeño 
 
 ---
 
-### RF-507 · Reporte de uso de partes
+### RF-507 · Reporte de uso de partes (retirado)
 
-**Descripción:** Consumo de inventario por parte en el período, con costo total y stock actual.
-
-**Reglas de negocio:**
-- Filtra `WorkPart` activos creados en el período.
-- Por cada parte calcula:
-  - `totalUsed`: suma de `quantity` en todos los WorkParts del período.
-  - `totalCost`: suma de `price * quantity`, redondeada a 2 decimales.
-  - `currentStock`: stock **actual** de la parte (campo `Part.stock` leído al momento de la consulta, no histórico).
-- Resultado ordenado por `totalUsed DESC`.
-
-**Filtros disponibles:** `startDate`, `endDate`
-
-**Implementación:** `getPartsUsageData()` en `src/lib/actions/reports.ts`
-**Ruta:** `/admin/reports/parts-usage`
+**Descripción:** Reporte de consumo de inventario por parte. **No existe**: se
+retiró junto con el dominio de inventario (ver 05). No hay ruta
+`/admin/reports/parts-usage`, no hay tarjeta en `/admin/reports` y no hay
+`getPartsUsageData()` en `reports.ts`. El registro real de partes usadas vive
+en `AssignmentItem` por asignación (RF-300+); si algún día se necesita un
+reporte agregado, se construye sobre esa entidad.
 
 ---
 
@@ -182,12 +173,11 @@ Proveer visibilidad operativa y analítica al administrador sobre el desempeño 
 **Reglas de negocio:**
 - Ejecuta 7 consultas en paralelo:
   1. `totalIncidents` — incidentes activos en el período
-  2. `resolvedIncidents` — incidentes activos con `resolvedAt != null`
+  2. `resolvedIncidents` — incidentes activos con estado `CERRADO` (nunca por `resolvedAt != null`: una cancelación no es una resolución)
   3. `totalAssignments` — asignaciones activas creadas en el período
   4. `completedAssignments` — asignaciones activas con `finishedAt != null`
   5. `totalTrips` — viajes activos iniciados en el período
   6. `totalKmDriven` — suma de `kmDriven` (aggregate)
-  7. `totalPartsUsed` — suma de `quantity` en WorkParts activos del período
 - Calcula tasas porcentuales: `incidentResolutionRate` y `assignmentCompletionRate` (ambas con protección anti-división-por-cero).
 
 **Implementación:** `getReportSummary()` en `src/lib/actions/reports.ts`
@@ -386,7 +376,7 @@ Proveer visibilidad operativa y analítica al administrador sobre el desempeño 
 ## Reglas transversales aplicables
 
 - **Zona horaria uniforme:** Todos los reportes usan `America/Mexico_City` de forma consistente. Los límites de rango se generan con `mxDayRange()`, la agrupación por fecha con `mxDateString()`, y los valores por defecto en la UI con `mxTodayString()` / `mxDaysAgoString()` (servidor) o con `Intl.DateTimeFormat("sv-SE", { timeZone: "America/Mexico_City" })` (cliente). No existe inconsistencia UTC vs. CDMX.
-- **Stock no es histórico:** En el reporte de partes (RF-507), `currentStock` refleja el stock actual del catálogo, no el stock al momento del uso. Si hay consumo posterior al período analizado, el número puede ser inconsistente con el histórico.
+- **Sin reporte de partes:** RF-507 está retirado (ver 05). El resumen no incluye métricas de partes.
 - **Cálculo de completadas (FSR Performance):** Una asignación se considera completada si `status.name = "CERRADO"` **o** `finishedAt != null`. En principio ambas condiciones deberían ser equivalentes, pero la doble comprobación actúa como salvaguarda ante inconsistencias de datos.
 - **Tracking no es GPS en tiempo real:** El módulo `/admin/tracking` es una vista filtrable de base de datos, no un mapa con actualización automática de posición GPS. La posición GPS (start/end) se captura durante las transiciones del FSR (INICIADO, CERRADO), no se actualiza de forma continua.
 - **Límite de resultados en tracking:** La consulta de tracking usa `take: TRACKING_MAX_RESULTS` (200). Si el total de coincidencias supera ese valor, la UI muestra un indicador de truncado. La solución es aplicar filtros más acotados para reducir el conjunto. No hay paginación por diseño — esta es una vista de monitoreo, no de navegación de registros.

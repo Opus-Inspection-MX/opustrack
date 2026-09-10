@@ -145,7 +145,7 @@ La máquina de estados del incidente se define en `src/lib/state-machine/inciden
 
 ---
 
-### RF-200 · Creación de incidente (rol ADMINISTRADOR o FSR)
+### RF-200 · Creación de incidente (permiso `incidents:create`)
 
 **Descripción:** Los usuarios con permiso `incidents:create` pueden registrar un nuevo incidente, especificando título, descripción, tipo, Cliente, programación, FSRs habilitados iniciales, y fecha de inicio.
 
@@ -221,7 +221,7 @@ La máquina de estados del incidente se define en `src/lib/state-machine/inciden
 - Si hay al menos una asignación activa, la operación falla: _"No se puede eliminar el incidente. Tiene N asignación(es) activa(s)."_
 - Usa transacción Prisma para evitar condiciones de carrera entre la verificación y el borrado.
 - Permiso requerido: `incidents:delete`.
-- Acceso al Cliente del incidente verificado vía `assertClienteAccess` antes de proceder.
+- Acceso al Cliente del incidente verificado vía `assertClienteAccessAsync` antes de proceder.
 
 ---
 
@@ -233,7 +233,7 @@ La máquina de estados del incidente se define en `src/lib/state-machine/inciden
 - El campo `statusId` y `resolvedAt` son ignorados aunque el caller los envíe. Solo la máquina de estados los modifica.
 - Si `assigneeIds` está en el payload, se ejecuta `syncIncidentAssignees` con validación de FSRs activos en asignaciones.
 - Si `assigneeIds` es `undefined`, no se toca la lista de FSRs habilitados.
-- `assertClienteAccess(user, existing.clienteId)` se verifica antes de la mutación.
+- `assertClienteAccessAsync(user, existing.clienteId)` se verifica antes de la mutación.
 - Permiso requerido: `incidents:update`.
 
 ---
@@ -326,10 +326,10 @@ La máquina de estados del incidente se define en `src/lib/state-machine/inciden
 **Descripción:** Todas las consultas de incidentes aplican automáticamente el filtro de Cliente según el rol del usuario.
 
 **Reglas de negocio:**
-- ADMINISTRADOR: ve todos los incidentes, sin filtro de Cliente.
+- Tenedores de `scope:all-clientes`: ven todos los incidentes, sin filtro.
 - FSR: `getMyIncidents` retorna solo incidentes donde el FSR tiene al menos una asignación activa como `AssignmentAssignee`.
-- CLIENT: `getClientIncidents` retorna solo incidentes que el propio usuario reportó (`reportedById = user.id`) dentro de su Cliente primario.
-- En el API REST (`GET /api/incidents`), se puede filtrar opcionalmente por `clienteId` como query param, pero no aplica el scoping por usuario automáticamente (solo verifica permiso `incidents:read`).
+- CLIENT: `getClientIncidents` retorna solo incidentes que el propio usuario reportó (`reportedById = user.id`) dentro de su alcance.
+- El API REST (`GET /api/incidents`) aplica el mismo alcance: sin `clienteId` filtra por `incidentScopeWhere`; con `clienteId` fuera del alcance responde 403.
 
 ---
 
@@ -348,7 +348,7 @@ La máquina de estados del incidente se define en `src/lib/state-machine/inciden
 
 **Descripción:** El esquema de BD incluye `IncidentType.priority Int NOT NULL @default(5)`. La migración aplica `DEFAULT 5` a filas existentes. El seed asigna valores reales a todos los tipos.
 
-**Implementación:** `prisma/schema.prisma`, `prisma/migrations/`, `prisma/seed.ts`
+**Implementación:** `prisma/schema.prisma`, `prisma/migrations/`, `initial_load/seed.example.ts`
 
 ### RF-215 · Constante CRITICAL_PRIORITY_THRESHOLD
 
@@ -376,7 +376,7 @@ La máquina de estados del incidente se define en `src/lib/state-machine/inciden
 - **El estado del incidente es derivado, no manual:** ninguna acción debe escribir directamente `statusId` excepto la máquina de estados (`syncIncidentState`) y la cancelación (`cancelIncident`). El `updateIncident` ignora explícitamente cualquier `statusId` que el caller provea.
 - **CANCELADA es terminal e irreversible:** una vez cancelado, el incidente no puede cerrarse, reabrirse ni modificar sus asignaciones.
 - **`typeId NOT NULL`:** la BD requiere tipo en todo incidente. La función `resolveTypeIdOrFallback` garantiza siempre un valor válido.
-- **Acceso escoped por Cliente:** `assertClienteAccess(user, clienteId)` se llama antes de toda mutación individual para garantizar que el usuario solo modifica datos de sus Clientes accesibles.
+- **Acceso escoped por Cliente:** `assertClienteAccessAsync(user, clienteId)` se llama antes de toda mutación individual para garantizar que el usuario solo modifica datos de sus Clientes accesibles.
 - **Soft delete global:** incidentes y `IncidentAssignee` usan `active: false`; ningún registro se elimina físicamente.
 - **Transaccionalidad en validaciones de borrado:** la verificación de hijos activos y la desactivación del padre se hacen dentro de una transacción Prisma para evitar condiciones de carrera.
 - **`resolvedAt` automático:** no debe setearse manualmente en edición; es responsabilidad exclusiva de `syncIncidentState` (al pasar a CERRADO) y `cancelIncident` (al cancelar).
