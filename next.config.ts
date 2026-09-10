@@ -21,7 +21,9 @@ const nextConfig: NextConfig = {
     ],
   },
   /**
-   * PR2 rename bridges (Cliente → Client / CLIENT → REPORTER).
+   * PR2 rename bridges (Cliente → Client / CLIENT → REPORTER), plus the
+   * universal inbox (Phase 1 notifications): `/fsr/notifications` moved to
+   * `/notifications` so every role shares one address.
    *
    * Old portal and catalog paths stay reachable while bookmarks, emailed
    * links, and cached redirects catch up. Permanent (308) so browsers and
@@ -44,6 +46,11 @@ const nextConfig: NextConfig = {
       {
         source: "/client/:path*",
         destination: "/reporter/:path*",
+        permanent: true,
+      },
+      {
+        source: "/fsr/notifications/:path*",
+        destination: "/notifications/:path*",
         permanent: true,
       },
     ];

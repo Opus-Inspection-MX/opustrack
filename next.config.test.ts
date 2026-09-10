@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import nextConfig from "./next.config";
 
 /**
- * PR2 rename bridges (Cliente → Client / CLIENT → REPORTER).
+ * PR2 rename bridges (Cliente → Client / CLIENT → REPORTER), plus the
+ * universal inbox (Phase 1 notifications).
  *
  * Old addresses keep working while bookmarks and emailed links catch up.
  * Every rule must stay permanent (308) and keep its `:path*` tail, or deep
@@ -26,6 +27,11 @@ describe("next.config redirects (PR2 rename bridges)", () => {
       {
         source: "/client/:path*",
         destination: "/reporter/:path*",
+        permanent: true,
+      },
+      {
+        source: "/fsr/notifications/:path*",
+        destination: "/notifications/:path*",
         permanent: true,
       },
     ]);

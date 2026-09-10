@@ -11,8 +11,8 @@ import { getNotificationsWithCount } from "@/lib/actions/notifications";
 import { requireRouteAccess } from "@/lib/auth/auth";
 import { NotificationsPageClient } from "./notifications-page-client";
 
-export default async function FSRNotificationsPage() {
-  await requireRouteAccess("/fsr/notifications");
+export default async function NotificationsPage() {
+  await requireRouteAccess("/notifications");
   const { notifications, unreadCount } = await getNotificationsWithCount({
     limit: 50,
   });
@@ -20,7 +20,7 @@ export default async function FSRNotificationsPage() {
   return (
     <div className="space-y-6 max-w-3xl mx-auto">
       <div className="flex items-center gap-4">
-        <BackButton fallback="/fsr" />
+        <BackButton fallback="/" />
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-2">
             <Bell className="h-7 w-7" />

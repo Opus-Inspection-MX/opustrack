@@ -176,7 +176,7 @@ export default async function FSRDashboardPage() {
             </div>
           </div>
           <Button asChild variant={unreadCount > 0 ? "default" : "outline"}>
-            <Link href="/fsr/notifications">Ver mis notificaciones</Link>
+            <Link href="/notifications">Ver mis notificaciones</Link>
           </Button>
         </CardHeader>
         {unreadNotifications.length > 0 && (
@@ -185,7 +185,7 @@ export default async function FSRDashboardPage() {
               {unreadNotifications.map((n) => (
                 <Link
                   key={n.id}
-                  href={`/fsr/notifications?open=${n.id}`}
+                  href={`/notifications?open=${n.id}`}
                   className="flex items-start justify-between gap-4 border rounded-lg p-3 bg-background hover:bg-accent/50 transition-colors"
                 >
                   <div className="flex-1 space-y-1">
