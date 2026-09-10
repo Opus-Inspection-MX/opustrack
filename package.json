@@ -35,6 +35,7 @@
     "test:e2e:ui": "node scripts/e2e.mjs --dev --ui",
     "lint": "biome check",
     "e2e:dev": "node scripts/with-env.mjs e2e -- next dev --turbopack",
+    "mail:test": "node scripts/with-env.mjs dev -- tsx scripts/mail-test.ts",
     "db:prod:status": "node scripts/db-prod.mjs status",
     "db:prod:migrate": "node scripts/db-prod.mjs migrate",
     "db:prod:seed": "node scripts/db-prod.mjs seed",
