@@ -13,7 +13,11 @@ import {
 import { whereHasRole } from "@/lib/authz/user-queries";
 import { getSlaState, type SlaState } from "@/lib/constants/sla-policy";
 import { prisma } from "@/lib/database/prisma.singleton";
-import { notifyAssignmentAssigned } from "@/lib/notifications/notify-events";
+import {
+  notifyAssignmentAssigned,
+  notifyIncidentAssigned,
+} from "@/lib/notifications/notify-events";
+import { transactionWithNotifications } from "@/lib/notifications";
 import { logger } from "@/lib/observability/logger";
 import { getSlaHolidaySet } from "@/lib/sla/sla-holidays";
 import {
@@ -177,6 +181,33 @@ async function notifyNewAssignees(
     );
   } catch (error) {
     logger.error("Error notifying new assignees:", error);
+  }
+}
+
+/**
+ * Tell newly enabled FSRs they can now see the incident (RF-468).
+ *
+ * Enabling without notifying leaves the FSR with fresh visibility and no
+ * signal. Same swallow-on-failure contract as `notifyNewAssignees`.
+ */
+async function notifyNewlyEnabledFsrs(
+  incidentId: number,
+  recipientIds: string[],
+  actorId: string,
+): Promise<void> {
+  try {
+    const incident = await prisma.incident.findUnique({
+      where: { id: incidentId },
+      select: { title: true },
+    });
+    await notifyIncidentAssigned(
+      incidentId,
+      incident?.title,
+      recipientIds,
+      actorId,
+    );
+  } catch (error) {
+    logger.error("Error notifying newly enabled FSRs:", error);
   }
 }
 
@@ -574,7 +605,7 @@ export async function assignFSRToIncident(incidentId: number, fsrId: string) {
       return rejected(NOT_AN_FSR);
     }
 
-    const { assignmentId, added } = await prisma.$transaction(async (tx) => {
+    const { assignmentId, added } = await transactionWithNotifications(async (tx) => {
       await enableFsrsOnIncident(tx, incidentId, [fsrId], actor.id);
 
       const existingAssignment = await tx.assignment.findFirst({
@@ -633,6 +664,7 @@ export async function assignFSRToIncident(incidentId: number, fsrId: string) {
 
     if (added) {
       await notifyNewAssignees(assignmentId, incidentId, [fsrId], actor.id);
+      await notifyNewlyEnabledFsrs(incidentId, [fsrId], actor.id);
     }
 
     revalidatePath("/admin/tracking");
@@ -714,6 +746,7 @@ export async function updateAssignmentAssignees(
         added,
         actor.id,
       );
+      await notifyNewlyEnabledFsrs(assignment.incidentId, added, actor.id);
     }
 
     const updatedAssignment = await prisma.assignment.findUnique({

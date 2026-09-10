@@ -13,8 +13,8 @@ import {
   notifyAssignmentCompleted,
   notifyAssignmentReopened,
   notifyAssignmentUpdated,
-  notifyIncidentClosed,
   operationsAudience,
+  transactionWithNotifications,
 } from "@/lib/notifications";
 import { logger } from "@/lib/observability/logger";
 import {
@@ -193,7 +193,7 @@ export async function createAssignment(data: AssignmentFormData) {
         ? ASSIGNMENT_STATE.PENDIENTE_DE_ASIGNACION
         : ASSIGNMENT_STATE.ASIGNADO;
 
-    const assignment = await prisma.$transaction(async (tx) => {
+    const assignment = await transactionWithNotifications(async (tx) => {
       const statusId = await resolveAssignmentStatusId(tx, initialState);
       const created = await tx.assignment.create({
         data: {
@@ -259,7 +259,7 @@ export async function updateAssignment(id: string, data: AssignmentFormData) {
         ? data.scheduledDate
         : existingAssignment.scheduledDate;
 
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await transactionWithNotifications(async (tx) => {
       const existing = await tx.assignmentAssignee.findMany({
         where: { assignmentId: id, active: true },
         select: { userId: true },
@@ -570,7 +570,7 @@ export async function markAssignmentSeen(id: string) {
   const user = await requirePermission("assignments:update");
 
   return guarded(async () => {
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await transactionWithNotifications(async (tx) => {
       const current = await loadAssignmentForTransition(tx, id);
       await ensureCallerIsAssigneeOrAdmin(user.id, current.assignees);
       await assertIncidentEditable(tx, current.incidentId);
@@ -665,7 +665,7 @@ export async function startAssignmentWork(formData: FormData) {
       }
     }
 
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await transactionWithNotifications(async (tx) => {
       const current = await loadAssignmentForTransition(tx, id);
       await ensureCallerIsAssigneeOrAdmin(user.id, current.assignees);
       await assertIncidentEditable(tx, current.incidentId);
@@ -734,7 +734,7 @@ export async function pauseAssignment(id: string) {
   const user = await requirePermission("assignments:update");
 
   return guarded(async () => {
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await transactionWithNotifications(async (tx) => {
       const current = await loadAssignmentForTransition(tx, id);
       await ensureCallerIsAssigneeOrAdmin(user.id, current.assignees);
       await assertIncidentEditable(tx, current.incidentId);
@@ -773,7 +773,7 @@ export async function resumeAssignment(id: string) {
   const user = await requirePermission("assignments:update");
 
   return guarded(async () => {
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await transactionWithNotifications(async (tx) => {
       const current = await loadAssignmentForTransition(tx, id);
       await ensureCallerIsAssigneeOrAdmin(user.id, current.assignees);
       await assertIncidentEditable(tx, current.incidentId);
@@ -859,7 +859,7 @@ export async function closeAssignment(formData: FormData) {
       }
     }
 
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await transactionWithNotifications(async (tx) => {
       const current = await loadAssignmentForTransition(tx, id);
       await ensureCallerIsAssigneeOrAdmin(user.id, current.assignees);
       await assertIncidentEditable(tx, current.incidentId);
@@ -907,8 +907,7 @@ export async function closeAssignment(formData: FormData) {
         },
         include: { incident: true, ...assigneesInclude, status: true },
       });
-      const { before: incidentBefore, after: incidentAfter } =
-        await syncIncidentState(current.incidentId, tx);
+      await syncIncidentState(current.incidentId, tx);
       if (offline.idempotencyKey) {
         await claimIdempotencyKey(
           tx,
@@ -920,8 +919,6 @@ export async function closeAssignment(formData: FormData) {
       return {
         assignment: updated,
         incidentId: current.incidentId,
-        incidentBefore,
-        incidentAfter,
       };
     });
 
@@ -937,23 +934,9 @@ export async function closeAssignment(formData: FormData) {
       user.id,
     );
 
-    // POST-tx: fire INCIDENT_CLOSED only on a real CERRADO transition (RF-467).
-    if (
-      result.incidentBefore !== "CERRADO" &&
-      result.incidentAfter === "CERRADO"
-    ) {
-      const incidentData = await prisma.incident.findUnique({
-        where: { id: result.incidentId },
-        select: { reportedById: true, title: true, clientId: true },
-      });
-      await notifyIncidentClosed(
-        result.incidentId,
-        incidentData?.title,
-        incidentData?.reportedById ?? null,
-        user.id,
-        incidentData?.clientId ?? null,
-      );
-    }
+    // The CERRADO step above flows through the after-commit collector, which
+    // fires INCIDENT_CLOSED on commit — no manual call here (it used to send
+    // a second, duplicate notification).
 
     revalidateAssignmentPaths(id, result.incidentId);
     return { data: result.assignment };
@@ -967,7 +950,7 @@ export async function reopenAssignment(id: string) {
   const user = await requirePermission("assignments:reopen");
 
   return guarded(async () => {
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await transactionWithNotifications(async (tx) => {
       const current = await loadAssignmentForTransition(tx, id);
       const from = current.status?.name as AssignmentState;
       assertAssignmentTransition(from, ASSIGNMENT_STATE.EN_PROGRESO);
@@ -1282,7 +1265,7 @@ export async function updateAssignmentStatus(id: string, statusId: number) {
   const user = await requirePermission("assignments:update");
 
   return guarded(async () => {
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await transactionWithNotifications(async (tx) => {
       const target = await tx.assignmentStatus.findUnique({
         where: { id: statusId },
         select: { name: true },

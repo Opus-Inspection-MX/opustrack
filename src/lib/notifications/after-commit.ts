@@ -1,4 +1,5 @@
 import { AsyncLocalStorage } from "node:async_hooks";
+import { prisma } from "@/lib/database/prisma.singleton";
 import { logger } from "@/lib/observability/logger";
 
 /**
@@ -65,4 +66,20 @@ export async function withDeferredNotifications<T>(
     }
   }
   return result;
+}
+
+type InteractiveTx = Parameters<
+  Parameters<typeof prisma.$transaction>[0]
+>[0];
+
+/**
+ * `prisma.$transaction` with the notification collector open: transitions
+ * recorded by `syncIncidentState` inside `fn` dispatch only when the
+ * transaction commits. A drop-in replacement at the call site — same
+ * indentation, same closing — so wrapping a flow never reformats its body.
+ */
+export function transactionWithNotifications<T>(
+  fn: (tx: InteractiveTx) => Promise<T>,
+): Promise<T> {
+  return withDeferredNotifications(() => prisma.$transaction(fn));
 }

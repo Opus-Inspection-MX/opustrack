@@ -57,10 +57,12 @@ const { prismaMock, requirePermission, getUserClientIds } = vi.hoisted(() => ({
   getUserClientIds: vi.fn(async (_userId: string) => [] as string[]),
 }));
 
-const { syncIncidentState, notifyAssignmentAssigned } = vi.hoisted(() => ({
-  syncIncidentState: vi.fn(),
-  notifyAssignmentAssigned: vi.fn(),
-}));
+const { syncIncidentState, notifyAssignmentAssigned, notifyIncidentAssigned } =
+  vi.hoisted(() => ({
+    syncIncidentState: vi.fn(),
+    notifyAssignmentAssigned: vi.fn(),
+    notifyIncidentAssigned: vi.fn(),
+  }));
 
 vi.mock("@/lib/database/prisma.singleton", () => ({ prisma: prismaMock }));
 vi.mock("@/lib/auth/auth", () => ({
@@ -71,6 +73,7 @@ vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/lib/state-machine/sync", () => ({ syncIncidentState }));
 vi.mock("@/lib/notifications/notify-events", () => ({
   notifyAssignmentAssigned,
+  notifyIncidentAssigned,
 }));
 
 import { APP_TZ } from "@/lib/utils/datetime";
@@ -398,6 +401,12 @@ describe("assignFSRToIncident (RF-514)", () => {
       ["fsr1"],
       "admin",
     );
+    expect(notifyIncidentAssigned).toHaveBeenCalledWith(
+      1,
+      "Incidente",
+      ["fsr1"],
+      "admin",
+    );
   });
 
   it("no vuelve a notificar a quien ya estaba activo en la asignación", async () => {
@@ -409,6 +418,7 @@ describe("assignFSRToIncident (RF-514)", () => {
     await assignFSRToIncident(1, "fsr1");
 
     expect(notifyAssignmentAssigned).not.toHaveBeenCalled();
+    expect(notifyIncidentAssigned).not.toHaveBeenCalled();
   });
 
   it("crea una asignación en ASIGNADO cuando no hay ninguna activa", async () => {
@@ -538,6 +548,12 @@ describe("updateAssignmentAssignees (RF-515)", () => {
       ["f2"],
       "admin",
     );
+    expect(notifyIncidentAssigned).toHaveBeenCalledWith(
+      7,
+      "Incidente",
+      ["f2"],
+      "admin",
+    );
   });
 
   it("reguardar sin cambios no notifica a nadie", async () => {
@@ -549,6 +565,7 @@ describe("updateAssignmentAssignees (RF-515)", () => {
     await updateAssignmentAssignees("a1", ["f1", "f2"]);
 
     expect(notifyAssignmentAssigned).not.toHaveBeenCalled();
+    expect(notifyIncidentAssigned).not.toHaveBeenCalled();
   });
 
   it("rechaza si la asignación ya no existe", async () => {

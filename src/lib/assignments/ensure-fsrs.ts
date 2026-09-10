@@ -1,7 +1,11 @@
 import { revalidatePath } from "next/cache";
 import { requireAuth } from "@/lib/auth/auth";
 import { prisma } from "@/lib/database/prisma.singleton";
-import { notifyAssignmentAssigned } from "@/lib/notifications";
+import {
+  notifyAssignmentAssigned,
+  notifyIncidentAssigned,
+  transactionWithNotifications,
+} from "@/lib/notifications";
 import {
   ASSIGNMENT_STATE,
   type AssignmentState,
@@ -66,7 +70,7 @@ export async function ensureFsrsAssignedToIncident(
   // a parameter would let any caller forge attribution on the notification.
   const actor = await requireAuth();
 
-  const result = await prisma.$transaction(async (tx) => {
+  const result = await transactionWithNotifications(async (tx) => {
     const existingAssignment = await tx.assignment.findFirst({
       where: { incidentId, active: true },
       select: { id: true, status: { select: { name: true } } },
@@ -139,6 +143,12 @@ export async function ensureFsrsAssignedToIncident(
 
   await notifyAssignmentAssigned(
     result.assignmentId,
+    incident?.title,
+    result.toAdd,
+    actor.id,
+  );
+  await notifyIncidentAssigned(
+    incidentId,
     incident?.title,
     result.toAdd,
     actor.id,
