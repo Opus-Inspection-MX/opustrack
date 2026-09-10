@@ -18,28 +18,22 @@ describe("notification go links", () => {
   });
 
   it("an operations admin lands on the admin detail", async () => {
-    const dest = await resolveNotificationDestination(
-      "incident",
-      "7",
-      (p) => p.startsWith("/admin"),
+    const dest = await resolveNotificationDestination("incident", "7", (p) =>
+      p.startsWith("/admin"),
     );
     expect(dest).toBe("/admin/incidents/7");
   });
 
   it("a reporter lands on the reporter detail, never on /admin", async () => {
-    const dest = await resolveNotificationDestination(
-      "incident",
-      "7",
-      (p) => p.startsWith("/reporter"),
+    const dest = await resolveNotificationDestination("incident", "7", (p) =>
+      p.startsWith("/reporter"),
     );
     expect(dest).toBe("/reporter/incidents/7");
   });
 
   it("an FSR lands on the FSR incident list", async () => {
-    const dest = await resolveNotificationDestination(
-      "incident",
-      "7",
-      (p) => p.startsWith("/fsr"),
+    const dest = await resolveNotificationDestination("incident", "7", (p) =>
+      p.startsWith("/fsr"),
     );
     expect(dest).toBe("/fsr/incidents");
   });
@@ -51,7 +45,11 @@ describe("notification go links", () => {
       ),
     ).resolves.toBe("/admin/vacations");
     await expect(
-      resolveNotificationDestination("vacation", "v1", async (p) => p === "/vacations"),
+      resolveNotificationDestination(
+        "vacation",
+        "v1",
+        async (p) => p === "/vacations",
+      ),
     ).resolves.toBe("/vacations");
   });
 

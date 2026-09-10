@@ -13,11 +13,11 @@ import {
 import { whereHasRole } from "@/lib/authz/user-queries";
 import { getSlaState, type SlaState } from "@/lib/constants/sla-policy";
 import { prisma } from "@/lib/database/prisma.singleton";
+import { transactionWithNotifications } from "@/lib/notifications";
 import {
   notifyAssignmentAssigned,
   notifyIncidentAssigned,
 } from "@/lib/notifications/notify-events";
-import { transactionWithNotifications } from "@/lib/notifications";
 import { logger } from "@/lib/observability/logger";
 import { getSlaHolidaySet } from "@/lib/sla/sla-holidays";
 import {
@@ -605,62 +605,64 @@ export async function assignFSRToIncident(incidentId: number, fsrId: string) {
       return rejected(NOT_AN_FSR);
     }
 
-    const { assignmentId, added } = await transactionWithNotifications(async (tx) => {
-      await enableFsrsOnIncident(tx, incidentId, [fsrId], actor.id);
+    const { assignmentId, added } = await transactionWithNotifications(
+      async (tx) => {
+        await enableFsrsOnIncident(tx, incidentId, [fsrId], actor.id);
 
-      const existingAssignment = await tx.assignment.findFirst({
-        where: { incidentId, active: true },
-        select: { id: true },
-        orderBy: { createdAt: "desc" },
-      });
-
-      if (existingAssignment) {
-        const previous = await tx.assignmentAssignee.findUnique({
-          where: {
-            assignmentId_userId: {
-              assignmentId: existingAssignment.id,
-              userId: fsrId,
-            },
-          },
-          select: { active: true },
+        const existingAssignment = await tx.assignment.findFirst({
+          where: { incidentId, active: true },
+          select: { id: true },
+          orderBy: { createdAt: "desc" },
         });
-        await tx.assignmentAssignee.upsert({
-          where: {
-            assignmentId_userId: {
+
+        if (existingAssignment) {
+          const previous = await tx.assignmentAssignee.findUnique({
+            where: {
+              assignmentId_userId: {
+                assignmentId: existingAssignment.id,
+                userId: fsrId,
+              },
+            },
+            select: { active: true },
+          });
+          await tx.assignmentAssignee.upsert({
+            where: {
+              assignmentId_userId: {
+                assignmentId: existingAssignment.id,
+                userId: fsrId,
+              },
+            },
+            update: { active: true },
+            create: {
               assignmentId: existingAssignment.id,
               userId: fsrId,
+              active: true,
             },
-          },
-          update: { active: true },
-          create: {
+          });
+          await syncIncidentState(incidentId, tx);
+          return {
             assignmentId: existingAssignment.id,
-            userId: fsrId,
-            active: true,
+            added: !previous?.active,
+          };
+        }
+
+        const initialStatus = await tx.assignmentStatus.findFirst({
+          where: { name: "ASIGNADO" },
+        });
+
+        const created = await tx.assignment.create({
+          data: {
+            incidentId,
+            statusId: initialStatus?.id,
+            assignedAt: new Date(),
+            assignees: { create: [{ userId: fsrId }] },
           },
+          select: { id: true },
         });
         await syncIncidentState(incidentId, tx);
-        return {
-          assignmentId: existingAssignment.id,
-          added: !previous?.active,
-        };
-      }
-
-      const initialStatus = await tx.assignmentStatus.findFirst({
-        where: { name: "ASIGNADO" },
-      });
-
-      const created = await tx.assignment.create({
-        data: {
-          incidentId,
-          statusId: initialStatus?.id,
-          assignedAt: new Date(),
-          assignees: { create: [{ userId: fsrId }] },
-        },
-        select: { id: true },
-      });
-      await syncIncidentState(incidentId, tx);
-      return { assignmentId: created.id, added: true };
-    });
+        return { assignmentId: created.id, added: true };
+      },
+    );
 
     if (added) {
       await notifyNewAssignees(assignmentId, incidentId, [fsrId], actor.id);

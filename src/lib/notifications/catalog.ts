@@ -1,10 +1,10 @@
+import { incidentGoLink, vacationGoLink } from "./go-links";
 import {
   NOTIFICATION_PRIORITY,
   NOTIFICATION_TYPES,
   type NotificationPriority,
   type NotificationType,
 } from "./notification-types";
-import { incidentGoLink, vacationGoLink } from "./go-links";
 
 /**
  * The single registry of notification events.

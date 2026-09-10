@@ -19,10 +19,8 @@ export async function GET(
   { params }: { params: Promise<{ entity: string; id: string }> },
 ) {
   const { entity, id } = await params;
-  const destination = await resolveNotificationDestination(
-    entity,
-    id,
-    (path) => canAccessRoute(path),
+  const destination = await resolveNotificationDestination(entity, id, (path) =>
+    canAccessRoute(path),
   );
   if (!destination) notFound();
   redirect(destination);

@@ -138,7 +138,7 @@ export async function notifyIncidentClosed(
   incidentId: number,
   incidentTitle: string | null | undefined,
   reporterIdOrNull: string | null | undefined,
-  actorId: string,
+  actorId: string | null,
   clientId: string | null | undefined,
 ): Promise<void> {
   const [adminIds, fsrIds] = await Promise.all([
@@ -206,8 +206,7 @@ const PHASE_EVENT = {
   [INCIDENT_STATE.ASIGNADO]: NOTIFICATION_TYPES.INCIDENT_PHASE_ASIGNADO,
   [INCIDENT_STATE.VISTO]: NOTIFICATION_TYPES.INCIDENT_PHASE_VISTO,
   [INCIDENT_STATE.INICIADO]: NOTIFICATION_TYPES.INCIDENT_PHASE_INICIADO,
-  [INCIDENT_STATE.EN_PROGRESO]:
-    NOTIFICATION_TYPES.INCIDENT_PHASE_EN_PROGRESO,
+  [INCIDENT_STATE.EN_PROGRESO]: NOTIFICATION_TYPES.INCIDENT_PHASE_EN_PROGRESO,
 } as const;
 
 /** Rank for forward-progress comparison. CANCELADA never flows through here. */
@@ -228,7 +227,7 @@ export async function notifyIncidentPhase(
   incidentId: number,
   phase: keyof typeof PHASE_EVENT,
   snapshot: IncidentTransitionSnapshot,
-  actorId: string,
+  actorId: string | null,
 ): Promise<void> {
   const adminIds = await operationsAudience(snapshot.clientId);
   await dispatch(PHASE_EVENT[phase], {
@@ -249,7 +248,7 @@ export async function notifyIncidentPhase(
 export async function notifyIncidentReopened(
   incidentId: number,
   snapshot: IncidentTransitionSnapshot,
-  actorId: string,
+  actorId: string | null,
 ): Promise<void> {
   const [adminIds, fsrIds] = await Promise.all([
     operationsAudience(snapshot.clientId),
@@ -275,7 +274,7 @@ export async function notifyIncidentReopened(
 export async function notifyIncidentCancelled(
   incidentId: number,
   snapshot: IncidentTransitionSnapshot,
-  actorId: string,
+  actorId: string | null,
 ): Promise<void> {
   const [adminIds, fsrIds] = await Promise.all([
     operationsAudience(snapshot.clientId),
@@ -308,16 +307,13 @@ export async function notifyIncidentTransition(
   incidentId: number,
   before: string | null,
   after: string | null,
-  actorId: string,
+  actorId: string | null,
   snapshot: IncidentTransitionSnapshot,
 ): Promise<void> {
   try {
     if (!before || !after || before === after) return;
     if (after === INCIDENT_STATE.CANCELADA) return;
-    if (
-      before === INCIDENT_STATE.CERRADO &&
-      after !== INCIDENT_STATE.CERRADO
-    ) {
+    if (before === INCIDENT_STATE.CERRADO && after !== INCIDENT_STATE.CERRADO) {
       await notifyIncidentReopened(incidentId, snapshot, actorId);
       return;
     }

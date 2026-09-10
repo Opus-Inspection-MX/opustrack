@@ -115,6 +115,12 @@ describe("RF-219 / RF-553 boundary: one log per occurrence kind", () => {
     vi.mocked(prisma.incidentStatus.findUnique).mockResolvedValue({
       id: 7,
     } as never);
+    vi.mocked(prisma.incident.update).mockResolvedValue({
+      id: 1,
+      title: "Bomba",
+      reportedById: "rep-1",
+      clientId: "c1",
+    } as never);
 
     const result = await cancelIncident(1, "Reporte duplicado");
 

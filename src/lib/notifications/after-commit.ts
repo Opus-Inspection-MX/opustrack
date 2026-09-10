@@ -68,9 +68,7 @@ export async function withDeferredNotifications<T>(
   return result;
 }
 
-type InteractiveTx = Parameters<
-  Parameters<typeof prisma.$transaction>[0]
->[0];
+type InteractiveTx = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
 
 /**
  * `prisma.$transaction` with the notification collector open: transitions

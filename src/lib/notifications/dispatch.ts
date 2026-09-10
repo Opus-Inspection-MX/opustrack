@@ -32,7 +32,7 @@ export interface DispatchEntity {
 
 export interface DispatchOptions {
   recipients: string[];
-  actorId: string;
+  actorId: string | null;
   ctx: EventRenderContext;
   /** Keep the actor in the audience (e.g. "send me a copy"). Default false. */
   includeActor?: boolean;
@@ -80,7 +80,7 @@ export async function getEventChannels(
 
 function resolveAudience(
   recipients: string[],
-  actorId: string,
+  actorId: string | null,
   includeActor?: boolean,
 ): string[] {
   const deduped = [...new Set(recipients)].filter(Boolean);

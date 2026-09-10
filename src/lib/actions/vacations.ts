@@ -479,9 +479,7 @@ export async function deleteVacation(id: string) {
   });
 
   const selfCancel = vacation.userId === caller.id;
-  const recipients = selfCancel
-    ? await vacationApprovers()
-    : [vacation.userId];
+  const recipients = selfCancel ? await vacationApprovers() : [vacation.userId];
   await notifyVacationCancelled(
     id,
     selfCancel ? vacation.user.name : null,
