@@ -1,4 +1,3 @@
-import type { Prisma } from "@prisma/client";
 import { businessRule } from "@/lib/actions/result";
 
 /**
@@ -84,13 +83,25 @@ export async function findReplayTargetId(
   return hit?.targetId ?? null;
 }
 
+type DedupeWriter = {
+  actionIdempotency: {
+    create: (args: {
+      data: { key: string; action: string; targetId: string };
+    }) => Promise<unknown>;
+  };
+};
+
 /**
  * Claim a key for a freshly applied target. Only P2002 (a concurrent flush
  * won the race) is swallowed — any other fault propagates. Sequential
  * retries never reach here twice: the pre-transaction lookup converges first.
+ *
+ * Accepts any client carrying the delegate (transaction or root): the
+ * assignment actions claim atomically inside their `$transaction`, the trip
+ * actions claim right after their write.
  */
 export async function claimIdempotencyKey(
-  tx: Prisma.TransactionClient,
+  tx: DedupeWriter,
   key: string,
   action: string,
   targetId: string,

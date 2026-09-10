@@ -6,6 +6,12 @@ import { requireAuth, requirePermission } from "@/lib/auth/auth";
 import { userHasPermission } from "@/lib/authz/authz";
 import { prisma } from "@/lib/database/prisma.singleton";
 import {
+  assertOfflineFreshness,
+  claimIdempotencyKey,
+  findReplayTargetId,
+  readOfflineFields,
+} from "@/lib/offline/idempotency";
+import {
   assertAllowedUpload,
   deleteFile,
   uploadFileFromBuffer,
@@ -195,6 +201,10 @@ export async function getVehicleTripById(id: string) {
  *  - photo: File (required) — odometer photo
  *  - photoMimetype: string (optional; client-normalized override)
  *  - startLatitude / startLongitude / startAddress / notes (optional)
+ *
+ * Optional offline draft-and-retry fields (RF-261):
+ *  - idempotencyKey: string — retried drafts converge instead of re-applying
+ *  - capturedAt: string (ISO) — action-time evidence; >24h old is rejected
  */
 export async function startVehicleTrip(formData: FormData) {
   const user = await requirePermission("vehicle-trips:create");
@@ -213,6 +223,28 @@ export async function startVehicleTrip(formData: FormData) {
       getString(formData, "photoMimetype") ||
       photo.type ||
       "application/octet-stream";
+
+    // RF-261: offline draft-and-retry — before any write (photo upload
+    // included). A known key converges on the live trip; guards below still
+    // run unchanged for new keys.
+    const offline = readOfflineFields(formData);
+    if (offline.capturedAt !== undefined) {
+      assertOfflineFreshness(offline.capturedAt);
+    }
+    if (offline.idempotencyKey) {
+      const targetId = await findReplayTargetId(prisma, offline.idempotencyKey);
+      if (targetId) {
+        const live = await prisma.vehicleTrip.findUnique({
+          where: { id: targetId },
+          include: { vehicle: true, assignment: true },
+        });
+        if (live) {
+          revalidatePath("/fsr/vehicle-trips");
+          revalidatePath("/admin/vehicles");
+          return { data: live };
+        }
+      }
+    }
 
     assertAllowedUpload(photoMimetype, photo.size);
 
@@ -287,6 +319,15 @@ export async function startVehicleTrip(formData: FormData) {
       },
     });
 
+    if (offline.idempotencyKey) {
+      await claimIdempotencyKey(
+        prisma,
+        offline.idempotencyKey,
+        "startVehicleTrip",
+        trip.id,
+      );
+    }
+
     revalidatePath("/fsr/vehicle-trips");
     revalidatePath("/admin/vehicles");
     return { data: trip };
@@ -302,6 +343,8 @@ export async function startVehicleTrip(formData: FormData) {
  *  - photo: File (required) — odometer photo
  *  - photoMimetype: string (optional)
  *  - endLatitude / endLongitude / endAddress / notes (optional)
+ *
+ * Optional offline draft-and-retry fields (RF-261): same as startVehicleTrip.
  */
 export async function endVehicleTrip(formData: FormData) {
   const user = await requirePermission("vehicle-trips:update");
@@ -315,6 +358,27 @@ export async function endVehicleTrip(formData: FormData) {
       getString(formData, "photoMimetype") ||
       photo.type ||
       "application/octet-stream";
+
+    // RF-261: offline draft-and-retry — before any write, same as trip start.
+    const offline = readOfflineFields(formData);
+    if (offline.capturedAt !== undefined) {
+      assertOfflineFreshness(offline.capturedAt);
+    }
+    if (offline.idempotencyKey) {
+      const targetId = await findReplayTargetId(prisma, offline.idempotencyKey);
+      if (targetId) {
+        const live = await prisma.vehicleTrip.findUnique({
+          where: { id: targetId },
+          include: { vehicle: true, assignment: true },
+        });
+        if (live) {
+          revalidatePath("/fsr/vehicle-trips");
+          revalidatePath(`/fsr/vehicle-trips/${targetId}`);
+          revalidatePath("/admin/vehicles");
+          return { data: live };
+        }
+      }
+    }
 
     assertAllowedUpload(photoMimetype, photo.size);
 
@@ -393,6 +457,15 @@ export async function endVehicleTrip(formData: FormData) {
       where: { id: trip.vehicleId },
       data: { statusId: availableStatus.id },
     });
+
+    if (offline.idempotencyKey) {
+      await claimIdempotencyKey(
+        prisma,
+        offline.idempotencyKey,
+        "endVehicleTrip",
+        updatedTrip.id,
+      );
+    }
 
     revalidatePath("/fsr/vehicle-trips");
     revalidatePath(`/fsr/vehicle-trips/${id}`);
