@@ -206,6 +206,48 @@ template tracked `initial_load/seed.example.ts`. No existe `prisma/seed.ts`.
   EMPLEADO (`/vacations`), CLIENT (`/client`), GUEST (`/guest`).
 - Usuarios de prueba `{rol}@opusinspection.com` / `password123`, tres por rol
   principal. FSR/CLIENT/EMPLEADO con asignaciones a Clientes; ROOT sin Cliente.
+- Cuentas nominales además de las genéricas: `empleado@` (EMPLEADO),
+  `admin-operacion@` (ADMIN_OPERACION) y `admin-vacaciones@`
+  (ADMIN_VACACIONES), para e2e de aprobación de vacaciones y de alcance de
+  difusión.
+
+---
+
+### RF-112 · Permisos de notificaciones y alcance de difusión
+
+**Descripción:** Tres permisos separan leer, difundir y configurar (detalle
+funcional en [08](./08-notificaciones.md)); el alcance de cada difusión vive
+en datos, no en código.
+
+**Reglas de negocio:**
+- `route:notifications` (`/notifications`): bandeja universal, en todos los
+  roles (ROOT, ADMIN_OPERACION, ADMIN_VACACIONES, FSR, EMPLEADO, CLIENT,
+  REPORTER, GUEST).
+- `notifications:broadcast` (ruta `/admin/notifications`): ROOT,
+  ADMIN_OPERACION, ADMIN_VACACIONES. Separa difundir de leer: el
+  `sendBroadcast` anterior pedía solo `notifications:read` y cualquier
+  autenticado (incluso GUEST) podía difundir a todos. El permiso obsoleto
+  `route:admin-notifications` queda desactivado (lo reemplazan
+  `notifications:broadcast` y `route:notifications`).
+- `notifications:configure` (ruta `/admin/settings/notifications`): solo
+  ROOT. La matriz de canales evento × canal es decisión de admin.
+- `RoleBroadcastTarget` (pivote `Role emisor ↔ Role destino`): el emisor
+  alcanza la unión de los destinos de sus roles; sin filas no llega a nadie
+  (fail closed); ROOT omite la tabla. Sembrado: ADMIN_OPERACION → FSR,
+  REPORTER, GUEST, ADMIN_OPERACION; ADMIN_VACACIONES → EMPLEADO, FSR,
+  ADMIN_OPERACION, ADMIN_VACACIONES. Solo ROOT lo edita
+  (`assertCanManageRoles`, sección "Puede difundir a" en
+  `/admin/roles/[id]`).
+- Audiencia de operación (incidentes): `incidents:assign` + alcance por
+  Cliente (`scope:all-clientes` o `UserClientAssignment` activa), resuelta
+  con `whereHasPermission()` — nunca por nombre de rol. FSR (`incidents:update`
+  pero no `incidents:assign`) queda fuera de `incident_created`.
+- GUEST es cuenta de consulta read-only, igual que REPORTER: no tiene
+  vacaciones de autoservicio (`route:vacations`, `vacations:read/create/delete`
+  denegados; la migración de datos desactiva esas filas en bases existentes
+  porque el re-seed nunca quita grants). EMPLEADO conserva perfil,
+  autoservicio de vacaciones, `route:notifications` y
+  `notifications:read/update/delete`, con `defaultPath` `/vacations`.
 
 ---
 
