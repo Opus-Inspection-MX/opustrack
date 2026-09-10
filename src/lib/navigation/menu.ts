@@ -203,7 +203,7 @@ export const MENU: MenuSection[] = [
       // Reachable only by typing the URL until now: no sidebar ever listed it.
       {
         title: "Difusiones",
-        url: "/admin/notifications/broadcast",
+        url: "/admin/notifications",
         icon: Bell,
       },
     ],

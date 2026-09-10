@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -15,58 +16,152 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
 import {
-  type BroadcastAudience,
-  type BroadcastType,
-  sendBroadcast,
-} from "@/lib/actions/notifications";
+  type BroadcastKindInput,
+  type BroadcastListRow,
+  type BroadcastTargetRole,
+  createBroadcast,
+  previewBroadcastRecipients,
+  updateBroadcast,
+} from "@/lib/actions/broadcasts";
 import { isFailure } from "@/lib/actions/result";
-
-interface Role {
-  id: number;
-  name: string;
-  description: string | null;
-}
+import { toDatetimeLocalMX } from "@/lib/utils/datetime";
 
 interface BroadcastFormProps {
-  roles: Role[];
+  allowedRoles: BroadcastTargetRole[];
+  canTargetAll: boolean;
+  /** Set when editing a scheduled broadcast; null for a new one. */
+  editing: BroadcastListRow | null;
+  onCancelEdit: () => void;
+  onSaved: () => void;
 }
 
-export function BroadcastForm({ roles }: BroadcastFormProps) {
+const EMPTY_PREVIEW = "—";
+
+/**
+ * Broadcast composer: copy + kind + channels + scope + timing in one card.
+ *
+ * Role checkboxes render ONLY the sender's allowed roles (fail closed comes
+ * from the server too — `createBroadcast` re-validates the scope). The
+ * recipient preview counts the live audience, clamped to that scope.
+ */
+export function BroadcastForm({
+  allowedRoles,
+  canTargetAll,
+  editing,
+  onCancelEdit,
+  onSaved,
+}: BroadcastFormProps) {
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
-  const [type, setType] = useState<BroadcastType>("announcement");
-  const [audience, setAudience] = useState<BroadcastAudience>("all");
-  const [roleId, setRoleId] = useState<string>("");
+  const [kind, setKind] = useState<BroadcastKindInput>("ANNOUNCEMENT");
+  const [sendInApp, setSendInApp] = useState(true);
+  const [sendEmail, setSendEmail] = useState(false);
+  const [allRoles, setAllRoles] = useState(false);
+  const [selectedRoleIds, setSelectedRoleIds] = useState<number[]>([]);
+  const [includeSender, setIncludeSender] = useState(false);
+  const [sendNow, setSendNow] = useState(true);
+  const [scheduledAtLocal, setScheduledAtLocal] = useState("");
+  const [preview, setPreview] = useState<string>(EMPTY_PREVIEW);
   const [loading, setLoading] = useState(false);
-  const [successCount, setSuccessCount] = useState<number | null>(null);
+
+  const hasTargets = allowedRoles.length > 0 || canTargetAll;
+
+  // Fill the form when an edit starts; clear it when the edit ends.
+  useEffect(() => {
+    if (!editing) {
+      setTitle("");
+      setMessage("");
+      setKind("ANNOUNCEMENT");
+      setSendInApp(true);
+      setSendEmail(false);
+      setAllRoles(false);
+      setSelectedRoleIds([]);
+      setIncludeSender(false);
+      setSendNow(true);
+      setScheduledAtLocal("");
+      return;
+    }
+    setTitle(editing.title);
+    setMessage(editing.message);
+    setKind(editing.kind);
+    setSendInApp(editing.sendInApp);
+    setSendEmail(editing.sendEmail);
+    setAllRoles(editing.allRoles);
+    setSelectedRoleIds(editing.roles.map((r) => r.id));
+    setIncludeSender(editing.includeSender);
+    setSendNow(false);
+    setScheduledAtLocal(toDatetimeLocalMX(editing.scheduledAt));
+  }, [editing]);
+
+  // Live recipient preview, clamped to the sender's scope server-side.
+  useEffect(() => {
+    if (!hasTargets) {
+      setPreview(EMPTY_PREVIEW);
+      return;
+    }
+    let cancelled = false;
+    previewBroadcastRecipients({
+      roleIds: selectedRoleIds,
+      allRoles,
+      includeSender,
+    })
+      .then((result) => {
+        if (!cancelled) setPreview(String(result.count));
+      })
+      .catch(() => {
+        if (!cancelled) setPreview(EMPTY_PREVIEW);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedRoleIds, allRoles, includeSender, hasTargets]);
+
+  const toggleRole = (roleId: number) => {
+    setSelectedRoleIds((ids) =>
+      ids.includes(roleId)
+        ? ids.filter((id) => id !== roleId)
+        : [...ids, roleId],
+    );
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setSuccessCount(null);
-
     try {
-      const result = await sendBroadcast({
+      const payload = {
         title,
         message,
-        type,
-        audience,
-        roleId: audience === "by-role" && roleId ? Number(roleId) : undefined,
-      });
-
+        kind,
+        sendInApp,
+        sendEmail,
+        allRoles,
+        roleIds: selectedRoleIds,
+        includeSender,
+        scheduledAtLocal: sendNow ? null : scheduledAtLocal,
+      };
       // Validation comes back as a value, not an exception: Next strips the
       // message of anything a Server Action throws in a production build.
+      const result = editing
+        ? await updateBroadcast(editing.id, payload)
+        : await createBroadcast({ ...payload, sendNow });
+
       if (isFailure(result)) {
-        toast.error(result.error);
+        toast.error(
+          editing ? "No se pudo guardar" : "No se pudo enviar",
+          result.error,
+        );
         return;
       }
 
-      setSuccessCount(result.count);
-      setTitle("");
-      setMessage("");
-      setType("announcement");
-      setAudience("all");
-      setRoleId("");
+      toast.success(
+        editing
+          ? "Difusión actualizada"
+          : sendNow
+            ? "Difusión enviada"
+            : "Difusión programada",
+      );
+      onCancelEdit();
+      onSaved();
     } catch (err) {
       toast.error((err as Error).message);
     } finally {
@@ -74,27 +169,38 @@ export function BroadcastForm({ roles }: BroadcastFormProps) {
     }
   };
 
+  if (!hasTargets) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Nueva difusión</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">
+            No tienes destinos de difusión configurados. Pídele a un usuario
+            ROOT que defina a qué roles puede difundir tu rol.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Nueva difusión</CardTitle>
+        <CardTitle>
+          {editing ? "Editar difusión programada" : "Nueva difusión"}
+        </CardTitle>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
-          {successCount !== null && (
-            <div className="bg-green-500/15 text-green-700 dark:text-green-400 px-4 py-3 rounded-md text-sm">
-              Notificación enviada correctamente a {successCount}{" "}
-              {successCount === 1 ? "usuario" : "usuarios"}.
-            </div>
-          )}
-
           <div className="space-y-2">
             <Label htmlFor="title">Título</Label>
             <Input
               id="title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="Ingrese el título de la notificación"
+              placeholder="Ingrese el título de la difusión"
               required
               disabled={loading}
             />
@@ -106,7 +212,7 @@ export function BroadcastForm({ roles }: BroadcastFormProps) {
               id="message"
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              placeholder="Ingrese el mensaje de la notificación"
+              placeholder="Ingrese el mensaje de la difusión"
               rows={4}
               required
               disabled={loading}
@@ -115,81 +221,166 @@ export function BroadcastForm({ roles }: BroadcastFormProps) {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="type">Tipo de notificación</Label>
+              <Label htmlFor="kind">Tipo</Label>
               <Select
-                value={type}
-                onValueChange={(val) => {
-                  const next = val as BroadcastType;
-                  setType(next);
-                  // ANNOUNCEMENT always reaches all active users (RF-470);
-                  // collapse the audience choice so the UI matches the rule.
-                  if (next === "announcement") {
-                    setAudience("all");
-                    setRoleId("");
-                  }
-                }}
+                value={kind}
+                onValueChange={(val) => setKind(val as BroadcastKindInput)}
                 disabled={loading}
               >
-                <SelectTrigger id="type">
+                <SelectTrigger id="kind">
                   <SelectValue placeholder="Seleccione el tipo" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="announcement">Anuncio</SelectItem>
-                  <SelectItem value="system">Sistema</SelectItem>
+                  <SelectItem value="ANNOUNCEMENT">Anuncio</SelectItem>
+                  <SelectItem value="SYSTEM">Sistema</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="audience">Audiencia</Label>
-              <Select
-                value={audience}
-                onValueChange={(val) => {
-                  setAudience(val as BroadcastAudience);
-                  if (val !== "by-role") setRoleId("");
-                }}
-                disabled={loading || type === "announcement"}
-              >
-                <SelectTrigger id="audience">
-                  <SelectValue placeholder="Seleccione la audiencia" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">
-                    Todos los usuarios activos
-                  </SelectItem>
-                  <SelectItem value="by-role">Por rol</SelectItem>
-                </SelectContent>
-              </Select>
+              <Label>Canales</Label>
+              <div className="flex gap-6 pt-2">
+                <div className="flex items-center gap-2 text-sm">
+                  <Checkbox
+                    id="channel-inapp"
+                    checked={sendInApp}
+                    onCheckedChange={(v) => setSendInApp(v === true)}
+                    disabled={loading}
+                  />
+                  <label htmlFor="channel-inapp">Notificación</label>
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <Checkbox
+                    id="channel-email"
+                    checked={sendEmail}
+                    onCheckedChange={(v) => setSendEmail(v === true)}
+                    disabled={loading}
+                  />
+                  <label htmlFor="channel-email">Correo</label>
+                </div>
+              </div>
             </div>
           </div>
 
-          {audience === "by-role" && (
-            <div className="space-y-2">
-              <Label htmlFor="roleId">Rol</Label>
-              <Select
-                value={roleId}
-                onValueChange={setRoleId}
-                disabled={loading}
-                required
-              >
-                <SelectTrigger id="roleId">
-                  <SelectValue placeholder="Seleccione un rol" />
-                </SelectTrigger>
-                <SelectContent>
-                  {roles.map((role) => (
-                    <SelectItem key={role.id} value={String(role.id)}>
+          <div className="space-y-2">
+            <Label>Destinatarios</Label>
+            {canTargetAll && (
+              <div className="flex items-center gap-2 text-sm">
+                <Checkbox
+                  id="audience-all"
+                  checked={allRoles}
+                  onCheckedChange={(v) => setAllRoles(v === true)}
+                  disabled={loading}
+                />
+                <label htmlFor="audience-all">Todos los roles</label>
+              </div>
+            )}
+            {!allRoles && (
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-2 pt-1">
+                {allowedRoles.map((role) => (
+                  <div
+                    key={role.id}
+                    className="flex items-center gap-2 text-sm"
+                    title={role.description ?? undefined}
+                  >
+                    <Checkbox
+                      id={`audience-role-${role.id}`}
+                      checked={selectedRoleIds.includes(role.id)}
+                      onCheckedChange={() => toggleRole(role.id)}
+                      disabled={loading}
+                    />
+                    <label htmlFor={`audience-role-${role.id}`}>
                       {role.name}
-                      {role.description ? ` — ${role.description}` : ""}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                    </label>
+                  </div>
+                ))}
+              </div>
+            )}
+            <p className="text-sm text-muted-foreground">
+              Destinatarios estimados:{" "}
+              <span className="font-medium text-foreground">{preview}</span>
+            </p>
+            <div className="flex items-center gap-2 text-sm">
+              <Checkbox
+                id="include-sender"
+                checked={includeSender}
+                onCheckedChange={(v) => setIncludeSender(v === true)}
+                disabled={loading}
+              />
+              <label htmlFor="include-sender">Enviarme una copia</label>
+            </div>
+          </div>
+
+          {!editing && (
+            <div className="space-y-2">
+              <Label>Envío</Label>
+              <div className="flex gap-6">
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="radio"
+                    name="timing"
+                    checked={sendNow}
+                    onChange={() => setSendNow(true)}
+                    disabled={loading}
+                  />
+                  Enviar ahora
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="radio"
+                    name="timing"
+                    checked={!sendNow}
+                    onChange={() => setSendNow(false)}
+                    disabled={loading}
+                  />
+                  Programar
+                </label>
+              </div>
+              {!sendNow && (
+                <Input
+                  type="datetime-local"
+                  value={scheduledAtLocal}
+                  onChange={(e) => setScheduledAtLocal(e.target.value)}
+                  required
+                  disabled={loading}
+                />
+              )}
             </div>
           )}
 
-          <div className="flex justify-end">
+          {editing && (
+            <div className="space-y-2">
+              <Label htmlFor="scheduledAt">Fecha y hora programadas</Label>
+              <Input
+                id="scheduledAt"
+                type="datetime-local"
+                value={scheduledAtLocal}
+                onChange={(e) => setScheduledAtLocal(e.target.value)}
+                required
+                disabled={loading}
+              />
+            </div>
+          )}
+
+          <div className="flex justify-end gap-2">
+            {editing && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onCancelEdit}
+                disabled={loading}
+              >
+                Cancelar edición
+              </Button>
+            )}
             <Button type="submit" disabled={loading}>
-              {loading ? "Enviando..." : "Enviar notificación"}
+              {loading
+                ? "Guardando..."
+                : editing
+                  ? "Guardar cambios"
+                  : sendNow
+                    ? "Enviar ahora"
+                    : "Programar difusión"}
             </Button>
           </div>
         </form>
