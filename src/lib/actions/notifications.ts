@@ -97,14 +97,17 @@ export type BroadcastResult = ActionResult<{ count: number }>;
  * Audience "all" → all active users.
  * Audience "by-role" → all active users with the selected roleId.
  * Actor is excluded by notifyBroadcast → emit().
+ *
+ * Gated behind `notifications:broadcast` (NOT `notifications:read`): reading
+ * the inbox must never imply the power to write to everyone's.
  */
 export async function sendBroadcast(
   input: BroadcastInput,
 ): Promise<BroadcastResult> {
-  // Admin route guard is handled by requireRouteAccess on the page,
-  // but we still check notifications:read so the server action itself
-  // is not callable by non-authenticated users.
-  const user = await requirePermission("notifications:read");
+  // Route guard parity: the page sits behind requireRouteAccess, and the
+  // action itself demands the broadcast capability, so it is not invocable
+  // by an authenticated user who merely holds the inbox route.
+  const user = await requirePermission("notifications:broadcast");
 
   // Input validation
   const title = input.title?.trim();
