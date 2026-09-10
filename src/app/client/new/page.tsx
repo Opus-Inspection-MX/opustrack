@@ -12,6 +12,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { FileUpload } from "@/components/ui/file-upload";
 import { FormError } from "@/components/ui/form-error";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,11 +26,13 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
 import { getEquipmentsByLineId } from "@/lib/actions/equipments";
+import { uploadIncidentAttachment } from "@/lib/actions/incident-attachments";
 import { createIncidentAsClient } from "@/lib/actions/incidents";
 import { getLinesByClienteId } from "@/lib/actions/lines";
 import { getIncidentTypes } from "@/lib/actions/lookups";
 import { isFailure } from "@/lib/actions/result";
 import { getMyProfile } from "@/lib/actions/users";
+import { normalizeMimeType } from "@/lib/upload";
 
 interface IncidentType {
   id: number;
@@ -61,6 +64,8 @@ export default function ReportIncidentPage() {
   const [lines, setLines] = useState<Line[]>([]);
   const [equipments, setEquipments] = useState<Equipment[]>([]);
   const [loading, setLoading] = useState(true);
+  // RF-217: staged in state, uploaded only after the incident exists.
+  const [evidenceFiles, setEvidenceFiles] = useState<File[]>([]);
 
   const [formData, setFormData] = useState({
     title: "",
@@ -183,6 +188,43 @@ export default function ReportIncidentPage() {
       }
 
       if (result.success) {
+        // RF-217: two-step evidence flow. The incident already exists, so a
+        // failed upload never invalidates the report — each failure is
+        // reported per file and the detail view accepts the missing photos
+        // later.
+        if (evidenceFiles.length > 0) {
+          const results = await Promise.allSettled(
+            evidenceFiles.map((file) => {
+              const fd = new FormData();
+              fd.append("incidentId", String(result.data.id));
+              fd.append("file", file);
+              fd.append("mimetype", normalizeMimeType(file));
+              return uploadIncidentAttachment(fd);
+            }),
+          );
+          const failures = results
+            .map((r, i) => {
+              const name = evidenceFiles[i].name;
+              if (r.status === "rejected") {
+                const reason = r.reason;
+                const msg =
+                  reason instanceof Error
+                    ? reason.message
+                    : "Error desconocido";
+                return `${name}: ${msg}`;
+              }
+              if (isFailure(r.value)) return `${name}: ${r.value.error}`;
+              return null;
+            })
+            .filter((f): f is string => f !== null);
+          if (failures.length > 0) {
+            toast.error(
+              failures.length === evidenceFiles.length
+                ? `El incidente se creó, pero la evidencia no se pudo subir: ${failures.join("; ")}`
+                : `Algunas fotos no se pudieron subir (${failures.length}/${evidenceFiles.length}): ${failures.join("; ")}`,
+            );
+          }
+        }
         router.push("/client");
       } else {
         throw new Error("Error al crear el incidente");
@@ -308,6 +350,15 @@ export default function ReportIncidentPage() {
               />
               {errors.description && <FormError message={errors.description} />}
             </div>
+
+            {/* RF-217: optional evidence staged until the incident exists */}
+            <FileUpload
+              onFilesSelected={setEvidenceFiles}
+              maxFiles={5}
+              maxSizeMB={10}
+              showCamera
+              label="Fotos de evidencia (opcional)"
+            />
 
             {/* Type */}
             <div className="space-y-2">
