@@ -122,6 +122,8 @@ model Role {
   broadcastGrants RoleBroadcastTarget[] @relation("BroadcastSource")
   /// Rows where this role is a TARGET: which roles may broadcast to it.
   broadcastReach RoleBroadcastTarget[] @relation("BroadcastTarget")
+  /// Broadcasts addressing this role (Phase 4 audience pivot).
+  broadcastRoles   BroadcastRole[]
   active         Boolean          @default(true)
   // RF-550 attribution: null = system row (seed/migration), never backfilled.
   createdById     String?
@@ -911,6 +913,82 @@ enum EmailOutboxStatus {
   PENDIENTE
   ENVIADO
   FALLIDO
+}
+
+/// Persisted broadcast (immediate or scheduled, Phase 4).
+///
+/// Recipients are resolved AT SEND TIME from `roles`/`allRoles` — never at
+/// creation — so a scheduled broadcast reaches whoever holds the target roles
+/// when the cron fires, not when the admin clicked save. Delivery claims the
+/// row atomically (`PROGRAMADA → ENVIANDO`) so two cron runs send it once.
+/// In-app rows use `entityType: "broadcast"` + `entityId: broadcastId`; the
+/// phase type (`system` / `announcement`) carries priority and label only.
+model Broadcast {
+  id             String          @id @default(cuid())
+  title          String
+  message        String
+  kind           BroadcastKind   @default(SYSTEM)
+  sendInApp      Boolean         @default(true)
+  sendEmail      Boolean         @default(false)
+  allRoles       Boolean         @default(false)
+  includeSender  Boolean         @default(false)
+  /// UTC instant. Immediate sends store `now`; scheduled ones a CDMX
+  /// wall-clock converted with `fromDatetimeLocalMX`.
+  scheduledAt    DateTime
+  status         BroadcastStatus @default(PROGRAMADA)
+  sentAt         DateTime?
+  recipientCount Int             @default(0)
+  roles          BroadcastRole[]
+  active         Boolean         @default(true)
+  // RF-550 attribution: null = system row (seed/migration), never backfilled.
+  createdById     String?
+  updatedById     String?
+  deactivatedAt   DateTime?
+  deactivatedById String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, scheduledAt])
+  @@map("broadcasts")
+}
+
+enum BroadcastKind {
+  SYSTEM
+  ANNOUNCEMENT
+}
+
+enum BroadcastStatus {
+  PROGRAMADA
+  ENVIANDO
+  ENVIADA
+  CANCELADA
+  FALLIDA
+}
+
+/// `Broadcast ↔ Role` audience pivot (which roles this broadcast reaches).
+///
+/// Log-adjacent like the channel policy: rows are replaced on edit, never
+/// soft-deleted one by one — `active` exists only so the replace can go
+/// through the same attribution columns as every other write.
+model BroadcastRole {
+  id          Int       @id @default(autoincrement())
+  broadcastId String
+  broadcast   Broadcast @relation(fields: [broadcastId], references: [id], onDelete: Cascade)
+  roleId      Int
+  role        Role      @relation(fields: [roleId], references: [id])
+  active      Boolean   @default(true)
+  // RF-550 attribution: null = system row (seed/migration), never backfilled.
+  createdById     String?
+  updatedById     String?
+  deactivatedAt   DateTime?
+  deactivatedById String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([broadcastId, roleId])
+  @@index([broadcastId])
+  @@index([roleId])
+  @@map("broadcast_roles")
 }
 
 // ─── Holidays & Vacations (RF-700–RF-749) ────────────────────────────────────
