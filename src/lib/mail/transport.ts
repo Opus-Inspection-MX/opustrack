@@ -1,5 +1,6 @@
 import nodemailer from "nodemailer";
 import { logger } from "@/lib/observability/logger";
+import { toHtml } from "./templates";
 
 /**
  * Outbound email, behind one interface.
@@ -14,13 +15,18 @@ export interface MailMessage {
   /** Recipients. Sent as a single BCC message, never one email per person. */
   to: string[];
   subject: string;
-  /** Plain-text body. The HTML part is derived from it. */
+  /** Plain-text body. The HTML part is derived from it when absent. */
   text: string;
+  /** Rich body (the catalog layout). Falls back to the escaped text. */
+  html?: string;
 }
 
 export interface MailTransport {
   readonly name: string;
-  send(message: MailMessage): Promise<void>;
+  /** Throws on failure — the OUTBOX decides what a failure means. */
+  send(message: MailMessage): Promise<string | undefined>;
+  /** Check the connection without sending. Throws when unreachable. */
+  verify(): Promise<void>;
 }
 
 /**
@@ -37,20 +43,10 @@ export const noopTransport: MailTransport = {
     logger.info(
       `[mail:noop] Sin SMTP_HOST — no se envió "${message.subject}" a ${message.to.length} destinatario(s)`,
     );
+    return undefined;
   },
+  async verify() {},
 };
-
-/** Minimal HTML: the text body, escaped, with line breaks preserved. */
-function toHtml(text: string): string {
-  const escaped = text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
-  return `<div style="font-family:system-ui,sans-serif;font-size:14px;line-height:1.5">${escaped.replace(
-    /\n/g,
-    "<br>",
-  )}</div>`;
-}
 
 export function createSmtpTransport(): MailTransport {
   const host = process.env.SMTP_HOST as string;
@@ -71,8 +67,11 @@ export function createSmtpTransport(): MailTransport {
 
   return {
     name: `smtp(${host}:${port})`,
+    async verify() {
+      await transporter.verify();
+    },
     async send(message) {
-      await transporter.sendMail({
+      const info = await transporter.sendMail({
         from,
         // Recipients go in BCC so nobody learns who else was notified, and the
         // server receives one message instead of N.
@@ -80,8 +79,28 @@ export function createSmtpTransport(): MailTransport {
         bcc: message.to,
         subject: message.subject,
         text: message.text,
-        html: toHtml(message.text),
+        html: message.html ?? toHtml(message.text),
       });
+      return info?.messageId;
     },
   };
+}
+
+/**
+ * The one place that decides how mail leaves the app.
+ *
+ * Memoized because `nodemailer.createTransport` opens a connection pool, and
+ * building one per notification would leak sockets under load.
+ */
+let cached: MailTransport | null = null;
+
+export function getMailTransport(): MailTransport {
+  if (cached) return cached;
+  cached = process.env.SMTP_HOST ? createSmtpTransport() : noopTransport;
+  return cached;
+}
+
+/** Drop the memoized transport. For tests that swap the environment. */
+export function resetMailTransport(): void {
+  cached = null;
 }

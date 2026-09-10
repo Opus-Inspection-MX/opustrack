@@ -1,10 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { createTransport, sendMailSpy } = vi.hoisted(() => {
+const { createTransport, sendMailSpy, verifySpy } = vi.hoisted(() => {
   const sendMailSpy = vi.fn();
+  const verifySpy = vi.fn(async () => {});
   return {
     sendMailSpy,
-    createTransport: vi.fn(() => ({ sendMail: sendMailSpy })),
+    verifySpy,
+    createTransport: vi.fn(() => ({
+      sendMail: sendMailSpy,
+      verify: verifySpy,
+    })),
   };
 });
 
@@ -114,5 +119,38 @@ describe("envío", () => {
     const arg = sendMailSpy.mock.calls[0][0];
     expect(arg.html).toContain("&lt;script&gt;");
     expect(arg.html).not.toContain("<script>");
+  });
+
+  it("devuelve el messageId del servidor", async () => {
+    process.env.SMTP_HOST = "localhost";
+
+    const messageId = await getMailTransport().send({
+      to: ["a@b.com"],
+      subject: "X",
+      text: "cuerpo",
+    });
+
+    expect(messageId).toBe("test");
+  });
+
+  it("respeta el HTML del catálogo cuando viene dado", async () => {
+    await sendMail({
+      to: ["a@b.com"],
+      subject: "X",
+      text: "cuerpo",
+      html: "<p>diseño</p>",
+    });
+
+    const arg = sendMailSpy.mock.calls[0][0];
+    expect(arg.html).toBe("<p>diseño</p>");
+  });
+
+  it("verify comprueba la conexión sin enviar", async () => {
+    process.env.SMTP_HOST = "localhost";
+
+    await getMailTransport().verify();
+
+    expect(verifySpy).toHaveBeenCalledTimes(1);
+    expect(sendMailSpy).not.toHaveBeenCalled();
   });
 });
