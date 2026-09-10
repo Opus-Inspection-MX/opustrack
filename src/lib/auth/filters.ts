@@ -1,79 +1,79 @@
 /**
  * Data Filtering Helpers for Multi-tenancy
  *
- * These helpers ensure users only see data from their assigned Cliente(s),
- * except for holders of the cross-Cliente scope permission who can see all data.
+ * These helpers ensure users only see data from their assigned Client(s),
+ * except for holders of the cross-Client scope permission who can see all data.
  *
  * CRITICAL: Always use these filters in queries to prevent data leakage
- * between different Clientes.
+ * between different Clients.
  *
- * All variants are async and multi-Cliente: they resolve every Cliente
- * assignment of the user. (A synchronous single-Cliente path used to exist
+ * All variants are async and multi-Client: they resolve every Client
+ * assignment of the user. (A synchronous single-Client path used to exist
  * here; it silently dropped secondary assignments and was removed.)
  */
 
 import { businessRule } from "@/lib/actions/result";
 import {
-  SCOPE_ALL_CLIENTES,
+  SCOPE_ALL_CLIENTS,
   type UserWithPermissions,
   userHasPermission,
 } from "@/lib/authz/authz";
-import { getUserClienteIds } from "@/lib/utils/cliente-assignments";
+import { getUserClientIds } from "@/lib/utils/client-assignments";
 
 /**
- * Returns WHERE clause for filtering by Cliente (async - supports multi-Cliente)
+ * Returns WHERE clause for filtering by Client (async - supports multi-Client)
  *
- * - Scope holders: No filter (can see all Clientes)
- * - Other roles: Filter by all their assigned Clientes
- * - Users without Cliente assignments: Filter by clienteId: null
+ * - Scope holders: No filter (can see all Clients)
+ * - Other roles: Filter by all their assigned Clients
+ * - Users without Client assignments: Filter by clientId: null
  *
  * @param user - The authenticated user with role information
- * @returns Prisma WHERE clause for clienteId filtering (using IN for multiple Clientes)
+ * @returns Prisma WHERE clause for clientId filtering (using IN for multiple Clients)
  *
  * @example
  * ```typescript
  * const user = await requirePermission("incidents:read");
- * const clienteFilter = await getClienteWhereClauseAsync(user);
+ * const clientFilter = await getClientWhereClauseAsync(user);
  *
  * const incidents = await prisma.incident.findMany({
  *   where: {
  *     active: true,
- *     ...clienteFilter,  // Apply Cliente filter
+ *     ...clientFilter,  // Apply Client filter
  *   }
  * });
  * ```
  */
-export async function getClienteWhereClauseAsync(
+export async function getClientWhereClauseAsync(
   user: UserWithPermissions,
 ): Promise<{
-  clienteId?: string | { in: string[] } | { equals: null };
+  clientId?: string | { in: string[] } | { equals: null };
 }> {
   // Admin can see everything
   if (isAdmin(user)) {
     return {};
   }
 
-  // Get all Cliente IDs assigned to the user
-  const clienteIds = await getUserClienteIds(user.id);
+  // Get all Client IDs assigned to the user
+  const clientIds = await getUserClientIds(user.id);
 
-  // Users without Cliente assignments can only see records without Cliente.
+  // Users without Client assignments can only see records without Client.
   // (The deprecated User.clienteId scalar fallback died with the column:
   // the junction table is the only source of truth.)
-  if (clienteIds.length === 0) {
-    return { clienteId: { equals: null } };
+  if (clientIds.length === 0) {
+    return { clientId: { equals: null } };
   }
 
-  // Single Cliente - use direct filter
-  if (clienteIds.length === 1) {
-    return { clienteId: clienteIds[0] };
+  // Single Client - use direct filter
+  if (clientIds.length === 1) {
+    return { clientId: clientIds[0] };
   }
 
-  // Multiple Clientes - use IN filter
-  return { clienteId: { in: clienteIds } };
+  // Multiple Clients - use IN filter
+  return { clientId: { in: clientIds } };
 }
 
 /**
- * Whether the user's data scope spans every Cliente.
+ * Whether the user's data scope spans every Client.
  *
  * This is NOT "is a superuser". `ADMINISTRADOR` used to mean both, and keeping
  * them fused would force an operations admin — who must see every center — to
@@ -81,44 +81,44 @@ export async function getClienteWhereClauseAsync(
  * else needs the permission granted.
  */
 export function isAdmin(user: UserWithPermissions): boolean {
-  return userHasPermission(user, SCOPE_ALL_CLIENTES);
+  return userHasPermission(user, SCOPE_ALL_CLIENTS);
 }
 
 /**
- * Check if user can access a specific Cliente's data (async - supports multi-Cliente)
+ * Check if user can access a specific Client's data (async - supports multi-Client)
  *
  * @param user - The authenticated user
- * @param clienteId - The Cliente ID to check access for
- * @returns true if user can access the Cliente
+ * @param clientId - The Client ID to check access for
+ * @returns true if user can access the Client
  *
  * @example
  * ```typescript
- * const canAccess = await canAccessClienteAsync(user, incident.clienteId);
+ * const canAccess = await canAccessClientAsync(user, incident.clientId);
  * if (!canAccess) {
  *   businessRule("Sin acceso a los datos de este Cliente");
  * }
  * ```
  */
-export async function canAccessClienteAsync(
+export async function canAccessClientAsync(
   user: UserWithPermissions,
-  clienteId: string | null,
+  clientId: string | null,
 ): Promise<boolean> {
-  // Admin can access all Clientes
+  // Admin can access all Clients
   if (isAdmin(user)) {
     return true;
   }
 
-  // Null Cliente data requires null Cliente user
-  if (clienteId === null) {
-    const clienteIds = await getUserClienteIds(user.id);
-    return clienteIds.length === 0;
+  // Null Client data requires null Client user
+  if (clientId === null) {
+    const clientIds = await getUserClientIds(user.id);
+    return clientIds.length === 0;
   }
 
-  // Check if user is assigned to this Cliente
-  const clienteIds = await getUserClienteIds(user.id);
+  // Check if user is assigned to this Client
+  const clientIds = await getUserClientIds(user.id);
 
-  // Check Cliente assignments first
-  if (clienteIds.includes(clienteId)) {
+  // Check Client assignments first
+  if (clientIds.includes(clientId)) {
     return true;
   }
 
@@ -126,26 +126,26 @@ export async function canAccessClienteAsync(
 }
 
 /**
- * Raises a business rule if user cannot access the specified Cliente (async - supports multi-Cliente)
+ * Raises a business rule if user cannot access the specified Client (async - supports multi-Client)
  *
  * Operator-facing denial via `businessRule(...)`, converted to a returned
  * rejection by `guarded(...)`.
  *
  * @param user - The authenticated user
- * @param clienteId - The Cliente ID to verify access for
+ * @param clientId - The Client ID to verify access for
  *
  * @example
  * ```typescript
  * const incident = await prisma.incident.findUnique({ where: { id } });
- * await assertClienteAccessAsync(user, incident.clienteId);
+ * await assertClientAccessAsync(user, incident.clientId);
  * // Continues only if user has access
  * ```
  */
-export async function assertClienteAccessAsync(
+export async function assertClientAccessAsync(
   user: UserWithPermissions,
-  clienteId: string | null,
+  clientId: string | null,
 ): Promise<void> {
-  const hasAccess = await canAccessClienteAsync(user, clienteId);
+  const hasAccess = await canAccessClientAsync(user, clientId);
   if (!hasAccess) {
     businessRule("Sin acceso a los datos de este Cliente");
   }

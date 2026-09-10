@@ -5,7 +5,7 @@ import { IncidentEventType } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requirePermission } from "@/lib/auth/auth";
-import { assertClienteAccessAsync } from "@/lib/auth/filters";
+import { assertClientAccessAsync } from "@/lib/auth/filters";
 import {
   getReportScope,
   incidentScopeWhere,
@@ -27,11 +27,11 @@ import {
 } from "@/lib/notifications";
 import { INCIDENT_STATE, syncIncidentState } from "@/lib/state-machine";
 import { logIncidentEvent } from "@/lib/state-machine/incident-events";
-import { getPrimaryClienteId } from "@/lib/utils/cliente-assignments";
+import { getPrimaryClientId } from "@/lib/utils/client-assignments";
 import {
-  IncidentClientCreateSchema,
   type IncidentCreateInput,
   IncidentCreateSchema,
+  IncidentReporterCreateSchema,
   IncidentUpdateSchema,
 } from "@/lib/validations/incidents";
 import { type ActionResult, businessRule, guarded, ok } from "./result";
@@ -51,7 +51,7 @@ type GetIncidentsParams = {
 /**
  * Paginated audit-trail read for one incident (RF-219).
  * Admin-only surface: chronological events with resolved actor names.
- * Fail closed — no Cliente assignment or no access means no rows.
+ * Fail closed — no Client assignment or no access means no rows.
  */
 const INCIDENT_EVENTS_PAGE_SIZE = 50;
 
@@ -70,12 +70,12 @@ export async function getIncidentEvents(incidentId: number, page = 1) {
 
   const incident = await prisma.incident.findUnique({
     where: { id: incidentId },
-    select: { clienteId: true },
+    select: { clientId: true },
   });
   if (!incident) {
     throw new Error("Incident not found");
   }
-  await assertClienteAccessAsync(user, incident.clienteId);
+  await assertClientAccessAsync(user, incident.clientId);
 
   const safePage = Math.max(1, Math.floor(page) || 1);
   const [events, total] = await Promise.all([
@@ -120,12 +120,12 @@ export async function getIncidentEvents(incidentId: number, page = 1) {
 
 /**
  * Get incidents with relations, paginated and searchable (title, description).
- * Filtered by user's Cliente (except ADMINISTRADOR who sees all).
+ * Filtered by user's Client (except ADMINISTRADOR who sees all).
  */
 export async function getIncidents(params?: GetIncidentsParams) {
   const user = await requirePermission("incidents:read");
   const scope = await getReportScope(user);
-  const clienteFilter = incidentScopeWhere(scope);
+  const clientFilter = incidentScopeWhere(scope);
 
   const page = params?.page ?? 1;
   const limit = params?.limit ?? 10;
@@ -134,7 +134,7 @@ export async function getIncidents(params?: GetIncidentsParams) {
 
   const where: Prisma.IncidentWhereInput = {
     active: true,
-    ...clienteFilter, // Apply Cliente filter
+    ...clientFilter, // Apply Client filter
     ...(search
       ? {
           OR: [
@@ -151,7 +151,7 @@ export async function getIncidents(params?: GetIncidentsParams) {
       include: {
         type: true,
         status: true,
-        cliente: { include: { state: true } },
+        client: { include: { state: true } },
         reportedBy: {
           select: {
             id: true,
@@ -203,7 +203,7 @@ export async function getMyIncidents() {
     include: {
       type: true,
       status: true,
-      cliente: { include: { state: true } },
+      client: { include: { state: true } },
       reportedBy: {
         select: {
           id: true,
@@ -223,7 +223,7 @@ export async function getMyIncidents() {
 
 /**
  * Get single incident by ID
- * Verifies user has access to the incident's Cliente
+ * Verifies user has access to the incident's Client
  */
 export async function getIncidentById(id: number) {
   const user = await requirePermission("incidents:read");
@@ -233,7 +233,7 @@ export async function getIncidentById(id: number) {
     include: {
       type: true,
       status: true,
-      cliente: { include: { state: true } },
+      client: { include: { state: true } },
       reportedBy: {
         select: {
           id: true,
@@ -290,8 +290,8 @@ export async function getIncidentById(id: number) {
     throw new Error("Incident not found");
   }
 
-  // Verify user has access to this incident's Cliente
-  await assertClienteAccessAsync(user, incident.clienteId);
+  // Verify user has access to this incident's Client
+  await assertClientAccessAsync(user, incident.clientId);
 
   return incident;
 }
@@ -327,7 +327,7 @@ export async function createIncident(data: unknown) {
         description: validated.description,
         typeId,
         statusId: initialStatus.id,
-        clienteId: validated.clienteId || null,
+        clientId: validated.clientId || null,
         scheduleId: validated.scheduleId || null,
         reportedById: validated.reportedById || user.id,
         reporterName: validated.reporterName?.trim() || null,
@@ -337,7 +337,7 @@ export async function createIncident(data: unknown) {
       include: {
         type: true,
         status: true,
-        cliente: { include: { state: true } },
+        client: { include: { state: true } },
         reportedBy: true,
       },
     });
@@ -376,21 +376,21 @@ export async function createIncident(data: unknown) {
     await notifyIncidentCreated(incident.id, incident.title, user.id);
 
     revalidatePath("/admin/incidents");
-    revalidatePath("/client/incidents");
+    revalidatePath("/reporter/incidents");
     return { data: incident };
   });
 }
 
 /**
- * Create incident as client (simplified for client role)
+ * Create incident as reporter (simplified for reporter role)
  * Validates input with Zod schema
  */
-export async function createIncidentAsClient(data: unknown) {
+export async function createIncidentAsReporter(data: unknown) {
   const user = await requirePermission("incidents:create");
 
   return guarded(async () => {
     // Validate input
-    const validated = IncidentClientCreateSchema.parse(data);
+    const validated = IncidentReporterCreateSchema.parse(data);
 
     // Get initial status: new incidents start at ABIERTO.
     const initialStatus = await prisma.incidentStatus.findFirst({
@@ -401,9 +401,9 @@ export async function createIncidentAsClient(data: unknown) {
       throw new Error(`Estado ${INCIDENT_STATE.ABIERTO} no encontrado`);
     }
 
-    // Client must have a Cliente assigned
-    const userClienteId = await getPrimaryClienteId(user.id);
-    if (!userClienteId) {
+    // Reporter must have a Client assigned
+    const userClientId = await getPrimaryClientId(user.id);
+    if (!userClientId) {
       businessRule("El usuario no tiene un Cliente asignado");
     }
 
@@ -415,7 +415,7 @@ export async function createIncidentAsClient(data: unknown) {
         description: validated.description,
         typeId,
         statusId: initialStatus.id,
-        clienteId: userClienteId,
+        clientId: userClientId,
         reportedById: user.id,
         // Who actually raised it: the account belongs to the whole center.
         reporterName: validated.reporterName?.trim() || null,
@@ -425,7 +425,7 @@ export async function createIncidentAsClient(data: unknown) {
       include: {
         type: true,
         status: true,
-        cliente: { include: { state: true } },
+        client: { include: { state: true } },
         reportedBy: {
           select: {
             id: true,
@@ -447,34 +447,34 @@ export async function createIncidentAsClient(data: unknown) {
       payload: { source: "client" },
     });
 
-    revalidatePath("/client/incidents");
+    revalidatePath("/reporter/incidents");
     revalidatePath("/admin/incidents");
     return { data: incident };
   });
 }
 
 /**
- * Get incidents for client (only their Cliente)
+ * Get incidents for reporter (only their Client)
  */
-export async function getClientIncidents() {
+export async function getReporterIncidents() {
   const user = await requirePermission("incidents:read");
 
-  const userClienteId = await getPrimaryClienteId(user.id);
-  if (!userClienteId) {
+  const userClientId = await getPrimaryClientId(user.id);
+  if (!userClientId) {
     return [];
   }
 
-  // Client users should only see incidents they reported themselves
+  // Reporter users should only see incidents they reported themselves
   const incidents = await prisma.incident.findMany({
     where: {
       reportedById: user.id, // Filter by the user who reported it
-      clienteId: userClienteId, // Also ensure it's from their Cliente
+      clientId: userClientId, // Also ensure it's from their Client
       active: true,
     },
     include: {
       type: true,
       status: true,
-      cliente: { include: { state: true } },
+      client: { include: { state: true } },
       reportedBy: {
         select: {
           id: true,
@@ -494,7 +494,7 @@ export async function getClientIncidents() {
 
 /**
  * Update existing incident
- * Verifies user has access to the incident's Cliente before updating
+ * Verifies user has access to the incident's Client before updating
  */
 export async function updateIncident(id: number, data: IncidentFormData) {
   const user = await requirePermission("incidents:update");
@@ -505,14 +505,14 @@ export async function updateIncident(id: number, data: IncidentFormData) {
     // Verify access before update
     const existing = await prisma.incident.findUnique({
       where: { id },
-      select: { clienteId: true },
+      select: { clientId: true },
     });
 
     if (!existing) {
       throw new Error("Incident not found");
     }
 
-    await assertClienteAccessAsync(user, existing.clienteId);
+    await assertClientAccessAsync(user, existing.clientId);
 
     // typeId NOT NULL en BD. Si el caller intenta poner null/undefined, fallback.
     const typeId = data.typeId
@@ -526,7 +526,7 @@ export async function updateIncident(id: number, data: IncidentFormData) {
         title: data.title,
         description: data.description,
         typeId,
-        clienteId: data.clienteId || null,
+        clientId: data.clientId || null,
         scheduleId: data.scheduleId || null,
         startedAt: data.startedAt ?? null,
         // `undefined` leaves it alone, so an update that omits the field does
@@ -539,7 +539,7 @@ export async function updateIncident(id: number, data: IncidentFormData) {
       include: {
         type: true,
         status: true,
-        cliente: { include: { state: true } },
+        client: { include: { state: true } },
         reportedBy: true,
       },
     });
@@ -588,12 +588,12 @@ export async function updateIncidentFsrs(
   return guarded(async () => {
     const incident = await prisma.incident.findUnique({
       where: { id: incidentId },
-      select: { clienteId: true, title: true },
+      select: { clientId: true, title: true },
     });
     if (!incident) {
       throw new Error("Incidente no encontrado");
     }
-    await assertClienteAccessAsync(user, incident.clienteId);
+    await assertClientAccessAsync(user, incident.clientId);
 
     // Validate every FSR exists, is an FSR, and is accessible.
     if (fsrIds.length) {
@@ -655,7 +655,7 @@ export async function updateIncidentScheduledDate(
     const incident = await prisma.incident.findUnique({
       where: { id: incidentId },
       select: {
-        clienteId: true,
+        clientId: true,
         scheduleId: true,
         title: true,
         description: true,
@@ -664,7 +664,7 @@ export async function updateIncidentScheduledDate(
     if (!incident) {
       throw new Error("Incidente no encontrado");
     }
-    await assertClienteAccessAsync(user, incident.clienteId);
+    await assertClientAccessAsync(user, incident.clientId);
 
     if (incident.scheduleId) {
       await prisma.schedule.update({
@@ -704,12 +704,12 @@ export async function updateIncidentType(
   return guarded(async () => {
     const incident = await prisma.incident.findUnique({
       where: { id: incidentId },
-      select: { clienteId: true },
+      select: { clientId: true },
     });
     if (!incident) {
       throw new Error("Incidente no encontrado");
     }
-    await assertClienteAccessAsync(user, incident.clienteId);
+    await assertClientAccessAsync(user, incident.clientId);
 
     const type = await prisma.incidentType.findFirst({
       where: { id: typeId, active: true },
@@ -733,7 +733,7 @@ export async function updateIncidentType(
 
 /**
  * Delete incident (soft delete)
- * Verifies user has access to the incident's Cliente before deleting
+ * Verifies user has access to the incident's Client before deleting
  * Uses transaction to ensure atomicity when checking for active children
  */
 export async function deleteIncident(id: number) {
@@ -743,14 +743,14 @@ export async function deleteIncident(id: number) {
     // Verify access before delete
     const incident = await prisma.incident.findUnique({
       where: { id },
-      select: { clienteId: true },
+      select: { clientId: true },
     });
 
     if (!incident) {
       throw new Error("Incident not found");
     }
 
-    await assertClienteAccessAsync(user, incident.clienteId);
+    await assertClientAccessAsync(user, incident.clientId);
 
     // Use transaction to prevent race conditions when checking for children
     await prisma.$transaction(async (tx) => {
@@ -785,19 +785,19 @@ export async function refreshIncidentStatus(id: number) {
   const user = await requirePermission("incidents:update");
   const incident = await prisma.incident.findUnique({
     where: { id },
-    select: { clienteId: true },
+    select: { clientId: true },
   });
   if (!incident) {
     throw new Error("Incident not found");
   }
-  await assertClienteAccessAsync(user, incident.clienteId);
+  await assertClientAccessAsync(user, incident.clientId);
 
   const result = await syncIncidentState(id);
 
   revalidatePath("/admin/incidents");
   revalidatePath(`/admin/incidents/${id}`);
   revalidatePath("/fsr/incidents");
-  revalidatePath("/client/incidents");
+  revalidatePath("/reporter/incidents");
   return ok({ before: result.before, after: result.after });
 }
 
@@ -811,12 +811,12 @@ export async function closeIncident(id: number) {
   return guarded(async () => {
     const incident = await prisma.incident.findUnique({
       where: { id },
-      select: { clienteId: true },
+      select: { clientId: true },
     });
     if (!incident) {
       throw new Error("Incident not found");
     }
-    await assertClienteAccessAsync(user, incident.clienteId);
+    await assertClientAccessAsync(user, incident.clientId);
 
     const result = await syncIncidentState(id);
     if (result.after !== INCIDENT_STATE.CERRADO) {
@@ -828,17 +828,17 @@ export async function closeIncident(id: number) {
     revalidatePath("/admin/incidents");
     revalidatePath(`/admin/incidents/${id}`);
     revalidatePath("/fsr/incidents");
-    revalidatePath("/client/incidents");
+    revalidatePath("/reporter/incidents");
     return {};
   });
 }
 
 /**
  * Get FSR users for assignment
- * Filtered by user's Cliente (except ADMINISTRADOR who sees all FSRs)
+ * Filtered by user's Client (except ADMINISTRADOR who sees all FSRs)
  */
 /**
- * FSRs list with their Cliente assignments, used by bulk/quick edit dialogs.
+ * FSRs list with their Client assignments, used by bulk/quick edit dialogs.
  * Requires `incidents:update` since the caller will modify IncidentAssignee.
  */
 export async function getFsrsForAssignment() {
@@ -849,9 +849,9 @@ export async function getFsrsForAssignment() {
       id: true,
       name: true,
       email: true,
-      clienteAssignments: {
+      clientAssignments: {
         where: { active: true },
-        select: { clienteId: true },
+        select: { clientId: true },
       },
     },
     orderBy: { name: "asc" },
@@ -860,27 +860,27 @@ export async function getFsrsForAssignment() {
     id: f.id,
     name: f.name,
     email: f.email,
-    clienteIds: f.clienteAssignments.map((va) => va.clienteId),
+    clientIds: f.clientAssignments.map((va) => va.clientId),
   }));
 }
 
 /**
  * Get form options for incidents
- * Clientes and schedules filtered by user's Cliente (except ADMINISTRADOR)
+ * Clients and schedules filtered by user's Client (except ADMINISTRADOR)
  */
 export async function getIncidentFormOptions() {
   const user = await requirePermission("incidents:read");
   const scope = await getReportScope(user);
 
-  // Schedules linked to the caller's Clientes, plus global ones (no active
-  // Cliente links) which are always shown. A fail-closed scope (no Clientes)
+  // Schedules linked to the caller's Clients, plus global ones (no active
+  // Client links) which are always shown. A fail-closed scope (no Clients)
   // matches nothing.
   const scheduleWhere: Prisma.ScheduleWhereInput = {
     active: true,
     ...scheduleScopeWhere(scope),
   };
 
-  const [types, statuses, clientes, users, schedules] = await Promise.all([
+  const [types, statuses, clients, users, schedules] = await Promise.all([
     prisma.incidentType.findMany({
       where: { active: true },
       orderBy: { name: "asc" },
@@ -889,10 +889,10 @@ export async function getIncidentFormOptions() {
       where: { active: true },
       orderBy: { name: "asc" },
     }),
-    prisma.cliente.findMany({
+    prisma.client.findMany({
       where: {
         active: true,
-        ...(scope.clienteIds === null ? {} : { id: { in: scope.clienteIds } }),
+        ...(scope.clientIds === null ? {} : { id: { in: scope.clientIds } }),
       },
       orderBy: { name: "asc" },
     }),
@@ -903,9 +903,9 @@ export async function getIncidentFormOptions() {
         name: true,
         email: true,
         ...includeRoles,
-        clienteAssignments: {
+        clientAssignments: {
           where: { active: true },
-          select: { clienteId: true },
+          select: { clientId: true },
         },
       },
       orderBy: { name: "asc" },
@@ -924,10 +924,10 @@ export async function getIncidentFormOptions() {
     name: u.name,
     email: u.email,
     roleNames: roleNamesOf(u),
-    clienteIds: u.clienteAssignments.map((va) => va.clienteId),
+    clientIds: u.clientAssignments.map((va) => va.clientId),
   }));
 
-  return { types, statuses, clientes, users: usersWithClienteIds, schedules };
+  return { types, statuses, clients, users: usersWithClienteIds, schedules };
 }
 
 /**
@@ -1003,8 +1003,8 @@ export async function cancelIncident(incidentId: number, reason?: string) {
     revalidatePath("/fsr/assignments");
     revalidatePath("/fsr/incidents");
     revalidatePath(`/fsr/incidents/${incidentId}`);
-    revalidatePath("/client");
-    revalidatePath(`/client/incidents/${incidentId}`);
+    revalidatePath("/reporter");
+    revalidatePath(`/reporter/incidents/${incidentId}`);
 
     return { data: result };
   });

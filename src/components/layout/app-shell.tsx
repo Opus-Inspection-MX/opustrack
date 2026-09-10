@@ -15,7 +15,7 @@ import {
 /**
  * The application shell.
  *
- * Four layouts (`/admin`, `/fsr`, `/client`, `/guest`) repeated this markup
+ * Four layouts (`/admin`, `/fsr`, `/reporter`, `/guest`) repeated this markup
  * with only the sidebar and the header label differing. Now that navigation is
  * derived from permissions rather than from which portal you are in, the shell
  * is one component and the sections a user sees follow them across routes.

@@ -119,7 +119,7 @@ const CENTRO_CATEGORIES = [
 
 type CentroCategory = (typeof CENTRO_CATEGORIES)[number];
 
-/** One CENTRO group: the cliente plus its per-category responsables by day. */
+/** One CENTRO group: the client plus its per-category responsables by day. */
 interface Slot {
   centro: (string | null)[];
   responsables: Record<CentroCategory, Record<number, CellNames>>;
@@ -206,7 +206,7 @@ export function buildIncidentProgram(
   });
 
   const slotsByWeek: Slot[][] = weeksDays.map(() => []);
-  // Per week: cliente code → slot index, so a cliente keeps its row all week.
+  // Per week: client code → slot index, so a client keeps its row all week.
   const slotIndexByWeek: Map<string, number>[] = weeksDays.map(() => new Map());
   const dutyByWeek: Record<number, CellNames>[] = weeksDays.map(() => ({}));
 
@@ -219,7 +219,7 @@ export function buildIncidentProgram(
 
     // Reactive work, and anything without a centro, is a duty-roster entry.
     const isCentroWork =
-      entry.category !== "INCIDENCIAS" && entry.clienteCode !== null;
+      entry.category !== "INCIDENCIAS" && entry.clientCode !== null;
 
     if (!isCentroWork) {
       dutyByWeek[at.week][at.day] ??= [];
@@ -227,19 +227,19 @@ export function buildIncidentProgram(
       continue;
     }
 
-    const clienteCode = entry.clienteCode as string;
+    const clientCode = entry.clientCode as string;
     const slots = slotsByWeek[at.week];
     const index = slotIndexByWeek[at.week];
 
-    let slotIndex = index.get(clienteCode);
+    let slotIndex = index.get(clientCode);
     if (slotIndex === undefined) {
       slotIndex = slots.length;
-      index.set(clienteCode, slotIndex);
+      index.set(clientCode, slotIndex);
       slots.push(emptySlot());
     }
 
     const slot = slots[slotIndex];
-    slot.centro[at.day] = clienteCode;
+    slot.centro[at.day] = clientCode;
     const bucket = slot.responsables[entry.category as CentroCategory];
     bucket[at.day] ??= [];
     pushNames(bucket[at.day], entry.responsables);

@@ -5,8 +5,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requirePermission } from "@/lib/auth/auth";
 import {
-  canAccessClienteAsync,
-  getClienteWhereClauseAsync,
+  canAccessClientAsync,
+  getClientWhereClauseAsync,
 } from "@/lib/auth/filters";
 import { prisma } from "@/lib/database/prisma.singleton";
 import {
@@ -22,20 +22,20 @@ export type ScheduleFormData = {
   scheduledAt: Date;
   endDate?: Date | null;
   statusId?: number | null;
-  clienteIds: string[];
+  clientIds: string[];
 };
 
 export type ScheduleQuickUpdateData = {
-  clienteIds: string[];
+  clientIds: string[];
   scheduledAt: Date;
   endDate?: Date | null;
 };
 
 const scheduleInclude = {
-  clientes: {
+  clients: {
     where: { active: true },
     include: {
-      cliente: { select: { id: true, code: true, name: true } },
+      client: { select: { id: true, code: true, name: true } },
     },
   },
   _count: { select: { incidents: true } },
@@ -69,7 +69,7 @@ export async function getSchedules(params?: {
   page?: number;
   limit?: number;
   search?: string;
-  clienteId?: string;
+  clientId?: string;
   statusId?: number;
   activeFrom?: Date;
   activeTo?: Date;
@@ -92,8 +92,8 @@ export async function getSchedules(params?: {
     ];
   }
 
-  if (params?.clienteId) {
-    where.clientes = { some: { clienteId: params.clienteId, active: true } };
+  if (params?.clientId) {
+    where.clients = { some: { clientId: params.clientId, active: true } };
   }
 
   if (params?.statusId) {
@@ -130,10 +130,10 @@ export async function getScheduleById(id: string) {
   const schedule = await prisma.schedule.findUnique({
     where: { id },
     include: {
-      clientes: {
+      clients: {
         where: { active: true },
         include: {
-          cliente: { select: { id: true, code: true, name: true } },
+          client: { select: { id: true, code: true, name: true } },
         },
       },
       incidents: {
@@ -159,10 +159,10 @@ export async function getScheduleById(id: string) {
 
 async function assertAllClienteAccess(
   user: Awaited<ReturnType<typeof requirePermission>>,
-  clienteIds: string[],
+  clientIds: string[],
 ) {
-  for (const v of clienteIds) {
-    if (!(await canAccessClienteAsync(user, v))) {
+  for (const v of clientIds) {
+    if (!(await canAccessClientAsync(user, v))) {
       businessRule(`Sin acceso al Cliente ${v}`);
     }
   }
@@ -176,8 +176,8 @@ export async function createSchedule(data: ScheduleFormData) {
 
   return guarded(async () => {
     ScheduleCreateSchema.parse(data);
-    const clienteIds = [...new Set(data.clienteIds)];
-    await assertAllClienteAccess(user, clienteIds);
+    const clientIds = [...new Set(data.clientIds)];
+    await assertAllClienteAccess(user, clientIds);
 
     const schedule = await prisma.$transaction(async (tx) => {
       const created = await tx.schedule.create({
@@ -189,10 +189,10 @@ export async function createSchedule(data: ScheduleFormData) {
           statusId: data.statusId ?? null,
         },
       });
-      await tx.scheduleCliente.createMany({
-        data: clienteIds.map((clienteId) => ({
+      await tx.scheduleClient.createMany({
+        data: clientIds.map((clientId) => ({
           scheduleId: created.id,
-          clienteId,
+          clientId,
         })),
         skipDuplicates: true,
       });
@@ -208,21 +208,21 @@ export async function createSchedule(data: ScheduleFormData) {
   });
 }
 
-async function syncScheduleClientes(
+async function syncScheduleClients(
   tx: Prisma.TransactionClient,
   scheduleId: string,
-  clienteIds: string[],
+  clientIds: string[],
 ) {
-  const current = await tx.scheduleCliente.findMany({
+  const current = await tx.scheduleClient.findMany({
     where: { scheduleId },
-    select: { clienteId: true, active: true },
+    select: { clientId: true, active: true },
   });
-  const desired = new Set(clienteIds);
+  const desired = new Set(clientIds);
   const currentActive = new Set(
-    current.filter((c) => c.active).map((c) => c.clienteId),
+    current.filter((c) => c.active).map((c) => c.clientId),
   );
   const currentInactive = new Set(
-    current.filter((c) => !c.active).map((c) => c.clienteId),
+    current.filter((c) => !c.active).map((c) => c.clientId),
   );
 
   const toDeactivate = [...currentActive].filter((v) => !desired.has(v));
@@ -232,20 +232,20 @@ async function syncScheduleClientes(
   );
 
   if (toDeactivate.length) {
-    await tx.scheduleCliente.updateMany({
-      where: { scheduleId, clienteId: { in: toDeactivate } },
+    await tx.scheduleClient.updateMany({
+      where: { scheduleId, clientId: { in: toDeactivate } },
       data: { active: false },
     });
   }
   if (toActivate.length) {
-    await tx.scheduleCliente.updateMany({
-      where: { scheduleId, clienteId: { in: toActivate } },
+    await tx.scheduleClient.updateMany({
+      where: { scheduleId, clientId: { in: toActivate } },
       data: { active: true },
     });
   }
   if (toCreate.length) {
-    await tx.scheduleCliente.createMany({
-      data: toCreate.map((clienteId) => ({ scheduleId, clienteId })),
+    await tx.scheduleClient.createMany({
+      data: toCreate.map((clientId) => ({ scheduleId, clientId })),
       skipDuplicates: true,
     });
   }
@@ -260,8 +260,8 @@ export async function updateSchedule(id: string, data: ScheduleFormData) {
   return guarded(async () => {
     // The action takes `id` separately, so the schema's `id` is omitted.
     ScheduleUpdateSchema.omit({ id: true }).parse(data);
-    const clienteIds = [...new Set(data.clienteIds)];
-    await assertAllClienteAccess(user, clienteIds);
+    const clientIds = [...new Set(data.clientIds)];
+    await assertAllClienteAccess(user, clientIds);
 
     const schedule = await prisma.$transaction(async (tx) => {
       await tx.schedule.update({
@@ -274,7 +274,7 @@ export async function updateSchedule(id: string, data: ScheduleFormData) {
           statusId: data.statusId ?? null,
         },
       });
-      await syncScheduleClientes(tx, id, clienteIds);
+      await syncScheduleClients(tx, id, clientIds);
       return tx.schedule.findUnique({
         where: { id },
         include: scheduleInclude,
@@ -290,7 +290,7 @@ export async function updateSchedule(id: string, data: ScheduleFormData) {
 
 /**
  * Lightweight update used from list/calendar quick-edit dialog.
- * Only touches Clientes + date range.
+ * Only touches Clients + date range.
  */
 export async function quickUpdateSchedule(
   id: string,
@@ -300,13 +300,13 @@ export async function quickUpdateSchedule(
 
   return guarded(async () => {
     ScheduleQuickUpdateSchema.parse(data);
-    const clienteIds = [...new Set(data.clienteIds)];
+    const clientIds = [...new Set(data.clientIds)];
     if (data.endDate && data.endDate < data.scheduledAt) {
       return rejected(
         "La fecha de fin no puede ser anterior a la fecha de inicio",
       );
     }
-    await assertAllClienteAccess(user, clienteIds);
+    await assertAllClienteAccess(user, clientIds);
 
     await prisma.$transaction(async (tx) => {
       await tx.schedule.update({
@@ -316,7 +316,7 @@ export async function quickUpdateSchedule(
           endDate: data.endDate ?? null,
         },
       });
-      await syncScheduleClientes(tx, id, clienteIds);
+      await syncScheduleClients(tx, id, clientIds);
     });
 
     revalidatePath("/admin/schedules");
@@ -352,15 +352,15 @@ export async function deleteSchedule(id: string) {
 }
 
 /**
- * Get Clientes for schedule form. Filtered by the caller's accessible Clientes.
+ * Get Clients for schedule form. Filtered by the caller's accessible Clients.
  */
-export async function getClientesForSchedules() {
+export async function getClientsForSchedules() {
   const user = await requirePermission("schedules:read");
 
-  const clientes = await prisma.cliente.findMany({
-    where: { active: true, ...(await getClienteWhereClauseAsync(user)) },
+  const clients = await prisma.client.findMany({
+    where: { active: true, ...(await getClientWhereClauseAsync(user)) },
     orderBy: { name: "asc" },
   });
 
-  return clientes;
+  return clients;
 }

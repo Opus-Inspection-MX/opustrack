@@ -22,7 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { getClientesForSelect } from "@/lib/actions/clientes";
+import { getClientsForSelect } from "@/lib/actions/clients";
 import { createLine, updateLine } from "@/lib/actions/lines";
 
 interface LineFormProps {
@@ -30,7 +30,7 @@ interface LineFormProps {
     id: number;
     name: string;
     description?: string | null;
-    clienteId: string;
+    clientId: string;
   };
   mode: "create" | "edit";
 }
@@ -39,7 +39,7 @@ export function LineForm({ line, mode }: LineFormProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [clientes, setClientes] = useState<
+  const [clients, setClients] = useState<
     Array<{ id: string; name: string; code: string }>
   >([]);
   const [loading, setLoading] = useState(true);
@@ -47,13 +47,13 @@ export function LineForm({ line, mode }: LineFormProps) {
   const [formData, setFormData] = useState({
     name: line?.name || "",
     description: line?.description || "",
-    clienteId: line?.clienteId || "",
+    clientId: line?.clientId || "",
   });
 
-  const loadClientes = useCallback(async () => {
+  const loadClients = useCallback(async () => {
     try {
-      const data = await getClientesForSelect();
-      setClientes(data);
+      const data = await getClientsForSelect();
+      setClients(data);
     } catch (error) {
       console.error("Error loading Clientes:", error);
       setErrors({ general: "Error al cargar los Cliente" });
@@ -63,8 +63,8 @@ export function LineForm({ line, mode }: LineFormProps) {
   }, []);
 
   useEffect(() => {
-    loadClientes();
-  }, [loadClientes]);
+    loadClients();
+  }, [loadClients]);
 
   const handleChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -80,8 +80,8 @@ export function LineForm({ line, mode }: LineFormProps) {
       newErrors.name = "El nombre es requerido";
     }
 
-    if (!formData.clienteId) {
-      newErrors.clienteId = "El Cliente es requerido";
+    if (!formData.clientId) {
+      newErrors.clientId = "El Cliente es requerido";
     }
 
     setErrors(newErrors);
@@ -103,13 +103,13 @@ export function LineForm({ line, mode }: LineFormProps) {
         await updateLine(line.id, {
           name: formData.name,
           description: formData.description || undefined,
-          clienteId: formData.clienteId,
+          clientId: formData.clientId,
         });
       } else {
         await createLine({
           name: formData.name,
           description: formData.description || undefined,
-          clienteId: formData.clienteId,
+          clientId: formData.clientId,
         });
       }
 
@@ -176,27 +176,27 @@ export function LineForm({ line, mode }: LineFormProps) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="clienteId">
-              Cliente <span className="text-red-500">*</span>
+            <Label htmlFor="clientId">
+              Client <span className="text-red-500">*</span>
             </Label>
             <Select
-              value={formData.clienteId}
-              onValueChange={(value) => handleChange("clienteId", value)}
+              value={formData.clientId}
+              onValueChange={(value) => handleChange("clientId", value)}
             >
               <SelectTrigger
-                className={errors.clienteId ? "border-red-500" : ""}
+                className={errors.clientId ? "border-red-500" : ""}
               >
                 <SelectValue placeholder="Seleccionar Cliente" />
               </SelectTrigger>
               <SelectContent>
-                {clientes.map((cliente) => (
-                  <SelectItem key={cliente.id} value={cliente.id}>
-                    {cliente.name} ({cliente.code})
+                {clients.map((client) => (
+                  <SelectItem key={client.id} value={client.id}>
+                    {client.name} ({client.code})
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            {errors.clienteId && <FormError message={errors.clienteId} />}
+            {errors.clientId && <FormError message={errors.clientId} />}
           </div>
 
           <div className="flex flex-col sm:flex-row gap-3 pt-4">

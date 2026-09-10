@@ -5,11 +5,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
  *
  * Two rules carry real weight and are easy to break silently: the overlap
  * algorithm that decides which programaciones a date range returns, and the
- * per-Cliente access check — including the "global schedule" exception, where a
- * programación with no Clientes is reachable by anyone.
+ * per-Client access check — including the "global schedule" exception, where a
+ * programación with no Clients is reachable by anyone.
  */
 
-const { prismaMock, requirePermission, canAccessClienteAsync } = vi.hoisted(
+const { prismaMock, requirePermission, canAccessClientAsync } = vi.hoisted(
   () => ({
     prismaMock: {
       schedule: {
@@ -19,21 +19,21 @@ const { prismaMock, requirePermission, canAccessClienteAsync } = vi.hoisted(
         create: vi.fn(),
         update: vi.fn(),
       },
-      scheduleCliente: {
+      scheduleClient: {
         createMany: vi.fn(),
         updateMany: vi.fn(),
         findMany: vi.fn(),
         upsert: vi.fn(),
       },
       incident: { count: vi.fn() },
-      cliente: { findMany: vi.fn() },
+      client: { findMany: vi.fn() },
       $transaction: vi.fn(),
     },
     requirePermission: vi.fn(async (_name: string) => ({
       id: "u1",
       role: { name: "ADMINISTRADOR" },
     })),
-    canAccessClienteAsync: vi.fn((_user: unknown, _clienteId: unknown) => true),
+    canAccessClientAsync: vi.fn((_user: unknown, _clientId: unknown) => true),
   }),
 );
 
@@ -42,9 +42,9 @@ vi.mock("@/lib/auth/auth", () => ({
   requirePermission: (name: string) => requirePermission(name),
 }));
 vi.mock("@/lib/auth/filters", () => ({
-  canAccessClienteAsync: (user: unknown, clienteId: unknown) =>
-    canAccessClienteAsync(user, clienteId),
-  getClienteWhereClauseAsync: async () => ({}),
+  canAccessClientAsync: (user: unknown, clientId: unknown) =>
+    canAccessClientAsync(user, clientId),
+  getClientWhereClauseAsync: async () => ({}),
 }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
@@ -67,13 +67,13 @@ const lastWhere = () =>
 
 beforeEach(() => {
   vi.clearAllMocks();
-  canAccessClienteAsync.mockReturnValue(true);
+  canAccessClientAsync.mockReturnValue(true);
   prismaMock.schedule.findMany.mockResolvedValue([]);
   prismaMock.schedule.count.mockResolvedValue(0);
   prismaMock.schedule.create.mockResolvedValue({ id: "s1" });
   prismaMock.schedule.findUnique.mockResolvedValue({ id: "s1" });
   prismaMock.schedule.update.mockResolvedValue({ id: "s1" });
-  prismaMock.scheduleCliente.findMany.mockResolvedValue([]);
+  prismaMock.scheduleClient.findMany.mockResolvedValue([]);
   prismaMock.incident.count.mockResolvedValue(0);
   prismaMock.$transaction.mockImplementation(
     async (fn: (tx: unknown) => unknown) => fn(prismaMock),
@@ -113,14 +113,14 @@ describe("getSchedules · solapamiento (RF-400)", () => {
   });
 
   it("busca por título y descripción, y filtra por cliente y estado", async () => {
-    await getSchedules({ search: "manto", clienteId: "c1", statusId: 3 });
+    await getSchedules({ search: "manto", clientId: "c1", statusId: 3 });
 
     expect(lastWhere().OR).toEqual([
       { title: { contains: "manto", mode: "insensitive" } },
       { description: { contains: "manto", mode: "insensitive" } },
     ]);
-    expect(lastWhere().clientes).toEqual({
-      some: { clienteId: "c1", active: true },
+    expect(lastWhere().clients).toEqual({
+      some: { clientId: "c1", active: true },
     });
     expect(lastWhere().statusId).toBe(3);
   });
@@ -132,23 +132,23 @@ describe("getSchedules · solapamiento (RF-400)", () => {
 });
 
 // ---------------------------------------------------------------------------
-// RF-409 · acceso por Cliente
+// RF-409 · acceso por Client
 // ---------------------------------------------------------------------------
 describe("createSchedule · acceso a Clientes (RF-409)", () => {
   const base = {
     title: "Programación",
     scheduledAt: new Date("2026-06-10T09:00:00.000Z"),
-    clienteIds: ["c100000001", "c200000002"],
+    clientIds: ["c100000001", "c200000002"],
   };
 
   it("verifica el acceso a cada Cliente", async () => {
     await createSchedule(base);
 
-    expect(canAccessClienteAsync).toHaveBeenCalledTimes(2);
+    expect(canAccessClientAsync).toHaveBeenCalledTimes(2);
   });
 
   it("rechaza y no escribe si falta acceso a alguno", async () => {
-    canAccessClienteAsync.mockImplementation(
+    canAccessClientAsync.mockImplementation(
       (_u: unknown, id: unknown) => id !== "c200000002",
     );
 
@@ -166,20 +166,20 @@ describe("createSchedule · acceso a Clientes (RF-409)", () => {
   it("deduplica los Clientes recibidos", async () => {
     await createSchedule({
       ...base,
-      clienteIds: ["c100000001", "c100000001", "c100000001"],
+      clientIds: ["c100000001", "c100000001", "c100000001"],
     });
 
-    expect(prismaMock.scheduleCliente.createMany).toHaveBeenCalledWith(
+    expect(prismaMock.scheduleClient.createMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: [{ scheduleId: "s1", clienteId: "c100000001" }],
+        data: [{ scheduleId: "s1", clientId: "c100000001" }],
       }),
     );
   });
 
   it("una programación global (sin Clientes) no verifica acceso", async () => {
-    await createSchedule({ ...base, clienteIds: [] });
+    await createSchedule({ ...base, clientIds: [] });
 
-    expect(canAccessClienteAsync).not.toHaveBeenCalled();
+    expect(canAccessClientAsync).not.toHaveBeenCalled();
     expect(prismaMock.schedule.create).toHaveBeenCalled();
   });
 });
@@ -194,7 +194,7 @@ describe("quickUpdateSchedule (RF-404)", () => {
     const result = await quickUpdateSchedule("s1", {
       scheduledAt,
       endDate: new Date("2026-06-09T09:00:00.000Z"),
-      clienteIds: [],
+      clientIds: [],
     });
 
     expect(result).toEqual({
@@ -208,14 +208,14 @@ describe("quickUpdateSchedule (RF-404)", () => {
     await quickUpdateSchedule("s1", {
       scheduledAt,
       endDate: scheduledAt,
-      clienteIds: [],
+      clientIds: [],
     });
 
     expect(prismaMock.schedule.update).toHaveBeenCalled();
   });
 
   it("guarda endDate como null cuando no se envía", async () => {
-    await quickUpdateSchedule("s1", { scheduledAt, clienteIds: [] });
+    await quickUpdateSchedule("s1", { scheduledAt, clientIds: [] });
 
     expect(prismaMock.schedule.update).toHaveBeenCalledWith(
       expect.objectContaining({ data: { scheduledAt, endDate: null } }),

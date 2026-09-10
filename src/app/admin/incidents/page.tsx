@@ -67,8 +67,8 @@ const columns: CatalogColumn<IncidentRow>[] = [
     headerClassName: "hidden lg:table-cell",
     className: "hidden lg:table-cell",
     cell: (row) =>
-      row.cliente ? (
-        <span className="text-sm">{row.cliente.name}</span>
+      row.client ? (
+        <span className="text-sm">{row.client.name}</span>
       ) : (
         <span className="text-muted-foreground text-sm">Sin Cliente</span>
       ),
@@ -97,7 +97,7 @@ const columns: CatalogColumn<IncidentRow>[] = [
     headerClassName: "hidden md:table-cell",
     className: "hidden md:table-cell text-sm text-muted-foreground",
     cell: (row) =>
-      formatIncidentDateTime(row.reportedAt, row.cliente?.state?.code),
+      formatIncidentDateTime(row.reportedAt, row.client?.state?.code),
   },
 ];
 

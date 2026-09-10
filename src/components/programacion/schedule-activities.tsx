@@ -38,7 +38,7 @@ interface Incident {
   } | null;
   status: { id: number; name: string; color: string } | null;
   type: { id: number; name: string } | null;
-  cliente: { id: string; name: string; code?: string } | null;
+  client: { id: string; name: string; code?: string } | null;
   assignees: Array<{ user: { id: string; name: string; email: string } }>;
   _count: { assignees: number };
   assignments: Array<{ id: string; status?: { name: string } | null }>;
@@ -54,7 +54,7 @@ interface ScheduleOption {
   title: string;
 }
 
-interface Cliente {
+interface Client {
   id: string;
   name: string;
   code: string;
@@ -64,7 +64,7 @@ interface FsrOption {
   id: string;
   name: string;
   email: string;
-  clienteIds: string[];
+  clientIds: string[];
 }
 
 interface ScheduleActivitiesProps {
@@ -87,7 +87,7 @@ export function ScheduleActivities({
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [incidentTypes, setIncidentTypes] = useState<IncidentType[]>([]);
   const [schedules, setSchedules] = useState<ScheduleOption[]>([]);
-  const [clientes, setClientes] = useState<Cliente[]>([]);
+  const [clients, setClientes] = useState<Client[]>([]);
   const [fsrs, setFsrs] = useState<FsrOption[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -157,7 +157,7 @@ export function ScheduleActivities({
 
   const fetchClientes = useCallback(async () => {
     try {
-      const response = await fetch("/api/clientes");
+      const response = await fetch("/api/clients");
       if (!response.ok) return;
       const result = await response.json();
       setClientes(result.data || []);
@@ -208,8 +208,7 @@ export function ScheduleActivities({
     const filtered = incidents.filter((incident) => {
       if (
         selectedClientes.length > 0 &&
-        (!incident.cliente?.id ||
-          !selectedClientes.includes(incident.cliente.id))
+        (!incident.client?.id || !selectedClientes.includes(incident.client.id))
       ) {
         return false;
       }
@@ -231,7 +230,7 @@ export function ScheduleActivities({
         const haystack = [
           incident.title,
           incident.description ?? "",
-          incident.cliente?.code ?? "",
+          incident.client?.code ?? "",
         ]
           .join(" ")
           .toLowerCase();
@@ -287,7 +286,7 @@ export function ScheduleActivities({
     });
   };
 
-  const clienteOptions = clientes.map((v) => ({
+  const clientOptions = clients.map((v) => ({
     value: v.id,
     label: `${v.code} — ${v.name}`,
   }));
@@ -360,7 +359,7 @@ export function ScheduleActivities({
           <div className="space-y-2">
             <Label className="text-xs font-medium">Cliente</Label>
             <MultiSelect
-              options={clienteOptions}
+              options={clientOptions}
               value={selectedClientes}
               onValueChange={setSelectedClientes}
               placeholder="Todos los Clientes"
@@ -527,7 +526,7 @@ export function ScheduleActivities({
                         </TableCell>
                         <TableCell>
                           <div className="text-sm">
-                            {incident.cliente?.name || "Sin Cliente"}
+                            {incident.client?.name || "Sin Cliente"}
                           </div>
                         </TableCell>
                         <TableCell>
@@ -570,7 +569,7 @@ export function ScheduleActivities({
 
       <BulkAssignDialog
         incidentIds={[...selectedIds]}
-        clientes={clienteOptions}
+        clients={clientOptions}
         schedules={scheduleOptionsForBulk}
         fsrs={fsrOptionsForBulk}
         open={bulkOpen}

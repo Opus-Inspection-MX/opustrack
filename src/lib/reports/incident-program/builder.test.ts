@@ -151,7 +151,7 @@ describe("buildIncidentProgram — rows", () => {
         entries: [
           {
             date: "2026-05-04",
-            clienteCode: "CVV24",
+            clientCode: "CVV24",
             category: "MANTENIMIENTO",
             responsables: ["JESUS", "CASTRO"],
           },
@@ -171,7 +171,7 @@ describe("buildIncidentProgram — rows", () => {
         entries: [
           {
             date: "2026-05-07",
-            clienteCode: "CVV13",
+            clientCode: "CVV13",
             category: "INCIDENCIAS",
             responsables: ["ADRIAN", "JESUS"],
           },
@@ -192,13 +192,13 @@ describe("buildIncidentProgram — rows", () => {
         entries: [
           {
             date: "2026-05-05",
-            clienteCode: "CVV23",
+            clientCode: "CVV23",
             category: "MANTENIMIENTO",
             responsables: ["ALEJANDRO"],
           },
           {
             date: "2026-05-05",
-            clienteCode: "CVV23",
+            clientCode: "CVV23",
             category: "CALIBRACION_FASE_II",
             responsables: ["ALEJANDRO", "CASTRO"],
           },
@@ -221,13 +221,13 @@ describe("buildIncidentProgram — rows", () => {
         entries: [
           {
             date: "2026-05-06",
-            clienteCode: "CVV13",
+            clientCode: "CVV13",
             category: "MANTENIMIENTO",
             responsables: ["CASTRO"],
           },
           {
             date: "2026-05-06",
-            clienteCode: "CVV29",
+            clientCode: "CVV29",
             category: "MANTENIMIENTO",
             responsables: ["JAVIER"],
           },
@@ -247,19 +247,19 @@ describe("buildIncidentProgram — rows", () => {
         entries: [
           {
             date: "2026-05-04",
-            clienteCode: "CVV20",
+            clientCode: "CVV20",
             category: "MANTENIMIENTO",
             responsables: [],
           },
           {
             date: "2026-05-05",
-            clienteCode: "CVV09",
+            clientCode: "CVV09",
             category: "MANTENIMIENTO",
             responsables: [],
           },
           {
             date: "2026-05-05",
-            clienteCode: "CVV20",
+            clientCode: "CVV20",
             category: "MANTENIMIENTO",
             responsables: [],
           },
@@ -280,7 +280,7 @@ describe("buildIncidentProgram — rows", () => {
         entries: [
           {
             date: "2026-05-04",
-            clienteCode: null,
+            clientCode: null,
             category: "MANTENIMIENTO",
             responsables: ["CASTRO"],
           },
@@ -325,7 +325,7 @@ describe("buildIncidentProgram — rows", () => {
         entries: [
           {
             date: "2026-05-01",
-            clienteCode: "CVV11",
+            clientCode: "CVV11",
             category: "MANTENIMIENTO",
             responsables: ["CASTRO"],
           },
@@ -344,7 +344,7 @@ describe("buildIncidentProgram — rows", () => {
         entries: [
           {
             date: "2026-07-01",
-            clienteCode: "CVV99",
+            clientCode: "CVV99",
             category: "MANTENIMIENTO",
             responsables: [],
           },
@@ -372,13 +372,13 @@ describe("buildIncidentProgram — rows", () => {
         entries: [
           {
             date: "2026-05-04",
-            clienteCode: "CVV24",
+            clientCode: "CVV24",
             category: "MANTENIMIENTO",
             responsables: ["JESUS"],
           },
           {
             date: "2026-05-04",
-            clienteCode: "CVV24",
+            clientCode: "CVV24",
             category: "MANTENIMIENTO",
             responsables: ["JESUS", "CASTRO"],
           },

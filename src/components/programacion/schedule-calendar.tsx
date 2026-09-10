@@ -32,15 +32,15 @@ interface ScheduleItem {
   title: string;
   scheduledAt: string;
   endDate: string | null;
-  clientes: Array<{
-    clienteId: string;
+  clients: Array<{
+    clientId: string;
     active: boolean;
-    cliente: { id: string; code: string; name: string };
+    client: { id: string; code: string; name: string };
   }>;
   _count: { incidents: number };
 }
 
-interface ClienteOption {
+interface ClientOption {
   id: string;
   code: string;
   name: string;
@@ -57,14 +57,14 @@ interface ScheduleCalendarProps {
     end: Date;
     type: "day" | "week" | "month" | "custom";
   }) => void;
-  /** All Clientes accessible by the user — needed for the quick-edit dialog. */
-  clientes?: ClienteOption[];
+  /** All Clients accessible by the user — needed for the quick-edit dialog. */
+  clients?: ClientOption[];
 }
 
 export function ScheduleCalendar({
   dateRange,
   onDateRangeChange,
-  clientes = [],
+  clients = [],
 }: ScheduleCalendarProps) {
   const router = useRouter();
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -464,7 +464,7 @@ export function ScheduleCalendar({
               </div>
               <div className="flex-1 border-l-2 pl-4 py-2 min-h-[60px]">
                 {schedulesByHour[hour]?.map((schedule) => {
-                  const activeClientes = schedule.clientes.filter(
+                  const activeClients = schedule.clients.filter(
                     (sv) => sv.active,
                   );
                   return (
@@ -490,10 +490,10 @@ export function ScheduleCalendar({
                         </Button>
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        {activeClientes.length === 0
+                        {activeClients.length === 0
                           ? "Sin Clientes"
-                          : activeClientes
-                              .map((sv) => sv.cliente.code)
+                          : activeClients
+                              .map((sv) => sv.client.code)
                               .join(", ")}{" "}
                         • {schedule._count.incidents} incidente(s)
                       </div>
@@ -695,7 +695,7 @@ export function ScheduleCalendar({
 
       <QuickEditScheduleDialog
         scheduleId={quickEditId}
-        clientes={clientes}
+        clients={clients}
         open={quickEditId !== null}
         onOpenChange={(open) => {
           if (!open) setQuickEditId(null);

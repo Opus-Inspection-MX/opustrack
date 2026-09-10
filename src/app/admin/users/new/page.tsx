@@ -3,7 +3,7 @@ import { BackButton } from "@/components/common/back-button";
 import { getUserFormOptions } from "@/lib/actions/users";
 
 export default async function NewUserPage() {
-  const { roles, statuses, clientes } = await getUserFormOptions();
+  const { roles, statuses, clients } = await getUserFormOptions();
 
   return (
     <div className="space-y-6">
@@ -17,7 +17,7 @@ export default async function NewUserPage() {
         </div>
       </div>
 
-      <UserForm roles={roles} statuses={statuses} clientes={clientes} />
+      <UserForm roles={roles} statuses={statuses} clients={clients} />
     </div>
   );
 }

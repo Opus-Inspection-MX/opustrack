@@ -4,32 +4,32 @@ vi.mock("@/lib/database/prisma.singleton", () => ({
   prisma: {},
 }));
 
-vi.mock("@/lib/utils/cliente-assignments", () => ({
-  getUserClienteIds: vi.fn(),
+vi.mock("@/lib/utils/client-assignments", () => ({
+  getUserClientIds: vi.fn(),
 }));
 
 import {
   mergeRoles,
   type Role,
-  SCOPE_ALL_CLIENTES,
+  SCOPE_ALL_CLIENTS,
   type UserWithPermissions,
 } from "@/lib/authz/authz";
-import { getUserClienteIds } from "@/lib/utils/cliente-assignments";
+import { getUserClientIds } from "@/lib/utils/client-assignments";
 import {
-  assertClienteAccessAsync,
-  canAccessClienteAsync,
-  getClienteWhereClauseAsync,
+  assertClientAccessAsync,
+  canAccessClientAsync,
+  getClientWhereClauseAsync,
   isAdmin,
 } from "./filters";
 
-const getIds = vi.mocked(getUserClienteIds);
+const getIds = vi.mocked(getUserClientIds);
 
 function role(overrides: Partial<Role> = {}): Role {
   return {
     id: 2,
-    name: "CLIENT",
+    name: "REPORTER",
     description: null,
-    defaultPath: "/client",
+    defaultPath: "/reporter",
     isSuperuser: false,
     priority: 10,
     permissions: [],
@@ -50,7 +50,7 @@ function user(
 }
 
 /**
- * Cross-Cliente scope is a PERMISSION, not the role name.
+ * Cross-Client scope is a PERMISSION, not the role name.
  *
  * `ADMINISTRADOR` used to mean both "sees every center" and "may grant roles";
  * an operations admin needs the first without the second, so the two were
@@ -66,10 +66,10 @@ const admin = user({
       permissions: [
         {
           id: 99,
-          name: SCOPE_ALL_CLIENTES,
+          name: SCOPE_ALL_CLIENTS,
           description: null,
           resource: "scope",
-          action: "all-clientes",
+          action: "all-clients",
           routePath: null,
           exact: false,
         },
@@ -83,7 +83,7 @@ const root = user({
 });
 
 describe("isAdmin", () => {
-  it("is true for anyone holding scope:all-clientes", () => {
+  it("is true for anyone holding scope:all-clients", () => {
     expect(isAdmin(admin)).toBe(true);
     expect(isAdmin(user())).toBe(false);
   });
@@ -93,13 +93,13 @@ describe("isAdmin", () => {
   });
 });
 
-describe("assertClienteAccessAsync", () => {
+describe("assertClientAccessAsync", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("does not throw when access is allowed", async () => {
     getIds.mockResolvedValue(["c1"]);
     await expect(
-      assertClienteAccessAsync(user(), "c1"),
+      assertClientAccessAsync(user(), "c1"),
     ).resolves.toBeUndefined();
   });
 
@@ -107,72 +107,72 @@ describe("assertClienteAccessAsync", () => {
     getIds.mockResolvedValue(["c1"]);
     // Operator-facing denial: `guarded()` turns this into a returned
     // rejection instead of a production-invisible throw.
-    await expect(assertClienteAccessAsync(user(), "c2")).rejects.toThrow(
+    await expect(assertClientAccessAsync(user(), "c2")).rejects.toThrow(
       /Sin acceso a los datos de este Cliente/,
     );
   });
 });
 
-describe("getClienteWhereClauseAsync (multi-Cliente)", () => {
+describe("getClientWhereClauseAsync (multi-Client)", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("returns an empty filter for admins without querying assignments", async () => {
-    expect(await getClienteWhereClauseAsync(admin)).toEqual({});
+    expect(await getClientWhereClauseAsync(admin)).toEqual({});
     expect(getIds).not.toHaveBeenCalled();
   });
 
-  it("uses a direct filter for a single assigned Cliente", async () => {
+  it("uses a direct filter for a single assigned Client", async () => {
     getIds.mockResolvedValue(["c1"]);
-    expect(await getClienteWhereClauseAsync(user())).toEqual({
-      clienteId: "c1",
+    expect(await getClientWhereClauseAsync(user())).toEqual({
+      clientId: "c1",
     });
   });
 
-  it("uses an IN filter for multiple assigned Clientes", async () => {
+  it("uses an IN filter for multiple assigned Clients", async () => {
     getIds.mockResolvedValue(["c1", "c2"]);
-    expect(await getClienteWhereClauseAsync(user())).toEqual({
-      clienteId: { in: ["c1", "c2"] },
+    expect(await getClientWhereClauseAsync(user())).toEqual({
+      clientId: { in: ["c1", "c2"] },
     });
   });
 
-  it("filters by null Cliente when there are no assignments (fail closed)", async () => {
-    // The deprecated User.clienteId scalar is gone: no assignments matches
+  it("filters by null Client when there are no assignments (fail closed)", async () => {
+    // The deprecated User.clientId scalar is gone: no assignments matches
     // nothing, with no legacy fallback left to consult.
     getIds.mockResolvedValue([]);
-    expect(await getClienteWhereClauseAsync(user())).toEqual({
-      clienteId: { equals: null },
+    expect(await getClientWhereClauseAsync(user())).toEqual({
+      clientId: { equals: null },
     });
   });
 });
 
-describe("canAccessClienteAsync (multi-Cliente)", () => {
+describe("canAccessClientAsync (multi-Client)", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it("lets admins access any Cliente", async () => {
-    expect(await canAccessClienteAsync(admin, "c1")).toBe(true);
+  it("lets admins access any Client", async () => {
+    expect(await canAccessClientAsync(admin, "c1")).toBe(true);
   });
 
-  it("grants access when the Cliente is in the user's assignments", async () => {
+  it("grants access when the Client is in the user's assignments", async () => {
     getIds.mockResolvedValue(["c1", "c2"]);
-    expect(await canAccessClienteAsync(user(), "c2")).toBe(true);
+    expect(await canAccessClientAsync(user(), "c2")).toBe(true);
   });
 
   it("denies access outside the assignments (no legacy fallback)", async () => {
-    // The deprecated User.clienteId scalar is gone: the junction table is
+    // The deprecated User.clientId scalar is gone: the junction table is
     // the only source of truth, so there is nothing left to fall back to.
     getIds.mockResolvedValue(["c1"]);
-    expect(await canAccessClienteAsync(user(), "c9")).toBe(false);
+    expect(await canAccessClientAsync(user(), "c9")).toBe(false);
   });
 
-  it("denies access to an unrelated Cliente", async () => {
+  it("denies access to an unrelated Client", async () => {
     getIds.mockResolvedValue(["c1"]);
-    expect(await canAccessClienteAsync(user(), "c2")).toBe(false);
+    expect(await canAccessClientAsync(user(), "c2")).toBe(false);
   });
 
-  it("allows null-Cliente data only for fully Cliente-less users", async () => {
+  it("allows null-Client data only for fully Client-less users", async () => {
     getIds.mockResolvedValue([]);
-    expect(await canAccessClienteAsync(user(), null)).toBe(true);
+    expect(await canAccessClientAsync(user(), null)).toBe(true);
     getIds.mockResolvedValue(["c1"]);
-    expect(await canAccessClienteAsync(user(), null)).toBe(false);
+    expect(await canAccessClientAsync(user(), null)).toBe(false);
   });
 });

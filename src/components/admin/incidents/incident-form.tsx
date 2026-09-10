@@ -36,7 +36,7 @@ type IncidentFormProps = {
     description: string;
     typeId: number | null;
     statusId: number | null;
-    clienteId: string | null;
+    clientId: string | null;
     scheduleId: string | null;
     reportedById: string | null;
     reporterName?: string | null;
@@ -46,11 +46,11 @@ type IncidentFormProps = {
   };
   types: Array<{ id: number; name: string }>;
   statuses: Array<{ id: number; name: string }>;
-  clientes: Array<{ id: string; name: string; code: string }>;
+  clients: Array<{ id: string; name: string; code: string }>;
   users: Array<{
     id: string;
     name: string;
-    clienteIds?: string[];
+    clientIds?: string[];
     /**
      * Required, not optional. It used to be a singular `roleName?`, and when
      * multi-role renamed it the filter below started reading `undefined` on
@@ -67,7 +67,7 @@ export function IncidentForm({
   incident,
   types,
   statuses,
-  clientes,
+  clients,
   users,
   schedules,
 }: IncidentFormProps) {
@@ -79,7 +79,7 @@ export function IncidentForm({
     description: incident?.description || "",
     typeId: incident?.typeId || types[0]?.id || null,
     statusId: incident?.statusId || statuses[0]?.id || null,
-    clienteId: incident?.clienteId || null,
+    clientId: incident?.clientId || null,
     scheduleId: incident?.scheduleId || null,
     reportedById: incident?.reportedById || null,
     reporterName: incident?.reporterName || "",
@@ -95,7 +95,7 @@ export function IncidentForm({
     incident?.resolvedAt ? toDatetimeLocalMX(incident.resolvedAt) : "",
   );
 
-  // Every FSR, not just the ones linked to this incident's Cliente: that link
+  // Every FSR, not just the ones linked to this incident's Client: that link
   // is a hint for the picker, never a filter.
   const fsrCandidates = users.filter((u) => u.roleNames.includes("FSR"));
 
@@ -213,20 +213,20 @@ export function IncidentForm({
              */}
 
             <div className="space-y-2">
-              <Label htmlFor="clienteId">Centro de Verificacion</Label>
+              <Label htmlFor="clientId">Centro de Verificacion</Label>
               <SearchableSelect
                 options={[
                   { value: "none", label: "Sin Cliente" },
-                  ...clientes.map((cliente) => ({
-                    value: cliente.id,
-                    label: `${cliente.name} (${cliente.code})`,
+                  ...clients.map((client) => ({
+                    value: client.id,
+                    label: `${client.name} (${client.code})`,
                   })),
                 ]}
-                value={formData.clienteId || "none"}
+                value={formData.clientId || "none"}
                 onValueChange={(value) =>
                   setFormData({
                     ...formData,
-                    clienteId: value === "none" ? null : value,
+                    clientId: value === "none" ? null : value,
                   })
                 }
                 placeholder="Seleccionar Cliente"
@@ -305,11 +305,10 @@ export function IncidentForm({
               options={fsrCandidates.map((u) => ({
                 value: u.id,
                 label: u.name,
-                // The Cliente link is shown, never applied: it tells the
+                // The Client link is shown, never applied: it tells the
                 // operator who usually covers that center.
                 badge:
-                  formData.clienteId &&
-                  u.clienteIds?.includes(formData.clienteId)
+                  formData.clientId && u.clientIds?.includes(formData.clientId)
                     ? "Cliente asignado"
                     : undefined,
               }))}

@@ -16,7 +16,7 @@ import {
 } from "@/lib/actions/tracking";
 import type { SlaState } from "@/lib/constants/sla-policy";
 
-interface Cliente {
+interface Client {
   id: string;
   name: string;
   code: string;
@@ -37,8 +37,8 @@ interface FSR {
   id: string;
   name: string;
   email: string;
-  /** Clientes this FSR usually covers — a hint for the picker, not a filter. */
-  clienteIds?: string[];
+  /** Clients this FSR usually covers — a hint for the picker, not a filter. */
+  clientIds?: string[];
 }
 
 interface TrackingAssignment {
@@ -70,7 +70,7 @@ interface TrackingIncident {
   type?: { id: number; name: string; priority: number } | null;
   /** RF-218 breach flag, attached server-side by `getIncidentsForTracking`. */
   sla?: SlaState | null;
-  cliente?: { id: string; name: string; code: string } | null;
+  client?: { id: string; name: string; code: string } | null;
   reportedBy?: { id: string; name: string } | null;
   assignments: TrackingAssignment[];
   lineId?: number | null;
@@ -90,7 +90,7 @@ type TrackingFiltersState = TrackingQueryFilters;
 export default function TrackingPage() {
   const [incidents, setIncidents] = useState<TrackingIncident[]>([]);
   const [totalCount, setTotalCount] = useState<number>(0);
-  const [clientes, setClientes] = useState<Cliente[]>([]);
+  const [clients, setClientes] = useState<Client[]>([]);
   const [incidentTypes, setIncidentTypes] = useState<IncidentType[]>([]);
   const [incidentStatuses, setIncidentStatuses] = useState<IncidentStatus[]>(
     [],
@@ -123,7 +123,7 @@ export default function TrackingPage() {
       // before the filters can even render.
       const bootstrap = await getTrackingBootstrap();
 
-      setClientes(bootstrap.clientes);
+      setClientes(bootstrap.clients);
       setIncidentTypes(bootstrap.types);
       setIncidentStatuses(bootstrap.statuses);
       setAllFsrs(bootstrap.fsrs);
@@ -184,7 +184,7 @@ export default function TrackingPage() {
 
       <div>
         <TrackingFilters
-          clientes={clientes}
+          clients={clients}
           incidentTypes={incidentTypes}
           incidentStatuses={incidentStatuses}
           fsrs={allFsrs}

@@ -120,7 +120,7 @@ test.describe("RF-103 · Bypass total de ROOT", () => {
   // /login. The previous list used /parts and /reports, which do not exist.
   for (const route of [
     "/fsr",
-    "/client",
+    "/reporter",
     "/guest",
     "/profile",
     "/admin/reports/incident-program",
@@ -138,17 +138,18 @@ test.describe("RF-103 · Bypass total de ROOT", () => {
 // RF-106 · Denegación de rutas fuera del mapa del rol → /unauthorized
 // ---------------------------------------------------------------------------
 test.describe("RF-106 · Denegación por rol", () => {
-  const denials: Array<{ role: "fsr" | "client" | "guest"; route: string }> = [
-    { role: "fsr", route: "/admin" }, // admin dashboard
-    { role: "fsr", route: "/admin/reports/incident-program" }, // admin sub-route
-    // A route permission must not leak across a path segment: FSR holds "/fsr",
-    // which grants "/fsr/..." but never "/fsr-admin".
-    { role: "fsr", route: "/fsr-admin" },
-    { role: "client", route: "/fsr" }, // FSR-only dashboard
-    { role: "client", route: "/admin" }, // admin dashboard
-    { role: "guest", route: "/admin" }, // admin dashboard
-    { role: "guest", route: "/client" }, // client dashboard
-  ];
+  const denials: Array<{ role: "fsr" | "reporter" | "guest"; route: string }> =
+    [
+      { role: "fsr", route: "/admin" }, // admin dashboard
+      { role: "fsr", route: "/admin/reports/incident-program" }, // admin sub-route
+      // A route permission must not leak across a path segment: FSR holds "/fsr",
+      // which grants "/fsr/..." but never "/fsr-admin".
+      { role: "fsr", route: "/fsr-admin" },
+      { role: "reporter", route: "/fsr" }, // FSR-only dashboard
+      { role: "reporter", route: "/admin" }, // admin dashboard
+      { role: "guest", route: "/admin" }, // admin dashboard
+      { role: "guest", route: "/reporter" }, // reporter dashboard
+    ];
 
   for (const { role, route } of denials) {
     test.describe(`${role} → ${route}`, () => {

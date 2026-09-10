@@ -50,7 +50,7 @@ function parseIdListParam(value: string | null): string[] | undefined {
 /**
  * GET /api/reports/incident-program
  *   ?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD
- *   [&scheduleIds=a,b,c][&stateIds=1,2][&clienteIds=a,b]
+ *   [&scheduleIds=a,b,c][&stateIds=1,2][&clientIds=a,b]
  *
  * Streams the incident workbook for the requested range, using the operation's
  * pre-existing Excel layout.
@@ -84,7 +84,7 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const clienteIds = parseIdListParam(searchParams.get("clienteIds"));
+  const clientIds = parseIdListParam(searchParams.get("clientIds"));
   const stateIds = parseIdListParam(searchParams.get("stateIds"))
     ?.map((id) => parseIdParam(id))
     .filter((id): id is number => id !== undefined);
@@ -96,7 +96,7 @@ export async function GET(request: NextRequest) {
       endDate,
       scheduleIds,
       stateIds,
-      clienteIds,
+      clientIds,
     }),
     stateIds?.length === 1
       ? getStateNameForFileName(stateIds[0])

@@ -35,7 +35,7 @@ interface Schedule {
   description?: string;
   scheduledAt: string;
   endDate?: string | null;
-  clientes: Array<{ id: string; code: string; name: string }>;
+  clients: Array<{ id: string; code: string; name: string }>;
   incidentCount: number;
   active: boolean;
   createdAt: string;
@@ -112,29 +112,29 @@ export function ScheduleTable({
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1 max-w-[220px]">
-                      {schedule.clientes.length === 0 ? (
+                      {schedule.clients.length === 0 ? (
                         <span className="text-sm text-muted-foreground">
-                          Sin Clientes
+                          Sin Clients
                         </span>
                       ) : (
                         <>
                           <Badge
                             variant="secondary"
                             className="gap-1"
-                            title={schedule.clientes[0].name}
+                            title={schedule.clients[0].name}
                           >
                             <Building2 className="h-3 w-3" />
-                            {schedule.clientes[0].code}
+                            {schedule.clients[0].code}
                           </Badge>
-                          {schedule.clientes.length > 1 && (
+                          {schedule.clients.length > 1 && (
                             <Badge
                               variant="outline"
-                              title={schedule.clientes
+                              title={schedule.clients
                                 .slice(1)
                                 .map((v) => `${v.code} — ${v.name}`)
                                 .join("\n")}
                             >
-                              +{schedule.clientes.length - 1} más
+                              +{schedule.clients.length - 1} más
                             </Badge>
                           )}
                         </>

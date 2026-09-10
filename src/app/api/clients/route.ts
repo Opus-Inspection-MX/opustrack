@@ -2,23 +2,24 @@ import { NextResponse } from "next/server";
 import { withPermission } from "@/lib/auth/auth";
 import { getReportScope } from "@/lib/auth/report-scope";
 import { prisma } from "@/lib/database/prisma.singleton";
+import { logger } from "@/lib/observability/logger";
 
 /**
- * GET /api/clientes
+ * GET /api/clients
  * Obtiene todos los centros de verificación
  *
- * Scoped to the caller's Clientes (cross-cutting rule #4): anyone without
- * the cross-Cliente permission only sees their own centers. Fail closed — a
+ * Scoped to the caller's Clients (cross-cutting rule #4): anyone without
+ * the cross-Client permission only sees their own centers. Fail closed — a
  * user with no assignments gets an empty list, not the whole catalog.
  */
-export const GET = withPermission("clientes:read", async (_request, user) => {
+export const GET = withPermission("clients:read", async (_request, user) => {
   try {
     const scope = await getReportScope(user);
 
-    const clientes = await prisma.cliente.findMany({
+    const clients = await prisma.client.findMany({
       where: {
         active: true,
-        ...(scope.clienteIds === null ? {} : { id: { in: scope.clienteIds } }),
+        ...(scope.clientIds === null ? {} : { id: { in: scope.clientIds } }),
       },
       select: {
         id: true,
@@ -36,11 +37,11 @@ export const GET = withPermission("clientes:read", async (_request, user) => {
 
     return NextResponse.json({
       success: true,
-      data: clientes,
-      count: clientes.length,
+      data: clients,
+      count: clients.length,
     });
   } catch (error) {
-    console.error("Error fetching Clientes:", error);
+    logger.error("Error fetching Clientes:", error);
     return NextResponse.json(
       { error: "Error al obtener centros de verificación" },
       { status: 500 },

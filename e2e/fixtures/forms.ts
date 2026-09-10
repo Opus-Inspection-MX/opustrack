@@ -149,7 +149,7 @@ export async function fillByLabel(
 }
 
 /**
- * Pick an option from a Radix `<Select>` (lines, equipments, clientes,
+ * Pick an option from a Radix `<Select>` (lines, equipments, clients,
  * vehicles).
  *
  * NOT the same component as `SearchableSelect`/`MultiSelect`: this one has no

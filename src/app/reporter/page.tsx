@@ -16,7 +16,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { getClientIncidents } from "@/lib/actions/incidents";
+import { getReporterIncidents } from "@/lib/actions/incidents";
 import { getMyProfile } from "@/lib/actions/users";
 import { requireRouteAccess } from "@/lib/auth/auth";
 import { formatIncidentDateTime } from "@/lib/utils/datetime";
@@ -27,9 +27,9 @@ interface IncidentStatus {
   color?: string | null;
 }
 
-export default async function ClientDashboard() {
-  await requireRouteAccess("/client");
-  const incidents = await getClientIncidents();
+export default async function ReporterDashboard() {
+  await requireRouteAccess("/reporter");
+  const incidents = await getReporterIncidents();
   const user = await getMyProfile();
 
   // Calculate stats
@@ -68,7 +68,7 @@ export default async function ClientDashboard() {
           </p>
         </div>
         <Button asChild>
-          <Link href="/client/new">
+          <Link href="/reporter/new">
             <Plus className="h-4 w-4 mr-2" />
             Reportar Incidente
           </Link>
@@ -76,7 +76,7 @@ export default async function ClientDashboard() {
       </div>
 
       {/* Cliente Info */}
-      {user?.cliente && (
+      {user?.client && (
         <Card className="bg-muted/30">
           <CardContent className="py-4">
             <div className="flex items-center gap-3">
@@ -84,7 +84,7 @@ export default async function ClientDashboard() {
               <div>
                 <p className="text-sm text-muted-foreground">Tu Cliente</p>
                 <p className="font-medium">
-                  {user.cliente.name} ({user.cliente.code})
+                  {user.client.name} ({user.client.code})
                 </p>
               </div>
             </div>
@@ -155,7 +155,7 @@ export default async function ClientDashboard() {
               <AlertTriangle className="mx-auto h-12 w-12 mb-4 opacity-50" />
               <p>No hay incidentes reportados aún</p>
               <Button asChild variant="outline" className="mt-4">
-                <Link href="/client/new">
+                <Link href="/reporter/new">
                   <Plus className="h-4 w-4 mr-2" />
                   Reporta tu Primer Incidente
                 </Link>
@@ -197,7 +197,7 @@ export default async function ClientDashboard() {
                         Reportado:{" "}
                         {formatIncidentDateTime(
                           incident.reportedAt,
-                          incident.cliente?.state?.code,
+                          incident.client?.state?.code,
                         )}
                       </span>
                       {incident._count?.assignments &&
@@ -211,7 +211,7 @@ export default async function ClientDashboard() {
 
                   {/* Action Button */}
                   <Button variant="ghost" size="sm" asChild>
-                    <Link href={`/client/incidents/${incident.id}`}>
+                    <Link href={`/reporter/incidents/${incident.id}`}>
                       Ver Detalles
                     </Link>
                   </Button>
@@ -231,7 +231,7 @@ export default async function ClientDashboard() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Button asChild variant="outline" className="h-auto py-4">
               <Link
-                href="/client/new"
+                href="/reporter/new"
                 className="flex flex-col items-center gap-2"
               >
                 <Plus className="h-6 w-6" />

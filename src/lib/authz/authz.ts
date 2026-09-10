@@ -7,11 +7,14 @@ import { canAccessRoute, type RouteGrants } from "./route-access";
  * Capabilities that used to be implied by the role NAME `ADMINISTRADOR`.
  *
  * That one string stood for four unrelated things — bypass every check, see
- * every Cliente, override other people's records, and be the audience for
+ * every Client, override other people's records, and be the audience for
  * operational notifications. Splitting the last three into permissions is what
  * lets an operations admin do their job without becoming a second root.
  */
-export const SCOPE_ALL_CLIENTES = "scope:all-clientes";
+// NOTE (PR2): the value moved with the single sessionVersion bump
+// (spec ADDED-2). Pre-PR2 tokens carrying "scope:all-clientes" fail
+// validation until re-login; fresh logins emit "scope:all-clients".
+export const SCOPE_ALL_CLIENTS = "scope:all-clients";
 
 /**
  * Type definitions for authorization

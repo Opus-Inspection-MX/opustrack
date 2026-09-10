@@ -36,7 +36,7 @@ export function QuickEditFsrsPopover({
   const [submitting, setSubmitting] = useState(false);
   const [selected, setSelected] = useState<string[]>(initialFsrIds);
 
-  // FSR assignment is independent of the incident's Cliente — show all FSRs.
+  // FSR assignment is independent of the incident's Client — show all FSRs.
   const fsrOptions = allFsrs.map((f) => ({
     value: f.id,
     label: f.name,

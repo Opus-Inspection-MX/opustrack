@@ -5,33 +5,33 @@ import {
   incidentScopeWhere,
   type ReportScope,
   scheduleScopeWhere,
-  scopeIncludesCliente,
+  scopeIncludesClient,
   vehicleTripScopeWhere,
 } from "./report-scope";
 
-const ADMIN: ReportScope = { clienteIds: null };
-const ONE: ReportScope = { clienteIds: ["c1"] };
-const MANY: ReportScope = { clienteIds: ["c1", "c2"] };
-const NONE: ReportScope = { clienteIds: [] };
+const ADMIN: ReportScope = { clientIds: null };
+const ONE: ReportScope = { clientIds: ["c1"] };
+const MANY: ReportScope = { clientIds: ["c1", "c2"] };
+const NONE: ReportScope = { clientIds: [] };
 
 describe("incidentScopeWhere", () => {
   it("does not restrict an admin scope", () => {
     expect(incidentScopeWhere(ADMIN)).toEqual({});
   });
 
-  it("filters by a single cliente", () => {
-    expect(incidentScopeWhere(ONE)).toEqual({ clienteId: { in: ["c1"] } });
+  it("filters by a single client", () => {
+    expect(incidentScopeWhere(ONE)).toEqual({ clientId: { in: ["c1"] } });
   });
 
-  it("filters by every assigned cliente", () => {
+  it("filters by every assigned client", () => {
     expect(incidentScopeWhere(MANY)).toEqual({
-      clienteId: { in: ["c1", "c2"] },
+      clientId: { in: ["c1", "c2"] },
     });
   });
 
-  it("matches nothing when the user has no cliente", () => {
+  it("matches nothing when the user has no client", () => {
     // Fail closed: no assignment must never mean "see everything".
-    expect(incidentScopeWhere(NONE)).toEqual({ clienteId: { in: [] } });
+    expect(incidentScopeWhere(NONE)).toEqual({ clientId: { in: [] } });
   });
 });
 
@@ -40,9 +40,9 @@ describe("assignmentScopeWhere", () => {
     expect(assignmentScopeWhere(ADMIN)).toEqual({});
   });
 
-  it("reaches the cliente through the incident", () => {
+  it("reaches the client through the incident", () => {
     expect(assignmentScopeWhere(MANY)).toEqual({
-      incident: { clienteId: { in: ["c1", "c2"] } },
+      incident: { clientId: { in: ["c1", "c2"] } },
     });
   });
 });
@@ -56,40 +56,40 @@ describe("scheduleScopeWhere", () => {
     expect(scheduleScopeWhere(MANY)).toEqual({
       OR: [
         {
-          clientes: {
-            some: { active: true, clienteId: { in: ["c1", "c2"] } },
+          clients: {
+            some: { active: true, clientId: { in: ["c1", "c2"] } },
           },
         },
-        { clientes: { none: { active: true } } },
+        { clients: { none: { active: true } } },
       ],
     });
   });
 
-  it("matches nothing when the user has no cliente — not even globals", () => {
+  it("matches nothing when the user has no client — not even globals", () => {
     // Fail closed: no assignment must never mean "see everything".
     expect(scheduleScopeWhere(NONE)).toEqual({
-      clientes: { some: { clienteId: { in: [] } } },
+      clients: { some: { clientId: { in: [] } } },
     });
   });
 });
 
-describe("scopeIncludesCliente", () => {
-  it("lets an admin scope reach every cliente", () => {
-    expect(scopeIncludesCliente(ADMIN, "c1")).toBe(true);
-    expect(scopeIncludesCliente(ADMIN, null)).toBe(true);
+describe("scopeIncludesClient", () => {
+  it("lets an admin scope reach every client", () => {
+    expect(scopeIncludesClient(ADMIN, "c1")).toBe(true);
+    expect(scopeIncludesClient(ADMIN, null)).toBe(true);
   });
 
   it("checks membership for assigned scopes", () => {
-    expect(scopeIncludesCliente(MANY, "c2")).toBe(true);
-    expect(scopeIncludesCliente(MANY, "c9")).toBe(false);
+    expect(scopeIncludesClient(MANY, "c2")).toBe(true);
+    expect(scopeIncludesClient(MANY, "c9")).toBe(false);
   });
 
-  it("denies assigned clientes on an empty scope", () => {
-    expect(scopeIncludesCliente(NONE, "c1")).toBe(false);
-    // Null-cliente data stays reachable for a fully cliente-less user —
-    // the same answer `canAccessClienteAsync` gives for that user.
-    expect(scopeIncludesCliente(NONE, null)).toBe(true);
-    expect(scopeIncludesCliente(MANY, null)).toBe(false);
+  it("denies assigned clients on an empty scope", () => {
+    expect(scopeIncludesClient(NONE, "c1")).toBe(false);
+    // Null-client data stays reachable for a fully client-less user —
+    // the same answer `canAccessClientAsync` gives for that user.
+    expect(scopeIncludesClient(NONE, null)).toBe(true);
+    expect(scopeIncludesClient(MANY, null)).toBe(false);
   });
 });
 
@@ -103,12 +103,12 @@ describe("vehicleTripScopeWhere", () => {
     // FSR who drove it; dropping those would silently under-report mileage.
     expect(vehicleTripScopeWhere(ONE)).toEqual({
       OR: [
-        { assignment: { incident: { clienteId: { in: ["c1"] } } } },
+        { assignment: { incident: { clientId: { in: ["c1"] } } } },
         {
           assignmentId: null,
           fsr: {
-            clienteAssignments: {
-              some: { active: true, clienteId: { in: ["c1"] } },
+            clientAssignments: {
+              some: { active: true, clientId: { in: ["c1"] } },
             },
           },
         },
@@ -122,10 +122,10 @@ describe("fsrScopeWhere", () => {
     expect(fsrScopeWhere(ADMIN)).toEqual({});
   });
 
-  it("filters users by their active cliente assignments", () => {
+  it("filters users by their active client assignments", () => {
     expect(fsrScopeWhere(MANY)).toEqual({
-      clienteAssignments: {
-        some: { active: true, clienteId: { in: ["c1", "c2"] } },
+      clientAssignments: {
+        some: { active: true, clientId: { in: ["c1", "c2"] } },
       },
     });
   });

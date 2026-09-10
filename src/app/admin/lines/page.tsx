@@ -43,7 +43,7 @@ const columns: CatalogColumn<Line>[] = [
   },
   {
     header: "Cliente",
-    cell: (row) => <span className="text-sm">{row.cliente?.name ?? "—"}</span>,
+    cell: (row) => <span className="text-sm">{row.client?.name ?? "—"}</span>,
   },
   {
     header: "Equipos",

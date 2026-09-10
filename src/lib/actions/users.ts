@@ -9,10 +9,10 @@ import { includeRoles } from "@/lib/authz/user-queries";
 import { prisma } from "@/lib/database/prisma.singleton";
 import { hashPassword } from "@/lib/security/hash";
 import {
-  assignUserToCliente,
-  getPrimaryClienteId,
-  removeUserFromCliente,
-} from "@/lib/utils/cliente-assignments";
+  assignUserToClient,
+  getPrimaryClientId,
+  removeUserFromClient,
+} from "@/lib/utils/client-assignments";
 import { mxDayRange } from "@/lib/utils/datetime";
 import { type ActionResult, businessRule, guarded, ok } from "./result";
 
@@ -23,7 +23,7 @@ export type UserFormData = {
   /** A user holds many roles; the list replaces whatever they have today. */
   roleIds: number[];
   userStatusId: number;
-  clienteId?: string | null;
+  clientId?: string | null;
   telephone?: string;
   secondaryTelephone?: string;
   emergencyContact?: string;
@@ -66,7 +66,7 @@ export async function getUsers(params?: GetUsersParams) {
       include: {
         ...includeRoles,
         userStatus: true,
-        ...primaryClienteInclude,
+        ...primaryClientInclude,
         userProfile: true,
       },
       orderBy: { createdAt: "desc" },
@@ -77,7 +77,7 @@ export async function getUsers(params?: GetUsersParams) {
   ]);
 
   return {
-    data: rows.map((row) => ({ ...row, cliente: primaryClienteOf(row) })),
+    data: rows.map((row) => ({ ...row, client: primaryClientOf(row) })),
     pagination: {
       total,
       page,
@@ -90,31 +90,31 @@ export async function getUsers(params?: GetUsersParams) {
 /**
  * Get single user by ID
  */
-/** Shape the pages render for a user's Cliente (`row.cliente.name`). */
-type ClienteRef = { id: string; name: string; code: string };
+/** Shape the pages render for a user's Client (`row.client.name`). */
+type ClientRef = { id: string; name: string; code: string };
 
-const primaryClienteInclude = {
-  clienteAssignments: {
+const primaryClientInclude = {
+  clientAssignments: {
     where: { active: true },
     include: {
-      cliente: { select: { id: true, name: true, code: true } },
+      client: { select: { id: true, name: true, code: true } },
     },
     orderBy: { isPrimary: "desc" as const },
   },
 };
 
 /**
- * The junction table is the only source of truth for Cliente membership
+ * The junction table is the only source of truth for Client membership
  * (the deprecated User.clienteId scalar is gone). Pages still render a
- * singular `cliente`, so each query maps the primary assignment onto that
+ * singular `client`, so each query maps the primary assignment onto that
  * shape: primary first, else the first active assignment, else null.
  */
-function primaryClienteOf(row: {
-  clienteAssignments: Array<{ isPrimary: boolean; cliente: ClienteRef }>;
-}): ClienteRef | null {
+function primaryClientOf(row: {
+  clientAssignments: Array<{ isPrimary: boolean; client: ClientRef }>;
+}): ClientRef | null {
   return (
-    row.clienteAssignments.find((a) => a.isPrimary)?.cliente ??
-    row.clienteAssignments[0]?.cliente ??
+    row.clientAssignments.find((a) => a.isPrimary)?.client ??
+    row.clientAssignments[0]?.client ??
     null
   );
 }
@@ -128,17 +128,17 @@ export async function getUserById(id: string) {
       ...includeRoles,
       userStatus: true,
       userProfile: true,
-      ...primaryClienteInclude,
+      ...primaryClientInclude,
     },
   });
 
   if (!user) return user;
 
-  // Pages render a singular `cliente` and the form edits a singular
-  // `clienteId`: both derive from the assignments now that the deprecated
+  // Pages render a singular `client` and the form edits a singular
+  // `clientId`: both derive from the assignments now that the deprecated
   // scalar is gone.
-  const cliente = primaryClienteOf(user);
-  return { ...user, cliente, clienteId: cliente?.id ?? null };
+  const client = primaryClientOf(user);
+  return { ...user, client, clientId: client?.id ?? null };
 }
 
 /**
@@ -188,14 +188,14 @@ export async function createUser(data: UserFormData) {
       include: {
         ...includeRoles,
         userStatus: true,
-        ...primaryClienteInclude,
+        ...primaryClientInclude,
         userProfile: true,
       },
     });
 
-    // Assign Cliente via UserClienteAssignment if provided
-    if (data.clienteId) {
-      await assignUserToCliente(user.id, data.clienteId, true);
+    // Assign Client via UserClientAssignment if provided
+    if (data.clientId) {
+      await assignUserToClient(user.id, data.clientId, true);
     }
 
     // Backfill vacation periods so the balance panel is populated immediately
@@ -208,7 +208,7 @@ export async function createUser(data: UserFormData) {
     }
 
     revalidatePath("/admin/users");
-    return { data: { ...user, cliente: primaryClienteOf(user) } };
+    return { data: { ...user, client: primaryClientOf(user) } };
   });
 }
 
@@ -309,22 +309,22 @@ async function updateUserInner(
     include: {
       ...includeRoles,
       userStatus: true,
-      ...primaryClienteInclude,
+      ...primaryClientInclude,
       userProfile: true,
     },
   });
 
-  // Manage Cliente assignment via UserClienteAssignment
-  const currentClienteId = await getPrimaryClienteId(id);
-  if (data.clienteId && data.clienteId !== currentClienteId) {
-    // Cliente changed: remove old, assign new
-    if (currentClienteId) {
-      await removeUserFromCliente(id, currentClienteId);
+  // Manage Client assignment via UserClientAssignment
+  const currentClientId = await getPrimaryClientId(id);
+  if (data.clientId && data.clientId !== currentClientId) {
+    // Client changed: remove old, assign new
+    if (currentClientId) {
+      await removeUserFromClient(id, currentClientId);
     }
-    await assignUserToCliente(id, data.clienteId, true);
-  } else if (!data.clienteId && currentClienteId) {
-    // Cliente cleared: remove old
-    await removeUserFromCliente(id, currentClienteId);
+    await assignUserToClient(id, data.clientId, true);
+  } else if (!data.clientId && currentClientId) {
+    // Client cleared: remove old
+    await removeUserFromClient(id, currentClientId);
   }
 
   // Update or create user profile
@@ -388,11 +388,11 @@ async function updateUserInner(
   revalidatePath(`/admin/users/${id}`);
   revalidatePath("/admin/vacations");
   revalidatePath("/vacations");
-  return { data: { ...user, cliente: primaryClienteOf(user) } };
+  return { data: { ...user, client: primaryClientOf(user) } };
 }
 
 /**
- * Delete user (soft delete)
+ * Get form options (roles, statuses, Clients)
  */
 export async function deleteUser(id: string): Promise<ActionResult> {
   await requirePermission("users:delete");
@@ -418,7 +418,7 @@ export async function deleteUser(id: string): Promise<ActionResult> {
 export async function getUserFormOptions() {
   await requirePermission("users:read");
 
-  const [roles, statuses, clientes] = await Promise.all([
+  const [roles, statuses, clients] = await Promise.all([
     prisma.role.findMany({
       where: { active: true },
       orderBy: { name: "asc" },
@@ -427,13 +427,13 @@ export async function getUserFormOptions() {
       where: { active: true },
       orderBy: { name: "asc" },
     }),
-    prisma.cliente.findMany({
+    prisma.client.findMany({
       where: { active: true },
       orderBy: { name: "asc" },
     }),
   ]);
 
-  return { roles, statuses, clientes };
+  return { roles, statuses, clients };
 }
 
 /**
@@ -448,13 +448,13 @@ export async function getMyProfile() {
     include: {
       ...includeRoles,
       userStatus: true,
-      ...primaryClienteInclude,
+      ...primaryClientInclude,
       userProfile: true,
     },
   });
 
   if (!profile) return profile;
-  return { ...profile, cliente: primaryClienteOf(profile) };
+  return { ...profile, client: primaryClientOf(profile) };
 }
 
 /**

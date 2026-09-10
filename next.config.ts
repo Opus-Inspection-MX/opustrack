@@ -20,6 +20,34 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  /**
+   * PR2 rename bridges (Cliente → Client / CLIENT → REPORTER).
+   *
+   * Old portal and catalog paths stay reachable while bookmarks, emailed
+   * links, and cached redirects catch up. Permanent (308) so browsers and
+   * search engines retire the old addresses; the app itself never links to
+   * them anymore. Remove once traffic to the sources stops — there is a
+   * unit test pinning this list (`next.config.test.ts`).
+   */
+  async redirects() {
+    return [
+      {
+        source: "/admin/clientes/:path*",
+        destination: "/admin/clients/:path*",
+        permanent: true,
+      },
+      {
+        source: "/api/clientes/:path*",
+        destination: "/api/clients/:path*",
+        permanent: true,
+      },
+      {
+        source: "/client/:path*",
+        destination: "/reporter/:path*",
+        permanent: true,
+      },
+    ];
+  },
 };
 
 export default nextConfig;

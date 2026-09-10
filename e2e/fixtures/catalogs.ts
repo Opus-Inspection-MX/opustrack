@@ -10,7 +10,7 @@
  * `kind` covers the three form shapes found in the app:
  *   - `text` / `number` → plain inputs addressed by `#id`
  *   - `label`           → react-hook-form + shadcn FormField (parts, roles)
- *   - `select`          → Radix `<Select>` (lines, equipments, clientes)
+ *   - `select`          → Radix `<Select>` (lines, equipments, clients)
  */
 
 import { db } from "./db";
@@ -101,20 +101,20 @@ function statusCatalog(key: string, path: string, model: string): CatalogSpec {
   };
 }
 
-/** Cliente the equipments test selects; guaranteed to have a line. */
-const PREREQ_CLIENTE = "SIN CENTRO";
+/** Client the equipments test selects; guaranteed to have a line. */
+const PREREQ_CLIENT = "SIN CENTRO";
 
-/** Give `PREREQ_CLIENTE` an active line, so the lineId select has an option. */
+/** Give `PREREQ_CLIENT` an active line, so the lineId select has an option. */
 async function ensureLineForEquipments(): Promise<void> {
   const prisma = db();
 
-  const cliente = await prisma.cliente.findFirstOrThrow({
-    where: { active: true, name: PREREQ_CLIENTE },
+  const client = await prisma.client.findFirstOrThrow({
+    where: { active: true, name: PREREQ_CLIENT },
     select: { id: true },
   });
 
   const existing = await prisma.line.findFirst({
-    where: { clienteId: cliente.id, active: true },
+    where: { clientId: client.id, active: true },
     select: { id: true },
   });
   if (existing) return;
@@ -122,7 +122,7 @@ async function ensureLineForEquipments(): Promise<void> {
   await prisma.line.create({
     data: {
       name: "Línea base e2e",
-      clienteId: cliente.id,
+      clientId: client.id,
     },
   });
 }
@@ -212,9 +212,9 @@ export const CATALOGS: CatalogSpec[] = [
 
   // ── Relacionales (Radix Select) ───────────────────────────────────────────
   {
-    key: "clientes",
-    model: "cliente",
-    path: "/admin/clientes",
+    key: "clients",
+    model: "client",
+    path: "/admin/clients",
     searchPlaceholder: "Buscar por código, nombre o razón social...",
     fields: [
       { kind: "text", id: "code", value: (s) => `E2E-${s.slice(-6)}` },
@@ -231,7 +231,7 @@ export const CATALOGS: CatalogSpec[] = [
     searchPlaceholder: "Buscar por nombre o descripción...",
     fields: [
       { kind: "text", id: "name", value: named("E2E Linea") },
-      { kind: "select", id: "clienteId" },
+      { kind: "select", id: "clientId" },
     ],
     identity: { kind: "text", id: "name" },
     name: named("E2E Linea"),
@@ -245,11 +245,11 @@ export const CATALOGS: CatalogSpec[] = [
       { kind: "text", id: "name", value: named("E2E Equipo") },
       {
         kind: "combobox",
-        id: "clienteId",
+        id: "clientId",
         searchPlaceholder: "Buscar Cliente...",
-        search: PREREQ_CLIENTE,
+        search: PREREQ_CLIENT,
         // EquipmentForm labels its options `${name} (${code})`.
-        option: `${PREREQ_CLIENTE} (SIN-CENTRO)`,
+        option: `${PREREQ_CLIENT} (SIN-CENTRO)`,
       },
       { kind: "select", id: "lineId" },
     ],

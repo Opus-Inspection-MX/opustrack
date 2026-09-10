@@ -40,7 +40,7 @@ export interface LifecycleIncident {
   id: number;
   title: string;
   statusName: string | null;
-  clienteId: string | null;
+  clientId: string | null;
   reportedById: string | null;
   scheduleId: string | null;
   resolvedAt: Date | null;
@@ -55,7 +55,7 @@ export async function findIncidentByTitle(
     select: {
       id: true,
       title: true,
-      clienteId: true,
+      clientId: true,
       reportedById: true,
       scheduleId: true,
       resolvedAt: true,

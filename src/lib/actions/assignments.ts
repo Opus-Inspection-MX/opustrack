@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { resolveAssignmentStatusId } from "@/lib/assignments/ensure-fsrs";
 import { requireAuth, requirePermission } from "@/lib/auth/auth";
-import { assertClienteAccessAsync } from "@/lib/auth/filters";
+import { assertClientAccessAsync } from "@/lib/auth/filters";
 import { getReportScope, incidentScopeWhere } from "@/lib/auth/report-scope";
 import { whereHasPermission, whereHasRole } from "@/lib/authz/user-queries";
 import { prisma } from "@/lib/database/prisma.singleton";
@@ -65,7 +65,7 @@ const assigneesInclude = {
 
 /**
  * Validate that the given users are active FSRs. FSR assignment is independent
- * of the incident's Cliente and no longer requires per-incident enablement.
+ * of the incident's Client and no longer requires per-incident enablement.
  */
 async function assertAssigneesAreFsrs(userIds: string[]) {
   if (userIds.length === 0) return;
@@ -80,7 +80,7 @@ async function assertAssigneesAreFsrs(userIds: string[]) {
 
 /**
  * Get all assignments
- * Filtered by user's Cliente (except ADMINISTRADOR who sees all)
+ * Filtered by user's Client (except ADMINISTRADOR who sees all)
  */
 export async function getAssignments() {
   const user = await requirePermission("assignments:read");
@@ -96,7 +96,7 @@ export async function getAssignments() {
         include: {
           type: true,
           status: true,
-          cliente: true,
+          client: true,
         },
       },
       ...assigneesInclude,
@@ -130,7 +130,7 @@ export async function getAssignmentById(id: string) {
         include: {
           type: true,
           status: true,
-          cliente: true,
+          client: true,
           reportedBy: true,
         },
       },
@@ -146,8 +146,8 @@ export async function getAssignmentById(id: string) {
     },
   });
 
-  if (assignment?.incident?.clienteId) {
-    await assertClienteAccessAsync(user, assignment.incident.clienteId);
+  if (assignment?.incident?.clientId) {
+    await assertClientAccessAsync(user, assignment.incident.clientId);
   }
 
   return assignment;
@@ -492,7 +492,7 @@ function revalidateAssignmentPaths(assignmentId: string, incidentId: number) {
   revalidatePath(`/admin/assignments/${assignmentId}`);
   revalidatePath(`/admin/incidents/${incidentId}`);
   revalidatePath("/admin/incidents");
-  revalidatePath("/client/incidents");
+  revalidatePath("/reporter/incidents");
   revalidatePath("/admin/tracking");
 }
 
@@ -1016,7 +1016,7 @@ export async function getMyAssignments() {
         include: {
           type: true,
           status: true,
-          cliente: true,
+          client: true,
         },
       },
       ...assigneesInclude,
@@ -1046,7 +1046,7 @@ export async function getAssignmentFormOptions() {
       include: {
         type: true,
         status: true,
-        cliente: true,
+        client: true,
         assignees: {
           where: { active: true },
           select: { userId: true },
@@ -1060,9 +1060,9 @@ export async function getAssignmentFormOptions() {
         id: true,
         name: true,
         email: true,
-        clienteAssignments: {
+        clientAssignments: {
           where: { active: true },
-          select: { clienteId: true },
+          select: { clientId: true },
         },
       },
       orderBy: { name: "asc" },
@@ -1075,7 +1075,7 @@ export async function getAssignmentFormOptions() {
 
   const usersWithClienteIds = users.map((user) => ({
     ...user,
-    clienteIds: user.clienteAssignments.map((va) => va.clienteId),
+    clientIds: user.clientAssignments.map((va) => va.clientId),
   }));
 
   const incidentsWithAssigneeIds = incidents.map((inc) => ({
@@ -1131,18 +1131,18 @@ export async function uploadAssignmentAttachment(formData: FormData) {
     );
     assertAllowedUpload(mimetype, file.size);
 
-    // Verify the assignment exists and the caller can reach its Cliente
+    // Verify the assignment exists and the caller can reach its Client
     const assignment = await prisma.assignment.findUnique({
       where: { id: assignmentId },
-      select: { incidentId: true, incident: { select: { clienteId: true } } },
+      select: { incidentId: true, incident: { select: { clientId: true } } },
     });
     if (!assignment) {
       throw new Error("Asignación no encontrada");
     }
     await assertIncidentEditable(prisma, assignment.incidentId);
-    if (assignment.incident?.clienteId) {
+    if (assignment.incident?.clientId) {
       const user = await requireAuth();
-      await assertClienteAccessAsync(user, assignment.incident.clienteId);
+      await assertClientAccessAsync(user, assignment.incident.clientId);
     }
 
     const arrayBuffer = await file.arrayBuffer();

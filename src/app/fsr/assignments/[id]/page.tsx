@@ -52,7 +52,7 @@ interface AssignmentStatus {
   color?: string | null;
 }
 
-interface Cliente {
+interface Client {
   id: string;
   name: string;
   code: string;
@@ -63,7 +63,7 @@ interface AssignmentIncident {
   title: string;
   status?: AssignmentStatus | null;
   type?: { name: string } | null;
-  cliente?: Cliente | null;
+  client?: Client | null;
 }
 
 interface FSRAssignment {
@@ -631,8 +631,8 @@ export default function FSRAssignmentDetailPage({
                   {assignment.incident.status?.name && (
                     <span>Estado: {assignment.incident.status.name}</span>
                   )}
-                  {assignment.incident.cliente?.name && (
-                    <span>Cliente: {assignment.incident.cliente.name}</span>
+                  {assignment.incident.client?.name && (
+                    <span>Client: {assignment.incident.client.name}</span>
                   )}
                 </div>
               </div>

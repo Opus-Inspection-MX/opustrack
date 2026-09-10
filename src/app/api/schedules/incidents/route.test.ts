@@ -10,12 +10,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
  * the calendar, so the `OR` is pinned here.
  */
 
-const { prismaMock, getUserClienteIds, userBox } = vi.hoisted(() => ({
+const { prismaMock, getUserClientIds, userBox } = vi.hoisted(() => ({
   prismaMock: {
     incident: { findMany: vi.fn(), aggregate: vi.fn() },
     assignment: { aggregate: vi.fn() },
   },
-  getUserClienteIds: vi.fn(async (_userId: string) => [] as string[]),
+  getUserClientIds: vi.fn(async (_userId: string) => [] as string[]),
   // Swappable user: superuser by default so the existing tests keep asserting
   // raw query shapes; the scope block at the bottom replaces it per test.
   userBox: { user: { id: "admin", isSuperuser: true } },
@@ -30,7 +30,7 @@ vi.mock("@/lib/auth/auth", () => ({
     (req: Request) =>
       handler(req, userBox.user),
 }));
-vi.mock("@/lib/utils/cliente-assignments", () => ({ getUserClienteIds }));
+vi.mock("@/lib/utils/client-assignments", () => ({ getUserClientIds }));
 
 import { GET } from "./route";
 
@@ -121,15 +121,15 @@ describe("GET /api/schedules/incidents · rango (RF-407)", () => {
   });
 
   it("acota por Cliente cuando se pide", async () => {
-    await call(`${RANGE}&clienteId=c1`);
+    await call(`${RANGE}&clientId=c1`);
 
-    expect(lastWhere().clienteId).toBe("c1");
+    expect(lastWhere().clientId).toBe("c1");
   });
 
-  it("sin clienteId no filtra por Cliente", async () => {
+  it("sin clientId no filtra por Cliente", async () => {
     await call(RANGE);
 
-    expect(lastWhere().clienteId).toBeUndefined();
+    expect(lastWhere().clientId).toBeUndefined();
   });
 
   it("devuelve los incidentes con el conteo y el rango resuelto", async () => {
@@ -225,10 +225,10 @@ describe("GET /api/schedules/incidents?signature=1", () => {
   });
 
   it("respeta el filtro por Cliente", async () => {
-    await sign(`${RANGE}&clienteId=c1`);
+    await sign(`${RANGE}&clientId=c1`);
 
     expect(prismaMock.incident.aggregate.mock.calls[0][0].where).toMatchObject({
-      clienteId: "c1",
+      clientId: "c1",
     });
   });
 
@@ -241,7 +241,7 @@ describe("GET /api/schedules/incidents?signature=1", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Alcance por Cliente (regla transversal #4)
+// Alcance por Client (regla transversal #4)
 // ---------------------------------------------------------------------------
 describe("GET /api/schedules/incidents · alcance por Cliente", () => {
   const scopedUser = {
@@ -252,7 +252,7 @@ describe("GET /api/schedules/incidents · alcance por Cliente", () => {
 
   beforeEach(() => {
     userBox.user = scopedUser;
-    getUserClienteIds.mockResolvedValue(["c1", "c2"]);
+    getUserClientIds.mockResolvedValue(["c1", "c2"]);
   });
 
   afterEach(() => {
@@ -262,17 +262,17 @@ describe("GET /api/schedules/incidents · alcance por Cliente", () => {
   it("aplica el alcance cuando no se pide un Cliente", async () => {
     await call(RANGE);
 
-    expect(lastWhere().clienteId).toEqual({ in: ["c1", "c2"] });
+    expect(lastWhere().clientId).toEqual({ in: ["c1", "c2"] });
   });
 
   it("respeta un Cliente pedido dentro del alcance", async () => {
-    await call(`${RANGE}&clienteId=c1`);
+    await call(`${RANGE}&clientId=c1`);
 
-    expect(lastWhere().clienteId).toBe("c1");
+    expect(lastWhere().clientId).toBe("c1");
   });
 
   it("rechaza con 403 un Cliente fuera del alcance", async () => {
-    const response = await call(`${RANGE}&clienteId=c9`);
+    const response = await call(`${RANGE}&clientId=c9`);
 
     expect(response.status).toBe(403);
     await expect(response.json()).resolves.toMatchObject({
@@ -282,10 +282,10 @@ describe("GET /api/schedules/incidents · alcance por Cliente", () => {
   });
 
   it("un usuario sin Clientes no ve nada", async () => {
-    getUserClienteIds.mockResolvedValue([]);
+    getUserClientIds.mockResolvedValue([]);
 
     await call(RANGE);
 
-    expect(lastWhere().clienteId).toEqual({ in: [] });
+    expect(lastWhere().clientId).toEqual({ in: [] });
   });
 });

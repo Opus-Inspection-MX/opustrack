@@ -39,7 +39,7 @@ export const GET = withPermission("schedules:read", async (request, user) => {
     const skip = (page - 1) * limit;
 
     const search = searchParams.get("search") || "";
-    const clienteId = searchParams.get("clienteId") || "";
+    const clientId = searchParams.get("clientId") || "";
     const statusId = searchParams.get("statusId") || "";
     const fromRaw =
       searchParams.get("activeFrom") || searchParams.get("startDate") || "";
@@ -60,17 +60,17 @@ export const GET = withPermission("schedules:read", async (request, user) => {
       ];
     }
 
-    // Tenant boundary (cross-cutting rule #4). A requested Cliente outside
+    // Tenant boundary (cross-cutting rule #4). A requested Client outside
     // the caller's scope is a 403, not an empty list.
     const scope = await getReportScope(user);
-    if (clienteId) {
-      if (scope.clienteIds !== null && !scope.clienteIds.includes(clienteId)) {
+    if (clientId) {
+      if (scope.clientIds !== null && !scope.clientIds.includes(clientId)) {
         return NextResponse.json(
           { error: "Sin acceso al Cliente solicitado" },
           { status: 403 },
         );
       }
-      where.clientes = { some: { clienteId, active: true } };
+      where.clients = { some: { clientId, active: true } };
     } else {
       Object.assign(where, scheduleScopeWhere(scope));
     }
@@ -84,10 +84,10 @@ export const GET = withPermission("schedules:read", async (request, user) => {
     const schedules = await prisma.schedule.findMany({
       where,
       include: {
-        clientes: {
+        clients: {
           where: { active: true },
           include: {
-            cliente: {
+            client: {
               select: { id: true, name: true, code: true },
             },
           },
@@ -125,21 +125,19 @@ export const GET = withPermission("schedules:read", async (request, user) => {
 
 /**
  * POST /api/schedules
- * Crea una nueva programación (acepta clienteIds: string[]).
+ * Crea una nueva programación (acepta clientIds: string[]).
  */
 export const POST = withPermission(
   "schedules:create",
   async (request, _user) => {
     try {
       const body = await request.json();
-      const { title, description, scheduledAt, endDate, statusId, clienteIds } =
+      const { title, description, scheduledAt, endDate, statusId, clientIds } =
         body;
 
-      // clienteIds is optional: schedules created from "Asignación de Programación"
-      // are no longer tied to a Cliente.
-      const clienteIdList: string[] = Array.isArray(clienteIds)
-        ? clienteIds
-        : [];
+      // clientIds is optional: schedules created from "Asignación de Programación"
+      // are no longer tied to a Client.
+      const clientIdList: string[] = Array.isArray(clientIds) ? clientIds : [];
 
       if (!title || !scheduledAt) {
         return NextResponse.json(
@@ -160,11 +158,11 @@ export const POST = withPermission(
             statusId: statusId ? parseInt(statusId, 10) : null,
           },
         });
-        if (clienteIdList.length > 0) {
-          await tx.scheduleCliente.createMany({
-            data: clienteIdList.map((clienteId) => ({
+        if (clientIdList.length > 0) {
+          await tx.scheduleClient.createMany({
+            data: clientIdList.map((clientId) => ({
               scheduleId: created.id,
-              clienteId,
+              clientId,
             })),
             skipDuplicates: true,
           });
@@ -172,10 +170,10 @@ export const POST = withPermission(
         return tx.schedule.findUnique({
           where: { id: created.id },
           include: {
-            clientes: {
+            clients: {
               where: { active: true },
               include: {
-                cliente: { select: { id: true, name: true, code: true } },
+                client: { select: { id: true, name: true, code: true } },
               },
             },
             status: { select: { id: true, name: true, color: true } },

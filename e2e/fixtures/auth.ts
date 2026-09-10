@@ -12,7 +12,7 @@ import path from "node:path";
  * the suite is self-sufficient on a freshly created database.
  */
 
-export type Role = "admin" | "fsr" | "client" | "guest";
+export type Role = "admin" | "fsr" | "reporter" | "guest";
 
 export interface RoleAccount {
   email: string;
@@ -56,11 +56,11 @@ const DEFINITIONS: Record<
     roleName: "FSR",
     defaultPath: "/fsr",
   },
-  client: {
-    envKey: "E2E_CLIENT_EMAIL",
-    name: "E2E Client",
-    roleName: "CLIENT",
-    defaultPath: "/client",
+  reporter: {
+    envKey: "E2E_REPORTER_EMAIL",
+    name: "E2E Reporter",
+    roleName: "REPORTER",
+    defaultPath: "/reporter",
   },
   guest: {
     envKey: "E2E_GUEST_EMAIL",

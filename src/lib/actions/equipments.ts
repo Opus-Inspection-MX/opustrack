@@ -32,7 +32,7 @@ export async function getEquipments(params?: {
       include: {
         line: {
           include: {
-            cliente: {
+            client: {
               select: {
                 id: true,
                 name: true,
@@ -73,7 +73,7 @@ export async function getEquipmentById(id: number) {
     include: {
       line: {
         include: {
-          cliente: {
+          client: {
             select: {
               id: true,
               name: true,
@@ -121,7 +121,7 @@ export async function createEquipment(data: {
       include: {
         line: {
           include: {
-            cliente: {
+            client: {
               select: {
                 id: true,
                 name: true,
@@ -161,7 +161,7 @@ export async function updateEquipment(
       include: {
         line: {
           include: {
-            cliente: {
+            client: {
               select: {
                 id: true,
                 name: true,

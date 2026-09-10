@@ -83,9 +83,9 @@ export default async function UserDetailPage({
                 {user.userStatus?.name ?? (user.active ? "Activo" : "Inactivo")}
               </Badge>
             </Row>
-            {user.cliente && (
+            {user.client && (
               <Row label="Cliente">
-                {user.cliente.name} ({user.cliente.code})
+                {user.client.name} ({user.client.code})
               </Row>
             )}
             {user.hireDate && (

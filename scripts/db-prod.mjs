@@ -81,7 +81,7 @@ async function showState({ masked }) {
   try {
     const counts = {
       usuarios: await prisma.user.count(),
-      clientes: await prisma.cliente.count(),
+      clients: await prisma.client.count(),
       incidentes: await prisma.incident.count(),
       asignaciones: await prisma.assignment.count(),
       programaciones: await prisma.schedule.count(),

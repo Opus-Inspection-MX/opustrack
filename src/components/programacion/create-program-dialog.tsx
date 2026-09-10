@@ -19,7 +19,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
 import { formatMX } from "@/lib/utils/datetime";
 
-interface Cliente {
+interface Client {
   id: string;
   name: string;
   code: string;
@@ -47,7 +47,7 @@ export function CreateProgramDialog({
   dateRange,
 }: CreateProgramDialogProps) {
   const router = useRouter();
-  const [clientes, setClientes] = useState<Cliente[]>([]);
+  const [clients, setClientes] = useState<Client[]>([]);
   const [statuses, setStatuses] = useState<IncidentStatus[]>([]);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -58,13 +58,13 @@ export function CreateProgramDialog({
     endDate: "",
     endTime: "17:00",
     statusId: "",
-    clienteId: "",
+    clientId: "",
   });
 
   const fetchData = useCallback(async () => {
     try {
       const [clientesRes, statusesRes] = await Promise.all([
-        fetch("/api/clientes"),
+        fetch("/api/clients"),
         fetch("/api/incident-statuses"),
       ]);
 
@@ -125,7 +125,7 @@ export function CreateProgramDialog({
           scheduledAt: scheduledDateTime.toISOString(),
           endDate: endDateTime?.toISOString() || null,
           statusId: formData.statusId ? parseInt(formData.statusId, 10) : null,
-          clienteIds: formData.clienteId ? [formData.clienteId] : [],
+          clientIds: formData.clientId ? [formData.clientId] : [],
         }),
       });
 
@@ -142,7 +142,7 @@ export function CreateProgramDialog({
         endDate: "",
         endTime: "17:00",
         statusId: "",
-        clienteId: "",
+        clientId: "",
       });
 
       onOpenChange(false);
@@ -194,20 +194,20 @@ export function CreateProgramDialog({
           />
         </div>
 
-        {/* Cliente Selection */}
+        {/* Client Selection */}
         <div className="space-y-2">
-          <Label htmlFor="clienteId">
-            Centro de Verificación (Cliente){" "}
+          <Label htmlFor="clientId">
+            Centro de Verificación (Client){" "}
             <span className="text-destructive">*</span>
           </Label>
           <SearchableSelect
-            options={clientes.map((cliente) => ({
-              value: cliente.id,
-              label: `${cliente.name} (${cliente.code})`,
+            options={clients.map((client) => ({
+              value: client.id,
+              label: `${client.name} (${client.code})`,
             }))}
-            value={formData.clienteId}
+            value={formData.clientId}
             onValueChange={(value) =>
-              setFormData({ ...formData, clienteId: value })
+              setFormData({ ...formData, clientId: value })
             }
             placeholder="Selecciona un Cliente"
             searchPlaceholder="Buscar Cliente..."

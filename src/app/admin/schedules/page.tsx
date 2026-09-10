@@ -21,7 +21,7 @@ import { toast } from "@/hooks/use-toast";
 import { isFailure } from "@/lib/actions/result";
 import { deleteSchedule, getSchedules } from "@/lib/actions/schedules";
 
-interface Cliente {
+interface Client {
   id: string;
   name: string;
   code: string;
@@ -38,7 +38,7 @@ interface Schedule {
   description?: string;
   scheduledAt: string;
   endDate?: string | null;
-  clientes: Array<{ id: string; code: string; name: string }>;
+  clients: Array<{ id: string; code: string; name: string }>;
   incidentCount: number;
   active: boolean;
   createdAt: string;
@@ -51,10 +51,10 @@ interface ScheduleApiResponse {
   description?: string | null;
   scheduledAt: Date | string;
   endDate?: Date | string | null;
-  clientes?: Array<{
-    clienteId: string;
+  clients?: Array<{
+    clientId: string;
     active: boolean;
-    cliente: { id: string; code: string; name: string };
+    client: { id: string; code: string; name: string };
   }>;
   _count?: { incidents: number };
   active: boolean;
@@ -66,7 +66,7 @@ export default function SchedulesPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
-  const [clientes, setClientes] = useState<Cliente[]>([]);
+  const [clients, setClientes] = useState<Client[]>([]);
   const [statuses, setStatuses] = useState<IncidentStatus[]>([]);
 
   // Pagination state
@@ -87,7 +87,7 @@ export default function SchedulesPage() {
 
   const fetchClientes = useCallback(async () => {
     try {
-      const response = await fetch("/api/clientes");
+      const response = await fetch("/api/clients");
       if (!response.ok) return;
       const result = await response.json();
       setClientes(result.data || []);
@@ -114,7 +114,7 @@ export default function SchedulesPage() {
         page: currentPage,
         limit: itemsPerPage,
         search: searchQuery || undefined,
-        clienteId: selectedCliente !== "all" ? selectedCliente : undefined,
+        clientId: selectedCliente !== "all" ? selectedCliente : undefined,
         statusId:
           selectedStatus !== "all" ? parseInt(selectedStatus, 10) : undefined,
         activeFrom: startDate ? new Date(startDate) : undefined,
@@ -135,9 +135,9 @@ export default function SchedulesPage() {
               ? schedule.endDate
               : new Date(schedule.endDate).toISOString()
             : null,
-          clientes: (schedule.clientes ?? [])
+          clients: (schedule.clients ?? [])
             .filter((sv) => sv.active)
-            .map((sv) => sv.cliente),
+            .map((sv) => sv.client),
           incidentCount: schedule._count?.incidents || 0,
           active: schedule.active,
           createdAt:
@@ -265,9 +265,9 @@ export default function SchedulesPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos los Clientes</SelectItem>
-              {clientes.map((cliente) => (
-                <SelectItem key={cliente.id} value={cliente.id}>
-                  {cliente.name} ({cliente.code})
+              {clients.map((client) => (
+                <SelectItem key={client.id} value={client.id}>
+                  {client.name} ({client.code})
                 </SelectItem>
               ))}
             </SelectContent>
@@ -338,7 +338,7 @@ export default function SchedulesPage() {
 
       <QuickEditScheduleDialog
         scheduleId={quickEditId}
-        clientes={clientes}
+        clients={clients}
         open={quickEditId !== null}
         onOpenChange={(open) => {
           if (!open) setQuickEditId(null);

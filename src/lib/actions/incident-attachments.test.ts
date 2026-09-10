@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { prismaMock, requireAuth, userHasPermission, assertClienteAccessAsync } =
+const { prismaMock, requireAuth, userHasPermission, assertClientAccessAsync } =
   vi.hoisted(() => ({
     prismaMock: {
       incident: { findUnique: vi.fn() },
@@ -12,13 +12,13 @@ const { prismaMock, requireAuth, userHasPermission, assertClienteAccessAsync } =
     },
     requireAuth: vi.fn(async () => ({ id: "u1" })),
     userHasPermission: vi.fn((_user: unknown, _permission: string) => false),
-    assertClienteAccessAsync: vi.fn(async () => {}),
+    assertClientAccessAsync: vi.fn(async () => {}),
   }));
 
 vi.mock("@/lib/database/prisma.singleton", () => ({ prisma: prismaMock }));
 vi.mock("@/lib/auth/auth", () => ({ requireAuth }));
 vi.mock("@/lib/authz/authz", () => ({ userHasPermission }));
-vi.mock("@/lib/auth/filters", () => ({ assertClienteAccessAsync }));
+vi.mock("@/lib/auth/filters", () => ({ assertClientAccessAsync }));
 vi.mock("@/lib/storage/file-storage", async (importOriginal) => {
   const actual =
     await importOriginal<typeof import("@/lib/storage/file-storage")>();
@@ -44,16 +44,16 @@ import {
 /**
  * Evidence photos filed with the incident report (RF-217).
  *
- * The reporter (CLIENT) holds incidents:create but NOT incidents:update, so
+ * The reporter (REPORTER) holds incidents:create but NOT incidents:update, so
  * the gate is an OR — unlike the assignment side which demands update. What
  * does NOT bend is the terminal-state rule: a CERRADO/CANCELADA incident
  * takes no more evidence, and the 10MB/MIME contract is the real shared
  * validator, not a mock.
  */
 
-const OPEN = { clienteId: "c1", status: { name: "ABIERTO" } };
-const CLOSED = { clienteId: "c1", status: { name: "CERRADO" } };
-const CANCELLED = { clienteId: "c1", status: { name: "CANCELADA" } };
+const OPEN = { clientId: "c1", status: { name: "ABIERTO" } };
+const CLOSED = { clientId: "c1", status: { name: "CERRADO" } };
+const CANCELLED = { clientId: "c1", status: { name: "CANCELADA" } };
 
 function grant(...permissions: string[]) {
   userHasPermission.mockImplementation((_user: unknown, permission: string) =>
@@ -95,13 +95,13 @@ beforeEach(() => {
     incidentId: 7,
     filepath: "/uploads/incidents/123-photo.jpg",
     provider: "filesystem",
-    incident: { clienteId: "c1" },
+    incident: { clientId: "c1" },
   });
   prismaMock.incidentAttachment.update.mockResolvedValue({ id: "att1" });
 });
 
 describe("uploadIncidentAttachment · permiso", () => {
-  it("acepta a quien crea (CLIENT) aunque no actualice", async () => {
+  it("acepta a quien crea (REPORTER) aunque no actualice", async () => {
     grant("incidents:create");
 
     const result = await uploadIncidentAttachment(uploadForm());

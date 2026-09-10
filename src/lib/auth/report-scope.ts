@@ -1,78 +1,78 @@
 /**
  * Multi-tenancy scoping for reports and the dashboard.
  *
- * Reports aggregate across several entities, each reaching the Cliente by a
+ * Reports aggregate across several entities, each reaching the Client by a
  * different path. These helpers turn one resolved scope into the correct
  * Prisma `where` fragment per entity, so every report applies the same rule
- * (cross-cutting rule #4: non-ADMINISTRADOR users only see their Cliente data).
+ * (cross-cutting rule #4: non-ADMINISTRADOR users only see their Client data).
  *
- * Fail closed: a user with no Cliente assignment matches nothing rather than
+ * Fail closed: a user with no Client assignment matches nothing rather than
  * everything.
  */
 
 import type { Prisma } from "@prisma/client";
 import type { UserWithPermissions } from "@/lib/authz/authz";
-import { getUserClienteIds } from "@/lib/utils/cliente-assignments";
+import { getUserClientIds } from "@/lib/utils/client-assignments";
 import { isAdmin } from "./filters";
 
 export interface ReportScope {
   /** `null` means unrestricted (ADMINISTRADOR). */
-  clienteIds: string[] | null;
+  clientIds: string[] | null;
 }
 
-/** Resolve the Cliente scope of the current user. */
+/** Resolve the Client scope of the current user. */
 export async function getReportScope(
   user: UserWithPermissions,
 ): Promise<ReportScope> {
-  if (isAdmin(user)) return { clienteIds: null };
+  if (isAdmin(user)) return { clientIds: null };
 
-  const clienteIds = await getUserClienteIds(user.id);
-  if (clienteIds.length > 0) return { clienteIds };
+  const clientIds = await getUserClientIds(user.id);
+  if (clientIds.length > 0) return { clientIds };
 
   // Fail closed: no assignments match nothing. (The deprecated
   // User.clienteId scalar fallback died with the column.)
-  return { clienteIds: [] };
+  return { clientIds: [] };
 }
 
-/** Incident: owns `clienteId` directly. */
+/** Incident: owns `clientId` directly. */
 export function incidentScopeWhere(
   scope: ReportScope,
 ): Prisma.IncidentWhereInput {
-  if (scope.clienteIds === null) return {};
-  return { clienteId: { in: scope.clienteIds } };
+  if (scope.clientIds === null) return {};
+  return { clientId: { in: scope.clientIds } };
 }
 
-/** Assignment: reaches the Cliente through its incident. */
+/** Assignment: reaches the Client through its incident. */
 export function assignmentScopeWhere(
   scope: ReportScope,
 ): Prisma.AssignmentWhereInput {
-  if (scope.clienteIds === null) return {};
+  if (scope.clientIds === null) return {};
   return { incident: incidentScopeWhere(scope) };
 }
 
 /**
- * Schedule: reaches the Cliente through the M:N ScheduleCliente link.
+ * Schedule: reaches the Client through the M:N ScheduleClient link.
  *
- * Schedules with no active Cliente links are global and stay visible to any
+ * Schedules with no active Client links are global and stay visible to any
  * scoped user — the same rule `getIncidentFormOptions` already applied. Fail
- * closed is preserved: a scope of zero Clientes matches nothing, not even
+ * closed is preserved: a scope of zero Clients matches nothing, not even
  * global schedules.
  */
 export function scheduleScopeWhere(
   scope: ReportScope,
 ): Prisma.ScheduleWhereInput {
-  if (scope.clienteIds === null) return {};
-  if (scope.clienteIds.length === 0) {
-    return { clientes: { some: { clienteId: { in: [] } } } };
+  if (scope.clientIds === null) return {};
+  if (scope.clientIds.length === 0) {
+    return { clients: { some: { clientId: { in: [] } } } };
   }
   return {
     OR: [
       {
-        clientes: {
-          some: { active: true, clienteId: { in: scope.clienteIds } },
+        clients: {
+          some: { active: true, clientId: { in: scope.clientIds } },
         },
       },
-      { clientes: { none: { active: true } } },
+      { clients: { none: { active: true } } },
     ],
   };
 }
@@ -81,25 +81,25 @@ export function scheduleScopeWhere(
  * Sync membership check against an already-resolved scope.
  *
  * For sync callbacks (`Array.some`, `Array.filter`) where the async
- * `canAccessClienteAsync` cannot run. Resolve the scope once with
+ * `canAccessClientAsync` cannot run. Resolve the scope once with
  * `getReportScope` and reuse it for every element. Equivalent to
- * `canAccessClienteAsync` for non-null ids, including the legacy fallback.
+ * `canAccessClientAsync` for non-null ids, including the legacy fallback.
  */
-export function scopeIncludesCliente(
+export function scopeIncludesClient(
   scope: ReportScope,
-  clienteId: string | null,
+  clientId: string | null,
 ): boolean {
-  if (scope.clienteIds === null) return true;
-  if (clienteId === null) return scope.clienteIds.length === 0;
-  return scope.clienteIds.includes(clienteId);
+  if (scope.clientIds === null) return true;
+  if (clientId === null) return scope.clientIds.length === 0;
+  return scope.clientIds.includes(clientId);
 }
 
-/** User (FSR): scoped by their active Cliente assignments. */
+/** User (FSR): scoped by their active Client assignments. */
 export function fsrScopeWhere(scope: ReportScope): Prisma.UserWhereInput {
-  if (scope.clienteIds === null) return {};
+  if (scope.clientIds === null) return {};
   return {
-    clienteAssignments: {
-      some: { active: true, clienteId: { in: scope.clienteIds } },
+    clientAssignments: {
+      some: { active: true, clientId: { in: scope.clientIds } },
     },
   };
 }
@@ -111,7 +111,7 @@ export function fsrScopeWhere(scope: ReportScope): Prisma.UserWhereInput {
 export function vehicleTripScopeWhere(
   scope: ReportScope,
 ): Prisma.VehicleTripWhereInput {
-  if (scope.clienteIds === null) return {};
+  if (scope.clientIds === null) return {};
   return {
     OR: [
       { assignment: assignmentScopeWhere(scope) },

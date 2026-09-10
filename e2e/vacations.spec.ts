@@ -302,10 +302,10 @@ test("avisa al aprobar cuando hay trabajo programado en esas fechas", async ({
   const scheduled = new Date(range.start);
   scheduled.setDate(scheduled.getDate() + 2);
 
-  const [incidentType, incidentStatus, cliente] = await Promise.all([
+  const [incidentType, incidentStatus, client] = await Promise.all([
     db().incidentType.findFirstOrThrow({ where: { active: true } }),
     db().incidentStatus.findFirstOrThrow({ where: { name: "ABIERTO" } }),
-    db().cliente.findFirstOrThrow({ where: { active: true } }),
+    db().client.findFirstOrThrow({ where: { active: true } }),
   ]);
 
   const incident = await db().incident.create({
@@ -314,7 +314,7 @@ test("avisa al aprobar cuando hay trabajo programado en esas fechas", async ({
       description: "Trabajo agendado dentro del período solicitado.",
       typeId: incidentType.id,
       statusId: incidentStatus.id,
-      clienteId: cliente.id,
+      clientId: client.id,
     },
     select: { id: true },
   });

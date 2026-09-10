@@ -173,14 +173,14 @@ test.describe("EMPLEADO", () => {
     expect(await landsOn(page, "/vacations")).toBe("/vacations");
     expect(await landsOn(page, "/profile")).toBe("/profile");
 
-    for (const path of ["/admin", "/admin/vacations", "/fsr", "/client"]) {
+    for (const path of ["/admin", "/admin/vacations", "/fsr", "/reporter"]) {
       expect(await landsOn(page, path), path).toBe("/unauthorized");
     }
   });
 });
 
-test.describe("CLIENT", () => {
-  test.use({ storageState: authFile("client") });
+test.describe("REPORTER", () => {
+  test.use({ storageState: authFile("reporter") });
 
   test("no tiene vacaciones: es la cuenta del centro, no una persona", async ({
     page,

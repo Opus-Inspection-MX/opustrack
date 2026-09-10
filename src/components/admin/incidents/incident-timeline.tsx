@@ -57,7 +57,7 @@ function eventPayload(
 
 /**
  * Read-only audit timeline (RF-219). Server Component, 50 events per page,
- * no mutations. Admin-only surface: FSR/CLIENT views stay out of scope.
+ * no mutations. Admin-only surface: FSR/REPORTER views stay out of scope.
  */
 export async function IncidentTimeline({
   incidentId,

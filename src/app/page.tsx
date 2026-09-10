@@ -88,7 +88,7 @@ export default function HomePage() {
               </Card>
             </Link>
 
-            <Link href="/client" className="group">
+            <Link href="/reporter" className="group">
               <Card className="border-2 hover:border-primary transition-all hover:shadow-lg h-full">
                 <CardContent className="pt-6 text-center space-y-3">
                   <div className="h-14 w-14 rounded-full bg-orange-500/10 flex items-center justify-center mx-auto group-hover:bg-orange-500/20 transition-colors">

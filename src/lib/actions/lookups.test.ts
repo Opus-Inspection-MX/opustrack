@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 /**
  * Delete guards for the ten lookup catalogs.
  *
- * These catalogs sit under everything else — states hold clientes, statuses
+ * These catalogs sit under everything else — states hold clients, statuses
  * drive the state machines, permissions define the RBAC. Soft-deleting one that
  * still has active children would leave those rows pointing at an inactive
  * parent, and nothing downstream re-validates that. The guard is the only thing
@@ -16,7 +16,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // over have to be created with vi.hoisted().
 const { prismaMock, requirePermission } = vi.hoisted(() => ({
   prismaMock: {
-    cliente: { count: vi.fn() },
+    client: { count: vi.fn() },
     user: { count: vi.fn() },
     incident: { count: vi.fn() },
     assignment: { count: vi.fn() },
@@ -66,7 +66,7 @@ const CATALOGS = [
   {
     action: "deleteState",
     permission: "states:delete",
-    child: "cliente",
+    child: "client",
     model: "state",
   },
   {

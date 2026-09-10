@@ -43,10 +43,10 @@ interface Schedule {
   description?: string | null;
   scheduledAt: Date;
   endDate?: Date | null;
-  clientes: Array<{
-    clienteId: string;
+  clients: Array<{
+    clientId: string;
     active: boolean;
-    cliente: { id: string; name: string; code: string };
+    client: { id: string; name: string; code: string };
   }>;
   incidents: ScheduleIncident[];
   active: boolean;
@@ -224,24 +224,24 @@ export default function ViewSchedulePage({
 
             <div>
               <p className="text-sm font-medium text-muted-foreground">
-                Clientes asignados
+                Clients asignados
               </p>
               <div className="flex flex-wrap gap-2 mt-1">
-                {schedule.clientes.filter((sv) => sv.active).length === 0 ? (
+                {schedule.clients.filter((sv) => sv.active).length === 0 ? (
                   <span className="text-sm text-muted-foreground">
-                    Sin Clientes
+                    Sin Clients
                   </span>
                 ) : (
-                  schedule.clientes
+                  schedule.clients
                     .filter((sv) => sv.active)
                     .map((sv) => (
                       <Badge
-                        key={sv.clienteId}
+                        key={sv.clientId}
                         variant="secondary"
                         className="gap-1"
                       >
                         <Building2 className="h-3 w-3" />
-                        {sv.cliente.code} — {sv.cliente.name}
+                        {sv.client.code} — {sv.client.name}
                       </Badge>
                     ))
                 )}

@@ -26,7 +26,7 @@ import {
   type ScheduleOption,
 } from "@/lib/reports/incident-program/types";
 
-interface ClienteOption {
+interface ClientOption {
   id: string;
   code: string;
   name: string;
@@ -45,7 +45,7 @@ interface Props {
   /** `YYYY-MM-DD`. */
   initialStartDate: string;
   initialEndDate: string;
-  clientes: ClienteOption[];
+  clients: ClientOption[];
   states: StateOption[];
 }
 
@@ -150,7 +150,7 @@ export function IncidentProgramClient({
   initialSchedules,
   initialStartDate,
   initialEndDate,
-  clientes,
+  clients,
   states,
 }: Props) {
   const [isPending, startTransition] = useTransition();
@@ -160,7 +160,7 @@ export function IncidentProgramClient({
   const [endDate, setEndDate] = useState(initialEndDate);
   // Empty array = no restriction ("todos los estados" / "todos los centros").
   const [stateIds, setStateIds] = useState<string[]>([]);
-  const [clienteIds, setClienteIds] = useState<string[]>([]);
+  const [clientIds, setClientIds] = useState<string[]>([]);
   // Empty set = no restriction ("todas las programaciones").
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isDownloading, setIsDownloading] = useState(false);
@@ -176,7 +176,7 @@ export function IncidentProgramClient({
 
   // The centro list follows the selected plazas, so the operator only sees
   // the centros that can appear in this report.
-  const clienteOptions: MultiSelectOption[] = clientes
+  const clientOptions: MultiSelectOption[] = clients
     .filter(
       (c) => stateIds.length === 0 || stateIds.includes(String(c.stateId)),
     )
@@ -186,13 +186,13 @@ export function IncidentProgramClient({
     startDate: string;
     endDate: string;
     stateIds: string[];
-    clienteIds: string[];
+    clientIds: string[];
     selectedIds: Set<string>;
   }) => ({
     startDate: next.startDate,
     endDate: next.endDate,
     stateIds: next.stateIds.length > 0 ? next.stateIds.map(Number) : undefined,
-    clienteIds: next.clienteIds.length > 0 ? next.clienteIds : undefined,
+    clientIds: next.clientIds.length > 0 ? next.clientIds : undefined,
     scheduleIds: next.selectedIds.size > 0 ? [...next.selectedIds] : undefined,
   });
 
@@ -223,7 +223,7 @@ export function IncidentProgramClient({
             startDate: filters.startDate,
             endDate: filters.endDate,
             stateIds: filters.stateIds,
-            clienteIds: filters.clienteIds,
+            clientIds: filters.clientIds,
           }),
           getIncidentProgramReport({ ...filters, scheduleIds: undefined }),
         ]);
@@ -240,7 +240,7 @@ export function IncidentProgramClient({
     startDate,
     endDate,
     stateIds,
-    clienteIds,
+    clientIds,
     selectedIds,
   };
 
@@ -271,24 +271,24 @@ export function IncidentProgramClient({
     setStateIds(value);
     // Centros from a plaza no longer selected would contradict the new
     // filter — drop them, keeping any that still belong to `value`.
-    const validClienteIds =
+    const validClientIds =
       value.length === 0
-        ? clienteIds
-        : clienteIds.filter((id) => {
-            const cliente = clientes.find((c) => c.id === id);
-            return cliente && value.includes(String(cliente.stateId));
+        ? clientIds
+        : clientIds.filter((id) => {
+            const client = clients.find((c) => c.id === id);
+            return client && value.includes(String(client.stateId));
           });
-    setClienteIds(validClienteIds);
+    setClientIds(validClientIds);
     reloadScope({
       ...currentScope,
       stateIds: value,
-      clienteIds: validClienteIds,
+      clientIds: validClientIds,
     });
   };
 
-  const handleClienteChange = (value: string[]) => {
-    setClienteIds(value);
-    reloadScope({ ...currentScope, clienteIds: value });
+  const handleClientChange = (value: string[]) => {
+    setClientIds(value);
+    reloadScope({ ...currentScope, clientIds: value });
   };
 
   const toggleSchedule = (id: string) => {
@@ -312,8 +312,8 @@ export function IncidentProgramClient({
     try {
       const params = new URLSearchParams({ startDate, endDate });
       if (stateIds.length > 0) params.set("stateIds", stateIds.join(","));
-      if (clienteIds.length > 0) {
-        params.set("clienteIds", clienteIds.join(","));
+      if (clientIds.length > 0) {
+        params.set("clientIds", clientIds.join(","));
       }
       if (selectedIds.size > 0) {
         params.set("scheduleIds", [...selectedIds].join(","));
@@ -422,11 +422,11 @@ export function IncidentProgramClient({
           />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="program-cliente">Centro</Label>
+          <Label htmlFor="program-client">Centro</Label>
           <MultiSelect
-            options={clienteOptions}
-            value={clienteIds}
-            onValueChange={handleClienteChange}
+            options={clientOptions}
+            value={clientIds}
+            onValueChange={handleClientChange}
             placeholder="Todos los centros"
             searchPlaceholder="Buscar centro..."
             emptyMessage="Sin centros"
@@ -492,8 +492,8 @@ export function IncidentProgramClient({
                       </span>
                       <span className="block truncate text-xs text-muted-foreground">
                         {scheduleDateLabel(option)}
-                        {option.clienteCodes.length > 0 &&
-                          ` · ${option.clienteCodes.join(", ")}`}
+                        {option.clientCodes.length > 0 &&
+                          ` · ${option.clientCodes.join(", ")}`}
                       </span>
                     </span>
                     <Badge variant="secondary">

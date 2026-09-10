@@ -5,17 +5,17 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
  *
  * Eleven aggregators, zero dedicated tests: every one of them builds its own
  * Prisma query, so a scope spread forgotten in any single one leaks another
- * Cliente's rows through the dashboard. The assertions here are not "does
+ * Client's rows through the dashboard. The assertions here are not "does
  * Prisma work" but the two rules that must hold for ALL of them:
  *
  * 1. Each aggregator requires `reports:view` before touching the database.
- * 2. Every query it issues carries the caller's Cliente scope — a scoped
- *    user only ever queries inside their own Clientes (fail closed: a user
+ * 2. Every query it issues carries the caller's Client scope — a scoped
+ *    user only ever queries inside their own Clients (fail closed: a user
  *    with no assignments matches nothing, never everything).
  */
 
-const { prismaMock, requirePermission, getUserClienteIds, userBox } =
-  vi.hoisted(() => {
+const { prismaMock, requirePermission, getUserClientIds, userBox } = vi.hoisted(
+  () => {
     const queryable = () => ({
       findMany: vi.fn(async (..._args: unknown[]): Promise<unknown> => []),
       findFirst: vi.fn(async (..._args: unknown[]): Promise<unknown> => null),
@@ -39,17 +39,18 @@ const { prismaMock, requirePermission, getUserClienteIds, userBox } =
         role: queryable(),
       },
       requirePermission: vi.fn(async (_name: string) => userBox.user),
-      getUserClienteIds: vi.fn(async (_userId: string) => [] as string[]),
+      getUserClientIds: vi.fn(async (_userId: string) => [] as string[]),
       // Swappable user: superuser by default; scope tests replace it.
       userBox: { user: { id: "admin", isSuperuser: true } as never },
     };
-  });
+  },
+);
 
 vi.mock("@/lib/database/prisma.singleton", () => ({ prisma: prismaMock }));
 vi.mock("@/lib/auth/auth", () => ({
   requirePermission: (name: string) => requirePermission(name),
 }));
-vi.mock("@/lib/utils/cliente-assignments", () => ({ getUserClienteIds }));
+vi.mock("@/lib/utils/client-assignments", () => ({ getUserClientIds }));
 
 import {
   getAssignmentAgingData,
@@ -81,7 +82,7 @@ const AGGREGATORS = {
 
 type Aggregator = (typeof AGGREGATORS)[keyof typeof AGGREGATORS];
 
-const SCOPED_CLIENTE = "c100000001";
+const SCOPED_CLIENT = "c100000001";
 /** The only FSR the mocked user list returns: every fan-out must stay on it. */
 const SCOPED_FSR = "fsr1";
 
@@ -91,19 +92,19 @@ function asScopedUser() {
     isSuperuser: false,
     permissions: new Set<string>(),
   } as never;
-  getUserClienteIds.mockResolvedValue([SCOPED_CLIENTE]);
+  getUserClientIds.mockResolvedValue([SCOPED_CLIENT]);
 }
 
 function asSuperuser() {
   userBox.user = { id: "admin", isSuperuser: true } as never;
-  getUserClienteIds.mockResolvedValue([]);
+  getUserClientIds.mockResolvedValue([]);
 }
 
 /** Every `where` handed to any tenant query in the last call. */
 function allWheres(): unknown[] {
   const wheres: unknown[] = [];
   for (const [modelName, model] of Object.entries(prismaMock)) {
-    // Roles are global seed rows with no Cliente concept — not a tenant
+    // Roles are global seed rows with no Client concept — not a tenant
     // boundary. Everything else must carry the caller's scope.
     if (modelName === "role") continue;
     for (const op of ["findMany", "findFirst", "count", "aggregate"] as const) {
@@ -129,7 +130,7 @@ beforeEach(() => {
   // scope assertions would pass vacuously. One user keeps them honest.
   // (They also bail early without the FSR role seed row.)
   // Mock fidelity: an empty scope matches no users, so the fan-out never
-  // fires for a Cliente-less caller — exactly the fail-closed behavior.
+  // fires for a Client-less caller — exactly the fail-closed behavior.
   prismaMock.user.findMany.mockImplementation(async (args: unknown) => {
     const raw = JSON.stringify((args as { where?: unknown })?.where ?? {});
     if (raw.includes('"in":[]')) return [];
@@ -162,16 +163,16 @@ describe.each(Object.entries(AGGREGATORS))("%s", (name, run) => {
       expect(
         JSON.stringify(where),
         `${name} FSR list escapes the scope`,
-      ).toContain(SCOPED_CLIENTE);
+      ).toContain(SCOPED_CLIENT);
     }
 
     for (const where of wheres) {
       const raw = JSON.stringify(where);
-      // Collection queries carry the Cliente scope directly. Per-FSR fan-out
+      // Collection queries carry the Client scope directly. Per-FSR fan-out
       // queries filter by a user drawn from the scoped list above — that
       // indirection is the documented boundary (spec 09: per-FSR aggregates
       // are computed over the FSR's rows, and the FSR set itself is scoped).
-      const scoped = raw.includes(SCOPED_CLIENTE);
+      const scoped = raw.includes(SCOPED_CLIENT);
       const fannedOut = raw.includes(SCOPED_FSR) && userWheres.length > 0;
       expect(
         scoped || fannedOut,
@@ -186,7 +187,7 @@ describe.each(Object.entries(AGGREGATORS))("%s", (name, run) => {
       isSuperuser: false,
       permissions: new Set<string>(),
     } as never;
-    getUserClienteIds.mockResolvedValue([]);
+    getUserClientIds.mockResolvedValue([]);
     await (run as Aggregator)().catch(() => {});
 
     const wheres = allWheres();

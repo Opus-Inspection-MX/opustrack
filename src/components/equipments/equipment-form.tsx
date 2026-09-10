@@ -23,9 +23,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { getClientesForSelect } from "@/lib/actions/clientes";
+import { getClientsForSelect } from "@/lib/actions/clients";
 import { createEquipment, updateEquipment } from "@/lib/actions/equipments";
-import { getLinesByClienteId } from "@/lib/actions/lines";
+import { getLinesByClientId } from "@/lib/actions/lines";
 
 interface EquipmentFormProps {
   equipment?: {
@@ -34,13 +34,13 @@ interface EquipmentFormProps {
     description?: string | null;
     lineId: number;
     line?: {
-      clienteId: string;
+      clientId: string;
     };
   };
   mode: "create" | "edit";
 }
 
-interface Cliente {
+interface Client {
   id: string;
   name: string;
   code: string;
@@ -55,7 +55,7 @@ export function EquipmentForm({ equipment, mode }: EquipmentFormProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [clientes, setClientes] = useState<Cliente[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
   const [lines, setLines] = useState<Line[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingLines, setLoadingLines] = useState(false);
@@ -63,14 +63,14 @@ export function EquipmentForm({ equipment, mode }: EquipmentFormProps) {
   const [formData, setFormData] = useState({
     name: equipment?.name || "",
     description: equipment?.description || "",
-    clienteId: equipment?.line?.clienteId || "",
+    clientId: equipment?.line?.clientId || "",
     lineId: equipment?.lineId?.toString() || "",
   });
 
-  const loadClientes = useCallback(async () => {
+  const loadClients = useCallback(async () => {
     try {
-      const data = await getClientesForSelect();
-      setClientes(data);
+      const data = await getClientsForSelect();
+      setClients(data);
     } catch (error) {
       console.error("Error loading Clientes:", error);
       setErrors({ general: "Error al cargar los Cliente" });
@@ -79,10 +79,10 @@ export function EquipmentForm({ equipment, mode }: EquipmentFormProps) {
     }
   }, []);
 
-  const loadLinesByCliente = useCallback(async (clienteId: string) => {
+  const loadLinesByClient = useCallback(async (clientId: string) => {
     setLoadingLines(true);
     try {
-      const data = await getLinesByClienteId(clienteId);
+      const data = await getLinesByClientId(clientId);
       setLines(data);
     } catch (error) {
       console.error("Error loading lines:", error);
@@ -93,20 +93,20 @@ export function EquipmentForm({ equipment, mode }: EquipmentFormProps) {
   }, []);
 
   useEffect(() => {
-    loadClientes();
-  }, [loadClientes]);
+    loadClients();
+  }, [loadClients]);
 
   useEffect(() => {
-    if (formData.clienteId) {
-      loadLinesByCliente(formData.clienteId);
+    if (formData.clientId) {
+      loadLinesByClient(formData.clientId);
     } else {
       setLines([]);
     }
-  }, [formData.clienteId, loadLinesByCliente]);
+  }, [formData.clientId, loadLinesByClient]);
 
   const handleChange = (field: string, value: string) => {
-    // If Cliente changes, reset line selection
-    if (field === "clienteId") {
+    // If Client changes, reset line selection
+    if (field === "clientId") {
       setFormData((prev) => ({ ...prev, [field]: value, lineId: "" }));
     } else {
       setFormData((prev) => ({ ...prev, [field]: value }));
@@ -124,8 +124,8 @@ export function EquipmentForm({ equipment, mode }: EquipmentFormProps) {
       newErrors.name = "El nombre es requerido";
     }
 
-    if (!formData.clienteId) {
-      newErrors.clienteId = "El Cliente es requerido";
+    if (!formData.clientId) {
+      newErrors.clientId = "El Cliente es requerido";
     }
 
     if (!formData.lineId) {
@@ -224,22 +224,22 @@ export function EquipmentForm({ equipment, mode }: EquipmentFormProps) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="clienteId">
-              Cliente <span className="text-red-500">*</span>
+            <Label htmlFor="clientId">
+              Client <span className="text-red-500">*</span>
             </Label>
             <SearchableSelect
-              options={clientes.map((cliente) => ({
-                value: cliente.id,
-                label: `${cliente.name} (${cliente.code})`,
+              options={clients.map((client) => ({
+                value: client.id,
+                label: `${client.name} (${client.code})`,
               }))}
-              value={formData.clienteId}
-              onValueChange={(value) => handleChange("clienteId", value)}
+              value={formData.clientId}
+              onValueChange={(value) => handleChange("clientId", value)}
               placeholder="Seleccionar Cliente"
               searchPlaceholder="Buscar Cliente..."
               emptyMessage="No se encontraron Cliente."
-              className={errors.clienteId ? "border-red-500" : ""}
+              className={errors.clientId ? "border-red-500" : ""}
             />
-            {errors.clienteId && <FormError message={errors.clienteId} />}
+            {errors.clientId && <FormError message={errors.clientId} />}
           </div>
 
           <div className="space-y-2">
@@ -249,12 +249,12 @@ export function EquipmentForm({ equipment, mode }: EquipmentFormProps) {
             <Select
               value={formData.lineId}
               onValueChange={(value) => handleChange("lineId", value)}
-              disabled={!formData.clienteId || loadingLines}
+              disabled={!formData.clientId || loadingLines}
             >
               <SelectTrigger className={errors.lineId ? "border-red-500" : ""}>
                 <SelectValue
                   placeholder={
-                    !formData.clienteId
+                    !formData.clientId
                       ? "Primero selecciona un Cliente"
                       : loadingLines
                         ? "Cargando líneas..."
@@ -263,7 +263,7 @@ export function EquipmentForm({ equipment, mode }: EquipmentFormProps) {
                 />
               </SelectTrigger>
               <SelectContent>
-                {lines.length === 0 && formData.clienteId && !loadingLines ? (
+                {lines.length === 0 && formData.clientId && !loadingLines ? (
                   <div className="px-2 py-1.5 text-sm text-muted-foreground">
                     No hay líneas disponibles para este Cliente
                   </div>

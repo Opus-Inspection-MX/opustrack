@@ -27,11 +27,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
 import { getEquipmentsByLineId } from "@/lib/actions/equipments";
 import { uploadIncidentAttachment } from "@/lib/actions/incident-attachments";
-import { createIncidentAsClient } from "@/lib/actions/incidents";
-import { getLinesByClienteId } from "@/lib/actions/lines";
+import { createIncidentAsReporter } from "@/lib/actions/incidents";
+import { getLinesByClientId } from "@/lib/actions/lines";
 import { getIncidentTypes } from "@/lib/actions/lookups";
 import { isFailure } from "@/lib/actions/result";
 import { getMyProfile } from "@/lib/actions/users";
+import { logger } from "@/lib/observability/logger";
 import { normalizeMimeType } from "@/lib/upload";
 
 interface IncidentType {
@@ -39,7 +40,7 @@ interface IncidentType {
   name: string;
 }
 
-interface Cliente {
+interface Client {
   id: string;
   name: string;
   code: string;
@@ -60,7 +61,7 @@ export default function ReportIncidentPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [incidentTypes, setIncidentTypes] = useState<IncidentType[]>([]);
-  const [userCliente, setUserCliente] = useState<Cliente | null>(null);
+  const [userClient, setUserClient] = useState<Client | null>(null);
   const [lines, setLines] = useState<Line[]>([]);
   const [equipments, setEquipments] = useState<Equipment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -85,19 +86,19 @@ export default function ReportIncidentPage() {
       ]);
 
       setIncidentTypes(types.data);
-      setUserCliente(profile?.cliente || null);
+      setUserClient(profile?.client || null);
 
-      if (!profile?.cliente) {
+      if (!profile?.client) {
         setErrors({
           general: "Debes tener un Cliente asignado para reportar incidentes",
         });
       } else {
-        // Load lines for the user's Cliente
-        const clienteLines = await getLinesByClienteId(profile.cliente.id);
-        setLines(clienteLines);
+        // Load lines for the user's Client
+        const clientLines = await getLinesByClientId(profile.client.id);
+        setLines(clientLines);
       }
     } catch (error) {
-      console.error("Error loading data:", error);
+      logger.error("Error loading data:", error);
       setErrors({ general: "Error al cargar los datos del formulario" });
     } finally {
       setLoading(false);
@@ -118,7 +119,7 @@ export default function ReportIncidentPage() {
           );
           setEquipments(lineEquipments);
         } catch (error) {
-          console.error("Error loading equipments:", error);
+          logger.error("Error loading equipments:", error);
         }
       } else {
         setEquipments([]);
@@ -150,7 +151,7 @@ export default function ReportIncidentPage() {
       newErrors.typeId = "El tipo de incidente es requerido";
     }
 
-    if (!userCliente) {
+    if (!userClient) {
       newErrors.general =
         "Debes tener un Cliente asignado para reportar incidentes";
     }
@@ -170,7 +171,7 @@ export default function ReportIncidentPage() {
     setErrors({});
 
     try {
-      const result = await createIncidentAsClient({
+      const result = await createIncidentAsReporter({
         title: formData.title,
         description: formData.description,
         reporterName: formData.reporterName || undefined,
@@ -225,12 +226,12 @@ export default function ReportIncidentPage() {
             );
           }
         }
-        router.push("/client");
+        router.push("/reporter");
       } else {
         throw new Error("Error al crear el incidente");
       }
     } catch (error) {
-      console.error("Error reporting incident:", error);
+      logger.error("Error reporting incident:", error);
       setErrors({
         general:
           error instanceof Error
@@ -253,7 +254,7 @@ export default function ReportIncidentPage() {
   return (
     <div className="container mx-auto p-4 md:p-6 space-y-6 max-w-4xl">
       <div className="flex items-center gap-4">
-        <BackButton fallback="/client" label="Volver" />
+        <BackButton fallback="/reporter" label="Volver" />
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 rounded-lg bg-orange-500/10 flex items-center justify-center">
             <AlertTriangle className="h-5 w-5 text-orange-500" />
@@ -270,7 +271,7 @@ export default function ReportIncidentPage() {
       </div>
 
       {/* Cliente Info Card */}
-      {userCliente && (
+      {userClient && (
         <Card className="bg-muted/30 border-primary/20">
           <CardContent className="py-4">
             <div className="flex items-center gap-3">
@@ -280,7 +281,7 @@ export default function ReportIncidentPage() {
                   Reportando para Cliente
                 </p>
                 <p className="font-medium">
-                  {userCliente.name} ({userCliente.code})
+                  {userClient.name} ({userClient.code})
                 </p>
               </div>
             </div>
@@ -311,7 +312,7 @@ export default function ReportIncidentPage() {
                 onChange={(e) => handleChange("title", e.target.value)}
                 placeholder="Breve descripción del problema"
                 className={errors.title ? "border-red-500" : ""}
-                disabled={!userCliente}
+                disabled={!userClient}
               />
               {errors.title && <FormError message={errors.title} />}
             </div>
@@ -326,7 +327,7 @@ export default function ReportIncidentPage() {
                 onChange={(e) => handleChange("reporterName", e.target.value)}
                 placeholder="Nombre de la persona que reporta"
                 maxLength={120}
-                disabled={!userCliente}
+                disabled={!userClient}
               />
               <p className="text-xs text-muted-foreground">
                 Esta cuenta es del centro. Escribe tu nombre para que el
@@ -346,7 +347,7 @@ export default function ReportIncidentPage() {
                 placeholder="Proporciona información detallada sobre el incidente..."
                 rows={5}
                 className={errors.description ? "border-red-500" : ""}
-                disabled={!userCliente}
+                disabled={!userClient}
               />
               {errors.description && <FormError message={errors.description} />}
             </div>
@@ -368,7 +369,7 @@ export default function ReportIncidentPage() {
               <Select
                 value={formData.typeId}
                 onValueChange={(value) => handleChange("typeId", value)}
-                disabled={!userCliente}
+                disabled={!userClient}
               >
                 <SelectTrigger
                   className={errors.typeId ? "border-red-500" : ""}
@@ -392,7 +393,7 @@ export default function ReportIncidentPage() {
               <Select
                 value={formData.lineId}
                 onValueChange={(value) => handleChange("lineId", value)}
-                disabled={!userCliente || lines.length === 0}
+                disabled={!userClient || lines.length === 0}
               >
                 <SelectTrigger>
                   <SelectValue
@@ -455,7 +456,7 @@ export default function ReportIncidentPage() {
             <div className="flex flex-col sm:flex-row gap-3 pt-4">
               <Button
                 type="submit"
-                disabled={isSubmitting || !userCliente}
+                disabled={isSubmitting || !userClient}
                 className="flex-1 sm:flex-initial"
               >
                 {isSubmitting && (
@@ -467,7 +468,7 @@ export default function ReportIncidentPage() {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => router.push("/client")}
+                onClick={() => router.push("/reporter")}
                 disabled={isSubmitting}
               >
                 Cancelar

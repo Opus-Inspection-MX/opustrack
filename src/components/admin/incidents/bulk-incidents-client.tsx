@@ -43,19 +43,19 @@ import {
 type Catalogs = {
   types: Array<{ id: number; name: string }>;
   statuses: Array<{ id: number; name: string; color: string }>;
-  clientes: Array<{ id: string; name: string; code: string }>;
+  clients: Array<{ id: string; name: string; code: string }>;
   schedules: Array<{
     id: string;
     title: string;
     scheduledAt: Date;
     endDate: Date | null;
-    clienteIds: string[];
+    clientIds: string[];
   }>;
   fsrs: Array<{
     id: string;
     name: string;
     email: string;
-    clienteIds: string[];
+    clientIds: string[];
   }>;
 };
 
@@ -64,7 +64,7 @@ const TEMPLATE_HEADERS = [
   "descripcion",
   "tipo",
   "fecha_inicio",
-  "cliente",
+  "client",
 ] as const;
 type TemplateHeader = (typeof TEMPLATE_HEADERS)[number];
 
@@ -74,7 +74,7 @@ const SNAPSHOT_HEADERS = [
   "description",
   "typeId",
   "statusId",
-  "clienteId",
+  "clientId",
   "scheduleId",
   "startedAt",
   "resolvedAt",
@@ -132,7 +132,7 @@ function cellToString(value: unknown): string {
 
 async function buildTemplateWorkbook(opts: {
   catalogs: Catalogs;
-  defaultClienteCode: string | null;
+  defaultClientCode: string | null;
 }): Promise<Blob> {
   const ExcelJS = (await import("exceljs")).default;
   const wb = new ExcelJS.Workbook();
@@ -148,7 +148,7 @@ async function buildTemplateWorkbook(opts: {
     descripcion: "descripcion",
     tipo: "tipo",
     fecha_inicio: "fecha_inicio",
-    cliente: "cliente",
+    client: "client",
   };
   ws.columns = TEMPLATE_HEADERS.map((h) => ({
     header: HEADER_LABELS[h],
@@ -183,14 +183,14 @@ async function buildTemplateWorkbook(opts: {
     // Built from UTC components so Excel displays 09:00 no matter which
     // timezone generated the template — see excelDateCell.
     fecha_inicio: excelDateCell(2026, 1, 15, 9, 0),
-    cliente: opts.defaultClienteCode ?? opts.catalogs.clientes[0]?.code ?? "",
+    client: opts.defaultClientCode ?? opts.catalogs.clients[0]?.code ?? "",
   });
 
   // Format the fecha_inicio column as date
   ws.getColumn("fecha_inicio").numFmt = "yyyy-mm-dd hh:mm";
 
   // Data validations apply to a fixed range of rows (header in row 1, data 2..501).
-  // Columns: A=titulo, B=descripcion, C=tipo, D=fecha_inicio, E=cliente
+  // Columns: A=titulo, B=descripcion, C=tipo, D=fecha_inicio, E=client
   const DATA_RANGE_END = 501;
   // Tipo dropdown (from Catálogos!$A$2:$A$N)
   const tipoEnd = 1 + opts.catalogs.types.length;
@@ -203,14 +203,14 @@ async function buildTemplateWorkbook(opts: {
       showErrorMessage: false, // soft: server falls back to "Desconocido"
     };
   }
-  // Cliente dropdown (from Catálogos!$C$2:$C$N)
-  const clienteEnd = 1 + opts.catalogs.clientes.length;
-  const clienteFormula = `=Catálogos!$C$2:$C$${Math.max(clienteEnd, 2)}`;
+  // Client dropdown (from Catálogos!$C$2:$C$N)
+  const clientEnd = 1 + opts.catalogs.clients.length;
+  const clientFormula = `=Catálogos!$C$2:$C$${Math.max(clientEnd, 2)}`;
   for (let r = 2; r <= DATA_RANGE_END; r++) {
     ws.getCell(`E${r}`).dataValidation = {
       type: "list",
       allowBlank: true,
-      formulae: [clienteFormula],
+      formulae: [clientFormula],
       showErrorMessage: true,
       errorTitle: "Cliente inválido",
       error: "Selecciona un código del catálogo.",
@@ -242,8 +242,8 @@ async function buildTemplateWorkbook(opts: {
       desc: "Celda de fecha: escríbela como fecha de Excel (el formato yyyy-mm-dd hh:mm ya viene aplicado) o como texto yyyy-mm-dd hh:mm. Si omites la hora se toma 00:00. Opcional: vacío = la incidencia se registra como abierta sin fecha de inicio.",
     },
     {
-      col: "cliente",
-      desc: 'Código del Centro de Verificación Vehicular (ver hoja "Catálogos"). Requerido para guardar.',
+      col: "client",
+      desc: 'Código del Centro de Verificación Vehicular (ver hoja "Catálogos"; columna "client", también se acepta "cliente"). Requerido para guardar.',
     },
   ]);
   instr.getColumn("desc").alignment = { wrapText: true, vertical: "top" };
@@ -253,19 +253,19 @@ async function buildTemplateWorkbook(opts: {
   cat.columns = [
     { header: "tipo", key: "tipo", width: 24 },
     { header: "", key: "sep1", width: 4 },
-    { header: "vic_codigo", key: "cliente", width: 14 },
-    { header: "vic_nombre", key: "clienteName", width: 36 },
+    { header: "vic_codigo", key: "client", width: 14 },
+    { header: "vic_nombre", key: "clientName", width: 36 },
   ];
   cat.getRow(1).font = { bold: true };
   const maxRows = Math.max(
     opts.catalogs.types.length,
-    opts.catalogs.clientes.length,
+    opts.catalogs.clients.length,
   );
   for (let i = 0; i < maxRows; i++) {
     cat.addRow({
       tipo: opts.catalogs.types[i]?.name ?? "",
-      cliente: opts.catalogs.clientes[i]?.code ?? "",
-      clienteName: opts.catalogs.clientes[i]?.name ?? "",
+      client: opts.catalogs.clients[i]?.code ?? "",
+      clientName: opts.catalogs.clients[i]?.name ?? "",
     });
   }
 
@@ -296,7 +296,7 @@ async function buildSnapshotWorkbook(
       description: r.description,
       typeId: r.typeId ?? "",
       statusId: r.resolvedAt ? statusIds.closed : statusIds.open,
-      clienteId: r.clienteId ?? "",
+      clientId: r.clientId ?? "",
       scheduleId: scheduleId ?? "",
       startedAt: r.startedAt ?? "",
       resolvedAt: r.resolvedAt ?? "",
@@ -317,7 +317,7 @@ type ParseExcelResult =
 
 /**
  * Read an .xlsx file and emit string-keyed row objects matching the canonical
- * header names ("titulo"/"cliente" for template, "title"/"clienteId" for snapshot).
+ * header names ("titulo"/"cliente" legacy or "client" for template, "title"/"clientId" for snapshot).
  * Tolerates preamble rows above the header and accent-insensitive headers.
  */
 async function parseExcelFile(file: File): Promise<ParseExcelResult> {
@@ -344,6 +344,8 @@ async function parseExcelFile(file: File): Promise<ParseExcelResult> {
   const TEMPLATE_SET = new Set<string>(
     TEMPLATE_HEADERS.map((h) => normalizeHeader(h)),
   );
+  // Legacy header accepted on ingest (generated templates use `client`).
+  const LEGACY_TEMPLATE_HEADERS = new Set<string>(["cliente"]);
   const SNAPSHOT_SET = new Set<string>(
     SNAPSHOT_HEADERS.map((h) => normalizeHeader(h)),
   );
@@ -363,6 +365,7 @@ async function parseExcelFile(file: File): Promise<ParseExcelResult> {
       const norm = normalizeHeader(cellToString(cell.value));
       if (!norm) return;
       if (TEMPLATE_SET.has(norm)) matchesTemplate[norm] = col;
+      else if (LEGACY_TEMPLATE_HEADERS.has(norm)) matchesTemplate[norm] = col;
       if (SNAPSHOT_SET.has(norm)) matchesSnapshot[norm] = col;
     });
     if (Object.keys(matchesTemplate).length >= 3) {
@@ -446,7 +449,7 @@ function CollapsibleCard({
 function rowIsValid(row: EditablePreviewRow): boolean {
   if (row.title.trim().length < 3) return false;
   if (row.description.trim().length < 1) return false;
-  if (!row.clienteId) return false;
+  if (!row.clientId) return false;
   // A non-empty type that didn't resolve must be fixed before saving.
   if (!row.typeResolved) return false;
   return true;
@@ -464,25 +467,25 @@ export function BulkIncidentsClient({ catalogs }: { catalogs: Catalogs }) {
   >(new Map());
   const [created, setCreated] = useState<number | null>(null);
   const [defaultFsrIds, setDefaultFsrIds] = useState<string[]>([]);
-  const [defaultClienteId, setDefaultClienteId] = useState<string>("");
+  const [defaultClientId, setDefaultClientId] = useState<string>("");
 
   const selectedSchedule = useMemo(
     () => catalogs.schedules.find((s) => s.id === scheduleId) ?? null,
     [catalogs.schedules, scheduleId],
   );
-  const scheduleClienteOptions = useMemo(() => {
+  const scheduleClientOptions = useMemo(() => {
     if (!selectedSchedule) return [];
-    const byId = new Map(catalogs.clientes.map((v) => [v.id, v] as const));
-    return selectedSchedule.clienteIds
+    const byId = new Map(catalogs.clients.map((v) => [v.id, v] as const));
+    return selectedSchedule.clientIds
       .map((id) => byId.get(id))
       .filter((v): v is { id: string; code: string; name: string } => !!v);
-  }, [selectedSchedule, catalogs.clientes]);
-  const defaultCliente = useMemo(
+  }, [selectedSchedule, catalogs.clients]);
+  const defaultClient = useMemo(
     () =>
-      defaultClienteId
-        ? (catalogs.clientes.find((v) => v.id === defaultClienteId) ?? null)
+      defaultClientId
+        ? (catalogs.clients.find((v) => v.id === defaultClientId) ?? null)
         : null,
-    [catalogs.clientes, defaultClienteId],
+    [catalogs.clients, defaultClientId],
   );
 
   // Resolve open/closed status IDs from catalog for snapshot generation.
@@ -498,15 +501,15 @@ export function BulkIncidentsClient({ catalogs }: { catalogs: Catalogs }) {
 
   const handleScheduleChange = (newId: string) => {
     setScheduleId(newId);
-    // Reset default Cliente since the new schedule may have a different Cliente set.
-    setDefaultClienteId("");
+    // Reset default Client since the new schedule may have a different Client set.
+    setDefaultClientId("");
   };
 
   const handleDownloadTemplate = async () => {
     try {
       const blob = await buildTemplateWorkbook({
         catalogs,
-        defaultClienteCode: defaultCliente?.code ?? null,
+        defaultClientCode: defaultClient?.code ?? null,
       });
       downloadBlob("incidentes-plantilla.xlsx", blob);
     } catch (err) {
@@ -560,19 +563,19 @@ export function BulkIncidentsClient({ catalogs }: { catalogs: Catalogs }) {
       setPreviewRows([]);
       return;
     }
-    // Seed defaults from the page-level controls: Cliente into rows without one,
+    // Seed defaults from the page-level controls: Client into rows without one,
     // FSRs into rows without any.
-    const defaultClienteCode = defaultClienteId
-      ? (catalogs.clientes.find((v) => v.id === defaultClienteId)?.code ?? null)
+    const defaultClientCode = defaultClientId
+      ? (catalogs.clients.find((v) => v.id === defaultClientId)?.code ?? null)
       : null;
     const seeded = result.rows.map((r) => {
       let next = r;
-      if (!r.clienteId && defaultClienteId) {
+      if (!r.clientId && defaultClientId) {
         next = {
           ...next,
-          clienteId: defaultClienteId,
-          clienteCodeRaw: r.clienteCodeRaw ?? defaultClienteCode,
-          clienteResolved: true,
+          clientId: defaultClientId,
+          clientCodeRaw: r.clientCodeRaw ?? defaultClientCode,
+          clientResolved: true,
         };
       }
       if (next.assigneeIds.length === 0 && defaultFsrIds.length > 0) {
@@ -674,22 +677,22 @@ export function BulkIncidentsClient({ catalogs }: { catalogs: Catalogs }) {
     [catalogs.types],
   );
 
-  const clienteOptions = useMemo(
+  const clientOptions = useMemo(
     () =>
-      catalogs.clientes.map((v) => ({
+      catalogs.clients.map((v) => ({
         value: v.id,
         label: `${v.code} — ${v.name}`,
       })),
-    [catalogs.clientes],
+    [catalogs.clients],
   );
 
-  const buildFsrOptions = (rowClienteId: string | null) =>
+  const buildFsrOptions = (rowClientId: string | null) =>
     catalogs.fsrs.map((f) => ({
       value: f.id,
       label: f.name,
       sublabel: f.email,
       badge:
-        rowClienteId && f.clienteIds.includes(rowClienteId)
+        rowClientId && f.clientIds.includes(rowClientId)
           ? "Cliente asignado"
           : undefined,
     }));
@@ -703,7 +706,7 @@ export function BulkIncidentsClient({ catalogs }: { catalogs: Catalogs }) {
         </CardHeader>
         <CardContent className="space-y-2">
           <p className="text-sm text-muted-foreground">
-            Asocia los incidentes a una programación (opcional). El Cliente
+            Asocia los incidentes a una programación (opcional). El Client
             asociado se preselecciona en la plantilla.
           </p>
           <SearchableSelect
@@ -714,10 +717,10 @@ export function BulkIncidentsClient({ catalogs }: { catalogs: Catalogs }) {
             searchPlaceholder="Buscar programación..."
             emptyMessage="Sin programaciones"
           />
-          {selectedSchedule && scheduleClienteOptions.length > 0 && (
+          {selectedSchedule && scheduleClientOptions.length > 0 && (
             <div className="pt-2 space-y-2 border-t">
               <p className="text-sm font-medium">
-                Cliente por defecto (opcional)
+                Client por defecto (opcional)
               </p>
               <p className="text-xs text-muted-foreground">
                 Se asigna a cada fila que llegue sin Cliente y se usa para la
@@ -727,13 +730,13 @@ export function BulkIncidentsClient({ catalogs }: { catalogs: Catalogs }) {
               <SearchableSelect
                 options={[
                   { value: "", label: "— Sin Cliente por defecto —" },
-                  ...scheduleClienteOptions.map((v) => ({
+                  ...scheduleClientOptions.map((v) => ({
                     value: v.id,
                     label: `${v.code} — ${v.name}`,
                   })),
                 ]}
-                value={defaultClienteId}
-                onValueChange={setDefaultClienteId}
+                value={defaultClientId}
+                onValueChange={setDefaultClientId}
                 placeholder="Elige Cliente por defecto"
                 searchPlaceholder="Buscar Cliente..."
                 emptyMessage="Sin Clientes en esta programación"
@@ -751,7 +754,7 @@ export function BulkIncidentsClient({ catalogs }: { catalogs: Catalogs }) {
             <div className="flex flex-col sm:flex-row gap-2">
               <div className="flex-1">
                 <MultiSelect
-                  options={buildFsrOptions(defaultClienteId || null)}
+                  options={buildFsrOptions(defaultClientId || null)}
                   value={defaultFsrIds}
                   onValueChange={setDefaultFsrIds}
                   placeholder="Selecciona FSRs"
@@ -781,9 +784,9 @@ export function BulkIncidentsClient({ catalogs }: { catalogs: Catalogs }) {
             La plantilla viene con tres hojas: <strong>Incidencias</strong>{" "}
             (encabezados y celdas con validación),{" "}
             <strong>Instrucciones</strong> (descripción de cada columna) y{" "}
-            <strong>Catálogos</strong> (tipos y Clientes válidos). Las columnas{" "}
+            <strong>Catálogos</strong> (tipos y Clients válidos). Las columnas{" "}
             <code className="text-xs">tipo</code> y{" "}
-            <code className="text-xs">cliente</code> son listas desplegables;{" "}
+            <code className="text-xs">client</code> son listas desplegables;{" "}
             <code className="text-xs">fecha_inicio</code> es una celda de fecha.
             Si dejas <code className="text-xs">tipo</code> vacío o no coincide,
             el sistema asigna <code className="text-xs">Desconocido</code>.
@@ -802,7 +805,7 @@ export function BulkIncidentsClient({ catalogs }: { catalogs: Catalogs }) {
           <p className="text-sm text-muted-foreground">
             Usa estas listas para llenar las columnas{" "}
             <code className="text-xs">tipo</code> y{" "}
-            <code className="text-xs">cliente</code> en tu archivo.
+            <code className="text-xs">client</code> en tu archivo.
           </p>
         </div>
 
@@ -828,17 +831,17 @@ export function BulkIncidentsClient({ catalogs }: { catalogs: Catalogs }) {
 
         <CollapsibleCard
           title="Clientes (Cliente)"
-          count={catalogs.clientes.length}
+          count={catalogs.clients.length}
         >
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Código (escribir en columna cliente)</TableHead>
+                <TableHead>Código (escribir en columna client)</TableHead>
                 <TableHead>Nombre</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {catalogs.clientes.map((v) => (
+              {catalogs.clients.map((v) => (
                 <TableRow key={v.id}>
                   <TableCell className="font-mono">{v.code}</TableCell>
                   <TableCell>{v.name}</TableCell>
@@ -1005,9 +1008,9 @@ export function BulkIncidentsClient({ catalogs }: { catalogs: Catalogs }) {
                             <Badge variant="default" className="bg-emerald-600">
                               OK
                             </Badge>
-                          ) : !row.clienteId ? (
+                          ) : !row.clientId ? (
                             <Badge variant="destructive">
-                              Cliente pendiente
+                              Client pendiente
                             </Badge>
                           ) : (
                             <Badge variant="destructive">Pendiente</Badge>
@@ -1083,19 +1086,19 @@ export function BulkIncidentsClient({ catalogs }: { catalogs: Catalogs }) {
                           </div>
                         </TableCell>
                         <TableCell className="align-top">
-                          {row.clienteCodeRaw && !row.clienteResolved && (
+                          {row.clientCodeRaw && !row.clientResolved && (
                             <div className="text-[10px] text-destructive mb-1">
-                              CSV: "{row.clienteCodeRaw}" (no encontrado)
+                              CSV: "{row.clientCodeRaw}" (no encontrado)
                             </div>
                           )}
                           <SearchableSelect
-                            options={clienteOptions}
-                            value={row.clienteId ?? ""}
+                            options={clientOptions}
+                            value={row.clientId ?? ""}
                             onValueChange={(v) =>
                               updateRow(row.rowNumber, {
-                                clienteId: v || null,
-                                clienteResolved: !!v,
-                                clienteCodeRaw: null,
+                                clientId: v || null,
+                                clientResolved: !!v,
+                                clientCodeRaw: null,
                               })
                             }
                             placeholder="Selecciona Cliente"
@@ -1104,7 +1107,7 @@ export function BulkIncidentsClient({ catalogs }: { catalogs: Catalogs }) {
                         </TableCell>
                         <TableCell className="align-top">
                           <MultiSelect
-                            options={buildFsrOptions(row.clienteId)}
+                            options={buildFsrOptions(row.clientId)}
                             value={row.assigneeIds}
                             onValueChange={(v) =>
                               updateRow(row.rowNumber, { assigneeIds: v })

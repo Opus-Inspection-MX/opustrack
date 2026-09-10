@@ -11,7 +11,7 @@ import { assertEphemeralDatabase } from "./fixtures/ephemeral-db";
  *
  * Two behaviours, decided per account:
  *
- * - **Missing** → created with the configured password, and given a Cliente
+ * - **Missing** → created with the configured password, and given a Client
  *   assignment when the role needs one.
  * - **Already there** → only reactivated if needed. Its password is NEVER
  *   rewritten, so running against a container seeded with real personnel
@@ -22,11 +22,11 @@ import { assertEphemeralDatabase } from "./fixtures/ephemeral-db";
 const prisma = new PrismaClient();
 
 /**
- * Roles whose flows are scoped to a Cliente. CLIENT cannot even open an
- * incident without one — `createIncidentAsClient` throws on a missing primary
- * Cliente — and FSR data is filtered by assignment.
+ * Roles whose flows are scoped to a Client. REPORTER cannot even open an
+ * incident without one — `createIncidentAsReporter` throws on a missing primary
+ * Client — and FSR data is filtered by assignment.
  */
-const NEEDS_CLIENTE = new Set(["CLIENT", "FSR"]);
+const NEEDS_CLIENT = new Set(["REPORTER", "FSR"]);
 
 setup("provision e2e accounts", async () => {
   // Defence in depth: playwright.config.ts already asserted this before the
@@ -42,9 +42,9 @@ setup("provision e2e accounts", async () => {
     throw new Error("UserStatus 'ACTIVO' no existe. Ejecuta `npm run e2e:up`.");
   }
 
-  // Any real Cliente works for the roles that need one; the seed always
+  // Any real Client works for the roles that need one; the seed always
   // creates several. `SIN-CENTRO` is a placeholder, so it is skipped.
-  const fallbackCliente = await prisma.cliente.findFirst({
+  const fallbackClient = await prisma.client.findFirst({
     where: { active: true, NOT: { code: "SIN-CENTRO" } },
     orderBy: { code: "asc" },
     select: { id: true },
@@ -91,7 +91,7 @@ setup("provision e2e accounts", async () => {
           data: { active: true, userStatusId: activeStatus.id },
         });
       }
-      await ensureCliente(existing.id, roleName, fallbackCliente?.id);
+      await ensureClient(existing.id, roleName, fallbackClient?.id);
       continue;
     }
 
@@ -107,36 +107,36 @@ setup("provision e2e accounts", async () => {
       select: { id: true },
     });
 
-    await ensureCliente(created.id, roleName, fallbackCliente?.id);
+    await ensureClient(created.id, roleName, fallbackClient?.id);
   }
 
   await prisma.$disconnect();
 });
 
-/** Give the account a primary Cliente when its role needs one and it has none. */
-async function ensureCliente(
+/** Give the account a primary Client when its role needs one and it has none. */
+async function ensureClient(
   userId: string,
   roleName: string,
-  fallbackClienteId: string | undefined,
+  fallbackClientId: string | undefined,
 ): Promise<void> {
-  if (!NEEDS_CLIENTE.has(roleName)) return;
+  if (!NEEDS_CLIENT.has(roleName)) return;
 
-  const already = await prisma.userClienteAssignment.findFirst({
+  const already = await prisma.userClientAssignment.findFirst({
     where: { userId, active: true },
     select: { id: true },
   });
   if (already) return;
 
-  if (!fallbackClienteId) {
+  if (!fallbackClientId) {
     throw new Error(
       `No hay ningún Cliente activo para asignar al rol ${roleName}. ` +
         "Ejecuta `npm run e2e:up`.",
     );
   }
 
-  await prisma.userClienteAssignment.upsert({
-    where: { userId_clienteId: { userId, clienteId: fallbackClienteId } },
+  await prisma.userClientAssignment.upsert({
+    where: { userId_clientId: { userId, clientId: fallbackClientId } },
     update: { isPrimary: true, active: true },
-    create: { userId, clienteId: fallbackClienteId, isPrimary: true },
+    create: { userId, clientId: fallbackClientId, isPrimary: true },
   });
 }

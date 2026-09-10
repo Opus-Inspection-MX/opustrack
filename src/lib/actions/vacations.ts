@@ -143,7 +143,7 @@ export async function getVacationById(id: string) {
  * have a request registered for them. Vacations belong to PEOPLE, so the rule
  * is by exclusion rather than by listing roles:
  *
- *   - CLIENT is the shared account of a verification centre, not a person.
+ *   - REPORTER is the shared account of a verification centre, not a person.
  *   - ROOT is the system superuser, an account rather than an employee.
  *
  * Anyone else — FSR, EMPLEADO, the module administrators — accrues days.
@@ -158,7 +158,7 @@ export async function getEmployeesForVacations() {
         userRoles: {
           some: {
             active: true,
-            role: { name: { in: ["CLIENT", "ROOT"] } },
+            role: { name: { in: ["REPORTER", "ROOT"] } },
           },
         },
       },

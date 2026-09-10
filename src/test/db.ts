@@ -62,8 +62,8 @@ export async function seedTestDatabase() {
       },
     });
 
-    // Create a test Cliente
-    const cliente = await prisma.cliente.upsert({
+    // Create a test Client
+    const client = await prisma.client.upsert({
       where: { id: "test-cliente-id" },
       update: {},
       create: {
@@ -100,13 +100,13 @@ export async function seedTestDatabase() {
       },
     });
 
-    const clientRole = await prisma.role.upsert({
-      where: { name: "CLIENT" },
+    const reporterRole = await prisma.role.upsert({
+      where: { name: "REPORTER" },
       update: {},
       create: {
-        name: "CLIENT",
-        description: "Client",
-        defaultPath: "/client",
+        name: "REPORTER",
+        description: "Reporter",
+        defaultPath: "/reporter",
       },
     });
 
@@ -146,36 +146,36 @@ export async function seedTestDatabase() {
       },
     });
 
-    const clientUser = await prisma.user.upsert({
-      where: { email: "test-client@test.com" },
+    const reporterUser = await prisma.user.upsert({
+      where: { email: "test-reporter@test.com" },
       update: {},
       create: {
-        email: "test-client@test.com",
-        name: "Test Client",
+        email: "test-reporter@test.com",
+        name: "Test Reporter",
         password:
           "$2a$10$K5JhHUMN.P5k.0HXpZbRs.Nq0QYpF5hU5rHJ3/XP5JhHUMN.P5k.0", // "password123"
-        userRoles: { create: [{ roleId: clientRole.id }] },
+        userRoles: { create: [{ roleId: reporterRole.id }] },
         userStatusId: activeStatus.id,
       },
     });
 
-    // Cliente membership lives only in the junction table: assign both test
-    // users to the test Cliente (primary), replacing the removed scalar.
-    for (const user of [fsrUser, clientUser]) {
-      await prisma.userClienteAssignment.upsert({
+    // Client membership lives only in the junction table: assign both test
+    // users to the test Client (primary), replacing the removed scalar.
+    for (const user of [fsrUser, reporterUser]) {
+      await prisma.userClientAssignment.upsert({
         where: {
-          userId_clienteId: { userId: user.id, clienteId: cliente.id },
+          userId_clientId: { userId: user.id, clientId: client.id },
         },
         update: { isPrimary: true, active: true },
         create: {
           userId: user.id,
-          clienteId: cliente.id,
+          clientId: client.id,
           isPrimary: true,
         },
       });
     }
 
-    return { cliente, adminRole, fsrRole, clientRole, activeStatus };
+    return { client, adminRole, fsrRole, reporterRole, activeStatus };
   } catch (error) {
     console.error("Failed to seed test database:", error);
     throw error;
@@ -205,7 +205,7 @@ export async function cleanupTestDatabase() {
     await prisma.role.deleteMany();
     await prisma.incidentType.deleteMany();
     await prisma.incidentStatus.deleteMany();
-    await prisma.cliente.deleteMany();
+    await prisma.client.deleteMany();
     await prisma.state.deleteMany();
     await prisma.userStatus.deleteMany();
   } catch (error) {

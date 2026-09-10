@@ -18,13 +18,13 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
 import {
-  type ClienteFormData,
-  createCliente,
-  updateCliente,
-} from "@/lib/actions/clientes";
+  type ClientFormData,
+  createClient,
+  updateClient,
+} from "@/lib/actions/clients";
 
-type ClienteFormProps = {
-  cliente?: {
+type ClientFormProps = {
+  client?: {
     id: string;
     code: string;
     name: string;
@@ -46,55 +46,55 @@ type ClienteFormProps = {
     id: string;
     name: string;
     email: string;
-    clienteIds: string[];
+    clientIds: string[];
   }>;
-  clientUsers: Array<{
+  reporterUsers: Array<{
     id: string;
     name: string;
     email: string;
-    clienteId: string | null;
+    clientId: string | null;
   }>;
 };
 
-export function ClienteForm({
-  cliente,
+export function ClientForm({
+  client,
   states,
   fsrUsers,
-  clientUsers,
-}: ClienteFormProps) {
+  reporterUsers,
+}: ClientFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
-  // Get currently assigned FSR IDs (FSRs that have this Cliente in their clienteIds array)
-  const assignedFSRIds = cliente
+  // Get currently assigned FSR IDs (FSRs that have this Client in their clientIds array)
+  const assignedFSRIds = client
     ? fsrUsers
-        .filter((fsr) => fsr.clienteIds.includes(cliente.id))
+        .filter((fsr) => fsr.clientIds.includes(client.id))
         .map((fsr) => fsr.id)
     : [];
 
-  // Get currently assigned CLIENT user IDs
-  const assignedClientIds = cliente
-    ? clientUsers
-        .filter((client) => client.clienteId === cliente.id)
-        .map((client) => client.id)
+  // Get currently assigned reporter user IDs
+  const assignedReporterIds = client
+    ? reporterUsers
+        .filter((reporter) => reporter.clientId === client.id)
+        .map((reporter) => reporter.id)
     : [];
 
   const [selectedFSRs, setSelectedFSRs] = useState<string[]>(assignedFSRIds);
-  const [selectedClients, setSelectedClients] =
-    useState<string[]>(assignedClientIds);
+  const [selectedReporters, setSelectedReporters] =
+    useState<string[]>(assignedReporterIds);
   const [fsrSearchQuery, setFsrSearchQuery] = useState("");
-  const [clientSearchQuery, setClientSearchQuery] = useState("");
+  const [reporterSearchQuery, setReporterSearchQuery] = useState("");
 
-  const [formData, setFormData] = useState<ClienteFormData>({
-    code: cliente?.code || "",
-    name: cliente?.name || "",
-    address: cliente?.address || "",
-    rfc: cliente?.rfc || "",
-    companyName: cliente?.companyName || "",
-    phone: cliente?.phone || "",
-    contact: cliente?.contact || "",
-    email: cliente?.email || "",
-    stateId: cliente?.stateId || states[0]?.id || 0,
+  const [formData, setFormData] = useState<ClientFormData>({
+    code: client?.code || "",
+    name: client?.name || "",
+    address: client?.address || "",
+    rfc: client?.rfc || "",
+    companyName: client?.companyName || "",
+    phone: client?.phone || "",
+    contact: client?.contact || "",
+    email: client?.email || "",
+    stateId: client?.stateId || states[0]?.id || 0,
   });
 
   // Filter FSRs based on search query
@@ -104,11 +104,11 @@ export function ClienteForm({
       fsr.email.toLowerCase().includes(fsrSearchQuery.toLowerCase()),
   );
 
-  // Filter CLIENTs based on search query
-  const filteredClients = clientUsers.filter(
-    (client) =>
-      client.name.toLowerCase().includes(clientSearchQuery.toLowerCase()) ||
-      client.email.toLowerCase().includes(clientSearchQuery.toLowerCase()),
+  // Filter reporters based on search query
+  const filteredReporters = reporterUsers.filter(
+    (reporter) =>
+      reporter.name.toLowerCase().includes(reporterSearchQuery.toLowerCase()) ||
+      reporter.email.toLowerCase().includes(reporterSearchQuery.toLowerCase()),
   );
 
   const toggleFSR = (fsrId: string) => {
@@ -123,16 +123,16 @@ export function ClienteForm({
     setSelectedFSRs((prev) => prev.filter((id) => id !== fsrId));
   };
 
-  const toggleClient = (clientId: string) => {
-    setSelectedClients((prev) =>
-      prev.includes(clientId)
-        ? prev.filter((id) => id !== clientId)
-        : [...prev, clientId],
+  const toggleReporter = (reporterId: string) => {
+    setSelectedReporters((prev) =>
+      prev.includes(reporterId)
+        ? prev.filter((id) => id !== reporterId)
+        : [...prev, reporterId],
     );
   };
 
-  const removeClient = (clientId: string) => {
-    setSelectedClients((prev) => prev.filter((id) => id !== clientId));
+  const removeReporter = (reporterId: string) => {
+    setSelectedReporters((prev) => prev.filter((id) => id !== reporterId));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -143,15 +143,15 @@ export function ClienteForm({
       const dataWithUsers = {
         ...formData,
         fsrIds: selectedFSRs,
-        clientIds: selectedClients,
+        reporterIds: selectedReporters,
       };
 
-      if (cliente) {
-        await updateCliente(cliente.id, dataWithUsers);
+      if (client) {
+        await updateClient(client.id, dataWithUsers);
       } else {
-        await createCliente(dataWithUsers);
+        await createClient(dataWithUsers);
       }
-      router.push("/admin/clientes");
+      router.push("/admin/clients");
       router.refresh();
     } catch (err) {
       toast.error((err as Error).message);
@@ -369,8 +369,8 @@ export function ClienteForm({
                 <div className="divide-y">
                   {filteredFSRs.map((fsr) => {
                     const isSelected = selectedFSRs.includes(fsr.id);
-                    const otherClientesCount = fsr.clienteIds.filter(
-                      (clienteId) => clienteId !== cliente?.id,
+                    const otherClientsCount = fsr.clientIds.filter(
+                      (clientId) => clientId !== client?.id,
                     ).length;
 
                     return (
@@ -385,10 +385,10 @@ export function ClienteForm({
                           <p className="text-xs text-muted-foreground">
                             {fsr.email}
                           </p>
-                          {otherClientesCount > 0 && (
+                          {otherClientsCount > 0 && (
                             <p className="text-xs text-blue-600 mt-1">
-                              Asignado a {otherClientesCount} otro
-                              {otherClientesCount > 1 ? "s" : ""} Cliente
+                              Asignado a {otherClientsCount} otro
+                              {otherClientsCount > 1 ? "s" : ""} Cliente
                             </p>
                           )}
                         </div>
@@ -418,24 +418,26 @@ export function ClienteForm({
           <CardTitle>Asignación de Usuarios Clientes</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Selected Clients */}
-          {selectedClients.length > 0 && (
+          {/* Selected reporters */}
+          {selectedReporters.length > 0 && (
             <div className="space-y-2">
-              <Label>Usuarios Asignados ({selectedClients.length})</Label>
+              <Label>Usuarios Asignados ({selectedReporters.length})</Label>
               <div className="flex flex-wrap gap-2">
-                {selectedClients.map((clientId) => {
-                  const client = clientUsers.find((c) => c.id === clientId);
-                  if (!client) return null;
+                {selectedReporters.map((reporterId) => {
+                  const reporter = reporterUsers.find(
+                    (c) => c.id === reporterId,
+                  );
+                  if (!reporter) return null;
                   return (
                     <Badge
-                      key={clientId}
+                      key={reporterId}
                       variant="secondary"
                       className="px-3 py-1 flex items-center gap-2"
                     >
-                      <span>{client.name}</span>
+                      <span>{reporter.name}</span>
                       <button
                         type="button"
-                        onClick={() => removeClient(clientId)}
+                        onClick={() => removeReporter(reporterId)}
                         className="hover:bg-destructive/20 rounded-full p-0.5"
                       >
                         <X className="h-3 w-3" />
@@ -449,48 +451,48 @@ export function ClienteForm({
 
           {/* Search input */}
           <div className="space-y-2">
-            <Label htmlFor="clientSearch">Buscar Usuarios</Label>
+            <Label htmlFor="reporterSearch">Buscar Usuarios</Label>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                id="clientSearch"
+                id="reporterSearch"
                 type="text"
-                value={clientSearchQuery}
-                onChange={(e) => setClientSearchQuery(e.target.value)}
+                value={reporterSearchQuery}
+                onChange={(e) => setReporterSearchQuery(e.target.value)}
                 placeholder="Buscar por nombre o correo..."
                 className="pl-10"
               />
             </div>
           </div>
 
-          {/* CLIENT List */}
+          {/* Reporter List */}
           <div className="space-y-2">
             <Label>Usuarios Disponibles</Label>
             <div className="border rounded-lg max-h-64 overflow-y-auto">
-              {filteredClients.length === 0 ? (
+              {filteredReporters.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-8">
-                  {clientSearchQuery
+                  {reporterSearchQuery
                     ? "No se encontraron usuarios"
                     : "No hay usuarios disponibles"}
                 </p>
               ) : (
                 <div className="divide-y">
-                  {filteredClients.map((client) => {
-                    const isSelected = selectedClients.includes(client.id);
+                  {filteredReporters.map((reporter) => {
+                    const isSelected = selectedReporters.includes(reporter.id);
                     const isAssignedToOther =
-                      client.clienteId && client.clienteId !== cliente?.id;
+                      reporter.clientId && reporter.clientId !== client?.id;
 
                     return (
                       <button
-                        key={client.id}
+                        key={reporter.id}
                         type="button"
-                        onClick={() => toggleClient(client.id)}
+                        onClick={() => toggleReporter(reporter.id)}
                         className="w-full px-4 py-3 flex items-center justify-between hover:bg-muted/50 transition-colors cursor-pointer"
                       >
                         <div className="flex-1 text-left">
-                          <p className="font-medium text-sm">{client.name}</p>
+                          <p className="font-medium text-sm">{reporter.name}</p>
                           <p className="text-xs text-muted-foreground">
-                            {client.email}
+                            {reporter.email}
                           </p>
                           {isAssignedToOther && (
                             <p className="text-xs text-blue-600 mt-1">
@@ -531,7 +533,7 @@ export function ClienteForm({
         <Button type="submit" disabled={loading}>
           {loading
             ? "Guardando..."
-            : cliente
+            : client
               ? "Actualizar Cliente"
               : "Crear Cliente"}
         </Button>

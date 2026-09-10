@@ -48,7 +48,7 @@ interface IncidentType {
 interface AssignmentIncident {
   id: number;
   title: string;
-  clienteId?: string | null;
+  clientId?: string | null;
   type?: IncidentType | null;
   status?: AssignmentStatus | null;
 }
@@ -87,7 +87,7 @@ interface User {
   id: string;
   name: string;
   email: string;
-  clienteIds?: string[];
+  clientIds?: string[];
 }
 
 export default function EditAssignmentPage({

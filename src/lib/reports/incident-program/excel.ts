@@ -28,7 +28,7 @@ const COLOR = {
   title: "FFBFBFBF",
   /** DIA / FECHA header rows. */
   header: "FFDCEAF7",
-  /** CENTRO cells holding a cliente code. */
+  /** CENTRO cells holding a client code. */
   centro: "FF92D050",
   /** CENTRO cells holding the FERIADO marker. */
   feriado: "FFFFFF00",

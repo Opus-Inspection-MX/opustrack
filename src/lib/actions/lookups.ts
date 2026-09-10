@@ -77,7 +77,7 @@ const states = createCatalogActions({
     const [rows, total] = await Promise.all([
       prisma.state.findMany({
         where,
-        include: { _count: { select: { clientes: true } } },
+        include: { _count: { select: { clients: true } } },
         orderBy: { name: "asc" },
         skip,
         take,
@@ -89,7 +89,7 @@ const states = createCatalogActions({
   runGetById: (id) =>
     prisma.state.findUnique({
       where: { id },
-      include: { clientes: { where: { active: true } } },
+      include: { clients: { where: { active: true } } },
     }),
   toCreateData: (v) => ({
     name: v.name as string,
@@ -111,7 +111,7 @@ const states = createCatalogActions({
   runDeactivate: (id) =>
     prisma.state.update({ where: { id }, data: { active: false } }),
   countChildren: (id) =>
-    prisma.cliente.count({ where: { stateId: id, active: true } }),
+    prisma.client.count({ where: { stateId: id, active: true } }),
   blockedMessage: (n) =>
     `No se puede eliminar: ${n} Cliente(s) pertenecen a este estado.`,
 });

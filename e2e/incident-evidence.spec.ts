@@ -12,7 +12,7 @@ import { fillFieldById } from "./fixtures/forms";
 /**
  * E2E coverage for RF-217 (incident evidence photos).
  *
- * The CLIENT stages a file on /client/new; after the incident is created the
+ * The REPORTER stages a file on /reporter/new; after the incident is created the
  * page uploads it as an IncidentAttachment. The detail view lists it.
  *
  * The uploaded file is a minimal PDF on purpose: AttachmentPreview renders
@@ -44,13 +44,13 @@ test.afterAll(async () => {
   await disconnectDb();
 });
 
-test.describe("CLIENT reporta con evidencia (RF-217)", () => {
-  test.use({ storageState: authFile("client") });
+test.describe("REPORTER reporta con evidencia (RF-217)", () => {
+  test.use({ storageState: authFile("reporter") });
 
   test("adjunta un archivo al reportar y queda como IncidentAttachment", async ({
     page,
   }, testInfo) => {
-    await page.goto("/client/new");
+    await page.goto("/reporter/new");
 
     await fillFieldById(page, "title", INCIDENT_TITLE);
     await fillFieldById(
@@ -71,7 +71,7 @@ test.describe("CLIENT reporta con evidencia (RF-217)", () => {
     await expect(page.getByText("Selected Files (1)")).toBeVisible();
 
     await page.getByRole("button", { name: "Enviar Reporte" }).click();
-    await page.waitForURL("**/client");
+    await page.waitForURL("**/reporter");
 
     const incident = await findIncidentByTitle(INCIDENT_TITLE);
     expect(incident, "el incidente debe existir").not.toBeNull();
@@ -89,7 +89,7 @@ test.describe("CLIENT reporta con evidencia (RF-217)", () => {
   test("la evidencia se ve en el detalle del incidente", async ({
     page,
   }, testInfo) => {
-    await page.goto(`/client/incidents/${incidentId}`);
+    await page.goto(`/reporter/incidents/${incidentId}`);
 
     await expect(page.getByText("Evidencia fotográfica (1)")).toBeVisible();
     await expect(page.getByText("evidencia-e2e.pdf")).toBeVisible();

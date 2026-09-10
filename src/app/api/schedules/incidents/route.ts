@@ -10,14 +10,14 @@ import { prisma } from "@/lib/database/prisma.singleton";
  * Query params:
  * - start: fecha de inicio (ISO string)
  * - end: fecha de fin (ISO string)
- * - clienteId: opcional, filtrar por Cliente específico
+ * - clientId: opcional, filtrar por Client específico
  */
 export const GET = withPermission("schedules:read", async (request, user) => {
   try {
     const { searchParams } = new URL(request.url);
     const startParam = searchParams.get("start");
     const endParam = searchParams.get("end");
-    const clienteIdParam = searchParams.get("clienteId");
+    const clientIdParam = searchParams.get("clientId");
 
     if (!startParam || !endParam) {
       return NextResponse.json(
@@ -60,20 +60,20 @@ export const GET = withPermission("schedules:read", async (request, user) => {
       ],
     };
 
-    // Tenant boundary (cross-cutting rule #4). A requested Cliente outside
+    // Tenant boundary (cross-cutting rule #4). A requested Client outside
     // the caller's scope is a 403, not an empty calendar.
     const scope = await getReportScope(user);
-    if (clienteIdParam) {
+    if (clientIdParam) {
       if (
-        scope.clienteIds !== null &&
-        !scope.clienteIds.includes(clienteIdParam)
+        scope.clientIds !== null &&
+        !scope.clientIds.includes(clientIdParam)
       ) {
         return NextResponse.json(
           { error: "Sin acceso al Cliente solicitado" },
           { status: 403 },
         );
       }
-      where.clienteId = clienteIdParam;
+      where.clientId = clientIdParam;
     } else {
       Object.assign(where, incidentScopeWhere(scope));
     }
@@ -119,7 +119,7 @@ export const GET = withPermission("schedules:read", async (request, user) => {
       include: {
         type: true,
         status: true,
-        cliente: {
+        client: {
           select: {
             id: true,
             code: true,

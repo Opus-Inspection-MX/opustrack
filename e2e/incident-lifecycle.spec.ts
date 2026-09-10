@@ -23,7 +23,7 @@ import {
 /**
  * E2E coverage for the business flow described in spec/00-overview.md:
  *
- *   Cliente reporta incidente
+ *   Client reporta incidente
  *     → Admin lo programa y crea la asignación
  *       → FSR da Visto, inicia en sitio, y cierra
  *         → el incidente se cierra AUTOMÁTICAMENTE
@@ -57,10 +57,10 @@ test.afterAll(async () => {
 // 1 · El CLIENTE reporta el incidente (RF-200, RF-465)
 // ---------------------------------------------------------------------------
 test.describe("1 · El cliente reporta el incidente", () => {
-  test.use({ storageState: authFile("client") });
+  test.use({ storageState: authFile("reporter") });
 
   test("crea el incidente y queda ABIERTO", async ({ page }, testInfo) => {
-    await page.goto("/client/new");
+    await page.goto("/reporter/new");
 
     await fillFieldById(page, "title", INCIDENT_TITLE);
     await fillFieldById(
@@ -75,8 +75,8 @@ test.describe("1 · El cliente reporta el incidente", () => {
 
     await page.getByRole("button", { name: "Enviar Reporte" }).click();
 
-    // On success the page navigates back to the client dashboard.
-    await page.waitForURL("**/client");
+    // On success the page navigates back to the reporter dashboard.
+    await page.waitForURL("**/reporter");
 
     const incident = await findIncidentByTitle(INCIDENT_TITLE);
     expect(incident, "el incidente debe existir").not.toBeNull();
@@ -85,8 +85,8 @@ test.describe("1 · El cliente reporta el incidente", () => {
     await evidence(page, testInfo, "incidente creado y en estado ABIERTO");
 
     expect(incident?.statusName).toBe("ABIERTO");
-    // A CLIENT always reports on behalf of its own Cliente.
-    expect(incident?.clienteId).not.toBeNull();
+    // A REPORTER always reports on behalf of its own Client.
+    expect(incident?.clientId).not.toBeNull();
     expect(incident?.reportedById).not.toBeNull();
   });
 
@@ -99,7 +99,7 @@ test.describe("1 · El cliente reporta el incidente", () => {
 
     // emit() always excludes the actor (notify-events.ts).
     await expectNoNotification({
-      userEmail: account("client").email,
+      userEmail: account("reporter").email,
       type: NOTIFICATION_TYPES.INCIDENT_CREATED,
       entityId: String(incidentId),
     });
@@ -128,11 +128,11 @@ test.describe("2 · El admin programa y asigna", () => {
 
     const schedule = await db().schedule.findFirst({
       where: { title: SCHEDULE_TITLE, active: true },
-      select: { id: true, clientes: { select: { clienteId: true } } },
+      select: { id: true, clients: { select: { clientId: true } } },
     });
 
     expect(schedule, "la programación debe existir").not.toBeNull();
-    expect(schedule?.clientes.length).toBeGreaterThan(0);
+    expect(schedule?.clients.length).toBeGreaterThan(0);
 
     // Link the incident to it — the programación screen does this through a
     // dialog that is covered by its own module; here we only need the relation
@@ -281,7 +281,7 @@ test.describe("3 · El FSR ejecuta el trabajo", () => {
     });
 
     await expectNotification({
-      userEmail: account("client").email,
+      userEmail: account("reporter").email,
       type: NOTIFICATION_TYPES.INCIDENT_CLOSED,
       entityId: String(incidentId),
     });

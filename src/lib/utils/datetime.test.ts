@@ -186,7 +186,7 @@ describe("timezoneForState", () => {
   });
 
   it("falls back when the state is missing entirely", () => {
-    // Incident.clienteId is nullable, so this path is reachable.
+    // Incident.clientId is nullable, so this path is reachable.
     expect(timezoneForState(null)).toBe(APP_TZ);
     expect(timezoneForState(undefined)).toBe(APP_TZ);
     expect(timezoneForState("")).toBe(APP_TZ);

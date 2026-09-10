@@ -19,14 +19,14 @@ model User {
   sessionVersion      Int                      @default(1) // Increment to invalidate all user sessions
   // A user holds MANY roles: someone can administer vacations, administer
   // operations, and still be an FSR who gets dispatched. There is deliberately
-  // no `roleId` scalar beside this. Cliente membership likewise lives ONLY in
-  // the `clienteAssignments` junction table: the deprecated `clienteId` /
+  // no `roleId` scalar beside this. Client membership likewise lives ONLY in
+  // the `clientAssignments` junction table: the deprecated `clienteId` /
   // `clienteIds` columns were removed (2.7) after every read path moved to
   // the junction. One source of truth.
   userRoles           UserRole[]
   userStatus          UserStatus               @relation(fields: [userStatusId], references: [id])
   userProfile         UserProfile?
-  clienteAssignments      UserClienteAssignment[] // Cliente assignments for this user
+  clientAssignments      UserClientAssignment[] // Client assignments for this user
   createdAt           DateTime                 @default(now())
   updatedAt           DateTime                 @updatedAt
   assignmentAssignees AssignmentAssignee[] // Assignments this user is assigned to (M-N)
@@ -45,21 +45,21 @@ model User {
   active              Boolean                  @default(true)
 }
 
-model UserClienteAssignment {
+model UserClientAssignment {
   id        String   @id @default(cuid())
   userId    String
-  clienteId     String
-  isPrimary Boolean  @default(false) // Primary Cliente for the user
+  clientId     String
+  isPrimary Boolean  @default(false) // Primary Client for the user
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   user User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  cliente  Cliente @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  client  Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, clienteId])
+  @@unique([userId, clientId])
   @@index([userId])
-  @@index([clienteId])
+  @@index([clientId])
 }
 
 /// Roles a user holds. A user with several roles gets the UNION of their
@@ -89,10 +89,10 @@ model Role {
   /// Bypasses every route and permission check. ROOT only.
   ///
   /// This replaced the hardcoded `role.name === "ADMINISTRADOR"` check. The old
-  /// name meant four different things at once — bypass, cross-Cliente data
+  /// name meant four different things at once — bypass, cross-Client data
   /// scope, ownership override, and notification audience — and only the first
   /// one belongs to a superuser. The other three are permissions now, so an
-  /// operations admin can see every Cliente without being able to grant roles.
+  /// operations admin can see every Client without being able to grant roles.
   isSuperuser Boolean @default(false)
   /// Higher wins when a multi-role user needs one landing page.
   priority    Int     @default(0)
@@ -152,11 +152,12 @@ model UserProfile {
   emergencyContact   String?
   jobPosition        String?
   user               User     @relation(fields: [userId], references: [id])
+  createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
   active             Boolean  @default(true)
 }
 
-model Cliente {
+model Client {
   id              String              @id @default(cuid())
   code            String              @unique
   name            String
@@ -170,8 +171,8 @@ model Cliente {
   state           State               @relation(fields: [stateId], references: [id])
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
-  userAssignments UserClienteAssignment[] // User assignments for this Cliente (sole membership source)
-  scheduleClientes    ScheduleCliente[]
+  userAssignments UserClientAssignment[] // User assignments for this Client (sole membership source)
+  scheduleClients    ScheduleClient[]
   incidents       Incident[]
   lines           Line[]
   active          Boolean             @default(true)
@@ -183,7 +184,7 @@ model State {
   code                     String                    @unique
   createdAt                DateTime                  @default(now())
   updatedAt                DateTime                  @updatedAt
-  clientes                 Cliente[]
+  clients                 Client[]
   active                   Boolean                   @default(true)
 }
 
@@ -195,7 +196,7 @@ model Schedule {
   endDate     DateTime? // Fecha de fin (opcional)
   statusId    Int? // Estado del schedule
   status      ScheduleStatus? @relation(fields: [statusId], references: [id])
-  clientes        ScheduleCliente[]
+  clients        ScheduleClient[]
   incidents   Incident[]
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
@@ -206,16 +207,16 @@ model Schedule {
   @@index([endDate])
 }
 
-model ScheduleCliente {
+model ScheduleClient {
   scheduleId String
-  clienteId      String
+  clientId      String
   schedule   Schedule                @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
-  cliente        Cliente @relation(fields: [clienteId], references: [id])
+  client        Client @relation(fields: [clientId], references: [id])
   active     Boolean                 @default(true)
   createdAt  DateTime                @default(now())
 
-  @@id([scheduleId, clienteId])
-  @@index([clienteId])
+  @@id([scheduleId, clientId])
+  @@index([clientId])
   @@index([scheduleId])
 }
 
@@ -290,8 +291,8 @@ model Incident {
   resolvedAt   DateTime?
   cancelledAt  DateTime?
   cancellationReason String?
-  clienteId        String?
-  cliente          Cliente? @relation(fields: [clienteId], references: [id])
+  clientId        String?
+  client          Client? @relation(fields: [clientId], references: [id])
   reportedById String?
   reportedBy   User?                    @relation("IncidentReporter", fields: [reportedById], references: [id])
   /// Free text: the actual person who raised it.
@@ -315,7 +316,7 @@ model Incident {
   updatedAt   DateTime           @updatedAt
   active      Boolean            @default(true)
 
-  @@index([clienteId])
+  @@index([clientId])
   @@index([statusId])
   @@index([typeId])
   @@index([reportedById])
@@ -501,16 +502,16 @@ model Line {
   id          Int                     @id @default(autoincrement())
   name        String
   description String?
-  clienteId       String
-  cliente         Cliente @relation(fields: [clienteId], references: [id])
+  clientId       String
+  client         Client @relation(fields: [clientId], references: [id])
   equipments  Equipment[]
   incidents   Incident[]
   createdAt   DateTime                @default(now())
   updatedAt   DateTime                @updatedAt
   active      Boolean                 @default(true)
 
-  @@unique([name, clienteId])
-  @@index([clienteId])
+  @@unique([name, clientId])
+  @@index([clientId])
 }
 
 model Equipment {

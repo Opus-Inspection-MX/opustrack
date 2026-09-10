@@ -82,7 +82,7 @@ export default async function EquipmentDetailPage({
               <div className="flex-1">
                 <p className="text-sm text-muted-foreground">Cliente</p>
                 <p className="font-medium">
-                  {equipment.line.cliente.name} ({equipment.line.cliente.code})
+                  {equipment.line.client.name} ({equipment.line.client.code})
                 </p>
               </div>
             </div>

@@ -232,8 +232,8 @@ export default async function FSRDashboardPage() {
                         {wo.incident?.title || "Sin incidente"}
                       </h3>
                       <div className="text-sm text-muted-foreground">
-                        {wo.incident?.cliente && (
-                          <span>Cliente: {wo.incident.cliente.name}</span>
+                        {wo.incident?.client && (
+                          <span>Client: {wo.incident.client.name}</span>
                         )}
                       </div>
                     </div>
@@ -288,10 +288,10 @@ export default async function FSRDashboardPage() {
                         {wo.incident?.title || "Sin incidente"}
                       </h3>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm text-muted-foreground">
-                        {wo.incident?.cliente && (
+                        {wo.incident?.client && (
                           <div>
                             <span className="font-medium">Cliente:</span>{" "}
-                            {wo.incident.cliente.name}
+                            {wo.incident.client.name}
                           </div>
                         )}
                         <div>

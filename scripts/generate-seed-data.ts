@@ -28,7 +28,7 @@ const CENTERS_XLSX = path.join(
   "ListaCentrosNumerosdeLineasPorEstado 15.06.2026.xlsx",
 );
 const USERS_CSV = path.join(DIR, "users.csv");
-const CLIENTES_CSV = path.join(DIR, "clientes.csv");
+const CLIENTS_CSV = path.join(DIR, "clientes.csv");
 const LEGACY_USERS_TXT = path.join(DIR, "users.txt");
 
 const EMAIL_DOMAIN = "opusinspection.com";
@@ -299,7 +299,7 @@ function buildStaff(workbook: ExcelJS.Workbook): StaffRow[] {
 // Centers
 // ---------------------------------------------------------------------------
 
-interface ClienteRow {
+interface ClientRow {
   state: string;
   code: string;
   razonSocial: string;
@@ -382,8 +382,8 @@ function mapCenterColumns(sheet: ExcelJS.Worksheet): CenterColumns {
   return columns;
 }
 
-function readCenters(workbook: ExcelJS.Workbook): ClienteRow[] {
-  const rows: ClienteRow[] = [];
+function readCenters(workbook: ExcelJS.Workbook): ClientRow[] {
+  const rows: ClientRow[] = [];
   const seenCodes = new Set<string>();
 
   for (const [sheetName, stateName] of Object.entries(SHEET_TO_STATE)) {
@@ -472,7 +472,7 @@ async function main(): Promise<void> {
   );
 
   fs.writeFileSync(
-    CLIENTES_CSV,
+    CLIENTS_CSV,
     toCsv(
       [
         "state",

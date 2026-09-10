@@ -51,9 +51,9 @@ const columns: CatalogColumn<UserRow>[] = [
   {
     header: "Cliente",
     cell: (row) =>
-      row.cliente ? (
+      row.client ? (
         <span className="text-sm">
-          {row.cliente.name} ({row.cliente.code})
+          {row.client.name} ({row.client.code})
         </span>
       ) : (
         <span className="text-sm text-muted-foreground">Sin asignar</span>

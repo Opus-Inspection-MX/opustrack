@@ -17,8 +17,8 @@ const { prismaMock, requirePermission } = vi.hoisted(() => {
   });
   return {
     prismaMock: {
-      cliente: model(),
-      userClienteAssignment: model(),
+      client: model(),
+      userClientAssignment: model(),
       line: model(),
       equipment: model(),
       incident: model(),
@@ -57,7 +57,7 @@ vi.mock("next/navigation", () => ({
   },
 }));
 
-import { deleteCliente } from "./clientes";
+import { deleteClient } from "./clients";
 import { deleteEquipment } from "./equipments";
 import { deleteHoliday } from "./holidays";
 import { deleteLine } from "./lines";
@@ -68,15 +68,15 @@ type Model = (typeof prismaMock)[keyof typeof prismaMock];
 
 /**
  * Catalogs that guard a child relation. `run` takes the id shape each action
- * expects (cuid for cliente, number for the rest).
+ * expects (cuid for client, number for the rest).
  */
 const GUARDED = [
   {
-    name: "deleteCliente",
-    permission: "clientes:delete",
-    run: () => deleteCliente("c1"),
-    child: () => prismaMock.userClienteAssignment,
-    parent: () => prismaMock.cliente,
+    name: "deleteClient",
+    permission: "clients:delete",
+    run: () => deleteClient("c1"),
+    child: () => prismaMock.userClientAssignment,
+    parent: () => prismaMock.client,
   },
   {
     name: "deleteLine",

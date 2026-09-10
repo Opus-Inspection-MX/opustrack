@@ -10,15 +10,15 @@
  *
  *   DIA                          L | M | Mi | J | V | S
  *   FECHA                        day-of-month numbers
- *   CENTRO                       cliente of the incident
+ *   CENTRO                       client of the incident
  *   RESPONSABLES MANTENIMIENTO   FSRs who attended maintenance incidents
  *   CALIBRACION FASE II          FSRs who attended phase-II calibration
  *   CAL. OPACIMETRO, GASES       FSRs who attended opacimeter/gas calibration
  *   RESPONSABLES INCIDENCIAS     FSRs who attended reactive (failure) incidents
  *   VACACIONES                   FSRs on approved vacation
  *
- * The CENTRO group repeats when incidents at more than one cliente fall on the
- * same day of a given week — each concurrent cliente occupies a "slot".
+ * The CENTRO group repeats when incidents at more than one client fall on the
+ * same day of a given week — each concurrent client occupies a "slot".
  */
 
 /** Column headers used by the source workbook (Monday → Saturday). */
@@ -73,10 +73,10 @@ export interface ProgramEntry {
   /** Calendar date in CDMX, `YYYY-MM-DD`. */
   date: string;
   /**
-   * Cliente code shown in the CENTRO row (e.g. `CVV24`). Null when unknown;
+   * Client code shown in the CENTRO row (e.g. `CVV24`). Null when unknown;
    * `INCIDENCIAS` entries ignore it — that row is a duty roster, not per centro.
    */
-  clienteCode: string | null;
+  clientCode: string | null;
   category: ProgramCategory;
   /** Display names of the FSRs who attended it. May be empty. */
   responsables: string[];
@@ -145,6 +145,6 @@ export interface ScheduleOption {
   endDate: string | null;
   /** Incidents this schedule contributes within the requested range. */
   incidentCount: number;
-  /** Cliente codes touched by the schedule, for context in the list. */
-  clienteCodes: string[];
+  /** Client codes touched by the schedule, for context in the list. */
+  clientCodes: string[];
 }

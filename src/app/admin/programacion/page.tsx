@@ -10,18 +10,18 @@ import { SelectScheduleDialog } from "@/components/programacion/select-schedule-
 import { Button } from "@/components/ui/button";
 import { currentWeekRange } from "@/lib/utils/datetime";
 
-interface ClienteOption {
+interface ClientOption {
   id: string;
   code: string;
   name: string;
 }
 
 export default function ProgramacionPage() {
-  const [clientes, setClientes] = useState<ClienteOption[]>([]);
+  const [clients, setClientes] = useState<ClientOption[]>([]);
 
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/clientes")
+    fetch("/api/clients")
       .then((r) => (r.ok ? r.json() : { data: [] }))
       .then((res) => {
         if (cancelled) return;
@@ -146,7 +146,7 @@ export default function ProgramacionPage() {
           <ScheduleCalendar
             dateRange={selectedDateRange}
             onDateRangeChange={setSelectedDateRange}
-            clientes={clientes}
+            clients={clients}
           />
         </div>
 

@@ -10,7 +10,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
  * uses margins no weekend or holiday can flip.
  */
 
-const { prismaMock, requirePermission, getUserClienteIds } = vi.hoisted(() => {
+const { prismaMock, requirePermission, getUserClientIds } = vi.hoisted(() => {
   const queryable = () => ({
     findMany: vi.fn(async (..._args: unknown[]): Promise<unknown> => []),
     findFirst: vi.fn(async (..._args: unknown[]): Promise<unknown> => null),
@@ -26,7 +26,7 @@ const { prismaMock, requirePermission, getUserClienteIds } = vi.hoisted(() => {
       id: "admin",
       isSuperuser: true,
     })),
-    getUserClienteIds: vi.fn(async (_userId: string) => [] as string[]),
+    getUserClientIds: vi.fn(async (_userId: string) => [] as string[]),
   };
 });
 
@@ -34,7 +34,7 @@ vi.mock("@/lib/database/prisma.singleton", () => ({ prisma: prismaMock }));
 vi.mock("@/lib/auth/auth", () => ({
   requirePermission: (name: string) => requirePermission(name),
 }));
-vi.mock("@/lib/utils/cliente-assignments", () => ({ getUserClienteIds }));
+vi.mock("@/lib/utils/client-assignments", () => ({ getUserClientIds }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
 import { getIncidentsForTracking } from "./tracking";

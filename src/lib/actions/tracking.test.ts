@@ -9,7 +9,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
  * assertions are on the arguments it receives.
  */
 
-const { prismaMock, requirePermission, getUserClienteIds } = vi.hoisted(() => ({
+const { prismaMock, requirePermission, getUserClientIds } = vi.hoisted(() => ({
   prismaMock: {
     incident: {
       findMany: vi.fn(),
@@ -52,7 +52,7 @@ const { prismaMock, requirePermission, getUserClienteIds } = vi.hoisted(() => ({
     id: "admin",
     isSuperuser: true,
   })),
-  getUserClienteIds: vi.fn(async (_userId: string) => [] as string[]),
+  getUserClientIds: vi.fn(async (_userId: string) => [] as string[]),
 }));
 
 const { syncIncidentState, notifyAssignmentAssigned } = vi.hoisted(() => ({
@@ -64,7 +64,7 @@ vi.mock("@/lib/database/prisma.singleton", () => ({ prisma: prismaMock }));
 vi.mock("@/lib/auth/auth", () => ({
   requirePermission: (name: string) => requirePermission(name),
 }));
-vi.mock("@/lib/utils/cliente-assignments", () => ({ getUserClienteIds }));
+vi.mock("@/lib/utils/client-assignments", () => ({ getUserClientIds }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/lib/state-machine/sync", () => ({ syncIncidentState }));
 vi.mock("@/lib/notifications/notify-events", () => ({
@@ -156,7 +156,7 @@ describe("getTrackingSignature", () => {
   });
 
   it("usa el mismo where que la consulta real, filtros incluidos", async () => {
-    await getIncidentsForTracking({ clienteId: "c1", folio: "AS-42" });
+    await getIncidentsForTracking({ clientId: "c1", folio: "AS-42" });
     const queryWhere = lastWhere();
 
     vi.clearAllMocks();
@@ -169,7 +169,7 @@ describe("getTrackingSignature", () => {
       _max: { updatedAt: null },
     });
 
-    await getTrackingSignature({ clienteId: "c1", folio: "AS-42" });
+    await getTrackingSignature({ clientId: "c1", folio: "AS-42" });
 
     expect(prismaMock.incident.aggregate.mock.calls[0][0].where).toEqual(
       queryWhere,
@@ -300,10 +300,10 @@ describe("getIncidentsForTracking · consulta (RF-513)", () => {
   });
 
   it("filtra por cliente, tipo y estado", async () => {
-    await getIncidentsForTracking({ clienteId: "c1", typeId: 3, statusId: 4 });
+    await getIncidentsForTracking({ clientId: "c1", typeId: 3, statusId: 4 });
 
     expect(lastWhere()).toMatchObject({
-      clienteId: "c1",
+      clientId: "c1",
       typeId: 3,
       statusId: 4,
     });
@@ -767,7 +767,7 @@ describe("updateAssignmentDetails (RF-517)", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Alcance por Cliente (regla transversal #4)
+// Alcance por Client (regla transversal #4)
 // ---------------------------------------------------------------------------
 describe("getIncidentsForTracking · alcance por Cliente", () => {
   const scopedUser = {
@@ -778,38 +778,38 @@ describe("getIncidentsForTracking · alcance por Cliente", () => {
 
   beforeEach(() => {
     requirePermission.mockResolvedValue(scopedUser);
-    getUserClienteIds.mockResolvedValue(["c1", "c2"]);
+    getUserClientIds.mockResolvedValue(["c1", "c2"]);
   });
 
   it("aplica el alcance multi-Cliente cuando no hay filtro explícito", async () => {
     await getIncidentsForTracking();
 
-    expect(lastWhere().clienteId).toEqual({ in: ["c1", "c2"] });
+    expect(lastWhere().clientId).toEqual({ in: ["c1", "c2"] });
   });
 
   it("respeta un filtro explícito dentro del alcance", async () => {
-    await getIncidentsForTracking({ clienteId: "c1" });
+    await getIncidentsForTracking({ clientId: "c1" });
 
-    expect(lastWhere().clienteId).toBe("c1");
+    expect(lastWhere().clientId).toBe("c1");
   });
 
   it("un filtro fuera del alcance no devuelve nada (fail closed)", async () => {
-    await getIncidentsForTracking({ clienteId: "c9" });
+    await getIncidentsForTracking({ clientId: "c9" });
 
-    expect(lastWhere().clienteId).toEqual({ in: [] });
+    expect(lastWhere().clientId).toEqual({ in: [] });
     expect(prismaMock.incident.findMany).toHaveBeenCalled();
   });
 
   it("un usuario sin Clientes no ve nada", async () => {
-    getUserClienteIds.mockResolvedValue([]);
+    getUserClientIds.mockResolvedValue([]);
 
     await getIncidentsForTracking();
 
-    expect(lastWhere().clienteId).toEqual({ in: [] });
+    expect(lastWhere().clientId).toEqual({ in: [] });
   });
 
   it("la firma cubre el mismo conjunto con alcance", async () => {
-    await getIncidentsForTracking({ clienteId: "c1" });
+    await getIncidentsForTracking({ clientId: "c1" });
     const queryWhere = lastWhere();
 
     vi.clearAllMocks();
@@ -822,7 +822,7 @@ describe("getIncidentsForTracking · alcance por Cliente", () => {
       _max: { updatedAt: null },
     });
 
-    await getTrackingSignature({ clienteId: "c1" });
+    await getTrackingSignature({ clientId: "c1" });
 
     expect(prismaMock.incident.aggregate.mock.calls[0][0].where).toEqual(
       queryWhere,

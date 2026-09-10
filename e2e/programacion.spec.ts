@@ -116,10 +116,10 @@ test("crea una programación con Cliente (RF-402)", async ({ page }) => {
   );
 
   await pickFromCombobox(page, {
-    trigger: selectByFieldId(page, "clienteId"),
+    trigger: selectByFieldId(page, "clientId"),
     searchPlaceholder: "Buscar Cliente...",
-    search: fixture.clienteCode,
-    option: `${fixture.clienteName} (${fixture.clienteCode})`,
+    search: fixture.clientCode,
+    option: `${fixture.clientName} (${fixture.clientCode})`,
   });
 
   // A range wide enough that an incident created "today" falls inside it.
@@ -139,22 +139,22 @@ test("crea una programación con Cliente (RF-402)", async ({ page }) => {
           select: {
             id: true,
             endDate: true,
-            clientes: {
+            clients: {
               where: { active: true },
-              select: { clienteId: true },
+              select: { clientId: true },
             },
           },
         });
         return schedule
           ? {
               hasEnd: schedule.endDate !== null,
-              clientes: schedule.clientes.map((c) => c.clienteId),
+              clients: schedule.clients.map((c) => c.clientId),
             }
           : null;
       },
       { timeout: 15_000 },
     )
-    .toEqual({ hasEnd: true, clientes: [fixture.clienteId] });
+    .toEqual({ hasEnd: true, clients: [fixture.clientId] });
 });
 
 test("la selecciona y ajusta el rango del calendario (RF-403)", async ({
@@ -192,12 +192,12 @@ test("crea un incidente dentro de la programación, con Centro (RF-407)", async 
   await selectByFieldId(page, "typeId").click();
   await page.getByRole("option").first().click();
 
-  // Centro is required: without it the incident is stored with clienteId null
+  // Centro is required: without it the incident is stored with clientId null
   // and the multi-tenant scoping hides it from every non-admin role.
-  await selectByFieldId(page, "clienteId").click();
+  await selectByFieldId(page, "clientId").click();
   await page
     .getByRole("option", {
-      name: `${fixture.clienteCode} — ${fixture.clienteName}`,
+      name: `${fixture.clientCode} — ${fixture.clientName}`,
       exact: true,
     })
     .click();
@@ -207,7 +207,7 @@ test("crea un incidente dentro de la programación, con Centro (RF-407)", async 
   await expect(modal).toBeHidden();
 
   const incident = await expectIncident(incidentTitle);
-  expect(incident.clienteId).toBe(fixture.clienteId);
+  expect(incident.clientId).toBe(fixture.clientId);
   expect(incident.scheduleId).not.toBeNull();
 
   const schedule = await db().schedule.findFirstOrThrow({
@@ -268,21 +268,21 @@ test("limpia la selección y vuelve al modo programación", async ({ page }) => 
 /** Poll until the incident created through the REST endpoint is visible. */
 async function expectIncident(title: string) {
   let found: {
-    clienteId: string | null;
+    clientId: string | null;
     scheduleId: string | null;
   } | null = null;
 
   await expect(async () => {
     found = await db().incident.findFirst({
       where: { title, active: true },
-      select: { clienteId: true, scheduleId: true },
+      select: { clientId: true, scheduleId: true },
       orderBy: { id: "desc" },
     });
     expect(found, `incidente "${title}"`).not.toBeNull();
   }).toPass({ timeout: 15_000 });
 
   return found as unknown as {
-    clienteId: string | null;
+    clientId: string | null;
     scheduleId: string | null;
   };
 }

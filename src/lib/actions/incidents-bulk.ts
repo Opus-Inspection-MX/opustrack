@@ -4,11 +4,11 @@ import type { Prisma } from "@prisma/client";
 import { IncidentEventType } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { requirePermission } from "@/lib/auth/auth";
-import { canAccessClienteAsync } from "@/lib/auth/filters";
+import { canAccessClientAsync } from "@/lib/auth/filters";
 import {
   getReportScope,
   scheduleScopeWhere,
-  scopeIncludesCliente,
+  scopeIncludesClient,
 } from "@/lib/auth/report-scope";
 import { whereHasRole } from "@/lib/authz/user-queries";
 import { prisma } from "@/lib/database/prisma.singleton";
@@ -36,7 +36,7 @@ import {
 
 /**
  * Catalogs needed to fill the bulk-incident CSV.
- * Filters by user's Cliente access (admin sees all).
+ * Filters by user's Client access (admin sees all).
  */
 export async function getBulkIncidentCatalogs() {
   const user = await requirePermission("incidents:create");
@@ -49,7 +49,7 @@ export async function getBulkIncidentCatalogs() {
     ...scheduleScopeWhere(scope),
   };
 
-  const [types, statuses, clientes, schedules, fsrs] = await Promise.all([
+  const [types, statuses, clients, schedules, fsrs] = await Promise.all([
     prisma.incidentType.findMany({
       where: { active: true },
       orderBy: { name: "asc" },
@@ -60,10 +60,10 @@ export async function getBulkIncidentCatalogs() {
       orderBy: { name: "asc" },
       select: { id: true, name: true, color: true },
     }),
-    prisma.cliente.findMany({
+    prisma.client.findMany({
       where: {
         active: true,
-        ...(scope.clienteIds === null ? {} : { id: { in: scope.clienteIds } }),
+        ...(scope.clientIds === null ? {} : { id: { in: scope.clientIds } }),
       },
       orderBy: { name: "asc" },
       select: { id: true, name: true, code: true },
@@ -77,9 +77,9 @@ export async function getBulkIncidentCatalogs() {
         title: true,
         scheduledAt: true,
         endDate: true,
-        clientes: {
+        clients: {
           where: { active: true },
-          select: { clienteId: true },
+          select: { clientId: true },
         },
       },
     }),
@@ -89,9 +89,9 @@ export async function getBulkIncidentCatalogs() {
         id: true,
         name: true,
         email: true,
-        clienteAssignments: {
+        clientAssignments: {
           where: { active: true },
-          select: { clienteId: true },
+          select: { clientId: true },
         },
       },
       orderBy: { name: "asc" },
@@ -102,22 +102,22 @@ export async function getBulkIncidentCatalogs() {
     id: f.id,
     name: f.name,
     email: f.email,
-    clienteIds: f.clienteAssignments.map((va) => va.clienteId),
+    clientIds: f.clientAssignments.map((va) => va.clientId),
   }));
 
-  const schedulesWithClienteIds = schedules.map((s) => ({
+  const schedulesWithClientIds = schedules.map((s) => ({
     id: s.id,
     title: s.title,
     scheduledAt: s.scheduledAt,
     endDate: s.endDate,
-    clienteIds: s.clientes.map((v) => v.clienteId),
+    clientIds: s.clients.map((v) => v.clientId),
   }));
 
   return {
     types,
     statuses,
-    clientes,
-    schedules: schedulesWithClienteIds,
+    clients,
+    schedules: schedulesWithClientIds,
     fsrs: fsrUsers,
   };
 }
@@ -145,9 +145,9 @@ export type EditablePreviewRow = {
   description: string;
   startedAt: string | null;
   resolvedAt: string | null;
-  clienteId: string | null;
-  clienteCodeRaw: string | null;
-  clienteResolved: boolean;
+  clientId: string | null;
+  clientCodeRaw: string | null;
+  clientResolved: boolean;
   typeId: number | null;
   typeNameRaw: string | null;
   typeResolved: boolean;
@@ -181,7 +181,7 @@ function toIsoOrNull(d: Date | undefined | null): string | null {
 
 /**
  * Validate + resolve raw CSV rows into editable preview rows.
- * Accepts either the legible "template" format (Spanish headers, cliente code, type name)
+ * Accepts either the legible "template" format (Spanish headers, client code, type name)
  * or the machine "snapshot" format (English headers, IDs). Does NOT write to DB.
  */
 export async function resolveBulkIncidentRows(
@@ -210,16 +210,16 @@ export async function resolveBulkIncidentRows(
   }
 
   // Validate schedule access early. Caller must have access to at least one
-  // of the schedule's Clientes.
+  // of the schedule's Clients.
   const scope = await getReportScope(user);
   if (scheduleId) {
     const sched = await prisma.schedule.findFirst({
       where: { id: scheduleId, active: true },
       select: {
         id: true,
-        clientes: {
+        clients: {
           where: { active: true },
-          select: { clienteId: true },
+          select: { clientId: true },
         },
       },
     });
@@ -234,8 +234,8 @@ export async function resolveBulkIncidentRows(
         ],
       };
     }
-    const accessible = sched.clientes.some((v) =>
-      scopeIncludesCliente(scope, v.clienteId),
+    const accessible = sched.clients.some((v) =>
+      scopeIncludesClient(scope, v.clientId),
     );
     if (!accessible) {
       return {
@@ -248,15 +248,15 @@ export async function resolveBulkIncidentRows(
   }
 
   // Catalogs for resolution.
-  const [allTypes, allClientes, allFsrs] = await Promise.all([
+  const [allTypes, allClients, allFsrs] = await Promise.all([
     prisma.incidentType.findMany({
       where: { active: true },
       select: { id: true, name: true },
     }),
-    prisma.cliente.findMany({
+    prisma.client.findMany({
       where: {
         active: true,
-        ...(scope.clienteIds === null ? {} : { id: { in: scope.clienteIds } }),
+        ...(scope.clientIds === null ? {} : { id: { in: scope.clientIds } }),
       },
       select: { id: true, code: true },
     }),
@@ -270,10 +270,10 @@ export async function resolveBulkIncidentRows(
     allTypes.map((t) => [normalizeForMatch(t.name), t.id] as const),
   );
   const typesById = new Map(allTypes.map((t) => [t.id, t.name] as const));
-  const clientesByCode = new Map(
-    allClientes.map((v) => [normalizeForMatch(v.code), v.id] as const),
+  const clientsByCode = new Map(
+    allClients.map((v) => [normalizeForMatch(v.code), v.id] as const),
   );
-  const clientesById = new Set(allClientes.map((v) => v.id));
+  const clientsById = new Set(allClients.map((v) => v.id));
   const validFsrIds = new Set(allFsrs.map((u) => u.id));
 
   const errors: BulkIncidentError[] = [];
@@ -298,7 +298,12 @@ export async function resolveBulkIncidentRows(
       const description = getStr("descripcion");
       const tipoRaw = getStr("tipo");
       const fechaInicioRaw = getStr("fecha_inicio");
-      const clienteRaw = getStr("cliente");
+      // Dual header: `client` (new) wins over legacy `cliente`. Both resolve
+      // accent/case-insensitively through clientsByCode.
+      const clientRawNew = getStr("client");
+      const clientRawLegacy = getStr("cliente");
+      const clientRaw = clientRawNew || clientRawLegacy;
+      const clientField = clientRawNew ? "client" : "cliente";
 
       // Skip rows that look completely empty (typical trailing rows in Excel).
       if (
@@ -306,7 +311,7 @@ export async function resolveBulkIncidentRows(
         description === "" &&
         tipoRaw === "" &&
         fechaInicioRaw === "" &&
-        clienteRaw === ""
+        clientRaw === ""
       ) {
         return;
       }
@@ -328,12 +333,13 @@ export async function resolveBulkIncidentRows(
         }
       }
 
-      const clienteCodeRaw = clienteRaw || null;
-      const clienteId = clienteCodeRaw
-        ? (clientesByCode.get(normalizeForMatch(clienteCodeRaw)) ?? null)
+      const clientCodeRaw = clientRaw || null;
+      const clientId = clientCodeRaw
+        ? (clientsByCode.get(normalizeForMatch(clientCodeRaw)) ?? null)
         : null;
-      if (clienteCodeRaw && !clienteId) {
-        fieldErrors.cliente = `Cliente "${clienteCodeRaw}" no encontrado — selecciona uno`;
+      if (clientCodeRaw && !clientId) {
+        fieldErrors[clientField] =
+          `Cliente "${clientCodeRaw}" no encontrado — selecciona uno`;
       }
 
       // tipo vacío es válido (fallback a "Desconocido"). Un tipo NO vacío que
@@ -354,9 +360,9 @@ export async function resolveBulkIncidentRows(
         description,
         startedAt: toIsoOrNull(startedAt),
         resolvedAt: null,
-        clienteId,
-        clienteCodeRaw,
-        clienteResolved: clienteId !== null,
+        clientId,
+        clientCodeRaw,
+        clientResolved: clientId !== null,
         typeId,
         typeNameRaw,
         typeResolved,
@@ -381,19 +387,19 @@ export async function resolveBulkIncidentRows(
     }
     const data = parsed.data;
     let rowOk = true;
-    const clienteId = data.clienteId ?? null;
-    if (!clienteId) {
+    const clientId = data.clientId ?? null;
+    if (!clientId) {
       errors.push({
         row: rowNumber,
-        field: "clienteId",
-        message: "clienteId requerido en snapshot",
+        field: "clientId",
+        message: "clientId requerido en snapshot",
       });
       rowOk = false;
-    } else if (!clientesById.has(clienteId)) {
+    } else if (!clientsById.has(clientId)) {
       errors.push({
         row: rowNumber,
-        field: "clienteId",
-        message: `Cliente ${clienteId} no existe o no accesible`,
+        field: "clientId",
+        message: `Cliente ${clientId} no existe o no accesible`,
       });
       rowOk = false;
     }
@@ -434,9 +440,9 @@ export async function resolveBulkIncidentRows(
         description: data.description,
         startedAt: toIsoOrNull(data.startedAt),
         resolvedAt: toIsoOrNull(data.resolvedAt),
-        clienteId,
-        clienteCodeRaw: null,
-        clienteResolved: true,
+        clientId,
+        clientCodeRaw: null,
+        clientResolved: true,
         typeId,
         typeNameRaw: null,
         typeResolved: true,
@@ -509,17 +515,17 @@ export async function createIncidentsFromPreview(
     };
   }
 
-  // Validate schedule + collect its Clientes for per-row cross-check.
+  // Validate schedule + collect its Clients for per-row cross-check.
   const scope = await getReportScope(user);
-  let scheduleClienteIds: Set<string> | null = null;
+  let scheduleClientIds: Set<string> | null = null;
   if (scheduleId) {
     const sched = await prisma.schedule.findFirst({
       where: { id: scheduleId, active: true },
       select: {
         id: true,
-        clientes: {
+        clients: {
           where: { active: true },
-          select: { clienteId: true },
+          select: { clientId: true },
         },
       },
     });
@@ -534,12 +540,12 @@ export async function createIncidentsFromPreview(
         ],
       };
     }
-    // A schedule without any active Clientes is considered global (no Cliente
+    // A schedule without any active Clients is considered global (no Client
     // restriction). Only check access when there is at least one Client linked.
-    const hasClientes = sched.clientes.length > 0;
+    const hasClients = sched.clients.length > 0;
     const accessible =
-      !hasClientes ||
-      sched.clientes.some((v) => scopeIncludesCliente(scope, v.clienteId));
+      !hasClients ||
+      sched.clients.some((v) => scopeIncludesClient(scope, v.clientId));
     if (!accessible) {
       return {
         ok: false,
@@ -548,14 +554,14 @@ export async function createIncidentsFromPreview(
         ],
       };
     }
-    scheduleClienteIds = hasClientes
-      ? new Set(sched.clientes.map((v) => v.clienteId))
+    scheduleClientIds = hasClients
+      ? new Set(sched.clients.map((v) => v.clientId))
       : null;
   }
 
   // Catalogs for re-validation.
-  const clienteIds = [
-    ...new Set(rows.map((r) => r.clienteId).filter((v): v is string => !!v)),
+  const clientIds = [
+    ...new Set(rows.map((r) => r.clientId).filter((v): v is string => !!v)),
   ];
   const typeIds = [
     ...new Set(
@@ -564,10 +570,10 @@ export async function createIncidentsFromPreview(
   ];
   const assigneeIds = [...new Set(rows.flatMap((r) => r.assigneeIds))];
 
-  const [clientesExisting, typesExisting, fsrsExisting] = await Promise.all([
-    clienteIds.length
-      ? prisma.cliente.findMany({
-          where: { id: { in: clienteIds }, active: true },
+  const [clientsExisting, typesExisting, fsrsExisting] = await Promise.all([
+    clientIds.length
+      ? prisma.client.findMany({
+          where: { id: { in: clientIds }, active: true },
           select: { id: true },
         })
       : Promise.resolve([]),
@@ -588,7 +594,7 @@ export async function createIncidentsFromPreview(
         })
       : Promise.resolve([]),
   ]);
-  const validClientes = new Set(clientesExisting.map((v) => v.id));
+  const validClients = new Set(clientsExisting.map((v) => v.id));
   const validTypes = new Set(typesExisting.map((t) => t.id));
   const validFsrs = new Set(fsrsExisting.map((u) => u.id));
 
@@ -608,28 +614,28 @@ export async function createIncidentsFromPreview(
         message: "Descripción es requerida",
       });
     }
-    if (!row.clienteId) {
+    if (!row.clientId) {
       errors.push({
         row: row.rowNumber,
-        field: "clienteId",
+        field: "clientId",
         message: "Selecciona un Cliente para esta fila",
       });
-    } else if (!validClientes.has(row.clienteId)) {
+    } else if (!validClients.has(row.clientId)) {
       errors.push({
         row: row.rowNumber,
-        field: "clienteId",
-        message: `Cliente ${row.clienteId} no existe o inactivo`,
+        field: "clientId",
+        message: `Cliente ${row.clientId} no existe o inactivo`,
       });
-    } else if (!scopeIncludesCliente(scope, row.clienteId)) {
+    } else if (!scopeIncludesClient(scope, row.clientId)) {
       errors.push({
         row: row.rowNumber,
-        field: "clienteId",
+        field: "clientId",
         message: "Sin acceso al Cliente seleccionado",
       });
-    } else if (scheduleClienteIds && !scheduleClienteIds.has(row.clienteId)) {
+    } else if (scheduleClientIds && !scheduleClientIds.has(row.clientId)) {
       errors.push({
         row: row.rowNumber,
-        field: "clienteId",
+        field: "clientId",
         message:
           "El Cliente de esta fila no está incluido en los Clientes de la programación seleccionada",
       });
@@ -687,7 +693,7 @@ export async function createIncidentsFromPreview(
           description: row.description.trim(),
           typeId: row.typeId ?? fallbackTypeId,
           statusId: row.resolvedAt ? closedStatus.id : openStatus.id,
-          clienteId: row.clienteId,
+          clientId: row.clientId,
           scheduleId,
           reportedById: user.id,
           startedAt: row.startedAt ? new Date(row.startedAt) : null,
@@ -742,7 +748,7 @@ export async function createIncidentsFromPreview(
   }
 
   revalidatePath("/admin/incidents");
-  revalidatePath("/client/incidents");
+  revalidatePath("/reporter/incidents");
   return { ok: true, created: rows.length };
 }
 
@@ -750,7 +756,7 @@ export type BulkAssignChanges = {
   /** undefined = no tocar; null = quitar la programación */
   scheduleId?: string | null;
   /** undefined = no tocar */
-  clienteId?: string;
+  clientId?: string;
   /** undefined = no tocar */
   fsrIds?: { ids: string[]; mode: "replace" | "append" };
 };
@@ -781,7 +787,7 @@ export async function bulkAssignIncidents(
   }
   if (
     changes.scheduleId === undefined &&
-    changes.clienteId === undefined &&
+    changes.clientId === undefined &&
     changes.fsrIds === undefined
   ) {
     return {
@@ -792,7 +798,7 @@ export async function bulkAssignIncidents(
 
   const incidents = await prisma.incident.findMany({
     where: { id: { in: incidentIds }, active: true },
-    select: { id: true, clienteId: true },
+    select: { id: true, clientId: true },
   });
   const found = new Set(incidents.map((i) => i.id));
   const errors: Array<{ incidentId: number; message: string }> = [];
@@ -803,9 +809,9 @@ export async function bulkAssignIncidents(
     }
   }
 
-  // Per-incident access check based on current Cliente.
+  // Per-incident access check based on current Client.
   for (const inc of incidents) {
-    if (!(await canAccessClienteAsync(user, inc.clienteId))) {
+    if (!(await canAccessClientAsync(user, inc.clientId))) {
       errors.push({
         incidentId: inc.id,
         message: "Sin acceso al Cliente actual del incidente",
@@ -813,21 +819,21 @@ export async function bulkAssignIncidents(
     }
   }
 
-  // Validate target Cliente (single value, applies to all selected).
-  if (changes.clienteId !== undefined) {
-    const targetCliente = await prisma.cliente.findFirst({
-      where: { id: changes.clienteId, active: true },
+  // Validate target Client (single value, applies to all selected).
+  if (changes.clientId !== undefined) {
+    const targetClient = await prisma.client.findFirst({
+      where: { id: changes.clientId, active: true },
       select: { id: true },
     });
-    if (!targetCliente) {
+    if (!targetClient) {
       return {
         ok: false,
         errors: [
-          { incidentId: 0, message: `Cliente ${changes.clienteId} no existe` },
+          { incidentId: 0, message: `Cliente ${changes.clientId} no existe` },
         ],
       };
     }
-    if (!(await canAccessClienteAsync(user, changes.clienteId))) {
+    if (!(await canAccessClientAsync(user, changes.clientId))) {
       return {
         ok: false,
         errors: [{ incidentId: 0, message: "Sin acceso al Cliente destino" }],
@@ -835,14 +841,14 @@ export async function bulkAssignIncidents(
     }
   }
 
-  // Validate target schedule and its Clientes.
-  let scheduleClienteIds: Set<string> | null = null;
+  // Validate target schedule and its Clients.
+  let scheduleClientIds: Set<string> | null = null;
   if (changes.scheduleId !== undefined && changes.scheduleId !== null) {
     const sched = await prisma.schedule.findFirst({
       where: { id: changes.scheduleId, active: true },
       select: {
         id: true,
-        clientes: { where: { active: true }, select: { clienteId: true } },
+        clients: { where: { active: true }, select: { clientId: true } },
       },
     });
     if (!sched) {
@@ -856,11 +862,11 @@ export async function bulkAssignIncidents(
         ],
       };
     }
-    // Global schedules (no active Clientes) impose no cliente restriction:
-    // keep scheduleClienteIds null so the truthy guard below skips the check.
-    scheduleClienteIds =
-      sched.clientes.length > 0
-        ? new Set(sched.clientes.map((v) => v.clienteId))
+    // Global schedules (no active Clients) impose no client restriction:
+    // keep scheduleClientIds null so the truthy guard below skips the check.
+    scheduleClientIds =
+      sched.clients.length > 0
+        ? new Set(sched.clients.map((v) => v.clientId))
         : null;
   }
 
@@ -884,13 +890,13 @@ export async function bulkAssignIncidents(
     }
   }
 
-  // Per-incident validation: schedule↔Cliente consistency.
+  // Per-incident validation: schedule↔Client consistency.
   for (const inc of incidents) {
-    const effectiveCliente = changes.clienteId ?? inc.clienteId;
+    const effectiveClient = changes.clientId ?? inc.clientId;
     if (
-      scheduleClienteIds &&
-      effectiveCliente &&
-      !scheduleClienteIds.has(effectiveCliente)
+      scheduleClientIds &&
+      effectiveClient &&
+      !scheduleClientIds.has(effectiveClient)
     ) {
       errors.push({
         incidentId: inc.id,
@@ -910,8 +916,8 @@ export async function bulkAssignIncidents(
     if (changes.scheduleId !== undefined) {
       updateData.scheduleId = changes.scheduleId;
     }
-    if (changes.clienteId !== undefined) {
-      updateData.clienteId = changes.clienteId;
+    if (changes.clientId !== undefined) {
+      updateData.clientId = changes.clientId;
     }
     if (Object.keys(updateData).length > 0) {
       await tx.incident.updateMany({

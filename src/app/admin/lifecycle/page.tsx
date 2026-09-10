@@ -125,8 +125,8 @@ export default async function LifecyclePage() {
           <p>
             <strong>Programación.</strong> Contenedor opcional con rango{" "}
             <code className="text-xs">scheduledAt → endDate</code> y uno o más
-            Clientes. Una incidencia ligada a una programación debe pertenecer a
-            uno de sus Clientes.
+            Clients. Una incidencia ligada a una programación debe pertenecer a
+            uno de sus Clients.
           </p>
           <p>
             <strong>Incidente.</strong> Su estado se <strong>deriva</strong> del

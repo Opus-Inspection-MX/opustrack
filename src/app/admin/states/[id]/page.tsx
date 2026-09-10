@@ -11,7 +11,7 @@ import { toast } from "@/hooks/use-toast";
 import { deleteState, getStateById } from "@/lib/actions/lookups";
 import { isFailure } from "@/lib/actions/result";
 
-interface ClienteCenter {
+interface ClientCenter {
   id: string;
   name: string;
   code: string;
@@ -26,7 +26,7 @@ interface State {
   name: string;
   code: string;
   active: boolean;
-  clientes: ClienteCenter[];
+  clients: ClientCenter[];
 }
 
 export default function StateDetailPage({
@@ -175,44 +175,44 @@ export default function StateDetailPage({
           </CardContent>
         </Card>
 
-        {/* Clientes in this State */}
-        {state.clientes && state.clientes.length > 0 && (
+        {/* Clients in this State */}
+        {state.clients && state.clients.length > 0 && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Building2 className="h-5 w-5" />
-                Centros de Inspección Vehicular ({state.clientes.length})
+                Centros de Inspección Vehicular ({state.clients.length})
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {state.clientes.map((cliente: ClienteCenter) => (
+                {state.clients.map((client: ClientCenter) => (
                   <button
                     type="button"
-                    key={cliente.id}
+                    key={client.id}
                     className="flex justify-between items-center w-full text-left p-4 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
-                    onClick={() => router.push(`/admin/clientes/${cliente.id}`)}
+                    onClick={() => router.push(`/admin/clients/${client.id}`)}
                   >
                     <div>
-                      <p className="font-medium">{cliente.name}</p>
+                      <p className="font-medium">{client.name}</p>
                       <p className="text-sm text-muted-foreground">
-                        Código: {cliente.code}
+                        Código: {client.code}
                       </p>
-                      {cliente.address && (
+                      {client.address && (
                         <p className="text-sm text-muted-foreground">
-                          {cliente.address}
+                          {client.address}
                         </p>
                       )}
                     </div>
                     <div className="text-right">
-                      {cliente.phone && (
+                      {client.phone && (
                         <p className="text-sm text-muted-foreground">
-                          {cliente.phone}
+                          {client.phone}
                         </p>
                       )}
-                      {cliente.lines && (
+                      {client.lines && (
                         <p className="text-sm font-medium">
-                          {cliente.lines} líneas
+                          {client.lines} líneas
                         </p>
                       )}
                     </div>
@@ -223,8 +223,8 @@ export default function StateDetailPage({
           </Card>
         )}
 
-        {/* No Clientes */}
-        {(!state.clientes || state.clientes.length === 0) && (
+        {/* No Clients */}
+        {(!state.clients || state.clients.length === 0) && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -239,9 +239,9 @@ export default function StateDetailPage({
               <Button
                 variant="link"
                 className="mt-2 p-0 h-auto"
-                onClick={() => router.push("/admin/clientes/new")}
+                onClick={() => router.push("/admin/clients/new")}
               >
-                Crear un nuevo centro Cliente
+                Crear un nuevo centro Client
               </Button>
             </CardContent>
           </Card>

@@ -79,7 +79,7 @@ export default async function LineDetailPage({ params }: LineDetailPageProps) {
               <div className="flex-1">
                 <p className="text-sm text-muted-foreground">Cliente</p>
                 <p className="font-medium">
-                  {line.cliente.name} ({line.cliente.code})
+                  {line.client.name} ({line.client.code})
                 </p>
               </div>
             </div>

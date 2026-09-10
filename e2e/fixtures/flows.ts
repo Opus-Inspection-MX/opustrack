@@ -11,9 +11,9 @@ import { db, uniqueSuffix } from "./db";
 
 export interface TrackingFixture {
   suffix: string;
-  clienteId: string;
-  clienteCode: string;
-  clienteName: string;
+  clientId: string;
+  clientCode: string;
+  clientName: string;
   incidentId: number;
   incidentTitle: string;
   assignmentId: string;
@@ -24,16 +24,16 @@ export interface TrackingFixture {
   enabledFsrEmail: string;
   /**
    * Active FSR who is neither enabled on the incident nor assigned to its
-   * Cliente — the subject of the auto-enablement rule.
+   * Client — the subject of the auto-enablement rule.
    */
   outsiderFsrId: string;
   outsiderFsrName: string;
   outsiderFsrEmail: string;
 }
 
-/** Any active Cliente that is not the placeholder. */
-async function pickCliente() {
-  return db().cliente.findFirstOrThrow({
+/** Any active Client that is not the placeholder. */
+async function pickClient() {
+  return db().client.findFirstOrThrow({
     where: { active: true, NOT: { code: "SIN-CENTRO" } },
     orderBy: { code: "asc" },
     select: { id: true, code: true, name: true },
@@ -62,15 +62,15 @@ async function pickTwoFsrs() {
  * An incident with one assignment, one enabled FSR and one outsider.
  *
  * The outsider is a real, active FSR who is neither enabled on the incident nor
- * assigned to its Cliente. That used to make him the subject of a rejection;
+ * assigned to its Client. That used to make him the subject of a rejection;
  * now he is the subject of RF-514's auto-enablement, and of the proof that the
- * Cliente link no longer filters the picker.
+ * Client link no longer filters the picker.
  */
 export async function createTrackingFixture(): Promise<TrackingFixture> {
   const prisma = db();
   const suffix = uniqueSuffix();
 
-  const cliente = await pickCliente();
+  const client = await pickClient();
   const [enabled, outsider] = await pickTwoFsrs();
 
   const type = await prisma.incidentType.findFirstOrThrow({
@@ -86,16 +86,16 @@ export async function createTrackingFixture(): Promise<TrackingFixture> {
     select: { id: true },
   });
 
-  // Only `enabled` covers this Cliente. The outsider is deliberately left
-  // unlinked: the picker must still offer him, because the Cliente link is a
+  // Only `enabled` covers this Client. The outsider is deliberately left
+  // unlinked: the picker must still offer him, because the Client link is a
   // hint the UI badges, not a filter it applies.
-  await prisma.userClienteAssignment.upsert({
-    where: { userId_clienteId: { userId: enabled.id, clienteId: cliente.id } },
+  await prisma.userClientAssignment.upsert({
+    where: { userId_clientId: { userId: enabled.id, clientId: client.id } },
     update: { active: true },
-    create: { userId: enabled.id, clienteId: cliente.id },
+    create: { userId: enabled.id, clientId: client.id },
   });
-  await prisma.userClienteAssignment.updateMany({
-    where: { userId: outsider.id, clienteId: cliente.id },
+  await prisma.userClientAssignment.updateMany({
+    where: { userId: outsider.id, clientId: client.id },
     data: { active: false },
   });
 
@@ -107,7 +107,7 @@ export async function createTrackingFixture(): Promise<TrackingFixture> {
       description: "Incidente preparado por la suite e2e de seguimiento.",
       typeId: type.id,
       statusId: incidentStatus.id,
-      clienteId: cliente.id,
+      clientId: client.id,
       // The outsider is deliberately left out so the auto-enablement path has
       // a subject that starts without the row.
       assignees: { create: [{ userId: enabled.id }] },
@@ -126,9 +126,9 @@ export async function createTrackingFixture(): Promise<TrackingFixture> {
 
   return {
     suffix,
-    clienteId: cliente.id,
-    clienteCode: cliente.code,
-    clienteName: cliente.name,
+    clientId: client.id,
+    clientCode: client.code,
+    clientName: client.name,
     incidentId: incident.id,
     incidentTitle,
     assignmentId: assignment.id,
@@ -144,14 +144,14 @@ export async function createTrackingFixture(): Promise<TrackingFixture> {
 
 export interface ScheduleFixture {
   suffix: string;
-  clienteId: string;
-  clienteCode: string;
-  clienteName: string;
+  clientId: string;
+  clientCode: string;
+  clientName: string;
 }
 
-/** A Cliente to attach a programación to. */
+/** A Client to attach a programación to. */
 export async function createScheduleFixture(): Promise<ScheduleFixture> {
-  const cliente = await db().cliente.findFirstOrThrow({
+  const client = await db().client.findFirstOrThrow({
     where: { active: true, NOT: { code: "SIN-CENTRO" } },
     orderBy: { code: "asc" },
     select: { id: true, code: true, name: true },
@@ -159,8 +159,8 @@ export async function createScheduleFixture(): Promise<ScheduleFixture> {
 
   return {
     suffix: uniqueSuffix(),
-    clienteId: cliente.id,
-    clienteCode: cliente.code,
-    clienteName: cliente.name,
+    clientId: client.id,
+    clientCode: client.code,
+    clientName: client.name,
   };
 }

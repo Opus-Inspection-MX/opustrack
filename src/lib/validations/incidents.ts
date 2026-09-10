@@ -15,7 +15,7 @@ export const IncidentCreateSchema = z.object({
   description: z.string().min(1, "Description is required"),
   typeId: intIdSchema.nullable().optional(),
   statusId: intIdSchema.nullable().optional(),
-  clienteId: cuidSchema.nullable().optional(),
+  clientId: cuidSchema.nullable().optional(),
   scheduleId: cuidSchema.nullable().optional(),
   reportedById: cuidSchema.nullable().optional(),
   reporterName: z
@@ -29,10 +29,10 @@ export const IncidentCreateSchema = z.object({
 });
 
 /**
- * Schema for creating an incident as a client.
+ * Schema for creating an incident as a reporter.
  * typeId optional → server falls back to "Desconocido".
  */
-export const IncidentClientCreateSchema = z.object({
+export const IncidentReporterCreateSchema = z.object({
   title: z
     .string()
     .min(3, "Title must be at least 3 characters")
@@ -107,7 +107,7 @@ export const BulkIncidentSnapshotRowSchema = z.object({
   description: z.string().min(1, "Descripción es requerida"),
   typeId: optionalIntFromCsv,
   statusId: optionalIntFromCsv,
-  clienteId: optionalStringFromCsv,
+  clientId: optionalStringFromCsv,
   scheduleId: optionalStringFromCsv,
   startedAt: optionalDateFromCsv,
   resolvedAt: optionalDateFromCsv,
@@ -120,7 +120,9 @@ export type BulkIncidentSnapshotRowInput = z.infer<
 
 /**
  * TEMPLATE row schema — human-readable plantilla the admin fills.
- * cliente = Cliente.code, tipo = IncidentType.name. scheduleId comes from the page-level selector.
+ * `client` (new, Client.code) wins over legacy `cliente`; both are accepted
+ * on ingest and resolve accent/case-insensitively. tipo = IncidentType.name.
+ * scheduleId comes from the page-level selector.
  */
 export const BulkIncidentTemplateRowSchema = z.object({
   titulo: z
@@ -130,6 +132,7 @@ export const BulkIncidentTemplateRowSchema = z.object({
   descripcion: z.string().min(1, "Descripción es requerida"),
   tipo: optionalStringFromCsv,
   fecha_inicio: optionalDateFromCsv,
+  client: optionalStringFromCsv,
   cliente: optionalStringFromCsv,
 });
 
@@ -147,8 +150,8 @@ export function parseAssigneeIds(raw?: string): string[] {
 
 // Type inference
 export type IncidentCreateInput = z.infer<typeof IncidentCreateSchema>;
-export type IncidentClientCreateInput = z.infer<
-  typeof IncidentClientCreateSchema
+export type IncidentReporterCreateInput = z.infer<
+  typeof IncidentReporterCreateSchema
 >;
 export type IncidentUpdateInput = z.infer<typeof IncidentUpdateSchema>;
 export type IncidentAssignInput = z.infer<typeof IncidentAssignSchema>;

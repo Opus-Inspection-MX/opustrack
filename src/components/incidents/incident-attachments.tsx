@@ -40,7 +40,7 @@ type IncidentAttachmentsProps = {
  *
  * Read list reuses the assignment AttachmentPreview (same contract, no new
  * design language). Managing (add/delete) doubles as the repair path for
- * reports whose uploads failed mid-flow on /client/new.
+ * reports whose uploads failed mid-flow on /reporter/new.
  */
 export function IncidentAttachments({
   incidentId,

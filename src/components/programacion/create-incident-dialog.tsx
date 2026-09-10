@@ -24,7 +24,7 @@ interface IncidentType {
   name: string;
 }
 
-interface ClienteOption {
+interface ClientOption {
   id: string;
   code: string;
   name: string;
@@ -50,14 +50,14 @@ export function CreateIncidentDialog({
 }: CreateIncidentDialogProps) {
   const router = useRouter();
   const [incidentTypes, setIncidentTypes] = useState<IncidentType[]>([]);
-  const [clientes, setClientes] = useState<ClienteOption[]>([]);
+  const [clients, setClientes] = useState<ClientOption[]>([]);
   const [loading, setLoading] = useState(false);
   const [dateRangeError, setDateRangeError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     title: "",
     description: "",
     typeId: "",
-    clienteId: "",
+    clientId: "",
     scheduledDate: "",
     scheduledTime: "09:00",
   });
@@ -66,7 +66,7 @@ export function CreateIncidentDialog({
     try {
       const [typesRes, clientesRes] = await Promise.all([
         fetch("/api/incident-types"),
-        fetch("/api/clientes"),
+        fetch("/api/clients"),
       ]);
 
       if (typesRes.ok) {
@@ -76,11 +76,11 @@ export function CreateIncidentDialog({
 
       if (clientesRes.ok) {
         const clientesData = await clientesRes.json();
-        const options: ClienteOption[] = clientesData.data || [];
+        const options: ClientOption[] = clientesData.data || [];
         setClientes(options);
         // Preselect when there is no choice to make.
         if (options.length === 1) {
-          setFormData((prev) => ({ ...prev, clienteId: options[0].id }));
+          setFormData((prev) => ({ ...prev, clientId: options[0].id }));
         }
       }
     } catch (error) {
@@ -175,7 +175,7 @@ export function CreateIncidentDialog({
       return;
     }
 
-    if (!formData.clienteId) {
+    if (!formData.clientId) {
       // Radix's Select does not participate in native form validation, so the
       // required marker alone would not stop the submit.
       setDateRangeError("Selecciona el centro al que pertenece el incidente.");
@@ -220,10 +220,10 @@ export function CreateIncidentDialog({
           title: formData.title,
           description: formData.description,
           typeId: parseInt(formData.typeId, 10),
-          // Without this the incident is stored with clienteId: null, which the
-          // multi-tenant scoping then hides from FSR, CLIENT and GUEST — the
+          // Without this the incident is stored with clientId: null, which the
+          // multi-tenant scoping then hides from FSR, REPORTER and GUEST — the
           // incident exists but nobody at a centre can see it.
-          clienteId: formData.clienteId,
+          clientId: formData.clientId,
           scheduleId: scheduleId,
         }),
       });
@@ -237,7 +237,7 @@ export function CreateIncidentDialog({
         title: "",
         description: "",
         typeId: "",
-        clienteId: "",
+        clientId: "",
         scheduledDate: "",
         scheduledTime: "09:00",
       });
@@ -362,22 +362,22 @@ export function CreateIncidentDialog({
           </Select>
         </div>
 
-        {/* Cliente — required: an incident without one is invisible to every
+        {/* Client — required: an incident without one is invisible to every
             non-admin role because of the multi-tenant scoping. */}
         <div className="space-y-2">
-          <Label htmlFor="clienteId">
+          <Label htmlFor="clientId">
             Centro <span className="text-destructive">*</span>
           </Label>
           {/* Searchable: there are over a hundred centres, and scrolling a
               plain list to find one by code is not a way to work. */}
           <SearchableSelect
-            options={clientes.map((cliente) => ({
-              value: cliente.id,
-              label: `${cliente.code} — ${cliente.name}`,
+            options={clients.map((client) => ({
+              value: client.id,
+              label: `${client.code} — ${client.name}`,
             }))}
-            value={formData.clienteId}
+            value={formData.clientId}
             onValueChange={(value) =>
-              setFormData({ ...formData, clienteId: value })
+              setFormData({ ...formData, clientId: value })
             }
             placeholder="Selecciona centro"
             searchPlaceholder="Buscar por código o nombre..."

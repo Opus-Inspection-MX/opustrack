@@ -7,20 +7,20 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
  * the Server Actions, so the scope rules must hold here independently:
  *
  * - GET without a filter queries inside the caller's scope (fail closed).
- * - GET with an out-of-scope `clienteId` is a 403, not an empty list that
+ * - GET with an out-of-scope `clientId` is a 403, not an empty list that
  *   hides the denial.
- * - POST cannot file an incident under a Cliente outside the caller's scope
- *   (the form only offers in-scope Clientes, but the endpoint must not
+ * - POST cannot file an incident under a Client outside the caller's scope
+ *   (the form only offers in-scope Clients, but the endpoint must not
  *   trust that) — this was an open hole: POST scoped nothing.
  */
 
-const { prismaMock, getUserClienteIds, userBox } = vi.hoisted(() => ({
+const { prismaMock, getUserClientIds, userBox } = vi.hoisted(() => ({
   prismaMock: {
     incident: { findMany: vi.fn(), create: vi.fn() },
     incidentType: { findUnique: vi.fn() },
     incidentStatus: { findUnique: vi.fn() },
   },
-  getUserClienteIds: vi.fn(async (_userId: string) => [] as string[]),
+  getUserClientIds: vi.fn(async (_userId: string) => [] as string[]),
   // Swappable user: superuser by default; scope tests replace it.
   userBox: { user: { id: "admin", isSuperuser: true } as never },
 }));
@@ -32,7 +32,7 @@ vi.mock("@/lib/auth/auth", () => ({
     (req: Request) =>
       handler(req, userBox.user),
 }));
-vi.mock("@/lib/utils/cliente-assignments", () => ({ getUserClienteIds }));
+vi.mock("@/lib/utils/client-assignments", () => ({ getUserClientIds }));
 
 import { GET, POST } from "./route";
 
@@ -44,12 +44,12 @@ function asScopedUser() {
     isSuperuser: false,
     permissions: new Set<string>(),
   } as never;
-  getUserClienteIds.mockResolvedValue([SCOPED]);
+  getUserClientIds.mockResolvedValue([SCOPED]);
 }
 
 function asSuperuser() {
   userBox.user = { id: "admin", isSuperuser: true } as never;
-  getUserClienteIds.mockResolvedValue([]);
+  getUserClientIds.mockResolvedValue([]);
 }
 
 const lastWhere = () =>
@@ -66,7 +66,7 @@ const postJson = (body: unknown) =>
 const validBody = (overrides = {}) => ({
   title: "Falla",
   description: "Se cayó la red",
-  clienteId: SCOPED,
+  clientId: SCOPED,
   ...overrides,
 });
 
@@ -88,14 +88,14 @@ describe("GET /api/incidents · alcance por Cliente", () => {
 
     await GET(new Request("http://localhost/api/incidents"));
 
-    expect(lastWhere().clienteId).toEqual({ in: [SCOPED] });
+    expect(lastWhere().clientId).toEqual({ in: [SCOPED] });
   });
 
   it("un filtro fuera del alcance es 403, no una lista vacía", async () => {
     asScopedUser();
 
     const response = await GET(
-      new Request("http://localhost/api/incidents?clienteId=c9"),
+      new Request("http://localhost/api/incidents?clientId=c9"),
     );
 
     expect(response.status).toBe(403);
@@ -111,11 +111,11 @@ describe("GET /api/incidents · alcance por Cliente", () => {
       isSuperuser: false,
       permissions: new Set<string>(),
     } as never;
-    getUserClienteIds.mockResolvedValue([]);
+    getUserClientIds.mockResolvedValue([]);
 
     await GET(new Request("http://localhost/api/incidents"));
 
-    expect(lastWhere().clienteId).toEqual({ in: [] });
+    expect(lastWhere().clientId).toEqual({ in: [] });
   });
 });
 
@@ -123,7 +123,7 @@ describe("POST /api/incidents · alcance por Cliente", () => {
   it("rechaza un Cliente fuera del alcance con 403 y no escribe", async () => {
     asScopedUser();
 
-    const response = await postJson(validBody({ clienteId: "c9" }));
+    const response = await postJson(validBody({ clientId: "c9" }));
 
     expect(response.status).toBe(403);
     await expect(response.json()).resolves.toMatchObject({
@@ -140,13 +140,13 @@ describe("POST /api/incidents · alcance por Cliente", () => {
     expect(response.status).toBe(200);
     expect(prismaMock.incident.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ clienteId: SCOPED }),
+        data: expect.objectContaining({ clientId: SCOPED }),
       }),
     );
   });
 
   it("un superusuario conserva acceso total", async () => {
-    const response = await postJson(validBody({ clienteId: "c9" }));
+    const response = await postJson(validBody({ clientId: "c9" }));
 
     expect(response.status).toBe(200);
     expect(prismaMock.incident.create).toHaveBeenCalled();

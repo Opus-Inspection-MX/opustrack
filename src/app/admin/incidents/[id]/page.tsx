@@ -58,7 +58,7 @@ export default async function IncidentDetailPage({
     1,
     Number.parseInt((await searchParams)?.historial ?? "1", 10) || 1,
   );
-  // RF-217: same create-OR-update gate as the attachment actions — CLIENT
+  // RF-217: same create-OR-update gate as the attachment actions — REPORTER
   // reporters hold create, operators hold update.
   const [canCreate, canUpdate] = await Promise.all([
     canPerform("incidents:create"),
@@ -157,8 +157,8 @@ export default async function IncidentDetailPage({
               <div>
                 <p className="text-sm text-muted-foreground">Cliente</p>
                 <p className="font-medium">
-                  {incident.cliente
-                    ? `${incident.cliente.name} (${incident.cliente.code})`
+                  {incident.client
+                    ? `${incident.client.name} (${incident.client.code})`
                     : "Sin asignar"}
                 </p>
               </div>
@@ -186,7 +186,7 @@ export default async function IncidentDetailPage({
                 <p className="font-medium">
                   {formatIncidentDateTime(
                     incident.reportedAt,
-                    incident.cliente?.state?.code,
+                    incident.client?.state?.code,
                   )}
                 </p>
               </div>
@@ -202,7 +202,7 @@ export default async function IncidentDetailPage({
                   <p className="font-medium">
                     {formatIncidentDateTime(
                       incident.startedAt,
-                      incident.cliente?.state?.code,
+                      incident.client?.state?.code,
                     )}
                   </p>
                 </div>
@@ -219,7 +219,7 @@ export default async function IncidentDetailPage({
                   <p className="font-medium">
                     {formatIncidentDateTime(
                       incident.resolvedAt,
-                      incident.cliente?.state?.code,
+                      incident.client?.state?.code,
                     )}
                   </p>
                 </div>

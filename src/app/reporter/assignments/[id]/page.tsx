@@ -23,12 +23,12 @@ import { requireRouteAccess } from "@/lib/auth/auth";
 import { getFileUrl } from "@/lib/storage/file-storage";
 import { formatMX } from "@/lib/utils/datetime";
 
-export default async function ClientAssignmentDetailPage({
+export default async function ReporterAssignmentDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await requireRouteAccess("/client");
+  await requireRouteAccess("/reporter");
   const { id } = await params;
 
   const assignment = await getAssignmentById(id);
@@ -71,8 +71,8 @@ export default async function ClientAssignmentDetailPage({
         <BackButton
           fallback={
             assignment.incident
-              ? `/client/incidents/${assignment.incident.id}`
-              : "/client"
+              ? `/reporter/incidents/${assignment.incident.id}`
+              : "/reporter"
           }
           label="Volver"
         />

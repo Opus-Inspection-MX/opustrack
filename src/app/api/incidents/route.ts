@@ -19,7 +19,7 @@ export const POST = withPermission(
         title,
         description,
         typeId,
-        clienteId,
+        clientId,
         scheduleId,
         lineId,
         equipmentId,
@@ -65,14 +65,11 @@ export const POST = withPermission(
       }
 
       // Tenant boundary, same as GET: a caller cannot file an incident under
-      // a Cliente outside their scope (the form only offers in-scope
-      // Clientes, but the endpoint must not trust that).
-      if (clienteId) {
+      // a Client outside their scope (the form only offers in-scope
+      // Clients, but the endpoint must not trust that).
+      if (clientId) {
         const scope = await getReportScope(user);
-        if (
-          scope.clienteIds !== null &&
-          !scope.clienteIds.includes(clienteId)
-        ) {
+        if (scope.clientIds !== null && !scope.clientIds.includes(clientId)) {
           return NextResponse.json(
             { error: "Sin acceso al Cliente solicitado" },
             { status: 403 },
@@ -87,7 +84,7 @@ export const POST = withPermission(
           description,
           typeId: resolvedTypeId,
           statusId: initialStatus.id,
-          clienteId: clienteId || null,
+          clientId: clientId || null,
           scheduleId: scheduleId || null,
           lineId: lineId ? parseInt(lineId, 10) : null,
           equipmentId: equipmentId ? parseInt(equipmentId, 10) : null,
@@ -96,7 +93,7 @@ export const POST = withPermission(
         include: {
           type: true,
           status: true,
-          cliente: {
+          client: {
             select: {
               id: true,
               name: true,
@@ -142,24 +139,24 @@ export const POST = withPermission(
 export const GET = withPermission("incidents:read", async (request, user) => {
   try {
     const { searchParams } = new URL(request.url);
-    const clienteId = searchParams.get("clienteId");
+    const clientId = searchParams.get("clientId");
 
     const where: Prisma.IncidentWhereInput = {
       active: true,
     };
 
-    // Tenant boundary (cross-cutting rule #4). A requested Cliente outside
+    // Tenant boundary (cross-cutting rule #4). A requested Client outside
     // the caller's scope is rejected instead of silently returning rows the
     // caller must never see — or an empty list that hides the denial.
     const scope = await getReportScope(user);
-    if (clienteId) {
-      if (scope.clienteIds !== null && !scope.clienteIds.includes(clienteId)) {
+    if (clientId) {
+      if (scope.clientIds !== null && !scope.clientIds.includes(clientId)) {
         return NextResponse.json(
           { error: "Sin acceso al Cliente solicitado" },
           { status: 403 },
         );
       }
-      where.clienteId = clienteId;
+      where.clientId = clientId;
     } else {
       Object.assign(where, incidentScopeWhere(scope));
     }
@@ -169,7 +166,7 @@ export const GET = withPermission("incidents:read", async (request, user) => {
       include: {
         type: true,
         status: true,
-        cliente: {
+        client: {
           select: {
             id: true,
             name: true,

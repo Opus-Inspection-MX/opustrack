@@ -17,11 +17,11 @@ import { toast } from "@/hooks/use-toast";
 import { isFailure } from "@/lib/actions/result";
 import {
   createSchedule,
-  getClientesForSchedules,
+  getClientsForSchedules,
 } from "@/lib/actions/schedules";
 import { fromDatetimeLocalMX } from "@/lib/utils/datetime";
 
-interface ClienteCenter {
+interface ClientCenter {
   id: string;
   name: string;
   code: string;
@@ -32,21 +32,21 @@ export default function NewSchedulePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [clientes, setClienteCenters] = useState<ClienteCenter[]>([]);
+  const [clients, setClientCenters] = useState<ClientCenter[]>([]);
 
   const [formData, setFormData] = useState<{
     title: string;
     description: string;
     scheduledAt: string;
     endDate: string;
-    clienteIds: string[];
+    clientIds: string[];
     active: boolean;
   }>({
     title: "",
     description: "",
     scheduledAt: "",
     endDate: "",
-    clienteIds: [],
+    clientIds: [],
     active: true,
   });
 
@@ -54,8 +54,8 @@ export default function NewSchedulePage() {
     const fetchClientes = async () => {
       try {
         setIsLoading(true);
-        const clientes = await getClientesForSchedules();
-        setClienteCenters(clientes);
+        const clients = await getClientsForSchedules();
+        setClientCenters(clients);
       } catch (error) {
         console.error("Error fetching Cliente centers:", error);
         toast.error("Error al cargar los centros Cliente");
@@ -120,10 +120,10 @@ export default function NewSchedulePage() {
         description: formData.description?.trim() || undefined,
         scheduledAt: fromDatetimeLocalMX(formData.scheduledAt) ?? new Date(),
         endDate: fromDatetimeLocalMX(formData.endDate) ?? undefined,
-        clienteIds: formData.clienteIds,
+        clientIds: formData.clientIds,
       });
 
-      // A denied Cliente is a RETURNED rule now, not a throw: without this
+      // A denied Client is a RETURNED rule now, not a throw: without this
       // check the form would navigate away as if the schedule existed.
       if (isFailure(result)) {
         toast.error(result.error);
@@ -243,23 +243,23 @@ export default function NewSchedulePage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="clienteIds">Clientes</Label>
+              <Label htmlFor="clientIds">Clientes</Label>
               <MultiSelect
-                options={clientes.map((cliente) => ({
-                  value: cliente.id,
-                  label: `${cliente.code} — ${cliente.name}`,
+                options={clients.map((client) => ({
+                  value: client.id,
+                  label: `${client.code} — ${client.name}`,
                 }))}
-                value={formData.clienteIds}
-                onValueChange={(ids) => handleChange("clienteIds", ids)}
+                value={formData.clientIds}
+                onValueChange={(ids) => handleChange("clientIds", ids)}
                 placeholder="Selecciona uno o varios Clientes"
                 searchPlaceholder="Buscar Cliente..."
                 emptyMessage="Sin Clientes disponibles"
               />
-              {errors.clienteIds && (
-                <p className="text-sm text-red-500">{errors.clienteIds}</p>
+              {errors.clientIds && (
+                <p className="text-sm text-red-500">{errors.clientIds}</p>
               )}
               <p className="text-sm text-muted-foreground">
-                Puedes asignar la programación a varios Clientes.
+                Puedes asignar la programación a varios Clients.
               </p>
             </div>
 

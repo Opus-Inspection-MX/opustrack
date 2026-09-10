@@ -19,7 +19,7 @@ import { isFailure } from "@/lib/actions/result";
 import { getScheduleById, quickUpdateSchedule } from "@/lib/actions/schedules";
 import { fromDatetimeLocalMX, toDatetimeLocalMX } from "@/lib/utils/datetime";
 
-interface ClienteOption {
+interface ClientOption {
   id: string;
   code: string;
   name: string;
@@ -27,7 +27,7 @@ interface ClienteOption {
 
 interface QuickEditScheduleDialogProps {
   scheduleId: string | null;
-  clientes: ClienteOption[];
+  clients: ClientOption[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSaved?: () => void;
@@ -35,7 +35,7 @@ interface QuickEditScheduleDialogProps {
 
 export function QuickEditScheduleDialog({
   scheduleId,
-  clientes,
+  clients,
   open,
   onOpenChange,
   onSaved,
@@ -43,7 +43,7 @@ export function QuickEditScheduleDialog({
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [clienteIds, setClienteIds] = useState<string[]>([]);
+  const [clientIds, setClientIds] = useState<string[]>([]);
   const [scheduledAt, setScheduledAt] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
   const [title, setTitle] = useState<string>("");
@@ -57,8 +57,8 @@ export function QuickEditScheduleDialog({
       .then((sched) => {
         if (cancelled || !sched) return;
         setTitle(sched.title);
-        setClienteIds(
-          sched.clientes.filter((sv) => sv.active).map((sv) => sv.clienteId),
+        setClientIds(
+          sched.clients.filter((sv) => sv.active).map((sv) => sv.clientId),
         );
         setScheduledAt(toDatetimeLocalMX(sched.scheduledAt));
         setEndDate(toDatetimeLocalMX(sched.endDate));
@@ -98,7 +98,7 @@ export function QuickEditScheduleDialog({
     setSubmitting(true);
     try {
       const result = await quickUpdateSchedule(scheduleId, {
-        clienteIds,
+        clientIds,
         scheduledAt: start,
         endDate: end,
       });
@@ -138,12 +138,12 @@ export function QuickEditScheduleDialog({
             <div className="space-y-2">
               <Label htmlFor="qe-clientes">Clientes</Label>
               <MultiSelect
-                options={clientes.map((v) => ({
+                options={clients.map((v) => ({
                   value: v.id,
                   label: `${v.code} — ${v.name}`,
                 }))}
-                value={clienteIds}
-                onValueChange={setClienteIds}
+                value={clientIds}
+                onValueChange={setClientIds}
                 placeholder="Selecciona uno o varios Clientes"
                 searchPlaceholder="Buscar Cliente..."
                 emptyMessage="Sin Clientes disponibles"

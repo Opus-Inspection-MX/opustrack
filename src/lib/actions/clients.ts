@@ -6,10 +6,10 @@ import { redirect } from "next/navigation";
 import { requirePermission } from "@/lib/auth/auth";
 import { includeRoles, whereHasRole } from "@/lib/authz/user-queries";
 import { prisma } from "@/lib/database/prisma.singleton";
-import { assignUserToCliente } from "@/lib/utils/cliente-assignments";
+import { assignUserToClient } from "@/lib/utils/client-assignments";
 import { ok, rejected } from "./result";
 
-export type ClienteFormData = {
+export type ClientFormData = {
   code: string;
   name: string;
   address?: string;
@@ -20,25 +20,25 @@ export type ClienteFormData = {
   email?: string;
   stateId: number;
   fsrIds?: string[];
-  clientIds?: string[];
+  reporterIds?: string[];
 };
 
-type GetClientesParams = {
+type GetClientsParams = {
   page?: number;
   limit?: number;
   search?: string;
 };
 
 /**
- * Lightweight Cliente list for select/dropdown inputs and filters.
- * Returns only { id, code, name, stateId } for all active Clientes — no counts,
- * no pagination. Use this instead of getClientes() when you just need options.
+ * Lightweight Client list for select/dropdown inputs and filters.
+ * Returns only { id, code, name, stateId } for all active Clients — no counts,
+ * no pagination. Use this instead of getClients() when you just need options.
  * `stateId` lets callers narrow the options by plaza without a round-trip.
  */
-export async function getClientesForSelect() {
-  await requirePermission("clientes:read");
+export async function getClientsForSelect() {
+  await requirePermission("clients:read");
 
-  return prisma.cliente.findMany({
+  return prisma.client.findMany({
     where: { active: true },
     select: { id: true, code: true, name: true, stateId: true },
     orderBy: { name: "asc" },
@@ -46,17 +46,17 @@ export async function getClientesForSelect() {
 }
 
 /**
- * Get Clientes with relations, paginated and searchable (code, name, company).
+ * Get Clients with relations, paginated and searchable (code, name, company).
  */
-export async function getClientes(params?: GetClientesParams) {
-  await requirePermission("clientes:read");
+export async function getClients(params?: GetClientsParams) {
+  await requirePermission("clients:read");
 
   const page = params?.page ?? 1;
   const limit = params?.limit ?? 10;
   const skip = (page - 1) * limit;
   const search = params?.search?.trim();
 
-  const where: Prisma.ClienteWhereInput = search
+  const where: Prisma.ClientWhereInput = search
     ? {
         active: true,
         OR: [
@@ -67,8 +67,8 @@ export async function getClientes(params?: GetClientesParams) {
       }
     : { active: true };
 
-  const [clientes, total] = await Promise.all([
-    prisma.cliente.findMany({
+  const [clients, total] = await Promise.all([
+    prisma.client.findMany({
       where,
       include: {
         state: true,
@@ -91,39 +91,39 @@ export async function getClientes(params?: GetClientesParams) {
       skip,
       take: limit,
     }),
-    prisma.cliente.count({ where }),
+    prisma.client.count({ where }),
   ]);
 
-  // Count active FSRs for THIS page's Clientes in a single grouped query
-  // (avoids an N+1: previously one user.count() per Cliente). Unique
-  // (userId, clienteId) means row count == distinct FSR count.
+  // Count active FSRs for THIS page's Clients in a single grouped query
+  // (avoids an N+1: previously one user.count() per Client). Unique
+  // (userId, clientId) means row count == distinct FSR count.
   const fsrRole = await prisma.role.findFirst({ where: { name: "FSR" } });
-  const fsrCountByCliente = new Map<string, number>();
-  if (fsrRole && clientes.length > 0) {
-    const grouped = await prisma.userClienteAssignment.groupBy({
-      by: ["clienteId"],
+  const fsrCountByClient = new Map<string, number>();
+  if (fsrRole && clients.length > 0) {
+    const grouped = await prisma.userClientAssignment.groupBy({
+      by: ["clientId"],
       where: {
         active: true,
-        clienteId: { in: clientes.map((c) => c.id) },
+        clientId: { in: clients.map((c) => c.id) },
         user: { active: true, ...whereHasRole("FSR") },
       },
       _count: { userId: true },
     });
     for (const g of grouped) {
-      fsrCountByCliente.set(g.clienteId, g._count.userId);
+      fsrCountByClient.set(g.clientId, g._count.userId);
     }
   }
 
   return {
-    data: clientes.map((cliente) => ({
-      ...cliente,
+    data: clients.map((client) => ({
+      ...client,
       // The badge counts assigned users: junction rows, not the removed
       // scalar relation (which only ever held the primary assignment).
       _count: {
-        ...cliente._count,
-        users: cliente._count.userAssignments,
+        ...client._count,
+        users: client._count.userAssignments,
       },
-      fsrCount: fsrCountByCliente.get(cliente.id) ?? 0,
+      fsrCount: fsrCountByClient.get(client.id) ?? 0,
     })),
     pagination: {
       total,
@@ -135,12 +135,12 @@ export async function getClientes(params?: GetClientesParams) {
 }
 
 /**
- * Get single Cliente by ID
+ * Get single Client by ID
  */
-export async function getClienteById(id: string) {
-  await requirePermission("clientes:read");
+export async function getClientById(id: string) {
+  await requirePermission("clients:read");
 
-  const cliente = await prisma.cliente.findUnique({
+  const client = await prisma.client.findUnique({
     where: { id },
     include: {
       state: true,
@@ -180,32 +180,32 @@ export async function getClienteById(id: string) {
         select: {
           userAssignments: true,
           incidents: true,
-          scheduleClientes: true,
+          scheduleClients: true,
           lines: true,
         },
       },
     },
   });
 
-  if (!cliente) return cliente;
+  if (!client) return client;
 
-  const users = cliente.userAssignments
+  const users = client.userAssignments
     .map((a) => a.user)
     .filter((u) => u.active);
   return {
-    ...cliente,
+    ...client,
     users,
-    _count: { ...cliente._count, users: users.length },
+    _count: { ...client._count, users: users.length },
   };
 }
 
 /**
- * Create new Cliente
+ * Create new Client
  */
-export async function createCliente(data: ClienteFormData) {
-  await requirePermission("clientes:create");
+export async function createClient(data: ClientFormData) {
+  await requirePermission("clients:create");
 
-  const cliente = await prisma.cliente.create({
+  const client = await prisma.client.create({
     data: {
       code: data.code,
       name: data.name,
@@ -222,35 +222,35 @@ export async function createCliente(data: ClienteFormData) {
     },
   });
 
-  // Assign FSRs to this Cliente if provided
+  // Assign FSRs to this Client if provided
   if (data.fsrIds && data.fsrIds.length > 0) {
     for (const fsrId of data.fsrIds) {
-      await prisma.userClienteAssignment.upsert({
-        where: { userId_clienteId: { userId: fsrId, clienteId: cliente.id } },
+      await prisma.userClientAssignment.upsert({
+        where: { userId_clientId: { userId: fsrId, clientId: client.id } },
         update: { active: true },
-        create: { userId: fsrId, clienteId: cliente.id, isPrimary: false },
+        create: { userId: fsrId, clientId: client.id, isPrimary: false },
       });
     }
   }
 
-  // Assign CLIENT users to this Cliente if provided
-  if (data.clientIds && data.clientIds.length > 0) {
-    for (const clientId of data.clientIds) {
-      await assignUserToCliente(clientId, cliente.id, true);
+  // Assign reporter (REPORTER-role) users to this Client if provided
+  if (data.reporterIds && data.reporterIds.length > 0) {
+    for (const reporterId of data.reporterIds) {
+      await assignUserToClient(reporterId, client.id, true);
     }
   }
 
-  revalidatePath("/admin/clientes");
-  return ok({ data: cliente });
+  revalidatePath("/admin/clients");
+  return ok({ data: client });
 }
 
 /**
- * Update existing Cliente
+ * Update existing Client
  */
-export async function updateCliente(id: string, data: ClienteFormData) {
-  await requirePermission("clientes:update");
+export async function updateClient(id: string, data: ClientFormData) {
+  await requirePermission("clients:update");
 
-  const cliente = await prisma.cliente.update({
+  const client = await prisma.client.update({
     where: { id },
     data: {
       code: data.code,
@@ -277,8 +277,8 @@ export async function updateCliente(id: string, data: ClienteFormData) {
 
     if (fsrRole) {
       // Get currently assigned FSRs via junction table
-      const currentAssignments = await prisma.userClienteAssignment.findMany({
-        where: { clienteId: id, active: true, user: whereHasRole("FSR") },
+      const currentAssignments = await prisma.userClientAssignment.findMany({
+        where: { clientId: id, active: true, user: whereHasRole("FSR") },
         select: { userId: true },
       });
 
@@ -297,83 +297,83 @@ export async function updateCliente(id: string, data: ClienteFormData) {
 
       // Unassign FSRs - soft delete the assignment
       if (fsrsToUnassign.length > 0) {
-        await prisma.userClienteAssignment.updateMany({
-          where: { clienteId: id, userId: { in: fsrsToUnassign } },
+        await prisma.userClientAssignment.updateMany({
+          where: { clientId: id, userId: { in: fsrsToUnassign } },
           data: { active: false },
         });
       }
 
       // Assign new FSRs - upsert assignments
       for (const fsrId of fsrsToAssign) {
-        await prisma.userClienteAssignment.upsert({
-          where: { userId_clienteId: { userId: fsrId, clienteId: id } },
+        await prisma.userClientAssignment.upsert({
+          where: { userId_clientId: { userId: fsrId, clientId: id } },
           update: { active: true },
-          create: { userId: fsrId, clienteId: id, isPrimary: false },
+          create: { userId: fsrId, clientId: id, isPrimary: false },
         });
       }
     }
   }
 
-  // Handle CLIENT user reassignment via UserClienteAssignment
-  if (data.clientIds !== undefined) {
-    // Get CLIENT role
-    const clientRole = await prisma.role.findFirst({
-      where: { name: "CLIENT" },
+  // Handle reporter (REPORTER-role) user reassignment via UserClientAssignment
+  if (data.reporterIds !== undefined) {
+    // Get REPORTER role
+    const reporterRole = await prisma.role.findFirst({
+      where: { name: "REPORTER" },
     });
 
-    if (clientRole) {
-      // Get currently assigned CLIENT users via junction table
-      const currentAssignments = await prisma.userClienteAssignment.findMany({
+    if (reporterRole) {
+      // Get currently assigned reporter users via junction table
+      const currentAssignments = await prisma.userClientAssignment.findMany({
         where: {
-          clienteId: id,
+          clientId: id,
           active: true,
-          user: whereHasRole("CLIENT"),
+          user: whereHasRole("REPORTER"),
         },
         select: { userId: true },
       });
 
-      const currentClientIds = currentAssignments.map((a) => a.userId);
-      const newClientIds = data.clientIds;
+      const currentReporterIds = currentAssignments.map((a) => a.userId);
+      const newReporterIds = data.reporterIds;
 
-      // CLIENTs to unassign (were assigned but are no longer selected)
-      const clientsToUnassign = currentClientIds.filter(
-        (clientId) => !newClientIds.includes(clientId),
+      // Reporters to unassign (were assigned but are no longer selected)
+      const reportersToUnassign = currentReporterIds.filter(
+        (reporterId) => !newReporterIds.includes(reporterId),
       );
 
-      // CLIENTs to assign (newly selected)
-      const clientsToAssign = newClientIds.filter(
-        (clientId) => !currentClientIds.includes(clientId),
+      // Reporters to assign (newly selected)
+      const reportersToAssign = newReporterIds.filter(
+        (reporterId) => !currentReporterIds.includes(reporterId),
       );
 
-      // Unassign CLIENTs - soft delete the assignment
-      if (clientsToUnassign.length > 0) {
-        await prisma.userClienteAssignment.updateMany({
-          where: { clienteId: id, userId: { in: clientsToUnassign } },
+      // Unassign reporters - soft delete the assignment
+      if (reportersToUnassign.length > 0) {
+        await prisma.userClientAssignment.updateMany({
+          where: { clientId: id, userId: { in: reportersToUnassign } },
           data: { active: false },
         });
       }
 
-      // Assign new CLIENTs
-      for (const clientId of clientsToAssign) {
-        await assignUserToCliente(clientId, id, true);
+      // Assign new reporters
+      for (const reporterId of reportersToAssign) {
+        await assignUserToClient(reporterId, id, true);
       }
     }
   }
 
-  revalidatePath("/admin/clientes");
-  revalidatePath(`/admin/clientes/${id}`);
-  return ok({ data: cliente });
+  revalidatePath("/admin/clients");
+  revalidatePath(`/admin/clients/${id}`);
+  return ok({ data: client });
 }
 
 /**
- * Delete Cliente (soft delete)
+ * Delete Client (soft delete)
  */
-export async function deleteCliente(id: string) {
-  await requirePermission("clientes:delete");
+export async function deleteClient(id: string) {
+  await requirePermission("clients:delete");
 
-  // Check if Cliente has active user assignments
-  const userCount = await prisma.userClienteAssignment.count({
-    where: { clienteId: id, active: true },
+  // Check if Client has active user assignments
+  const userCount = await prisma.userClientAssignment.count({
+    where: { clientId: id, active: true },
   });
 
   if (userCount > 0) {
@@ -382,20 +382,20 @@ export async function deleteCliente(id: string) {
     );
   }
 
-  await prisma.cliente.update({
+  await prisma.client.update({
     where: { id },
     data: { active: false },
   });
 
-  revalidatePath("/admin/clientes");
-  redirect("/admin/clientes");
+  revalidatePath("/admin/clients");
+  redirect("/admin/clients");
 }
 
 /**
- * Get all states for Cliente form
+ * Get all states for Client form
  */
 export async function getStates() {
-  await requirePermission("clientes:read");
+  await requirePermission("clients:read");
 
   const states = await prisma.state.findMany({
     where: { active: true },
@@ -429,56 +429,56 @@ export async function getFSRUsers() {
       id: true,
       name: true,
       email: true,
-      clienteAssignments: {
+      clientAssignments: {
         where: { active: true },
-        select: { clienteId: true },
+        select: { clientId: true },
       },
     },
     orderBy: { name: "asc" },
   });
 
-  // Map clienteAssignments to clienteIds for backward compatibility with consumers
+  // Map clientAssignments to clientIds for consumers (ids of real centers)
   return fsrUsers.map((user) => ({
     ...user,
-    clienteIds: user.clienteAssignments.map((va) => va.clienteId),
+    clientIds: user.clientAssignments.map((va) => va.clientId),
   }));
 }
 
 /**
- * Get all CLIENT users
+ * Get all reporter users (users holding the REPORTER role)
  */
-export async function getClientUsers() {
+export async function getReporterUsers() {
   await requirePermission("users:read");
 
-  // Get the CLIENT role
-  const clientRole = await prisma.role.findFirst({
-    where: { name: "CLIENT" },
+  // Get the REPORTER role
+  const reporterRole = await prisma.role.findFirst({
+    where: { name: "REPORTER" },
   });
 
-  if (!clientRole) {
+  if (!reporterRole) {
     return [];
   }
 
-  const clientUsers = await prisma.user.findMany({
+  const reporterUsers = await prisma.user.findMany({
     where: {
-      ...whereHasRole("CLIENT"),
+      ...whereHasRole("REPORTER"),
       active: true,
     },
     select: {
       id: true,
       name: true,
       email: true,
-      clienteAssignments: {
+      clientAssignments: {
         where: { active: true, isPrimary: true },
-        select: { clienteId: true },
+        select: { clientId: true },
       },
     },
     orderBy: { name: "asc" },
   });
 
-  // Map clienteAssignments to clienteId for backward compatibility
-  return clientUsers.map((user) => ({
+  // Map clientAssignments to clientId (id of the reporter's primary center)
+  return reporterUsers.map((user) => ({
     ...user,
-    clienteId: user.clienteAssignments[0]?.clienteId ?? null,
+    clientId: user.clientAssignments[0]?.clientId ?? null,
   }));
 }

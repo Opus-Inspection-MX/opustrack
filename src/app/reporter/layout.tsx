@@ -3,7 +3,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { requireRouteAccess } from "@/lib/auth/auth";
 
 /**
- * Portal guard: every route under `/client` requires the `/client` grant.
+ * Portal guard: every route under `/reporter` requires the `/reporter` grant.
  * Pages with finer rules keep their own guard; this is the coarse gate.
  */
 export default async function Layout({
@@ -11,6 +11,6 @@ export default async function Layout({
 }: {
   children: React.ReactNode;
 }) {
-  await requireRouteAccess("/client");
+  await requireRouteAccess("/reporter");
   return <AppShell>{children}</AppShell>;
 }

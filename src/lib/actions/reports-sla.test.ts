@@ -4,9 +4,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
  * SLA breach report aggregator (RF-518).
  *
  * Kept out of the shared `reports.test.ts` aggregator matrix on purpose:
- * that matrix asserts EVERY query an aggregator issues carries the Cliente
+ * that matrix asserts EVERY query an aggregator issues carries the Client
  * scope, and the global holiday catalog query (`{ active: true }`) has no
- * Cliente concept. The scope assertions below cover the tenant boundary
+ * Client concept. The scope assertions below cover the tenant boundary
  * that matters — the incident query — plus the RF-518 rules: CANCELADA
  * exclusion, per-type breach grouping, RF-502 percentages, and RF-219
  * closure precedence.
@@ -14,8 +14,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const DAY = 86_400_000;
 
-const { prismaMock, requirePermission, getUserClienteIds, userBox } =
-  vi.hoisted(() => {
+const { prismaMock, requirePermission, getUserClientIds, userBox } = vi.hoisted(
+  () => {
     const queryable = () => ({
       findMany: vi.fn(async (..._args: unknown[]): Promise<unknown> => []),
       findFirst: vi.fn(async (..._args: unknown[]): Promise<unknown> => null),
@@ -28,20 +28,21 @@ const { prismaMock, requirePermission, getUserClienteIds, userBox } =
         holiday: { ...queryable() },
       },
       requirePermission: vi.fn(async (_name: string) => userBox.user),
-      getUserClienteIds: vi.fn(async (_userId: string) => [] as string[]),
+      getUserClientIds: vi.fn(async (_userId: string) => [] as string[]),
       userBox: { user: { id: "admin", isSuperuser: true } as never },
     };
-  });
+  },
+);
 
 vi.mock("@/lib/database/prisma.singleton", () => ({ prisma: prismaMock }));
 vi.mock("@/lib/auth/auth", () => ({
   requirePermission: (name: string) => requirePermission(name),
 }));
-vi.mock("@/lib/utils/cliente-assignments", () => ({ getUserClienteIds }));
+vi.mock("@/lib/utils/client-assignments", () => ({ getUserClientIds }));
 
 import { getSlaBreachData } from "./reports";
 
-const SCOPED_CLIENTE = "c100000001";
+const SCOPED_CLIENT = "c100000001";
 
 function asScopedUser() {
   userBox.user = {
@@ -49,7 +50,7 @@ function asScopedUser() {
     isSuperuser: false,
     permissions: new Set<string>(),
   } as never;
-  getUserClienteIds.mockResolvedValue([SCOPED_CLIENTE]);
+  getUserClientIds.mockResolvedValue([SCOPED_CLIENT]);
 }
 
 const now = () => new Date();
@@ -70,7 +71,7 @@ function row(id: number, overrides: Record<string, unknown> = {}) {
 beforeEach(() => {
   vi.clearAllMocks();
   userBox.user = { id: "admin", isSuperuser: true } as never;
-  getUserClienteIds.mockResolvedValue([]);
+  getUserClientIds.mockResolvedValue([]);
   prismaMock.incident.findMany.mockResolvedValue([]);
   prismaMock.incidentEvent.findMany.mockResolvedValue([]);
   prismaMock.holiday.findMany.mockResolvedValue([]);
@@ -89,10 +90,10 @@ describe("getSlaBreachData (RF-518)", () => {
 
     const where = (
       prismaMock.incident.findMany.mock.calls[0]?.[0] as
-        | { where?: { clienteId?: unknown } }
+        | { where?: { clientId?: unknown } }
         | undefined
     )?.where;
-    expect(where?.clienteId).toEqual({ in: [SCOPED_CLIENTE] });
+    expect(where?.clientId).toEqual({ in: [SCOPED_CLIENT] });
   });
 
   it("excludes CANCELADA incidents from every count", async () => {

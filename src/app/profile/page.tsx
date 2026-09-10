@@ -38,7 +38,7 @@ interface Role {
   name: string;
 }
 
-interface Cliente {
+interface Client {
   id: string;
   name: string;
   code: string;
@@ -59,8 +59,8 @@ interface UserProfile {
   secondaryTelephone?: string | null;
   userStatus?: UserStatus | null;
   role?: Role | null;
-  clientes?: Cliente[];
-  cliente?: Cliente | null;
+  clients?: Client[];
+  client?: Client | null;
   userProfile?: UserProfileDetails | null;
   createdAt?: Date | string;
 }
@@ -326,8 +326,8 @@ export default function FSRProfilePage() {
                   <div>
                     <p className="text-sm text-muted-foreground">Cliente</p>
                     <p className="font-medium">
-                      {user.cliente
-                        ? `${user.cliente.name} (${user.cliente.code})`
+                      {user.client
+                        ? `${user.client.name} (${user.client.code})`
                         : "No asignado"}
                     </p>
                   </div>

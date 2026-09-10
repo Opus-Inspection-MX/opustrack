@@ -32,16 +32,16 @@ function getStatusBadge(
   );
 }
 
-export default async function ClientIncidentDetailPage({
+export default async function ReporterIncidentDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await requireRouteAccess("/client/incidents");
+  await requireRouteAccess("/reporter/incidents");
 
   const { id } = await params;
   const incident = await getIncidentById(Number.parseInt(id, 10));
-  // RF-217: CLIENT reporters hold incidents:create (no update).
+  // RF-217: REPORTER-role users hold incidents:create (no update).
   const [canCreate, canUpdate] = await Promise.all([
     canPerform("incidents:create"),
     canPerform("incidents:update"),
@@ -54,7 +54,7 @@ export default async function ClientIncidentDetailPage({
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <BackButton fallback="/client" />
+        <BackButton fallback="/reporter" />
         <div className="flex-1">
           <div className="flex items-center gap-3">
             <h1 className="text-3xl font-bold">{incident.title}</h1>
@@ -97,8 +97,8 @@ export default async function ClientIncidentDetailPage({
               <div>
                 <p className="text-sm text-muted-foreground">Cliente</p>
                 <p className="font-medium">
-                  {incident.cliente
-                    ? `${incident.cliente.name} (${incident.cliente.code})`
+                  {incident.client
+                    ? `${incident.client.name} (${incident.client.code})`
                     : "No asignado"}
                 </p>
               </div>
@@ -126,7 +126,7 @@ export default async function ClientIncidentDetailPage({
                 <p className="font-medium">
                   {formatIncidentDateTime(
                     incident.reportedAt,
-                    incident.cliente?.state?.code,
+                    incident.client?.state?.code,
                   )}
                 </p>
               </div>
@@ -142,7 +142,7 @@ export default async function ClientIncidentDetailPage({
                   <p className="font-medium">
                     {formatIncidentDateTime(
                       incident.startedAt,
-                      incident.cliente?.state?.code,
+                      incident.client?.state?.code,
                     )}
                   </p>
                 </div>
@@ -157,7 +157,7 @@ export default async function ClientIncidentDetailPage({
                   <p className="font-medium">
                     {formatIncidentDateTime(
                       incident.resolvedAt,
-                      incident.cliente?.state?.code,
+                      incident.client?.state?.code,
                     )}
                   </p>
                 </div>
@@ -217,7 +217,7 @@ export default async function ClientIncidentDetailPage({
                     </span>
                   </div>
                   <Button variant="outline" size="sm" asChild>
-                    <Link href={`/client/assignments/${wo.id}`}>
+                    <Link href={`/reporter/assignments/${wo.id}`}>
                       Ver Progreso
                     </Link>
                   </Button>
@@ -231,7 +231,7 @@ export default async function ClientIncidentDetailPage({
       {/* Back Button */}
       <div className="flex justify-end">
         <Button variant="outline" asChild>
-          <Link href="/client">Volver</Link>
+          <Link href="/reporter">Volver</Link>
         </Button>
       </div>
     </div>

@@ -28,7 +28,7 @@ export interface BulkAssignOption {
 
 interface BulkAssignDialogProps {
   incidentIds: number[];
-  clientes: BulkAssignOption[];
+  clients: BulkAssignOption[];
   schedules: BulkAssignOption[];
   fsrs: BulkAssignOption[];
   open: boolean;
@@ -38,7 +38,7 @@ interface BulkAssignDialogProps {
 
 export function BulkAssignDialog({
   incidentIds,
-  clientes,
+  clients,
   schedules,
   fsrs,
   open,
@@ -53,8 +53,8 @@ export function BulkAssignDialog({
   const [modifySchedule, setModifySchedule] = useState(false);
   const [scheduleValue, setScheduleValue] = useState<string>("");
 
-  const [modifyCliente, setModifyCliente] = useState(false);
-  const [clienteValue, setClienteValue] = useState<string>("");
+  const [modifyClient, setModifyCliente] = useState(false);
+  const [clientValue, setClientValue] = useState<string>("");
 
   const [modifyFsrs, setModifyFsrs] = useState(false);
   const [fsrValues, setFsrValues] = useState<string[]>([]);
@@ -65,7 +65,7 @@ export function BulkAssignDialog({
     setModifyCliente(false);
     setModifyFsrs(false);
     setScheduleValue("");
-    setClienteValue("");
+    setClientValue("");
     setFsrValues([]);
     setFsrMode("replace");
     setErrors([]);
@@ -78,13 +78,13 @@ export function BulkAssignDialog({
 
   const handleSave = async () => {
     setErrors([]);
-    if (!modifySchedule && !modifyCliente && !modifyFsrs) {
+    if (!modifySchedule && !modifyClient && !modifyFsrs) {
       setErrors([
         { incidentId: 0, message: "Activa al menos un campo para modificar" },
       ]);
       return;
     }
-    if (modifyCliente && !clienteValue) {
+    if (modifyClient && !clientValue) {
       setErrors([{ incidentId: 0, message: "Selecciona un Cliente" }]);
       return;
     }
@@ -92,8 +92,8 @@ export function BulkAssignDialog({
     if (modifySchedule) {
       changes.scheduleId = scheduleValue === "__clear__" ? null : scheduleValue;
     }
-    if (modifyCliente) {
-      changes.clienteId = clienteValue;
+    if (modifyClient) {
+      changes.clientId = clientValue;
     }
     if (modifyFsrs) {
       changes.fsrIds = { ids: fsrValues, mode: fsrMode };
@@ -162,22 +162,22 @@ export function BulkAssignDialog({
             )}
           </div>
 
-          {/* Cliente */}
+          {/* Client */}
           <div className="space-y-2 border-t pt-4">
             <div className="flex items-center justify-between">
-              <Label htmlFor="bulk-cliente-switch">Cliente</Label>
+              <Label htmlFor="bulk-client-switch">Cliente</Label>
               <Switch
-                id="bulk-cliente-switch"
-                checked={modifyCliente}
+                id="bulk-client-switch"
+                checked={modifyClient}
                 onCheckedChange={setModifyCliente}
               />
             </div>
-            {modifyCliente && (
+            {modifyClient && (
               <>
                 <SearchableSelect
-                  options={clientes}
-                  value={clienteValue}
-                  onValueChange={setClienteValue}
+                  options={clients}
+                  value={clientValue}
+                  onValueChange={setClientValue}
                   placeholder="Elige Cliente"
                   searchPlaceholder="Buscar Cliente..."
                   emptyMessage="Sin Clientes"

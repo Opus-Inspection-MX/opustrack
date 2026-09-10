@@ -1,18 +1,22 @@
-import { ClienteForm } from "@/components/admin/clientes/cliente-form";
+import { ClientForm } from "@/components/admin/clientes/client-form";
 import { BackButton } from "@/components/common/back-button";
-import { getClientUsers, getFSRUsers, getStates } from "@/lib/actions/clientes";
+import {
+  getFSRUsers,
+  getReporterUsers,
+  getStates,
+} from "@/lib/actions/clients";
 
-export default async function NewClientePage() {
-  const [states, fsrUsers, clientUsers] = await Promise.all([
+export default async function NewClientPage() {
+  const [states, fsrUsers, reporterUsers] = await Promise.all([
     getStates(),
     getFSRUsers(),
-    getClientUsers(),
+    getReporterUsers(),
   ]);
 
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <BackButton fallback="/admin/clientes" />
+        <BackButton fallback="/admin/clients" />
         <div>
           <h1 className="text-3xl font-bold">Nuevo Centro de Verificación</h1>
           <p className="text-muted-foreground">
@@ -21,10 +25,10 @@ export default async function NewClientePage() {
         </div>
       </div>
 
-      <ClienteForm
+      <ClientForm
         states={states}
         fsrUsers={fsrUsers}
-        clientUsers={clientUsers}
+        reporterUsers={reporterUsers}
       />
     </div>
   );

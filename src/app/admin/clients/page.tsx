@@ -12,15 +12,16 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useDebounce } from "@/hooks/use-debounce";
 import { toast } from "@/hooks/use-toast";
-import { deleteCliente, getClientes } from "@/lib/actions/clientes";
+import { deleteClient, getClients } from "@/lib/actions/clients";
 import { isFailure } from "@/lib/actions/result";
+import { logger } from "@/lib/observability/logger";
 
-type ClienteRow = Awaited<ReturnType<typeof getClientes>>["data"][number];
+type ClientRow = Awaited<ReturnType<typeof getClients>>["data"][number];
 
-const totalEquipments = (row: ClienteRow) =>
+const totalEquipments = (row: ClientRow) =>
   row.lines?.reduce((sum, line) => sum + line._count.equipments, 0) ?? 0;
 
-const columns: CatalogColumn<ClienteRow>[] = [
+const columns: CatalogColumn<ClientRow>[] = [
   {
     header: "Código",
     cell: (row) => (
@@ -72,8 +73,8 @@ const columns: CatalogColumn<ClienteRow>[] = [
   },
 ];
 
-export default function ClientesPage() {
-  const [clientes, setClientes] = useState<ClienteRow[]>([]);
+export default function ClientsPage() {
+  const [clients, setClients] = useState<ClientRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
@@ -86,16 +87,16 @@ export default function ClientesPage() {
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const result = await getClientes({
+      const result = await getClients({
         page: currentPage,
         limit: itemsPerPage,
         search: debouncedSearch || undefined,
       });
-      setClientes(result.data);
+      setClients(result.data);
       setTotalItems(result.pagination.total);
       setTotalPages(result.pagination.totalPages);
     } catch (error) {
-      console.error("Error al cargar centros:", error);
+      logger.error("Error al cargar centros:", error);
     } finally {
       setIsLoading(false);
     }
@@ -110,16 +111,16 @@ export default function ClientesPage() {
     setCurrentPage(1);
   };
 
-  const actions: CatalogAction<ClienteRow>[] = [
+  const actions: CatalogAction<ClientRow>[] = [
     {
       icon: Eye,
       label: "Ver detalles",
-      href: (row) => `/admin/clientes/${row.id}`,
+      href: (row) => `/admin/clients/${row.id}`,
     },
     {
       icon: Pencil,
       label: "Editar",
-      href: (row) => `/admin/clientes/${row.id}/edit`,
+      href: (row) => `/admin/clients/${row.id}/edit`,
     },
     {
       icon: Trash2,
@@ -131,14 +132,14 @@ export default function ClientesPage() {
         `¿Seguro que deseas eliminar el centro "${row.name}"? Esta acción no se puede deshacer.`,
       onClick: async (row) => {
         try {
-          const result = await deleteCliente(row.id);
+          const result = await deleteClient(row.id);
           if (isFailure(result)) {
             toast.error(result.error);
             return;
           }
           await fetchData();
         } catch (error) {
-          console.error("deleteCliente failed:", error);
+          logger.error("deleteClient failed:", error);
           toast.error("No se pudo completar la operación. Intenta de nuevo.");
         }
       },
@@ -155,7 +156,7 @@ export default function ClientesPage() {
           </p>
         </div>
         <Button asChild>
-          <Link href="/admin/clientes/new">
+          <Link href="/admin/clients/new">
             <Plus className="mr-2 h-4 w-4" />
             Agregar Cliente
           </Link>
@@ -163,7 +164,7 @@ export default function ClientesPage() {
       </div>
 
       <CatalogTable
-        data={clientes}
+        data={clients}
         columns={columns}
         actions={actions}
         rowKey={(row) => row.id}

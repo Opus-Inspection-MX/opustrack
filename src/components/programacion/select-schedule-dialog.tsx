@@ -22,10 +22,10 @@ interface Schedule {
   description: string | null;
   scheduledAt: string;
   endDate: string | null;
-  clientes: Array<{
-    clienteId: string;
+  clients: Array<{
+    clientId: string;
     active: boolean;
-    cliente: { id: string; name: string; code: string };
+    client: { id: string; name: string; code: string };
   }>;
   _count?: {
     incidents: number;
@@ -77,10 +77,10 @@ export function SelectScheduleDialog({
     const q = searchQuery.toLowerCase();
     if (schedule.title.toLowerCase().includes(q)) return true;
     if (schedule.description?.toLowerCase().includes(q)) return true;
-    return schedule.clientes.some(
+    return schedule.clients.some(
       (sv) =>
-        sv.cliente.name.toLowerCase().includes(q) ||
-        sv.cliente.code.toLowerCase().includes(q),
+        sv.client.name.toLowerCase().includes(q) ||
+        sv.client.code.toLowerCase().includes(q),
     );
   });
 
@@ -160,11 +160,11 @@ export function SelectScheduleDialog({
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-wrap gap-1">
-                        {schedule.clientes
+                        {schedule.clients
                           .filter((sv) => sv.active)
                           .map((sv) => (
-                            <Badge key={sv.clienteId} variant="outline">
-                              {sv.cliente.code}
+                            <Badge key={sv.clientId} variant="outline">
+                              {sv.client.code}
                             </Badge>
                           ))}
                       </div>

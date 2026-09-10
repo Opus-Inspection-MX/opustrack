@@ -107,7 +107,7 @@ export default async function AdminDashboard() {
                           •{" "}
                           {formatIncidentDateTime(
                             incident.reportedAt,
-                            incident.cliente?.state?.code,
+                            incident.client?.state?.code,
                           )}
                         </p>
                       </div>

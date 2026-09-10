@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireAuth } from "@/lib/auth/auth";
-import { assertClienteAccessAsync } from "@/lib/auth/filters";
+import { assertClientAccessAsync } from "@/lib/auth/filters";
 import { userHasPermission } from "@/lib/authz/authz";
 import { prisma } from "@/lib/database/prisma.singleton";
 import { businessRule, guarded } from "./result";
@@ -15,7 +15,7 @@ import { businessRule, guarded } from "./result";
  * soft-delete in DB + physical provider delete. Unlike RF-259, attachments
  * are NEVER required — reporting must never be blocked for lack of photos.
  *
- * Permission gate is create OR update: CLIENT reporters hold
+ * Permission gate is create OR update: REPORTER-role users hold
  * `incidents:create` (no `incidents:update`), while operations admins and
  * FSRs hold `incidents:update`. Terminal-state block matches assignments:
  * nothing moves on CERRADO/CANCELADA.
@@ -24,15 +24,15 @@ import { businessRule, guarded } from "./result";
 function revalidateIncidentAttachmentPaths(incidentId: number) {
   revalidatePath(`/admin/incidents/${incidentId}`);
   revalidatePath("/admin/incidents");
-  revalidatePath(`/client/incidents/${incidentId}`);
-  revalidatePath("/client/incidents");
-  revalidatePath("/client");
+  revalidatePath(`/reporter/incidents/${incidentId}`);
+  revalidatePath("/reporter/incidents");
+  revalidatePath("/reporter");
 }
 
 /**
  * Require incidents:create OR incidents:update.
  *
- * A single requirePermission cannot express the OR: the reporter (CLIENT)
+ * A single requirePermission cannot express the OR: the reporter (REPORTER)
  * creates, the operator (ADMIN/FSR) updates. Permission denials stay
  * exceptions, never toasts — same rule as every other action boundary.
  */
@@ -52,12 +52,12 @@ async function requireIncidentAttachmentAccess() {
  * Same wording as the assignment-side guard so operators see one message.
  */
 async function assertIncidentAttachable(incidentId: number): Promise<{
-  clienteId: string | null;
+  clientId: string | null;
 }> {
   const incident = await prisma.incident.findUnique({
     where: { id: incidentId },
     select: {
-      clienteId: true,
+      clientId: true,
       status: { select: { name: true } },
     },
   });
@@ -72,7 +72,7 @@ async function assertIncidentAttachable(incidentId: number): Promise<{
         : "La incidencia está cerrada. No se pueden hacer cambios.",
     );
   }
-  return { clienteId: incident.clienteId };
+  return { clientId: incident.clientId };
 }
 
 /**
@@ -114,9 +114,9 @@ export async function uploadIncidentAttachment(formData: FormData) {
     );
     assertAllowedUpload(mimetype, file.size);
 
-    const { clienteId } = await assertIncidentAttachable(incidentId);
-    if (clienteId) {
-      await assertClienteAccessAsync(user, clienteId);
+    const { clientId } = await assertIncidentAttachable(incidentId);
+    if (clientId) {
+      await assertClientAccessAsync(user, clientId);
     }
 
     const arrayBuffer = await file.arrayBuffer();
@@ -165,16 +165,16 @@ export async function deleteIncidentAttachment(id: string) {
   return guarded(async () => {
     const attachment = await prisma.incidentAttachment.findUnique({
       where: { id },
-      include: { incident: { select: { clienteId: true } } },
+      include: { incident: { select: { clientId: true } } },
     });
 
     if (!attachment) {
       throw new Error("Attachment not found");
     }
 
-    const { clienteId } = await assertIncidentAttachable(attachment.incidentId);
-    if (clienteId) {
-      await assertClienteAccessAsync(user, clienteId);
+    const { clientId } = await assertIncidentAttachable(attachment.incidentId);
+    if (clientId) {
+      await assertClientAccessAsync(user, clientId);
     }
 
     await prisma.incidentAttachment.update({

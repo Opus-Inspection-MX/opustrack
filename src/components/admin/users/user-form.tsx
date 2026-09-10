@@ -27,7 +27,7 @@ type UserFormProps = {
     email: string;
     userRoles: Array<{ role: { id: number; name: string } }>;
     userStatusId: number;
-    clienteId: string | null;
+    clientId: string | null;
     hireDate: Date | string | null;
     userProfile: {
       telephone: string | null;
@@ -38,10 +38,10 @@ type UserFormProps = {
   };
   roles: Array<{ id: number; name: string }>;
   statuses: Array<{ id: number; name: string }>;
-  clientes: Array<{ id: string; name: string; code: string }>;
+  clients: Array<{ id: string; name: string; code: string }>;
 };
 
-export function UserForm({ user, roles, statuses, clientes }: UserFormProps) {
+export function UserForm({ user, roles, statuses, clients }: UserFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
@@ -51,7 +51,7 @@ export function UserForm({ user, roles, statuses, clientes }: UserFormProps) {
     password: "",
     roleIds: user?.userRoles?.map((ur) => ur.role.id) ?? [],
     userStatusId: user?.userStatusId || statuses[0]?.id || 0,
-    clienteId: user?.clienteId || null,
+    clientId: user?.clientId || null,
     // The date input wants "YYYY-MM-DD"; the server sends an instant.
     hireDate: user?.hireDate ? toDateInputMX(user.hireDate) : "",
     telephone: user?.userProfile?.telephone || "",
@@ -199,20 +199,20 @@ export function UserForm({ user, roles, statuses, clientes }: UserFormProps) {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="clienteId">Centro de Verificación</Label>
+              <Label htmlFor="clientId">Centro de Verificación</Label>
               <SearchableSelect
                 options={[
                   { value: "none", label: "Sin asignar" },
-                  ...clientes.map((cliente) => ({
-                    value: cliente.id,
-                    label: `${cliente.name} (${cliente.code})`,
+                  ...clients.map((client) => ({
+                    value: client.id,
+                    label: `${client.name} (${client.code})`,
                   })),
                 ]}
-                value={formData.clienteId || "none"}
+                value={formData.clientId || "none"}
                 onValueChange={(value) =>
                   setFormData({
                     ...formData,
-                    clienteId: value === "none" ? null : value,
+                    clientId: value === "none" ? null : value,
                   })
                 }
                 placeholder="Seleccionar Cliente"

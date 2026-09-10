@@ -56,7 +56,7 @@ import { toast } from "@/hooks/use-toast";
 import { createAssignment } from "@/lib/actions/assignments";
 import { getEquipmentsByLineId } from "@/lib/actions/equipments";
 import { updateIncidentFsrs } from "@/lib/actions/incidents";
-import { getLinesByClienteId } from "@/lib/actions/lines";
+import { getLinesByClientId } from "@/lib/actions/lines";
 import { isFailure } from "@/lib/actions/result";
 import {
   updateAssignmentAssignees,
@@ -128,7 +128,7 @@ interface TrackingIncident {
   type?: { id: number; name: string; priority: number } | null;
   /** RF-218 breach flag, attached by `getIncidentsForTracking`. */
   sla?: SlaState | null;
-  cliente?: { id: string; name: string; code: string } | null;
+  client?: { id: string; name: string; code: string } | null;
   reportedBy?: { id: string; name: string } | null;
   assignees?: Array<{ user: { id: string; name: string; email?: string } }>;
   assignments: TrackingAssignment[];
@@ -173,15 +173,15 @@ interface TrackingFsr {
   id: string;
   name: string;
   email: string;
-  /** Clientes this FSR usually covers. Shown as a badge; never a filter. */
-  clienteIds?: string[];
+  /** Clients this FSR usually covers. Shown as a badge; never a filter. */
+  clientIds?: string[];
 }
 
 interface TrackingTableProps {
   incidents: TrackingIncident[];
   /**
    * Every active FSR. Any of them can be assigned to any incident — the
-   * Cliente link only decides who is suggested first.
+   * Client link only decides who is suggested first.
    */
   fsrs: TrackingFsr[];
   incidentStatuses: Array<{ id: number; name: string; color: string }>;
@@ -229,9 +229,9 @@ export function TrackingTable({
       let bValue: string | number;
 
       switch (id) {
-        case "cliente":
-          aValue = a.cliente?.name || "";
-          bValue = b.cliente?.name || "";
+        case "client":
+          aValue = a.client?.name || "";
+          bValue = b.client?.name || "";
           break;
         case "incidente":
           aValue = a.title || "";
@@ -413,10 +413,10 @@ export function TrackingTable({
       assigneeIds: incident.assignees?.map((a) => a.user.id) ?? [],
     });
 
-    // Load lines for the incident's Cliente
-    if (incident.cliente?.id) {
+    // Load lines for the incident's Client
+    if (incident.client?.id) {
       try {
-        const lines = await getLinesByClienteId(incident.cliente.id);
+        const lines = await getLinesByClientId(incident.client.id);
         setLinesForEdit(lines);
 
         // Load equipments for the incident's line
@@ -463,14 +463,14 @@ export function TrackingTable({
   /**
    * FSR picker options for one incident.
    *
-   * Every FSR is offered. The ones assigned to that incident's Cliente sort
-   * first and carry a badge, which is all the Cliente link means here — it
+   * Every FSR is offered. The ones assigned to that incident's Client sort
+   * first and carry a badge, which is all the Client link means here — it
    * used to filter the list, so an FSR from another center simply could not be
    * dispatched even when they were the one who could go.
    */
-  const buildFsrOptions = (clienteId?: string): MultiSelectOption[] => {
+  const buildFsrOptions = (clientId?: string): MultiSelectOption[] => {
     const covers = (fsr: TrackingFsr) =>
-      Boolean(clienteId && fsr.clienteIds?.includes(clienteId));
+      Boolean(clientId && fsr.clientIds?.includes(clientId));
 
     return [...fsrs]
       .sort((a, b) => {
@@ -635,11 +635,11 @@ export function TrackingTable({
             <TableHead>
               <Button
                 variant="ghost"
-                onClick={() => handleSort("cliente")}
+                onClick={() => handleSort("client")}
                 className="h-auto p-0 font-semibold hover:bg-transparent"
               >
                 Cliente
-                {getSortIcon("cliente")}
+                {getSortIcon("client")}
               </Button>
             </TableHead>
             <TableHead>
@@ -714,7 +714,7 @@ export function TrackingTable({
           ) : (
             sortedIncidents.map((incident) => {
               const assignedFSRs = getAssignedFSRs(incident);
-              const fsrOptions = buildFsrOptions(incident.cliente?.id);
+              const fsrOptions = buildFsrOptions(incident.client?.id);
               const isExpanded = expandedRows.has(incident.id);
 
               // Get status color for row background
@@ -746,8 +746,8 @@ export function TrackingTable({
                     </TableCell>
                     <TableCell onClick={() => toggleRowExpansion(incident.id)}>
                       <Badge variant="outline">
-                        {incident.cliente?.name || "Sin Cliente"} (
-                        {incident.cliente?.code || "N/A"})
+                        {incident.client?.name || "Sin Cliente"} (
+                        {incident.client?.code || "N/A"})
                       </Badge>
                     </TableCell>
                     <TableCell onClick={() => toggleRowExpansion(incident.id)}>

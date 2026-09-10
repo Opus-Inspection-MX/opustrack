@@ -32,36 +32,36 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { RoleBadges } from "@/components/users/role-badges";
-import { getClienteById } from "@/lib/actions/clientes";
+import { getClientById } from "@/lib/actions/clients";
 import { requireRouteAccess } from "@/lib/auth/auth";
 import { formatIncidentDateTime } from "@/lib/utils/datetime";
 
-export default async function ClienteDetailPage({
+export default async function ClientDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await requireRouteAccess("/admin/clientes");
+  await requireRouteAccess("/admin/clients");
   const { id } = await params;
-  const cliente = await getClienteById(id);
+  const client = await getClientById(id);
 
-  if (!cliente) notFound();
+  if (!client) notFound();
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <BackButton fallback="/admin/clientes" />
+          <BackButton fallback="/admin/clients" />
           <div>
-            <h1 className="text-3xl font-bold">{cliente.name}</h1>
+            <h1 className="text-3xl font-bold">{client.name}</h1>
             <p className="text-muted-foreground">
-              Código Cliente: {cliente.code}
+              Código Cliente: {client.code}
             </p>
           </div>
         </div>
         <Button asChild>
-          <Link href={`/admin/clientes/${id}/edit`}>
+          <Link href={`/admin/clients/${id}/edit`}>
             <Edit className="h-4 w-4 mr-2" />
             Editar
           </Link>
@@ -78,7 +78,7 @@ export default async function ClienteDetailPage({
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{cliente._count.users}</div>
+            <div className="text-2xl font-bold">{client._count.users}</div>
             <p className="text-xs text-muted-foreground">Usuarios asignados</p>
           </CardContent>
         </Card>
@@ -89,7 +89,7 @@ export default async function ClienteDetailPage({
             <Wrench className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{cliente._count.lines}</div>
+            <div className="text-2xl font-bold">{client._count.lines}</div>
             <p className="text-xs text-muted-foreground">
               Líneas de inspección
             </p>
@@ -102,7 +102,7 @@ export default async function ClienteDetailPage({
             <AlertTriangle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{cliente._count.incidents}</div>
+            <div className="text-2xl font-bold">{client._count.incidents}</div>
             <p className="text-xs text-muted-foreground">Total de incidentes</p>
           </CardContent>
         </Card>
@@ -114,7 +114,7 @@ export default async function ClienteDetailPage({
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {cliente._count.scheduleClientes}
+              {client._count.scheduleClients}
             </div>
             <p className="text-xs text-muted-foreground">
               Total de calendarios
@@ -136,7 +136,7 @@ export default async function ClienteDetailPage({
                 <p className="text-sm text-muted-foreground">
                   Nombre del Cliente
                 </p>
-                <p className="font-medium">{cliente.name}</p>
+                <p className="font-medium">{client.name}</p>
               </div>
             </div>
 
@@ -144,26 +144,26 @@ export default async function ClienteDetailPage({
               <Building className="h-5 w-5 text-muted-foreground mt-0.5" />
               <div className="flex-1">
                 <p className="text-sm text-muted-foreground">Código Cliente</p>
-                <p className="font-medium font-mono">{cliente.code}</p>
+                <p className="font-medium font-mono">{client.code}</p>
               </div>
             </div>
 
-            {cliente.companyName && (
+            {client.companyName && (
               <div className="flex items-start gap-3">
                 <Building className="h-5 w-5 text-muted-foreground mt-0.5" />
                 <div className="flex-1">
                   <p className="text-sm text-muted-foreground">Razón Social</p>
-                  <p className="font-medium">{cliente.companyName}</p>
+                  <p className="font-medium">{client.companyName}</p>
                 </div>
               </div>
             )}
 
-            {cliente.rfc && (
+            {client.rfc && (
               <div className="flex items-start gap-3">
                 <Building className="h-5 w-5 text-muted-foreground mt-0.5" />
                 <div className="flex-1">
                   <p className="text-sm text-muted-foreground">RFC</p>
-                  <p className="font-medium font-mono">{cliente.rfc}</p>
+                  <p className="font-medium font-mono">{client.rfc}</p>
                 </div>
               </div>
             )}
@@ -175,12 +175,12 @@ export default async function ClienteDetailPage({
             <CardTitle>Información de Contacto</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {cliente.address && (
+            {client.address && (
               <div className="flex items-start gap-3">
                 <MapPin className="h-5 w-5 text-muted-foreground mt-0.5" />
                 <div className="flex-1">
                   <p className="text-sm text-muted-foreground">Dirección</p>
-                  <p className="font-medium">{cliente.address}</p>
+                  <p className="font-medium">{client.address}</p>
                 </div>
               </div>
             )}
@@ -189,40 +189,40 @@ export default async function ClienteDetailPage({
               <MapPin className="h-5 w-5 text-muted-foreground mt-0.5" />
               <div className="flex-1">
                 <p className="text-sm text-muted-foreground">Estado</p>
-                <p className="font-medium">{cliente.state.name}</p>
+                <p className="font-medium">{client.state.name}</p>
               </div>
             </div>
 
-            {cliente.contact && (
+            {client.contact && (
               <div className="flex items-start gap-3">
                 <User className="h-5 w-5 text-muted-foreground mt-0.5" />
                 <div className="flex-1">
                   <p className="text-sm text-muted-foreground">
                     Persona de Contacto
                   </p>
-                  <p className="font-medium">{cliente.contact}</p>
+                  <p className="font-medium">{client.contact}</p>
                 </div>
               </div>
             )}
 
-            {cliente.phone && (
+            {client.phone && (
               <div className="flex items-start gap-3">
                 <Phone className="h-5 w-5 text-muted-foreground mt-0.5" />
                 <div className="flex-1">
                   <p className="text-sm text-muted-foreground">Teléfono</p>
-                  <p className="font-medium">{cliente.phone}</p>
+                  <p className="font-medium">{client.phone}</p>
                 </div>
               </div>
             )}
 
-            {cliente.email && (
+            {client.email && (
               <div className="flex items-start gap-3">
                 <Mail className="h-5 w-5 text-muted-foreground mt-0.5" />
                 <div className="flex-1">
                   <p className="text-sm text-muted-foreground">
                     Correo Electrónico
                   </p>
-                  <p className="font-medium">{cliente.email}</p>
+                  <p className="font-medium">{client.email}</p>
                 </div>
               </div>
             )}
@@ -235,12 +235,12 @@ export default async function ClienteDetailPage({
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Users className="h-5 w-5" />
-            Usuarios Asignados ({cliente.users.length})
+            Usuarios Asignados ({client.users.length})
           </CardTitle>
           <CardDescription>Usuarios asignados a este Cliente</CardDescription>
         </CardHeader>
         <CardContent>
-          {cliente.users.length === 0 ? (
+          {client.users.length === 0 ? (
             <p className="text-center text-muted-foreground py-8">
               No hay usuarios asignados a este Cliente
             </p>
@@ -257,7 +257,7 @@ export default async function ClienteDetailPage({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {cliente.users.map((user) => (
+                  {client.users.map((user) => (
                     <TableRow key={user.id}>
                       <TableCell className="font-medium">{user.name}</TableCell>
                       <TableCell>{user.email}</TableCell>
@@ -294,18 +294,18 @@ export default async function ClienteDetailPage({
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Wrench className="h-5 w-5" />
-            Líneas y Equipos ({cliente.lines.length})
+            Líneas y Equipos ({client.lines.length})
           </CardTitle>
           <CardDescription>Líneas de inspección y sus equipos</CardDescription>
         </CardHeader>
         <CardContent>
-          {cliente.lines.length === 0 ? (
+          {client.lines.length === 0 ? (
             <p className="text-center text-muted-foreground py-8">
               No hay líneas asignadas a este Cliente
             </p>
           ) : (
             <div className="space-y-6">
-              {cliente.lines.map((line) => (
+              {client.lines.map((line) => (
                 <div key={line.id} className="border rounded-lg p-4">
                   <div className="flex items-center justify-between mb-4">
                     <div>
@@ -377,12 +377,12 @@ export default async function ClienteDetailPage({
       </Card>
 
       {/* Recent Incidents */}
-      {cliente.incidents.length > 0 && (
+      {client.incidents.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5" />
-              Incidentes Recientes (Últimos {cliente.incidents.length})
+              Incidentes Recientes (Últimos {client.incidents.length})
             </CardTitle>
             <CardDescription>
               Incidentes más recientes reportados para este Cliente
@@ -402,7 +402,7 @@ export default async function ClienteDetailPage({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {cliente.incidents.map((incident) => (
+                  {client.incidents.map((incident) => (
                     <TableRow key={incident.id}>
                       <TableCell className="font-mono text-sm">
                         INC-{incident.id}
@@ -431,7 +431,7 @@ export default async function ClienteDetailPage({
                             clock (plus CDMX when they differ). */}
                         {formatIncidentDateTime(
                           incident.reportedAt,
-                          cliente.state.code,
+                          client.state.code,
                         )}
                       </TableCell>
                       <TableCell className="text-right">

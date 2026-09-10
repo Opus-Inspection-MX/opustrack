@@ -106,7 +106,7 @@ export default function LoginForm() {
                 <p className="font-semibold mb-1">Credenciales de prueba:</p>
                 <p>Admin: admin@opusinspection.com</p>
                 <p>FSR: fsr@opusinspection.com</p>
-                <p>Cliente: client@opusinspection.com</p>
+                <p>Reportero: reporter@opusinspection.com</p>
                 <p>Guest: guest@opusinspection.com</p>
               </div>
             )}

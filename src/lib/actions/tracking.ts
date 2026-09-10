@@ -214,7 +214,7 @@ function parseFolioQuery(input: string): FolioQuery {
 const TRACKING_MAX_RESULTS = 200;
 
 export interface TrackingFilters {
-  clienteId?: string;
+  clientId?: string;
   typeId?: number;
   statusId?: number;
   startDate?: string;
@@ -230,10 +230,10 @@ export interface TrackingFilters {
  * they are talking about: a signature computed over a different set than the
  * table shows would either miss changes or reload forever.
  *
- * The `scope` is the caller's Cliente boundary (cross-cutting rule #4:
- * non-ADMINISTRADOR users only see their Cliente data). An explicit
- * `clienteId` filter narrows inside that boundary; one outside it matches
- * nothing (fail closed) instead of leaking another Cliente's rows.
+ * The `scope` is the caller's Client boundary (cross-cutting rule #4:
+ * non-ADMINISTRADOR users only see their Client data). An explicit
+ * `clientId` filter narrows inside that boundary; one outside it matches
+ * nothing (fail closed) instead of leaking another Client's rows.
  */
 function buildTrackingWhere(
   filters: TrackingFilters | undefined,
@@ -246,11 +246,11 @@ function buildTrackingWhere(
     active: true,
   };
 
-  if (filters?.clienteId) {
-    where.clienteId =
-      scope.clienteIds !== null && !scope.clienteIds.includes(filters.clienteId)
+  if (filters?.clientId) {
+    where.clientId =
+      scope.clientIds !== null && !scope.clientIds.includes(filters.clientId)
         ? { in: [] }
-        : filters.clienteId;
+        : filters.clientId;
   } else {
     Object.assign(where, incidentScopeWhere(scope));
   }
@@ -381,7 +381,7 @@ export async function getIncidentsForTracking(filters?: TrackingFilters) {
       resolvedAt: true,
       lineId: true,
       equipmentId: true,
-      cliente: {
+      client: {
         select: {
           id: true,
           name: true,
@@ -526,12 +526,12 @@ export async function getIncidentsForTracking(filters?: TrackingFilters) {
 }
 
 /**
- * Every active FSR, each carrying the Clientes they are assigned to.
+ * Every active FSR, each carrying the Clients they are assigned to.
  *
- * The Cliente link is a hint, not a filter: the UI surfaces it as a badge so an
+ * The Client link is a hint, not a filter: the UI surfaces it as a badge so an
  * operator can tell at a glance who usually covers that center, but anyone can
- * be assigned anywhere. This replaced a per-Cliente query that the tracking
- * page called once per Cliente and then de-duplicated.
+ * be assigned anywhere. This replaced a per-Client query that the tracking
+ * page called once per Client and then de-duplicated.
  */
 export async function getTrackingFsrs() {
   try {
@@ -543,9 +543,9 @@ export async function getTrackingFsrs() {
         id: true,
         name: true,
         email: true,
-        clienteAssignments: {
+        clientAssignments: {
           where: { active: true },
-          select: { clienteId: true },
+          select: { clientId: true },
         },
       },
       orderBy: { name: "asc" },
@@ -555,7 +555,7 @@ export async function getTrackingFsrs() {
       id: u.id,
       name: u.name,
       email: u.email,
-      clienteIds: u.clienteAssignments.map((a) => a.clienteId),
+      clientIds: u.clientAssignments.map((a) => a.clientId),
     }));
   } catch (error) {
     rethrowBusinessError(error);
@@ -1074,8 +1074,8 @@ export async function updateAssignmentDetails(
 export async function getTrackingBootstrap() {
   await requirePermission("tracking:read");
 
-  const [clientes, types, statuses, fsrs] = await Promise.all([
-    prisma.cliente.findMany({
+  const [clients, types, statuses, fsrs] = await Promise.all([
+    prisma.client.findMany({
       where: { active: true },
       select: { id: true, name: true, code: true },
       orderBy: { name: "asc" },
@@ -1096,9 +1096,9 @@ export async function getTrackingBootstrap() {
         id: true,
         name: true,
         email: true,
-        clienteAssignments: {
+        clientAssignments: {
           where: { active: true },
-          select: { clienteId: true },
+          select: { clientId: true },
         },
       },
       orderBy: { name: "asc" },
@@ -1106,14 +1106,14 @@ export async function getTrackingBootstrap() {
   ]);
 
   return {
-    clientes,
+    clients,
     types,
     statuses,
     fsrs: fsrs.map((u) => ({
       id: u.id,
       name: u.name,
       email: u.email,
-      clienteIds: u.clienteAssignments.map((a) => a.clienteId),
+      clientIds: u.clientAssignments.map((a) => a.clientId),
     })),
   };
 }

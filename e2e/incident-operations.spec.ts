@@ -47,15 +47,15 @@ test.beforeAll(async () => {
     }),
   ]);
 
-  // The incident must belong to a Cliente this FSR covers: reading an
-  // assignment goes through `assertClienteAccess`, so any other center answers
+  // The incident must belong to a Client this FSR covers: reading an
+  // assignment goes through `assertClientAccessAsync`, so any other center answers
   // "no tiene permiso" and the test would be about multi-tenancy, not about
   // documenting work.
-  const assignment0 = await prisma.userClienteAssignment.findFirstOrThrow({
+  const assignment0 = await prisma.userClientAssignment.findFirstOrThrow({
     where: { userId: fsr.id, active: true },
-    select: { clienteId: true },
+    select: { clientId: true },
   });
-  const cliente = { id: assignment0.clienteId };
+  const client = { id: assignment0.clientId };
 
   const incident = await prisma.incident.create({
     data: {
@@ -63,7 +63,7 @@ test.beforeAll(async () => {
       description: "Incidente preparado por la suite de operativa.",
       typeId: type.id,
       statusId: incidentStatus.id,
-      clienteId: cliente.id,
+      clientId: client.id,
       assignees: { create: [{ userId: fsr.id }] },
     },
     select: { id: true },

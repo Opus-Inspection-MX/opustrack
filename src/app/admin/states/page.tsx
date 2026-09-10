@@ -36,7 +36,7 @@ const columns: CatalogColumn<State>[] = [
     header: "Clientes",
     cell: (row) => (
       <span className="text-sm text-muted-foreground">
-        {row._count.clientes}
+        {row._count.clients}
       </span>
     ),
   },
@@ -108,7 +108,7 @@ export default function StatesPage() {
       confirmTitle: "Eliminar estado",
       confirmMessage: (row) =>
         `¿Seguro que deseas eliminar "${row.name}"? Esta acción no se puede deshacer.`,
-      disabled: (row) => row._count.clientes > 0,
+      disabled: (row) => row._count.clients > 0,
       onClick: async (row) => {
         try {
           const result = await deleteState(row.id);

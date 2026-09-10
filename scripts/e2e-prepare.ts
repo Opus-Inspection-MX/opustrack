@@ -3,7 +3,7 @@
  *
  * Unlike the development database this one is thrown away on
  * `npm run e2e:down`, so seeding is unconditional — the suite must start from a
- * known catalog of roles, statuses and clientes.
+ * known catalog of roles, statuses and clients.
  */
 import { spawnSync } from "node:child_process";
 import { assertEphemeralDatabase } from "../e2e/fixtures/ephemeral-db";

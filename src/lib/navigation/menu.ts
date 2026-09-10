@@ -76,7 +76,7 @@ export const MENU: MenuSection[] = [
   {
     title: "Mis Vacaciones",
     items: [
-      // Self-service, for every staff role. A CLIENT is a shared center
+      // Self-service, for every staff role. A REPORTER is a shared center
       // account, not a person with days to book.
       { title: "Mis Vacaciones", url: "/vacations", icon: Palmtree },
     ],
@@ -84,8 +84,12 @@ export const MENU: MenuSection[] = [
   {
     title: "Mi Centro",
     items: [
-      { title: "Inicio", url: "/client", icon: LayoutDashboard },
-      { title: "Reportar Incidente", url: "/client/new", icon: AlertTriangle },
+      { title: "Inicio", url: "/reporter", icon: LayoutDashboard },
+      {
+        title: "Reportar Incidente",
+        url: "/reporter/new",
+        icon: AlertTriangle,
+      },
     ],
   },
   {
@@ -170,7 +174,7 @@ export const MENU: MenuSection[] = [
   {
     title: "Organización",
     items: [
-      { title: "Cliente", url: "/admin/clientes", icon: Building2 },
+      { title: "Cliente", url: "/admin/clients", icon: Building2 },
       { title: "Líneas", url: "/admin/lines", icon: List },
       { title: "Equipos", url: "/admin/equipments", icon: Wrench },
       { title: "Estados", url: "/admin/states", icon: MapPin },

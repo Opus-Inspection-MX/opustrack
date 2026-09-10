@@ -36,8 +36,8 @@ export interface IncidentProgramFilters {
   scheduleIds?: string[];
   /** Optional plaza filter — the source workbook is issued per plaza. */
   stateIds?: number[];
-  /** Optional cliente (centro) filter. Narrower than `stateIds`. */
-  clienteIds?: string[];
+  /** Optional client (centro) filter. Narrower than `stateIds`. */
+  clientIds?: string[];
 }
 
 /**
@@ -80,20 +80,20 @@ function assigneeNames(assignees: { user: { name: string } }[]): string[] {
 function incidentWindowWhere(
   from: Date,
   to: Date,
-  filters: Pick<IncidentProgramFilters, "stateIds" | "clienteIds">,
+  filters: Pick<IncidentProgramFilters, "stateIds" | "clientIds">,
   scope: ReportScope,
 ): Prisma.IncidentWhereInput {
   return {
     active: true,
     // Tenant scope first — the user-supplied filters below can only narrow it,
-    // never widen it past the caller's own Clientes.
+    // never widen it past the caller's own Clients.
     ...incidentScopeWhere(scope),
-    ...(filters.clienteIds?.length
-      ? { clienteId: { in: filters.clienteIds } }
+    ...(filters.clientIds?.length
+      ? { clientId: { in: filters.clientIds } }
       : {}),
-    // A plaza filter constrains the cliente, so it composes with clienteIds.
+    // A plaza filter constrains the client, so it composes with clientIds.
     ...(filters.stateIds?.length
-      ? { cliente: { stateId: { in: filters.stateIds } } }
+      ? { client: { stateId: { in: filters.stateIds } } }
       : {}),
     OR: [
       {
@@ -123,7 +123,7 @@ export async function getScheduleOptions(
     where,
     select: {
       scheduleId: true,
-      cliente: { select: { code: true } },
+      client: { select: { code: true } },
       schedule: {
         select: {
           id: true,
@@ -139,7 +139,7 @@ export async function getScheduleOptions(
   let unlinked = 0;
 
   for (const incident of incidents) {
-    const code = incident.cliente?.code;
+    const code = incident.client?.code;
 
     if (!incident.schedule) {
       unlinked++;
@@ -149,8 +149,8 @@ export async function getScheduleOptions(
     const existing = grouped.get(incident.schedule.id);
     if (existing) {
       existing.incidentCount++;
-      if (code && !existing.clienteCodes.includes(code)) {
-        existing.clienteCodes.push(code);
+      if (code && !existing.clientCodes.includes(code)) {
+        existing.clientCodes.push(code);
       }
       continue;
     }
@@ -163,7 +163,7 @@ export async function getScheduleOptions(
         ? mxDateString(incident.schedule.endDate)
         : null,
       incidentCount: 1,
-      clienteCodes: code ? [code] : [],
+      clientCodes: code ? [code] : [],
     });
   }
 
@@ -172,7 +172,7 @@ export async function getScheduleOptions(
     return byDate !== 0 ? byDate : a.title.localeCompare(b.title);
   });
 
-  for (const option of options) option.clienteCodes.sort();
+  for (const option of options) option.clientCodes.sort();
 
   if (unlinked > 0) {
     options.push({
@@ -181,7 +181,7 @@ export async function getScheduleOptions(
       startDate: null,
       endDate: null,
       incidentCount: unlinked,
-      clienteCodes: [],
+      clientCodes: [],
     });
   }
 
@@ -203,7 +203,7 @@ const assignmentSelect = {
  * How incidents land on the grid:
  * - The row comes from the incident TYPE (see `classifyIncidentType`):
  *   mantenimiento / calibración fase II / opacímetro y gases occupy a CENTRO
- *   block at the incident's cliente; every other type (failures, supply…) is
+ *   block at the incident's client; every other type (failures, supply…) is
  *   reactive work and feeds the RESPONSABLES INCIDENCIAS row.
  * - The column comes from `assignment.scheduledDate ?? incident.reportedAt`.
  * - Approved vacations feed the VACACIONES row; official holidays mark the
@@ -239,7 +239,7 @@ export async function getIncidentProgramReport(
       select: {
         reportedAt: true,
         type: { select: { name: true } },
-        cliente: { select: { code: true } },
+        client: { select: { code: true } },
         assignments: { where: { active: true }, select: assignmentSelect },
       },
     }),
@@ -263,7 +263,7 @@ export async function getIncidentProgramReport(
 
   for (const incident of incidents) {
     const category = classifyIncidentType(incident.type?.name);
-    const clienteCode = incident.cliente?.code ?? null;
+    const clientCode = incident.client?.code ?? null;
 
     // One placement per active assignment, so an incident attended on two days
     // shows on both. Unassigned incidents still occupy their reported day.
@@ -282,7 +282,7 @@ export async function getIncidentProgramReport(
     for (const occurrence of occurrences) {
       entries.push({
         date: occurrence.date,
-        clienteCode,
+        clientCode,
         category,
         responsables: occurrence.responsables,
       });

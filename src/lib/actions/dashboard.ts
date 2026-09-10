@@ -74,7 +74,7 @@ export async function getDashboardStats() {
         type: true,
         status: true,
         // The center's state resolves the timezone the report was filed in.
-        cliente: { include: { state: true } },
+        client: { include: { state: true } },
         reportedBy: {
           select: { name: true },
         },

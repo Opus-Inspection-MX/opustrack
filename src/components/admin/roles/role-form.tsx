@@ -63,7 +63,7 @@ export function RoleForm({ role }: RoleFormProps) {
                 onChange={(e) =>
                   setFormData({ ...formData, name: e.target.value })
                 }
-                placeholder="ej. ADMINISTRADOR, FSR, CLIENT"
+                placeholder="ej. ADMINISTRADOR, FSR, REPORTER"
                 required
               />
               <p className="text-xs text-muted-foreground">

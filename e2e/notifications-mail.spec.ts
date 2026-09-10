@@ -84,14 +84,14 @@ test.beforeAll(async () => {
 });
 
 test.describe("incidencias", () => {
-  test.use({ storageState: authFile("client") });
+  test.use({ storageState: authFile("reporter") });
 
   test("una incidencia nueva le llega por correo al admin de operación", async ({
     page,
   }) => {
     await clearMailbox();
 
-    await page.goto("/client/new");
+    await page.goto("/reporter/new");
     await fillFieldById(page, "title", INCIDENT_TITLE);
     await fillFieldById(
       page,
@@ -101,7 +101,7 @@ test.describe("incidencias", () => {
     await page.getByText("Selecciona el tipo de incidente").click();
     await page.getByRole("option").first().click();
     await page.getByRole("button", { name: "Enviar Reporte" }).click();
-    await page.waitForURL("**/client");
+    await page.waitForURL("**/reporter");
 
     const message = await waitForMessage({
       to: OPS_EMAIL,

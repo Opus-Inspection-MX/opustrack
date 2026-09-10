@@ -1,45 +1,45 @@
 import { notFound } from "next/navigation";
-import { ClienteForm } from "@/components/admin/clientes/cliente-form";
+import { ClientForm } from "@/components/admin/clientes/client-form";
 import { BackButton } from "@/components/common/back-button";
 import {
-  getClienteById,
-  getClientUsers,
+  getClientById,
   getFSRUsers,
+  getReporterUsers,
   getStates,
-} from "@/lib/actions/clientes";
+} from "@/lib/actions/clients";
 
-export default async function EditClientePage({
+export default async function EditClientPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [cliente, states, fsrUsers, clientUsers] = await Promise.all([
-    getClienteById(id),
+  const [client, states, fsrUsers, reporterUsers] = await Promise.all([
+    getClientById(id),
     getStates(),
     getFSRUsers(),
-    getClientUsers(),
+    getReporterUsers(),
   ]);
 
-  if (!cliente) notFound();
+  if (!client) notFound();
 
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <BackButton fallback="/admin/clientes" />
+        <BackButton fallback="/admin/clients" />
         <div>
           <h1 className="text-3xl font-bold">Editar Centro de Verificación</h1>
           <p className="text-muted-foreground">
-            Actualizar información del Cliente: {cliente.name}
+            Actualizar información del Cliente: {client.name}
           </p>
         </div>
       </div>
 
-      <ClienteForm
-        cliente={cliente}
+      <ClientForm
+        client={client}
         states={states}
         fsrUsers={fsrUsers}
-        clientUsers={clientUsers}
+        reporterUsers={reporterUsers}
       />
     </div>
   );

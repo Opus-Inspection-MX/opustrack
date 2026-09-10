@@ -30,10 +30,10 @@ type AssignmentFormProps = {
   incidents: Array<{
     id: number;
     title: string;
-    clienteId?: string | null;
+    clientId?: string | null;
     assigneeIds?: string[];
   }>;
-  users: Array<{ id: string; name: string; clienteIds?: string[] }>;
+  users: Array<{ id: string; name: string; clientIds?: string[] }>;
   assignmentStatuses: Array<{
     id: number;
     name: string;

@@ -3,7 +3,7 @@ import { BackButton } from "@/components/common/back-button";
 import { getIncidentFormOptions } from "@/lib/actions/incidents";
 
 export default async function NewIncidentPage() {
-  const { types, statuses, clientes, users, schedules } =
+  const { types, statuses, clients, users, schedules } =
     await getIncidentFormOptions();
 
   return (
@@ -21,7 +21,7 @@ export default async function NewIncidentPage() {
       <IncidentForm
         types={types}
         statuses={statuses}
-        clientes={clientes}
+        clients={clients}
         users={users}
         schedules={schedules}
       />

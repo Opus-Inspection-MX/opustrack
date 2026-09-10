@@ -176,10 +176,10 @@ export default async function FSRAssignmentsPage() {
 
                       {/* Details */}
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm text-muted-foreground">
-                        {wo.incident?.cliente && (
+                        {wo.incident?.client && (
                           <div>
                             <span className="font-medium">Cliente:</span>{" "}
-                            {wo.incident.cliente.name}
+                            {wo.incident.client.name}
                           </div>
                         )}
                         <div>

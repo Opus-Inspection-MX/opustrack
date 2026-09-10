@@ -69,14 +69,14 @@ export function createFSRSession() {
 }
 
 /**
- * Mock client session
+ * Mock reporter session
  */
-export function createClientSession() {
+export function createReporterSession() {
   return createMockSession({
-    roleName: "CLIENT",
-    defaultPath: "/client",
-    email: "client@test.com",
-    name: "Test Client",
+    roleName: "REPORTER",
+    defaultPath: "/reporter",
+    email: "reporter@test.com",
+    name: "Test Reporter",
   });
 }
 

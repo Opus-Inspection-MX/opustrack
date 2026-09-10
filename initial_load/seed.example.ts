@@ -112,10 +112,10 @@ async function main() {
       if (!cdmx || !puebla) throw new Error("Estados base no encontrados");
       console.log("✅ Seeded States (32)");
 
-      // 3) Clientes
+      // 3) Clients
       // "SIN CENTRO": placeholder usado SOLO como fallback visual; los incidentes
-      // sin cliente dejan clienteId = null (no se asignan a este registro).
-      await tx.cliente.upsert({
+      // sin client dejan clientId = null (no se asignan a este registro).
+      await tx.client.upsert({
         where: { code: "SIN-CENTRO" },
         update: { name: "SIN CENTRO" },
         create: {
@@ -126,11 +126,11 @@ async function main() {
         },
       });
 
-      const clienteByCode = new Map<string, { id: string }>();
+      const clientByCode = new Map<string, { id: string }>();
       // PUEBLA: CVV01..CVV09
       for (let n = 1; n <= 9; n++) {
         const code = `CVV0${n}`;
-        const rec = await tx.cliente.upsert({
+        const rec = await tx.client.upsert({
           where: { code },
           update: {},
           create: {
@@ -140,11 +140,11 @@ async function main() {
             stateId: puebla.id,
           },
         });
-        clienteByCode.set(code, rec);
+        clientByCode.set(code, rec);
       }
       // CDMX: IZ59, IT48, TH61
       for (const code of ["IZ59", "IT48", "TH61"]) {
-        const rec = await tx.cliente.upsert({
+        const rec = await tx.client.upsert({
           where: { code },
           update: {},
           create: {
@@ -154,12 +154,12 @@ async function main() {
             stateId: cdmx.id,
           },
         });
-        clienteByCode.set(code, rec);
+        clientByCode.set(code, rec);
       }
-      // Test users below are related to these CDMX clientes.
-      const civ = clienteByCode.get("IZ59");
-      const civ2 = clienteByCode.get("IT48");
-      const civ3 = clienteByCode.get("TH61");
+      // Test users below are related to these CDMX clients.
+      const civ = clientByCode.get("IZ59");
+      const civ2 = clientByCode.get("IT48");
+      const civ3 = clientByCode.get("TH61");
       if (!civ || !civ2 || !civ3) throw new Error("Clientes base no creados");
       console.log(
         "✅ Seeded Clientes (SIN CENTRO, PUEBLA CVV01-09, CDMX IZ59/IT48/TH61)",
@@ -180,9 +180,9 @@ async function main() {
           routePath: "/fsr",
         },
         {
-          name: "route:client",
-          description: "Access to client dashboard",
-          routePath: "/client",
+          name: "route:reporter",
+          description: "Access to reporter dashboard",
+          routePath: "/reporter",
         },
         {
           name: "route:guest",
@@ -194,7 +194,7 @@ async function main() {
           description: "Access to the shared profile page",
           routePath: "/profile",
         },
-        // Self-service vacations. Granted to every staff role — a CLIENT is a
+        // Self-service vacations. Granted to every staff role — a REPORTER is a
         // center account, not a person with vacation days.
         {
           name: "route:vacations",
@@ -250,7 +250,7 @@ async function main() {
         {
           name: "route:admin-organization",
           description: "Organización: clientes, líneas, equipos, estados",
-          routePath: "/admin/clientes",
+          routePath: "/admin/clients",
         },
         {
           name: "route:admin-lines",
@@ -307,10 +307,10 @@ async function main() {
 
         // Capabilities that the role name ADMINISTRADOR used to imply.
         {
-          name: "scope:all-clientes",
+          name: "scope:all-clients",
           description: "Ver datos de todos los Clientes, no solo los asignados",
           resource: "scope",
-          action: "all-clientes",
+          action: "all-clients",
         },
         {
           name: "assignments:manage-all",
@@ -516,29 +516,29 @@ async function main() {
 
         // Parts/Inventory permissions
 
-        // Cliente management permissions
+        // Client management permissions
         {
-          name: "clientes:read",
-          description: "View Clientes",
-          resource: "clientes",
+          name: "clients:read",
+          description: "View Clients",
+          resource: "clients",
           action: "read",
         },
         {
-          name: "clientes:create",
-          description: "Create Clientes",
-          resource: "clientes",
+          name: "clients:create",
+          description: "Create Clients",
+          resource: "clients",
           action: "create",
         },
         {
-          name: "clientes:update",
-          description: "Update Clientes",
-          resource: "clientes",
+          name: "clients:update",
+          description: "Update Clients",
+          resource: "clients",
           action: "update",
         },
         {
-          name: "clientes:delete",
-          description: "Delete Clientes",
-          resource: "clientes",
+          name: "clients:delete",
+          description: "Delete Clients",
+          resource: "clients",
           action: "delete",
         },
 
@@ -964,7 +964,7 @@ async function main() {
       console.log("✅ Seeded Permissions");
 
       // 5) Roles with permissions
-      // Vacations every staff role administers for itself. A CLIENT is a
+      // Vacations every staff role administers for itself. A REPORTER is a
       // center account shared by whoever is on shift, not a person with days.
       const SELF_SERVICE_VACATIONS = [
         "route:vacations",
@@ -1016,7 +1016,7 @@ async function main() {
             ...SELF_SERVICE_VACATIONS,
             // Sees every center without being able to grant roles: this is the
             // half of the old ADMINISTRADOR that is about DATA, not power.
-            "scope:all-clientes",
+            "scope:all-clients",
             "assignments:manage-all",
             "vehicle-trips:manage-all",
             "incidents:read",
@@ -1038,10 +1038,10 @@ async function main() {
             "schedules:create",
             "schedules:update",
             "schedules:delete",
-            "clientes:read",
-            "clientes:create",
-            "clientes:update",
-            "clientes:delete",
+            "clients:read",
+            "clients:create",
+            "clients:update",
+            "clients:delete",
             "lines:read",
             "lines:create",
             "lines:update",
@@ -1124,7 +1124,7 @@ async function main() {
             "assignment-activities:complete",
             "schedules:read",
             "users:read",
-            "clientes:read",
+            "clients:read",
             "reports:view",
             "reports:export",
             "incident-status:read",
@@ -1164,18 +1164,18 @@ async function main() {
           ],
         },
         {
-          name: "CLIENT",
-          description: "Client user - Raises incidents from Cliente",
-          defaultPath: "/client",
+          name: "REPORTER",
+          description: "Reporter user - Raises incidents from Client",
+          defaultPath: "/reporter",
           priority: 10,
           permissions: [
-            "route:client",
+            "route:reporter",
             "route:profile",
             "incidents:read",
             "incidents:create",
             "incident-types:read", // Needed to select incident type when creating
             "incident-status:read", // Needed to view incident status
-            "clientes:read", // Needed to select Cliente when creating incidents
+            "clients:read", // Needed to select Client when creating incidents
             "assignments:read",
             "schedules:read",
             "lines:read",
@@ -1198,7 +1198,7 @@ async function main() {
             "incidents:read",
             "incident-types:read", // Needed to view incident types
             "incident-status:read", // Needed to view incident status
-            "clientes:read", // Needed to view Clientes
+            "clients:read", // Needed to view Clients
             "assignments:read",
             "schedules:read",
             "lines:read",
@@ -1250,91 +1250,91 @@ async function main() {
       }
       console.log("✅ Seeded Roles with Permissions");
 
-      // 6) Users - 3 per role for testing. FSR/CLIENT users are related to a
-      // Cliente (one pair per Cliente). ADMIN and GUEST are not tied to any Cliente.
+      // 6) Users - 3 per role for testing. FSR/REPORTER users are related to a
+      // Client (one pair per Client). ADMIN and GUEST are not tied to any Client.
       const usersData: Array<{
         name: string;
         email: string;
         roleName: string;
-        clienteId: string | null;
+        clientId: string | null;
       }> = [
-        // ROOT (no Cliente)
+        // ROOT (no Client)
         {
           name: "Admin User",
           email: "admin@opusinspection.com",
           roleName: "ROOT",
-          clienteId: null,
+          clientId: null,
         },
         {
           name: "Admin User 2",
           email: "admin2@opusinspection.com",
           roleName: "ROOT",
-          clienteId: null,
+          clientId: null,
         },
         {
           name: "Admin User 3",
           email: "admin3@opusinspection.com",
           roleName: "ROOT",
-          clienteId: null,
+          clientId: null,
         },
-        // FSR (one per Cliente)
+        // FSR (one per Client)
         {
           name: "FSR User",
           email: "fsr@opusinspection.com",
           roleName: "FSR",
-          clienteId: civ.id,
+          clientId: civ.id,
         },
         {
           name: "FSR User 2",
           email: "fsr2@opusinspection.com",
           roleName: "FSR",
-          clienteId: civ2.id,
+          clientId: civ2.id,
         },
         {
           name: "FSR User 3",
           email: "fsr3@opusinspection.com",
           roleName: "FSR",
-          clienteId: civ3.id,
+          clientId: civ3.id,
         },
-        // CLIENT — one generic account per Cliente, named after the center's
+        // REPORTER — one generic account per Client, named after the center's
         // code rather than a person: it is shared by everyone working there,
         // and whoever raises an incident types their own name into it.
         {
           name: "IZ59",
-          email: "client@opusinspection.com",
-          roleName: "CLIENT",
-          clienteId: civ.id,
+          email: "reporter@opusinspection.com",
+          roleName: "REPORTER",
+          clientId: civ.id,
         },
         {
           name: "IT48",
-          email: "client2@opusinspection.com",
-          roleName: "CLIENT",
-          clienteId: civ2.id,
+          email: "reporter2@opusinspection.com",
+          roleName: "REPORTER",
+          clientId: civ2.id,
         },
         {
           name: "TH61",
-          email: "client3@opusinspection.com",
-          roleName: "CLIENT",
-          clienteId: civ3.id,
+          email: "reporter3@opusinspection.com",
+          roleName: "REPORTER",
+          clientId: civ3.id,
         },
-        // GUEST (read-only, no Cliente)
+        // GUEST (read-only, no Client)
         {
           name: "Guest User",
           email: "guest@opusinspection.com",
           roleName: "GUEST",
-          clienteId: null,
+          clientId: null,
         },
         {
           name: "Guest User 2",
           email: "guest2@opusinspection.com",
           roleName: "GUEST",
-          clienteId: null,
+          clientId: null,
         },
         {
           name: "Guest User 3",
           email: "guest3@opusinspection.com",
           roleName: "GUEST",
-          clienteId: null,
+          clientId: null,
         },
       ];
 
@@ -1366,19 +1366,19 @@ async function main() {
           },
         });
 
-        // Create Cliente assignment if user has a Cliente
-        if (userData.clienteId) {
-          await tx.userClienteAssignment.upsert({
+        // Create Client assignment if user has a Client
+        if (userData.clientId) {
+          await tx.userClientAssignment.upsert({
             where: {
-              userId_clienteId: {
+              userId_clientId: {
                 userId: user.id,
-                clienteId: userData.clienteId,
+                clientId: userData.clientId,
               },
             },
             update: { isPrimary: true, active: true },
             create: {
               userId: user.id,
-              clienteId: userData.clienteId,
+              clientId: userData.clientId,
               isPrimary: true,
             },
           });
@@ -1774,7 +1774,7 @@ async function main() {
     "  FSR:    fsr@opusinspection.com / password123     (Field Service Representative)",
   );
   console.log(
-    "  Client: client@opusinspection.com / password123  (Raises incidents from Cliente)",
+    "  Reporter: reporter@opusinspection.com / password123  (Raises incidents from Client)",
   );
   console.log(
     "  Guest:  guest@opusinspection.com / password123   (Read-only access)",

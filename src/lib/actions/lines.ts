@@ -33,7 +33,7 @@ export async function getLines(params?: {
     prisma.line.findMany({
       where,
       include: {
-        cliente: {
+        client: {
           select: {
             id: true,
             name: true,
@@ -75,7 +75,7 @@ export async function getLineById(id: number) {
   const line = await prisma.line.findUnique({
     where: { id },
     include: {
-      cliente: {
+      client: {
         select: {
           id: true,
           name: true,
@@ -98,11 +98,11 @@ export async function getLineById(id: number) {
   return line;
 }
 
-export async function getLinesByClienteId(clienteId: string) {
+export async function getLinesByClientId(clientId: string) {
   await requirePermission("lines:read");
   const lines = await prisma.line.findMany({
     where: {
-      clienteId,
+      clientId,
       active: true,
     },
     include: {
@@ -119,7 +119,7 @@ export async function getLinesByClienteId(clienteId: string) {
 export async function createLine(data: {
   name: string;
   description?: string;
-  clienteId: string;
+  clientId: string;
 }) {
   await requirePermission("lines:create");
   return guarded(async () => {
@@ -127,10 +127,10 @@ export async function createLine(data: {
       data: {
         name: data.name,
         description: data.description,
-        clienteId: data.clienteId,
+        clientId: data.clientId,
       },
       include: {
-        cliente: {
+        client: {
           select: {
             id: true,
             name: true,
@@ -150,7 +150,7 @@ export async function updateLine(
   data: {
     name?: string;
     description?: string;
-    clienteId?: string;
+    clientId?: string;
   },
 ) {
   await requirePermission("lines:update");
@@ -162,10 +162,10 @@ export async function updateLine(
         ...(data.description !== undefined && {
           description: data.description,
         }),
-        ...(data.clienteId && { clienteId: data.clienteId }),
+        ...(data.clientId && { clientId: data.clientId }),
       },
       include: {
-        cliente: {
+        client: {
           select: {
             id: true,
             name: true,

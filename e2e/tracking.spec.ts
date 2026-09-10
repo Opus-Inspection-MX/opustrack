@@ -17,7 +17,7 @@ import {
  *
  * The rule with teeth is RF-514/RF-025: assigning an FSR from here *enables*
  * them on the incident rather than demanding they already were. The picker
- * offers every FSR — the Cliente link only decides who is badged and sorted
+ * offers every FSR — the Client link only decides who is badged and sorted
  * first — and it is multi-select, so an assignment keeps all of its people.
  */
 
@@ -116,7 +116,7 @@ test("carga el seguimiento con el incidente y su asignación", async ({
 
   const row = incidentRow(page);
   await expect(row).toContainText(fixture.incidentTitle);
-  await expect(row).toContainText(fixture.clienteName);
+  await expect(row).toContainText(fixture.clientName);
   await expect(row).toContainText(`AS-${fixture.assignmentFolio}`);
 });
 
@@ -151,8 +151,8 @@ test("filtra por Cliente y por estado", async ({ page }) => {
 
   await pickFromSelect(
     page,
-    selectByFieldId(page, "clienteId"),
-    `${fixture.clienteName} (${fixture.clienteCode})`,
+    selectByFieldId(page, "clientId"),
+    `${fixture.clientName} (${fixture.clientCode})`,
   );
   await page.getByRole("button", { name: "Buscar" }).click();
   await expect(incidentRow(page)).toBeVisible();
@@ -233,8 +233,8 @@ test("asignar a un FSR ajeno al Cliente lo habilita en la incidencia (RF-514)", 
 
   await editAssignment(details);
 
-  // The outsider covers a different Cliente and was never enabled on this
-  // incident. The picker still offers him — the Cliente link is a badge, not a
+  // The outsider covers a different Client and was never enabled on this
+  // incident. The picker still offers him — the Client link is a badge, not a
   // filter — and saving grants the enablement instead of rejecting it. Before,
   // the same person could be chosen when *creating* an assignment and was
   // refused when *editing* one, which is the error operators reported.

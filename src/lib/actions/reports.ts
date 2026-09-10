@@ -374,7 +374,7 @@ export type SlaBreachRow = {
  * accountability — those two stay untouched and serve as drill-down inputs.
  *
  * Scope: active, non-`CANCELADA` incidents created in the range, under the
- * caller's `getReportScope()` Cliente filter (fail closed). Percentages
+ * caller's `getReportScope()` Client filter (fail closed). Percentages
  * follow the RF-502 anti-division-by-zero convention.
  */
 export async function getSlaBreachData(

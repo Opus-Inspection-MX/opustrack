@@ -53,9 +53,9 @@ test("un catálogo con hijos no se elimina, y el usuario ve por qué", async ({
   // server guard exists for: the client-side hint that disables the button is
   // computed from data fetched earlier and is now stale, so the only thing
   // standing between the user and an orphaned incident is the action itself.
-  const [type, cliente] = await Promise.all([
+  const [type, client] = await Promise.all([
     db().incidentType.findFirstOrThrow({ where: { active: true } }),
-    db().cliente.findFirstOrThrow({ where: { active: true } }),
+    db().client.findFirstOrThrow({ where: { active: true } }),
   ]);
   await db().incident.create({
     data: {
@@ -63,7 +63,7 @@ test("un catálogo con hijos no se elimina, y el usuario ve por qué", async ({
       description: "Hace que el estado no se pueda eliminar.",
       typeId: type.id,
       statusId: status.id,
-      clienteId: cliente.id,
+      clientId: client.id,
     },
   });
 

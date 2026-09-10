@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   BulkIncidentSnapshotRowSchema,
-  IncidentClientCreateSchema,
   IncidentCreateSchema,
+  IncidentReporterCreateSchema,
   parseAssigneeIds,
 } from "./incidents";
 
@@ -29,9 +29,9 @@ describe("IncidentCreateSchema", () => {
   });
 });
 
-describe("IncidentClientCreateSchema", () => {
+describe("IncidentReporterCreateSchema", () => {
   it("accepts an incident without a type (server falls back to Desconocido)", () => {
-    const result = IncidentClientCreateSchema.safeParse({
+    const result = IncidentReporterCreateSchema.safeParse({
       title: "Light out",
       description: "Lane 3 light not working",
     });

@@ -55,7 +55,7 @@ environment:
 | Variable | Purpose |
 |----------|---------|
 | `E2E_PASSWORD` | Shared password for every e2e account |
-| `E2E_ADMIN_EMAIL` / `E2E_FSR_EMAIL` / `E2E_CLIENT_EMAIL` / `E2E_GUEST_EMAIL` | One account per role |
+| `E2E_ADMIN_EMAIL` / `E2E_FSR_EMAIL` / `E2E_REPORTER_EMAIL` / `E2E_GUEST_EMAIL` | One account per role |
 
 `config/e2e.env` is **tracked** and holds only disposable values pointing at the
 container — never put a real credential there.

@@ -16,12 +16,12 @@ import {
 import { mxDateString, mxTodayString } from "@/lib/utils/datetime";
 
 interface TrackingFiltersProps {
-  clientes: Array<{ id: string; name: string; code: string }>;
+  clients: Array<{ id: string; name: string; code: string }>;
   incidentTypes: Array<{ id: number; name: string }>;
   incidentStatuses: Array<{ id: number; name: string }>;
   fsrs: Array<{ id: string; name: string }>;
   onFilterChange: (filters: {
-    clienteId?: string;
+    clientId?: string;
     typeId?: number;
     statusId?: number;
     startDate?: string;
@@ -33,7 +33,7 @@ interface TrackingFiltersProps {
 }
 
 export function TrackingFilters({
-  clientes,
+  clients,
   incidentTypes,
   incidentStatuses,
   fsrs,
@@ -43,7 +43,7 @@ export function TrackingFilters({
   const today = mxTodayString();
   const [showFilters, setShowFilters] = useState(true);
   const [filters, setFilters] = useState({
-    clienteId: "",
+    clientId: "",
     typeId: "",
     statusId: "",
     startDate: today,
@@ -61,7 +61,7 @@ export function TrackingFilters({
   const handleSearch = () => {
     // Convert to proper types and remove empty values
     const cleanFilters: {
-      clienteId?: string;
+      clientId?: string;
       typeId?: number;
       statusId?: number;
       startDate?: string;
@@ -69,7 +69,7 @@ export function TrackingFilters({
       assignedFsrId?: string;
       folio?: string;
     } = {};
-    if (filters.clienteId) cleanFilters.clienteId = filters.clienteId;
+    if (filters.clientId) cleanFilters.clientId = filters.clientId;
     if (filters.typeId) cleanFilters.typeId = parseInt(filters.typeId, 10);
     if (filters.statusId)
       cleanFilters.statusId = parseInt(filters.statusId, 10);
@@ -110,7 +110,7 @@ export function TrackingFilters({
 
   const clearFilters = () => {
     const clearedFilters = {
-      clienteId: "",
+      clientId: "",
       typeId: "",
       statusId: "",
       startDate: filters.startDate, // Keep current date
@@ -127,7 +127,7 @@ export function TrackingFilters({
   };
 
   const hasActiveFilters =
-    filters.clienteId !== "" ||
+    filters.clientId !== "" ||
     filters.typeId !== "" ||
     filters.statusId !== "" ||
     filters.assignedFsrId !== "" ||
@@ -195,23 +195,23 @@ export function TrackingFilters({
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {/* Cliente Filter */}
+              {/* Client Filter */}
               <div className="space-y-2">
-                <Label htmlFor="clienteId">Cliente</Label>
+                <Label htmlFor="clientId">Cliente</Label>
                 <Select
-                  key={`clienteId-${filters.clienteId}`}
-                  value={filters.clienteId || undefined}
+                  key={`clientId-${filters.clientId}`}
+                  value={filters.clientId || undefined}
                   onValueChange={(value) =>
-                    handleFilterChange("clienteId", value)
+                    handleFilterChange("clientId", value)
                   }
                 >
-                  <SelectTrigger id="clienteId">
+                  <SelectTrigger id="clientId">
                     <SelectValue placeholder="Todos los Cliente" />
                   </SelectTrigger>
                   <SelectContent>
-                    {clientes.map((cliente) => (
-                      <SelectItem key={cliente.id} value={cliente.id}>
-                        {cliente.name} ({cliente.code})
+                    {clients.map((client) => (
+                      <SelectItem key={client.id} value={client.id}>
+                        {client.name} ({client.code})
                       </SelectItem>
                     ))}
                   </SelectContent>

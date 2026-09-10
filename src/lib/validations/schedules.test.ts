@@ -5,7 +5,7 @@ describe("ScheduleCreateSchema", () => {
   const valid = {
     title: "Weekly inspection",
     scheduledAt: new Date("2026-06-10T09:00:00.000Z"),
-    clienteIds: [],
+    clientIds: [],
   };
 
   it("accepts a valid schedule", () => {

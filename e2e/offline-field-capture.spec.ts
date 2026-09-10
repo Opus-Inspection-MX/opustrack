@@ -74,7 +74,7 @@ async function injectDraft(page: Page, draft: Record<string, unknown>) {
 test.describe("0 · Prepara incidencia y vehículo", () => {
   test("crea incidencia, asignaciones y un vehículo disponible", async () => {
     const prisma = db();
-    const cliente = await prisma.cliente.findFirstOrThrow({
+    const client = await prisma.client.findFirstOrThrow({
       where: { active: true, NOT: { code: "SIN-CENTRO" } },
       orderBy: { code: "asc" },
       select: { id: true },
@@ -102,7 +102,7 @@ test.describe("0 · Prepara incidencia y vehículo", () => {
         description: "Incidente e2e para borradores offline.",
         typeId: type.id,
         statusId: abierto.id,
-        clienteId: cliente.id,
+        clientId: client.id,
         reportedById: fsr.id,
         assignees: { create: [{ userId: fsr.id }] },
       },

@@ -1,5 +1,5 @@
 import moment from "moment-timezone";
-import { getClientesForSelect } from "@/lib/actions/clientes";
+import { getClientsForSelect } from "@/lib/actions/clients";
 import {
   getIncidentProgramReport,
   getScheduleOptions,
@@ -17,10 +17,10 @@ export default async function IncidentProgramReportPage() {
   const startDate = now.clone().startOf("month").format("YYYY-MM-DD");
   const endDate = now.clone().endOf("month").format("YYYY-MM-DD");
 
-  const [report, schedules, clientes, states] = await Promise.all([
+  const [report, schedules, clients, states] = await Promise.all([
     getIncidentProgramReport({ startDate, endDate }),
     getScheduleOptions({ startDate, endDate }),
-    getClientesForSelect(),
+    getClientsForSelect(),
     getStatesForSelect(),
   ]);
 
@@ -30,7 +30,7 @@ export default async function IncidentProgramReportPage() {
       initialSchedules={schedules}
       initialStartDate={startDate}
       initialEndDate={endDate}
-      clientes={clientes}
+      clients={clients}
       states={states}
     />
   );

@@ -20,7 +20,7 @@ export type VehicleFormData = {
 };
 
 /**
- * Get all vehicles (no Cliente filtering - company-wide fleet)
+ * Get all vehicles (no Client filtering - company-wide fleet)
  */
 export async function getVehicles() {
   await requirePermission("vehicles:read");
