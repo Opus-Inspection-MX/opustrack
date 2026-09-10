@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  AssignmentCreateSchema,
-  AssignmentQuerySchema,
-  AssignmentUpdateSchema,
-} from "./assignments";
+import { AssignmentCreateSchema, AssignmentUpdateSchema } from "./assignments";
 
 const CUID = "cjld2cjxh0000qzrmn831i7rn";
 
@@ -16,11 +12,13 @@ describe("AssignmentCreateSchema", () => {
     expect(result.success).toBe(true);
   });
 
-  it("requires at least one assignee", () => {
+  it("accepts zero assignees (PENDIENTE_DE_ASIGNACION flow)", () => {
+    // The tracking quick-create sends `[]` on purpose; the state machine
+    // owns the initial state. A min(1) here broke that flow.
     expect(
       AssignmentCreateSchema.safeParse({ incidentId: 1, assigneeIds: [] })
         .success,
-    ).toBe(false);
+    ).toBe(true);
   });
 
   it("rejects a non-positive incidentId", () => {
@@ -57,14 +55,7 @@ describe("AssignmentUpdateSchema", () => {
   });
 });
 
-describe("AssignmentQuerySchema", () => {
-  it("defaults sortBy to createdAt", () => {
-    const result = AssignmentQuerySchema.parse({});
-    expect(result.sortBy).toBe("createdAt");
-  });
-
-  it("coerces numeric query params", () => {
-    const result = AssignmentQuerySchema.parse({ incidentId: "7" });
-    expect(result.incidentId).toBe(7);
-  });
-});
+// NOTE: AssignmentQuerySchema was deleted — no action ever parsed a query
+// DTO (list filters travel as typed function params). If a query DTO comes
+// back, it must be consumed by an action on arrival (see
+// actions-contract.test.ts "every input schema is parsed").

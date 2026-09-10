@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { parseMxDateTime } from "@/lib/utils/datetime";
-import { baseQuerySchema, cuidSchema, intIdSchema } from "./common";
+import { cuidSchema, intIdSchema } from "./common";
 
 /**
  * Schema for creating an incident. typeId is optional at the validation
@@ -58,36 +58,11 @@ export const IncidentUpdateSchema = IncidentCreateSchema.partial().extend({
 });
 
 /**
- * Schema for deleting an incident
- */
-export const IncidentDeleteSchema = z.object({
-  id: intIdSchema,
-});
-
-/**
- * Schema for changing incident status
- */
-export const IncidentChangeStatusSchema = z.object({
-  id: intIdSchema,
-  statusId: intIdSchema,
-});
-
-/**
  * Schema for assigning incident to FSR
  */
 export const IncidentAssignSchema = z.object({
   incidentId: intIdSchema,
   fsrUserId: cuidSchema,
-});
-
-/**
- * Schema for querying incidents
- */
-export const IncidentQuerySchema = baseQuerySchema.extend({
-  statusId: z.coerce.number().int().positive().optional(),
-  typeId: z.coerce.number().int().positive().optional(),
-  clienteId: z.string().cuid().optional(),
-  sortBy: z.enum(["reportedAt", "title", "updatedAt"]).default("reportedAt"),
 });
 
 /**
@@ -176,9 +151,4 @@ export type IncidentClientCreateInput = z.infer<
   typeof IncidentClientCreateSchema
 >;
 export type IncidentUpdateInput = z.infer<typeof IncidentUpdateSchema>;
-export type IncidentDeleteInput = z.infer<typeof IncidentDeleteSchema>;
-export type IncidentChangeStatusInput = z.infer<
-  typeof IncidentChangeStatusSchema
->;
 export type IncidentAssignInput = z.infer<typeof IncidentAssignSchema>;
-export type IncidentQueryInput = z.infer<typeof IncidentQuerySchema>;

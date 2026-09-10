@@ -14,20 +14,15 @@ export const VacationCreateSchema = z
       .max(1000, "Reason must be at most 1000 characters")
       .optional()
       .nullable(),
+    periodId: cuidSchema.optional(),
   })
   .refine((data) => data.endDate >= data.startDate, {
     message: "La fecha de fin debe ser igual o posterior a la fecha de inicio.",
     path: ["endDate"],
   });
 
-/**
- * Schema for updating a vacation (partial).
- */
-export const VacationUpdateSchema = VacationCreateSchema.partial();
-
 // Type inference
 export type VacationCreateInput = z.infer<typeof VacationCreateSchema>;
-export type VacationUpdateInput = z.infer<typeof VacationUpdateSchema>;
 
 /**
  * Plain FormData type used by server actions (pre-Zod validation layer).

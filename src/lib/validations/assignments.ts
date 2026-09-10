@@ -1,12 +1,16 @@
 import { z } from "zod";
-import { baseQuerySchema, cuidSchema, intIdSchema } from "./common";
+import { cuidSchema, intIdSchema } from "./common";
 
 /**
- * Schema for creating an assignment
+ * Schema for creating an assignment.
+ *
+ * Empty `assigneeIds` is VALID: without an FSR the state machine opens the
+ * assignment as PENDIENTE_DE_ASIGNACION (the tracking quick-create sends
+ * `[]` on purpose). The old `.min(1)` described a rule that never existed.
  */
 export const AssignmentCreateSchema = z.object({
   incidentId: intIdSchema,
-  assigneeIds: z.array(cuidSchema).min(1, "At least one assignee is required"),
+  assigneeIds: z.array(cuidSchema),
   statusId: intIdSchema.nullable().optional(),
   notes: z
     .string()
@@ -19,6 +23,7 @@ export const AssignmentCreateSchema = z.object({
     .optional(),
   startedAt: z.date().nullable().optional(),
   finishedAt: z.date().nullable().optional(),
+  scheduledDate: z.date().nullable().optional(),
 });
 
 /**
@@ -28,13 +33,6 @@ export const AssignmentUpdateSchema = AssignmentCreateSchema.partial().extend({
   id: cuidSchema,
   // RF-013: update may unassign all (0 assignees allowed)
   assigneeIds: z.array(cuidSchema).optional(),
-});
-
-/**
- * Schema for deleting an assignment
- */
-export const AssignmentDeleteSchema = z.object({
-  id: cuidSchema,
 });
 
 /**
@@ -75,22 +73,9 @@ export const AssignmentAttachmentSchema = z.object({
     .optional(),
 });
 
-/**
- * Schema for querying assignments
- */
-export const AssignmentQuerySchema = baseQuerySchema.extend({
-  statusId: z.coerce.number().int().positive().optional(),
-  assigneeId: z.string().cuid().optional(),
-  incidentId: z.coerce.number().int().positive().optional(),
-  sortBy: z
-    .enum(["createdAt", "startedAt", "finishedAt", "updatedAt"])
-    .default("createdAt"),
-});
-
 // Type inference
 export type AssignmentCreateInput = z.infer<typeof AssignmentCreateSchema>;
 export type AssignmentUpdateInput = z.infer<typeof AssignmentUpdateSchema>;
-export type AssignmentDeleteInput = z.infer<typeof AssignmentDeleteSchema>;
 export type AssignmentCompleteInput = z.infer<typeof AssignmentCompleteSchema>;
 export type AssignmentStatusUpdateInput = z.infer<
   typeof AssignmentStatusUpdateSchema
@@ -98,4 +83,3 @@ export type AssignmentStatusUpdateInput = z.infer<
 export type AssignmentAttachmentInput = z.infer<
   typeof AssignmentAttachmentSchema
 >;
-export type AssignmentQueryInput = z.infer<typeof AssignmentQuerySchema>;

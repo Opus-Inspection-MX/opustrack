@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { baseQuerySchema, cuidSchema, intIdSchema } from "./common";
+import { cuidSchema, intIdSchema } from "./common";
 
 /**
  * Schema for creating a schedule
@@ -35,40 +35,9 @@ export const ScheduleUpdateSchema = ScheduleCreateSchema.partial().extend({
   id: cuidSchema,
 });
 
-/**
- * Schema for deleting a schedule
- */
-export const ScheduleDeleteSchema = z.object({
-  id: cuidSchema,
-});
-
-/**
- * Schema for changing schedule status
- */
-export const ScheduleChangeStatusSchema = z.object({
-  id: cuidSchema,
-  statusId: intIdSchema,
-});
-
-/**
- * Schema for querying schedules
- */
-export const ScheduleQuerySchema = baseQuerySchema.extend({
-  statusId: z.coerce.number().int().positive().optional(),
-  clienteId: z.string().cuid().optional(),
-  fromDate: z.coerce.date().optional(),
-  toDate: z.coerce.date().optional(),
-  sortBy: z.enum(["scheduledAt", "title", "createdAt"]).default("scheduledAt"),
-});
-
 // Type inference
 export type ScheduleCreateInput = z.infer<typeof ScheduleCreateSchema>;
 export type ScheduleUpdateInput = z.infer<typeof ScheduleUpdateSchema>;
-export type ScheduleDeleteInput = z.infer<typeof ScheduleDeleteSchema>;
-export type ScheduleChangeStatusInput = z.infer<
-  typeof ScheduleChangeStatusSchema
->;
-export type ScheduleQueryInput = z.infer<typeof ScheduleQuerySchema>;
 export type ScheduleQuickUpdateInput = z.infer<
   typeof ScheduleQuickUpdateSchema
 >;

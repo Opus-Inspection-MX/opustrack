@@ -54,9 +54,13 @@ export const HolidayCreateSchema = z
   });
 
 /**
- * Schema for updating a holiday (all fields optional except the id guard).
+ * Schema for updating a holiday.
+ *
+ * Full, not partial: `updateHoliday` takes the whole form, and a partial
+ * schema would run the XOR `superRefine` against omitted fields — a
+ * date-untouched update would fail "Either day or nthMonday must be set".
  */
-export const HolidayUpdateSchema = HolidayCreateSchema.partial();
+export const HolidayUpdateSchema = HolidayCreateSchema;
 
 // Type inference
 export type HolidayCreateInput = z.infer<typeof HolidayCreateSchema>;

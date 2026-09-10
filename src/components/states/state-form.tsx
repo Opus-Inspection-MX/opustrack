@@ -58,7 +58,11 @@ export function StateForm({ initialData, isEditing = false }: StateFormProps) {
     value: string | boolean,
   ) => {
     try {
-      stateSchema.pick({ [name]: true }).parse({ [name]: value });
+      // Mask cast: computed keys infer `{ [x: string]: boolean }`, which
+      // zod 4.4's `pick` no longer accepts. Behavior is unchanged.
+      stateSchema
+        .pick({ [name]: true } as { [K in keyof StateFormData]?: true })
+        .parse({ [name]: value });
       setErrors((prev) => ({ ...prev, [name]: "" }));
     } catch (error) {
       if (error instanceof z.ZodError) {
