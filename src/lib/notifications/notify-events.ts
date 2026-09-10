@@ -423,8 +423,10 @@ export async function notifyVacationCancelled(
 // ---------------------------------------------------------------------------
 
 /**
- * RF-469 / RF-470: Admin broadcast notification.
- * Recipients are pre-resolved by the caller (sendBroadcast server action).
+ * RF-469 / RF-470: Admin broadcast notification (legacy immediate path).
+ * Recipients are pre-resolved by the caller. New code goes through
+ * `dispatchBroadcast` (`broadcast-dispatch.ts`), which resolves the audience
+ * at send time and claims the row atomically.
  * entityType/entityId are null for broadcast messages.
  */
 export async function notifyBroadcast(

@@ -1,10 +1,6 @@
 "use server";
 
-import type { Prisma } from "@prisma/client";
-
 import { requirePermission } from "@/lib/auth/auth";
-import { whereHasRoleId } from "@/lib/authz/user-queries";
-import { prisma } from "@/lib/database/prisma.singleton";
 import {
   deleteNotification,
   type GetNotificationsOptions,
@@ -12,9 +8,8 @@ import {
   getUserNotifications,
   markAllAsRead,
   markAsRead,
-  notifyBroadcast,
 } from "@/lib/notifications";
-import { type ActionResult, ok, rejected } from "./result";
+import { ok } from "./result";
 
 /**
  * Get current user's notifications
@@ -72,81 +67,4 @@ export async function getNotificationsWithCount(
     getUnreadCount(user.id),
   ]);
   return { notifications, unreadCount };
-}
-
-// ---------------------------------------------------------------------------
-// Admin broadcast (RF-469, RF-470)
-// ---------------------------------------------------------------------------
-
-export type BroadcastAudience = "all" | "by-role";
-export type BroadcastType = "system" | "announcement";
-
-export interface BroadcastInput {
-  title: string;
-  message: string;
-  type: BroadcastType;
-  audience: BroadcastAudience;
-  /** Required when audience === "by-role" */
-  roleId?: number;
-}
-
-export type BroadcastResult = ActionResult<{ count: number }>;
-
-/**
- * RF-469 / RF-470: Send a broadcast notification from the admin UI.
- * Audience "all" → all active users.
- * Audience "by-role" → all active users with the selected roleId.
- * Actor is excluded by notifyBroadcast → emit().
- *
- * Gated behind `notifications:broadcast` (NOT `notifications:read`): reading
- * the inbox must never imply the power to write to everyone's.
- */
-export async function sendBroadcast(
-  input: BroadcastInput,
-): Promise<BroadcastResult> {
-  // Route guard parity: the page sits behind requireRouteAccess, and the
-  // action itself demands the broadcast capability, so it is not invocable
-  // by an authenticated user who merely holds the inbox route.
-  const user = await requirePermission("notifications:broadcast");
-
-  // Input validation
-  const title = input.title?.trim();
-  const message = input.message?.trim();
-
-  if (!title) {
-    return rejected("El título es obligatorio");
-  }
-  if (!message) {
-    return rejected("El mensaje es obligatorio");
-  }
-  if (input.type !== "system" && input.type !== "announcement") {
-    return rejected("Tipo de notificación no válido");
-  }
-  if (input.audience === "by-role" && !input.roleId) {
-    return rejected("Debe seleccionar un rol cuando la audiencia es por rol");
-  }
-
-  // Resolve recipients. ANNOUNCEMENT always targets every active user
-  // regardless of the selected audience (RF-470); only SYSTEM honors the
-  // by-role audience filter.
-  const whereClause: Prisma.UserWhereInput =
-    input.type === "announcement"
-      ? { active: true }
-      : input.audience === "by-role" && input.roleId
-        ? { active: true, ...whereHasRoleId(input.roleId) }
-        : { active: true };
-
-  const recipients = await prisma.user.findMany({
-    where: whereClause,
-    select: { id: true },
-  });
-
-  const recipientIds = recipients.map((r) => r.id);
-
-  await notifyBroadcast(input.type, recipientIds, title, message, user.id);
-
-  // The actor is excluded from delivery by emit(); reflect that in the count.
-  const deliveredCount = recipientIds.filter((id) => id !== user.id).length;
-
-  return ok({ count: deliveredCount });
 }
