@@ -9,12 +9,12 @@ import { getReportScope, incidentScopeWhere } from "@/lib/auth/report-scope";
 import { whereHasPermission, whereHasRole } from "@/lib/authz/user-queries";
 import { prisma } from "@/lib/database/prisma.singleton";
 import {
-  getOperationsAudience,
   notifyAssignmentAssigned,
   notifyAssignmentCompleted,
   notifyAssignmentReopened,
   notifyAssignmentUpdated,
   notifyIncidentClosed,
+  operationsAudience,
 } from "@/lib/notifications";
 import { logger } from "@/lib/observability/logger";
 import {
@@ -926,7 +926,9 @@ export async function closeAssignment(formData: FormData) {
     });
 
     const assigneeIds = result.assignment.assignees.map((a) => a.userId);
-    const adminIds = await getOperationsAudience();
+    const adminIds = await operationsAudience(
+      result.assignment.incident?.clientId ?? null,
+    );
     const completedRecipients = [...assigneeIds, ...adminIds];
     await notifyAssignmentCompleted(
       id,
@@ -942,13 +944,14 @@ export async function closeAssignment(formData: FormData) {
     ) {
       const incidentData = await prisma.incident.findUnique({
         where: { id: result.incidentId },
-        select: { reportedById: true, title: true },
+        select: { reportedById: true, title: true, clientId: true },
       });
       await notifyIncidentClosed(
         result.incidentId,
         incidentData?.title,
         incidentData?.reportedById ?? null,
         user.id,
+        incidentData?.clientId ?? null,
       );
     }
 

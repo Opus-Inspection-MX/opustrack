@@ -373,7 +373,12 @@ export async function createIncident(data: unknown) {
     });
 
     // POST-tx: notify admins of new incident (RF-465). Never throws.
-    await notifyIncidentCreated(incident.id, incident.title, user.id);
+    await notifyIncidentCreated(
+      incident.id,
+      incident.title,
+      user.id,
+      incident.clientId,
+    );
 
     revalidatePath("/admin/incidents");
     revalidatePath("/reporter/incidents");
@@ -437,7 +442,12 @@ export async function createIncidentAsReporter(data: unknown) {
     });
 
     // POST-tx: notify admins of new incident (RF-465). Never throws.
-    await notifyIncidentCreated(incident.id, incident.title, user.id);
+    await notifyIncidentCreated(
+      incident.id,
+      incident.title,
+      user.id,
+      incident.clientId,
+    );
 
     await logIncidentEvent(prisma, {
       incidentId: incident.id,

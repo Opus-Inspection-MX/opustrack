@@ -1,4 +1,9 @@
-import { getUserIdsWithPermission } from "@/lib/authz/user-queries";
+import type { Prisma } from "@prisma/client";
+import { SCOPE_ALL_CLIENTS } from "@/lib/authz/authz";
+import {
+  getUserIdsWithPermission,
+  whereHasPermission,
+} from "@/lib/authz/user-queries";
 import { prisma } from "@/lib/database/prisma.singleton";
 import { sendMail } from "@/lib/mail";
 import {
@@ -107,16 +112,51 @@ async function emailRecipients(
  * notified must follow who can ACT, so each audience names its capability.
  */
 
-/** Being able to act on an incident is what makes someone worth notifying. */
-const OPERATIONS_AUDIENCE = "incidents:update";
+/**
+ * Who operates on incidents, scoped to one Client.
+ *
+ * Two conditions, both required: holding `incidents:assign` (what ROOT and
+ * ADMIN_OPERACION have — FSR only holds `incidents:update`, so field staff
+ * stop getting mailed about other centers' incidents) AND reaching the
+ * Client, either through the cross-Client scope or through an active
+ * assignment to it. A null Client (unassigned incident) only reaches the
+ * scope holders. Fail closed throughout.
+ */
+export async function operationsAudience(
+  clientId: string | null | undefined,
+): Promise<string[]> {
+  const where: Prisma.UserWhereInput = {
+    active: true,
+    ...whereHasPermission("incidents:assign"),
+    OR: [
+      whereHasPermission(SCOPE_ALL_CLIENTS),
+      ...(clientId
+        ? [
+            {
+              clientAssignments: {
+                some: { active: true, clientId },
+              },
+            } satisfies Prisma.UserWhereInput,
+          ]
+        : []),
+    ],
+  };
+  // Never throws: a failed audience lookup notifies nobody instead of
+  // rolling back the business operation that triggered it.
+  try {
+    const users = await prisma.user.findMany({
+      where,
+      select: { id: true },
+    });
+    return users.map((u) => u.id);
+  } catch (error) {
+    logger.error("[notify-events] Error resolving operations audience:", error);
+    return [];
+  }
+}
 
 /** Only someone who can approve a vacation needs to know one is waiting. */
 const VACATION_APPROVERS = "vacations:approve";
-
-/** Incidents, assignments, closures. */
-export async function getOperationsAudience(): Promise<string[]> {
-  return getUserIdsWithPermission(OPERATIONS_AUDIENCE);
-}
 
 /** Whoever decides on a vacation request. */
 export async function getVacationApprovers(): Promise<string[]> {
@@ -183,7 +223,8 @@ export async function notifyAssignmentUpdated(
 
 /**
  * RF-463: Fires when assignment transitions to CERRADO.
- * Recipients: active assigned FSRs + all ADMINISTRADOR users, actor excluded.
+ * Recipients: active assigned FSRs + the operations audience of the
+ * incident's Client, actor excluded.
  * Priority: HIGH.
  */
 export async function notifyAssignmentCompleted(
@@ -241,15 +282,16 @@ export async function notifyAssignmentReopened(
 
 /**
  * RF-465: Fires after a new incident is persisted.
- * Recipients: all active ADMINISTRADOR users, actor excluded.
+ * Recipients: the operations audience of the incident's Client, actor excluded.
  * Priority: MEDIUM.
  */
 export async function notifyIncidentCreated(
   incidentId: number,
   incidentTitle: string | null | undefined,
   actorId: string,
+  clientId: string | null | undefined,
 ): Promise<void> {
-  const adminIds = await getOperationsAudience();
+  const adminIds = await operationsAudience(clientId);
   const title = "Nuevo incidente reportado";
   const message = incidentTitle
     ? `Se reportó un nuevo incidente: ${incidentTitle}`
@@ -297,7 +339,8 @@ export async function notifyIncidentUpdated(
 
 /**
  * RF-467: Fires ONLY when the incident transitions to CERRADO (auto-close gate).
- * Recipients: reporter (reporterIdOrNull) + all active ADMINISTRADOR users, actor excluded.
+ * Recipients: reporter (reporterIdOrNull) + the operations audience of the
+ * incident's Client, actor excluded.
  * Priority: HIGH.
  */
 export async function notifyIncidentClosed(
@@ -305,8 +348,9 @@ export async function notifyIncidentClosed(
   incidentTitle: string | null | undefined,
   reporterIdOrNull: string | null | undefined,
   actorId: string,
+  clientId: string | null | undefined,
 ): Promise<void> {
-  const adminIds = await getOperationsAudience();
+  const adminIds = await operationsAudience(clientId);
   const recipients = [
     ...(reporterIdOrNull ? [reporterIdOrNull] : []),
     ...adminIds,
