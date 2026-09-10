@@ -136,4 +136,39 @@ export async function getIncidentClosureAt(
   return null;
 }
 
+/**
+ * Bulk form of the closure-timestamp precedence above (RF-218 SLA wiring).
+ *
+ * Same predicate as `getIncidentClosureAt` — latest close-arriving event
+ * (`STATUS_CHANGED → CERRADO` or `CANCELLED`) — evaluated for many incidents
+ * in ONE query instead of one per row. Incidents that never closed are
+ * absent from the map; callers fall back to the live `resolvedAt` column
+ * (pre-deploy history has no events, by design).
+ */
+export async function getIncidentClosureMap(
+  client: EventClient,
+  incidentIds: number[],
+): Promise<Map<number, Date>> {
+  const map = new Map<number, Date>();
+  if (incidentIds.length === 0) return map;
+  const closings = await client.incidentEvent.findMany({
+    where: {
+      incidentId: { in: incidentIds },
+      OR: [
+        {
+          eventType: IncidentEventType.STATUS_CHANGED,
+          toStatus: "CERRADO",
+        },
+        { eventType: IncidentEventType.CANCELLED },
+      ],
+    },
+    orderBy: { createdAt: "desc" },
+    select: { incidentId: true, createdAt: true },
+  });
+  for (const row of closings) {
+    if (!map.has(row.incidentId)) map.set(row.incidentId, row.createdAt);
+  }
+  return map;
+}
+
 export { toIso };
