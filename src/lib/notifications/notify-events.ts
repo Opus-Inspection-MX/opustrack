@@ -1,167 +1,13 @@
-import type { Prisma } from "@prisma/client";
-import { SCOPE_ALL_CLIENTS } from "@/lib/authz/authz";
-import {
-  getUserIdsWithPermission,
-  whereHasPermission,
-} from "@/lib/authz/user-queries";
-import { prisma } from "@/lib/database/prisma.singleton";
-import { sendMail } from "@/lib/mail";
-import {
-  incidentClosedEmail,
-  incidentCreatedEmail,
-  vacationRequestedEmail,
-} from "@/lib/mail/templates";
-import { logger } from "@/lib/observability/logger";
-import { createNotificationsForUsers } from "./notification-service";
-import {
-  ENTITY_TYPES,
-  type EntityType,
-  NOTIFICATION_PRIORITY,
-  NOTIFICATION_TYPES,
-  type NotificationPriority,
-  type NotificationType,
-} from "./notification-types";
+import { getVacationApprovers, operationsAudience } from "./audiences";
+import { dispatch } from "./dispatch";
+import { ENTITY_TYPES, NOTIFICATION_TYPES } from "./notification-types";
 
 // ---------------------------------------------------------------------------
-// Internal helpers
+// Thin facade: every helper below resolves its audience and delegates to
+// `dispatch`, which renders the copy from the catalog, consults the channel
+// policy and never throws. The public names and signatures are unchanged, so
+// the ~20 call sites in actions/ and assignments/ do not move.
 // ---------------------------------------------------------------------------
-
-interface NotificationPayload {
-  title: string;
-  message: string;
-  type: NotificationType;
-  entityType?: EntityType;
-  entityId?: string;
-  actionUrl?: string;
-  priority?: NotificationPriority;
-  /**
-   * Also send this one by email.
-   *
-   * Opt-in per event, deliberately. Mailing every notification would turn
-   * "asignación actualizada" into a message on each edit, and a sender that
-   * mails too much gets filtered — taking the few that matter down with it.
-   * Only three events set this: a new incident, its closure, and a vacation
-   * request waiting for approval.
-   */
-  email?: { subject: string; body: string };
-}
-
-/**
- * Internal dispatch: dedup recipients, remove actor, call createMany once.
- * Never throws — failures are logged and swallowed so the caller's business
- * operation is never rolled back by a notification error.
- */
-async function emit(
-  userIds: string[],
-  actorId: string,
-  payload: NotificationPayload,
-): Promise<void> {
-  const dedupedIds = Array.from(new Set(userIds)).filter(
-    (id) => id !== actorId,
-  );
-  if (dedupedIds.length === 0) return;
-
-  try {
-    await createNotificationsForUsers(dedupedIds, {
-      title: payload.title,
-      message: payload.message,
-      type: payload.type,
-      entityType: payload.entityType,
-      entityId: payload.entityId,
-      actionUrl: payload.actionUrl,
-      priority: payload.priority ?? NOTIFICATION_PRIORITY.LOW,
-    });
-  } catch (error) {
-    logger.error("[notify-events] Error dispatching notifications:", error);
-  }
-
-  // After the notification is written, and separately: a mail failure must not
-  // cost the user their in-app notification.
-  if (payload.email) {
-    await emailRecipients(dedupedIds, payload.email);
-  }
-}
-
-/** Resolve the recipients' addresses and send one message. */
-async function emailRecipients(
-  userIds: string[],
-  email: { subject: string; body: string },
-): Promise<void> {
-  try {
-    const users = await prisma.user.findMany({
-      where: { id: { in: userIds }, active: true },
-      select: { email: true },
-    });
-    await sendMail({
-      to: users.map((u) => u.email).filter(Boolean),
-      subject: email.subject,
-      text: email.body,
-    });
-  } catch (error) {
-    logger.error("[notify-events] Error resolving mail recipients:", error);
-  }
-}
-
-/**
- * Audiences, addressed by capability rather than by role name.
- *
- * There used to be a single `getAdminUserIds()` meaning "every ADMINISTRADOR".
- * When that role split into ROOT, ADMIN_OPERACION and ADMIN_VACACIONES, keeping
- * one list sent vacation requests to the operations administrators — who cannot
- * approve them — while the people who can never heard about them. Who is
- * notified must follow who can ACT, so each audience names its capability.
- */
-
-/**
- * Who operates on incidents, scoped to one Client.
- *
- * Two conditions, both required: holding `incidents:assign` (what ROOT and
- * ADMIN_OPERACION have — FSR only holds `incidents:update`, so field staff
- * stop getting mailed about other centers' incidents) AND reaching the
- * Client, either through the cross-Client scope or through an active
- * assignment to it. A null Client (unassigned incident) only reaches the
- * scope holders. Fail closed throughout.
- */
-export async function operationsAudience(
-  clientId: string | null | undefined,
-): Promise<string[]> {
-  const where: Prisma.UserWhereInput = {
-    active: true,
-    ...whereHasPermission("incidents:assign"),
-    OR: [
-      whereHasPermission(SCOPE_ALL_CLIENTS),
-      ...(clientId
-        ? [
-            {
-              clientAssignments: {
-                some: { active: true, clientId },
-              },
-            } satisfies Prisma.UserWhereInput,
-          ]
-        : []),
-    ],
-  };
-  // Never throws: a failed audience lookup notifies nobody instead of
-  // rolling back the business operation that triggered it.
-  try {
-    const users = await prisma.user.findMany({
-      where,
-      select: { id: true },
-    });
-    return users.map((u) => u.id);
-  } catch (error) {
-    logger.error("[notify-events] Error resolving operations audience:", error);
-    return [];
-  }
-}
-
-/** Only someone who can approve a vacation needs to know one is waiting. */
-const VACATION_APPROVERS = "vacations:approve";
-
-/** Whoever decides on a vacation request. */
-export async function getVacationApprovers(): Promise<string[]> {
-  return getUserIdsWithPermission(VACATION_APPROVERS);
-}
 
 // ---------------------------------------------------------------------------
 // Assignment notification helpers (RF-452, RF-461–RF-464)
@@ -169,8 +15,7 @@ export async function getVacationApprovers(): Promise<string[]> {
 
 /**
  * RF-452: Fires when new FSRs are added to an assignment.
- * Recipients: newRecipientIds (actor always excluded by emit).
- * Priority: HIGH.
+ * Recipients: newRecipientIds (actor always excluded by dispatch).
  */
 export async function notifyAssignmentAssigned(
   assignmentId: string,
@@ -178,26 +23,17 @@ export async function notifyAssignmentAssigned(
   recipientIds: string[],
   actorId: string,
 ): Promise<void> {
-  const title = "Nueva asignación";
-  const message = incidentTitle
-    ? `Se te ha asignado la asignación para: ${incidentTitle}`
-    : "Se te ha asignado una nueva asignación";
-
-  await emit(recipientIds, actorId, {
-    title,
-    message,
-    type: NOTIFICATION_TYPES.ASSIGNMENT_ASSIGNED,
-    entityType: "assignment",
-    entityId: assignmentId,
-    actionUrl: `/fsr/assignments/${assignmentId}`,
-    priority: NOTIFICATION_PRIORITY.HIGH,
+  await dispatch(NOTIFICATION_TYPES.ASSIGNMENT_ASSIGNED, {
+    recipients: recipientIds,
+    actorId,
+    ctx: { assignmentId, incidentTitle },
+    entity: { type: ENTITY_TYPES.ASSIGNMENT, id: assignmentId },
   });
 }
 
 /**
- * RF-462: Fires on every assignment transition (status update, notes, folio
- * edit, seen, start, pause, resume). Recipients: existing active FSRs, actor excluded.
- * Priority: MEDIUM. New FSRs added at the same time get ASSIGNED (not UPDATED).
+ * RF-462: Fires on every assignment transition. Recipients: existing active
+ * FSRs, actor excluded. New FSRs added at the same time get ASSIGNED.
  */
 export async function notifyAssignmentUpdated(
   assignmentId: string,
@@ -205,27 +41,17 @@ export async function notifyAssignmentUpdated(
   recipientIds: string[],
   actorId: string,
 ): Promise<void> {
-  const title = "Asignación actualizada";
-  const message = incidentTitle
-    ? `Tu asignación ha sido actualizada: ${incidentTitle}`
-    : "Tu asignación ha sido actualizada";
-
-  await emit(recipientIds, actorId, {
-    title,
-    message,
-    type: NOTIFICATION_TYPES.ASSIGNMENT_UPDATED,
-    entityType: "assignment",
-    entityId: assignmentId,
-    actionUrl: `/fsr/assignments/${assignmentId}`,
-    priority: NOTIFICATION_PRIORITY.MEDIUM,
+  await dispatch(NOTIFICATION_TYPES.ASSIGNMENT_UPDATED, {
+    recipients: recipientIds,
+    actorId,
+    ctx: { assignmentId, incidentTitle },
+    entity: { type: ENTITY_TYPES.ASSIGNMENT, id: assignmentId },
   });
 }
 
 /**
  * RF-463: Fires when assignment transitions to CERRADO.
- * Recipients: active assigned FSRs + the operations audience of the
- * incident's Client, actor excluded.
- * Priority: HIGH.
+ * Recipients: active assigned FSRs + the operations audience, actor excluded.
  */
 export async function notifyAssignmentCompleted(
   assignmentId: string,
@@ -233,26 +59,17 @@ export async function notifyAssignmentCompleted(
   recipientIds: string[],
   actorId: string,
 ): Promise<void> {
-  const title = "Asignación completada";
-  const message = incidentTitle
-    ? `La asignación fue completada: ${incidentTitle}`
-    : "La asignación fue completada";
-
-  await emit(recipientIds, actorId, {
-    title,
-    message,
-    type: NOTIFICATION_TYPES.ASSIGNMENT_COMPLETED,
-    entityType: "assignment",
-    entityId: assignmentId,
-    actionUrl: `/fsr/assignments/${assignmentId}`,
-    priority: NOTIFICATION_PRIORITY.HIGH,
+  await dispatch(NOTIFICATION_TYPES.ASSIGNMENT_COMPLETED, {
+    recipients: recipientIds,
+    actorId,
+    ctx: { assignmentId, incidentTitle },
+    entity: { type: ENTITY_TYPES.ASSIGNMENT, id: assignmentId },
   });
 }
 
 /**
  * RF-464: Fires when assignment is reopened (CERRADO → EN_PROGRESO).
  * Recipients: active assigned FSRs, actor excluded.
- * Priority: HIGH.
  */
 export async function notifyAssignmentReopened(
   assignmentId: string,
@@ -260,19 +77,11 @@ export async function notifyAssignmentReopened(
   recipientIds: string[],
   actorId: string,
 ): Promise<void> {
-  const title = "Asignación reabierta";
-  const message = incidentTitle
-    ? `La asignación fue reabierta: ${incidentTitle}`
-    : "La asignación fue reabierta";
-
-  await emit(recipientIds, actorId, {
-    title,
-    message,
-    type: NOTIFICATION_TYPES.ASSIGNMENT_REOPENED,
-    entityType: "assignment",
-    entityId: assignmentId,
-    actionUrl: `/fsr/assignments/${assignmentId}`,
-    priority: NOTIFICATION_PRIORITY.HIGH,
+  await dispatch(NOTIFICATION_TYPES.ASSIGNMENT_REOPENED, {
+    recipients: recipientIds,
+    actorId,
+    ctx: { assignmentId, incidentTitle },
+    entity: { type: ENTITY_TYPES.ASSIGNMENT, id: assignmentId },
   });
 }
 
@@ -283,7 +92,6 @@ export async function notifyAssignmentReopened(
 /**
  * RF-465: Fires after a new incident is persisted.
  * Recipients: the operations audience of the incident's Client, actor excluded.
- * Priority: MEDIUM.
  */
 export async function notifyIncidentCreated(
   incidentId: number,
@@ -292,27 +100,17 @@ export async function notifyIncidentCreated(
   clientId: string | null | undefined,
 ): Promise<void> {
   const adminIds = await operationsAudience(clientId);
-  const title = "Nuevo incidente reportado";
-  const message = incidentTitle
-    ? `Se reportó un nuevo incidente: ${incidentTitle}`
-    : "Se reportó un nuevo incidente";
-
-  await emit(adminIds, actorId, {
-    title,
-    message,
-    type: NOTIFICATION_TYPES.INCIDENT_CREATED,
-    entityType: "incident",
-    entityId: String(incidentId),
-    actionUrl: `/admin/incidents/${incidentId}`,
-    priority: NOTIFICATION_PRIORITY.MEDIUM,
-    email: incidentCreatedEmail(incidentId, incidentTitle),
+  await dispatch(NOTIFICATION_TYPES.INCIDENT_CREATED, {
+    recipients: adminIds,
+    actorId,
+    ctx: { incidentId, incidentTitle },
+    entity: { type: ENTITY_TYPES.INCIDENT, id: String(incidentId) },
   });
 }
 
 /**
  * RF-466: Fires after incident metadata is updated.
  * Recipients: enabled FSRs (active IncidentAssignee), actor excluded.
- * Priority: LOW. No write if recipientIds is empty.
  */
 export async function notifyIncidentUpdated(
   incidentId: number,
@@ -320,28 +118,17 @@ export async function notifyIncidentUpdated(
   recipientIds: string[],
   actorId: string,
 ): Promise<void> {
-  if (recipientIds.length === 0) return;
-  const title = "Incidente actualizado";
-  const message = incidentTitle
-    ? `El incidente ha sido actualizado: ${incidentTitle}`
-    : "El incidente ha sido actualizado";
-
-  await emit(recipientIds, actorId, {
-    title,
-    message,
-    type: NOTIFICATION_TYPES.INCIDENT_UPDATED,
-    entityType: "incident",
-    entityId: String(incidentId),
-    actionUrl: `/fsr/assignments`,
-    priority: NOTIFICATION_PRIORITY.LOW,
+  await dispatch(NOTIFICATION_TYPES.INCIDENT_UPDATED, {
+    recipients: recipientIds,
+    actorId,
+    ctx: { incidentId, incidentTitle },
+    entity: { type: ENTITY_TYPES.INCIDENT, id: String(incidentId) },
   });
 }
 
 /**
  * RF-467: Fires ONLY when the incident transitions to CERRADO (auto-close gate).
- * Recipients: reporter (reporterIdOrNull) + the operations audience of the
- * incident's Client, actor excluded.
- * Priority: HIGH.
+ * Recipients: reporter + the operations audience of the incident's Client.
  */
 export async function notifyIncidentClosed(
   incidentId: number,
@@ -351,31 +138,17 @@ export async function notifyIncidentClosed(
   clientId: string | null | undefined,
 ): Promise<void> {
   const adminIds = await operationsAudience(clientId);
-  const recipients = [
-    ...(reporterIdOrNull ? [reporterIdOrNull] : []),
-    ...adminIds,
-  ];
-  const title = "Incidente cerrado";
-  const message = incidentTitle
-    ? `El incidente fue cerrado: ${incidentTitle}`
-    : "El incidente fue cerrado";
-
-  await emit(recipients, actorId, {
-    title,
-    message,
-    type: NOTIFICATION_TYPES.INCIDENT_CLOSED,
-    entityType: "incident",
-    entityId: String(incidentId),
-    actionUrl: `/admin/incidents/${incidentId}`,
-    priority: NOTIFICATION_PRIORITY.HIGH,
-    email: incidentClosedEmail(incidentId, incidentTitle),
+  await dispatch(NOTIFICATION_TYPES.INCIDENT_CLOSED, {
+    recipients: [...(reporterIdOrNull ? [reporterIdOrNull] : []), ...adminIds],
+    actorId,
+    ctx: { incidentId, incidentTitle },
+    entity: { type: ENTITY_TYPES.INCIDENT, id: String(incidentId) },
   });
 }
 
 /**
- * RF-468: Fires when new FSRs are enabled on an incident (IncidentAssignee created).
+ * RF-468: Fires when new FSRs are enabled on an incident.
  * Recipients: new FSR IDs, actor excluded.
- * Priority: MEDIUM.
  */
 export async function notifyIncidentAssigned(
   incidentId: number,
@@ -383,20 +156,11 @@ export async function notifyIncidentAssigned(
   newFsrIds: string[],
   actorId: string,
 ): Promise<void> {
-  if (newFsrIds.length === 0) return;
-  const title = "Asignado a incidente";
-  const message = incidentTitle
-    ? `Se te ha asignado al incidente: ${incidentTitle}`
-    : "Se te ha asignado a un incidente";
-
-  await emit(newFsrIds, actorId, {
-    title,
-    message,
-    type: NOTIFICATION_TYPES.INCIDENT_ASSIGNED,
-    entityType: "incident",
-    entityId: String(incidentId),
-    actionUrl: `/fsr/assignments`,
-    priority: NOTIFICATION_PRIORITY.MEDIUM,
+  await dispatch(NOTIFICATION_TYPES.INCIDENT_ASSIGNED, {
+    recipients: newFsrIds,
+    actorId,
+    ctx: { incidentId, incidentTitle },
+    entity: { type: ENTITY_TYPES.INCIDENT, id: String(incidentId) },
   });
 }
 
@@ -407,10 +171,6 @@ export async function notifyIncidentAssigned(
 /**
  * Fires when a vacation request is created.
  * Recipients: whoever can approve it (`vacations:approve`), actor excluded.
- * Sending this to the operations administrators instead — which is what a
- * single shared "admins" list did — leaves the request invisible to the only
- * people who can decide on it.
- * Priority: MEDIUM.
  */
 export async function notifyVacationRequested(
   vacationId: string,
@@ -418,62 +178,45 @@ export async function notifyVacationRequested(
   actorId: string,
 ): Promise<void> {
   const adminIds = await getVacationApprovers();
-  const title = "Solicitud de vacaciones";
-  const message = requesterName
-    ? `${requesterName} solicitó vacaciones y espera autorización`
-    : "Una nueva solicitud de vacaciones espera autorización";
-
-  await emit(adminIds, actorId, {
-    title,
-    message,
-    type: NOTIFICATION_TYPES.VACATION_REQUESTED,
-    entityType: ENTITY_TYPES.VACATION,
-    entityId: vacationId,
-    actionUrl: "/admin/vacations",
-    priority: NOTIFICATION_PRIORITY.MEDIUM,
-    email: vacationRequestedEmail(requesterName),
+  await dispatch(NOTIFICATION_TYPES.VACATION_REQUESTED, {
+    recipients: adminIds,
+    actorId,
+    ctx: { vacationId, requesterName },
+    entity: { type: ENTITY_TYPES.VACATION, id: vacationId },
   });
 }
 
 /**
  * Fires when a vacation request is approved.
  * Recipients: the requester (actor excluded, so self-approval stays silent).
- * Priority: HIGH — it changes the person's plans.
  */
 export async function notifyVacationApproved(
   vacationId: string,
   requesterId: string,
   actorId: string,
 ): Promise<void> {
-  await emit([requesterId], actorId, {
-    title: "Vacaciones aprobadas",
-    message: "Tu solicitud de vacaciones fue aprobada",
-    type: NOTIFICATION_TYPES.VACATION_APPROVED,
-    entityType: ENTITY_TYPES.VACATION,
-    entityId: vacationId,
-    actionUrl: "/vacations",
-    priority: NOTIFICATION_PRIORITY.HIGH,
+  await dispatch(NOTIFICATION_TYPES.VACATION_APPROVED, {
+    recipients: [requesterId],
+    actorId,
+    ctx: { vacationId },
+    entity: { type: ENTITY_TYPES.VACATION, id: vacationId },
   });
 }
 
 /**
  * Fires when a vacation request is rejected.
  * Recipients: the requester (actor excluded).
- * Priority: HIGH.
  */
 export async function notifyVacationRejected(
   vacationId: string,
   requesterId: string,
   actorId: string,
 ): Promise<void> {
-  await emit([requesterId], actorId, {
-    title: "Vacaciones rechazadas",
-    message: "Tu solicitud de vacaciones fue rechazada",
-    type: NOTIFICATION_TYPES.VACATION_REJECTED,
-    entityType: ENTITY_TYPES.VACATION,
-    entityId: vacationId,
-    actionUrl: "/vacations",
-    priority: NOTIFICATION_PRIORITY.HIGH,
+  await dispatch(NOTIFICATION_TYPES.VACATION_REJECTED, {
+    recipients: [requesterId],
+    actorId,
+    ctx: { vacationId },
+    entity: { type: ENTITY_TYPES.VACATION, id: vacationId },
   });
 }
 
@@ -483,10 +226,7 @@ export async function notifyVacationRejected(
 
 /**
  * RF-469 / RF-470: Admin broadcast notification.
- * Dispatches a SYSTEM or ANNOUNCEMENT notification to the provided recipients.
  * Recipients are pre-resolved by the caller (sendBroadcast server action).
- * Actor is excluded by emit().
- * Priority: SYSTEM → MEDIUM; ANNOUNCEMENT → LOW.
  * entityType/entityId are null for broadcast messages.
  */
 export async function notifyBroadcast(
@@ -496,19 +236,10 @@ export async function notifyBroadcast(
   message: string,
   actorId: string,
 ): Promise<void> {
-  const notificationType =
+  await dispatch(
     type === "system"
       ? NOTIFICATION_TYPES.SYSTEM
-      : NOTIFICATION_TYPES.ANNOUNCEMENT;
-  const priority =
-    type === "system"
-      ? NOTIFICATION_PRIORITY.MEDIUM
-      : NOTIFICATION_PRIORITY.LOW;
-
-  await emit(recipientIds, actorId, {
-    title,
-    message,
-    type: notificationType,
-    priority,
-  });
+      : NOTIFICATION_TYPES.ANNOUNCEMENT,
+    { recipients: recipientIds, actorId, ctx: { title, message } },
+  );
 }
