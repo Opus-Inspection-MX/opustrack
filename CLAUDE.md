@@ -130,8 +130,10 @@ Production Next strips the message of anything a Server Action throws. Use
   `filesystem`. Each attachment stores its provider
   (`src/lib/storage/file-storage.ts`).
 - Without `SMTP_HOST` the app logs mail instead of sending (`src/lib/mail/`).
-  Only three events email: incident created, incident closed, vacation
-  requested (`NotificationPayload.email`). E2E proves delivery via Mailpit.
+  Which events email is decided by the channel matrix
+  (`NotificationChannelPolicy`, admin screen at
+  `/admin/settings/notifications`); mail goes through `EmailOutbox` with
+  retries (5 min, 30 min, 2 h; max 3 attempts). E2E proves delivery via Mailpit.
 
 ### Dependency supply chain
 
