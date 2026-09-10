@@ -426,6 +426,42 @@ La máquina de estados del incidente se define en `src/lib/state-machine/inciden
 
 ---
 
+### RF-218 · Objetivos SLA por prioridad y bandera de incumplimiento
+
+**Descripción:** Cada banda de `IncidentType.priority` tiene objetivos de respuesta y resolución en días hábiles CDMX, y cada incidente calcula su estado de cumplimiento al leerse. La prioridad por fin tiene consecuencias: un incidente crítico sin ver envejece hasta declararse vencido.
+
+**Reglas de negocio:**
+- Bandas reutilizan los buckets del `PriorityBadge`: crítica (8–10), media (5–7), baja (1–4). Objetivos: crítica respuesta 1 / resolución 3; media 2 / 7; baja 5 / 15 días hábiles.
+- Los objetivos viven en una sola política versionada en código (`src/lib/constants/sla-policy.ts`). La columna `sla` de `IncidentType` (agregada y luego eliminada) NO se revive: dos objetivos no caben en un entero y la política en código se ajusta sin migración.
+- Días hábiles: lunes–viernes en CDMX menos festivos oficiales de `src/lib/utils/availability.ts`. Las vacaciones personales de FSRs NO cuentan (el SLA mide la obligación de la organización). El día de creación no consume el reloj (día cero).
+- Reloj de respuesta: creación (`reportedAt`) → primer `seenAt` en cualquier asignación activa. Sin ver, el incidente acumula indefinidamente.
+- Reloj de resolución: creación → cierre efectivo. El cierre efectivo sigue la precedencia RF-219: `createdAt` del último evento de llegada a cierre (`getIncidentClosureAt()`), con fallback a la columna viva `resolvedAt` para historia previa al despliegue de la bitácora.
+- Estado por incidente: `ON_TRACK` | `AT_RISK` (≥80% del objetivo aplicable consumido) | `BREACHED` | `NOT_APPLICABLE`.
+- `CANCELADA` siempre resuelve a `NOT_APPLICABLE`, nunca vencida (terminal sin obligación de resolución).
+- Un `CERRADO` sin ningún timestamp de cierre (filas legado previas a RF-219) resuelve a `ON_TRACK`: el vencimiento asigna responsabilidad y nunca se declara sin evidencia.
+- Cerrado se evalúa como historia (¿llegó tarde?): `BREACHED` u `ON_TRACK`; `AT_RISK` jamás aplica retroactivamente.
+- La bandera se calcula al leer, nunca se almacena. Cambios de política aplican de inmediato sin backfill.
+- El estado se expone en los DTOs de tracking (`sla: SlaState`) con insignia junto al badge de prioridad.
+
+**Escenario crítico:** Crítico sin ver supera su objetivo de respuesta
+- DADO un incidente de banda crítica (prioridad ≥ 8) sin `seenAt`, creado hace más de `responseBusinessDays` días hábiles.
+- CUANDO se renderiza el tracking.
+- ENTONCES su estado SLA es `BREACHED`.
+
+**Escenario crítico:** Fin de semana y festivo no consumen el reloj
+- DADO un incidente creado el viernes previo a un lunes festivo.
+- CUANDO se evalúa el incumplimiento el martes.
+- ENTONCES los días hábiles transcurridos excluyen sábado, domingo y el festivo.
+
+**Escenario crítico:** Incidente cancelado nunca vence
+- DADO un incidente en `CANCELADA`, por antiguo que sea.
+- CUANDO se evalúa el incumplimiento.
+- ENTONCES el estado es `NOT_APPLICABLE`.
+
+**Implementación:** `src/lib/constants/sla-policy.ts` (`SLA_POLICY`, `businessDaysBetween`, `getSlaState`), `getSlaHolidaySet()` en `src/lib/sla/sla-holidays.ts`, `getIncidentClosureMap()` en `src/lib/state-machine/incident-events.ts`, `sla` en `getIncidentsForTracking()`, `SlaBadge` en tracking.
+
+---
+
 ### RF-219 · Bitácora de auditoría del incidente (append-only)
 
 **Descripción:** El sistema mantiene un log append-only `IncidentEvent` que registra cada ocurrencia que afecta el estado de un incidente: creación, transiciones, cambios de FSRs habilitados, cancelaciones, reaperturas, cargas masivas, recálculos omitidos y (reservado) excepciones de administrador. El código de aplicación NUNCA actualiza ni elimina filas de eventos (garantizado por test unitario, no por triggers de BD).

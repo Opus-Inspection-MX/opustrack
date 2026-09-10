@@ -209,6 +209,8 @@ reporte agregado, se construye sobre esa entidad.
 **Implementación:** `getAssignmentAgingData()` en `src/lib/actions/reports.ts`
 **Ruta:** `/admin/reports/assignment-aging`
 
+**Nota RF-518:** este reporte describe antigüedad sin declarar incumplimiento; el reporte de incumplimiento SLA (RF-518) lo usa como drill-down y agrega la bandera de vencimiento por tipo.
+
 **Nota RF-219 (precedencia del cierre):** cuando un análisis a nivel incidente necesite el cierre original de un incidente reabierto, la fuente es el último evento de llegada a cierre de su bitácora (`getIncidentClosureAt()`), no la columna viva `resolvedAt`.
 
 ---
@@ -233,6 +235,8 @@ reporte agregado, se construye sobre esa entidad.
 
 **Implementación:** `getSeenTimeData()` en `src/lib/actions/reports.ts`
 **Ruta:** `/admin/reports/seen-time`
+
+**Nota RF-518:** este reporte mide el acuse sin declarar incumplimiento; el reporte de incumplimiento SLA (RF-518) lo usa como drill-down del reloj de respuesta.
 
 ---
 
@@ -302,7 +306,7 @@ reporte agregado, se construye sobre esa entidad.
     - `INC-{n}` o `INC {n}` → busca por `incident.id`
     - `AS-{n}` o `AS {n}` → busca por `assignment.folio`
     - Solo dígitos → busca en **ambos** (incident.id OR assignment.folio)
-- Por cada incidente, incluye: tipo (con `priority`), estado (con color), cliente, reportador, línea, asignados directos al incidente, y todas las asignaciones filtradas con sus asignados y estado. El campo `type.priority` se selecciona explícitamente (`priority: true`) para alimentar el `PriorityBadge` en la UI.
+- Por cada incidente, incluye: tipo (con `priority`), estado (con color), cliente, reportador, línea, asignados directos al incidente, y todas las asignaciones filtradas con sus asignados y estado. El campo `type.priority` se selecciona explícitamente (`priority: true`) para alimentar el `PriorityBadge` en la UI. El estado SLA (`sla: SlaState`, RF-218) viaja en el DTO con insignia `SlaBadge` junto al badge de prioridad.
 - Las asignaciones se ordenan por `createdAt DESC` dentro de cada incidente.
 - Los incidentes se ordenan por `reportedAt DESC`.
 
@@ -374,6 +378,26 @@ reporte agregado, se construye sobre esa entidad.
 - No aplica las validaciones de la máquina de estados (a diferencia de las acciones FSR). Es una edición administrativa directa.
 
 **Implementación:** `updateAssignmentDetails()` en `src/lib/actions/tracking.ts`
+
+---
+
+### RF-518 · Reporte de incumplimiento SLA
+
+**Descripción:** Agrega incidentes por tipo con conteos de vencidos, en riesgo y en tiempo calculados con la semántica RF-218. Convierte los reportes descriptivos de antigüedad (RF-509) y tiempo hasta visto (RF-510) en responsabilidad: esos dos quedan intactos y sirven como drill-down del reporte de incumplimiento.
+
+**Reglas de negocio:**
+- Alcance: incidentes activos, no `CANCELADA`, creados en el rango, bajo el `getReportScope()` del llamante (fail-closed, regla transversal 4).
+- Cada fila incluye `type`, `priority`, `total`, `breached`, `atRisk`, `onTrack` más porcentajes con la convención anti-división-por-cero de RF-502.
+- Los conteos de vencidos concilian con las insignias `BREACHED` del tracking para el mismo rango y alcance.
+- Filas ordenadas por vencidos DESC (la responsabilidad primero).
+
+**Escenario crítico:**
+- DADO el mismo rango de fechas y alcance de Cliente.
+- CUANDO se genera el reporte RF-518 y se ve el tracking.
+- ENTONCES los vencidos por tipo igualan el número de filas con insignia `BREACHED` de ese tipo en tracking.
+
+**Implementación:** `getSlaBreachData()` en `src/lib/actions/reports.ts`
+**Ruta:** `/admin/reports/sla-breach`
 
 ---
 
