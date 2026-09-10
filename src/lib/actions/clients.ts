@@ -1,8 +1,10 @@
 "use server";
 
 import type { Prisma } from "@prisma/client";
+import { AuditAction, AuditEntity } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { logAudit } from "@/lib/audit/log-audit";
 import { requirePermission } from "@/lib/auth/auth";
 import { includeRoles, whereHasRole } from "@/lib/authz/user-queries";
 import { prisma } from "@/lib/database/prisma.singleton";
@@ -203,7 +205,7 @@ export async function getClientById(id: string) {
  * Create new Client
  */
 export async function createClient(data: ClientFormData) {
-  await requirePermission("clients:create");
+  const actor = await requirePermission("clients:create");
 
   const client = await prisma.client.create({
     data: {
@@ -216,10 +218,20 @@ export async function createClient(data: ClientFormData) {
       contact: data.contact || null,
       email: data.email || null,
       stateId: data.stateId,
+      createdById: actor.id,
     },
     include: {
       state: true,
     },
+  });
+
+  // RF-551: the audit row joins the business write, never travels alone.
+  await logAudit(prisma, {
+    actorId: actor.id,
+    entity: AuditEntity.CLIENT,
+    entityId: client.id,
+    action: AuditAction.CREATE,
+    payload: { code: data.code, stateId: data.stateId, active: true },
   });
 
   // Assign FSRs to this Client if provided
@@ -248,7 +260,7 @@ export async function createClient(data: ClientFormData) {
  * Update existing Client
  */
 export async function updateClient(id: string, data: ClientFormData) {
-  await requirePermission("clients:update");
+  const actor = await requirePermission("clients:update");
 
   const client = await prisma.client.update({
     where: { id },
@@ -262,10 +274,19 @@ export async function updateClient(id: string, data: ClientFormData) {
       contact: data.contact || null,
       email: data.email || null,
       stateId: data.stateId,
+      updatedById: actor.id,
     },
     include: {
       state: true,
     },
+  });
+
+  await logAudit(prisma, {
+    actorId: actor.id,
+    entity: AuditEntity.CLIENT,
+    entityId: client.id,
+    action: AuditAction.UPDATE,
+    payload: { code: data.code, stateId: data.stateId },
   });
 
   // Handle FSR reassignment
@@ -369,7 +390,7 @@ export async function updateClient(id: string, data: ClientFormData) {
  * Delete Client (soft delete)
  */
 export async function deleteClient(id: string) {
-  await requirePermission("clients:delete");
+  const actor = await requirePermission("clients:delete");
 
   // Check if Client has active user assignments
   const userCount = await prisma.userClientAssignment.count({
@@ -384,7 +405,20 @@ export async function deleteClient(id: string) {
 
   await prisma.client.update({
     where: { id },
-    data: { active: false },
+    data: {
+      active: false,
+      // RF-550: deactivation stamps land in the same write as the flag.
+      deactivatedAt: new Date(),
+      deactivatedById: actor.id,
+    },
+  });
+
+  await logAudit(prisma, {
+    actorId: actor.id,
+    entity: AuditEntity.CLIENT,
+    entityId: id,
+    action: AuditAction.DEACTIVATE,
+    payload: { active: false },
   });
 
   revalidatePath("/admin/clients");

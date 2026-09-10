@@ -43,6 +43,11 @@ model User {
   hireDate            DateTime?
   vacationPeriods     VacationPeriod[]         @relation("VacationPeriodUser")
   active              Boolean                  @default(true)
+  // RF-550 attribution: null = system row (seed/migration), never backfilled.
+  createdById     String?
+  updatedById     String?
+  deactivatedAt   DateTime?
+  deactivatedById String?
 }
 
 model UserClientAssignment {
@@ -51,6 +56,11 @@ model UserClientAssignment {
   clientId     String
   isPrimary Boolean  @default(false) // Primary Client for the user
   active    Boolean  @default(true)
+  // RF-550 attribution: null = system row (seed/migration), never backfilled.
+  createdById     String?
+  updatedById     String?
+  deactivatedAt   DateTime?
+  deactivatedById String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -69,6 +79,11 @@ model UserRole {
   userId    String
   roleId    Int
   active    Boolean  @default(true)
+  // RF-550 attribution: null = system row (seed/migration), never backfilled.
+  createdById     String?
+  updatedById     String?
+  deactivatedAt   DateTime?
+  deactivatedById String?
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
 
@@ -100,6 +115,11 @@ model Role {
   userRoles      UserRole[]
   rolePermission RolePermission[]
   active         Boolean          @default(true)
+  // RF-550 attribution: null = system row (seed/migration), never backfilled.
+  createdById     String?
+  updatedById     String?
+  deactivatedAt   DateTime?
+  deactivatedById String?
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @default(now()) @updatedAt
 }
@@ -119,6 +139,11 @@ model Permission {
   exact       Boolean          @default(false)
   roles       RolePermission[]
   active      Boolean          @default(true)
+  // RF-550 attribution: null = system row (seed/migration), never backfilled.
+  createdById     String?
+  updatedById     String?
+  deactivatedAt   DateTime?
+  deactivatedById String?
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @default(now()) @updatedAt
 
@@ -133,6 +158,11 @@ model RolePermission {
   role         Role       @relation(fields: [roleId], references: [id])
   permission   Permission @relation(fields: [permissionId], references: [id])
   active       Boolean    @default(true)
+  // RF-550 attribution: null = system row (seed/migration), never backfilled.
+  createdById     String?
+  updatedById     String?
+  deactivatedAt   DateTime?
+  deactivatedById String?
 
   @@unique([roleId, permissionId])
 }
@@ -142,6 +172,11 @@ model UserStatus {
   name   String  @unique
   users  User[]
   active Boolean @default(true)
+  // RF-550 attribution: null = system row (seed/migration), never backfilled.
+  createdById     String?
+  updatedById     String?
+  deactivatedAt   DateTime?
+  deactivatedById String?
 }
 
 model UserProfile {
@@ -155,6 +190,11 @@ model UserProfile {
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
   active             Boolean  @default(true)
+  // RF-550 attribution: null = system row (seed/migration), never backfilled.
+  createdById     String?
+  updatedById     String?
+  deactivatedAt   DateTime?
+  deactivatedById String?
 }
 
 model Client {
@@ -176,6 +216,11 @@ model Client {
   incidents       Incident[]
   lines           Line[]
   active          Boolean             @default(true)
+  // RF-550 attribution: null = system row (seed/migration), never backfilled.
+  createdById     String?
+  updatedById     String?
+  deactivatedAt   DateTime?
+  deactivatedById String?
 }
 
 model State {
@@ -186,6 +231,11 @@ model State {
   updatedAt                DateTime                  @updatedAt
   clients                 Client[]
   active                   Boolean                   @default(true)
+  // RF-550 attribution: null = system row (seed/migration), never backfilled.
+  createdById     String?
+  updatedById     String?
+  deactivatedAt   DateTime?
+  deactivatedById String?
 }
 
 model Schedule {
@@ -201,6 +251,11 @@ model Schedule {
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
   active      Boolean         @default(true)
+  // RF-550 attribution: null = system row (seed/migration), never backfilled.
+  createdById     String?
+  updatedById     String?
+  deactivatedAt   DateTime?
+  deactivatedById String?
 
   @@index([statusId])
   @@index([scheduledAt])
@@ -213,6 +268,11 @@ model ScheduleClient {
   schedule   Schedule                @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
   client        Client @relation(fields: [clientId], references: [id])
   active     Boolean                 @default(true)
+  // RF-550 attribution: null = system row (seed/migration), never backfilled.
+  createdById     String?
+  updatedById     String?
+  deactivatedAt   DateTime?
+  deactivatedById String?
   createdAt  DateTime                @default(now())
 
   @@id([scheduleId, clientId])
@@ -227,6 +287,11 @@ model ScheduleStatus {
   color       String     @default("#6B7280") // Hexadecimal color for status badge
   schedules   Schedule[]
   active      Boolean    @default(true)
+  // RF-550 attribution: null = system row (seed/migration), never backfilled.
+  createdById     String?
+  updatedById     String?
+  deactivatedAt   DateTime?
+  deactivatedById String?
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
 }
@@ -238,6 +303,11 @@ model IncidentType {
   priority    Int        @default(5)
   incidents   Incident[]
   active      Boolean    @default(true)
+  // RF-550 attribution: null = system row (seed/migration), never backfilled.
+  createdById     String?
+  updatedById     String?
+  deactivatedAt   DateTime?
+  deactivatedById String?
 }
 
 model IncidentStatus {
@@ -246,6 +316,11 @@ model IncidentStatus {
   color     String     @default("#6B7280") // Hexadecimal color for status badge
   incidents Incident[]
   active    Boolean    @default(true)
+  // RF-550 attribution: null = system row (seed/migration), never backfilled.
+  createdById     String?
+  updatedById     String?
+  deactivatedAt   DateTime?
+  deactivatedById String?
 }
 
 model AssignmentStatus {
@@ -254,6 +329,11 @@ model AssignmentStatus {
   color       String       @default("#6B7280")
   assignments Assignment[]
   active      Boolean      @default(true)
+  // RF-550 attribution: null = system row (seed/migration), never backfilled.
+  createdById     String?
+  updatedById     String?
+  deactivatedAt   DateTime?
+  deactivatedById String?
 }
 
 
@@ -262,6 +342,11 @@ model EquipmentStatus {
   name       String      @unique
   equipments Equipment[]
   active     Boolean     @default(true)
+  // RF-550 attribution: null = system row (seed/migration), never backfilled.
+  createdById     String?
+  updatedById     String?
+  deactivatedAt   DateTime?
+  deactivatedById String?
 }
 
 model VehicleStatus {
@@ -269,6 +354,11 @@ model VehicleStatus {
   name     String    @unique
   vehicles Vehicle[]
   active   Boolean   @default(true)
+  // RF-550 attribution: null = system row (seed/migration), never backfilled.
+  createdById     String?
+  updatedById     String?
+  deactivatedAt   DateTime?
+  deactivatedById String?
 }
 
 model VehicleTripStatus {
@@ -276,6 +366,11 @@ model VehicleTripStatus {
   name   String        @unique
   trips  VehicleTrip[]
   active Boolean       @default(true)
+  // RF-550 attribution: null = system row (seed/migration), never backfilled.
+  createdById     String?
+  updatedById     String?
+  deactivatedAt   DateTime?
+  deactivatedById String?
 }
 
 model Incident {
@@ -315,6 +410,11 @@ model Incident {
   createdAt   DateTime           @default(now())
   updatedAt   DateTime           @updatedAt
   active      Boolean            @default(true)
+  // RF-550 attribution: null = system row (seed/migration), never backfilled.
+  createdById     String?
+  updatedById     String?
+  deactivatedAt   DateTime?
+  deactivatedById String?
 
   @@index([clientId])
   @@index([statusId])
@@ -331,7 +431,12 @@ model IncidentAssignee {
   incidentId Int
   userId     String
   assignedAt DateTime @default(now())
-  active     Boolean  @default(true)
+  active       Boolean  @default(true)
+  // RF-550 attribution: null = system row (seed/migration), never backfilled.
+  createdById     String?
+  updatedById     String?
+  deactivatedAt   DateTime?
+  deactivatedById String?
 
   incident Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
   user     User     @relation(fields: [userId], references: [id])
@@ -385,6 +490,49 @@ enum IncidentEventType {
   ADMIN_OVERRIDE
 }
 
+/// Attributable-management audit log (RF-550–554), sibling of the RF-219
+/// IncidentEvent trail. IncidentEvent owns status-affecting occurrences;
+/// AuditLog owns who changed which manageable row. Append-only: application
+/// code MUST never update or delete these rows (enforced by unit test, no DB
+/// triggers). No soft delete, no backfill — rows begin at deploy.
+model AuditLog {
+  id        String      @id @default(cuid())
+  /// Human actor; null = system write (seed, migration, unauthenticated job).
+  actorId   String?
+  entity    AuditEntity
+  entityId  String
+  action    AuditAction
+  /// Allowlisted, PII-free change snapshot written by `logAudit`.
+  payload   Json?
+  createdAt DateTime    @default(now())
+
+  @@index([entity, entityId])
+  @@index([createdAt])
+}
+
+/// Closed vocabulary of auditable domain entities. Extending it is a
+/// migration + spec amendment on purpose (spec 11, RF-552).
+enum AuditEntity {
+  CLIENT
+  INCIDENT
+  ASSIGNMENT
+  LINE
+  EQUIPMENT
+  VEHICLE
+  VEHICLE_TRIP
+  SCHEDULE
+}
+
+/// Closed action vocabulary. Status transitions are NOT here — they belong
+/// to IncidentEvent (RF-553 no-double-write).
+enum AuditAction {
+  CREATE
+  UPDATE
+  DEACTIVATE
+  ASSIGN
+  UNASSIGN
+}
+
 model Assignment {
   id                   String                 @id @default(cuid())
   incidentId           Int
@@ -418,6 +566,11 @@ model Assignment {
   createdAt            DateTime               @default(now())
   updatedAt            DateTime               @updatedAt
   active               Boolean                @default(true)
+  // RF-550 attribution: null = system row (seed/migration), never backfilled.
+  createdById     String?
+  updatedById     String?
+  deactivatedAt   DateTime?
+  deactivatedById String?
 
   @@index([incidentId])
   @@index([statusId])
@@ -433,6 +586,11 @@ model AssignmentAssignee {
   userId       String
   assignedAt   DateTime @default(now())
   active       Boolean  @default(true)
+  // RF-550 attribution: null = system row (seed/migration), never backfilled.
+  createdById     String?
+  updatedById     String?
+  deactivatedAt   DateTime?
+  deactivatedById String?
 
   assignment Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
   user       User       @relation(fields: [userId], references: [id])
@@ -453,6 +611,11 @@ model AssignmentActivity {
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
   active       Boolean    @default(true)
+  // RF-550 attribution: null = system row (seed/migration), never backfilled.
+  createdById     String?
+  updatedById     String?
+  deactivatedAt   DateTime?
+  deactivatedById String?
 
   @@index([assignmentId])
 }
@@ -469,6 +632,11 @@ model AssignmentAttachment {
   provider     String     @default("vercel-blob") // "vercel-blob" or "filesystem"
   uploadedAt   DateTime   @default(now())
   active       Boolean    @default(true)
+  // RF-550 attribution: null = system row (seed/migration), never backfilled.
+  createdById     String?
+  updatedById     String?
+  deactivatedAt   DateTime?
+  deactivatedById String?
 
   @@index([assignmentId])
 }
@@ -492,6 +660,11 @@ model IncidentAttachment {
   provider    String   @default("vercel-blob") // "vercel-blob" or "filesystem"
   uploadedAt  DateTime @default(now())
   active      Boolean  @default(true)
+  // RF-550 attribution: null = system row (seed/migration), never backfilled.
+  createdById     String?
+  updatedById     String?
+  deactivatedAt   DateTime?
+  deactivatedById String?
 
   @@index([incidentId])
 }
@@ -509,6 +682,11 @@ model Line {
   createdAt   DateTime                @default(now())
   updatedAt   DateTime                @updatedAt
   active      Boolean                 @default(true)
+  // RF-550 attribution: null = system row (seed/migration), never backfilled.
+  createdById     String?
+  updatedById     String?
+  deactivatedAt   DateTime?
+  deactivatedById String?
 
   @@unique([name, clientId])
   @@index([clientId])
@@ -528,6 +706,11 @@ model Equipment {
   createdAt    DateTime        @default(now())
   updatedAt    DateTime        @updatedAt
   active       Boolean         @default(true)
+  // RF-550 attribution: null = system row (seed/migration), never backfilled.
+  createdById     String?
+  updatedById     String?
+  deactivatedAt   DateTime?
+  deactivatedById String?
 
   @@index([lineId])
   @@index([statusId])
@@ -548,6 +731,11 @@ model Vehicle {
   assignedFsr   User?         @relation("AssignedVehicles", fields: [assignedFsrId], references: [id])
   notes         String? // General notes about vehicle
   active        Boolean       @default(true) // Soft delete
+  // RF-550 attribution: null = system row (seed/migration), never backfilled.
+  createdById     String?
+  updatedById     String?
+  deactivatedAt   DateTime?
+  deactivatedById String?
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
   trips         VehicleTrip[]
@@ -589,6 +777,11 @@ model VehicleTrip {
   statusId           Int               @default(1) // Status ID reference
   status             VehicleTripStatus @relation(fields: [statusId], references: [id])
   active             Boolean           @default(true) // Soft delete
+  // RF-550 attribution: null = system row (seed/migration), never backfilled.
+  createdById     String?
+  updatedById     String?
+  deactivatedAt   DateTime?
+  deactivatedById String?
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
 
@@ -653,6 +846,11 @@ model Holiday {
   /// The specific year for one-time (sexennial) events. Null for recurring rules.
   year        Int?
   active      Boolean @default(true)
+  // RF-550 attribution: null = system row (seed/migration), never backfilled.
+  createdById     String?
+  updatedById     String?
+  deactivatedAt   DateTime?
+  deactivatedById String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -668,10 +866,15 @@ model VacationStatus {
   name        String    @unique
   description String?
   color       String    @default("#6B7280")
-  active      Boolean   @default(true)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   vacations   Vacation[]
+  active      Boolean   @default(true)
+  // RF-550 attribution: null = system row (seed/migration), never backfilled.
+  createdById     String?
+  updatedById     String?
+  deactivatedAt   DateTime?
+  deactivatedById String?
 
   @@map("vacation_statuses")
 }
@@ -699,6 +902,11 @@ model Vacation {
   // keeps history stable if the Holiday catalog is edited afterwards.
   businessDaysUsed Int?
   active       Boolean        @default(true)
+  // RF-550 attribution: null = system row (seed/migration), never backfilled.
+  createdById     String?
+  updatedById     String?
+  deactivatedAt   DateTime?
+  deactivatedById String?
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
 
@@ -720,6 +928,11 @@ model VacationAccrualRule {
   maxYears  Int? // inclusive upper bound; null = open-ended final tier
   days      Int
   active    Boolean  @default(true)
+  // RF-550 attribution: null = system row (seed/migration), never backfilled.
+  createdById     String?
+  updatedById     String?
+  deactivatedAt   DateTime?
+  deactivatedById String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -799,6 +1012,11 @@ model AssignmentItem {
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
   active       Boolean    @default(true)
+  // RF-550 attribution: null = system row (seed/migration), never backfilled.
+  createdById     String?
+  updatedById     String?
+  deactivatedAt   DateTime?
+  deactivatedById String?
 
   @@index([assignmentId])
 }

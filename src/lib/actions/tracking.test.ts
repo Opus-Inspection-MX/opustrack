@@ -42,6 +42,8 @@ const { prismaMock, requirePermission, getUserClientIds } = vi.hoisted(() => ({
       upsert: vi.fn(),
     },
     incidentEvent: { create: vi.fn(), findFirst: vi.fn() },
+    // RF-551: scalar incident edits emit an AuditLog row via logAudit.
+    auditLog: { create: vi.fn() },
     user: { findMany: vi.fn() },
     $transaction: vi.fn(),
   },

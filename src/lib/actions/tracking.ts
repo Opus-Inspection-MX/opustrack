@@ -1,8 +1,9 @@
 "use server";
 
 import type { Prisma } from "@prisma/client";
-import { IncidentEventType } from "@prisma/client";
+import { AuditAction, AuditEntity, IncidentEventType } from "@prisma/client";
 import { revalidatePath } from "next/cache";
+import { logAudit } from "@/lib/audit/log-audit";
 import { requirePermission } from "@/lib/auth/auth";
 import {
   getReportScope,
@@ -754,7 +755,9 @@ export async function updateIncidentDetails(
     equipmentId?: number | null;
   },
 ) {
-  await requirePermission("tracking:update");
+  // RF-550: the actor is explicit — no AsyncLocalStorage across the
+  // Server-Action boundary.
+  const { id: actorId } = await requirePermission("tracking:update");
 
   return guarded(async () => {
     try {
@@ -811,6 +814,22 @@ export async function updateIncidentDetails(
           // every edited timestamp by the offset.
           reportedAt: wallClockToUTC(data.reportedAt),
           resolvedAt: data.resolvedAt ? wallClockToUTC(data.resolvedAt) : null,
+          statusId: target ? data.statusId : incident.statusId,
+          lineId: data.lineId || null,
+          equipmentId: data.equipmentId || null,
+          updatedById: actorId,
+        },
+      });
+
+      // RF-553: scalar edits ARE auditable management — the sync below (if
+      // any) owns the status transition in IncidentEvent, this row owns the
+      // attributable edit. Free text stays out (allowlist holds IDs only).
+      await logAudit(prisma, {
+        actorId,
+        entity: AuditEntity.INCIDENT,
+        entityId: String(incidentId),
+        action: AuditAction.UPDATE,
+        payload: {
           statusId: target ? data.statusId : incident.statusId,
           lineId: data.lineId || null,
           equipmentId: data.equipmentId || null,

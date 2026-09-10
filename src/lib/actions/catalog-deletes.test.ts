@@ -29,6 +29,8 @@ const { prismaMock, requirePermission } = vi.hoisted(() => {
       vehicle: model(),
       vehicleTrip: model(),
       holiday: model(),
+      // RF-551: deleteClient emits an AuditLog row via logAudit.
+      auditLog: { ...model(), create: vi.fn() },
     },
     // ROOT: `deleteRole` is gated on `isSuperuser`, not on a permission, so a
     // caller without it is refused before the child-count rule is ever reached.
