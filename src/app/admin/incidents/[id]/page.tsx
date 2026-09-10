@@ -11,6 +11,7 @@ import Link from "next/link";
 import { CancelIncidentButton } from "@/components/admin/incidents/cancel-incident-button";
 import { IncidentTimeline } from "@/components/admin/incidents/incident-timeline";
 import { BackButton } from "@/components/common/back-button";
+import { IncidentAttachments } from "@/components/incidents/incident-attachments";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,7 +25,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { getIncidentById } from "@/lib/actions/incidents";
-import { requireRouteAccess } from "@/lib/auth/auth";
+import { canPerform, requireRouteAccess } from "@/lib/auth/auth";
 import { formatIncidentDateTime, formatMX } from "@/lib/utils/datetime";
 import { formatReporter } from "@/lib/utils/incident-display";
 
@@ -57,6 +58,15 @@ export default async function IncidentDetailPage({
     1,
     Number.parseInt((await searchParams)?.historial ?? "1", 10) || 1,
   );
+  // RF-217: same create-OR-update gate as the attachment actions — CLIENT
+  // reporters hold create, operators hold update.
+  const [canCreate, canUpdate] = await Promise.all([
+    canPerform("incidents:create"),
+    canPerform("incidents:update"),
+  ]);
+  const terminal =
+    incident.status?.name === "CERRADO" ||
+    incident.status?.name === "CANCELADA";
 
   return (
     <div className="space-y-6">
@@ -254,6 +264,16 @@ export default async function IncidentDetailPage({
           </div>
         </CardContent>
       </Card>
+
+      <Separator />
+
+      {/* Evidence photos filed with the report (RF-217) */}
+      <IncidentAttachments
+        incidentId={incident.id}
+        attachments={incident.attachments ?? []}
+        canManage={canCreate || canUpdate}
+        terminal={terminal}
+      />
 
       <Separator />
 

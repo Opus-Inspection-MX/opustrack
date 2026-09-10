@@ -243,6 +243,10 @@ export async function getIncidentById(id: number) {
         },
       },
       schedule: true,
+      attachments: {
+        where: { active: true },
+        orderBy: { uploadedAt: "desc" },
+      },
       assignees: {
         where: { active: true },
         include: {

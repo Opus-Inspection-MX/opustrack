@@ -1,12 +1,13 @@
 import { Building, Calendar, FileText, User } from "lucide-react";
 import Link from "next/link";
 import { BackButton } from "@/components/common/back-button";
+import { IncidentAttachments } from "@/components/incidents/incident-attachments";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { getIncidentById } from "@/lib/actions/incidents";
-import { requireRouteAccess } from "@/lib/auth/auth";
+import { canPerform, requireRouteAccess } from "@/lib/auth/auth";
 import { formatIncidentDateTime, formatMX } from "@/lib/utils/datetime";
 import { formatReporter } from "@/lib/utils/incident-display";
 
@@ -40,6 +41,14 @@ export default async function ClientIncidentDetailPage({
 
   const { id } = await params;
   const incident = await getIncidentById(Number.parseInt(id, 10));
+  // RF-217: CLIENT reporters hold incidents:create (no update).
+  const [canCreate, canUpdate] = await Promise.all([
+    canPerform("incidents:create"),
+    canPerform("incidents:update"),
+  ]);
+  const terminal =
+    incident.status?.name === "CERRADO" ||
+    incident.status?.name === "CANCELADA";
 
   return (
     <div className="space-y-6">
@@ -170,6 +179,14 @@ export default async function ClientIncidentDetailPage({
           )}
         </CardContent>
       </Card>
+
+      {/* Evidence photos filed with the report (RF-217) */}
+      <IncidentAttachments
+        incidentId={incident.id}
+        attachments={incident.attachments ?? []}
+        canManage={canCreate || canUpdate}
+        terminal={terminal}
+      />
 
       {/* Assignments */}
       {incident.assignments && incident.assignments.length > 0 && (
