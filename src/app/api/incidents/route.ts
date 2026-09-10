@@ -1,6 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { withPermission } from "@/lib/auth/auth";
+import { getReportScope, incidentScopeWhere } from "@/lib/auth/report-scope";
 import { FALLBACK_INCIDENT_TYPE_NAME } from "@/lib/constants/incident-type";
 import { prisma } from "@/lib/database/prisma.singleton";
 import { INCIDENT_STATE } from "@/lib/state-machine/incident-machine";
@@ -63,6 +64,22 @@ export const POST = withPermission(
         );
       }
 
+      // Tenant boundary, same as GET: a caller cannot file an incident under
+      // a Cliente outside their scope (the form only offers in-scope
+      // Clientes, but the endpoint must not trust that).
+      if (clienteId) {
+        const scope = await getReportScope(user);
+        if (
+          scope.clienteIds !== null &&
+          !scope.clienteIds.includes(clienteId)
+        ) {
+          return NextResponse.json(
+            { error: "Sin acceso al Cliente solicitado" },
+            { status: 403 },
+          );
+        }
+      }
+
       // Crear incidente
       const incident = await prisma.incident.create({
         data: {
@@ -122,7 +139,7 @@ export const POST = withPermission(
  * GET /api/incidents
  * Obtiene todos los incidentes
  */
-export const GET = withPermission("incidents:read", async (request, _user) => {
+export const GET = withPermission("incidents:read", async (request, user) => {
   try {
     const { searchParams } = new URL(request.url);
     const clienteId = searchParams.get("clienteId");
@@ -131,8 +148,20 @@ export const GET = withPermission("incidents:read", async (request, _user) => {
       active: true,
     };
 
+    // Tenant boundary (cross-cutting rule #4). A requested Cliente outside
+    // the caller's scope is rejected instead of silently returning rows the
+    // caller must never see — or an empty list that hides the denial.
+    const scope = await getReportScope(user);
     if (clienteId) {
+      if (scope.clienteIds !== null && !scope.clienteIds.includes(clienteId)) {
+        return NextResponse.json(
+          { error: "Sin acceso al Cliente solicitado" },
+          { status: 403 },
+        );
+      }
       where.clienteId = clienteId;
+    } else {
+      Object.assign(where, incidentScopeWhere(scope));
     }
 
     const incidents = await prisma.incident.findMany({

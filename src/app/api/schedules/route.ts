@@ -1,6 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { withPermission } from "@/lib/auth/auth";
+import { getReportScope, scheduleScopeWhere } from "@/lib/auth/report-scope";
 import { prisma } from "@/lib/database/prisma.singleton";
 
 /**
@@ -29,7 +30,7 @@ function overlapWhere(
  * Obtiene programaciones con filtros. startDate/endDate (o activeFrom/activeTo)
  * usan overlap contra [scheduledAt, endDate] del schedule.
  */
-export const GET = withPermission("schedules:read", async (request, _user) => {
+export const GET = withPermission("schedules:read", async (request, user) => {
   try {
     const { searchParams } = new URL(request.url);
 
@@ -59,8 +60,19 @@ export const GET = withPermission("schedules:read", async (request, _user) => {
       ];
     }
 
+    // Tenant boundary (cross-cutting rule #4). A requested Cliente outside
+    // the caller's scope is a 403, not an empty list.
+    const scope = await getReportScope(user);
     if (clienteId) {
+      if (scope.clienteIds !== null && !scope.clienteIds.includes(clienteId)) {
+        return NextResponse.json(
+          { error: "Sin acceso al Cliente solicitado" },
+          { status: 403 },
+        );
+      }
       where.clientes = { some: { clienteId, active: true } };
+    } else {
+      Object.assign(where, scheduleScopeWhere(scope));
     }
 
     if (statusId) {

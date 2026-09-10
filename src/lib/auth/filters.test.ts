@@ -16,10 +16,8 @@ import {
 } from "@/lib/authz/authz";
 import { getUserClienteIds } from "@/lib/utils/cliente-assignments";
 import {
-  assertClienteAccess,
-  canAccessCliente,
+  assertClienteAccessAsync,
   canAccessClienteAsync,
-  getClienteWhereClause,
   getClienteWhereClauseAsync,
   isAdmin,
 } from "./filters";
@@ -46,7 +44,6 @@ function user(
     id: "u1",
     email: "a@b.com",
     name: "Tester",
-    clienteId: null,
     ...mergeRoles([role()]),
     ...overrides,
   };
@@ -96,53 +93,22 @@ describe("isAdmin", () => {
   });
 });
 
-describe("getClienteWhereClause (sync)", () => {
-  it("returns an empty filter for admins (sees everything)", () => {
-    expect(getClienteWhereClause(admin)).toEqual({});
+describe("assertClienteAccessAsync", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("does not throw when access is allowed", async () => {
+    getIds.mockResolvedValue(["c1"]);
+    await expect(
+      assertClienteAccessAsync(user(), "c1"),
+    ).resolves.toBeUndefined();
   });
 
-  it("filters by null Cliente for users without a Cliente", () => {
-    expect(getClienteWhereClause(user({ clienteId: null }))).toEqual({
-      clienteId: { equals: null },
-    });
-  });
-
-  it("filters by the user's assigned Cliente", () => {
-    expect(getClienteWhereClause(user({ clienteId: "c1" }))).toEqual({
-      clienteId: "c1",
-    });
-  });
-});
-
-describe("canAccessCliente (sync)", () => {
-  it("lets admins access any Cliente", () => {
-    expect(canAccessCliente(admin, "c1")).toBe(true);
-    expect(canAccessCliente(admin, null)).toBe(true);
-  });
-
-  it("lets Cliente-less users access only null-Cliente data", () => {
-    const u = user({ clienteId: null });
-    expect(canAccessCliente(u, null)).toBe(true);
-    expect(canAccessCliente(u, "c1")).toBe(false);
-  });
-
-  it("lets users access only their own Cliente", () => {
-    const u = user({ clienteId: "c1" });
-    expect(canAccessCliente(u, "c1")).toBe(true);
-    expect(canAccessCliente(u, "c2")).toBe(false);
-  });
-});
-
-describe("assertClienteAccess", () => {
-  it("does not throw when access is allowed", () => {
-    expect(() =>
-      assertClienteAccess(user({ clienteId: "c1" }), "c1"),
-    ).not.toThrow();
-  });
-
-  it("throws when access is denied", () => {
-    expect(() => assertClienteAccess(user({ clienteId: "c1" }), "c2")).toThrow(
-      /Access denied/,
+  it("raises a business rule when access is denied", async () => {
+    getIds.mockResolvedValue(["c1"]);
+    // Operator-facing denial: `guarded()` turns this into a returned
+    // rejection instead of a production-invisible throw.
+    await expect(assertClienteAccessAsync(user(), "c2")).rejects.toThrow(
+      /Sin acceso a los datos de este Cliente/,
     );
   });
 });
@@ -169,20 +135,13 @@ describe("getClienteWhereClauseAsync (multi-Cliente)", () => {
     });
   });
 
-  it("falls back to legacy clienteId when no assignments exist", async () => {
+  it("filters by null Cliente when there are no assignments (fail closed)", async () => {
+    // The deprecated User.clienteId scalar is gone: no assignments matches
+    // nothing, with no legacy fallback left to consult.
     getIds.mockResolvedValue([]);
-    expect(
-      await getClienteWhereClauseAsync(user({ clienteId: "legacy" })),
-    ).toEqual({ clienteId: "legacy" });
-  });
-
-  it("filters by null Cliente when there are no assignments and no legacy id", async () => {
-    getIds.mockResolvedValue([]);
-    expect(await getClienteWhereClauseAsync(user({ clienteId: null }))).toEqual(
-      {
-        clienteId: { equals: null },
-      },
-    );
+    expect(await getClienteWhereClauseAsync(user())).toEqual({
+      clienteId: { equals: null },
+    });
   });
 });
 
@@ -198,28 +157,22 @@ describe("canAccessClienteAsync (multi-Cliente)", () => {
     expect(await canAccessClienteAsync(user(), "c2")).toBe(true);
   });
 
-  it("falls back to legacy clienteId when not in assignments", async () => {
+  it("denies access outside the assignments (no legacy fallback)", async () => {
+    // The deprecated User.clienteId scalar is gone: the junction table is
+    // the only source of truth, so there is nothing left to fall back to.
     getIds.mockResolvedValue(["c1"]);
-    expect(await canAccessClienteAsync(user({ clienteId: "c9" }), "c9")).toBe(
-      true,
-    );
+    expect(await canAccessClienteAsync(user(), "c9")).toBe(false);
   });
 
   it("denies access to an unrelated Cliente", async () => {
     getIds.mockResolvedValue(["c1"]);
-    expect(await canAccessClienteAsync(user({ clienteId: "c1" }), "c2")).toBe(
-      false,
-    );
+    expect(await canAccessClienteAsync(user(), "c2")).toBe(false);
   });
 
   it("allows null-Cliente data only for fully Cliente-less users", async () => {
     getIds.mockResolvedValue([]);
-    expect(await canAccessClienteAsync(user({ clienteId: null }), null)).toBe(
-      true,
-    );
-    getIds.mockResolvedValue([]);
-    expect(await canAccessClienteAsync(user({ clienteId: "c1" }), null)).toBe(
-      false,
-    );
+    expect(await canAccessClienteAsync(user(), null)).toBe(true);
+    getIds.mockResolvedValue(["c1"]);
+    expect(await canAccessClienteAsync(user(), null)).toBe(false);
   });
 });

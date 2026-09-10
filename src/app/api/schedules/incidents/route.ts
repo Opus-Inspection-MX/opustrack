@@ -1,6 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { withPermission } from "@/lib/auth/auth";
+import { getReportScope, incidentScopeWhere } from "@/lib/auth/report-scope";
 import { prisma } from "@/lib/database/prisma.singleton";
 
 /**
@@ -11,7 +12,7 @@ import { prisma } from "@/lib/database/prisma.singleton";
  * - end: fecha de fin (ISO string)
  * - clienteId: opcional, filtrar por Cliente específico
  */
-export const GET = withPermission("schedules:read", async (request, _user) => {
+export const GET = withPermission("schedules:read", async (request, user) => {
   try {
     const { searchParams } = new URL(request.url);
     const startParam = searchParams.get("start");
@@ -59,9 +60,22 @@ export const GET = withPermission("schedules:read", async (request, _user) => {
       ],
     };
 
-    // Filtrar por Cliente si se proporciona
+    // Tenant boundary (cross-cutting rule #4). A requested Cliente outside
+    // the caller's scope is a 403, not an empty calendar.
+    const scope = await getReportScope(user);
     if (clienteIdParam) {
+      if (
+        scope.clienteIds !== null &&
+        !scope.clienteIds.includes(clienteIdParam)
+      ) {
+        return NextResponse.json(
+          { error: "Sin acceso al Cliente solicitado" },
+          { status: 403 },
+        );
+      }
       where.clienteId = clienteIdParam;
+    } else {
+      Object.assign(where, incidentScopeWhere(scope));
     }
 
     // `?signature=1` responde "¿cambió algo?" sin traer las filas: cuatro
