@@ -201,7 +201,7 @@ export async function startVehicleTrip(formData: FormData) {
 
   return guarded(async () => {
     const vehicleId = getString(formData, "vehicleId");
-    if (!vehicleId) throw new Error("vehicleId requerido");
+    if (!vehicleId) businessRule("vehicleId requerido");
     const assignmentId = getString(formData, "assignmentId") ?? null;
     const startOdometer = requireInt(
       formData,
@@ -308,7 +308,7 @@ export async function endVehicleTrip(formData: FormData) {
 
   return guarded(async () => {
     const id = getString(formData, "tripId");
-    if (!id) throw new Error("tripId requerido");
+    if (!id) businessRule("tripId requerido");
     const endOdometer = requireInt(formData, "endOdometer", "endOdometer");
     const photo = requireFile(formData, "photo", "Foto del odómetro");
     const photoMimetype =

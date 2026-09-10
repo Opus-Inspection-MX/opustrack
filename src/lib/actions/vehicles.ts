@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { requirePermission } from "@/lib/auth/auth";
 import { whereHasRole } from "@/lib/authz/user-queries";
 import { prisma } from "@/lib/database/prisma.singleton";
-import { rejected } from "./result";
+import { ok, rejected } from "./result";
 
 export type VehicleFormData = {
   make: string;
@@ -112,8 +112,10 @@ export async function createVehicle(data: VehicleFormData) {
   });
 
   revalidatePath("/admin/vehicles");
-  revalidatePath("/fsr/vehicles");
-  return { success: true, data: vehicle };
+  // No `/fsr/vehicles` route exists: the FSR vehicle surface is the trips
+  // list, which embeds each trip's vehicle.
+  revalidatePath("/fsr/vehicle-trips");
+  return ok({ data: vehicle });
 }
 
 /**
@@ -144,8 +146,10 @@ export async function updateVehicle(id: string, data: VehicleFormData) {
 
   revalidatePath("/admin/vehicles");
   revalidatePath(`/admin/vehicles/${id}`);
-  revalidatePath("/fsr/vehicles");
-  return { success: true, data: vehicle };
+  // No `/fsr/vehicles` route exists: the FSR vehicle surface is the trips
+  // list, which embeds each trip's vehicle.
+  revalidatePath("/fsr/vehicle-trips");
+  return ok({ data: vehicle });
 }
 
 /**
@@ -195,7 +199,7 @@ export async function updateVehicleStatus(id: string, statusName: string) {
 
   revalidatePath("/admin/vehicles");
   revalidatePath(`/admin/vehicles/${id}`);
-  return { success: true };
+  return ok();
 }
 
 /**

@@ -39,7 +39,7 @@ export async function getMyUnreadCount(): Promise<number> {
 export async function markNotificationAsRead(notificationId: string) {
   const user = await requirePermission("notifications:update");
   const result = await markAsRead(notificationId, user.id);
-  return { success: true, data: result };
+  return ok({ data: result });
 }
 
 /**
@@ -48,7 +48,7 @@ export async function markNotificationAsRead(notificationId: string) {
 export async function markAllNotificationsAsRead() {
   const user = await requirePermission("notifications:update");
   await markAllAsRead(user.id);
-  return { success: true };
+  return ok();
 }
 
 /**
@@ -57,7 +57,7 @@ export async function markAllNotificationsAsRead() {
 export async function deleteMyNotification(notificationId: string) {
   const user = await requirePermission("notifications:delete");
   await deleteNotification(notificationId, user.id);
-  return { success: true };
+  return ok();
 }
 
 /**
