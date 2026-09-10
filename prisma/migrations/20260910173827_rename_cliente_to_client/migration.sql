@@ -22,12 +22,12 @@ ALTER TABLE "Line" RENAME COLUMN "clienteId" TO "clientId";
 
 -- 3. Constraints (PRIMARY KEY / UNIQUE / FOREIGN KEY)
 ALTER TABLE "Client" RENAME CONSTRAINT "Cliente_pkey" TO "Client_pkey";
-ALTER TABLE "Client" RENAME CONSTRAINT "Cliente_code_key" TO "Client_code_key";
+ALTER INDEX "Cliente_code_key" RENAME TO "Client_code_key";
 ALTER TABLE "Client" RENAME CONSTRAINT "Cliente_stateId_fkey" TO "Client_stateId_fkey";
 ALTER TABLE "UserClientAssignment" RENAME CONSTRAINT "UserClienteAssignment_pkey" TO "UserClientAssignment_pkey";
 ALTER TABLE "UserClientAssignment" RENAME CONSTRAINT "UserClienteAssignment_userId_fkey" TO "UserClientAssignment_userId_fkey";
 ALTER TABLE "UserClientAssignment" RENAME CONSTRAINT "UserClienteAssignment_clienteId_fkey" TO "UserClientAssignment_clientId_fkey";
-ALTER TABLE "UserClientAssignment" RENAME CONSTRAINT "UserClienteAssignment_userId_clienteId_key" TO "UserClientAssignment_userId_clientId_key";
+ALTER INDEX "UserClienteAssignment_userId_clienteId_key" RENAME TO "UserClientAssignment_userId_clientId_key";
 ALTER TABLE "ScheduleClient" RENAME CONSTRAINT "ScheduleCliente_pkey" TO "ScheduleClient_pkey";
 ALTER TABLE "ScheduleClient" RENAME CONSTRAINT "ScheduleCliente_scheduleId_fkey" TO "ScheduleClient_scheduleId_fkey";
 ALTER TABLE "ScheduleClient" RENAME CONSTRAINT "ScheduleCliente_clienteId_fkey" TO "ScheduleClient_clientId_fkey";
