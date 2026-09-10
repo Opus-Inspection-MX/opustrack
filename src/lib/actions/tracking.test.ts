@@ -9,7 +9,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
  * assertions are on the arguments it receives.
  */
 
-const { prismaMock, requirePermission } = vi.hoisted(() => ({
+const { prismaMock, requirePermission, getUserClienteIds } = vi.hoisted(() => ({
   prismaMock: {
     incident: {
       findMany: vi.fn(),
@@ -26,6 +26,8 @@ const { prismaMock, requirePermission } = vi.hoisted(() => ({
       aggregate: vi.fn(),
     },
     assignmentStatus: { findFirst: vi.fn(), findUnique: vi.fn() },
+    incidentStatus: { findUnique: vi.fn() },
+    assignmentAttachment: { count: vi.fn() },
     // `aggregate` lives on both models: the auto-refresh signature asks each
     // one for a count and the newest updatedAt.
     assignmentAssignee: {
@@ -42,7 +44,14 @@ const { prismaMock, requirePermission } = vi.hoisted(() => ({
     user: { findMany: vi.fn() },
     $transaction: vi.fn(),
   },
-  requirePermission: vi.fn(async (_name: string) => ({ id: "admin" })),
+  // Superuser by default: `getReportScope` short-circuits to an unrestricted
+  // scope, so the existing tests keep asserting the raw filter shapes. The
+  // scope block at the bottom overrides this per test.
+  requirePermission: vi.fn(async (_name: string) => ({
+    id: "admin",
+    isSuperuser: true,
+  })),
+  getUserClienteIds: vi.fn(async (_userId: string) => [] as string[]),
 }));
 
 const { syncIncidentState, notifyAssignmentAssigned } = vi.hoisted(() => ({
@@ -54,6 +63,7 @@ vi.mock("@/lib/database/prisma.singleton", () => ({ prisma: prismaMock }));
 vi.mock("@/lib/auth/auth", () => ({
   requirePermission: (name: string) => requirePermission(name),
 }));
+vi.mock("@/lib/utils/cliente-assignments", () => ({ getUserClienteIds }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/lib/state-machine/sync", () => ({ syncIncidentState }));
 vi.mock("@/lib/notifications/notify-events", () => ({
@@ -92,6 +102,7 @@ beforeEach(() => {
   });
   prismaMock.assignmentAssignee.findMany.mockResolvedValue([]);
   prismaMock.assignmentAssignee.findUnique.mockResolvedValue(null);
+  prismaMock.assignmentAttachment.count.mockResolvedValue(0);
   prismaMock.incidentAssignee.findFirst.mockResolvedValue({ id: "ia1" });
   prismaMock.incidentAssignee.findMany.mockResolvedValue([]);
   prismaMock.incident.findUnique.mockResolvedValue({ title: "Incidente" });
@@ -558,6 +569,15 @@ describe("updateAssignmentAssignees (RF-515)", () => {
 // ---------------------------------------------------------------------------
 describe("updateIncidentDetails (RF-516)", () => {
   it("limpia resolvedAt, lineId y equipmentId cuando llegan vacíos", async () => {
+    prismaMock.incident.findUnique.mockResolvedValue({
+      statusId: 1,
+      status: { name: "ABIERTO" },
+      assignments: [],
+    });
+    prismaMock.incidentStatus.findUnique.mockResolvedValue({
+      name: "ASIGNADO",
+    });
+
     await updateIncidentDetails(1, {
       title: "T",
       description: "D",
@@ -571,6 +591,77 @@ describe("updateIncidentDetails (RF-516)", () => {
       equipmentId: null,
       statusId: 3,
     });
+    // Sin asignaciones no hay nada que derivar: el estado validado se queda.
+    expect(syncIncidentState).not.toHaveBeenCalled();
+  });
+
+  it("rechaza un salto de estado fuera de la máquina", async () => {
+    prismaMock.incident.findUnique.mockResolvedValue({
+      statusId: 1,
+      status: { name: "ABIERTO" },
+      assignments: [],
+    });
+    prismaMock.incidentStatus.findUnique.mockResolvedValue({
+      name: "CERRADO",
+    });
+
+    const result = await updateIncidentDetails(1, {
+      title: "T",
+      description: "D",
+      reportedAt: "2026-06-10T10:00:00.000Z",
+      statusId: 6,
+    });
+
+    expect(result).toEqual({
+      success: false,
+      error: expect.stringMatching(/Transición de incidencia inválida/),
+    });
+    expect(prismaMock.incident.update).not.toHaveBeenCalled();
+  });
+
+  it("rechaza CANCELADA: cancelar tiene su propia acción", async () => {
+    prismaMock.incident.findUnique.mockResolvedValue({
+      statusId: 2,
+      status: { name: "ASIGNADO" },
+      assignments: [],
+    });
+    prismaMock.incidentStatus.findUnique.mockResolvedValue({
+      name: "CANCELADA",
+    });
+
+    const result = await updateIncidentDetails(1, {
+      title: "T",
+      description: "D",
+      reportedAt: "2026-06-10T10:00:00.000Z",
+      statusId: 7,
+    });
+
+    expect(result).toEqual({
+      success: false,
+      error: expect.stringMatching(/acción de cancelación/),
+    });
+    expect(prismaMock.incident.update).not.toHaveBeenCalled();
+  });
+
+  it("sincroniza el estado derivado cuando hay asignaciones", async () => {
+    prismaMock.incident.findUnique.mockResolvedValue({
+      statusId: 2,
+      status: { name: "ASIGNADO" },
+      assignments: [{ id: "a1" }],
+    });
+    prismaMock.incidentStatus.findUnique.mockResolvedValue({
+      name: "VISTO",
+    });
+
+    const result = await updateIncidentDetails(1, {
+      title: "T",
+      description: "D",
+      reportedAt: "2026-06-10T10:00:00.000Z",
+      statusId: 3,
+    });
+
+    expect(result).toEqual({ success: true });
+    expect(syncIncidentState).toHaveBeenCalledWith(1);
   });
 });
 
@@ -641,5 +732,248 @@ describe("updateAssignmentDetails (RF-517)", () => {
       startedAt: null,
       finishedAt: null,
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Alcance por Cliente (regla transversal #4)
+// ---------------------------------------------------------------------------
+describe("getIncidentsForTracking · alcance por Cliente", () => {
+  const scopedUser = {
+    id: "fsr1",
+    isSuperuser: false,
+    permissions: new Set<string>(),
+  };
+
+  beforeEach(() => {
+    requirePermission.mockResolvedValue(scopedUser);
+    getUserClienteIds.mockResolvedValue(["c1", "c2"]);
+  });
+
+  it("aplica el alcance multi-Cliente cuando no hay filtro explícito", async () => {
+    await getIncidentsForTracking();
+
+    expect(lastWhere().clienteId).toEqual({ in: ["c1", "c2"] });
+  });
+
+  it("respeta un filtro explícito dentro del alcance", async () => {
+    await getIncidentsForTracking({ clienteId: "c1" });
+
+    expect(lastWhere().clienteId).toBe("c1");
+  });
+
+  it("un filtro fuera del alcance no devuelve nada (fail closed)", async () => {
+    await getIncidentsForTracking({ clienteId: "c9" });
+
+    expect(lastWhere().clienteId).toEqual({ in: [] });
+    expect(prismaMock.incident.findMany).toHaveBeenCalled();
+  });
+
+  it("un usuario sin Clientes no ve nada", async () => {
+    getUserClienteIds.mockResolvedValue([]);
+
+    await getIncidentsForTracking();
+
+    expect(lastWhere().clienteId).toEqual({ in: [] });
+  });
+
+  it("la firma cubre el mismo conjunto con alcance", async () => {
+    await getIncidentsForTracking({ clienteId: "c1" });
+    const queryWhere = lastWhere();
+
+    vi.clearAllMocks();
+    prismaMock.incident.aggregate.mockResolvedValue({
+      _count: { _all: 0 },
+      _max: { updatedAt: null },
+    });
+    prismaMock.assignment.aggregate.mockResolvedValue({
+      _count: { _all: 0 },
+      _max: { updatedAt: null },
+    });
+
+    await getTrackingSignature({ clienteId: "c1" });
+
+    expect(prismaMock.incident.aggregate.mock.calls[0][0].where).toEqual(
+      queryWhere,
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// La edición inline respeta las máquinas de estado
+// ---------------------------------------------------------------------------
+describe("updateAssignmentDetails · máquina de estados", () => {
+  /** Fila de asignación con estado EN_PROGRESO en una incidencia abierta. */
+  function openRow(overrides = {}) {
+    return {
+      incidentId: 1,
+      status: { name: "EN_PROGRESO" },
+      startedAt: new Date("2026-08-14T09:00:00.000Z"),
+      finishedAt: null,
+      startLatitude: 19.43,
+      startLongitude: -99.13,
+      // El formulario no captura GPS: la fila ya lo trae de la acción dedicada.
+      endLatitude: 19.44,
+      endLongitude: -99.14,
+      odtFolio: "ODT-1",
+      incident: { status: { name: "EN_PROGRESO" } },
+      ...overrides,
+    };
+  }
+
+  beforeEach(() => {
+    prismaMock.assignment.findUnique.mockResolvedValue(openRow());
+  });
+
+  it("rechaza CERRADO sin evidencia aunque las fechas estén", async () => {
+    prismaMock.assignmentStatus.findUnique.mockResolvedValue({
+      name: "CERRADO",
+    });
+    prismaMock.assignmentAttachment.count.mockResolvedValue(0);
+
+    const result = await updateAssignmentDetails("a1", {
+      statusId: 6,
+      startedAt: "2026-08-14T09:00",
+      finishedAt: "2026-08-14T11:00",
+    });
+
+    expect(result).toEqual({
+      success: false,
+      error: expect.stringMatching(/al menos una evidencia/),
+    });
+    expect(prismaMock.assignment.update).not.toHaveBeenCalled();
+  });
+
+  it("rechaza CERRADO sin folio ODT", async () => {
+    prismaMock.assignmentStatus.findUnique.mockResolvedValue({
+      name: "CERRADO",
+    });
+    prismaMock.assignmentAttachment.count.mockResolvedValue(2);
+    prismaMock.assignment.findUnique.mockResolvedValue(
+      openRow({ odtFolio: null }),
+    );
+
+    const result = await updateAssignmentDetails("a1", {
+      statusId: 6,
+      startedAt: "2026-08-14T09:00",
+      finishedAt: "2026-08-14T11:00",
+    });
+
+    expect(result).toEqual({
+      success: false,
+      error: expect.stringMatching(/folio ODT/),
+    });
+    expect(prismaMock.assignment.update).not.toHaveBeenCalled();
+  });
+
+  it("rechaza un salto de estado fuera de la máquina", async () => {
+    prismaMock.assignment.findUnique.mockResolvedValue(
+      openRow({ status: { name: "ASIGNADO" } }),
+    );
+    prismaMock.assignmentStatus.findUnique.mockResolvedValue({
+      name: "CERRADO",
+    });
+
+    const result = await updateAssignmentDetails("a1", {
+      statusId: 6,
+      startedAt: "2026-08-14T09:00",
+      finishedAt: "2026-08-14T11:00",
+    });
+
+    expect(result).toEqual({
+      success: false,
+      error: expect.stringMatching(/Transición de asignación inválida/),
+    });
+    expect(prismaMock.assignment.update).not.toHaveBeenCalled();
+  });
+
+  it("no edita asignaciones de una incidencia cerrada", async () => {
+    prismaMock.assignment.findUnique.mockResolvedValue(
+      openRow({ incident: { status: { name: "CERRADO" } } }),
+    );
+
+    const result = await updateAssignmentDetails("a1", {
+      finishedAt: "2026-08-14T11:00",
+    });
+
+    expect(result).toEqual({
+      success: false,
+      error: expect.stringMatching(/incidencia está cerrada/),
+    });
+    expect(prismaMock.assignment.update).not.toHaveBeenCalled();
+  });
+
+  it("sincroniza la incidencia después de guardar", async () => {
+    prismaMock.assignmentStatus.findUnique.mockResolvedValue({
+      name: "EN_PROGRESO",
+    });
+
+    const result = await updateAssignmentDetails("a1", {
+      statusId: 5,
+      startedAt: "2026-08-14T09:00",
+    });
+
+    expect(result).toEqual({ success: true });
+    expect(syncIncidentState).toHaveBeenCalledWith(1);
+  });
+});
+
+describe("incident terminal · ningún editor es puerta trasera", () => {
+  it("updateIncidentDetails no edita una incidencia cancelada", async () => {
+    prismaMock.incident.findUnique.mockResolvedValue({
+      statusId: 9,
+      status: { name: "CANCELADA" },
+      assignments: [],
+    });
+
+    const result = await updateIncidentDetails(1, {
+      title: "T",
+      description: "D",
+      reportedAt: "2026-06-10T10:00:00.000Z",
+      statusId: 9,
+    });
+
+    expect(result).toEqual({
+      success: false,
+      error: expect.stringMatching(/incidencia está cancelada/),
+    });
+    expect(prismaMock.incident.update).not.toHaveBeenCalled();
+  });
+
+  it("updateIncidentDetails no edita una incidencia cerrada", async () => {
+    prismaMock.incident.findUnique.mockResolvedValue({
+      statusId: 5,
+      status: { name: "CERRADO" },
+      assignments: [],
+    });
+
+    const result = await updateIncidentDetails(1, {
+      title: "T",
+      description: "D",
+      reportedAt: "2026-06-10T10:00:00.000Z",
+      statusId: 5,
+    });
+
+    expect(result).toEqual({
+      success: false,
+      error: expect.stringMatching(/incidencia está cerrada/),
+    });
+    expect(prismaMock.incident.update).not.toHaveBeenCalled();
+  });
+
+  it("updateAssignmentAssignees no toca asignaciones de una incidencia cancelada", async () => {
+    prismaMock.assignment.findUnique.mockResolvedValue({
+      incidentId: 1,
+      incident: { status: { name: "CANCELADA" } },
+    });
+
+    const result = await updateAssignmentAssignees("a1", ["fsr1"]);
+
+    expect(result).toEqual({
+      success: false,
+      error: expect.stringMatching(/incidencia está cancelada/),
+    });
+    expect(prismaMock.assignmentAssignee.updateMany).not.toHaveBeenCalled();
+    expect(prismaMock.assignmentAssignee.upsert).not.toHaveBeenCalled();
   });
 });

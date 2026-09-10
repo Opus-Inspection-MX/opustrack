@@ -275,7 +275,11 @@ export default function FSRAssignmentDetailPage({
     if (!assignmentId) return;
     try {
       setActionLoading(true);
-      await pauseAssignment(assignmentId);
+      const result = await pauseAssignment(assignmentId);
+      if (isFailure(result)) {
+        toast.error(result.error);
+        return;
+      }
       await fetchData();
     } catch (error) {
       console.error("Error pausing asignación:", error);
@@ -289,7 +293,11 @@ export default function FSRAssignmentDetailPage({
     if (!assignmentId) return;
     try {
       setActionLoading(true);
-      await resumeAssignment(assignmentId);
+      const result = await resumeAssignment(assignmentId);
+      if (isFailure(result)) {
+        toast.error(result.error);
+        return;
+      }
       await fetchData();
     } catch (error) {
       console.error("Error resuming asignación:", error);

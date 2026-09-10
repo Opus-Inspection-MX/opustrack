@@ -8,7 +8,13 @@
  * change incident state manually; use syncIncidentState() instead.
  * CANCELADA is the exception: it is set directly by admin via
  * cancelIncident() and is terminal (sync no-ops on it).
+ *
+ * The transition rule is operator-facing, so it is raised with
+ * `businessRule(...)` — never `throw new Error(...)`. See assignment-machine
+ * for why; callers MUST run inside `guarded(...)`.
  */
+
+import { businessRule } from "@/lib/actions/result";
 
 export const INCIDENT_STATE = {
   ABIERTO: "ABIERTO",
@@ -79,7 +85,7 @@ export function assertIncidentTransition(
   to: IncidentState,
 ): void {
   if (!ALLOWED[from]?.has(to)) {
-    throw new Error(
+    businessRule(
       `Transición de incidencia inválida: ${from} → ${to}. Permitidas desde ${from}: ${[
         ...(ALLOWED[from] ?? []),
       ].join(", ")}`,

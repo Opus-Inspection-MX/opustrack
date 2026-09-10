@@ -3,12 +3,35 @@
 import type { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { requirePermission } from "@/lib/auth/auth";
+import {
+  getReportScope,
+  incidentScopeWhere,
+  type ReportScope,
+} from "@/lib/auth/report-scope";
 import { whereHasRole } from "@/lib/authz/user-queries";
 import { prisma } from "@/lib/database/prisma.singleton";
 import { notifyAssignmentAssigned } from "@/lib/notifications/notify-events";
-import { ASSIGNMENT_STATE } from "@/lib/state-machine";
+import {
+  ASSIGNMENT_STATE,
+  type AssignmentState,
+  assertAssignmentPreconditions,
+  assertAssignmentTransition,
+  assertIncidentTransition,
+  INCIDENT_STATE,
+  INCIDENT_TERMINAL_STATES,
+  type IncidentState,
+  isAssignmentState,
+  isIncidentState,
+} from "@/lib/state-machine";
 import { syncIncidentState } from "@/lib/state-machine/sync";
 import { localWallTimeToUTC, mxDayRange } from "@/lib/utils/datetime";
+import {
+  BusinessRuleError,
+  businessRule,
+  guarded,
+  ok,
+  rejected,
+} from "./result";
 
 /**
  * Read a `datetime-local` value ("YYYY-MM-DDTHH:mm") as Mexico City time.
@@ -22,37 +45,54 @@ function wallClockToUTC(value: string): Date {
 
 /**
  * Errors that must reach the caller verbatim: business rules the user can act
- * on, and permission failures. Everything else is wrapped, so an unexpected
- * fault does not leak internals into the UI.
+ * on, and framework control-flow (Next `redirect()`/`notFound()`), which must
+ * never be veiled as a generic failure. Everything else is wrapped, so an
+ * unexpected fault does not leak internals into the UI.
  *
- * The catch-all used to replace *every* error with a generic message, so a rule
- * fired correctly and the user never saw why — and a denied permission looked
- * like a server fault.
+ * Classification is by type, never by message regex: a rule is a
+ * `BusinessRuleError`, a redirect carries a `NEXT_REDIRECT` digest. Matching
+ * on text (`/^(Solo se|Assignment not found|...)/`) rotted every time a
+ * message was reworded and silently wrapped the rule it was meant to save.
  */
 function rethrowBusinessError(error: unknown): void {
+  if (error instanceof BusinessRuleError) throw error;
   if (
     error instanceof Error &&
-    /^(Solo se|Assignment not found|Unauthorized|Forbidden)/.test(error.message)
+    "digest" in error &&
+    typeof (error as { digest?: unknown }).digest === "string" &&
+    (error as { digest: string }).digest.startsWith("NEXT_")
   ) {
     throw error;
   }
 }
 
+const NOT_AN_FSR = "Uno o más FSR no existen o no tienen rol FSR";
+
 /**
- * A rejection the user is meant to read.
+ * Terminal incidents are read-only. Every mutation enforces this so no
+ * editor becomes the back door around cancellation/closure.
  *
- * It is RETURNED, not thrown, because a production build of Next replaces the
- * message of anything a Server Action throws with "An error occurred in the
- * Server Components render… the specific message is omitted in production
- * builds". Re-throwing the rule reaches the caller in dev and disappears in
- * production — which is exactly where it matters. A returned value crosses the
- * boundary untouched.
+ * Two shapes: guarded actions THROW via `assertIncidentMutable` (converted
+ * to a return at the boundary); straight-line actions without `guarded`
+ * RETURN `rejected(terminalIncidentMessage(...))` — throwing there would
+ * veil the reason in production.
  */
-function rejected(message: string) {
-  return { success: false as const, error: message };
+function terminalIncidentMessage(incidentState: string | null): string | null {
+  if (
+    incidentState &&
+    INCIDENT_TERMINAL_STATES.has(incidentState as IncidentState)
+  ) {
+    return incidentState === INCIDENT_STATE.CANCELADA
+      ? "La incidencia está cancelada. No se pueden hacer cambios."
+      : "La incidencia está cerrada. No se pueden hacer cambios.";
+  }
+  return null;
 }
 
-const NOT_AN_FSR = "Uno o más FSR no existen o no tienen rol FSR";
+function assertIncidentMutable(incidentState: string | null): void {
+  const blocked = terminalIncidentMessage(incidentState);
+  if (blocked) businessRule(blocked);
+}
 
 /**
  * Assigning an FSR from Seguimiento also enables them on the incident.
@@ -162,8 +202,16 @@ export interface TrackingFilters {
  * `getIncidentsForTracking` and `getTrackingSignature` MUST agree on which rows
  * they are talking about: a signature computed over a different set than the
  * table shows would either miss changes or reload forever.
+ *
+ * The `scope` is the caller's Cliente boundary (cross-cutting rule #4:
+ * non-ADMINISTRADOR users only see their Cliente data). An explicit
+ * `clienteId` filter narrows inside that boundary; one outside it matches
+ * nothing (fail closed) instead of leaking another Cliente's rows.
  */
-function buildTrackingWhere(filters?: TrackingFilters): {
+function buildTrackingWhere(
+  filters: TrackingFilters | undefined,
+  scope: ReportScope,
+): {
   where: Prisma.IncidentWhereInput;
   assignmentsWhere: Prisma.AssignmentWhereInput;
 } {
@@ -172,7 +220,12 @@ function buildTrackingWhere(filters?: TrackingFilters): {
   };
 
   if (filters?.clienteId) {
-    where.clienteId = filters.clienteId;
+    where.clienteId =
+      scope.clienteIds !== null && !scope.clienteIds.includes(filters.clienteId)
+        ? { in: [] }
+        : filters.clienteId;
+  } else {
+    Object.assign(where, incidentScopeWhere(scope));
   }
 
   if (filters?.typeId) {
@@ -247,9 +300,12 @@ function buildTrackingWhere(filters?: TrackingFilters): {
  */
 export async function getTrackingSignature(filters?: TrackingFilters) {
   try {
-    await requirePermission("tracking:read");
+    const user = await requirePermission("tracking:read");
 
-    const { where, assignmentsWhere } = buildTrackingWhere(filters);
+    const { where, assignmentsWhere } = buildTrackingWhere(
+      filters,
+      await getReportScope(user),
+    );
     const assignmentsOfThese: Prisma.AssignmentWhereInput = {
       ...assignmentsWhere,
       incident: where,
@@ -283,9 +339,12 @@ export async function getTrackingSignature(filters?: TrackingFilters) {
 
 export async function getIncidentsForTracking(filters?: TrackingFilters) {
   try {
-    await requirePermission("tracking:read");
+    const user = await requirePermission("tracking:read");
 
-    const { where, assignmentsWhere } = buildTrackingWhere(filters);
+    const { where, assignmentsWhere } = buildTrackingWhere(
+      filters,
+      await getReportScope(user),
+    );
 
     const incidentSelect = {
       id: true,
@@ -505,7 +564,7 @@ export async function assignFSRToIncident(incidentId: number, fsrId: string) {
     }
 
     revalidatePath("/admin/tracking");
-    return { success: true as const };
+    return ok();
   } catch (error) {
     rethrowBusinessError(error);
     console.error("Error assigning FSR to incident:", error);
@@ -524,11 +583,18 @@ export async function updateAssignmentAssignees(
 
     const assignment = await prisma.assignment.findUnique({
       where: { id: assignmentId },
-      select: { incidentId: true },
+      select: {
+        incidentId: true,
+        incident: { select: { status: { select: { name: true } } } },
+      },
     });
     if (!assignment) {
       return rejected("La asignación ya no existe.");
     }
+    const terminalBlock = terminalIncidentMessage(
+      assignment.incident?.status?.name ?? null,
+    );
+    if (terminalBlock) return rejected(terminalBlock);
     if (!(await assertAreFsrs(uniqueIds))) {
       return rejected(NOT_AN_FSR);
     }
@@ -597,8 +663,7 @@ export async function updateAssignmentAssignees(
     });
 
     revalidatePath("/admin/tracking");
-    // `as const` so the caller can discriminate this from `rejected()`.
-    return { success: true as const, assignment: updatedAssignment };
+    return ok({ assignment: updatedAssignment });
   } catch (error) {
     rethrowBusinessError(error);
     console.error("Error updating assignment assignees:", error);
@@ -618,32 +683,88 @@ export async function updateIncidentDetails(
     equipmentId?: number | null;
   },
 ) {
-  try {
-    await requirePermission("tracking:update");
+  await requirePermission("tracking:update");
 
-    await prisma.incident.update({
-      where: { id: incidentId },
-      data: {
-        title: data.title,
-        description: data.description,
-        // The form sends a CDMX wall clock ("YYYY-MM-DDTHH:mm"). `new Date()`
-        // would read it in the server's zone — UTC in production — and shift
-        // every edited timestamp by the offset.
-        reportedAt: wallClockToUTC(data.reportedAt),
-        resolvedAt: data.resolvedAt ? wallClockToUTC(data.resolvedAt) : null,
-        statusId: data.statusId,
-        lineId: data.lineId || null,
-        equipmentId: data.equipmentId || null,
-      },
-    });
+  return guarded(async () => {
+    try {
+      const incident = await prisma.incident.findUnique({
+        where: { id: incidentId },
+        select: {
+          statusId: true,
+          status: { select: { name: true } },
+          assignments: {
+            where: { active: true },
+            select: { id: true },
+            take: 1,
+          },
+        },
+      });
+      if (!incident) businessRule("La incidencia ya no existe.");
+      assertIncidentMutable(incident.status?.name ?? null);
 
-    revalidatePath("/admin/tracking");
-    return { success: true };
-  } catch (error) {
-    rethrowBusinessError(error);
-    console.error("Error updating incident:", error);
-    throw new Error("Failed to update incident");
-  }
+      // The status field is machine-owned: the edit may only walk a legal
+      // edge, never jump. Cancellation has its own action (it records
+      // cancelledAt + reason), so it is refused here.
+      const from = incident.status?.name ?? null;
+      const target = data.statusId
+        ? await prisma.incidentStatus.findUnique({
+            where: { id: data.statusId },
+            select: { name: true },
+          })
+        : null;
+      // `isIncidentState` validates at runtime; the cast below only satisfies
+      // the compiler, which cannot narrow through the optional chain.
+      const toName = target?.name ?? null;
+      if (data.statusId && !isIncidentState(toName)) {
+        businessRule("Estado de incidencia no válido.");
+      }
+      if (toName && from && toName !== from) {
+        if (toName === INCIDENT_STATE.CANCELADA) {
+          businessRule(
+            "Para cancelar una incidencia usa la acción de cancelación.",
+          );
+        }
+        assertIncidentTransition(
+          from as IncidentState,
+          toName as IncidentState,
+        );
+      }
+
+      await prisma.incident.update({
+        where: { id: incidentId },
+        data: {
+          title: data.title,
+          description: data.description,
+          // The form sends a CDMX wall clock ("YYYY-MM-DDTHH:mm"). `new Date()`
+          // would read it in the server's zone — UTC in production — and shift
+          // every edited timestamp by the offset.
+          reportedAt: wallClockToUTC(data.reportedAt),
+          resolvedAt: data.resolvedAt ? wallClockToUTC(data.resolvedAt) : null,
+          statusId: target ? data.statusId : incident.statusId,
+          lineId: data.lineId || null,
+          equipmentId: data.equipmentId || null,
+        },
+      });
+
+      // Incident state is derived from its assignments: when any exist, sync
+      // reconciles the manual edit (a forced CERRADO with open assignments
+      // snaps back instead of lying). With no assignments there is nothing to
+      // derive from, so the validated manual state stands.
+      if (incident.assignments.length > 0) {
+        await syncIncidentState(incidentId);
+      }
+
+      revalidatePath("/admin/tracking");
+      return ok();
+    } catch (error) {
+      rethrowBusinessError(error);
+      // Business rules must reach `guarded` as exceptions so they are
+      // RETURNED to the operator — not veiled as a generic failure.
+      if (error instanceof BusinessRuleError) throw error;
+      console.error("Error updating incident:", error);
+      throw new Error("Failed to update incident");
+    }
+  });
 }
 
 export async function updateAssignmentDetails(
@@ -654,63 +775,130 @@ export async function updateAssignmentDetails(
     finishedAt?: string | null;
   },
 ) {
-  try {
-    await requirePermission("tracking:update");
+  await requirePermission("tracking:update");
 
-    // CDMX wall clock, like `updateIncidentDetails` above. A plain `new Date()`
-    // reads "YYYY-MM-DDTHH:mm" in the SERVER's zone — UTC on Vercel — so the
-    // hour the operator typed was stored six hours off.
-    const startedAt = data.startedAt ? wallClockToUTC(data.startedAt) : null;
-    const finishedAt = data.finishedAt ? wallClockToUTC(data.finishedAt) : null;
-
-    // The dates are what the state means, so they are checked together with it.
-    // Closing an assignment with no end date leaves a finished job that never
-    // finished, and every report that measures duration silently skips it.
-    if (data.statusId) {
-      const status = await prisma.assignmentStatus.findUnique({
-        where: { id: data.statusId },
-        select: { name: true },
+  return guarded(async () => {
+    try {
+      const row = await prisma.assignment.findUnique({
+        where: { id: assignmentId },
+        select: {
+          incidentId: true,
+          status: { select: { name: true } },
+          startedAt: true,
+          finishedAt: true,
+          startLatitude: true,
+          startLongitude: true,
+          endLatitude: true,
+          endLongitude: true,
+          odtFolio: true,
+          incident: { select: { status: { select: { name: true } } } },
+        },
       });
-      const name = status?.name;
+      if (!row) businessRule("La asignación ya no existe.");
 
-      if (name === ASSIGNMENT_STATE.CERRADO && !finishedAt) {
-        return rejected(
-          "No se puede cerrar la asignación sin fecha de fin. Captúrala primero.",
-        );
+      // Assignments of a terminal incident are read-only: every other
+      // assignment mutation enforces this, and the tracking editor must not
+      // be the back door.
+      assertIncidentMutable(row.incident?.status?.name ?? null);
+
+      // CDMX wall clock, like `updateIncidentDetails` above. A plain `new Date()`
+      // reads "YYYY-MM-DDTHH:mm" in the SERVER's zone — UTC on Vercel — so the
+      // hour the operator typed was stored six hours off.
+      const startedAt = data.startedAt ? wallClockToUTC(data.startedAt) : null;
+      const finishedAt = data.finishedAt
+        ? wallClockToUTC(data.finishedAt)
+        : null;
+
+      const target = data.statusId
+        ? await prisma.assignmentStatus.findUnique({
+            where: { id: data.statusId },
+            select: { name: true },
+          })
+        : null;
+      if (data.statusId && !isAssignmentState(target?.name)) {
+        businessRule("Estado de asignación no válido.");
       }
-      if (
-        (name === ASSIGNMENT_STATE.INICIADO ||
-          name === ASSIGNMENT_STATE.EN_PROGRESO ||
-          name === ASSIGNMENT_STATE.CERRADO) &&
-        !startedAt
-      ) {
-        return rejected(
-          `No se puede marcar como ${name} sin fecha de inicio. Captúrala primero.`,
-        );
+
+      // The dates are what the state means, so they are checked together with it.
+      // Closing an assignment with no end date leaves a finished job that never
+      // finished, and every report that measures duration silently skips it.
+      if (target?.name) {
+        const name = target.name;
+
+        if (name === ASSIGNMENT_STATE.CERRADO && !finishedAt) {
+          return rejected(
+            "No se puede cerrar la asignación sin fecha de fin. Captúrala primero.",
+          );
+        }
+        if (
+          (name === ASSIGNMENT_STATE.INICIADO ||
+            name === ASSIGNMENT_STATE.EN_PROGRESO ||
+            name === ASSIGNMENT_STATE.CERRADO) &&
+          !startedAt
+        ) {
+          return rejected(
+            `No se puede marcar como ${name} sin fecha de inicio. Captúrala primero.`,
+          );
+        }
+        if (startedAt && finishedAt && finishedAt < startedAt) {
+          return rejected(
+            "La fecha de fin no puede ser anterior a la de inicio.",
+          );
+        }
       }
-      if (startedAt && finishedAt && finishedAt < startedAt) {
-        return rejected(
-          "La fecha de fin no puede ser anterior a la de inicio.",
-        );
+
+      // The status field is machine-owned: the edit may only walk a legal
+      // edge, and the GPS/evidence/ODT preconditions of the target state are
+      // evaluated against the resulting row — this form writes no GPS columns
+      // and no evidence, so closing or starting work from here fails unless
+      // the dedicated actions already recorded them.
+      const from = row.status?.name ?? null;
+      const to = (target?.name ?? from) as AssignmentState | null;
+      if (from && to && from !== to) {
+        assertAssignmentTransition(from as AssignmentState, to);
       }
+      if (to) {
+        const attachmentCount =
+          to === ASSIGNMENT_STATE.CERRADO
+            ? await prisma.assignmentAttachment.count({
+                where: { assignmentId, active: true },
+              })
+            : 0;
+        assertAssignmentPreconditions(to, {
+          startedAt,
+          finishedAt,
+          startLatitude: row.startLatitude,
+          startLongitude: row.startLongitude,
+          endLatitude: row.endLatitude,
+          endLongitude: row.endLongitude,
+          attachmentCount,
+          odtFolio: row.odtFolio,
+        });
+      }
+
+      await prisma.assignment.update({
+        where: { id: assignmentId },
+        data: {
+          statusId: data.statusId || null,
+          startedAt,
+          finishedAt,
+        },
+      });
+
+      // Incident state derives from its assignments — reconcile it.
+      await syncIncidentState(row.incidentId);
+
+      revalidatePath("/admin/tracking");
+      return ok();
+    } catch (error) {
+      rethrowBusinessError(error);
+      // Business rules must reach `guarded` as exceptions so they are
+      // RETURNED to the operator — not veiled as a generic failure.
+      if (error instanceof BusinessRuleError) throw error;
+      console.error("Error updating assignment:", error);
+      throw new Error("Failed to update assignment");
     }
-
-    await prisma.assignment.update({
-      where: { id: assignmentId },
-      data: {
-        statusId: data.statusId || null,
-        startedAt,
-        finishedAt,
-      },
-    });
-
-    revalidatePath("/admin/tracking");
-    return { success: true as const };
-  } catch (error) {
-    rethrowBusinessError(error);
-    console.error("Error updating assignment:", error);
-    throw new Error("Failed to update assignment");
-  }
+  });
 }
 
 /**

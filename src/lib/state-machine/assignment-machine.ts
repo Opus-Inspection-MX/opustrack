@@ -6,7 +6,15 @@
  *   CERRADO → EN_PROGRESO (reopen, admin)
  *
  * CERRADO requiere: GPS final, evidencia (≥1 adjunto) y folio ODT.
+ *
+ * Every rule below is operator-facing (it tells the FSR what is missing), so
+ * it is raised with `businessRule(...)` — never `throw new Error(...)`. A
+ * production build of Next strips the message of anything a Server Action
+ * throws; `guarded()` at the action boundary turns these back into returned
+ * values the UI can show. Callers MUST run inside `guarded(...)`.
  */
+
+import { businessRule } from "@/lib/actions/result";
 
 export const ASSIGNMENT_STATE = {
   PENDIENTE_DE_ASIGNACION: "PENDIENTE_DE_ASIGNACION",
@@ -65,7 +73,7 @@ export function assertAssignmentTransition(
   to: AssignmentState,
 ): void {
   if (!ALLOWED[from]?.has(to)) {
-    throw new Error(
+    businessRule(
       `Transición de asignación inválida: ${from} → ${to}. Permitidas desde ${from}: ${[
         ...(ALLOWED[from] ?? []),
       ].join(", ")}`,
@@ -102,7 +110,7 @@ export function assertAssignmentPreconditions(
       ctx.startLongitude == null ||
       ctx.startedAt == null
     ) {
-      throw new Error(
+      businessRule(
         "No se puede iniciar la asignación sin ubicación GPS y hora de inicio",
       );
     }
@@ -113,19 +121,17 @@ export function assertAssignmentPreconditions(
       ctx.endLongitude == null ||
       ctx.finishedAt == null
     ) {
-      throw new Error(
+      businessRule(
         "No se puede cerrar la asignación sin ubicación GPS final y hora de cierre",
       );
     }
     if (ctx.attachmentCount <= 0) {
-      throw new Error(
+      businessRule(
         "No se puede cerrar la asignación sin al menos una evidencia",
       );
     }
     if (!ctx.odtFolio || ctx.odtFolio.trim() === "") {
-      throw new Error(
-        "No se puede cerrar la asignación sin folio ODT registrado",
-      );
+      businessRule("No se puede cerrar la asignación sin folio ODT registrado");
     }
   }
 }

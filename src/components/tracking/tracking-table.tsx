@@ -545,7 +545,7 @@ export function TrackingTable({
           : editForm.equipmentId
         : null;
 
-      await updateIncidentDetails(incidentId, {
+      const details = await updateIncidentDetails(incidentId, {
         title: editForm.title || "",
         description: editForm.description || "",
         reportedAt: editForm.reportedAt || "",
@@ -554,6 +554,12 @@ export function TrackingTable({
         lineId: lineIdValue,
         equipmentId: equipmentIdValue,
       });
+      // A refused rule comes back as a value, not an exception: keeping the
+      // editor open lets the user fix it instead of losing the form.
+      if (isFailure(details)) {
+        toast.error(details.error);
+        return;
+      }
       if (editForm.assigneeIds !== undefined) {
         const result = await updateIncidentFsrs(
           incidentId,
