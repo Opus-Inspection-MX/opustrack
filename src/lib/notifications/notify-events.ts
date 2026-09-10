@@ -417,29 +417,3 @@ export async function notifyVacationCancelled(
     entity: { type: ENTITY_TYPES.VACATION, id: vacationId },
   });
 }
-
-// ---------------------------------------------------------------------------
-// Broadcast helpers (RF-469, RF-470)
-// ---------------------------------------------------------------------------
-
-/**
- * RF-469 / RF-470: Admin broadcast notification (legacy immediate path).
- * Recipients are pre-resolved by the caller. New code goes through
- * `dispatchBroadcast` (`broadcast-dispatch.ts`), which resolves the audience
- * at send time and claims the row atomically.
- * entityType/entityId are null for broadcast messages.
- */
-export async function notifyBroadcast(
-  type: "system" | "announcement",
-  recipientIds: string[],
-  title: string,
-  message: string,
-  actorId: string,
-): Promise<void> {
-  await dispatch(
-    type === "system"
-      ? NOTIFICATION_TYPES.SYSTEM
-      : NOTIFICATION_TYPES.ANNOUNCEMENT,
-    { recipients: recipientIds, actorId, ctx: { title, message } },
-  );
-}

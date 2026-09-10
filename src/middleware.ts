@@ -14,6 +14,13 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
+  // Cron endpoints authenticate with a shared bearer secret (CRON_SECRET),
+  // not a user session — the handler answers 401 itself when it is missing
+  // or wrong. Nothing else under /api/* is exempted.
+  if (pathname.startsWith("/api/cron/")) {
+    return NextResponse.next();
+  }
+
   // Get authentication token
   const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
 

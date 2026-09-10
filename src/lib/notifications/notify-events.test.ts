@@ -17,7 +17,6 @@ vi.mock("@/lib/database/prisma.singleton", () => ({
 import { NOTIFICATION_TYPES } from "./notification-types";
 import {
   notifyAssignmentUpdated,
-  notifyBroadcast,
   notifyIncidentCancelled,
   notifyIncidentClosed,
   notifyIncidentCreated,
@@ -124,19 +123,4 @@ describe("fachada de eventos", () => {
     );
   });
 
-  it("la difusión mapea system/announcement al tipo del catálogo", async () => {
-    await notifyBroadcast("system", ["u1"], "Título", "Mensaje", "actor");
-    expect(dispatch).toHaveBeenCalledWith(
-      NOTIFICATION_TYPES.SYSTEM,
-      expect.objectContaining({
-        ctx: { title: "Título", message: "Mensaje" },
-      }),
-    );
-
-    await notifyBroadcast("announcement", ["u1"], "T", "M", "actor");
-    expect(dispatch).toHaveBeenCalledWith(
-      NOTIFICATION_TYPES.ANNOUNCEMENT,
-      expect.anything(),
-    );
-  });
 });
