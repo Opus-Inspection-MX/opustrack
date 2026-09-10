@@ -1,15 +1,5 @@
-"use client";
-
-import {
-  Building2,
-  Calendar,
-  Edit,
-  Mail,
-  Shield,
-  UserIcon,
-} from "lucide-react";
-import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import Link from "next/link";
+import { notFound } from "next/navigation";
 import { BackButton } from "@/components/common/back-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,80 +10,37 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Spinner } from "@/components/ui/spinner";
+import { getUserById } from "@/lib/actions/users";
+import { requireRouteAccess } from "@/lib/auth/auth";
 import { formatMX } from "@/lib/utils/datetime";
 
-interface User {
-  id: string | string[];
-  name: string;
-  email: string;
-  role: { id: number; name: string };
-  userStatus: { id: number; name: string };
-  cliente?: { id: string; name: string; code: string } | null;
-  active: boolean;
-  createdAt: string;
-  updatedAt: string;
+function Row({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <p className="text-sm font-medium text-muted-foreground">{label}</p>
+      <div className="text-base mt-0.5">{children}</div>
+    </div>
+  );
 }
 
-export default function UserDetailPage() {
-  const router = useRouter();
-  const params = useParams();
-  const [isLoading, setIsLoading] = useState(true);
-  const [user, setUser] = useState<User | null>(null);
+export default async function UserDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  await requireRouteAccess("/admin/users");
+  const { id } = await params;
 
-  useEffect(() => {
-    const fetchUser = async () => {
-      setIsLoading(true);
-      try {
-        // Simulate API call
-        await new Promise((resolve) => setTimeout(resolve, 500));
+  const user = await getUserById(id);
+  if (!user) notFound();
 
-        // Mock data
-        const mockUser = {
-          id: params.id as string,
-          name: "John Doe",
-          email: "john.doe@example.com",
-          role: { id: 1, name: "Admin" },
-          userStatus: { id: 1, name: "Active" },
-          cliente: { id: "vic_1", name: "Cliente Centro", code: "Cliente001" },
-          active: true,
-          createdAt: "2024-01-15T10:30:00Z",
-          updatedAt: "2024-03-20T14:45:00Z",
-        };
-
-        setUser(mockUser);
-      } catch (error) {
-        console.error("Error fetching user:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchUser();
-  }, [params.id]);
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Spinner size="lg" />
-      </div>
-    );
-  }
-
-  if (!user) {
-    return (
-      <div className="space-y-6">
-        <div className="flex items-center gap-4">
-          <BackButton fallback="/admin/users" label="Volver" />
-        </div>
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-center text-muted-foreground">User not found</p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+  const roles = user.userRoles.map((ur) => ur.role);
 
   return (
     <div className="space-y-6">
@@ -102,141 +49,76 @@ export default function UserDetailPage() {
           <BackButton fallback="/admin/users" label="Volver" />
           <div>
             <h1 className="text-3xl font-bold">{user.name}</h1>
-            <p className="text-muted-foreground">
-              User details and information
-            </p>
+            <p className="text-muted-foreground">{user.email}</p>
           </div>
         </div>
-        <Button onClick={() => router.push(`/admin/users/${user.id}/edit`)}>
-          <Edit className="h-4 w-4 mr-2" />
-          Edit User
+        <Button asChild>
+          <Link href={`/admin/users/${user.id}/edit`}>Editar usuario</Link>
         </Button>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Basic Information</CardTitle>
-            <CardDescription>User account details</CardDescription>
+            <CardTitle>Cuenta</CardTitle>
+            <CardDescription>Acceso y estado del usuario</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-start gap-3">
-              <UserIcon className="h-5 w-5 text-muted-foreground mt-0.5" />
-              <div className="flex-1">
-                <p className="text-sm font-medium text-muted-foreground">
-                  Full Name
-                </p>
-                <p className="text-base">{user.name}</p>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-3">
-              <Mail className="h-5 w-5 text-muted-foreground mt-0.5" />
-              <div className="flex-1">
-                <p className="text-sm font-medium text-muted-foreground">
-                  Email Address
-                </p>
-                <p className="text-base">{user.email}</p>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-3">
-              <Shield className="h-5 w-5 text-muted-foreground mt-0.5" />
-              <div className="flex-1">
-                <p className="text-sm font-medium text-muted-foreground">
-                  Role
-                </p>
-                <Badge variant="secondary">{user.role.name}</Badge>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-3">
-              <div className="h-5 w-5 rounded-full bg-primary/10 flex items-center justify-center mt-0.5">
-                <div className="h-2 w-2 rounded-full bg-primary" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-medium text-muted-foreground">
-                  Status
-                </p>
-                <Badge
-                  variant={
-                    user.userStatus.name === "Active" ? "default" : "secondary"
-                  }
-                >
-                  {user.userStatus.name}
-                </Badge>
-              </div>
-            </div>
-
+            <Row label="Nombre">{user.name}</Row>
+            <Row label="Correo">{user.email}</Row>
+            <Row label="Roles">
+              <span className="flex flex-wrap gap-1">
+                {roles.length === 0 && (
+                  <span className="text-muted-foreground">Sin roles</span>
+                )}
+                {roles.map((role) => (
+                  <Badge key={role.id} variant="secondary">
+                    {role.name}
+                  </Badge>
+                ))}
+              </span>
+            </Row>
+            <Row label="Estado">
+              <Badge variant={user.active ? "default" : "destructive"}>
+                {user.userStatus?.name ?? (user.active ? "Activo" : "Inactivo")}
+              </Badge>
+            </Row>
             {user.cliente && (
-              <div className="flex items-start gap-3">
-                <Building2 className="h-5 w-5 text-muted-foreground mt-0.5" />
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-muted-foreground">
-                    Cliente Center
-                  </p>
-                  <p className="text-base">
-                    {user.cliente.name} ({user.cliente.code})
-                  </p>
-                </div>
-              </div>
+              <Row label="Cliente">
+                {user.cliente.name} ({user.cliente.code})
+              </Row>
             )}
-
-            <div className="flex items-start gap-3">
-              <div className="h-5 w-5 rounded-full flex items-center justify-center mt-0.5">
-                <div
-                  className={`h-3 w-3 rounded-full ${user.active ? "bg-green-500" : "bg-red-500"}`}
-                />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-medium text-muted-foreground">
-                  Account Active
-                </p>
-                <Badge variant={user.active ? "default" : "destructive"}>
-                  {user.active ? "Yes" : "No"}
-                </Badge>
-              </div>
-            </div>
+            {user.hireDate && (
+              <Row label="Contratación">
+                {formatMX(user.hireDate, { dateStyle: "medium" })}
+              </Row>
+            )}
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>System Information</CardTitle>
-            <CardDescription>Timestamps and metadata</CardDescription>
+            <CardTitle>Perfil y sistema</CardTitle>
+            <CardDescription>Contacto y marcas de tiempo</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-start gap-3">
-              <Calendar className="h-5 w-5 text-muted-foreground mt-0.5" />
-              <div className="flex-1">
-                <p className="text-sm font-medium text-muted-foreground">
-                  Created At
-                </p>
-                <p className="text-base">{formatMX(user.createdAt)}</p>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-3">
-              <Calendar className="h-5 w-5 text-muted-foreground mt-0.5" />
-              <div className="flex-1">
-                <p className="text-sm font-medium text-muted-foreground">
-                  Last Updated
-                </p>
-                <p className="text-base">{formatMX(user.updatedAt)}</p>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-3">
-              <div className="h-5 w-5 flex items-center justify-center mt-0.5">
-                <div className="text-lg font-bold text-primary">#</div>
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-medium text-muted-foreground">
-                  User ID
-                </p>
-                <p className="text-base font-mono">{user.id}</p>
-              </div>
-            </div>
+            <Row label="Teléfono">{user.userProfile?.telephone ?? "—"}</Row>
+            <Row label="Teléfono secundario">
+              {user.userProfile?.secondaryTelephone ?? "—"}
+            </Row>
+            <Row label="Contacto de emergencia">
+              {user.userProfile?.emergencyContact ?? "—"}
+            </Row>
+            <Row label="Puesto">{user.userProfile?.jobPosition ?? "—"}</Row>
+            <Row label="Creado">
+              {formatMX(user.createdAt, { dateStyle: "medium" })}
+            </Row>
+            <Row label="Actualizado">
+              {formatMX(user.updatedAt, { dateStyle: "medium" })}
+            </Row>
+            <Row label="ID">
+              <span className="font-mono text-sm">{user.id}</span>
+            </Row>
           </CardContent>
         </Card>
       </div>
