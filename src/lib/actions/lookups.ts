@@ -6,7 +6,48 @@ import { redirect } from "next/navigation";
 import { requirePermission } from "@/lib/auth/auth";
 import { FALLBACK_INCIDENT_TYPE_NAME } from "@/lib/constants/incident-type";
 import { prisma } from "@/lib/database/prisma.singleton";
+import {
+  AssignmentStatusCreateSchema,
+  AssignmentStatusUpdateSchema,
+  EquipmentStatusCreateSchema,
+  EquipmentStatusUpdateSchema,
+  IncidentStatusCreateSchema,
+  IncidentStatusUpdateSchema,
+  StateCreateSchema,
+  StateUpdateSchema,
+  UserStatusCreateSchema,
+  UserStatusUpdateSchema,
+  VehicleStatusCreateSchema,
+  VehicleStatusUpdateSchema,
+  VehicleTripStatusCreateSchema,
+  VehicleTripStatusUpdateSchema,
+} from "@/lib/validations/catalogs";
+import { incidentTypeSchema } from "@/lib/validations/incident-types";
+import { createCatalogActions } from "./catalog-factory";
 import { rejected } from "./result";
+
+/**
+ * Lookup catalogs, one config each.
+ *
+ * Eight catalogs used to repeat the same five operations (~1026 lines with
+ * only the model, permission prefix, paths, and child relation differing).
+ * The shared implementation lives in `createCatalogActions`; below is one
+ * config per catalog plus thin `export async function` wrappers, which are
+ * what the `"use server"` transform registers as actions.
+ *
+ * Each config owns its queries as closures, so Prisma's return types flow
+ * through untouched — pages keep the exact row shapes they had before.
+ *
+ * Only `deletePermission` keeps a hand-written body: permissions have no
+ * list/create/update surface (the permissions UI was removed), so there is
+ * no catalog shape to configure.
+ */
+
+const insensitive = (value: string) =>
+  ({ contains: value, mode: "insensitive" }) as const;
+
+const withActive = (parsed: Record<string, unknown>) =>
+  parsed.active !== undefined ? { active: parsed.active as boolean } : {};
 
 // ==================== STATES ====================
 
@@ -15,6 +56,65 @@ export type StateFormData = {
   code: string;
   active?: boolean;
 };
+
+const states = createCatalogActions({
+  permissions: {
+    read: "states:read",
+    create: "states:create",
+    update: "states:update",
+    del: "states:delete",
+  },
+  basePath: "/admin/states",
+  schema: StateCreateSchema,
+  updateSchema: StateUpdateSchema,
+  runList: async (search, skip, take) => {
+    const where: Prisma.StateWhereInput = search
+      ? {
+          active: true,
+          OR: [{ name: insensitive(search) }, { code: insensitive(search) }],
+        }
+      : { active: true };
+    const [rows, total] = await Promise.all([
+      prisma.state.findMany({
+        where,
+        include: { _count: { select: { clientes: true } } },
+        orderBy: { name: "asc" },
+        skip,
+        take,
+      }),
+      prisma.state.count({ where }),
+    ]);
+    return { rows, total };
+  },
+  runGetById: (id) =>
+    prisma.state.findUnique({
+      where: { id },
+      include: { clientes: { where: { active: true } } },
+    }),
+  toCreateData: (v) => ({
+    name: v.name as string,
+    code: v.code as string,
+    ...withActive(v),
+  }),
+  toUpdateData: (v) => ({
+    name: v.name as string,
+    code: v.code as string,
+    ...withActive(v),
+  }),
+  runCreate: (data) =>
+    prisma.state.create({ data: data as Prisma.StateCreateInput }),
+  runUpdate: (id, data) =>
+    prisma.state.update({
+      where: { id },
+      data: data as Prisma.StateUpdateInput,
+    }),
+  runDeactivate: (id) =>
+    prisma.state.update({ where: { id }, data: { active: false } }),
+  countChildren: (id) =>
+    prisma.cliente.count({ where: { stateId: id, active: true } }),
+  blockedMessage: (n) =>
+    `No se puede eliminar: ${n} Cliente(s) pertenecen a este estado.`,
+});
 
 /**
  * Lightweight State list for select/dropdown inputs and filters.
@@ -36,113 +136,23 @@ export async function getStatesAdmin(params?: {
   limit?: number;
   search?: string;
 }) {
-  await requirePermission("states:read");
-
-  const page = params?.page ?? 1;
-  const limit = params?.limit ?? 10;
-  const skip = (page - 1) * limit;
-
-  const where: Prisma.StateWhereInput = { active: true };
-  if (params?.search) {
-    where.OR = [
-      { name: { contains: params.search, mode: "insensitive" } },
-      { code: { contains: params.search, mode: "insensitive" } },
-    ];
-  }
-
-  const [states, total] = await Promise.all([
-    prisma.state.findMany({
-      where,
-      include: {
-        _count: {
-          select: { clientes: true },
-        },
-      },
-      orderBy: { name: "asc" },
-      skip,
-      take: limit,
-    }),
-    prisma.state.count({ where }),
-  ]);
-
-  return {
-    data: states,
-    pagination: {
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit),
-    },
-  };
+  return states.list(params);
 }
 
 export async function getStateById(id: number) {
-  await requirePermission("states:read");
-
-  const state = await prisma.state.findUnique({
-    where: { id },
-    include: {
-      clientes: {
-        where: { active: true },
-      },
-    },
-  });
-
-  return state;
+  return states.getById(id);
 }
 
 export async function createState(data: StateFormData) {
-  await requirePermission("states:create");
-
-  const state = await prisma.state.create({
-    data: {
-      name: data.name,
-      code: data.code,
-      ...(data.active !== undefined && { active: data.active }),
-    },
-  });
-
-  revalidatePath("/admin/states");
-  return { success: true, data: state };
+  return states.create(data);
 }
 
 export async function updateState(id: number, data: StateFormData) {
-  await requirePermission("states:update");
-
-  const state = await prisma.state.update({
-    where: { id },
-    data: {
-      name: data.name,
-      code: data.code,
-      ...(data.active !== undefined && { active: data.active }),
-    },
-  });
-
-  revalidatePath("/admin/states");
-  revalidatePath(`/admin/states/${id}`);
-  return { success: true, data: state };
+  return states.update(id, data);
 }
 
 export async function deleteState(id: number) {
-  await requirePermission("states:delete");
-
-  const clienteCount = await prisma.cliente.count({
-    where: { stateId: id, active: true },
-  });
-
-  if (clienteCount > 0) {
-    return rejected(
-      `No se puede eliminar: ${clienteCount} Cliente(s) pertenecen a este estado.`,
-    );
-  }
-
-  await prisma.state.update({
-    where: { id },
-    data: { active: false },
-  });
-
-  revalidatePath("/admin/states");
-  redirect("/admin/states");
+  return states.remove(id);
 }
 
 // ==================== USER STATUS ====================
@@ -152,116 +162,76 @@ export type UserStatusFormData = {
   active?: boolean;
 };
 
+const userStatuses = createCatalogActions({
+  permissions: {
+    read: "user-status:read",
+    create: "user-status:create",
+    update: "user-status:update",
+    del: "user-status:delete",
+  },
+  basePath: "/admin/user-status",
+  schema: UserStatusCreateSchema,
+  updateSchema: UserStatusUpdateSchema,
+  runList: async (search, skip, take) => {
+    const where: Prisma.UserStatusWhereInput = search
+      ? { active: true, name: insensitive(search) }
+      : { active: true };
+    const [rows, total] = await Promise.all([
+      prisma.userStatus.findMany({
+        where,
+        include: { _count: { select: { users: true } } },
+        orderBy: { name: "asc" },
+        skip,
+        take,
+      }),
+      prisma.userStatus.count({ where }),
+    ]);
+    return { rows, total };
+  },
+  runGetById: (id) =>
+    prisma.userStatus.findUnique({
+      where: { id },
+      include: { _count: { select: { users: true } } },
+    }),
+  toCreateData: (v) => ({ name: v.name as string, ...withActive(v) }),
+  toUpdateData: (v) => ({ name: v.name as string, ...withActive(v) }),
+  runCreate: (data) =>
+    prisma.userStatus.create({ data: data as Prisma.UserStatusCreateInput }),
+  runUpdate: (id, data) =>
+    prisma.userStatus.update({
+      where: { id },
+      data: data as Prisma.UserStatusUpdateInput,
+    }),
+  runDeactivate: (id) =>
+    prisma.userStatus.update({ where: { id }, data: { active: false } }),
+  countChildren: (id) =>
+    prisma.user.count({ where: { userStatusId: id, active: true } }),
+  blockedMessage: (n) =>
+    `No se puede eliminar: ${n} usuario(s) tienen este estado.`,
+});
+
 export async function getUserStatuses(options?: {
   page?: number;
   limit?: number;
   search?: string;
 }) {
-  await requirePermission("user-status:read");
-
-  const page = options?.page || 1;
-  const limit = options?.limit || 10;
-  const skip = (page - 1) * limit;
-
-  const where: {
-    active: boolean;
-    name?: { contains: string; mode: "insensitive" };
-  } = { active: true };
-  if (options?.search) {
-    where.name = { contains: options.search, mode: "insensitive" };
-  }
-
-  const [statuses, total] = await Promise.all([
-    prisma.userStatus.findMany({
-      where,
-      include: {
-        _count: {
-          select: { users: true },
-        },
-      },
-      orderBy: { name: "asc" },
-      skip,
-      take: limit,
-    }),
-    prisma.userStatus.count({ where }),
-  ]);
-
-  return {
-    data: statuses,
-    pagination: {
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit),
-    },
-  };
+  return userStatuses.list(options);
 }
 
 export async function getUserStatusById(id: number) {
-  await requirePermission("user-status:read");
-
-  const status = await prisma.userStatus.findUnique({
-    where: { id },
-    include: {
-      _count: {
-        select: { users: true },
-      },
-    },
-  });
-
-  return status;
+  return userStatuses.getById(id);
 }
 
 export async function createUserStatus(data: UserStatusFormData) {
-  await requirePermission("user-status:create");
-
-  const status = await prisma.userStatus.create({
-    data: {
-      name: data.name,
-      ...(data.active !== undefined && { active: data.active }),
-    },
-  });
-
-  revalidatePath("/admin/user-status");
-  return { success: true, data: status };
+  return userStatuses.create(data);
 }
 
 export async function updateUserStatus(id: number, data: UserStatusFormData) {
-  await requirePermission("user-status:update");
-
-  const status = await prisma.userStatus.update({
-    where: { id },
-    data: {
-      name: data.name,
-      ...(data.active !== undefined && { active: data.active }),
-    },
-  });
-
-  revalidatePath("/admin/user-status");
-  revalidatePath(`/admin/user-status/${id}`);
-  return { success: true, data: status };
+  return userStatuses.update(id, data);
 }
 
 export async function deleteUserStatus(id: number) {
-  await requirePermission("user-status:delete");
-
-  const userCount = await prisma.user.count({
-    where: { userStatusId: id, active: true },
-  });
-
-  if (userCount > 0) {
-    return rejected(
-      `No se puede eliminar: ${userCount} usuario(s) tienen este estado.`,
-    );
-  }
-
-  await prisma.userStatus.update({
-    where: { id },
-    data: { active: false },
-  });
-
-  revalidatePath("/admin/user-status");
-  redirect("/admin/user-status");
+  return userStatuses.remove(id);
 }
 
 // ==================== INCIDENT TYPES ====================
@@ -273,151 +243,115 @@ export type IncidentTypeFormData = {
   priority: number;
 };
 
+const incidentTypes = createCatalogActions({
+  permissions: {
+    read: "incident-types:read",
+    create: "incident-types:create",
+    update: "incident-types:update",
+    del: "incident-types:delete",
+  },
+  basePath: "/admin/incident-types",
+  schema: incidentTypeSchema,
+  runList: async (search, skip, take) => {
+    const where: Prisma.IncidentTypeWhereInput = search
+      ? {
+          active: true,
+          OR: [
+            { name: insensitive(search) },
+            { description: insensitive(search) },
+          ],
+        }
+      : { active: true };
+    const [rows, total] = await Promise.all([
+      prisma.incidentType.findMany({
+        where,
+        include: { _count: { select: { incidents: true } } },
+        orderBy: { name: "asc" },
+        skip,
+        take,
+      }),
+      prisma.incidentType.count({ where }),
+    ]);
+    return { rows, total };
+  },
+  mapRow: (row) => ({
+    id: row.id,
+    name: row.name,
+    description: row.description ?? undefined,
+    active: row.active,
+    priority: row.priority,
+    incidentCount: row._count.incidents,
+    createdAt: new Date().toISOString(), // IncidentType doesn't have createdAt
+    updatedAt: new Date().toISOString(), // IncidentType doesn't have updatedAt
+  }),
+  runGetById: (id) =>
+    prisma.incidentType.findUnique({
+      where: { id },
+      include: { _count: { select: { incidents: true } } },
+    }),
+  toCreateData: (v) => ({
+    name: v.name as string,
+    description: (v.description as string | undefined) || null,
+    priority: v.priority as number,
+    ...withActive(v),
+  }),
+  toUpdateData: (v) => ({
+    name: v.name as string,
+    description: (v.description as string | undefined) || null,
+    priority: v.priority as number,
+    ...withActive(v),
+  }),
+  runCreate: (data) =>
+    prisma.incidentType.create({
+      data: data as Prisma.IncidentTypeCreateInput,
+    }),
+  runUpdate: (id, data) =>
+    prisma.incidentType.update({
+      where: { id },
+      data: data as Prisma.IncidentTypeUpdateInput,
+    }),
+  runDeactivate: (id) =>
+    prisma.incidentType.update({ where: { id }, data: { active: false } }),
+  preDelete: async (id) => {
+    const existing = await prisma.incidentType.findUnique({
+      where: { id },
+      select: { name: true },
+    });
+    return existing?.name === FALLBACK_INCIDENT_TYPE_NAME
+      ? `El tipo "${FALLBACK_INCIDENT_TYPE_NAME}" es del sistema y no se puede eliminar.`
+      : null;
+  },
+  countChildren: (id) =>
+    prisma.incident.count({ where: { typeId: id, active: true } }),
+  blockedMessage: (n) =>
+    `No se puede eliminar: ${n} incidente(s) tienen este tipo.`,
+});
+
 export async function getIncidentTypes(params?: {
   page?: number;
   limit?: number;
   search?: string;
 }) {
-  await requirePermission("incident-types:read");
-
-  const page = params?.page || 1;
-  const limit = params?.limit || 10;
-  const skip = (page - 1) * limit;
-
-  // Build where clause
-  const where: Prisma.IncidentTypeWhereInput = {
-    active: true,
-  };
-
-  // Search by name or description
-  if (params?.search) {
-    where.OR = [
-      { name: { contains: params.search, mode: "insensitive" } },
-      { description: { contains: params.search, mode: "insensitive" } },
-    ];
-  }
-
-  // Get total count
-  const total = await prisma.incidentType.count({ where });
-
-  // Get paginated types
-  const types = await prisma.incidentType.findMany({
-    where,
-    include: {
-      _count: {
-        select: { incidents: true },
-      },
-    },
-    orderBy: { name: "asc" },
-    skip,
-    take: limit,
-  });
-
-  // Serialize dates and transform data for client components
-  const transformedTypes = types.map((type) => ({
-    id: type.id,
-    name: type.name,
-    description: type.description ?? undefined,
-    active: type.active,
-    priority: type.priority,
-    incidentCount: type._count.incidents,
-    createdAt: new Date().toISOString(), // IncidentType doesn't have createdAt
-    updatedAt: new Date().toISOString(), // IncidentType doesn't have updatedAt
-  }));
-
-  return {
-    data: transformedTypes,
-    pagination: {
-      page,
-      limit,
-      total,
-      totalPages: Math.ceil(total / limit),
-    },
-  };
+  return incidentTypes.list(params);
 }
 
 export async function getIncidentTypeById(id: number) {
-  await requirePermission("incident-types:read");
-
-  const type = await prisma.incidentType.findUnique({
-    where: { id },
-    include: {
-      _count: {
-        select: { incidents: true },
-      },
-    },
-  });
-
-  return type;
+  return incidentTypes.getById(id);
 }
 
 export async function createIncidentType(data: IncidentTypeFormData) {
-  await requirePermission("incident-types:create");
-
-  const type = await prisma.incidentType.create({
-    data: {
-      name: data.name,
-      description: data.description || null,
-      priority: data.priority,
-      ...(data.active !== undefined && { active: data.active }),
-    },
-  });
-
-  revalidatePath("/admin/incident-types");
-  return { success: true, data: type };
+  return incidentTypes.create(data);
 }
 
 export async function updateIncidentType(
   id: number,
   data: IncidentTypeFormData,
 ) {
-  await requirePermission("incident-types:update");
-
-  const type = await prisma.incidentType.update({
-    where: { id },
-    data: {
-      name: data.name,
-      description: data.description || null,
-      priority: data.priority,
-      ...(data.active !== undefined && { active: data.active }),
-    },
-  });
-
-  revalidatePath("/admin/incident-types");
-  revalidatePath(`/admin/incident-types/${id}`);
-  return { success: true, data: type };
+  return incidentTypes.update(id, data);
 }
 
 export async function deleteIncidentType(id: number) {
-  await requirePermission("incident-types:delete");
-
-  const existing = await prisma.incidentType.findUnique({
-    where: { id },
-    select: { name: true },
-  });
-  if (existing?.name === FALLBACK_INCIDENT_TYPE_NAME) {
-    return rejected(
-      `El tipo "${FALLBACK_INCIDENT_TYPE_NAME}" es del sistema y no se puede eliminar.`,
-    );
-  }
-
-  const incidentCount = await prisma.incident.count({
-    where: { typeId: id, active: true },
-  });
-
-  if (incidentCount > 0) {
-    return rejected(
-      `No se puede eliminar: ${incidentCount} incidente(s) tienen este tipo.`,
-    );
-  }
-
-  await prisma.incidentType.update({
-    where: { id },
-    data: { active: false },
-  });
-
-  revalidatePath("/admin/incident-types");
-  redirect("/admin/incident-types");
+  return incidentTypes.remove(id);
 }
 
 // ==================== INCIDENT STATUS ====================
@@ -428,135 +362,98 @@ export type IncidentStatusFormData = {
   active?: boolean;
 };
 
+const incidentStatuses = createCatalogActions({
+  permissions: {
+    read: "incident-status:read",
+    create: "incident-status:create",
+    update: "incident-status:update",
+    del: "incident-status:delete",
+  },
+  basePath: "/admin/incident-status",
+  schema: IncidentStatusCreateSchema,
+  updateSchema: IncidentStatusUpdateSchema,
+  runList: async (search, skip, take) => {
+    const where: Prisma.IncidentStatusWhereInput = search
+      ? { active: true, name: insensitive(search) }
+      : { active: true };
+    const [rows, total] = await Promise.all([
+      prisma.incidentStatus.findMany({
+        where,
+        include: { _count: { select: { incidents: true } } },
+        orderBy: { name: "asc" },
+        skip,
+        take,
+      }),
+      prisma.incidentStatus.count({ where }),
+    ]);
+    return { rows, total };
+  },
+  mapRow: (row) => ({
+    id: row.id,
+    name: row.name,
+    color: row.color,
+    active: row.active,
+    incidentCount: row._count.incidents,
+    createdAt: new Date().toISOString(), // IncidentStatus doesn't have createdAt
+    updatedAt: new Date().toISOString(), // IncidentStatus doesn't have updatedAt
+  }),
+  runGetById: (id) =>
+    prisma.incidentStatus.findUnique({
+      where: { id },
+      include: { _count: { select: { incidents: true } } },
+    }),
+  toCreateData: (v) => ({
+    name: v.name as string,
+    color: (v.color as string | undefined) || "#6B7280",
+    ...withActive(v),
+  }),
+  toUpdateData: (v) => ({
+    name: v.name as string,
+    ...(v.color ? { color: v.color as string } : {}),
+    ...withActive(v),
+  }),
+  runCreate: (data) =>
+    prisma.incidentStatus.create({
+      data: data as Prisma.IncidentStatusCreateInput,
+    }),
+  runUpdate: (id, data) =>
+    prisma.incidentStatus.update({
+      where: { id },
+      data: data as Prisma.IncidentStatusUpdateInput,
+    }),
+  runDeactivate: (id) =>
+    prisma.incidentStatus.update({ where: { id }, data: { active: false } }),
+  countChildren: (id) =>
+    prisma.incident.count({ where: { statusId: id, active: true } }),
+  blockedMessage: (n) =>
+    `No se puede eliminar: ${n} incidente(s) tienen este estado.`,
+});
+
 export async function getIncidentStatuses(params?: {
   page?: number;
   limit?: number;
   search?: string;
 }) {
-  await requirePermission("incident-status:read");
-
-  const page = params?.page || 1;
-  const limit = params?.limit || 10;
-  const skip = (page - 1) * limit;
-
-  // Build where clause
-  const where: Prisma.IncidentStatusWhereInput = {
-    active: true,
-  };
-
-  // Search by name
-  if (params?.search) {
-    where.name = { contains: params.search, mode: "insensitive" };
-  }
-
-  // Get total count
-  const total = await prisma.incidentStatus.count({ where });
-
-  // Get paginated statuses
-  const statuses = await prisma.incidentStatus.findMany({
-    where,
-    include: {
-      _count: {
-        select: { incidents: true },
-      },
-    },
-    orderBy: { name: "asc" },
-    skip,
-    take: limit,
-  });
-
-  // Serialize dates and transform data for client components
-  const transformedStatuses = statuses.map((status) => ({
-    id: status.id,
-    name: status.name,
-    color: status.color,
-    active: status.active,
-    incidentCount: status._count.incidents,
-    createdAt: new Date().toISOString(), // IncidentStatus doesn't have createdAt
-    updatedAt: new Date().toISOString(), // IncidentStatus doesn't have updatedAt
-  }));
-
-  return {
-    data: transformedStatuses,
-    pagination: {
-      page,
-      limit,
-      total,
-      totalPages: Math.ceil(total / limit),
-    },
-  };
+  return incidentStatuses.list(params);
 }
 
 export async function getIncidentStatusById(id: number) {
-  await requirePermission("incident-status:read");
-
-  const status = await prisma.incidentStatus.findUnique({
-    where: { id },
-    include: {
-      _count: {
-        select: { incidents: true },
-      },
-    },
-  });
-
-  return status;
+  return incidentStatuses.getById(id);
 }
 
 export async function createIncidentStatus(data: IncidentStatusFormData) {
-  await requirePermission("incident-status:create");
-
-  const status = await prisma.incidentStatus.create({
-    data: {
-      name: data.name,
-      color: data.color || "#6B7280",
-      ...(data.active !== undefined && { active: data.active }),
-    },
-  });
-
-  revalidatePath("/admin/incident-status");
-  return { success: true, data: status };
+  return incidentStatuses.create(data);
 }
 
 export async function updateIncidentStatus(
   id: number,
   data: IncidentStatusFormData,
 ) {
-  await requirePermission("incident-status:update");
-
-  const status = await prisma.incidentStatus.update({
-    where: { id },
-    data: {
-      name: data.name,
-      ...(data.color && { color: data.color }),
-      ...(data.active !== undefined && { active: data.active }),
-    },
-  });
-
-  revalidatePath("/admin/incident-status");
-  revalidatePath(`/admin/incident-status/${id}`);
-  return { success: true, data: status };
+  return incidentStatuses.update(id, data);
 }
 
 export async function deleteIncidentStatus(id: number) {
-  await requirePermission("incident-status:delete");
-
-  const incidentCount = await prisma.incident.count({
-    where: { statusId: id, active: true },
-  });
-
-  if (incidentCount > 0) {
-    return rejected(
-      `No se puede eliminar: ${incidentCount} incidente(s) tienen este estado.`,
-    );
-  }
-
-  await prisma.incidentStatus.update({
-    where: { id },
-    data: { active: false },
-  });
-
-  revalidatePath("/admin/incident-status");
-  redirect("/admin/incident-status");
+  return incidentStatuses.remove(id);
 }
 
 // ==================== ASSIGNMENT STATUS ====================
@@ -567,128 +464,96 @@ export type AssignmentStatusFormData = {
   active?: boolean;
 };
 
+const assignmentStatuses = createCatalogActions({
+  permissions: {
+    read: "assignment-status:read",
+    create: "assignment-status:create",
+    update: "assignment-status:update",
+    del: "assignment-status:delete",
+  },
+  basePath: "/admin/settings/assignment-status",
+  schema: AssignmentStatusCreateSchema,
+  updateSchema: AssignmentStatusUpdateSchema,
+  runList: async (search, skip, take) => {
+    const where: Prisma.AssignmentStatusWhereInput = search
+      ? { active: true, name: insensitive(search) }
+      : { active: true };
+    const [rows, total] = await Promise.all([
+      prisma.assignmentStatus.findMany({
+        where,
+        include: { _count: { select: { assignments: true } } },
+        orderBy: { name: "asc" },
+        skip,
+        take,
+      }),
+      prisma.assignmentStatus.count({ where }),
+    ]);
+    return { rows, total };
+  },
+  mapRow: (row) => ({
+    id: row.id,
+    name: row.name,
+    color: row.color,
+    active: row.active,
+    _count: { assignments: row._count.assignments },
+  }),
+  runGetById: (id) =>
+    prisma.assignmentStatus.findUnique({
+      where: { id },
+      include: { _count: { select: { assignments: true } } },
+    }),
+  toCreateData: (v) => ({
+    name: v.name as string,
+    color: (v.color as string | undefined) || "#6B7280",
+    ...withActive(v),
+  }),
+  toUpdateData: (v) => ({
+    name: v.name as string,
+    ...(v.color ? { color: v.color as string } : {}),
+    ...withActive(v),
+  }),
+  runCreate: (data) =>
+    prisma.assignmentStatus.create({
+      data: data as Prisma.AssignmentStatusCreateInput,
+    }),
+  runUpdate: (id, data) =>
+    prisma.assignmentStatus.update({
+      where: { id },
+      data: data as Prisma.AssignmentStatusUpdateInput,
+    }),
+  runDeactivate: (id) =>
+    prisma.assignmentStatus.update({ where: { id }, data: { active: false } }),
+  countChildren: (id) =>
+    prisma.assignment.count({ where: { statusId: id, active: true } }),
+  blockedMessage: (n) =>
+    `No se puede eliminar: ${n} asignación(es) tienen este estado.`,
+});
+
 export async function getAssignmentStatuses(params?: {
   page?: number;
   limit?: number;
   search?: string;
 }) {
-  await requirePermission("assignment-status:read");
-
-  const page = params?.page || 1;
-  const limit = params?.limit || 10;
-  const skip = (page - 1) * limit;
-
-  const where: Prisma.AssignmentStatusWhereInput = {
-    active: true,
-  };
-
-  if (params?.search) {
-    where.name = { contains: params.search, mode: "insensitive" };
-  }
-
-  const total = await prisma.assignmentStatus.count({ where });
-
-  const statuses = await prisma.assignmentStatus.findMany({
-    where,
-    include: {
-      _count: {
-        select: { assignments: true },
-      },
-    },
-    orderBy: { name: "asc" },
-    skip,
-    take: limit,
-  });
-
-  const transformedStatuses = statuses.map((status) => ({
-    id: status.id,
-    name: status.name,
-    color: status.color,
-    active: status.active,
-    _count: { assignments: status._count.assignments },
-  }));
-
-  return {
-    data: transformedStatuses,
-    pagination: {
-      page,
-      limit,
-      total,
-      totalPages: Math.ceil(total / limit),
-    },
-  };
+  return assignmentStatuses.list(params);
 }
 
 export async function getAssignmentStatusById(id: number) {
-  await requirePermission("assignment-status:read");
-
-  const status = await prisma.assignmentStatus.findUnique({
-    where: { id },
-    include: {
-      _count: {
-        select: { assignments: true },
-      },
-    },
-  });
-
-  return status;
+  return assignmentStatuses.getById(id);
 }
 
 export async function createAssignmentStatus(data: AssignmentStatusFormData) {
-  await requirePermission("assignment-status:create");
-
-  const status = await prisma.assignmentStatus.create({
-    data: {
-      name: data.name,
-      color: data.color || "#6B7280",
-      ...(data.active !== undefined && { active: data.active }),
-    },
-  });
-
-  revalidatePath("/admin/settings/assignment-status");
-  return { success: true, data: status };
+  return assignmentStatuses.create(data);
 }
 
 export async function updateAssignmentStatus(
   id: number,
   data: AssignmentStatusFormData,
 ) {
-  await requirePermission("assignment-status:update");
-
-  const status = await prisma.assignmentStatus.update({
-    where: { id },
-    data: {
-      name: data.name,
-      ...(data.color && { color: data.color }),
-      ...(data.active !== undefined && { active: data.active }),
-    },
-  });
-
-  revalidatePath("/admin/settings/assignment-status");
-  revalidatePath(`/admin/settings/assignment-status/${id}`);
-  return { success: true, data: status };
+  return assignmentStatuses.update(id, data);
 }
 
 export async function deleteAssignmentStatus(id: number) {
-  await requirePermission("assignment-status:delete");
-
-  const assignmentCount = await prisma.assignment.count({
-    where: { statusId: id, active: true },
-  });
-
-  if (assignmentCount > 0) {
-    return rejected(
-      `No se puede eliminar: ${assignmentCount} asignación(es) tienen este estado.`,
-    );
-  }
-
-  await prisma.assignmentStatus.update({
-    where: { id },
-    data: { active: false },
-  });
-
-  revalidatePath("/admin/settings/assignment-status");
-  redirect("/admin/settings/assignment-status");
+  return assignmentStatuses.remove(id);
 }
 
 // ==================== EQUIPMENT STATUS ====================
@@ -698,99 +563,81 @@ export type EquipmentStatusFormData = {
   active?: boolean;
 };
 
+const equipmentStatuses = createCatalogActions({
+  permissions: {
+    read: "settings:read",
+    create: "settings:create",
+    update: "settings:update",
+    del: "settings:delete",
+  },
+  basePath: "/admin/settings/equipment-status",
+  schema: EquipmentStatusCreateSchema,
+  updateSchema: EquipmentStatusUpdateSchema,
+  runList: async (search, skip, take) => {
+    const where: Prisma.EquipmentStatusWhereInput = search
+      ? { active: true, name: insensitive(search) }
+      : { active: true };
+    const [rows, total] = await Promise.all([
+      prisma.equipmentStatus.findMany({
+        where,
+        include: { _count: { select: { equipments: true } } },
+        orderBy: { name: "asc" },
+        skip,
+        take,
+      }),
+      prisma.equipmentStatus.count({ where }),
+    ]);
+    return { rows, total };
+  },
+  runGetById: (id) =>
+    prisma.equipmentStatus.findUnique({
+      where: { id },
+      include: { _count: { select: { equipments: true } } },
+    }),
+  toCreateData: (v) => ({ name: v.name as string, ...withActive(v) }),
+  toUpdateData: (v) => ({ name: v.name as string, ...withActive(v) }),
+  runCreate: (data) =>
+    prisma.equipmentStatus.create({
+      data: data as Prisma.EquipmentStatusCreateInput,
+    }),
+  runUpdate: (id, data) =>
+    prisma.equipmentStatus.update({
+      where: { id },
+      data: data as Prisma.EquipmentStatusUpdateInput,
+    }),
+  runDeactivate: (id) =>
+    prisma.equipmentStatus.update({ where: { id }, data: { active: false } }),
+  countChildren: (id) =>
+    prisma.equipment.count({ where: { statusId: id, active: true } }),
+  blockedMessage: (n) =>
+    `No se puede eliminar: ${n} equipo(s) tienen este estado.`,
+});
+
 export async function getEquipmentStatuses(params?: {
   page?: number;
   limit?: number;
   search?: string;
 }) {
-  await requirePermission("settings:read");
-
-  const page = params?.page || 1;
-  const limit = params?.limit || 10;
-  const skip = (page - 1) * limit;
-
-  const where: Prisma.EquipmentStatusWhereInput = { active: true };
-  if (params?.search) {
-    where.name = { contains: params.search, mode: "insensitive" };
-  }
-
-  const [data, total] = await Promise.all([
-    prisma.equipmentStatus.findMany({
-      where,
-      orderBy: { name: "asc" },
-      skip,
-      take: limit,
-      include: {
-        _count: { select: { equipments: true } },
-      },
-    }),
-    prisma.equipmentStatus.count({ where }),
-  ]);
-
-  return {
-    data,
-    pagination: {
-      page,
-      limit,
-      total,
-      totalPages: Math.ceil(total / limit),
-    },
-  };
+  return equipmentStatuses.list(params);
 }
 
 export async function getEquipmentStatusById(id: number) {
-  await requirePermission("settings:read");
-  return await prisma.equipmentStatus.findUnique({
-    where: { id },
-    include: { _count: { select: { equipments: true } } },
-  });
+  return equipmentStatuses.getById(id);
 }
 
 export async function createEquipmentStatus(data: EquipmentStatusFormData) {
-  await requirePermission("settings:create");
-  const status = await prisma.equipmentStatus.create({
-    data: {
-      name: data.name,
-      ...(data.active !== undefined && { active: data.active }),
-    },
-  });
-  revalidatePath("/admin/settings/equipment-status");
-  return { success: true, data: status };
+  return equipmentStatuses.create(data);
 }
 
 export async function updateEquipmentStatus(
   id: number,
   data: EquipmentStatusFormData,
 ) {
-  await requirePermission("settings:update");
-  const status = await prisma.equipmentStatus.update({
-    where: { id },
-    data: {
-      name: data.name,
-      ...(data.active !== undefined && { active: data.active }),
-    },
-  });
-  revalidatePath("/admin/settings/equipment-status");
-  revalidatePath(`/admin/settings/equipment-status/${id}`);
-  return { success: true, data: status };
+  return equipmentStatuses.update(id, data);
 }
 
 export async function deleteEquipmentStatus(id: number) {
-  await requirePermission("settings:delete");
-  const equipmentCount = await prisma.equipment.count({
-    where: { statusId: id, active: true },
-  });
-  if (equipmentCount > 0) {
-    return rejected(
-      `No se puede eliminar: ${equipmentCount} equipo(s) tienen este estado.`,
-    );
-  }
-  await prisma.equipmentStatus.update({
-    where: { id },
-    data: { active: false },
-  });
-  revalidatePath("/admin/settings/equipment-status");
-  redirect("/admin/settings/equipment-status");
+  return equipmentStatuses.remove(id);
 }
 
 // ==================== VEHICLE STATUS ====================
@@ -800,99 +647,81 @@ export type VehicleStatusFormData = {
   active?: boolean;
 };
 
+const vehicleStatuses = createCatalogActions({
+  permissions: {
+    read: "settings:read",
+    create: "settings:create",
+    update: "settings:update",
+    del: "settings:delete",
+  },
+  basePath: "/admin/settings/vehicle-status",
+  schema: VehicleStatusCreateSchema,
+  updateSchema: VehicleStatusUpdateSchema,
+  runList: async (search, skip, take) => {
+    const where: Prisma.VehicleStatusWhereInput = search
+      ? { active: true, name: insensitive(search) }
+      : { active: true };
+    const [rows, total] = await Promise.all([
+      prisma.vehicleStatus.findMany({
+        where,
+        include: { _count: { select: { vehicles: true } } },
+        orderBy: { name: "asc" },
+        skip,
+        take,
+      }),
+      prisma.vehicleStatus.count({ where }),
+    ]);
+    return { rows, total };
+  },
+  runGetById: (id) =>
+    prisma.vehicleStatus.findUnique({
+      where: { id },
+      include: { _count: { select: { vehicles: true } } },
+    }),
+  toCreateData: (v) => ({ name: v.name as string, ...withActive(v) }),
+  toUpdateData: (v) => ({ name: v.name as string, ...withActive(v) }),
+  runCreate: (data) =>
+    prisma.vehicleStatus.create({
+      data: data as Prisma.VehicleStatusCreateInput,
+    }),
+  runUpdate: (id, data) =>
+    prisma.vehicleStatus.update({
+      where: { id },
+      data: data as Prisma.VehicleStatusUpdateInput,
+    }),
+  runDeactivate: (id) =>
+    prisma.vehicleStatus.update({ where: { id }, data: { active: false } }),
+  countChildren: (id) =>
+    prisma.vehicle.count({ where: { statusId: id, active: true } }),
+  blockedMessage: (n) =>
+    `No se puede eliminar: ${n} vehículo(s) tienen este estado.`,
+});
+
 export async function getVehicleStatuses(params?: {
   page?: number;
   limit?: number;
   search?: string;
 }) {
-  await requirePermission("settings:read");
-
-  const page = params?.page || 1;
-  const limit = params?.limit || 10;
-  const skip = (page - 1) * limit;
-
-  const where: Prisma.VehicleStatusWhereInput = { active: true };
-  if (params?.search) {
-    where.name = { contains: params.search, mode: "insensitive" };
-  }
-
-  const [data, total] = await Promise.all([
-    prisma.vehicleStatus.findMany({
-      where,
-      orderBy: { name: "asc" },
-      skip,
-      take: limit,
-      include: {
-        _count: { select: { vehicles: true } },
-      },
-    }),
-    prisma.vehicleStatus.count({ where }),
-  ]);
-
-  return {
-    data,
-    pagination: {
-      page,
-      limit,
-      total,
-      totalPages: Math.ceil(total / limit),
-    },
-  };
+  return vehicleStatuses.list(params);
 }
 
 export async function getVehicleStatusById(id: number) {
-  await requirePermission("settings:read");
-  return await prisma.vehicleStatus.findUnique({
-    where: { id },
-    include: { _count: { select: { vehicles: true } } },
-  });
+  return vehicleStatuses.getById(id);
 }
 
 export async function createVehicleStatus(data: VehicleStatusFormData) {
-  await requirePermission("settings:create");
-  const status = await prisma.vehicleStatus.create({
-    data: {
-      name: data.name,
-      ...(data.active !== undefined && { active: data.active }),
-    },
-  });
-  revalidatePath("/admin/settings/vehicle-status");
-  return { success: true, data: status };
+  return vehicleStatuses.create(data);
 }
 
 export async function updateVehicleStatus(
   id: number,
   data: VehicleStatusFormData,
 ) {
-  await requirePermission("settings:update");
-  const status = await prisma.vehicleStatus.update({
-    where: { id },
-    data: {
-      name: data.name,
-      ...(data.active !== undefined && { active: data.active }),
-    },
-  });
-  revalidatePath("/admin/settings/vehicle-status");
-  revalidatePath(`/admin/settings/vehicle-status/${id}`);
-  return { success: true, data: status };
+  return vehicleStatuses.update(id, data);
 }
 
 export async function deleteVehicleStatus(id: number) {
-  await requirePermission("settings:delete");
-  const vehicleCount = await prisma.vehicle.count({
-    where: { statusId: id, active: true },
-  });
-  if (vehicleCount > 0) {
-    return rejected(
-      `No se puede eliminar: ${vehicleCount} vehículo(s) tienen este estado.`,
-    );
-  }
-  await prisma.vehicleStatus.update({
-    where: { id },
-    data: { active: false },
-  });
-  revalidatePath("/admin/settings/vehicle-status");
-  redirect("/admin/settings/vehicle-status");
+  return vehicleStatuses.remove(id);
 }
 
 // ==================== VEHICLE TRIP STATUS ====================
@@ -902,179 +731,91 @@ export type VehicleTripStatusFormData = {
   active?: boolean;
 };
 
+const vehicleTripStatuses = createCatalogActions({
+  permissions: {
+    read: "settings:read",
+    create: "settings:create",
+    update: "settings:update",
+    del: "settings:delete",
+  },
+  basePath: "/admin/settings/vehicle-trip-status",
+  schema: VehicleTripStatusCreateSchema,
+  updateSchema: VehicleTripStatusUpdateSchema,
+  runList: async (search, skip, take) => {
+    const where: Prisma.VehicleTripStatusWhereInput = search
+      ? { active: true, name: insensitive(search) }
+      : { active: true };
+    const [rows, total] = await Promise.all([
+      prisma.vehicleTripStatus.findMany({
+        where,
+        include: { _count: { select: { trips: true } } },
+        orderBy: { name: "asc" },
+        skip,
+        take,
+      }),
+      prisma.vehicleTripStatus.count({ where }),
+    ]);
+    return { rows, total };
+  },
+  runGetById: (id) =>
+    prisma.vehicleTripStatus.findUnique({
+      where: { id },
+      include: { _count: { select: { trips: true } } },
+    }),
+  toCreateData: (v) => ({ name: v.name as string, ...withActive(v) }),
+  toUpdateData: (v) => ({ name: v.name as string, ...withActive(v) }),
+  runCreate: (data) =>
+    prisma.vehicleTripStatus.create({
+      data: data as Prisma.VehicleTripStatusCreateInput,
+    }),
+  runUpdate: (id, data) =>
+    prisma.vehicleTripStatus.update({
+      where: { id },
+      data: data as Prisma.VehicleTripStatusUpdateInput,
+    }),
+  runDeactivate: (id) =>
+    prisma.vehicleTripStatus.update({
+      where: { id },
+      data: { active: false },
+    }),
+  countChildren: (id) =>
+    prisma.vehicleTrip.count({ where: { statusId: id, active: true } }),
+  blockedMessage: (n) =>
+    `No se puede eliminar: ${n} viaje(s) tienen este estado.`,
+});
+
 export async function getVehicleTripStatuses(params?: {
   page?: number;
   limit?: number;
   search?: string;
 }) {
-  await requirePermission("settings:read");
-
-  const page = params?.page || 1;
-  const limit = params?.limit || 10;
-  const skip = (page - 1) * limit;
-
-  const where: Prisma.VehicleTripStatusWhereInput = { active: true };
-  if (params?.search) {
-    where.name = { contains: params.search, mode: "insensitive" };
-  }
-
-  const [data, total] = await Promise.all([
-    prisma.vehicleTripStatus.findMany({
-      where,
-      orderBy: { name: "asc" },
-      skip,
-      take: limit,
-      include: {
-        _count: { select: { trips: true } },
-      },
-    }),
-    prisma.vehicleTripStatus.count({ where }),
-  ]);
-
-  return {
-    data,
-    pagination: {
-      page,
-      limit,
-      total,
-      totalPages: Math.ceil(total / limit),
-    },
-  };
+  return vehicleTripStatuses.list(params);
 }
 
 export async function getVehicleTripStatusById(id: number) {
-  await requirePermission("settings:read");
-  return await prisma.vehicleTripStatus.findUnique({
-    where: { id },
-    include: { _count: { select: { trips: true } } },
-  });
+  return vehicleTripStatuses.getById(id);
 }
 
 export async function createVehicleTripStatus(data: VehicleTripStatusFormData) {
-  await requirePermission("settings:create");
-  const status = await prisma.vehicleTripStatus.create({
-    data: {
-      name: data.name,
-      ...(data.active !== undefined && { active: data.active }),
-    },
-  });
-  revalidatePath("/admin/settings/vehicle-trip-status");
-  return { success: true, data: status };
+  return vehicleTripStatuses.create(data);
 }
 
 export async function updateVehicleTripStatus(
   id: number,
   data: VehicleTripStatusFormData,
 ) {
-  await requirePermission("settings:update");
-  const status = await prisma.vehicleTripStatus.update({
-    where: { id },
-    data: {
-      name: data.name,
-      ...(data.active !== undefined && { active: data.active }),
-    },
-  });
-  revalidatePath("/admin/settings/vehicle-trip-status");
-  revalidatePath(`/admin/settings/vehicle-trip-status/${id}`);
-  return { success: true, data: status };
+  return vehicleTripStatuses.update(id, data);
 }
 
 export async function deleteVehicleTripStatus(id: number) {
-  await requirePermission("settings:delete");
-  const tripCount = await prisma.vehicleTrip.count({
-    where: { statusId: id, active: true },
-  });
-  if (tripCount > 0) {
-    return rejected(
-      `No se puede eliminar: ${tripCount} viaje(s) tienen este estado.`,
-    );
-  }
-  await prisma.vehicleTripStatus.update({
-    where: { id },
-    data: { active: false },
-  });
-  revalidatePath("/admin/settings/vehicle-trip-status");
-  redirect("/admin/settings/vehicle-trip-status");
+  return vehicleTripStatuses.remove(id);
 }
 
 // ==================== PERMISSIONS ====================
-
-export type PermissionFormData = {
-  name: string;
-  description?: string;
-  resource?: string;
-  action?: string;
-  routePath?: string;
-};
-
-export async function getPermissions() {
-  await requirePermission("permissions:read");
-
-  const permissions = await prisma.permission.findMany({
-    where: { active: true },
-    include: {
-      _count: {
-        select: { roles: true },
-      },
-    },
-    orderBy: [{ resource: "asc" }, { action: "asc" }],
-  });
-
-  return permissions;
-}
-
-export async function getPermissionById(id: number) {
-  await requirePermission("permissions:read");
-
-  const permission = await prisma.permission.findUnique({
-    where: { id },
-    include: {
-      roles: {
-        include: {
-          role: true,
-        },
-      },
-    },
-  });
-
-  return permission;
-}
-
-export async function createPermission(data: PermissionFormData) {
-  await requirePermission("permissions:manage");
-
-  const permission = await prisma.permission.create({
-    data: {
-      name: data.name,
-      description: data.description || null,
-      resource: data.resource || null,
-      action: data.action || null,
-      routePath: data.routePath || null,
-    },
-  });
-
-  revalidatePath("/admin/permissions");
-  return { success: true, data: permission };
-}
-
-export async function updatePermission(id: number, data: PermissionFormData) {
-  await requirePermission("permissions:manage");
-
-  const permission = await prisma.permission.update({
-    where: { id },
-    data: {
-      name: data.name,
-      description: data.description || null,
-      resource: data.resource || null,
-      action: data.action || null,
-      routePath: data.routePath || null,
-    },
-  });
-
-  revalidatePath("/admin/permissions");
-  revalidatePath(`/admin/permissions/${id}`);
-  return { success: true, data: permission };
-}
+// Only `deletePermission` survives here: the standalone permissions UI was a
+// mock tree and was removed. Permission assignment lives under each role
+// (`/admin/roles/[id]/permissions`); deletion stays as a guarded server
+// action covered by the catalog-deletes tests.
 
 export async function deletePermission(id: number) {
   await requirePermission("permissions:manage");
@@ -1094,6 +835,6 @@ export async function deletePermission(id: number) {
     data: { active: false },
   });
 
-  revalidatePath("/admin/permissions");
-  redirect("/admin/permissions");
+  revalidatePath("/admin/roles");
+  redirect("/admin/roles");
 }
