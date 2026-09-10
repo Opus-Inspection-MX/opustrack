@@ -280,6 +280,22 @@ Restricción única: `(assignmentId, userId)`.
 
 ---
 
+### RF-260 · Borradores offline y reintento para inicio/cierre de asignación
+
+**Descripción:** Cuando el FSR pierde conectividad en campo, el inicio (`startAssignmentWork`) y el cierre (`closeAssignment`) se congelan como borradores locales (payload escalar + GPS + `capturedAt` del momento de la acción) y se reintentan al reconectar. Esto es borrador-y-reintento ÚNICAMENTE — sincronización offline completa y resolución de conflictos quedan explícitamente excluidas.
+
+**Reglas de negocio:**
+- El borrador congela la evidencia del momento: payload escalar, fix GPS y `capturedAt` se capturan en campo y NO se recapturan al enviar (re-capturar falsificaría la evidencia).
+- Cada borrador lleva llave de idempotencia (`idempotencyKey`). El servidor deduplica por llave en `ActionIdempotency`: reenviar el mismo borrador NO reaplica la transición (el cierre reintentado nunca se aplica doble).
+- El servidor rechaza borradores de hace más de **24 horas** con mensaje en español ("El registro es de hace más de 24 horas y ya no puede enviarse. Capture la acción de nuevo."). Ventana confirmada con operaciones al aplicar.
+- Pasadas las validaciones de frescura, la acción reintentada corre las guardas y la máquina de estados SIN CAMBIOS (permisos, bloqueos terminales, precondiciones). Offline no otorga privilegios, solo entrega tarde.
+- Si el estado del servidor avanzó (reasignada, cerrada, incidencia cancelada), el envío devuelve el error estándar de regla de negocio; el borrador SE CONSERVA para resolución manual. Sin UI de fusión.
+- Almacenamiento con tope (20 borradores); la expulsión requiere confirmación explícita del operador, nunca es silenciosa. Cuota llena del dispositivo se reporta, no se pierde en silencio.
+- Disparadores de envío: botón "Reintentar" + envío automático al reconectar, con backoff acotado (inmediato → 30s → 5min → solo manual).
+- Los envíos re-entran por las acciones reales, así que la semántica §3.5(a) LOG aplica automáticamente: un borrador cuyo FSR perdió habilitación mientras estaba offline auto-crea el `IncidentAssignee` como hoy (evento `ASSIGNEE_AUTO_CREATED`).
+
+---
+
 ## Reglas transversales aplicables
 
 - **Soft delete universal**: ningún registro se borra físicamente. `active: false` en Assignment, AssignmentAssignee, AssignmentActivity, AssignmentAttachment.

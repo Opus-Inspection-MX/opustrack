@@ -287,6 +287,17 @@ Gestionar la flota de vehículos de la empresa y registrar los viajes realizados
 
 ---
 
+### RF-261 · Borradores offline y reintento para inicio/fin de viaje
+
+**Descripción:** El mecanismo de borrador-y-reintento de RF-260 se extiende a `startVehicleTrip` y `endVehicleTrip`: lecturas de odómetro, fixes GPS, timestamps y fotos capturados en campo persisten localmente ante fallo/sin conexión y se envían al reconectar bajo las mismas reglas de idempotencia, frescura y sin-fusión.
+
+**Reglas de negocio:**
+- Todas las reglas de RF-260 aplican sin cambios (evidencia congelada del momento, llaves de idempotencia en `ActionIdempotency`, ventana de 24h con rechazo en español, guardas sin cambios, borradores conservados ante conflicto, almacenamiento con tope, disparadores de envío).
+- Las fotos del odómetro se guardan como blobs `File` locales en memoria y se envían como `File` en el payload reintentado (sin persistencia base64 — la regla RF-259 se extiende aquí). Si la cuota del dispositivo lo fuerza, la persistencia de la foto PUEDE degradarse primero — pero escalares + GPS + odómetro SIEMPRE persisten, y la degradación es visible al operador (muestra miniatura o pide re-adjuntar), nunca silenciosa. Tras recargar la página el blob en memoria se pierde y la UI pide re-adjuntar la foto antes de reintentar.
+- La monotonicidad del odómetro y todas las guardas existentes de viaje corren al momento del envío contra el estado vivo del servidor.
+
+---
+
 ## Estados y transiciones
 
 ### Vehículo (VehicleStatus)
