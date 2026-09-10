@@ -309,6 +309,7 @@ model Incident {
 
   assignments Assignment[]
   assignees   IncidentAssignee[] // RF-025: FSRs habilitados para este incidente
+  events      IncidentEvent[] // RF-219: append-only audit trail
   createdAt   DateTime           @default(now())
   updatedAt   DateTime           @updatedAt
   active      Boolean            @default(true)
@@ -338,6 +339,48 @@ model IncidentAssignee {
   @@index([incidentId])
   @@index([active, userId])
   @@map("incident_assignees")
+}
+
+/// Append-only audit trail for incidents (RF-219).
+///
+/// One row per status-affecting occurrence: creation, status transitions,
+/// assignee changes, cancellations, reopens, bulk imports, skipped
+/// recalculations, and (reserved) admin overrides. Application code MUST
+/// never update or delete these rows — the log is observability, not
+/// authority. State machines remain the sole writers of `statusId`.
+model IncidentEvent {
+  id         String            @id @default(cuid())
+  incidentId Int
+  incident   Incident          @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  eventType  IncidentEventType
+  /// Human actor; null means the transition was system-driven (sync).
+  actorId    String?
+  fromStatus String?
+  toStatus   String?
+  /// Small snapshot: resolvedAt/priorResolvedAt timestamps, reasons, row refs.
+  /// Allowlisted per event type in `logIncidentEvent`; never queried by field.
+  payload    Json?
+  createdAt  DateTime          @default(now())
+
+  @@index([incidentId, createdAt])
+}
+
+/// Closed vocabulary for the audit log. Adding a type is a migration — the
+/// right friction for audit semantics. `ASSIGN_DENIED` (gate) and
+/// `ASSIGNEE_AUTO_CREATED` (log) cover both §3.5(a) outcomes; the unused one
+/// simply never fires. `ADMIN_OVERRIDE` is reserved for the §1.3 override.
+enum IncidentEventType {
+  CREATED
+  STATUS_CHANGED
+  ASSIGNEE_ADDED
+  ASSIGNEE_REMOVED
+  ASSIGNEE_AUTO_CREATED
+  ASSIGN_DENIED
+  CANCELLED
+  REOPENED
+  BULK_IMPORTED
+  RECALC_SKIPPED
+  ADMIN_OVERRIDE
 }
 
 model Assignment {
