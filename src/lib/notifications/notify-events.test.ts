@@ -10,13 +10,18 @@ const { dispatch, operationsAudience, getVacationApprovers } = vi.hoisted(
 
 vi.mock("./dispatch", () => ({ dispatch }));
 vi.mock("./audiences", () => ({ operationsAudience, getVacationApprovers }));
+vi.mock("@/lib/database/prisma.singleton", () => ({
+  prisma: { incidentAssignee: { findMany: vi.fn(async () => []) } },
+}));
 
 import { NOTIFICATION_TYPES } from "./notification-types";
 import {
   notifyAssignmentUpdated,
   notifyBroadcast,
+  notifyIncidentCancelled,
   notifyIncidentClosed,
   notifyIncidentCreated,
+  notifyVacationCancelled,
   notifyVacationRequested,
 } from "./notify-events";
 
@@ -57,6 +62,39 @@ describe("fachada de eventos", () => {
     expect(dispatch).toHaveBeenCalledWith(
       NOTIFICATION_TYPES.INCIDENT_CLOSED,
       expect.objectContaining({ recipients: ["rep-1", "ops-1"] }),
+    );
+  });
+
+  it("la cancelación lleva reportante + FSRs + operación con su entidad", async () => {
+    await notifyIncidentCancelled(
+      7,
+      { title: "Bomba", reporterId: "rep-1", clientId: "c9" },
+      "actor",
+    );
+
+    expect(operationsAudience).toHaveBeenCalledWith("c9");
+    expect(dispatch).toHaveBeenCalledWith(
+      NOTIFICATION_TYPES.INCIDENT_CANCELLED,
+      expect.objectContaining({
+        recipients: ["rep-1", "ops-1"],
+        actorId: "actor",
+        ctx: { incidentId: 7, incidentTitle: "Bomba" },
+        entity: { type: "incident", id: "7" },
+      }),
+    );
+  });
+
+  it("la cancelación de vacaciones entrega a los destinatarios resueltos con su entidad", async () => {
+    await notifyVacationCancelled("v1", "Ana", ["appr-1"], "actor");
+
+    expect(dispatch).toHaveBeenCalledWith(
+      NOTIFICATION_TYPES.VACATION_CANCELLED,
+      expect.objectContaining({
+        recipients: ["appr-1"],
+        actorId: "actor",
+        ctx: { vacationId: "v1", requesterName: "Ana" },
+        entity: { type: "vacation", id: "v1" },
+      }),
     );
   });
 

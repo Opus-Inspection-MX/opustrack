@@ -1,3 +1,6 @@
+import { prisma } from "@/lib/database/prisma.singleton";
+import { logger } from "@/lib/observability/logger";
+import { INCIDENT_STATE } from "@/lib/state-machine/incident-machine";
 import { getVacationApprovers, operationsAudience } from "./audiences";
 import { dispatch } from "./dispatch";
 import { ENTITY_TYPES, NOTIFICATION_TYPES } from "./notification-types";
@@ -128,7 +131,8 @@ export async function notifyIncidentUpdated(
 
 /**
  * RF-467: Fires ONLY when the incident transitions to CERRADO (auto-close gate).
- * Recipients: reporter + the operations audience of the incident's Client.
+ * Recipients: reporter + the operations audience of the incident's Client +
+ * the FSRs enabled on the incident, actor excluded.
  */
 export async function notifyIncidentClosed(
   incidentId: number,
@@ -137,9 +141,16 @@ export async function notifyIncidentClosed(
   actorId: string,
   clientId: string | null | undefined,
 ): Promise<void> {
-  const adminIds = await operationsAudience(clientId);
+  const [adminIds, fsrIds] = await Promise.all([
+    operationsAudience(clientId),
+    activeIncidentFsrIds(incidentId),
+  ]);
   await dispatch(NOTIFICATION_TYPES.INCIDENT_CLOSED, {
-    recipients: [...(reporterIdOrNull ? [reporterIdOrNull] : []), ...adminIds],
+    recipients: [
+      ...(reporterIdOrNull ? [reporterIdOrNull] : []),
+      ...fsrIds,
+      ...adminIds,
+    ],
     actorId,
     ctx: { incidentId, incidentTitle },
     entity: { type: ENTITY_TYPES.INCIDENT, id: String(incidentId) },
@@ -162,6 +173,175 @@ export async function notifyIncidentAssigned(
     ctx: { incidentId, incidentTitle },
     entity: { type: ENTITY_TYPES.INCIDENT, id: String(incidentId) },
   });
+}
+
+// ---------------------------------------------------------------------------
+// Incident phase transitions (Phase 3: the after-commit collector records
+// them in `syncIncidentState`, and the mapper below routes each transition
+// to its event; regressions that are not a reopen stay silent).
+// ---------------------------------------------------------------------------
+
+/** Incident context captured at transition time for the deferred dispatch. */
+export interface IncidentTransitionSnapshot {
+  title: string | null | undefined;
+  reporterId: string | null | undefined;
+  clientId: string | null | undefined;
+}
+
+/** FSRs enabled on the incident. Fail closed, like every other audience. */
+async function activeIncidentFsrIds(incidentId: number): Promise<string[]> {
+  try {
+    const rows = await prisma.incidentAssignee.findMany({
+      where: { incidentId, active: true },
+      select: { userId: true },
+    });
+    return rows.map((r) => r.userId);
+  } catch (error) {
+    logger.error("[notify-events] Error resolving incident FSRs:", error);
+    return [];
+  }
+}
+
+const PHASE_EVENT = {
+  [INCIDENT_STATE.ASIGNADO]: NOTIFICATION_TYPES.INCIDENT_PHASE_ASIGNADO,
+  [INCIDENT_STATE.VISTO]: NOTIFICATION_TYPES.INCIDENT_PHASE_VISTO,
+  [INCIDENT_STATE.INICIADO]: NOTIFICATION_TYPES.INCIDENT_PHASE_INICIADO,
+  [INCIDENT_STATE.EN_PROGRESO]:
+    NOTIFICATION_TYPES.INCIDENT_PHASE_EN_PROGRESO,
+} as const;
+
+/** Rank for forward-progress comparison. CANCELADA never flows through here. */
+const PHASE_RANK: Record<string, number> = {
+  [INCIDENT_STATE.ABIERTO]: 0,
+  [INCIDENT_STATE.ASIGNADO]: 1,
+  [INCIDENT_STATE.VISTO]: 2,
+  [INCIDENT_STATE.INICIADO]: 3,
+  [INCIDENT_STATE.EN_PROGRESO]: 4,
+  [INCIDENT_STATE.CERRADO]: 5,
+};
+
+/**
+ * Forward phase step (ASIGNADO / VISTO / INICIADO / EN_PROGRESO).
+ * Recipients: whoever reported it + the operations audience, actor excluded.
+ */
+export async function notifyIncidentPhase(
+  incidentId: number,
+  phase: keyof typeof PHASE_EVENT,
+  snapshot: IncidentTransitionSnapshot,
+  actorId: string,
+): Promise<void> {
+  const adminIds = await operationsAudience(snapshot.clientId);
+  await dispatch(PHASE_EVENT[phase], {
+    recipients: [
+      ...(snapshot.reporterId ? [snapshot.reporterId] : []),
+      ...adminIds,
+    ],
+    actorId,
+    ctx: { incidentId, incidentTitle: snapshot.title },
+    entity: { type: ENTITY_TYPES.INCIDENT, id: String(incidentId) },
+  });
+}
+
+/**
+ * Fires on CERRADO → EN_PROGRESO (any other exit from CERRADO too).
+ * Recipients: reporter + operations + the assigned FSRs, actor excluded.
+ */
+export async function notifyIncidentReopened(
+  incidentId: number,
+  snapshot: IncidentTransitionSnapshot,
+  actorId: string,
+): Promise<void> {
+  const [adminIds, fsrIds] = await Promise.all([
+    operationsAudience(snapshot.clientId),
+    activeIncidentFsrIds(incidentId),
+  ]);
+  await dispatch(NOTIFICATION_TYPES.INCIDENT_REOPENED, {
+    recipients: [
+      ...(snapshot.reporterId ? [snapshot.reporterId] : []),
+      ...fsrIds,
+      ...adminIds,
+    ],
+    actorId,
+    ctx: { incidentId, incidentTitle: snapshot.title },
+    entity: { type: ENTITY_TYPES.INCIDENT, id: String(incidentId) },
+  });
+}
+
+/**
+ * Fires from `cancelIncident()`. CANCELADA is terminal and set directly, so
+ * it never flows through `syncIncidentState` — this is called post-commit.
+ * Recipients: reporter + assigned FSRs + operations, actor excluded.
+ */
+export async function notifyIncidentCancelled(
+  incidentId: number,
+  snapshot: IncidentTransitionSnapshot,
+  actorId: string,
+): Promise<void> {
+  const [adminIds, fsrIds] = await Promise.all([
+    operationsAudience(snapshot.clientId),
+    activeIncidentFsrIds(incidentId),
+  ]);
+  await dispatch(NOTIFICATION_TYPES.INCIDENT_CANCELLED, {
+    recipients: [
+      ...(snapshot.reporterId ? [snapshot.reporterId] : []),
+      ...fsrIds,
+      ...adminIds,
+    ],
+    actorId,
+    ctx: { incidentId, incidentTitle: snapshot.title },
+    entity: { type: ENTITY_TYPES.INCIDENT, id: String(incidentId) },
+  });
+}
+
+/**
+ * Route one incident transition to its event.
+ *
+ * - Forward phase step → `incident_phase_*` (reporter + operations).
+ * - Any step into CERRADO → `incident_closed` (reporter + operations + FSRs).
+ * - Any exit from CERRADO → `incident_reopened` (reporter + operations + FSRs).
+ * - Anything else (same-state, regressions like ASIGNADO → ABIERTO,
+ *   CANCELADA) stays silent. `incident_updated` keeps its own caller.
+ *
+ * Never throws: a notification failure must not roll back the sync behind it.
+ */
+export async function notifyIncidentTransition(
+  incidentId: number,
+  before: string | null,
+  after: string | null,
+  actorId: string,
+  snapshot: IncidentTransitionSnapshot,
+): Promise<void> {
+  try {
+    if (!before || !after || before === after) return;
+    if (after === INCIDENT_STATE.CANCELADA) return;
+    if (
+      before === INCIDENT_STATE.CERRADO &&
+      after !== INCIDENT_STATE.CERRADO
+    ) {
+      await notifyIncidentReopened(incidentId, snapshot, actorId);
+      return;
+    }
+    if (after === INCIDENT_STATE.CERRADO) {
+      await notifyIncidentClosed(
+        incidentId,
+        snapshot.title,
+        snapshot.reporterId,
+        actorId,
+        snapshot.clientId,
+      );
+      return;
+    }
+    if (!(after in PHASE_EVENT)) return;
+    if ((PHASE_RANK[after] ?? -1) <= (PHASE_RANK[before] ?? -1)) return;
+    await notifyIncidentPhase(
+      incidentId,
+      after as keyof typeof PHASE_EVENT,
+      snapshot,
+      actorId,
+    );
+  } catch (error) {
+    logger.error("[notify-events] Error notifying incident transition:", error);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -216,6 +396,28 @@ export async function notifyVacationRejected(
     recipients: [requesterId],
     actorId,
     ctx: { vacationId },
+    entity: { type: ENTITY_TYPES.VACATION, id: vacationId },
+  });
+}
+
+/**
+ * Fires from `deleteVacation` (soft-delete).
+ *
+ * The audience depends on who cancels: the requester cancelling their own
+ * request notifies the approvers (`vacations:approve`); an admin cancelling
+ * someone else's notifies the requester. The caller resolves the audience —
+ * this only delivers. `requesterName` feeds the approver-facing copy.
+ */
+export async function notifyVacationCancelled(
+  vacationId: string,
+  requesterName: string | null | undefined,
+  recipientIds: string[],
+  actorId: string,
+): Promise<void> {
+  await dispatch(NOTIFICATION_TYPES.VACATION_CANCELLED, {
+    recipients: recipientIds,
+    actorId,
+    ctx: { vacationId, requesterName },
     entity: { type: ENTITY_TYPES.VACATION, id: vacationId },
   });
 }
