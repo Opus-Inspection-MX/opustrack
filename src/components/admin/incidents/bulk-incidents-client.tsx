@@ -30,7 +30,7 @@ import {
   createIncidentsFromPreview,
   type EditablePreviewRow,
   resolveBulkIncidentRows,
-} from "@/lib/actions/incidents";
+} from "@/lib/actions/incidents-bulk";
 import {
   excelDateCell,
   excelDateToWallClock,

@@ -4,56 +4,41 @@ import type { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requirePermission } from "@/lib/auth/auth";
+import { assertClienteAccessAsync } from "@/lib/auth/filters";
 import {
-  assertClienteAccess,
-  canAccessCliente,
-  getClienteWhereClause,
-} from "@/lib/auth/filters";
+  getReportScope,
+  incidentScopeWhere,
+  scheduleScopeWhere,
+} from "@/lib/auth/report-scope";
 import {
   includeRoles,
   roleNamesOf,
   whereHasRole,
 } from "@/lib/authz/user-queries";
-import { FALLBACK_INCIDENT_TYPE_NAME } from "@/lib/constants/incident-type";
 import { prisma } from "@/lib/database/prisma.singleton";
+import {
+  resolveTypeIdOrFallback,
+  syncIncidentAssignees,
+} from "@/lib/incidents/shared";
 import {
   notifyIncidentCreated,
   notifyIncidentUpdated,
 } from "@/lib/notifications";
 import { INCIDENT_STATE, syncIncidentState } from "@/lib/state-machine";
 import { getPrimaryClienteId } from "@/lib/utils/cliente-assignments";
-import { parseMxDateTime } from "@/lib/utils/datetime";
 import {
-  BulkIncidentSnapshotRowSchema,
   IncidentClientCreateSchema,
   type IncidentCreateInput,
   IncidentCreateSchema,
-  parseAssigneeIds,
+  IncidentUpdateSchema,
 } from "@/lib/validations/incidents";
-import { type ActionResult, businessRule, guarded } from "./result";
+import { type ActionResult, businessRule, guarded, ok } from "./result";
 
 // Keep legacy type for backward compatibility with existing forms
 export type IncidentFormData = IncidentCreateInput;
 
-/**
- * Resolve `typeId` ensuring there is always a non-null value. Falls back to
- * the system `Desconocido` type so incidents always satisfy `typeId NOT NULL`.
- */
-async function resolveTypeIdOrFallback(
-  typeId: number | null | undefined,
-): Promise<number> {
-  if (typeId) return typeId;
-  const fallback = await prisma.incidentType.findUnique({
-    where: { name: FALLBACK_INCIDENT_TYPE_NAME },
-    select: { id: true },
-  });
-  if (!fallback) {
-    throw new Error(
-      `Falta el tipo de incidente "${FALLBACK_INCIDENT_TYPE_NAME}" en el catálogo. Corre el seed.`,
-    );
-  }
-  return fallback.id;
-}
+// Row reconciliation lives in `lib/incidents/shared.ts` (shared with the
+// bulk subsystem in `incidents-bulk.ts`).
 
 type GetIncidentsParams = {
   page?: number;
@@ -67,7 +52,8 @@ type GetIncidentsParams = {
  */
 export async function getIncidents(params?: GetIncidentsParams) {
   const user = await requirePermission("incidents:read");
-  const clienteFilter = getClienteWhereClause(user);
+  const scope = await getReportScope(user);
+  const clienteFilter = incidentScopeWhere(scope);
 
   const page = params?.page ?? 1;
   const limit = params?.limit ?? 10;
@@ -229,7 +215,7 @@ export async function getIncidentById(id: number) {
   }
 
   // Verify user has access to this incident's Cliente
-  assertClienteAccess(user, incident.clienteId);
+  await assertClienteAccessAsync(user, incident.clienteId);
 
   return incident;
 }
@@ -292,13 +278,9 @@ export async function createIncident(data: unknown) {
       // Give the pre-selected FSRs a real Assignment they can see, and
       // notify them — otherwise they're only "enabled" with no visible work.
       const { ensureFsrsAssignedToIncident } = await import(
-        "@/lib/actions/assignments"
+        "@/lib/assignments/ensure-fsrs"
       );
-      await ensureFsrsAssignedToIncident(
-        incident.id,
-        validated.assigneeIds,
-        user.id,
-      );
+      await ensureFsrsAssignedToIncident(incident.id, validated.assigneeIds);
     }
 
     // POST-tx: notify admins of new incident (RF-465). Never throws.
@@ -417,64 +399,12 @@ export async function getClientIncidents() {
  * Update existing incident
  * Verifies user has access to the incident's Cliente before updating
  */
-/**
- * Reconcile the active set of IncidentAssignee rows for an incident.
- * Throws if removing an FSR that is currently active on an Assignment of
- * this incident (would orphan the work order).
- */
-async function syncIncidentAssignees(
-  incidentId: number,
-  desiredIds: string[],
-): Promise<{ toAdd: string[] }> {
-  const desired = new Set(desiredIds);
-  const current = await prisma.incidentAssignee.findMany({
-    where: { incidentId, active: true },
-    select: { userId: true },
-  });
-  const currentSet = new Set(current.map((c) => c.userId));
-
-  const toRemove = [...currentSet].filter((u) => !desired.has(u));
-  const toAdd = [...desired].filter((u) => !currentSet.has(u));
-
-  if (toRemove.length) {
-    const inUse = await prisma.assignmentAssignee.findMany({
-      where: {
-        userId: { in: toRemove },
-        active: true,
-        assignment: { incidentId, active: true },
-      },
-      select: { userId: true },
-    });
-    if (inUse.length) {
-      const blocked = [...new Set(inUse.map((a) => a.userId))];
-      businessRule(
-        `No se puede retirar a FSR(s) asignado(s) a una asignación activa: ${blocked.join(", ")}`,
-      );
-    }
-    await prisma.incidentAssignee.updateMany({
-      where: { incidentId, userId: { in: toRemove }, active: true },
-      data: { active: false },
-    });
-  }
-
-  if (toAdd.length) {
-    await prisma.incidentAssignee.createMany({
-      data: toAdd.map((userId) => ({ incidentId, userId })),
-      skipDuplicates: true,
-    });
-    await prisma.incidentAssignee.updateMany({
-      where: { incidentId, userId: { in: toAdd } },
-      data: { active: true },
-    });
-  }
-
-  return { toAdd };
-}
-
 export async function updateIncident(id: number, data: IncidentFormData) {
   const user = await requirePermission("incidents:update");
 
   return guarded(async () => {
+    // The action takes `id` separately, so the schema's `id` is omitted.
+    IncidentUpdateSchema.omit({ id: true }).parse(data);
     // Verify access before update
     const existing = await prisma.incident.findUnique({
       where: { id },
@@ -485,7 +415,7 @@ export async function updateIncident(id: number, data: IncidentFormData) {
       throw new Error("Incident not found");
     }
 
-    assertClienteAccess(user, existing.clienteId);
+    await assertClienteAccessAsync(user, existing.clienteId);
 
     // typeId NOT NULL en BD. Si el caller intenta poner null/undefined, fallback.
     const typeId = data.typeId
@@ -534,9 +464,9 @@ export async function updateIncident(id: number, data: IncidentFormData) {
     }
     if (toAdd.length > 0) {
       const { ensureFsrsAssignedToIncident } = await import(
-        "@/lib/actions/assignments"
+        "@/lib/assignments/ensure-fsrs"
       );
-      await ensureFsrsAssignedToIncident(id, toAdd, user.id);
+      await ensureFsrsAssignedToIncident(id, toAdd);
     }
 
     revalidatePath("/admin/incidents");
@@ -564,7 +494,7 @@ export async function updateIncidentFsrs(
     if (!incident) {
       throw new Error("Incidente no encontrado");
     }
-    assertClienteAccess(user, incident.clienteId);
+    await assertClienteAccessAsync(user, incident.clienteId);
 
     // Validate every FSR exists, is an FSR, and is accessible.
     if (fsrIds.length) {
@@ -588,9 +518,9 @@ export async function updateIncidentFsrs(
     // notification but no visible work.
     if (toAdd.length > 0) {
       const { ensureFsrsAssignedToIncident } = await import(
-        "@/lib/actions/assignments"
+        "@/lib/assignments/ensure-fsrs"
       );
-      await ensureFsrsAssignedToIncident(incidentId, toAdd, user.id);
+      await ensureFsrsAssignedToIncident(incidentId, toAdd);
     }
 
     revalidatePath("/admin/incidents");
@@ -633,7 +563,7 @@ export async function updateIncidentScheduledDate(
     if (!incident) {
       throw new Error("Incidente no encontrado");
     }
-    assertClienteAccess(user, incident.clienteId);
+    await assertClienteAccessAsync(user, incident.clienteId);
 
     if (incident.scheduleId) {
       await prisma.schedule.update({
@@ -678,7 +608,7 @@ export async function updateIncidentType(
     if (!incident) {
       throw new Error("Incidente no encontrado");
     }
-    assertClienteAccess(user, incident.clienteId);
+    await assertClienteAccessAsync(user, incident.clienteId);
 
     const type = await prisma.incidentType.findFirst({
       where: { id: typeId, active: true },
@@ -719,7 +649,7 @@ export async function deleteIncident(id: number) {
       throw new Error("Incident not found");
     }
 
-    assertClienteAccess(user, incident.clienteId);
+    await assertClienteAccessAsync(user, incident.clienteId);
 
     // Use transaction to prevent race conditions when checking for children
     await prisma.$transaction(async (tx) => {
@@ -759,7 +689,7 @@ export async function refreshIncidentStatus(id: number) {
   if (!incident) {
     throw new Error("Incident not found");
   }
-  assertClienteAccess(user, incident.clienteId);
+  await assertClienteAccessAsync(user, incident.clienteId);
 
   const result = await syncIncidentState(id);
 
@@ -767,7 +697,7 @@ export async function refreshIncidentStatus(id: number) {
   revalidatePath(`/admin/incidents/${id}`);
   revalidatePath("/fsr/incidents");
   revalidatePath("/client/incidents");
-  return { success: true, before: result.before, after: result.after };
+  return ok({ before: result.before, after: result.after });
 }
 
 /**
@@ -785,7 +715,7 @@ export async function closeIncident(id: number) {
     if (!incident) {
       throw new Error("Incident not found");
     }
-    assertClienteAccess(user, incident.clienteId);
+    await assertClienteAccessAsync(user, incident.clienteId);
 
     const result = await syncIncidentState(id);
     if (result.after !== INCIDENT_STATE.CERRADO) {
@@ -833,72 +763,21 @@ export async function getFsrsForAssignment() {
   }));
 }
 
-export async function getFSRUsers() {
-  const user = await requirePermission("incidents:assign");
-  const clienteFilter = getClienteWhereClause(user);
-
-  const fsrUsers = await prisma.user.findMany({
-    where: {
-      ...whereHasRole("FSR"),
-      active: true,
-      ...clienteFilter, // Only FSRs from same Cliente
-    },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      cliente: {
-        select: {
-          id: true,
-          name: true,
-        },
-      },
-    },
-    orderBy: { name: "asc" },
-  });
-
-  return fsrUsers;
-}
-
 /**
  * Get form options for incidents
  * Clientes and schedules filtered by user's Cliente (except ADMINISTRADOR)
  */
 export async function getIncidentFormOptions() {
   const user = await requirePermission("incidents:read");
-  const clienteFilter = getClienteWhereClause(user);
+  const scope = await getReportScope(user);
 
-  // Filter schedules by Clientes the user can access (M:N relationship).
-  // Schedules without any active Clientes are considered global and always shown.
-  const isNullFilter =
-    clienteFilter.clienteId &&
-    typeof clienteFilter.clienteId === "object" &&
-    "equals" in clienteFilter.clienteId &&
-    clienteFilter.clienteId.equals === null;
-  const scheduleWhere = isNullFilter
-    ? {
-        active: true,
-        // User has no accessible Cliente: show only clienteless (global) schedules.
-        clientes: { none: { active: true } },
-      }
-    : {
-        active: true,
-        ...(clienteFilter.clienteId &&
-        typeof clienteFilter.clienteId === "string"
-          ? {
-              // Include schedules linked to this specific Cliente OR global schedules
-              // (no active Cliente links) so that client-less schedules are always shown.
-              OR: [
-                {
-                  clientes: {
-                    some: { clienteId: clienteFilter.clienteId, active: true },
-                  },
-                },
-                { clientes: { none: { active: true } } },
-              ],
-            }
-          : {}),
-      };
+  // Schedules linked to the caller's Clientes, plus global ones (no active
+  // Cliente links) which are always shown. A fail-closed scope (no Clientes)
+  // matches nothing.
+  const scheduleWhere: Prisma.ScheduleWhereInput = {
+    active: true,
+    ...scheduleScopeWhere(scope),
+  };
 
   const [types, statuses, clientes, users, schedules] = await Promise.all([
     prisma.incidentType.findMany({
@@ -912,7 +791,7 @@ export async function getIncidentFormOptions() {
     prisma.cliente.findMany({
       where: {
         active: true,
-        ...clienteFilter,
+        ...(scope.clienteIds === null ? {} : { id: { in: scope.clienteIds } }),
       },
       orderBy: { name: "asc" },
     }),
@@ -948,934 +827,6 @@ export async function getIncidentFormOptions() {
   }));
 
   return { types, statuses, clientes, users: usersWithClienteIds, schedules };
-}
-
-/**
- * Catalogs needed to fill the bulk-incident CSV.
- * Filters by user's Cliente access (admin sees all).
- */
-export async function getBulkIncidentCatalogs() {
-  const user = await requirePermission("incidents:create");
-  const clienteFilter = getClienteWhereClause(user);
-
-  const isNullFilter =
-    clienteFilter.clienteId &&
-    typeof clienteFilter.clienteId === "object" &&
-    "equals" in clienteFilter.clienteId &&
-    clienteFilter.clienteId.equals === null;
-  // Schedules without any active Clientes are considered global and always shown.
-  const scheduleWhere = isNullFilter
-    ? {
-        active: true,
-        // User has no accessible Cliente: show only clienteless (global) schedules.
-        clientes: { none: { active: true } },
-      }
-    : {
-        active: true,
-        ...(clienteFilter.clienteId &&
-        typeof clienteFilter.clienteId === "string"
-          ? {
-              // Include schedules linked to this specific Cliente OR global schedules
-              // (no active Cliente links) so that client-less schedules are always shown.
-              OR: [
-                {
-                  clientes: {
-                    some: { clienteId: clienteFilter.clienteId, active: true },
-                  },
-                },
-                { clientes: { none: { active: true } } },
-              ],
-            }
-          : {}),
-      };
-
-  const [types, statuses, clientes, schedules, fsrs] = await Promise.all([
-    prisma.incidentType.findMany({
-      where: { active: true },
-      orderBy: { name: "asc" },
-      select: { id: true, name: true },
-    }),
-    prisma.incidentStatus.findMany({
-      where: { active: true },
-      orderBy: { name: "asc" },
-      select: { id: true, name: true, color: true },
-    }),
-    prisma.cliente.findMany({
-      where: { active: true, ...clienteFilter },
-      orderBy: { name: "asc" },
-      select: { id: true, name: true, code: true },
-    }),
-    prisma.schedule.findMany({
-      where: scheduleWhere,
-      orderBy: { scheduledAt: "desc" },
-      take: 50,
-      select: {
-        id: true,
-        title: true,
-        scheduledAt: true,
-        endDate: true,
-        clientes: {
-          where: { active: true },
-          select: { clienteId: true },
-        },
-      },
-    }),
-    prisma.user.findMany({
-      where: { active: true, ...whereHasRole("FSR") },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        clienteAssignments: {
-          where: { active: true },
-          select: { clienteId: true },
-        },
-      },
-      orderBy: { name: "asc" },
-    }),
-  ]);
-
-  const fsrUsers = fsrs.map((f) => ({
-    id: f.id,
-    name: f.name,
-    email: f.email,
-    clienteIds: f.clienteAssignments.map((va) => va.clienteId),
-  }));
-
-  const schedulesWithClienteIds = schedules.map((s) => ({
-    id: s.id,
-    title: s.title,
-    scheduledAt: s.scheduledAt,
-    endDate: s.endDate,
-    clienteIds: s.clientes.map((v) => v.clienteId),
-  }));
-
-  return {
-    types,
-    statuses,
-    clientes,
-    schedules: schedulesWithClienteIds,
-    fsrs: fsrUsers,
-  };
-}
-
-export type BulkIncidentError = {
-  row: number;
-  field?: string;
-  message: string;
-};
-
-export type BulkIncidentResult =
-  | { ok: true; created: number }
-  | { ok: false; errors: BulkIncidentError[] };
-
-const MAX_BULK_ROWS = 500;
-
-/**
- * One row in the editable preview UI. Dates are ISO strings to survive the
- * client/server boundary cleanly. FK references carry both the raw text from
- * the CSV (for display when unresolved) and the resolved id (when found).
- */
-export type EditablePreviewRow = {
-  rowNumber: number;
-  title: string;
-  description: string;
-  startedAt: string | null;
-  resolvedAt: string | null;
-  clienteId: string | null;
-  clienteCodeRaw: string | null;
-  clienteResolved: boolean;
-  typeId: number | null;
-  typeNameRaw: string | null;
-  typeResolved: boolean;
-  assigneeIds: string[];
-  fieldErrors: Record<string, string>;
-  warnings?: Record<string, string>;
-};
-
-/**
- * Accent-fold + lowercase a string for forgiving lookup.
- * "Cénac" → "cenac", "Mantenimiento" → "mantenimiento".
- */
-function normalizeForMatch(s: string): string {
-  return s
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "") // strip accents
-    .toLowerCase()
-    .replace(/\s*\/\s*/g, "/") // normalize spacing around "/"
-    .replace(/\s+/g, " ") // collapse repeated whitespace
-    .trim();
-}
-
-export type ResolveBulkResult =
-  | { ok: true; rows: EditablePreviewRow[] }
-  | { ok: false; errors: BulkIncidentError[] };
-
-function toIsoOrNull(d: Date | undefined | null): string | null {
-  if (!d) return null;
-  return d.toISOString();
-}
-
-/**
- * Validate + resolve raw CSV rows into editable preview rows.
- * Accepts either the legible "template" format (Spanish headers, cliente code, type name)
- * or the machine "snapshot" format (English headers, IDs). Does NOT write to DB.
- */
-export async function resolveBulkIncidentRows(
-  rawRows: unknown[],
-  scheduleId: string | null,
-  mode: "template" | "snapshot",
-): Promise<ResolveBulkResult> {
-  const user = await requirePermission("incidents:create");
-
-  if (!Array.isArray(rawRows) || rawRows.length === 0) {
-    return {
-      ok: false,
-      errors: [{ row: 0, message: "No hay filas para procesar" }],
-    };
-  }
-  if (rawRows.length > MAX_BULK_ROWS) {
-    return {
-      ok: false,
-      errors: [
-        {
-          row: 0,
-          message: `Máximo ${MAX_BULK_ROWS} filas por carga (recibidas: ${rawRows.length})`,
-        },
-      ],
-    };
-  }
-
-  // Validate schedule access early. Caller must have access to at least one
-  // of the schedule's Clientes.
-  if (scheduleId) {
-    const sched = await prisma.schedule.findFirst({
-      where: { id: scheduleId, active: true },
-      select: {
-        id: true,
-        clientes: {
-          where: { active: true },
-          select: { clienteId: true },
-        },
-      },
-    });
-    if (!sched) {
-      return {
-        ok: false,
-        errors: [
-          {
-            row: 0,
-            message: `Programación ${scheduleId} no existe o está inactiva`,
-          },
-        ],
-      };
-    }
-    const accessible = sched.clientes.some((v) =>
-      canAccessCliente(user, v.clienteId),
-    );
-    if (!accessible) {
-      return {
-        ok: false,
-        errors: [
-          { row: 0, message: "Sin acceso a la programación seleccionada" },
-        ],
-      };
-    }
-  }
-
-  // Catalogs for resolution.
-  const [allTypes, allClientes, allFsrs] = await Promise.all([
-    prisma.incidentType.findMany({
-      where: { active: true },
-      select: { id: true, name: true },
-    }),
-    prisma.cliente.findMany({
-      where: { active: true, ...getClienteWhereClause(user) },
-      select: { id: true, code: true },
-    }),
-    prisma.user.findMany({
-      where: { active: true, ...whereHasRole("FSR") },
-      select: { id: true },
-    }),
-  ]);
-
-  const typesByName = new Map(
-    allTypes.map((t) => [normalizeForMatch(t.name), t.id] as const),
-  );
-  const typesById = new Map(allTypes.map((t) => [t.id, t.name] as const));
-  const clientesByCode = new Map(
-    allClientes.map((v) => [normalizeForMatch(v.code), v.id] as const),
-  );
-  const clientesById = new Set(allClientes.map((v) => v.id));
-  const validFsrIds = new Set(allFsrs.map((u) => u.id));
-
-  const errors: BulkIncidentError[] = [];
-  const resolved: EditablePreviewRow[] = [];
-
-  rawRows.forEach((raw, idx) => {
-    const rowNumber = idx + 2;
-    const fieldErrors: Record<string, string> = {};
-    const warnings: Record<string, string> = {};
-
-    if (mode === "template") {
-      // Tolerant per-field parsing: invalid/missing values do NOT discard the
-      // row. They land in the preview marked with fieldErrors so the user can
-      // fix them inline before saving.
-      const obj = (raw ?? {}) as Record<string, unknown>;
-      const getStr = (k: string): string => {
-        const v = obj[k];
-        return v == null ? "" : String(v).trim();
-      };
-
-      const title = getStr("titulo");
-      const description = getStr("descripcion");
-      const tipoRaw = getStr("tipo");
-      const fechaInicioRaw = getStr("fecha_inicio");
-      const clienteRaw = getStr("cliente");
-
-      // Skip rows that look completely empty (typical trailing rows in Excel).
-      if (
-        title === "" &&
-        description === "" &&
-        tipoRaw === "" &&
-        fechaInicioRaw === "" &&
-        clienteRaw === ""
-      ) {
-        return;
-      }
-
-      if (title.length < 3) {
-        fieldErrors.titulo = "Título debe tener al menos 3 caracteres";
-      }
-      if (description.length < 1) {
-        fieldErrors.descripcion = "Descripción es requerida";
-      }
-
-      let startedAt: Date | null = null;
-      if (fechaInicioRaw) {
-        const d = parseMxDateTime(fechaInicioRaw);
-        if (!d) {
-          fieldErrors.fecha_inicio = `Fecha inválida: "${fechaInicioRaw}"`;
-        } else {
-          startedAt = d;
-        }
-      }
-
-      const clienteCodeRaw = clienteRaw || null;
-      const clienteId = clienteCodeRaw
-        ? (clientesByCode.get(normalizeForMatch(clienteCodeRaw)) ?? null)
-        : null;
-      if (clienteCodeRaw && !clienteId) {
-        fieldErrors.cliente = `Cliente "${clienteCodeRaw}" no encontrado — selecciona uno`;
-      }
-
-      // tipo vacío es válido (fallback a "Desconocido"). Un tipo NO vacío que
-      // no existe en el catálogo es un ERROR visible: la fila no se puede
-      // guardar hasta que el usuario seleccione el tipo correcto en el preview.
-      const typeNameRaw = tipoRaw || null;
-      const typeId = typeNameRaw
-        ? (typesByName.get(normalizeForMatch(typeNameRaw)) ?? null)
-        : null;
-      const typeResolved = !typeNameRaw || typeId !== null;
-      if (typeNameRaw && !typeId) {
-        fieldErrors.tipo = `Tipo "${typeNameRaw}" no existe en el catálogo — selecciónalo`;
-      }
-
-      resolved.push({
-        rowNumber,
-        title,
-        description,
-        startedAt: toIsoOrNull(startedAt),
-        resolvedAt: null,
-        clienteId,
-        clienteCodeRaw,
-        clienteResolved: clienteId !== null,
-        typeId,
-        typeNameRaw,
-        typeResolved,
-        assigneeIds: [],
-        fieldErrors,
-        warnings: Object.keys(warnings).length > 0 ? warnings : undefined,
-      });
-      return;
-    }
-
-    // Snapshot mode — strict integrity check. Any per-field issue is
-    // collected in `errors` and the row is dropped from `resolved`. The
-    // caller short-circuits on first error so the user sees every problem
-    // before anything is loaded into the preview.
-    const parsed = BulkIncidentSnapshotRowSchema.safeParse(raw);
-    if (!parsed.success) {
-      for (const issue of parsed.error.issues) {
-        const field = issue.path.join(".") || "_row";
-        errors.push({ row: rowNumber, field, message: issue.message });
-      }
-      return;
-    }
-    const data = parsed.data;
-    let rowOk = true;
-    const clienteId = data.clienteId ?? null;
-    if (!clienteId) {
-      errors.push({
-        row: rowNumber,
-        field: "clienteId",
-        message: "clienteId requerido en snapshot",
-      });
-      rowOk = false;
-    } else if (!clientesById.has(clienteId)) {
-      errors.push({
-        row: rowNumber,
-        field: "clienteId",
-        message: `Cliente ${clienteId} no existe o no accesible`,
-      });
-      rowOk = false;
-    }
-    const typeId = data.typeId ?? null;
-    if (typeId !== null && !typesById.has(typeId)) {
-      errors.push({
-        row: rowNumber,
-        field: "typeId",
-        message: `Tipo ${typeId} no existe`,
-      });
-      rowOk = false;
-    }
-    const assigneeIds = parseAssigneeIds(data.assigneeIds);
-    for (const fsrId of assigneeIds) {
-      if (!validFsrIds.has(fsrId)) {
-        errors.push({
-          row: rowNumber,
-          field: "assigneeIds",
-          message: `FSR ${fsrId} no existe o sin rol FSR`,
-        });
-        rowOk = false;
-      }
-    }
-    if (data.startedAt && data.resolvedAt) {
-      if (data.resolvedAt.getTime() < data.startedAt.getTime()) {
-        errors.push({
-          row: rowNumber,
-          field: "resolvedAt",
-          message: "resolvedAt no puede ser anterior a startedAt",
-        });
-        rowOk = false;
-      }
-    }
-    if (rowOk) {
-      resolved.push({
-        rowNumber,
-        title: data.title,
-        description: data.description,
-        startedAt: toIsoOrNull(data.startedAt),
-        resolvedAt: toIsoOrNull(data.resolvedAt),
-        clienteId,
-        clienteCodeRaw: null,
-        clienteResolved: true,
-        typeId,
-        typeNameRaw: null,
-        typeResolved: true,
-        assigneeIds,
-        fieldErrors,
-      });
-    }
-  });
-
-  // Snapshot is strict: any error blocks the preview entirely.
-  if (mode === "snapshot" && errors.length > 0) {
-    return { ok: false, errors };
-  }
-  if (errors.length > 0 && resolved.length === 0) {
-    return { ok: false, errors };
-  }
-  return { ok: true, rows: resolved };
-}
-
-/**
- * Persist the edited preview rows. Each row is validated again server-side.
- * scheduleId comes from the page-level selector — applied to every row.
- * Rows with resolvedAt populated are created as CERRADO (historical import);
- * otherwise ABIERTO (state machine default).
- */
-export async function createIncidentsFromPreview(
-  rows: EditablePreviewRow[],
-  scheduleId: string | null,
-): Promise<BulkIncidentResult> {
-  const user = await requirePermission("incidents:create");
-
-  if (!Array.isArray(rows) || rows.length === 0) {
-    return {
-      ok: false,
-      errors: [{ row: 0, message: "No hay filas para guardar" }],
-    };
-  }
-  if (rows.length > MAX_BULK_ROWS) {
-    return {
-      ok: false,
-      errors: [
-        {
-          row: 0,
-          message: `Máximo ${MAX_BULK_ROWS} filas (recibidas: ${rows.length})`,
-        },
-      ],
-    };
-  }
-
-  // Resolve open/closed status IDs once.
-  const [openStatus, closedStatus] = await Promise.all([
-    prisma.incidentStatus.findUnique({
-      where: { name: INCIDENT_STATE.ABIERTO },
-      select: { id: true },
-    }),
-    prisma.incidentStatus.findUnique({
-      where: { name: INCIDENT_STATE.CERRADO },
-      select: { id: true },
-    }),
-  ]);
-  if (!openStatus || !closedStatus) {
-    return {
-      ok: false,
-      errors: [
-        {
-          row: 0,
-          message: "Estados ABIERTO/CERRADO no existen en el catálogo",
-        },
-      ],
-    };
-  }
-
-  // Validate schedule + collect its Clientes for per-row cross-check.
-  let scheduleClienteIds: Set<string> | null = null;
-  if (scheduleId) {
-    const sched = await prisma.schedule.findFirst({
-      where: { id: scheduleId, active: true },
-      select: {
-        id: true,
-        clientes: {
-          where: { active: true },
-          select: { clienteId: true },
-        },
-      },
-    });
-    if (!sched) {
-      return {
-        ok: false,
-        errors: [
-          {
-            row: 0,
-            message: `Programación ${scheduleId} no existe o está inactiva`,
-          },
-        ],
-      };
-    }
-    // A schedule without any active Clientes is considered global (no Cliente
-    // restriction). Only check access when there is at least one Client linked.
-    const hasClientes = sched.clientes.length > 0;
-    const accessible =
-      !hasClientes ||
-      sched.clientes.some((v) => canAccessCliente(user, v.clienteId));
-    if (!accessible) {
-      return {
-        ok: false,
-        errors: [
-          { row: 0, message: "Sin acceso a la programación seleccionada" },
-        ],
-      };
-    }
-    scheduleClienteIds = hasClientes
-      ? new Set(sched.clientes.map((v) => v.clienteId))
-      : null;
-  }
-
-  // Catalogs for re-validation.
-  const clienteIds = [
-    ...new Set(rows.map((r) => r.clienteId).filter((v): v is string => !!v)),
-  ];
-  const typeIds = [
-    ...new Set(
-      rows.map((r) => r.typeId).filter((v): v is number => v !== null),
-    ),
-  ];
-  const assigneeIds = [...new Set(rows.flatMap((r) => r.assigneeIds))];
-
-  const [clientesExisting, typesExisting, fsrsExisting] = await Promise.all([
-    clienteIds.length
-      ? prisma.cliente.findMany({
-          where: { id: { in: clienteIds }, active: true },
-          select: { id: true },
-        })
-      : Promise.resolve([]),
-    typeIds.length
-      ? prisma.incidentType.findMany({
-          where: { id: { in: typeIds }, active: true },
-          select: { id: true },
-        })
-      : Promise.resolve([]),
-    assigneeIds.length
-      ? prisma.user.findMany({
-          where: {
-            id: { in: assigneeIds },
-            active: true,
-            ...whereHasRole("FSR"),
-          },
-          select: { id: true },
-        })
-      : Promise.resolve([]),
-  ]);
-  const validClientes = new Set(clientesExisting.map((v) => v.id));
-  const validTypes = new Set(typesExisting.map((t) => t.id));
-  const validFsrs = new Set(fsrsExisting.map((u) => u.id));
-
-  const errors: BulkIncidentError[] = [];
-  rows.forEach((row) => {
-    if (row.title.trim().length < 3) {
-      errors.push({
-        row: row.rowNumber,
-        field: "title",
-        message: "Título debe tener al menos 3 caracteres",
-      });
-    }
-    if (row.description.trim().length < 1) {
-      errors.push({
-        row: row.rowNumber,
-        field: "description",
-        message: "Descripción es requerida",
-      });
-    }
-    if (!row.clienteId) {
-      errors.push({
-        row: row.rowNumber,
-        field: "clienteId",
-        message: "Selecciona un Cliente para esta fila",
-      });
-    } else if (!validClientes.has(row.clienteId)) {
-      errors.push({
-        row: row.rowNumber,
-        field: "clienteId",
-        message: `Cliente ${row.clienteId} no existe o inactivo`,
-      });
-    } else if (!canAccessCliente(user, row.clienteId)) {
-      errors.push({
-        row: row.rowNumber,
-        field: "clienteId",
-        message: "Sin acceso al Cliente seleccionado",
-      });
-    } else if (scheduleClienteIds && !scheduleClienteIds.has(row.clienteId)) {
-      errors.push({
-        row: row.rowNumber,
-        field: "clienteId",
-        message:
-          "El Cliente de esta fila no está incluido en los Clientes de la programación seleccionada",
-      });
-    }
-    if (row.typeId !== null && !validTypes.has(row.typeId)) {
-      errors.push({
-        row: row.rowNumber,
-        field: "typeId",
-        message: `Tipo ${row.typeId} no existe o inactivo`,
-      });
-    }
-    for (const fsrId of row.assigneeIds) {
-      if (!validFsrs.has(fsrId)) {
-        errors.push({
-          row: row.rowNumber,
-          field: "assigneeIds",
-          message: `FSR ${fsrId} no existe o sin rol FSR`,
-        });
-      }
-    }
-    if (row.startedAt && row.resolvedAt) {
-      const start = new Date(row.startedAt).getTime();
-      const end = new Date(row.resolvedAt).getTime();
-      if (Number.isFinite(start) && Number.isFinite(end) && end < start) {
-        errors.push({
-          row: row.rowNumber,
-          field: "resolvedAt",
-          message:
-            "Fecha de resolución no puede ser anterior a fecha de inicio",
-        });
-      }
-    }
-  });
-
-  if (errors.length > 0) {
-    return { ok: false, errors };
-  }
-
-  // Pre-resuelve el typeId fallback una sola vez para todas las filas sin tipo.
-  const fallbackTypeId = await resolveTypeIdOrFallback(null);
-
-  // Rows with pre-selected FSRs get a real Assignment after the transaction
-  // commits (see ensureFsrsAssignedToIncident) — skipped for historical
-  // resolvedAt/CERRADO rows, which shouldn't be reopened into ASIGNADO.
-  const pendingAssignments: Array<{
-    incidentId: number;
-    assigneeIds: string[];
-  }> = [];
-
-  await prisma.$transaction(async (tx) => {
-    for (const row of rows) {
-      const incident = await tx.incident.create({
-        data: {
-          title: row.title.trim(),
-          description: row.description.trim(),
-          typeId: row.typeId ?? fallbackTypeId,
-          statusId: row.resolvedAt ? closedStatus.id : openStatus.id,
-          clienteId: row.clienteId,
-          scheduleId,
-          reportedById: user.id,
-          startedAt: row.startedAt ? new Date(row.startedAt) : null,
-          resolvedAt: row.resolvedAt ? new Date(row.resolvedAt) : null,
-        },
-      });
-      if (row.assigneeIds.length > 0) {
-        await tx.incidentAssignee.createMany({
-          data: row.assigneeIds.map((userId) => ({
-            incidentId: incident.id,
-            userId,
-          })),
-          skipDuplicates: true,
-        });
-        if (!row.resolvedAt) {
-          pendingAssignments.push({
-            incidentId: incident.id,
-            assigneeIds: row.assigneeIds,
-          });
-        }
-      }
-    }
-  });
-
-  if (pendingAssignments.length > 0) {
-    const { ensureFsrsAssignedToIncident } = await import(
-      "@/lib/actions/assignments"
-    );
-    for (const { incidentId, assigneeIds } of pendingAssignments) {
-      await ensureFsrsAssignedToIncident(incidentId, assigneeIds, user.id);
-    }
-  }
-
-  revalidatePath("/admin/incidents");
-  revalidatePath("/client/incidents");
-  return { ok: true, created: rows.length };
-}
-
-export type BulkAssignChanges = {
-  /** undefined = no tocar; null = quitar la programación */
-  scheduleId?: string | null;
-  /** undefined = no tocar */
-  clienteId?: string;
-  /** undefined = no tocar */
-  fsrIds?: { ids: string[]; mode: "replace" | "append" };
-};
-
-export type BulkAssignResult =
-  | { ok: true; updated: number }
-  | {
-      ok: false;
-      errors: Array<{ incidentId: number; message: string }>;
-    };
-
-/**
- * Bulk-update a set of incidents in one call. Each change field is optional;
- * pass only what you want to modify. Validates everything per-row and rejects
- * the whole batch (transaction) if any row fails.
- */
-export async function bulkAssignIncidents(
-  incidentIds: number[],
-  changes: BulkAssignChanges,
-): Promise<BulkAssignResult> {
-  const user = await requirePermission("incidents:update");
-
-  if (!Array.isArray(incidentIds) || incidentIds.length === 0) {
-    return {
-      ok: false,
-      errors: [{ incidentId: 0, message: "No hay incidentes seleccionados" }],
-    };
-  }
-  if (
-    changes.scheduleId === undefined &&
-    changes.clienteId === undefined &&
-    changes.fsrIds === undefined
-  ) {
-    return {
-      ok: false,
-      errors: [{ incidentId: 0, message: "Nada que modificar" }],
-    };
-  }
-
-  const incidents = await prisma.incident.findMany({
-    where: { id: { in: incidentIds }, active: true },
-    select: { id: true, clienteId: true },
-  });
-  const found = new Set(incidents.map((i) => i.id));
-  const errors: Array<{ incidentId: number; message: string }> = [];
-
-  for (const id of incidentIds) {
-    if (!found.has(id)) {
-      errors.push({ incidentId: id, message: "Incidente no encontrado" });
-    }
-  }
-
-  // Per-incident access check based on current Cliente.
-  for (const inc of incidents) {
-    if (!canAccessCliente(user, inc.clienteId)) {
-      errors.push({
-        incidentId: inc.id,
-        message: "Sin acceso al Cliente actual del incidente",
-      });
-    }
-  }
-
-  // Validate target Cliente (single value, applies to all selected).
-  if (changes.clienteId !== undefined) {
-    const targetCliente = await prisma.cliente.findFirst({
-      where: { id: changes.clienteId, active: true },
-      select: { id: true },
-    });
-    if (!targetCliente) {
-      return {
-        ok: false,
-        errors: [
-          { incidentId: 0, message: `Cliente ${changes.clienteId} no existe` },
-        ],
-      };
-    }
-    if (!canAccessCliente(user, changes.clienteId)) {
-      return {
-        ok: false,
-        errors: [{ incidentId: 0, message: "Sin acceso al Cliente destino" }],
-      };
-    }
-  }
-
-  // Validate target schedule and its Clientes.
-  let scheduleClienteIds: Set<string> | null = null;
-  if (changes.scheduleId !== undefined && changes.scheduleId !== null) {
-    const sched = await prisma.schedule.findFirst({
-      where: { id: changes.scheduleId, active: true },
-      select: {
-        id: true,
-        clientes: { where: { active: true }, select: { clienteId: true } },
-      },
-    });
-    if (!sched) {
-      return {
-        ok: false,
-        errors: [
-          {
-            incidentId: 0,
-            message: `Programación ${changes.scheduleId} no existe`,
-          },
-        ],
-      };
-    }
-    // Global schedules (no active Clientes) impose no cliente restriction:
-    // keep scheduleClienteIds null so the truthy guard below skips the check.
-    scheduleClienteIds =
-      sched.clientes.length > 0
-        ? new Set(sched.clientes.map((v) => v.clienteId))
-        : null;
-  }
-
-  // Validate FSRs if any.
-  if (changes.fsrIds && changes.fsrIds.ids.length > 0) {
-    const fsrs = await prisma.user.findMany({
-      where: {
-        id: { in: changes.fsrIds.ids },
-        active: true,
-        ...whereHasRole("FSR"),
-      },
-      select: { id: true },
-    });
-    if (fsrs.length !== new Set(changes.fsrIds.ids).size) {
-      return {
-        ok: false,
-        errors: [
-          { incidentId: 0, message: "Uno o más FSR no existen o no son FSR" },
-        ],
-      };
-    }
-  }
-
-  // Per-incident validation: schedule↔Cliente consistency.
-  for (const inc of incidents) {
-    const effectiveCliente = changes.clienteId ?? inc.clienteId;
-    if (
-      scheduleClienteIds &&
-      effectiveCliente &&
-      !scheduleClienteIds.has(effectiveCliente)
-    ) {
-      errors.push({
-        incidentId: inc.id,
-        message:
-          "El Cliente del incidente no está incluido en la programación seleccionada",
-      });
-    }
-  }
-
-  if (errors.length > 0) {
-    return { ok: false, errors };
-  }
-
-  // Apply changes in a single transaction.
-  await prisma.$transaction(async (tx) => {
-    const updateData: Record<string, unknown> = {};
-    if (changes.scheduleId !== undefined) {
-      updateData.scheduleId = changes.scheduleId;
-    }
-    if (changes.clienteId !== undefined) {
-      updateData.clienteId = changes.clienteId;
-    }
-    if (Object.keys(updateData).length > 0) {
-      await tx.incident.updateMany({
-        where: { id: { in: [...found] } },
-        data: updateData,
-      });
-    }
-  });
-
-  // FSR sync runs outside the transaction to keep behavior identical to
-  // updateIncident (and to surface per-incident retire-blocked errors).
-  if (changes.fsrIds) {
-    const { ensureFsrsAssignedToIncident } = await import(
-      "@/lib/actions/assignments"
-    );
-    const failures: Array<{ incidentId: number; message: string }> = [];
-    for (const id of found) {
-      try {
-        let toAdd: string[];
-        if (changes.fsrIds.mode === "replace") {
-          ({ toAdd } = await syncIncidentAssignees(id, changes.fsrIds.ids));
-        } else {
-          const current = await prisma.incidentAssignee.findMany({
-            where: { incidentId: id, active: true },
-            select: { userId: true },
-          });
-          const merged = new Set([
-            ...current.map((c) => c.userId),
-            ...changes.fsrIds.ids,
-          ]);
-          ({ toAdd } = await syncIncidentAssignees(id, [...merged]));
-        }
-        // Give newly-enabled FSRs a real Assignment they can see (see
-        // ensureFsrsAssignedToIncident) instead of eligibility-only + notification.
-        if (toAdd.length > 0) {
-          await ensureFsrsAssignedToIncident(id, toAdd, user.id);
-        }
-      } catch (e) {
-        failures.push({
-          incidentId: id,
-          message: e instanceof Error ? e.message : "Error al actualizar FSRs",
-        });
-      }
-    }
-    if (failures.length > 0) {
-      return { ok: false, errors: failures };
-    }
-  }
-
-  revalidatePath("/admin/incidents");
-  revalidatePath("/admin/programacion");
-  return { ok: true, updated: found.size };
 }
 
 /**
@@ -1921,7 +872,9 @@ export async function cancelIncident(incidentId: number, reason?: string) {
           statusId: cancelledStatus.id,
           cancelledAt: now,
           cancellationReason: trimmedReason,
-          resolvedAt: now,
+          // Cancelled is not resolved: `resolvedAt` stays null so resolution
+          // metrics (trend, summary) never count a cancellation as a fix.
+          resolvedAt: null,
         },
       });
 

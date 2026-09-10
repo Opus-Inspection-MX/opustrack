@@ -18,7 +18,7 @@ import { Switch } from "@/components/ui/switch";
 import {
   type BulkAssignChanges,
   bulkAssignIncidents,
-} from "@/lib/actions/incidents";
+} from "@/lib/actions/incidents-bulk";
 
 export interface BulkAssignOption {
   value: string;

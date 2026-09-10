@@ -1,6 +1,6 @@
 import { BulkIncidentsClient } from "@/components/admin/incidents/bulk-incidents-client";
 import { BackButton } from "@/components/common/back-button";
-import { getBulkIncidentCatalogs } from "@/lib/actions/incidents";
+import { getBulkIncidentCatalogs } from "@/lib/actions/incidents-bulk";
 import { requireRouteAccess } from "@/lib/auth/auth";
 
 export default async function BulkIncidentsPage() {
