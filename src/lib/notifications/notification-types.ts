@@ -13,11 +13,21 @@ export const NOTIFICATION_TYPES = {
   INCIDENT_UPDATED: "incident_updated",
   INCIDENT_CLOSED: "incident_closed",
   INCIDENT_ASSIGNED: "incident_assigned",
+  // Phase transitions (Phase 3 colector records them; the strings live here
+  // already so no migration is ever needed for a new event).
+  INCIDENT_PHASE_ASIGNADO: "incident_phase_asignado",
+  INCIDENT_PHASE_VISTO: "incident_phase_visto",
+  INCIDENT_PHASE_INICIADO: "incident_phase_iniciado",
+  INCIDENT_PHASE_EN_PROGRESO: "incident_phase_en_progreso",
+  INCIDENT_CANCELLED: "incident_cancelled",
+  INCIDENT_REOPENED: "incident_reopened",
 
   // Vacation notifications
   VACATION_REQUESTED: "vacation_requested",
   VACATION_APPROVED: "vacation_approved",
   VACATION_REJECTED: "vacation_rejected",
+  VACATION_CANCELLED: "vacation_cancelled",
+  VACATION_STARTING_SOON: "vacation_starting_soon",
 
   // System notifications
   SYSTEM: "system",

@@ -1,5 +1,6 @@
 // prisma/seed.ts
 import { prisma } from "../src/lib/database/prisma.singleton";
+import { defaultChannelPolicies } from "../src/lib/notifications/catalog";
 import { hashPassword } from "../src/lib/security/hash";
 
 async function main() {
@@ -1799,6 +1800,18 @@ async function main() {
         create: { id: 1, graceWindowMonths: 12 },
       });
       console.log("✅ Seeded VacationSetting (grace window)");
+
+      // 8c-quater) Default channel policy, one row per catalog event.
+      // The source of truth is the catalog itself, so the seed, the
+      // migration and the dispatch can never disagree on the defaults.
+      for (const policy of defaultChannelPolicies()) {
+        await tx.notificationChannelPolicy.upsert({
+          where: { type: policy.type },
+          update: {},
+          create: policy,
+        });
+      }
+      console.log("✅ Seeded NotificationChannelPolicies");
 
       // 8d) Holidays — LFT Art. 74 rules (RF-700)
       // Guard: only insert if the table is empty (no natural unique key).
