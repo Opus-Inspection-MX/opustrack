@@ -95,8 +95,8 @@ puede instanciar Prisma: enruta solo con lo que viaja en el JWT.
 - `isSuperuser` (solo ROOT) omite **todo** check de ruta y permiso.
   Reemplazó al hardcode `role.name === "ADMINISTRADOR"`, que significaba
   cuatro cosas a la vez (bypass, alcance, override de propiedad y audiencia).
-- Ver datos de **todos** los Clientes es el permiso `scope:all-clientes`
-  (`SCOPE_ALL_CLIENTES`), no el superusuario. Un admin de operación lo tiene
+- Ver datos de **todos** los Clientes es el permiso `scope:all-clients`
+  (`SCOPE_ALL_CLIENTS`), no el superusuario. Un admin de operación lo tiene
   sin poder otorgar roles; un admin de vacaciones no lo tiene.
 - `isAdmin()` (`src/lib/auth/filters.ts`) = tener ese permiso (o ser ROOT).
 
@@ -247,7 +247,7 @@ en datos, no en código.
   (`assertCanManageRoles`, sección "Puede difundir a" en
   `/admin/roles/[id]`).
 - Audiencia de operación (incidentes): `incidents:assign` + alcance por
-  Cliente (`scope:all-clientes` o `UserClientAssignment` activa), resuelta
+  Cliente (`scope:all-clients` o `UserClientAssignment` activa), resuelta
   con `whereHasPermission()` — nunca por nombre de rol. FSR (`incidents:update`
   pero no `incidents:assign`) queda fuera de `incident_created`.
 - GUEST es cuenta de consulta read-only, igual que REPORTER: no tiene

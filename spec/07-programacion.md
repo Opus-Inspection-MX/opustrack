@@ -200,7 +200,7 @@ El campo `color` es hexadecimal y se usa para renderizar badges en UI.
 
 **Reglas de negocio:**
 - La verificación usa `canAccessClienteAsync(user, clienteId)`; sin acceso se levanta `businessRule("Sin acceso al Cliente {id}")`, devuelta al operador vía `guarded()`.
-- Los tenedores de `scope:all-clientes` (ROOT, admins de operación) tienen acceso a todos los Clientes.
+- Los tenedores de `scope:all-clients` (ROOT, admins de operación) tienen acceso a todos los Clientes.
 - Los demás roles solo tienen acceso a los Clientes explícitamente asignados.
 - Un schedule **sin Clientes vinculados** es considerado "global": cualquier usuario puede acceder a él en operaciones de lectura y en la asignación de incidentes. La verificación de acceso a Clientes se omite cuando el schedule no tiene ningún `ScheduleCliente` activo.
 

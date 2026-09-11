@@ -373,7 +373,7 @@ notifica a la audiencia de operación del Cliente del incidente.
 - Destinatarios: `operationsAudience(clientId)` = tener `incidents:assign`
   (ROOT y ADMIN_OPERACION; FSR solo tiene `incidents:update`, así que el
   personal de campo deja de recibir avisos de otros centros) **y** alcanzar
-  el Cliente (permiso `scope:all-clientes` o `UserClientAssignment` activa
+  el Cliente (permiso `scope:all-clients` o `UserClientAssignment` activa
   en ese Cliente). Cliente nulo → solo alcance global. Fallo de resolución →
   nadie (fail closed). El actor se excluye.
 - Nunca lanza; en los call sites se dispara post-transacción.

@@ -347,7 +347,7 @@ La máquina de estados del incidente se define en `src/lib/state-machine/inciden
 **Descripción:** Todas las consultas de incidentes aplican automáticamente el filtro de Cliente según el rol del usuario.
 
 **Reglas de negocio:**
-- Tenedores de `scope:all-clientes`: ven todos los incidentes, sin filtro.
+- Tenedores de `scope:all-clients`: ven todos los incidentes, sin filtro.
 - FSR: `getMyIncidents` retorna solo incidentes donde el FSR tiene al menos una asignación activa como `AssignmentAssignee`.
 - CLIENT: `getClientIncidents` retorna solo incidentes que el propio usuario reportó (`reportedById = user.id`) dentro de su alcance.
 - El API REST (`GET /api/incidents`) aplica el mismo alcance: sin `clienteId` filtra por `incidentScopeWhere`; con `clienteId` fuera del alcance responde 403.
