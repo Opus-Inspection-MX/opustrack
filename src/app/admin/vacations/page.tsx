@@ -17,6 +17,7 @@ import {
   getVacations,
 } from "@/lib/actions/vacations";
 import { canPerform, requireRouteAccess } from "@/lib/auth/auth";
+import { codeOf } from "@/lib/constants/status-codes";
 import { formatMX } from "@/lib/utils/datetime";
 
 const STATUS_TONE: Record<string, StatusTone> = {
@@ -115,9 +116,10 @@ export default async function AdminVacationsPage() {
                 header: "Estado",
                 cell: (vacation) => (
                   <StatusBadge
-                    tone={STATUS_TONE[vacation.status.name] ?? "neutral"}
+                    tone={STATUS_TONE[codeOf(vacation.status) ?? ""] ?? "neutral"}
                   >
-                    {STATUS_LABEL[vacation.status.name] ?? vacation.status.name}
+                    {STATUS_LABEL[codeOf(vacation.status) ?? ""] ??
+                      vacation.status.name}
                   </StatusBadge>
                 ),
               },
@@ -136,7 +138,7 @@ export default async function AdminVacationsPage() {
                 cell: (vacation) => (
                   <VacationApprovalButtons
                     vacationId={vacation.id}
-                    statusName={vacation.status.name}
+                    statusName={codeOf(vacation.status) ?? ""}
                   />
                 ),
               },
@@ -146,9 +148,10 @@ export default async function AdminVacationsPage() {
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="font-medium">{vacation.user.name}</p>
                   <StatusBadge
-                    tone={STATUS_TONE[vacation.status.name] ?? "neutral"}
+                    tone={STATUS_TONE[codeOf(vacation.status) ?? ""] ?? "neutral"}
                   >
-                    {STATUS_LABEL[vacation.status.name] ?? vacation.status.name}
+                    {STATUS_LABEL[codeOf(vacation.status) ?? ""] ??
+                      vacation.status.name}
                   </StatusBadge>
                 </div>
                 <p className="text-sm">

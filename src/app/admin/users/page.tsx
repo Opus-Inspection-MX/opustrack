@@ -17,6 +17,7 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { toast } from "@/hooks/use-toast";
 import { isFailure } from "@/lib/actions/result";
 import { deleteUser, getUsers } from "@/lib/actions/users";
+import { isUserActive } from "@/lib/constants/status-codes";
 import { logger } from "@/lib/observability/logger";
 
 type UserRow = Awaited<ReturnType<typeof getUsers>>["data"][number];
@@ -44,9 +45,7 @@ const columns: CatalogColumn<UserRow>[] = [
   {
     header: "Estado",
     cell: (row) => (
-      <StatusBadge
-        tone={row.userStatus.name === "ACTIVO" ? "success" : "neutral"}
-      >
+      <StatusBadge tone={isUserActive(row.userStatus) ? "success" : "neutral"}>
         {row.userStatus.name}
       </StatusBadge>
     ),

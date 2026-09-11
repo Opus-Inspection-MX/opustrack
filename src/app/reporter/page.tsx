@@ -18,6 +18,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { getReporterIncidents } from "@/lib/actions/incidents";
 import { getMyProfile } from "@/lib/actions/users";
 import { requireRouteAccess } from "@/lib/auth/auth";
+import {
+  codeOf,
+  INCIDENT_STATE,
+} from "@/lib/constants/status-codes";
 import { formatIncidentDateTime } from "@/lib/utils/datetime";
 
 interface IncidentStatus {
@@ -31,13 +35,21 @@ export default async function ReporterDashboard() {
   const incidents = await getReporterIncidents();
   const user = await getMyProfile();
 
-  // Calculate stats
+  // Calculate stats — resolved by stable code (H-08).
   const stats = {
-    open: incidents.filter((i) => i.status?.name === "ABIERTO").length,
-    inProgress: incidents.filter((i) =>
-      ["ASIGNADO", "VISTO", "INICIADO"].includes(i.status?.name ?? ""),
+    open: incidents.filter(
+      (i) => codeOf(i.status) === INCIDENT_STATE.ABIERTO,
     ).length,
-    closed: incidents.filter((i) => i.status?.name === "CERRADO").length,
+    inProgress: incidents.filter((i) =>
+      [
+        INCIDENT_STATE.ASIGNADO,
+        INCIDENT_STATE.VISTO,
+        INCIDENT_STATE.INICIADO,
+      ].includes(codeOf(i.status) ?? ""),
+    ).length,
+    closed: incidents.filter(
+      (i) => codeOf(i.status) === INCIDENT_STATE.CERRADO,
+    ).length,
     total: incidents.length,
   };
 

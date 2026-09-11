@@ -59,7 +59,7 @@ export async function getBulkIncidentCatalogs() {
     prisma.incidentStatus.findMany({
       where: { active: true },
       orderBy: { name: "asc" },
-      select: { id: true, name: true, color: true },
+      select: { id: true, code: true, name: true, color: true },
     }),
     prisma.client.findMany({
       where: {
@@ -493,14 +493,14 @@ export async function createIncidentsFromPreview(
     };
   }
 
-  // Resolve open/closed status IDs once.
+  // Resolve open/closed status IDs once — by stable code (H-08).
   const [openStatus, closedStatus] = await Promise.all([
     prisma.incidentStatus.findUnique({
-      where: { name: INCIDENT_STATE.ABIERTO },
+      where: { code: INCIDENT_STATE.ABIERTO },
       select: { id: true },
     }),
     prisma.incidentStatus.findUnique({
-      where: { name: INCIDENT_STATE.CERRADO },
+      where: { code: INCIDENT_STATE.CERRADO },
       select: { id: true },
     }),
   ]);

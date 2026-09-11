@@ -650,7 +650,7 @@ export async function assignFSRToIncident(incidentId: number, fsrId: string) {
         }
 
         const initialStatus = await tx.assignmentStatus.findFirst({
-          where: { name: "ASIGNADO" },
+          where: { code: ASSIGNMENT_STATE.ASIGNADO },
         });
 
         const created = await tx.assignment.create({

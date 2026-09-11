@@ -23,6 +23,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getIncidentById } from "@/lib/actions/incidents";
 import { canPerform, requireRouteAccess } from "@/lib/auth/auth";
+import {
+  isIncidentCancelled,
+  isIncidentTerminal,
+} from "@/lib/constants/status-codes";
 import { formatIncidentDateTime, formatMX } from "@/lib/utils/datetime";
 import { formatReporter } from "@/lib/utils/incident-display";
 
@@ -66,9 +70,7 @@ export default async function IncidentDetailPage({
     canPerform("incidents:create"),
     canPerform("incidents:update"),
   ]);
-  const terminal =
-    incident.status?.name === "CERRADO" ||
-    incident.status?.name === "CANCELADA";
+  const terminal = isIncidentTerminal(incident.status);
 
   return (
     <PageContainer>
@@ -81,22 +83,21 @@ export default async function IncidentDetailPage({
         ]}
         actions={
           <>
-            {incident.status?.name !== "CERRADO" &&
-              incident.status?.name !== "CANCELADA" && (
-                <>
-                  <Button
-                    variant="outline"
-                    asChild
-                    className="w-full sm:w-auto"
-                  >
-                    <Link href={`/admin/incidents/${incident.id}/edit`}>
-                      <EditIcon className="mr-2 h-4 w-4" aria-hidden />
-                      Editar incidencia
-                    </Link>
-                  </Button>
-                  <CancelIncidentButton incidentId={incident.id} />
-                </>
-              )}
+            {!terminal && (
+              <>
+                <Button
+                  variant="outline"
+                  asChild
+                  className="w-full sm:w-auto"
+                >
+                  <Link href={`/admin/incidents/${incident.id}/edit`}>
+                    <EditIcon className="mr-2 h-4 w-4" aria-hidden />
+                    Editar incidencia
+                  </Link>
+                </Button>
+                <CancelIncidentButton incidentId={incident.id} />
+              </>
+            )}
             <StatusBadge tone={incidentStatusTone(incident.status?.name ?? "")}>
               {incident.status?.name || "Sin estado"}
             </StatusBadge>
@@ -107,7 +108,7 @@ export default async function IncidentDetailPage({
         <BackButton fallback="/admin/incidents" />
       </div>
 
-      {incident.status?.name === "CANCELADA" && incident.cancellationReason && (
+      {isIncidentCancelled(incident.status) && incident.cancellationReason && (
         <Card className="border-danger/50 bg-danger-muted">
           <CardHeader>
             <CardTitle className="text-danger-muted-foreground">

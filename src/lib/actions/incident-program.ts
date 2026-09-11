@@ -9,6 +9,7 @@ import {
   type ReportScope,
 } from "@/lib/auth/report-scope";
 import { prisma } from "@/lib/database/prisma.singleton";
+import { VACATION_STATUS } from "@/lib/constants/status-codes";
 import {
   buildIncidentProgram,
   classifyIncidentType,
@@ -246,7 +247,7 @@ export async function getIncidentProgramReport(
     prisma.vacation.findMany({
       where: {
         active: true,
-        status: { name: "APROBADA" },
+        status: { code: VACATION_STATUS.APROBADA },
         startDate: { lte: to },
         endDate: { gte: from },
       },

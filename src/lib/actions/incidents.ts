@@ -314,7 +314,7 @@ export async function createIncident(data: unknown) {
     // State machine: every new incident starts at ABIERTO. Any caller-provided
     // statusId is ignored so the flow can't be skipped.
     const initialStatus = await prisma.incidentStatus.findUnique({
-      where: { name: INCIDENT_STATE.ABIERTO },
+      where: { code: INCIDENT_STATE.ABIERTO },
       select: { id: true },
     });
     if (!initialStatus) {
@@ -401,9 +401,9 @@ export async function createIncidentAsReporter(data: unknown) {
     // Validate input
     const validated = IncidentReporterCreateSchema.parse(data);
 
-    // Get initial status: new incidents start at ABIERTO.
+    // Get initial status: new incidents start at ABIERTO (stable code).
     const initialStatus = await prisma.incidentStatus.findFirst({
-      where: { name: INCIDENT_STATE.ABIERTO },
+      where: { code: INCIDENT_STATE.ABIERTO },
     });
 
     if (!initialStatus) {

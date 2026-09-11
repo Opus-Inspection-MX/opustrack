@@ -10,6 +10,7 @@ import {
 } from "@/lib/auth/report-scope";
 import { CRITICAL_PRIORITY_THRESHOLD } from "@/lib/constants/incident-type";
 import { prisma } from "@/lib/database/prisma.singleton";
+import { ASSIGNMENT_STATE } from "@/lib/state-machine/assignment-machine";
 import { INCIDENT_TERMINAL_STATES } from "@/lib/state-machine/incident-machine";
 
 /** Both incident end states. An incident in either is no longer "active". */
@@ -32,11 +33,11 @@ export async function getDashboardStats() {
       where: { active: true, ...fsrScopeWhere(scope) },
     }),
 
-    // Active incidents: neither CERRADO nor CANCELADA.
+    // Active incidents: neither CERRADO nor CANCELADA (stable codes).
     prisma.incident.count({
       where: {
         active: true,
-        status: { name: { notIn: TERMINAL_INCIDENT_NAMES } },
+        status: { code: { notIn: TERMINAL_INCIDENT_NAMES } },
         ...incidentScopeWhere(scope),
       },
     }),
@@ -46,13 +47,13 @@ export async function getDashboardStats() {
       where: {
         active: true,
         status: {
-          name: {
+          code: {
             in: [
-              "PENDIENTE_DE_ASIGNACION",
-              "ASIGNADO",
-              "VISTO",
-              "INICIADO",
-              "EN_PROGRESO",
+              ASSIGNMENT_STATE.PENDIENTE_DE_ASIGNACION,
+              ASSIGNMENT_STATE.ASIGNADO,
+              ASSIGNMENT_STATE.VISTO,
+              ASSIGNMENT_STATE.INICIADO,
+              ASSIGNMENT_STATE.EN_PROGRESO,
             ],
           },
         },
@@ -91,7 +92,12 @@ export async function getDashboardStats() {
       where: {
         active: true,
         status: {
-          name: { in: ["PENDIENTE_DE_ASIGNACION", "ASIGNADO"] },
+          code: {
+            in: [
+              ASSIGNMENT_STATE.PENDIENTE_DE_ASIGNACION,
+              ASSIGNMENT_STATE.ASIGNADO,
+            ],
+          },
         },
         ...assignmentScopeWhere(scope),
       },
@@ -117,7 +123,7 @@ export async function getDashboardStats() {
     prisma.incident.count({
       where: {
         active: true,
-        status: { name: { notIn: TERMINAL_INCIDENT_NAMES } },
+        status: { code: { notIn: TERMINAL_INCIDENT_NAMES } },
         type: {
           priority: { gte: CRITICAL_PRIORITY_THRESHOLD },
         },

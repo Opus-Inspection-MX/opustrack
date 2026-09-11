@@ -33,6 +33,7 @@ import {
 import { RoleBadges } from "@/components/users/role-badges";
 import { getClientById } from "@/lib/actions/clients";
 import { requireRouteAccess } from "@/lib/auth/auth";
+import { isUserActive } from "@/lib/constants/status-codes";
 import { formatIncidentDateTime } from "@/lib/utils/datetime";
 
 export default async function ClientDetailPage({
@@ -238,7 +239,7 @@ export default async function ClientDetailPage({
                 cell: (user) => (
                   <StatusBadge
                     tone={
-                      user.userStatus.name === "ACTIVO" ? "success" : "neutral"
+                      isUserActive(user.userStatus) ? "success" : "neutral"
                     }
                   >
                     {user.userStatus.name}
@@ -264,7 +265,7 @@ export default async function ClientDetailPage({
                   <RoleBadges userRoles={user.userRoles} />
                   <StatusBadge
                     tone={
-                      user.userStatus.name === "ACTIVO" ? "success" : "neutral"
+                      isUserActive(user.userStatus) ? "success" : "neutral"
                     }
                   >
                     {user.userStatus.name}

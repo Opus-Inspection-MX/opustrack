@@ -1,6 +1,7 @@
 import type { Prisma, VacationPeriod } from "@prisma/client";
 import moment from "moment-timezone";
 import { businessRule } from "@/lib/actions/result";
+import { VACATION_STATUS } from "@/lib/constants/status-codes";
 import { prisma } from "@/lib/database/prisma.singleton";
 import { APP_TZ } from "@/lib/utils/datetime";
 
@@ -23,7 +24,10 @@ import { APP_TZ } from "@/lib/utils/datetime";
 type TxClient = Prisma.TransactionClient | typeof prisma;
 
 /** Statuses that reserve days. RECHAZADA frees them again by dropping out. */
-const CONSUMING_STATUSES = ["PENDIENTE", "APROBADA"];
+const CONSUMING_STATUSES = [
+  VACATION_STATUS.PENDIENTE,
+  VACATION_STATUS.APROBADA,
+];
 
 export interface PeriodBalance {
   allottedDays: number;
@@ -188,7 +192,7 @@ export async function getPeriodBalance(
     where: {
       periodId,
       active: true,
-      status: { name: { in: CONSUMING_STATUSES } },
+      status: { code: { in: CONSUMING_STATUSES } },
     },
     _sum: { businessDaysUsed: true },
   });

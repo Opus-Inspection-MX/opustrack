@@ -32,6 +32,10 @@ import {
   resolveBulkIncidentRows,
 } from "@/lib/actions/incidents-bulk";
 import {
+  codeOf,
+  INCIDENT_STATE,
+} from "@/lib/constants/status-codes";
+import {
   excelDateCell,
   excelDateToWallClock,
   formatMX,
@@ -42,7 +46,7 @@ import {
 
 type Catalogs = {
   types: Array<{ id: number; name: string }>;
-  statuses: Array<{ id: number; name: string; color: string }>;
+  statuses: Array<{ id: number; code?: string | null; name: string; color: string }>;
   clients: Array<{ id: string; name: string; code: string }>;
   schedules: Array<{
     id: string;
@@ -488,10 +492,15 @@ export function BulkIncidentsClient({ catalogs }: { catalogs: Catalogs }) {
     [catalogs.clients, defaultClientId],
   );
 
-  // Resolve open/closed status IDs from catalog for snapshot generation.
+  // Resolve open/closed status IDs from catalog for snapshot generation —
+  // by stable code (H-08), so a renamed label cannot misroute the snapshot.
   const statusIds = useMemo(() => {
-    const open = catalogs.statuses.find((s) => s.name === "ABIERTO")?.id ?? 0;
-    const closed = catalogs.statuses.find((s) => s.name === "CERRADO")?.id ?? 0;
+    const open =
+      catalogs.statuses.find((s) => codeOf(s) === INCIDENT_STATE.ABIERTO)?.id ??
+      0;
+    const closed =
+      catalogs.statuses.find((s) => codeOf(s) === INCIDENT_STATE.CERRADO)?.id ??
+      0;
     return { open, closed };
   }, [catalogs.statuses]);
 

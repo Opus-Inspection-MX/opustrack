@@ -12,18 +12,19 @@ import {
   rejectVacation,
   type VacationAssignmentConflict,
 } from "@/lib/actions/vacations";
+import { VACATION_STATUS } from "@/lib/constants/status-codes";
 import { formatMX } from "@/lib/utils/datetime";
 
 type VacationApprovalButtonsProps = {
   vacationId: string;
-  /** Current status name; buttons are hidden for already-settled vacations. */
+  /** Current status code; buttons are hidden for already-settled vacations. */
   statusName: string;
   onSuccess?: () => void;
 };
 
 /**
  * Renders Aprobar / Rechazar action buttons for a single vacation row.
- * Only shows for PENDIENTE vacations.
+ * Only shows for PENDIENTE vacations (resolved by stable code, H-08).
  */
 export function VacationApprovalButtons({
   vacationId,
@@ -36,7 +37,7 @@ export function VacationApprovalButtons({
     VacationAssignmentConflict[] | null
   >(null);
 
-  if (statusName !== "PENDIENTE") {
+  if (statusName !== VACATION_STATUS.PENDIENTE) {
     return null;
   }
 

@@ -26,6 +26,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/hooks/use-toast";
 import { isFailure } from "@/lib/actions/result";
+import { isUserActive } from "@/lib/constants/status-codes";
 import {
   getMyProfile,
   updateMyPassword,
@@ -640,9 +641,7 @@ export default function FSRProfilePage() {
                     <p className="text-sm text-muted-foreground">Status</p>
                     <StatusBadge
                       tone={
-                        user.userStatus?.name === "ACTIVO"
-                          ? "success"
-                          : "neutral"
+                        isUserActive(user.userStatus) ? "success" : "neutral"
                       }
                     >
                       {user.userStatus?.name || "N/A"}

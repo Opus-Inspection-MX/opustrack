@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { requirePermission } from "@/lib/auth/auth";
 import { whereHasRole } from "@/lib/authz/user-queries";
 import { ROLE } from "@/lib/authz/roles";
+import { VEHICLE_TRIP_STATUS } from "@/lib/constants/status-codes";
 import { prisma } from "@/lib/database/prisma.singleton";
 import { ok, rejected } from "./result";
 
@@ -93,9 +94,9 @@ export async function getVehicleById(id: string) {
 export async function createVehicle(data: VehicleFormData) {
   await requirePermission("vehicles:create");
 
-  // Get status ID from status name
+  // Get status ID from stable status code (H-08).
   const status = await prisma.vehicleStatus.findFirst({
-    where: { name: data.status },
+    where: { code: data.status },
   });
 
   const vehicle = await prisma.vehicle.create({
@@ -125,9 +126,9 @@ export async function createVehicle(data: VehicleFormData) {
 export async function updateVehicle(id: string, data: VehicleFormData) {
   await requirePermission("vehicles:update");
 
-  // Get status ID from status name
+  // Get status ID from stable status code (H-08).
   const status = await prisma.vehicleStatus.findFirst({
-    where: { name: data.status },
+    where: { code: data.status },
   });
 
   const vehicle = await prisma.vehicle.update({
@@ -159,9 +160,13 @@ export async function updateVehicle(id: string, data: VehicleFormData) {
 export async function deleteVehicle(id: string) {
   await requirePermission("vehicles:delete");
 
-  // Check for active trips
+  // Check for active trips — by stable code (H-08).
   const activeTripCount = await prisma.vehicleTrip.count({
-    where: { vehicleId: id, status: { name: "EN_CURSO" }, active: true },
+    where: {
+      vehicleId: id,
+      status: { code: VEHICLE_TRIP_STATUS.EN_CURSO },
+      active: true,
+    },
   });
 
   if (activeTripCount > 0) {
@@ -182,11 +187,11 @@ export async function deleteVehicle(id: string) {
 /**
  * Update vehicle status
  */
-export async function updateVehicleStatus(id: string, statusName: string) {
+export async function updateVehicleStatus(id: string, statusCode: string) {
   await requirePermission("vehicles:update");
 
   const status = await prisma.vehicleStatus.findFirst({
-    where: { name: statusName },
+    where: { code: statusCode },
   });
 
   if (!status) {

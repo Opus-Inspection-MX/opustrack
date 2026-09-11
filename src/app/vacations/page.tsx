@@ -16,6 +16,12 @@ import {
   getVacationBalanceData,
 } from "@/lib/actions/vacations";
 import { requireRouteAccess } from "@/lib/auth/auth";
+import {
+  codeOf,
+  isVacationApproved,
+  isVacationPending,
+  VACATION_STATUS,
+} from "@/lib/constants/status-codes";
 import { formatMX } from "@/lib/utils/datetime";
 
 const STATUS_TONE: Record<string, StatusTone> = {
@@ -37,10 +43,10 @@ export default async function MyVacationsPage() {
     getVacationBalanceData(),
   ]);
 
-  const pending = vacations.filter((v) => v.status.name === "PENDIENTE").length;
-  const approved = vacations.filter((v) => v.status.name === "APROBADA").length;
+  const pending = vacations.filter((v) => isVacationPending(v.status)).length;
+  const approved = vacations.filter((v) => isVacationApproved(v.status)).length;
   const rejected = vacations.filter(
-    (v) => v.status.name === "RECHAZADA",
+    (v) => codeOf(v.status) === VACATION_STATUS.RECHAZADA,
   ).length;
 
   return (
@@ -118,9 +124,10 @@ export default async function MyVacationsPage() {
                 header: "Estado",
                 cell: (vacation) => (
                   <StatusBadge
-                    tone={STATUS_TONE[vacation.status.name] ?? "neutral"}
+                    tone={STATUS_TONE[codeOf(vacation.status) ?? ""] ?? "neutral"}
                   >
-                    {STATUS_LABEL[vacation.status.name] ?? vacation.status.name}
+                    {STATUS_LABEL[codeOf(vacation.status) ?? ""] ??
+                      vacation.status.name}
                   </StatusBadge>
                 ),
               },
@@ -137,9 +144,10 @@ export default async function MyVacationsPage() {
               <div className="space-y-2 rounded-xl border bg-card p-4">
                 <div className="flex flex-wrap items-center gap-2">
                   <StatusBadge
-                    tone={STATUS_TONE[vacation.status.name] ?? "neutral"}
+                    tone={STATUS_TONE[codeOf(vacation.status) ?? ""] ?? "neutral"}
                   >
-                    {STATUS_LABEL[vacation.status.name] ?? vacation.status.name}
+                    {STATUS_LABEL[codeOf(vacation.status) ?? ""] ??
+                      vacation.status.name}
                   </StatusBadge>
                 </div>
                 <p className="text-sm">

@@ -53,7 +53,7 @@ export const POST = withPermission(
       // State machine: every new incident starts at ABIERTO.
       // Any caller-provided statusId is ignored so the flow can't be skipped.
       const initialStatus = await prisma.incidentStatus.findUnique({
-        where: { name: INCIDENT_STATE.ABIERTO },
+        where: { code: INCIDENT_STATE.ABIERTO },
         select: { id: true },
       });
       if (!initialStatus) {
