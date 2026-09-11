@@ -263,8 +263,11 @@ test.describe("El admin lo sigue desde Seguimiento de Atención", () => {
 
     await page.getByRole("link", { name: "Editar" }).click();
     await page.waitForURL(`**/admin/assignments/${assignmentId}/edit`);
+    // AssignmentEditForm usa toggle Editar + Guardar Cambios, no un
+    // "Actualizar Asignación" directo.
+    await page.getByRole("button", { name: "Editar" }).click();
     await expect(
-      page.getByRole("button", { name: "Actualizar Asignación" }),
+      page.getByRole("button", { name: "Guardar Cambios" }),
     ).toBeVisible();
   });
 
