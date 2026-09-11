@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useSession } from "next-auth/react";
 import type React from "react";
 import { AppSidebar } from "@/components/layout/app-sidebar";
+import { ThemeToggle } from "@/components/layout/theme-toggle";
+import { PageTransition } from "@/components/motion/page-transition";
 import { NotificationBell } from "@/components/notifications";
 import {
   SidebarInset,
@@ -34,10 +36,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <Building2 className="h-5 w-5" />
             <span className="font-semibold">OpusTrack</span>
           </Link>
+          {/* The theme selector lives in the user header on every viewport,
+              not only in the sidebar footer, so it stays reachable on mobile
+              where the sidebar is a drawer. */}
+          <ThemeToggle />
           <NotificationBell />
         </header>
         <main className="flex-1 overflow-auto p-4 md:p-6 lg:p-8">
-          {children}
+          <PageTransition>{children}</PageTransition>
         </main>
       </SidebarInset>
     </SidebarProvider>
