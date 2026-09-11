@@ -68,7 +68,7 @@ test.describe("REPORTER reporta con evidencia (RF-217)", () => {
       .locator('input[type="file"]')
       .first()
       .setInputFiles(EVIDENCE_PDF);
-    await expect(page.getByText("Selected Files (1)")).toBeVisible();
+    await expect(page.getByText("Archivos seleccionados (1)")).toBeVisible();
 
     await page.getByRole("button", { name: "Enviar Reporte" }).click();
     await page.waitForURL("**/reporter");

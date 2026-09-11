@@ -95,7 +95,10 @@ async function scan(browser: Browser, pageDef: AuditPage, theme: Theme) {
 
   // Los datos, no el esqueleto: un escaneo del estado de carga no puede
   // volver a pasar como verde.
-  await expect(page.locator(ready), `${pageDef.name}: datos cargados`).toBeVisible({
+  await expect(
+    page.locator(ready),
+    `${pageDef.name}: datos cargados`,
+  ).toBeVisible({
     timeout: 20_000,
   });
   await expect(

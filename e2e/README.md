@@ -183,6 +183,9 @@ First run only, install browsers: `npx playwright install`.
   20 s y además falla si al auditar sigue visible un esqueleto
   (`[data-slot="skeleton"]`) o un "Cargando".
 - **Hidratación.** El HTML del servidor trae los botones sin sus handlers
-  hasta que React hidrata. `gotoReady(page, path)` (`fixtures/navigation.ts`,
+  hasta que React hidrata. `gotoReady(page, path)`   (`fixtures/navigation.ts`,
   espera `html[data-hydrated="true"]` que pone `HydrationMarker`) antes de
   cualquier clic justo después de navegar.
+- **`DEP0205 module.register()`** en el log de Node: viene de una
+  dependencia de tooling (tsx o Playwright), no del código. No hace nada
+  todavía; revisar al actualizar dependencias.

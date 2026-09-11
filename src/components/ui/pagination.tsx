@@ -57,7 +57,10 @@ export function Pagination({
             value={itemsPerPage.toString()}
             onValueChange={(value) => onItemsPerPageChange(Number(value))}
           >
-            <SelectTrigger className="h-8 w-[70px]" aria-label="Resultados por página">
+            <SelectTrigger
+              className="h-8 w-[70px]"
+              aria-label="Resultados por página"
+            >
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
