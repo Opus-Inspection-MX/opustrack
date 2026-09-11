@@ -1,12 +1,7 @@
 import { Bell } from "lucide-react";
 import { BackButton } from "@/components/common/back-button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { PageContainer } from "@/components/common/page-container";
+import { SectionCard } from "@/components/common/section-card";
 import { getNotificationsWithCount } from "@/lib/actions/notifications";
 import { requireRouteAccess } from "@/lib/auth/auth";
 import { NotificationsPageClient } from "./notifications-page-client";
@@ -18,7 +13,7 @@ export default async function NotificationsPage() {
   });
 
   return (
-    <div className="space-y-6 max-w-3xl mx-auto">
+    <PageContainer size="narrow">
       <div className="flex items-center gap-4">
         <BackButton fallback="/" />
         <div>
@@ -34,20 +29,16 @@ export default async function NotificationsPage() {
         </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Notificaciones recientes</CardTitle>
-          <CardDescription>
-            Toca una notificación para abrirla y marcarla como leída
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="p-0">
-          <NotificationsPageClient
-            notifications={notifications}
-            unreadCount={unreadCount}
-          />
-        </CardContent>
-      </Card>
-    </div>
+      <SectionCard
+        title="Notificaciones recientes"
+        description="Toca una notificación para abrirla y marcarla como leída"
+        contentClassName="p-0"
+      >
+        <NotificationsPageClient
+          notifications={notifications}
+          unreadCount={unreadCount}
+        />
+      </SectionCard>
+    </PageContainer>
   );
 }

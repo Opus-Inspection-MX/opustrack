@@ -3,6 +3,7 @@
 import { AlertTriangle, CheckCircle2, Clock, ShieldAlert } from "lucide-react";
 import Link from "next/link";
 import { useState, useTransition } from "react";
+import { SlaBadge } from "@/components/common/sla-badge";
 import { PriorityBadge } from "@/components/incident-types/priority-badge";
 import {
   BarChart,
@@ -12,7 +13,6 @@ import {
   PieChart,
   StatCard,
 } from "@/components/reports";
-import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -162,9 +162,21 @@ export function SlaBreachClient({ initialData }: SlaBreachClientProps) {
               data={typeChartData}
               xAxisKey="name"
               bars={[
-                { dataKey: "Vencidos", name: "Vencidos", color: "#EF4444" },
-                { dataKey: "En riesgo", name: "En riesgo", color: "#F59E0B" },
-                { dataKey: "En tiempo", name: "En tiempo", color: "#10B981" },
+                {
+                  dataKey: "Vencidos",
+                  name: "Vencidos",
+                  color: "var(--sla-breach)",
+                },
+                {
+                  dataKey: "En riesgo",
+                  name: "En riesgo",
+                  color: "var(--sla-risk)",
+                },
+                {
+                  dataKey: "En tiempo",
+                  name: "En tiempo",
+                  color: "var(--sla-ok)",
+                },
               ]}
               height={300}
             />
@@ -204,18 +216,14 @@ export function SlaBreachClient({ initialData }: SlaBreachClientProps) {
                   <TableCell className="text-right">{row.total}</TableCell>
                   <TableCell className="text-right">
                     {row.breached > 0 ? (
-                      <Badge className="bg-destructive text-white border-transparent">
-                        {row.breached}
-                      </Badge>
+                      <SlaBadge tone="breach">{row.breached}</SlaBadge>
                     ) : (
                       row.breached
                     )}
                   </TableCell>
                   <TableCell className="text-right">
                     {row.atRisk > 0 ? (
-                      <Badge className="bg-amber-500 text-white border-transparent">
-                        {row.atRisk}
-                      </Badge>
+                      <SlaBadge tone="risk">{row.atRisk}</SlaBadge>
                     ) : (
                       row.atRisk
                     )}

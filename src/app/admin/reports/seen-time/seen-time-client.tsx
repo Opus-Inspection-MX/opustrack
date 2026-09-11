@@ -208,8 +208,12 @@ export function SeenTimeClient({ initialData }: SeenTimeClientProps) {
               data={fsrChartData}
               xAxisKey="name"
               bars={[
-                { dataKey: "Vistas", name: "Vistas", color: "#10B981" },
-                { dataKey: "Pendientes", name: "Pendientes", color: "#F59E0B" },
+                { dataKey: "Vistas", name: "Vistas", color: "var(--chart-3)" },
+                {
+                  dataKey: "Pendientes",
+                  name: "Pendientes",
+                  color: "var(--chart-4)",
+                },
               ]}
               height={300}
             />
@@ -230,7 +234,9 @@ export function SeenTimeClient({ initialData }: SeenTimeClientProps) {
           <BarChart
             data={fsrTimeChartData}
             xAxisKey="name"
-            bars={[{ dataKey: "Minutos", name: "Minutos", color: "#8B5CF6" }]}
+            bars={[
+              { dataKey: "Minutos", name: "Minutos", color: "var(--chart-1)" },
+            ]}
             height={300}
             showLegend={false}
           />

@@ -8,6 +8,7 @@ import type {
   CatalogColumn,
 } from "@/components/common/catalog-table";
 import { CatalogTable } from "@/components/common/catalog-table";
+import { StatusBadge } from "@/components/common/status-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useDebounce } from "@/hooks/use-debounce";
@@ -70,9 +71,9 @@ const columns: CatalogColumn<IncidentStatus>[] = [
   {
     header: "Estado",
     cell: (row) => (
-      <Badge variant={row.active ? "default" : "secondary"}>
+      <StatusBadge tone={row.active ? "success" : "neutral"}>
         {row.active ? "Activo" : "Inactivo"}
-      </Badge>
+      </StatusBadge>
     ),
   },
 ];

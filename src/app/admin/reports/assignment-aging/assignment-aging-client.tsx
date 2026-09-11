@@ -202,7 +202,11 @@ export function AssignmentAgingClient({
               data={bucketBarData}
               xAxisKey="name"
               bars={[
-                { dataKey: "Cantidad", name: "Cantidad", color: "#3B82F6" },
+                {
+                  dataKey: "Cantidad",
+                  name: "Cantidad",
+                  color: "var(--chart-2)",
+                },
               ]}
               height={300}
               showLegend={false}

@@ -162,7 +162,7 @@ export function VehicleTripsReportClient({
               {
                 dataKey: "Viajes",
                 name: "Viajes",
-                color: "#8B5CF6",
+                color: "var(--chart-1)",
               },
             ]}
             height={300}
@@ -188,7 +188,7 @@ export function VehicleTripsReportClient({
                 {
                   dataKey: "Viajes",
                   name: "Viajes",
-                  color: "#8B5CF6",
+                  color: "var(--chart-1)",
                 },
               ]}
               height={300}
@@ -213,7 +213,7 @@ export function VehicleTripsReportClient({
                 {
                   dataKey: "Kilometros",
                   name: "Kilometros",
-                  color: "#10B981",
+                  color: "var(--chart-3)",
                 },
               ]}
               height={300}

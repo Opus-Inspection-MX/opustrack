@@ -193,13 +193,13 @@ export function IncidentsReportClient({
               {
                 dataKey: "Reportados",
                 name: "Reportados",
-                color: "#F59E0B",
+                color: "var(--chart-4)",
                 fillOpacity: 0.4,
               },
               {
                 dataKey: "Resueltos",
                 name: "Resueltos",
-                color: "#10B981",
+                color: "var(--chart-3)",
                 fillOpacity: 0.4,
               },
             ]}

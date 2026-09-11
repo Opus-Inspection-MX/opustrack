@@ -9,15 +9,19 @@ import {
   Tooltip,
 } from "recharts";
 
+/**
+ * Slice palette, in token order. CSS `var(--chart-*)` keeps every theme in
+ * sync; callers can still pass explicit `Cell` fills for branded one-offs.
+ */
 const COLORS = [
-  "#3B82F6", // blue-500
-  "#10B981", // emerald-500
-  "#F59E0B", // amber-500
-  "#EF4444", // red-500
-  "#8B5CF6", // violet-500
-  "#EC4899", // pink-500
-  "#06B6D4", // cyan-500
-  "#84CC16", // lime-500
+  "var(--chart-1)",
+  "var(--chart-2)",
+  "var(--chart-3)",
+  "var(--chart-4)",
+  "var(--chart-5)",
+  "var(--info)",
+  "var(--warning)",
+  "var(--success)",
 ];
 
 interface PieChartProps<T> {

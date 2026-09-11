@@ -152,12 +152,12 @@ export function FSRPerformanceClient({
                 {
                   dataKey: "Ordenes Totales",
                   name: "Ordenes Totales",
-                  color: "#94A3B8",
+                  color: "var(--chart-5)",
                 },
                 {
                   dataKey: "Asignaciones Completadas",
                   name: "Asignaciones Completadas",
-                  color: "#3B82F6",
+                  color: "var(--chart-2)",
                 },
               ]}
               height={300}
@@ -181,7 +181,7 @@ export function FSRPerformanceClient({
                 {
                   dataKey: "Kilometros",
                   name: "Kilometros",
-                  color: "#10B981",
+                  color: "var(--chart-3)",
                 },
               ]}
               height={300}
