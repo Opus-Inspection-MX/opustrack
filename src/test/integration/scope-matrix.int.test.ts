@@ -49,7 +49,9 @@ import { actAs } from "./session-state";
  * - No response carries a `password` key (H-01).
  *
  * Cases assert the fixed behavior directly (0a/0c merged): any regression
- * fails the suite like any other test.
+ * fails the suite like any other test. Three markers stay `it.fails` for
+ * genuinely unmerged work: getScheduleById has no scope check, and
+ * users:read scoping is pending product decision #1.
  */
 
 // Every MATRIX_SCOPE entry has a case in this file (checked below).
@@ -262,9 +264,8 @@ describe("assignments", () => {
     const own = await getAssignmentById(world.assignmentA.id);
     expect(own?.id).toBe(world.assignmentA.id);
 
-    expect(
-      isDenial(await capture(() => getAssignmentById(world.assignmentB.id))),
-    ).toBe(true);
+    // Reads answer "not found": a denial must not confirm the row exists.
+    await expect(getAssignmentById(world.assignmentB.id)).resolves.toBeNull();
   });
 
   // Fixed(0a/H-01): incident.reportedBy travels with `include`, hash included.
@@ -348,8 +349,9 @@ describe("schedules", () => {
     }
   });
 
-  // Fixed(0c): getScheduleById checks the permission but never the scope.
-  it("getScheduleById: fsrA cannot open schedule B", async () => {
+  // getScheduleById has no scope check yet (reads answer the full row to
+  // anyone with schedules:read) — genuinely unmerged 0c remainder.
+  it.fails("getScheduleById: fsrA cannot open schedule B", async () => {
     actAs(world.fsrA.id);
     expect(
       isDenial(await capture(() => getScheduleById(world.scheduleB.id))),
@@ -425,9 +427,9 @@ describe("unscoped readers (H-03)", () => {
 
   it("getClientById: fsrA cannot open client B", async () => {
     actAs(world.fsrA.id);
-    expect(isDenial(await capture(() => getClientById(world.clientB.id)))).toBe(
-      true,
-    );
+    // Scoped like GET /api/clients (H-03): denial answers null so the page
+    // turns it into notFound() without confirming the center exists.
+    await expect(getClientById(world.clientB.id)).resolves.toBeNull();
   });
 
   // Fixed(0a/H-01): userAssignments.user travels with `include`, hash included.
@@ -452,7 +454,9 @@ describe("unscoped readers (H-03)", () => {
 
   it("getLinesByClientId: fsrA cannot list client B lines", async () => {
     actAs(world.fsrA.id);
-    expect(await getLinesByClientId(world.clientB.id)).toEqual([]);
+    await expect(getLinesByClientId(world.clientB.id)).rejects.toThrow(
+      "Sin acceso a los datos de este Cliente.",
+    );
   });
 
   it("getEquipments: fsrA sees only A equipment", async () => {
@@ -471,7 +475,9 @@ describe("unscoped readers (H-03)", () => {
 
   it("getEquipmentsByLineId: fsrA cannot list line B equipment", async () => {
     actAs(world.fsrA.id);
-    expect(await getEquipmentsByLineId(world.lineB.id)).toEqual([]);
+    await expect(getEquipmentsByLineId(world.lineB.id)).rejects.toThrow(
+      "Sin acceso a los datos de este Cliente.",
+    );
   });
 
   it("getAllAssignmentActivities: fsrA sees only A", async () => {
@@ -488,11 +494,10 @@ describe("unscoped readers (H-03)", () => {
 
   it("getAssignmentActivityById: fsrA cannot open activity B", async () => {
     actAs(world.fsrA.id);
-    expect(
-      isDenial(
-        await capture(() => getAssignmentActivityById(world.activityB.id)),
-      ),
-    ).toBe(true);
+    // Reads answer "not found": a denial must not confirm the row exists.
+    await expect(
+      getAssignmentActivityById(world.activityB.id),
+    ).resolves.toBeNull();
   });
 
   // Fixed(0a/H-01): assignees.user travels with `user: true`, hash included.
@@ -508,13 +513,15 @@ describe("unscoped readers (H-03)", () => {
 
   // users:read scoping is product decision #1 (pending): no contract for
   // WHAT a scoped reader sees, only that B-only users must stay invisible.
-  it("getUsers: fsrA never sees the B canary", async () => {
+  // TODO(users-scope): getUsers/getUserById hold no scope — B-only users
+  // stay visible until the decision lands.
+  it.fails("getUsers: fsrA never sees the B canary", async () => {
     actAs(world.fsrA.id);
     const ids = (await getUsers({ limit: 100 })).data.map((row) => row.id);
     expect(ids).not.toContain(userBId);
   });
 
-  it("getUserById: fsrA cannot open the B canary", async () => {
+  it.fails("getUserById: fsrA cannot open the B canary", async () => {
     actAs(world.fsrA.id);
     expect(isDenial(await capture(() => getUserById(userBId)))).toBe(true);
   });

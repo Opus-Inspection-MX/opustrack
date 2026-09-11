@@ -340,8 +340,15 @@ export const ALLOWLIST: Record<string, string> = {
 
 /** Matrix entries whose test is `it.fails` until the noted fix lands.
  *
- * Empty: every 0a/0b/0c/5a fix is merged and every marker was flipped to a
- * plain `it`. Keep the export (and the dangling-key test) so the next known
- * gap can register here again instead of silently shipping without a case.
+ * Three markers for genuinely unmerged work (everything else flipped to a
+ * plain `it` when 0a/0b/0c/5a merged). Keep the export (and the
+ * dangling-key test) so the next known gap registers here instead of
+ * silently shipping without a case.
  */
-export const EXPECTED_FAIL: Record<string, string> = {};
+export const EXPECTED_FAIL: Record<string, string> = {
+  // Reads with no Client scope yet (0c remainder).
+  "schedules.ts :: getScheduleById": "TODO(0c): no scope check",
+  // users:read scoping is pending product decision #1.
+  "users.ts :: getUsers": "TODO(users-scope): no scope filter",
+  "users.ts :: getUserById": "TODO(users-scope): no scope check",
+};

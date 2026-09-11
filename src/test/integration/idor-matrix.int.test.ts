@@ -293,7 +293,15 @@ describe("incidents", () => {
         reportedById: world.fsrA.id,
       }),
     );
-    expect(isDenial(outcome)).toBe(true);
+    // Scoped callers file as themselves (H-04): someone else's id is pinned
+    // to the caller instead of denied, so the incident is created — under
+    // the caller's own name, never the impersonated one.
+    expect(outcome).toMatchObject({ success: true });
+    const created = await prisma.incident.findFirstOrThrow({
+      where: { title: "int-idor impersonation" },
+      select: { reportedById: true },
+    });
+    expect(created.reportedById).toBe(world.reporterA.id);
   });
 
   it("createIncident: reporterA files under client A", async () => {

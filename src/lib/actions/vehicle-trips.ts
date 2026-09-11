@@ -16,7 +16,6 @@ import { logger } from "@/lib/observability/logger";
 import {
   assertOfflineFreshness,
   findReplayTargetId,
-  isP2002,
   readOfflineFields,
 } from "@/lib/offline/idempotency";
 import {
@@ -375,7 +374,12 @@ export async function startVehicleTrip(formData: FormData) {
         startPhotoResult.url,
         startPhotoResult.provider as "vercel-blob" | "filesystem",
       ).catch(() => {});
-      if (offline.idempotencyKey && isP2002(error)) {
+      // Converge on the winner's live trip whenever our key already has one:
+      // P2002 (both runners inserted the key) or vehicle-claim loss (the
+      // winner's commit moved the vehicle AND the key row atomically, so a
+      // count of 0 means the target exists). Without a replay target the
+      // original error propagates unchanged.
+      if (offline.idempotencyKey) {
         const targetId = await findReplayTargetId(
           prisma,
           offline.idempotencyKey,
@@ -549,7 +553,10 @@ export async function endVehicleTrip(formData: FormData) {
         endPhotoResult.url,
         endPhotoResult.provider as "vercel-blob" | "filesystem",
       ).catch(() => {});
-      if (offline.idempotencyKey && isP2002(error)) {
+      // Same convergence as trip start: a replay target for our key means a
+      // concurrent run already applied this operation — return its live row
+      // instead of surfacing the loser's error.
+      if (offline.idempotencyKey) {
         const targetId = await findReplayTargetId(
           prisma,
           offline.idempotencyKey,

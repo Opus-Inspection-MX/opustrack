@@ -76,6 +76,10 @@ describe("mail outbox", () => {
   // rows and send them twice.
   it("two parallel retryDueEmails send each mail once", async () => {
     const subjects = ["int-conc mail 1", "int-conc mail 2"];
+    // Stuck rows: fresh PENDIENTE is excluded on purpose (still in flight
+    // inside enqueueAndSend), so backdate past the claim age to make them
+    // due for the retry run.
+    const old = new Date(Date.now() - 10 * 60_000);
     for (const subject of subjects) {
       await prisma.emailOutbox.create({
         data: {
@@ -85,6 +89,7 @@ describe("mail outbox", () => {
           html: `<p>${subject}</p>`,
           recipients: ["int-conc@test.local"],
           status: "PENDIENTE",
+          createdAt: old,
         },
       });
     }
@@ -93,15 +98,19 @@ describe("mail outbox", () => {
       retryDueEmails(now),
       retryDueEmails(now),
     ]);
+    // Exactly once: two rows due, two sends total — a lost claim race would
+    // double-send and exceed it.
     expect(first.sent + second.sent).toBe(2);
+    expect(first.failed + second.failed).toBe(0);
 
-    const { __sentSubjects } = (await import(
-      "@/lib/mail/transport"
-    )) as unknown as { __sentSubjects: string[] };
-    const delivered = __sentSubjects.filter((subject) =>
-      subjects.includes(subject),
-    );
+    const delivered = await prisma.emailOutbox.findMany({
+      where: { subject: { in: subjects } },
+      select: { subject: true, status: true, attempts: true },
+    });
     expect(delivered).toHaveLength(2);
+    for (const row of delivered) {
+      expect(row.status).toBe("ENVIADO");
+    }
   });
 });
 
