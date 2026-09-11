@@ -6,10 +6,20 @@ import { getMailTransport } from "./transport";
 /**
  * The mail outbox: every event mail is a row before it is an attempt.
  *
- * `enqueueAndSend` inserts the row in PENDIENTE and tries to send it right
- * away. On success the row becomes ENVIADO; on failure it becomes FALLIDO
- * with `attempts++` and a `nextAttemptAt` backoff, so the Phase 5 cron can
- * pick it up with `retryDueEmails()` without any caller keeping state.
+ * `enqueueAndSend` inserts the row in PENDIENTE, claims it atomically
+ * (PENDIENTE → ENVIANDO) and tries to send it right away. On success the row
+ * becomes ENVIADO; on failure it becomes FALLIDO with `attempts++` and a
+ * `nextAttemptAt` backoff, so the cron picks it up with `retryDueEmails()`
+ * without any caller keeping state.
+ *
+ * Fase 5a (H-12): the claim is an `updateMany` conditioned on the `attempts`
+ * value read from the due query — two overlapping workers (cron vs cron, or
+ * cron vs `enqueueAndSend`) race on the same row and only the winner
+ * (`count === 1`) sends. `retryDueEmails` only takes PENDIENTE rows older
+ * than 2 minutes (fresh rows are still in flight inside `enqueueAndSend`)
+ * and at most 50 rows per run. Rows stuck in ENVIANDO for over 15 minutes
+ * (a crash between claim and send) fall back to FALLIDO so the next run
+ * retries them instead of leaving them dead.
  *
  * Both entry points NEVER throw: mail is always the secondary channel, and a
  * mail problem must never roll back the business operation that triggered it.
@@ -22,6 +32,18 @@ export const EMAIL_RETRY_DELAYS_MS = [5 * 60_000, 30 * 60_000, 2 * 60 * 60_000];
 
 /** After this many attempts the row rests with `nextAttemptAt = null`. */
 export const MAX_EMAIL_ATTEMPTS = 3;
+
+/**
+ * A fresh PENDIENTE row is still in flight inside `enqueueAndSend`, so the
+ * cron only takes PENDIENTE rows older than this.
+ */
+export const EMAIL_CLAIM_AGE_MS = 2 * 60_000;
+
+/** Max rows claimed per `retryDueEmails` run (cron timeout budget). */
+export const EMAIL_RETRY_BATCH = 50;
+
+/** A crash between claim and send must not leave the row dead forever. */
+export const EMAIL_STUCK_MS = 15 * 60_000;
 
 export interface OutboxMessage {
   notificationType: string;
@@ -47,6 +69,24 @@ export function sanitizeOutboxError(error: unknown): string {
 interface OutboxRow {
   id: string;
   attempts: number;
+}
+
+/**
+ * Atomic claim: move the row from a sendable state to ENVIANDO, but only
+ * when `attempts` still matches the value read by the due query. Returns
+ * true only for the worker that won the race (`count === 1`); every other
+ * overlapping run must skip the row instead of sending a duplicate.
+ */
+async function claimRow(row: OutboxRow): Promise<boolean> {
+  const claimed = await prisma.emailOutbox.updateMany({
+    where: {
+      id: row.id,
+      attempts: row.attempts,
+      status: { in: [EmailOutboxStatus.PENDIENTE, EmailOutboxStatus.FALLIDO] },
+    },
+    data: { status: EmailOutboxStatus.ENVIANDO },
+  });
+  return claimed.count === 1;
 }
 
 async function attemptDelivery(row: OutboxRow): Promise<boolean> {
@@ -97,7 +137,7 @@ async function attemptDelivery(row: OutboxRow): Promise<boolean> {
   }
 }
 
-/** Insert the row in PENDIENTE and try to send it immediately. */
+/** Insert the row in PENDIENTE, claim it, and try to send it immediately. */
 export async function enqueueAndSend(message: OutboxMessage): Promise<void> {
   if (message.recipients.length === 0) return;
   try {
@@ -113,6 +153,8 @@ export async function enqueueAndSend(message: OutboxMessage): Promise<void> {
       },
       select: { id: true, attempts: true },
     });
+    // The cron may already see this row: only the claim winner sends.
+    if (!(await claimRow(row))) return;
     await attemptDelivery(row);
   } catch (error) {
     logger.error("[mail:outbox] No se pudo encolar el correo:", error);
@@ -127,19 +169,41 @@ export interface RetrySummary {
 
 /**
  * Retry every row that is due: stuck PENDIENTE rows (created but never
- * attempted — e.g. a crash between insert and send) plus FALLIDO rows whose
- * `nextAttemptAt` passed and still have attempts left. Errors are isolated
- * per row so one poisoned message cannot block the rest.
+ * attempted — e.g. a crash between insert and claim) plus FALLIDO rows whose
+ * `nextAttemptAt` passed and still have attempts left. Fresh PENDIENTE rows
+ * are excluded (still in flight inside `enqueueAndSend`), the batch is
+ * capped, and every row is claimed atomically before sending so overlapping
+ * runs deliver exactly once. Rows stuck in ENVIANDO past the crash window
+ * fall back to FALLIDO first. Errors are isolated per row so one poisoned
+ * message cannot block the rest.
  */
 export async function retryDueEmails(
   now: Date = new Date(),
 ): Promise<RetrySummary> {
   const summary: RetrySummary = { attempted: 0, sent: 0, failed: 0 };
   try {
+    // A crash between claim and send leaves ENVIANDO rows no worker owns.
+    // Send them back to FALLIDO due now so this run retries them; each step
+    // below is isolated so a pre-migration database (no ENVIANDO value yet)
+    // degrades to a logged error instead of starving the whole run.
+    try {
+      await prisma.emailOutbox.updateMany({
+        where: {
+          status: EmailOutboxStatus.ENVIANDO,
+          updatedAt: { lt: new Date(now.getTime() - EMAIL_STUCK_MS) },
+        },
+        data: { status: EmailOutboxStatus.FALLIDO, nextAttemptAt: now },
+      });
+    } catch (error) {
+      logger.error("[mail:outbox] No se pudieron recuperar envíos atascados:", error);
+    }
     const due = await prisma.emailOutbox.findMany({
       where: {
         OR: [
-          { status: EmailOutboxStatus.PENDIENTE },
+          {
+            status: EmailOutboxStatus.PENDIENTE,
+            createdAt: { lte: new Date(now.getTime() - EMAIL_CLAIM_AGE_MS) },
+          },
           {
             status: EmailOutboxStatus.FALLIDO,
             attempts: { lt: MAX_EMAIL_ATTEMPTS },
@@ -148,8 +212,10 @@ export async function retryDueEmails(
         ],
       },
       select: { id: true, attempts: true },
+      take: EMAIL_RETRY_BATCH,
     });
     for (const row of due) {
+      if (!(await claimRow(row))) continue;
       summary.attempted += 1;
       const sent = await attemptDelivery(row);
       if (sent) summary.sent += 1;
