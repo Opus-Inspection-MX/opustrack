@@ -11,7 +11,16 @@ export default defineConfig({
     include: ["**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}"],
     // Playwright owns e2e/**/*.spec.ts. Everything else under e2e/ (pure
     // helpers such as fixtures/ephemeral-db.ts) is unit-tested here.
-    exclude: ["node_modules", "dist", ".next", "e2e/**/*.spec.ts"],
+    // TODO(promote): Fase 2 splits unit/integration into test.projects with
+    // a real Postgres stack; until then *.int.test.ts stays out of the unit
+    // run and is exercised manually against the local container.
+    exclude: [
+      "node_modules",
+      "dist",
+      ".next",
+      "e2e/**/*.spec.ts",
+      "**/*.int.test.ts",
+    ],
     coverage: {
       provider: "v8",
       reporter: ["text", "json", "html"],
