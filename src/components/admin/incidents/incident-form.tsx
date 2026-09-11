@@ -23,6 +23,7 @@ import {
   updateIncident,
 } from "@/lib/actions/incidents";
 import { isFailure } from "@/lib/actions/result";
+import { ROLE } from "@/lib/authz/roles";
 import {
   formatMX,
   fromDatetimeLocalMX,
@@ -59,6 +60,8 @@ type IncidentFormProps = {
      * compiler said nothing. Mandatory here means it will.
      */
     roleNames: string[];
+    /** Stable role identity (H-09): the FSR filter resolves by code. */
+    roleCodes?: string[];
   }>;
   schedules: Array<{ id: string; scheduledAt: Date }>;
 };
@@ -96,8 +99,11 @@ export function IncidentForm({
   );
 
   // Every FSR, not just the ones linked to this incident's Client: that link
-  // is a hint for the picker, never a filter.
-  const fsrCandidates = users.filter((u) => u.roleNames.includes("FSR"));
+  // is a hint for the picker, never a filter. Resolved by stable role code
+  // (H-09) so renaming the "FSR" label cannot empty the picker.
+  const fsrCandidates = users.filter((u) =>
+    (u.roleCodes ?? u.roleNames).includes(ROLE.FSR),
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

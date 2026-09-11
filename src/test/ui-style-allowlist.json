@@ -245,6 +245,15 @@
     "#fff"
   ],
   "src/lib/actions/lookups.ts": ["#6B7280"],
+  "src/lib/catalog/system-states.ts": [
+    "#06B6D4",
+    "#10B981",
+    "#3B82F6",
+    "#8B5CF6",
+    "#94A3B8",
+    "#EF4444",
+    "#F59E0B"
+  ],
   "src/lib/mail/templates.ts": [
     "#111827",
     "#1d4ed8",

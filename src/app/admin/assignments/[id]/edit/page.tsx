@@ -32,7 +32,9 @@ import {
   getAssignmentFormOptions,
 } from "@/lib/actions/assignments";
 import { isFailure } from "@/lib/actions/result";
+import { codeOf, isAssignmentClosed } from "@/lib/constants/status-codes";
 import { logger } from "@/lib/observability/logger";
+import { ASSIGNMENT_STATE } from "@/lib/state-machine/assignment-machine";
 import { formatFileSize, getFileIcon } from "@/lib/upload";
 import { formatMX } from "@/lib/utils/datetime";
 
@@ -219,9 +221,9 @@ export default function EditAssignmentPage({
         </div>
         <Badge
           variant={
-            assignment.status?.name === "CERRADO"
+            isAssignmentClosed(assignment.status)
               ? "default"
-              : assignment.status?.name === "INICIADO"
+              : codeOf(assignment.status) === ASSIGNMENT_STATE.INICIADO
                 ? "secondary"
                 : "outline"
           }

@@ -26,7 +26,7 @@ interface Vehicle {
   licensePlate: string;
   vin?: string | null;
   color?: string | null;
-  status: { id: number; name: string };
+  status: { id: number; name: string; code?: string | null };
   assignedFsrId?: string | null;
   assignedFsr?: { id: string; name: string; email: string } | null;
   notes?: string | null;
@@ -41,6 +41,7 @@ interface FsrUser {
 interface VehicleStatus {
   id: number;
   name: string;
+  code?: string | null;
 }
 
 interface VehicleFormProps {
@@ -66,7 +67,7 @@ export function VehicleForm({
     licensePlate: vehicle?.licensePlate || "",
     vin: vehicle?.vin || "",
     color: vehicle?.color || "",
-    status: vehicle?.status?.name || "AVAILABLE",
+    status: vehicle?.status?.code ?? vehicle?.status?.name ?? "AVAILABLE",
     assignedFsrId: vehicle?.assignedFsrId || "",
     notes: vehicle?.notes || "",
   });
@@ -214,7 +215,10 @@ export function VehicleForm({
                 <SelectContent>
                   {statuses.length > 0 ? (
                     statuses.map((status) => (
-                      <SelectItem key={status.id} value={status.name}>
+                      <SelectItem
+                        key={status.id}
+                        value={status.code ?? status.name}
+                      >
                         {status.name}
                       </SelectItem>
                     ))

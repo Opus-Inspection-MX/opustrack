@@ -516,7 +516,7 @@ describe("assignFSRToIncident (RF-514)", () => {
     await assignFSRToIncident(1, "fsr1");
 
     expect(prismaMock.assignmentStatus.findFirst).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { name: "ASIGNADO" } }),
+      expect.objectContaining({ where: { code: "ASIGNADO" } }),
     );
     const created = prismaMock.assignment.create.mock.calls[0][0].data;
     expect(created).toMatchObject({ incidentId: 1, statusId: 2 });

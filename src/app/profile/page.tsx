@@ -31,6 +31,7 @@ import {
   updateMyPassword,
   updateMyProfile,
 } from "@/lib/actions/users";
+import { isUserActive } from "@/lib/constants/status-codes";
 import { logger } from "@/lib/observability/logger";
 import { formatMX } from "@/lib/utils/datetime";
 
@@ -640,9 +641,7 @@ export default function FSRProfilePage() {
                     <p className="text-sm text-muted-foreground">Status</p>
                     <StatusBadge
                       tone={
-                        user.userStatus?.name === "ACTIVO"
-                          ? "success"
-                          : "neutral"
+                        isUserActive(user.userStatus) ? "success" : "neutral"
                       }
                     >
                       {user.userStatus?.name || "N/A"}

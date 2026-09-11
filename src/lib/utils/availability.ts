@@ -1,5 +1,6 @@
 import type { Holiday } from "@prisma/client";
 import moment from "moment-timezone";
+import { VACATION_STATUS } from "@/lib/constants/status-codes";
 import { prisma } from "@/lib/database/prisma.singleton";
 import { APP_TZ, mxDateString, mxDayRange } from "@/lib/utils/datetime";
 
@@ -122,7 +123,7 @@ export async function isFsrUnavailable(
     where: {
       userId,
       active: true,
-      status: { name: "APROBADA" },
+      status: { code: VACATION_STATUS.APROBADA },
       // Inclusive overlap: vacation's startDate <= CDMX end-of-day AND endDate >= CDMX start-of-day.
       startDate: { lte },
       endDate: { gte },

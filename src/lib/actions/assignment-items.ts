@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { assertAssignmentEditable } from "@/lib/assignments/incident-mutable";
 import { loadAssignmentFor } from "@/lib/auth/access";
 import { requirePermission } from "@/lib/auth/auth";
 import { prisma } from "@/lib/database/prisma.singleton";
@@ -17,25 +18,11 @@ import { BusinessRuleError, businessRule, guarded } from "./result";
 /**
  * Refuse changes once the incident is closed or cancelled.
  *
- * The same gate `assignment-activities.ts` applies, and for the same reason:
- * the work record of a finished incident is what gets billed and audited, so it
- * must stop moving. Without this an FSR could keep adding costed lines to work
+ * Shared with `assignment-activities.ts` (`incident-mutable.ts`): the work
+ * record of a finished incident is what gets billed and audited, so it must
+ * stop moving. Without this an FSR could keep adding costed lines to work
  * that was already signed off.
  */
-async function assertAssignmentEditable(assignmentId: string): Promise<void> {
-  const row = await prisma.assignment.findUnique({
-    where: { id: assignmentId },
-    select: { incident: { select: { status: { select: { name: true } } } } },
-  });
-  const name = row?.incident?.status?.name;
-  if (name === "CERRADO" || name === "CANCELADA") {
-    businessRule(
-      name === "CANCELADA"
-        ? "La incidencia está cancelada. No se pueden hacer cambios."
-        : "La incidencia está cerrada. No se pueden hacer cambios.",
-    );
-  }
-}
 
 export type AssignmentItemInput = {
   assignmentId: string;

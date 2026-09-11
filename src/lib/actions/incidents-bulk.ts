@@ -10,6 +10,7 @@ import {
   scheduleScopeWhere,
   scopeIncludesClient,
 } from "@/lib/auth/report-scope";
+import { ROLE } from "@/lib/authz/roles";
 import { whereHasRole } from "@/lib/authz/user-queries";
 import { prisma } from "@/lib/database/prisma.singleton";
 import {
@@ -58,7 +59,7 @@ export async function getBulkIncidentCatalogs() {
     prisma.incidentStatus.findMany({
       where: { active: true },
       orderBy: { name: "asc" },
-      select: { id: true, name: true, color: true },
+      select: { id: true, code: true, name: true, color: true },
     }),
     prisma.client.findMany({
       where: {
@@ -84,7 +85,7 @@ export async function getBulkIncidentCatalogs() {
       },
     }),
     prisma.user.findMany({
-      where: { active: true, ...whereHasRole("FSR") },
+      where: { active: true, ...whereHasRole(ROLE.FSR) },
       select: {
         id: true,
         name: true,
@@ -261,7 +262,7 @@ export async function resolveBulkIncidentRows(
       select: { id: true, code: true },
     }),
     prisma.user.findMany({
-      where: { active: true, ...whereHasRole("FSR") },
+      where: { active: true, ...whereHasRole(ROLE.FSR) },
       select: { id: true },
     }),
   ]);
@@ -492,14 +493,14 @@ export async function createIncidentsFromPreview(
     };
   }
 
-  // Resolve open/closed status IDs once.
+  // Resolve open/closed status IDs once — by stable code (H-08).
   const [openStatus, closedStatus] = await Promise.all([
     prisma.incidentStatus.findUnique({
-      where: { name: INCIDENT_STATE.ABIERTO },
+      where: { code: INCIDENT_STATE.ABIERTO },
       select: { id: true },
     }),
     prisma.incidentStatus.findUnique({
-      where: { name: INCIDENT_STATE.CERRADO },
+      where: { code: INCIDENT_STATE.CERRADO },
       select: { id: true },
     }),
   ]);
@@ -588,7 +589,7 @@ export async function createIncidentsFromPreview(
           where: {
             id: { in: assigneeIds },
             active: true,
-            ...whereHasRole("FSR"),
+            ...whereHasRole(ROLE.FSR),
           },
           select: { id: true },
         })
@@ -876,7 +877,7 @@ export async function bulkAssignIncidents(
       where: {
         id: { in: changes.fsrIds.ids },
         active: true,
-        ...whereHasRole("FSR"),
+        ...whereHasRole(ROLE.FSR),
       },
       select: { id: true },
     });

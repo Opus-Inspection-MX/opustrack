@@ -27,14 +27,17 @@ const { prismaMock, requirePermission } = vi.hoisted(() => ({
     rolePermission: { count: vi.fn() },
 
     // deleteIncidentType also reads the row first, to protect the fallback type.
+    // The five coded status catalogs read the row first too (system-row
+    // guard, Fase 3): findUnique resolves a custom row (code null) so the
+    // pre-existing child-guard assertions below keep exercising that path.
     state: { update: vi.fn() },
-    userStatus: { update: vi.fn() },
+    userStatus: { update: vi.fn(), findUnique: vi.fn() },
     incidentType: { update: vi.fn(), findUnique: vi.fn() },
-    incidentStatus: { update: vi.fn() },
-    assignmentStatus: { update: vi.fn() },
+    incidentStatus: { update: vi.fn(), findUnique: vi.fn() },
+    assignmentStatus: { update: vi.fn(), findUnique: vi.fn() },
     equipmentStatus: { update: vi.fn() },
-    vehicleStatus: { update: vi.fn() },
-    vehicleTripStatus: { update: vi.fn() },
+    vehicleStatus: { update: vi.fn(), findUnique: vi.fn() },
+    vehicleTripStatus: { update: vi.fn(), findUnique: vi.fn() },
     permission: { update: vi.fn() },
   },
   requirePermission: vi.fn(async (_name: string) => ({ id: "admin" })),
@@ -145,7 +148,7 @@ beforeEach(() => {
     if ("count" in model) model.count.mockResolvedValue(0);
     if ("update" in model) model.update.mockResolvedValue({ id: 1 });
     if ("findUnique" in model)
-      model.findUnique.mockResolvedValue({ name: "Otro" });
+      model.findUnique.mockResolvedValue({ code: null, name: "Otro" });
   }
 });
 

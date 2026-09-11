@@ -17,6 +17,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getMyAssignments } from "@/lib/actions/assignments";
 import { requireRouteAccess } from "@/lib/auth/auth";
+import { codeOf } from "@/lib/constants/status-codes";
+import { ASSIGNMENT_STATE } from "@/lib/state-machine/assignment-machine";
 import { formatMX } from "@/lib/utils/datetime";
 
 type AssignmentStatusRef = {
@@ -45,22 +47,25 @@ export default async function FSRAssignmentsPage() {
   await requireRouteAccess("/fsr");
   const assignments = await getMyAssignments();
 
-  // Calculate stats by actual status name (from DB), not derived from dates.
-  const byStatus = (name: string) =>
-    assignments.filter((wo) => wo.status?.name === name).length;
+  // Calculate stats by stable status code (H-08), not derived from dates.
+  // STATUS_LABELS/TONE stay keyed by the same strings (codes == labels today).
+  const byStatus = (code: string) =>
+    assignments.filter((wo) => codeOf(wo.status) === code).length;
   const stats = {
     total: assignments.length,
-    pendingSeen: byStatus("ASIGNADO"),
-    notStarted: byStatus("VISTO"),
-    inProgress: byStatus("INICIADO") + byStatus("EN_PROGRESO"),
-    completed: byStatus("CERRADO"),
+    pendingSeen: byStatus(ASSIGNMENT_STATE.ASIGNADO),
+    notStarted: byStatus(ASSIGNMENT_STATE.VISTO),
+    inProgress:
+      byStatus(ASSIGNMENT_STATE.INICIADO) +
+      byStatus(ASSIGNMENT_STATE.EN_PROGRESO),
+    completed: byStatus(ASSIGNMENT_STATE.CERRADO),
   };
 
   const getStatusBadge = (status: AssignmentStatusRef) => {
-    const name = status?.name ?? "";
-    const label = STATUS_LABELS[name] ?? name ?? "Sin estado";
+    const code = codeOf(status) ?? "";
+    const label = STATUS_LABELS[code] ?? status?.name ?? "Sin estado";
     return (
-      <StatusBadge tone={STATUS_TONE[name] ?? "neutral"}>{label}</StatusBadge>
+      <StatusBadge tone={STATUS_TONE[code] ?? "neutral"}>{label}</StatusBadge>
     );
   };
 
@@ -173,9 +178,9 @@ export default async function FSRAssignmentsPage() {
                   <div>
                     <Button asChild className="min-h-[44px]">
                       <Link href={`/fsr/assignments/${wo.id}`}>
-                        {wo.status?.name === "CERRADO"
+                        {codeOf(wo.status) === ASSIGNMENT_STATE.CERRADO
                           ? "Ver"
-                          : wo.status?.name === "ASIGNADO"
+                          : codeOf(wo.status) === ASSIGNMENT_STATE.ASIGNADO
                             ? "Marcar visto"
                             : "Trabajar"}
                       </Link>

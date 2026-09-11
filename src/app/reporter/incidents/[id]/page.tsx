@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getIncidentById } from "@/lib/actions/incidents";
 import { canPerform, requireRouteAccess } from "@/lib/auth/auth";
+import { isIncidentTerminal } from "@/lib/constants/status-codes";
 import { formatIncidentDateTime, formatMX } from "@/lib/utils/datetime";
 import { formatReporter } from "@/lib/utils/incident-display";
 
@@ -47,9 +48,7 @@ export default async function ReporterIncidentDetailPage({
     canPerform("incidents:create"),
     canPerform("incidents:update"),
   ]);
-  const terminal =
-    incident.status?.name === "CERRADO" ||
-    incident.status?.name === "CANCELADA";
+  const terminal = isIncidentTerminal(incident.status);
 
   return (
     <PageContainer>

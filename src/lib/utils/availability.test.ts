@@ -186,9 +186,9 @@ describe("isFsrUnavailable", () => {
     await isFsrUnavailable("user-1", jan1);
 
     const where = findFirst.mock.calls[0]?.[0]?.where as {
-      status: { name: string };
+      status: { code: string };
     };
-    expect(where.status).toEqual({ name: "APROBADA" });
+    expect(where.status).toEqual({ code: "APROBADA" });
   });
 
   it("returns false when there is no holiday and no approved vacation", async () => {

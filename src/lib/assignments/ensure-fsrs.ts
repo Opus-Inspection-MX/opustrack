@@ -1,5 +1,6 @@
 import { revalidatePath } from "next/cache";
 import { requireAuth } from "@/lib/auth/auth";
+import { codeOf } from "@/lib/constants/status-codes";
 import { prisma } from "@/lib/database/prisma.singleton";
 import {
   notifyAssignmentAssigned,
@@ -29,20 +30,20 @@ type TxClient =
   | Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
 
 /**
- * Resolve an AssignmentStatus id by name within a transaction (or default client).
- * Throws if the catalog row is missing — state-machine code requires the seed
- * to be present.
+ * Resolve an AssignmentStatus id by stable code within a transaction (or
+ * default client). Throws if the catalog row is missing — state-machine code
+ * requires the seed to be present.
  */
 export async function resolveAssignmentStatusId(
   client: TxClient,
-  name: AssignmentState,
+  code: AssignmentState,
 ): Promise<number> {
   const row = await client.assignmentStatus.findUnique({
-    where: { name },
+    where: { code },
     select: { id: true },
   });
   if (!row) {
-    throw new Error(`AssignmentStatus '${name}' no existe en el catálogo`);
+    throw new Error(`AssignmentStatus '${code}' no existe en el catálogo`);
   }
   return row.id;
 }
@@ -73,7 +74,7 @@ export async function ensureFsrsAssignedToIncident(
   const result = await transactionWithNotifications(async (tx) => {
     const existingAssignment = await tx.assignment.findFirst({
       where: { incidentId, active: true },
-      select: { id: true, status: { select: { name: true } } },
+      select: { id: true, status: { select: { code: true, name: true } } },
       orderBy: { createdAt: "desc" },
     });
 
@@ -99,7 +100,7 @@ export async function ensureFsrsAssignedToIncident(
 
       if (
         toAdd.length > 0 &&
-        existingAssignment.status?.name ===
+        codeOf(existingAssignment.status) ===
           ASSIGNMENT_STATE.PENDIENTE_DE_ASIGNACION
       ) {
         const statusId = await resolveAssignmentStatusId(

@@ -9,8 +9,15 @@ import {
   incidentScopeWhere,
   vehicleTripScopeWhere,
 } from "@/lib/auth/report-scope";
+import { ROLE } from "@/lib/authz/roles";
 import { whereHasRole } from "@/lib/authz/user-queries";
 import { getSlaState } from "@/lib/constants/sla-policy";
+import {
+  codeOf,
+  isAssignmentClosed,
+  isIncidentCancelled,
+  isIncidentClosed,
+} from "@/lib/constants/status-codes";
 import { prisma } from "@/lib/database/prisma.singleton";
 import { getSlaHolidaySet } from "@/lib/sla/sla-holidays";
 import { getIncidentClosureMap } from "@/lib/state-machine/incident-events";
@@ -89,9 +96,9 @@ export async function getFSRPerformanceData(
   const startDate = startRange.gte;
   const endDate = endRange.lte;
 
-  // Get FSR role
+  // Get FSR role — by stable code (H-09).
   const fsrRole = await prisma.role.findFirst({
-    where: { name: "FSR", active: true },
+    where: { code: ROLE.FSR, active: true },
   });
 
   if (!fsrRole) return [];
@@ -99,7 +106,7 @@ export async function getFSRPerformanceData(
   // Get all FSR users
   const fsrUsers = await prisma.user.findMany({
     where: {
-      ...whereHasRole("FSR"),
+      ...whereHasRole(ROLE.FSR),
       active: true,
       ...fsrScopeWhere(scope),
     },
@@ -133,7 +140,7 @@ export async function getFSRPerformanceData(
       });
 
       const completedAssignments = assignments.filter(
-        (a) => a.status?.name === "CERRADO" || a.finishedAt,
+        (a) => isAssignmentClosed(a.status) || a.finishedAt,
       );
 
       let totalCompletionTime = 0;
@@ -265,7 +272,7 @@ export async function getIncidentTrendData(
     },
     select: {
       reportedAt: true,
-      status: { select: { name: true } },
+      status: { select: { code: true, name: true } },
     },
   });
 
@@ -281,7 +288,7 @@ export async function getIncidentTrendData(
     // Resolved means CERRADO, not "has a resolvedAt timestamp": cancelled
     // incidents must never count as resolved (and legacy rows may still carry
     // a resolvedAt from before cancellation stopped setting one).
-    if (incident.status?.name === INCIDENT_STATE.CERRADO) {
+    if (isIncidentClosed(incident.status)) {
       trendByDate[dateStr].resolved++;
     }
   });
@@ -406,7 +413,7 @@ export async function getSlaBreachData(
       id: true,
       reportedAt: true,
       resolvedAt: true,
-      status: { select: { name: true } },
+      status: { select: { code: true, name: true } },
       type: { select: { name: true, priority: true } },
       assignments: {
         where: { active: true },
@@ -418,7 +425,7 @@ export async function getSlaBreachData(
   // CANCELADA is terminal without a resolution obligation: excluded in code
   // (not in the query) so the exclusion stays visible next to the semantics.
   const open = incidents.filter(
-    (incident) => incident.status?.name !== INCIDENT_STATE.CANCELADA,
+    (incident) => !isIncidentCancelled(incident.status),
   );
   if (open.length === 0) return [];
 
@@ -455,7 +462,7 @@ export async function getSlaBreachData(
       createdAt: incident.reportedAt,
       seenAt: firstSeenAt,
       resolvedAt: closureMap.get(incident.id) ?? incident.resolvedAt,
-      statusName: incident.status?.name ?? null,
+      statusName: codeOf(incident.status),
       now,
       holidays,
     });
@@ -653,7 +660,7 @@ export async function getReportSummary(dateRange?: DateRange) {
         reportedAt: { gte: startDate, lte: endDate },
         // CERRADO state, not `resolvedAt != null`: cancelled incidents must
         // never count as resolved.
-        status: { name: INCIDENT_STATE.CERRADO },
+        status: { code: INCIDENT_STATE.CERRADO },
         ...incidentScopeWhere(scope),
       },
     }),
@@ -1044,7 +1051,7 @@ export async function getNotificationEngagementReport(
     : moment().tz(APP_TZ).endOf("day").toDate();
 
   const fsrRole = await prisma.role.findFirst({
-    where: { name: "FSR", active: true },
+    where: { code: ROLE.FSR, active: true },
   });
   if (!fsrRole) {
     return {
@@ -1061,7 +1068,7 @@ export async function getNotificationEngagementReport(
   }
 
   const fsrUsers = await prisma.user.findMany({
-    where: { ...whereHasRole("FSR"), active: true, ...fsrScopeWhere(scope) },
+    where: { ...whereHasRole(ROLE.FSR), active: true, ...fsrScopeWhere(scope) },
     select: { id: true, name: true, email: true },
     orderBy: { name: "asc" },
   });
@@ -1194,7 +1201,7 @@ export async function getDailyTripComplianceReport(
   }
 
   const fsrRole = await prisma.role.findFirst({
-    where: { name: "FSR", active: true },
+    where: { code: ROLE.FSR, active: true },
   });
   if (!fsrRole) {
     return {
@@ -1210,7 +1217,7 @@ export async function getDailyTripComplianceReport(
   }
 
   const fsrUsers = await prisma.user.findMany({
-    where: { ...whereHasRole("FSR"), active: true, ...fsrScopeWhere(scope) },
+    where: { ...whereHasRole(ROLE.FSR), active: true, ...fsrScopeWhere(scope) },
     select: { id: true, name: true, email: true },
     orderBy: { name: "asc" },
   });

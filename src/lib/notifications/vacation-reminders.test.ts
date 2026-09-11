@@ -47,7 +47,7 @@ describe("recordatorios de vacación próxima", () => {
     const where = prismaMock.vacation.findMany.mock.calls[0][0].where;
     expect(where).toMatchObject({
       active: true,
-      status: { name: "APROBADA", active: true },
+      status: { code: "APROBADA", active: true },
     });
     const expectedStart = moment(NOW)
       .tz(APP_TZ)

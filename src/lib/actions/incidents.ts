@@ -13,11 +13,14 @@ import {
   scheduleScopeWhere,
 } from "@/lib/auth/report-scope";
 import { SCOPE_ALL_CLIENTS, userHasPermission } from "@/lib/authz/authz";
+import { ROLE } from "@/lib/authz/roles";
 import {
   includeRoles,
+  roleCodesOf,
   roleNamesOf,
   whereHasRole,
 } from "@/lib/authz/user-queries";
+import { codeOf } from "@/lib/constants/status-codes";
 import { prisma } from "@/lib/database/prisma.singleton";
 import {
   resolveTypeIdOrFallback,
@@ -323,7 +326,7 @@ export async function createIncident(data: unknown) {
     // State machine: every new incident starts at ABIERTO. Any caller-provided
     // statusId is ignored so the flow can't be skipped.
     const initialStatus = await prisma.incidentStatus.findUnique({
-      where: { name: INCIDENT_STATE.ABIERTO },
+      where: { code: INCIDENT_STATE.ABIERTO },
       select: { id: true },
     });
     if (!initialStatus) {
@@ -420,9 +423,9 @@ export async function createIncidentAsReporter(data: unknown) {
     // Validate input
     const validated = IncidentReporterCreateSchema.parse(data);
 
-    // Get initial status: new incidents start at ABIERTO.
+    // Get initial status: new incidents start at ABIERTO (stable code).
     const initialStatus = await prisma.incidentStatus.findFirst({
-      where: { name: INCIDENT_STATE.ABIERTO },
+      where: { code: INCIDENT_STATE.ABIERTO },
     });
 
     if (!initialStatus) {
@@ -649,7 +652,7 @@ export async function updateIncidentFsrs(
         where: {
           id: { in: fsrIds },
           active: true,
-          ...whereHasRole("FSR"),
+          ...whereHasRole(ROLE.FSR),
         },
         select: { id: true },
       });
@@ -835,7 +838,7 @@ export async function deleteIncident(id: number) {
 export async function getFsrsForAssignment() {
   await requirePermission("incidents:update");
   const fsrs = await prisma.user.findMany({
-    where: { active: true, ...whereHasRole("FSR") },
+    where: { active: true, ...whereHasRole(ROLE.FSR) },
     select: {
       id: true,
       name: true,
@@ -908,13 +911,15 @@ export async function getIncidentFormOptions() {
     }),
   ]);
 
-  // `roleNames` is plural now: the picker highlights FSRs, and a user can be
-  // an FSR *and* an administrator at the same time.
+  // `roleCodes` is plural now: the picker highlights FSRs by stable code, and
+  // a user can be an FSR *and* an administrator at the same time.
+  // `roleNames` stays for display until the UI drops it.
   const usersWithClienteIds = users.map((u) => ({
     id: u.id,
     name: u.name,
     email: u.email,
     roleNames: roleNamesOf(u),
+    roleCodes: roleCodesOf(u),
     clientIds: u.clientAssignments.map((va) => va.clientId),
   }));
 
@@ -935,13 +940,14 @@ export async function cancelIncident(incidentId: number, reason?: string) {
         where: { id: incidentId },
         select: {
           id: true,
-          status: { select: { name: true } },
+          status: { select: { code: true, name: true } },
           resolvedAt: true,
         },
       });
       if (!incident) throw new Error("Incidencia no encontrada");
 
-      const currentStatus = incident.status?.name;
+      // Stable code (H-08): a renamed label must not bypass the guards.
+      const currentStatus = codeOf(incident.status);
       if (currentStatus === INCIDENT_STATE.CANCELADA) {
         businessRule("La incidencia ya está cancelada");
       }
@@ -950,7 +956,7 @@ export async function cancelIncident(incidentId: number, reason?: string) {
       }
 
       const cancelledStatus = await tx.incidentStatus.findUnique({
-        where: { name: INCIDENT_STATE.CANCELADA },
+        where: { code: INCIDENT_STATE.CANCELADA },
         select: { id: true },
       });
       if (!cancelledStatus) {

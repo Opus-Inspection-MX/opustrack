@@ -1,4 +1,14 @@
 // prisma/seed.ts
+
+import { SEED_ROLE_CODES } from "../src/lib/authz/roles";
+import {
+  SYSTEM_ASSIGNMENT_STATUSES,
+  SYSTEM_INCIDENT_STATUSES,
+  SYSTEM_USER_STATUSES,
+  SYSTEM_VACATION_STATUSES,
+  SYSTEM_VEHICLE_STATUSES,
+  SYSTEM_VEHICLE_TRIP_STATUSES,
+} from "../src/lib/catalog/system-states";
 import { prisma } from "../src/lib/database/prisma.singleton";
 import { defaultChannelPolicies } from "../src/lib/notifications/catalog";
 import { hashPassword } from "../src/lib/security/hash";
@@ -8,15 +18,15 @@ async function main() {
     async (tx) => {
       console.log("🌱 Starting database seed...");
 
-      // 1) UserStatus
-      const userStatuses = ["ACTIVO", "INACTIVO", "SUSPENDIDO"];
+      // 1) UserStatus — system list lives in catalog/system-states.ts (Fase 3).
+      // `code` is the stable identity; `name` stays an editable label.
       const userStatusRecords = [];
-      for (const name of userStatuses) {
+      for (const name of SYSTEM_USER_STATUSES) {
         userStatusRecords.push(
           await tx.userStatus.upsert({
             where: { name },
-            update: {},
-            create: { name },
+            update: { code: name },
+            create: { name, code: name },
           }),
         );
       }
@@ -37,29 +47,22 @@ async function main() {
       }
       console.log("✅ Seeded EquipmentStatuses");
 
-      // 1d) VehicleStatus
-      const vehicleStatuses = [
-        "AVAILABLE",
-        "IN_USE",
-        "MAINTENANCE",
-        "INACTIVE",
-      ];
-      for (const name of vehicleStatuses) {
+      // 1d) VehicleStatus — codes from catalog/system-states.ts (Fase 3).
+      for (const name of SYSTEM_VEHICLE_STATUSES) {
         await tx.vehicleStatus.upsert({
           where: { name },
-          update: {},
-          create: { name },
+          update: { code: name },
+          create: { name, code: name },
         });
       }
       console.log("✅ Seeded VehicleStatuses");
 
-      // 1e) VehicleTripStatus
-      const vehicleTripStatuses = ["EN_CURSO", "COMPLETADO", "CANCELADO"];
-      for (const name of vehicleTripStatuses) {
+      // 1e) VehicleTripStatus — codes from catalog/system-states.ts (Fase 3).
+      for (const name of SYSTEM_VEHICLE_TRIP_STATUSES) {
         await tx.vehicleTripStatus.upsert({
           where: { name },
-          update: {},
-          create: { name },
+          update: { code: name },
+          create: { name, code: name },
         });
       }
       console.log("✅ Seeded VehicleTripStatuses");
@@ -1278,6 +1281,13 @@ async function main() {
 
       const roleRecords = [];
       for (const roleData of rolesData) {
+        // `code` is the stable identity (Fase 3, H-09); `name` stays an
+        // editable label. Every seed role carries code == its original name.
+        const roleCode = SEED_ROLE_CODES.includes(
+          roleData.name as (typeof SEED_ROLE_CODES)[number],
+        )
+          ? roleData.name
+          : null;
         const role = await tx.role.upsert({
           where: { name: roleData.name },
           update: {
@@ -1285,9 +1295,11 @@ async function main() {
             defaultPath: roleData.defaultPath,
             isSuperuser: roleData.isSuperuser ?? false,
             priority: roleData.priority ?? 0,
+            ...(roleCode ? { code: roleCode } : {}),
           },
           create: {
             name: roleData.name,
+            code: roleCode,
             description: roleData.description,
             defaultPath: roleData.defaultPath,
             isSuperuser: roleData.isSuperuser ?? false,
@@ -1644,52 +1656,38 @@ async function main() {
       // 8) IncidentStatuses — state machine:
       //     ABIERTO → ASIGNADO → VISTO → INICIADO → EN_PROGRESO → CERRADO
       //     (any non-terminal) → CANCELADA (admin terminal action)
-      const incidentStatuses = [
-        { name: "ABIERTO", color: "#94A3B8" }, // Slate - newly reported
-        { name: "ASIGNADO", color: "#8B5CF6" }, // Purple - has at least one assignment
-        { name: "VISTO", color: "#06B6D4" }, // Cyan - any assignment acknowledged
-        { name: "INICIADO", color: "#3B82F6" }, // Blue - work started on site
-        { name: "EN_PROGRESO", color: "#F59E0B" }, // Amber - work paused / continuing
-        { name: "CERRADO", color: "#10B981" }, // Green - all assignments closed
-        { name: "CANCELADA", color: "#EF4444" }, // Red - admin cancelled without ODT
-      ];
-      for (const status of incidentStatuses) {
+      // System list lives in catalog/system-states.ts (Fase 3).
+      for (const status of SYSTEM_INCIDENT_STATUSES) {
         await tx.incidentStatus.upsert({
-          where: { name: status.name },
-          update: { color: status.color, active: true },
-          create: { name: status.name, color: status.color },
+          where: { name: status.code },
+          update: { color: status.color, active: true, code: status.code },
+          create: { name: status.code, code: status.code, color: status.color },
         });
       }
       console.log("✅ Seeded IncidentStatuses");
 
       // 8a) AssignmentStatuses — state machine:
       //     PENDIENTE_DE_ASIGNACION → ASIGNADO → VISTO → INICIADO ↔ EN_PROGRESO → CERRADO
-      const assignmentStatuses = [
-        { name: "PENDIENTE_DE_ASIGNACION", color: "#94A3B8" }, // Slate - created without assignees
-        { name: "ASIGNADO", color: "#8B5CF6" }, // Purple - has assignee(s)
-        { name: "VISTO", color: "#06B6D4" }, // Cyan - FSR acknowledged
-        { name: "INICIADO", color: "#3B82F6" }, // Blue - on-site work in progress
-        { name: "EN_PROGRESO", color: "#F59E0B" }, // Amber - paused / continuing on-site
-        { name: "CERRADO", color: "#10B981" }, // Green - work finished
-      ];
-      for (const status of assignmentStatuses) {
+      for (const status of SYSTEM_ASSIGNMENT_STATUSES) {
         await tx.assignmentStatus.upsert({
-          where: { name: status.name },
-          update: { color: status.color, active: true },
-          create: { name: status.name, color: status.color },
+          where: { name: status.code },
+          update: { color: status.color, active: true, code: status.code },
+          create: { name: status.code, code: status.code, color: status.color },
         });
       }
 
       // Data migration: any existing rows still pointing to the legacy
       // PENDIENTE assignment status are moved to EN_PROGRESO, then the legacy
       // status row is soft-deactivated so future seeds don't reintroduce it.
+      // The legacy row carries no code (it predates Fase 3), so this lookup
+      // is intentionally by name; EN_PROGRESO resolves by stable code.
       const legacyPendiente = await tx.assignmentStatus.findUnique({
         where: { name: "PENDIENTE" },
         select: { id: true },
       });
       if (legacyPendiente) {
         const enProgreso = await tx.assignmentStatus.findUnique({
-          where: { name: "EN_PROGRESO" },
+          where: { code: "EN_PROGRESO" },
           select: { id: true },
         });
         if (enProgreso) {
@@ -1751,33 +1749,22 @@ async function main() {
       }
       console.log("✅ Seeded ScheduleStatuses");
 
-      // 8c) VacationStatus catalog — PENDIENTE / APROBADA / RECHAZADA (RF-707)
-      const vacationStatuses: Array<{
-        name: string;
-        description: string;
-        color: string;
-      }> = [
-        {
-          name: "PENDIENTE",
-          description: "Vacation request pending admin review",
-          color: "#F59E0B",
-        },
-        {
-          name: "APROBADA",
-          description: "Vacation request approved",
-          color: "#10B981",
-        },
-        {
-          name: "RECHAZADA",
-          description: "Vacation request rejected",
-          color: "#EF4444",
-        },
-      ];
-      for (const vs of vacationStatuses) {
+      // 8c) VacationStatus catalog — PENDIENTE / APROBADA / RECHAZADA (RF-707).
+      // System list lives in catalog/system-states.ts (Fase 3).
+      for (const vs of SYSTEM_VACATION_STATUSES) {
         await tx.vacationStatus.upsert({
-          where: { name: vs.name },
-          update: { color: vs.color, description: vs.description },
-          create: vs,
+          where: { name: vs.code },
+          update: {
+            color: vs.color,
+            description: vs.description,
+            code: vs.code,
+          },
+          create: {
+            name: vs.code,
+            code: vs.code,
+            color: vs.color,
+            description: vs.description,
+          },
         });
       }
       console.log("✅ Seeded VacationStatuses");

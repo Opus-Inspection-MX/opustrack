@@ -1,4 +1,5 @@
 import moment from "moment-timezone";
+import { VACATION_STATUS } from "@/lib/constants/status-codes";
 import { prisma } from "@/lib/database/prisma.singleton";
 import { logger } from "@/lib/observability/logger";
 import { APP_TZ } from "@/lib/utils/datetime";
@@ -45,7 +46,7 @@ export async function sendVacationStartingSoonReminders(
       where: {
         active: true,
         startDate: { gte: start, lt: end },
-        status: { name: "APROBADA", active: true },
+        status: { code: VACATION_STATUS.APROBADA, active: true },
       },
       select: { id: true, userId: true },
     });

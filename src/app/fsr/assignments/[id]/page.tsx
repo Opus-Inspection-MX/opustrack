@@ -50,8 +50,14 @@ import {
   startAssignmentWork,
 } from "@/lib/actions/assignments";
 import { isFailure } from "@/lib/actions/result";
+import {
+  codeOf,
+  isIncidentCancelled,
+  isIncidentTerminal,
+} from "@/lib/constants/status-codes";
 import { logger } from "@/lib/observability/logger";
 import { describeEnqueueFailure, saveDraft } from "@/lib/offline/flush";
+import { ASSIGNMENT_STATE } from "@/lib/state-machine/assignment-machine";
 
 interface AssignmentStatus {
   id: number;
@@ -469,15 +475,14 @@ export default function FSRAssignmentDetailPage({
     );
   }
 
-  const currentStatus = assignment.status?.name ?? "";
-  const isAssigned = currentStatus === "ASIGNADO";
-  const isSeen = currentStatus === "VISTO";
-  const isStarted = currentStatus === "INICIADO";
-  const isInProgress = currentStatus === "EN_PROGRESO";
-  const isClosed = currentStatus === "CERRADO";
-  const incidentStatus = assignment.incident?.status?.name ?? "";
-  const incidentLocked =
-    incidentStatus === "CERRADO" || incidentStatus === "CANCELADA";
+  const currentStatus = codeOf(assignment.status) ?? "";
+  const isAssigned = currentStatus === ASSIGNMENT_STATE.ASIGNADO;
+  const isSeen = currentStatus === ASSIGNMENT_STATE.VISTO;
+  const isStarted = currentStatus === ASSIGNMENT_STATE.INICIADO;
+  const isInProgress = currentStatus === ASSIGNMENT_STATE.EN_PROGRESO;
+  const isClosed = currentStatus === ASSIGNMENT_STATE.CERRADO;
+  const incidentStatus = codeOf(assignment.incident?.status) ?? "";
+  const incidentLocked = isIncidentTerminal(assignment.incident?.status);
   // Activities and attachments are read-only once the assignment is closed or
   // the parent incident is in a terminal state.
   const isCompleted = isClosed || incidentLocked;
@@ -541,7 +546,7 @@ export default function FSRAssignmentDetailPage({
       {incidentLocked && (
         <Card
           className={
-            incidentStatus === "CANCELADA"
+            isIncidentCancelled(assignment.incident?.status)
               ? "border-danger/50 bg-danger-muted"
               : "border-success/50 bg-success-muted"
           }
@@ -549,7 +554,7 @@ export default function FSRAssignmentDetailPage({
           <CardContent className="flex items-center gap-3 py-3">
             <Lock className="h-5 w-5" aria-hidden />
             <p className="text-sm">
-              {incidentStatus === "CANCELADA"
+              {isIncidentCancelled(assignment.incident?.status)
                 ? "La incidencia padre está cancelada. No puedes hacer cambios en esta asignación."
                 : "La incidencia padre está cerrada. No puedes hacer cambios en esta asignación."}
             </p>

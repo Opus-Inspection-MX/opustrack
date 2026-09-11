@@ -56,6 +56,9 @@ function role(overrides: Partial<Role> = {}): Role {
     priority: 50,
     permissions: [],
     ...overrides,
+    // Seed roles carry code == name: an override that renames without
+    // re-coding follows the label, like a real renamed row.
+    code: overrides.code ?? overrides.name ?? "FSR",
   };
 }
 

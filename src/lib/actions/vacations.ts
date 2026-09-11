@@ -3,6 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { requirePermission } from "@/lib/auth/auth";
 import { userHasPermission } from "@/lib/authz/authz";
+import { ROLE } from "@/lib/authz/roles";
+import {
+  codeOf,
+  isVacationPending,
+  VACATION_STATUS,
+} from "@/lib/constants/status-codes";
 import { prisma } from "@/lib/database/prisma.singleton";
 import {
   notifyVacationApproved,
@@ -17,6 +23,7 @@ import {
   getPeriodBalance,
   resolveVacationPeriod,
 } from "@/lib/services/vacation-periods";
+import { ASSIGNMENT_STATE } from "@/lib/state-machine/assignment-machine";
 import { getHolidayDatesForYear } from "@/lib/utils/availability";
 import { mxDayRange } from "@/lib/utils/datetime";
 import { countBusinessDays } from "@/lib/utils/vacation-balance";
@@ -85,10 +92,10 @@ export async function getVacations(params?: {
     prisma.vacation.count({ where }),
   ]);
 
-  const rank = (name?: string | null) => (name === "PENDIENTE" ? 0 : 1);
-  const data = [...rows].sort(
-    (a, b) => rank(a.status?.name) - rank(b.status?.name),
-  );
+  const rank = (
+    status?: { code?: string | null; name?: string | null } | null,
+  ) => (isVacationPending(status) ? 0 : 1);
+  const data = [...rows].sort((a, b) => rank(a.status) - rank(b.status));
 
   return {
     data,
@@ -160,7 +167,7 @@ export async function getEmployeesForVacations() {
         userRoles: {
           some: {
             active: true,
-            role: { name: { in: ["REPORTER", "ROOT"] } },
+            role: { code: { in: [ROLE.REPORTER, ROLE.ROOT] } },
           },
         },
       },
@@ -211,9 +218,9 @@ export async function createVacation(data: VacationFormData) {
   const result = await guarded(async () => {
     validateVacationDates(data);
 
-    // Resolve PENDIENTE status id
+    // Resolve PENDIENTE status id — by stable code (H-08).
     const pendienteStatus = await prisma.vacationStatus.findFirst({
-      where: { name: "PENDIENTE", active: true },
+      where: { code: VACATION_STATUS.PENDIENTE, active: true },
       select: { id: true },
     });
 
@@ -224,7 +231,10 @@ export async function createVacation(data: VacationFormData) {
     }
 
     const blockingStatuses = await prisma.vacationStatus.findMany({
-      where: { name: { in: ["PENDIENTE", "APROBADA"] }, active: true },
+      where: {
+        code: { in: [VACATION_STATUS.PENDIENTE, VACATION_STATUS.APROBADA] },
+        active: true,
+      },
       select: { id: true },
     });
     const blockingStatusIds = blockingStatuses.map((s) => s.id);
@@ -319,7 +329,7 @@ async function resolveVacation(
   approverId: string,
 ) {
   const status = await prisma.vacationStatus.findFirst({
-    where: { name: target, active: true },
+    where: { code: target, active: true },
     select: { id: true },
   });
 
@@ -332,7 +342,7 @@ async function resolveVacation(
     select: {
       active: true,
       userId: true,
-      status: { select: { name: true } },
+      status: { select: { code: true, name: true } },
     },
   });
 
@@ -340,9 +350,9 @@ async function resolveVacation(
     throw new Error("Solicitud de vacaciones no encontrada.");
   }
 
-  if (existing.status.name !== "PENDIENTE") {
+  if (!isVacationPending(existing.status)) {
     return rejected(
-      `La solicitud ya fue resuelta (${existing.status.name}). Solo se puede decidir sobre solicitudes pendientes.`,
+      `La solicitud ya fue resuelta (${codeOf(existing.status)}). Solo se puede decidir sobre solicitudes pendientes.`,
     );
   }
 
@@ -405,7 +415,7 @@ export async function getVacationApprovalConflicts(
       active: true,
       scheduledDate: { gte: vacation.startDate, lte: vacation.endDate },
       assignees: { some: { userId: vacation.userId, active: true } },
-      status: { name: { not: "CERRADO" } },
+      status: { code: { not: ASSIGNMENT_STATE.CERRADO } },
     },
     select: {
       id: true,

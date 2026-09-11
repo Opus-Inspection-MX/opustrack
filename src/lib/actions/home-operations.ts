@@ -32,7 +32,7 @@ export async function getTrackingQueue() {
   const queue = await prisma.incident.findMany({
     where: {
       active: true,
-      status: { name: { notIn: TERMINAL_INCIDENT_NAMES } },
+      status: { code: { notIn: TERMINAL_INCIDENT_NAMES } },
       ...incidentScopeWhere(scope),
     },
     include: {
@@ -73,7 +73,7 @@ export async function getIncidentsByStatus() {
     by: ["statusId"],
     where: {
       active: true,
-      status: { name: { notIn: TERMINAL_INCIDENT_NAMES } },
+      status: { code: { notIn: TERMINAL_INCIDENT_NAMES } },
       ...incidentScopeWhere(scope),
     },
     _count: { statusId: true },

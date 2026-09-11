@@ -2,6 +2,7 @@
 
 import { requirePermission } from "@/lib/auth/auth";
 import { getReportScope, incidentScopeWhere } from "@/lib/auth/report-scope";
+import { VACATION_STATUS } from "@/lib/constants/status-codes";
 import { prisma } from "@/lib/database/prisma.singleton";
 import { ASSIGNMENT_STATE } from "@/lib/state-machine/assignment-machine";
 import { getPrimaryClientId } from "@/lib/utils/client-assignments";
@@ -47,22 +48,22 @@ export async function getMyWorkSummary() {
 
   const [notStarted, inProgress, closedWeek, upcoming] = await Promise.all([
     prisma.assignment.count({
-      where: { ...mine, status: { name: { in: [...NOT_STARTED] } } },
+      where: { ...mine, status: { code: { in: [...NOT_STARTED] } } },
     }),
     prisma.assignment.count({
-      where: { ...mine, status: { name: { in: [...IN_PROGRESS] } } },
+      where: { ...mine, status: { code: { in: [...IN_PROGRESS] } } },
     }),
     prisma.assignment.count({
       where: {
         ...mine,
-        status: { name: ASSIGNMENT_STATE.CERRADO },
+        status: { code: ASSIGNMENT_STATE.CERRADO },
         finishedAt: { gte: weekAgo },
       },
     }),
     prisma.assignment.findMany({
       where: {
         ...mine,
-        status: { name: { not: ASSIGNMENT_STATE.CERRADO } },
+        status: { code: { not: ASSIGNMENT_STATE.CERRADO } },
       },
       include: {
         status: true,
@@ -165,7 +166,7 @@ export async function getMyVacationSummary() {
         vacations: {
           where: {
             active: true,
-            status: { name: "APROBADA" },
+            status: { code: VACATION_STATUS.APROBADA },
           },
           select: { businessDaysUsed: true },
         },
@@ -177,7 +178,7 @@ export async function getMyVacationSummary() {
         userId: user.id,
         active: true,
         startDate: { gte: new Date() },
-        status: { name: "APROBADA" },
+        status: { code: VACATION_STATUS.APROBADA },
       },
       include: { status: { select: { name: true, color: true } } },
       orderBy: { startDate: "asc" },
@@ -187,7 +188,7 @@ export async function getMyVacationSummary() {
       where: {
         userId: user.id,
         active: true,
-        status: { name: "PENDIENTE" },
+        status: { code: VACATION_STATUS.PENDIENTE },
       },
     }),
   ]);
@@ -213,7 +214,7 @@ export async function getPendingVacationApprovals() {
 
   const where = {
     active: true,
-    status: { name: "PENDIENTE" },
+    status: { code: VACATION_STATUS.PENDIENTE },
   };
 
   const [count, top] = await Promise.all([
@@ -245,7 +246,7 @@ export async function getUpcomingAbsences() {
   const absences = await prisma.vacation.findMany({
     where: {
       active: true,
-      status: { name: "APROBADA" },
+      status: { code: VACATION_STATUS.APROBADA },
       startDate: { gte: now, lte: horizon },
     },
     include: {

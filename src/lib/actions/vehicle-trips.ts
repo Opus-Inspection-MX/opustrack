@@ -4,6 +4,12 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireAuth, requirePermission } from "@/lib/auth/auth";
 import { userHasPermission } from "@/lib/authz/authz";
+import {
+  isVehicleAvailable,
+  isVehicleTripOpen,
+  VEHICLE_STATUS,
+  VEHICLE_TRIP_STATUS,
+} from "@/lib/constants/status-codes";
 import { prisma } from "@/lib/database/prisma.singleton";
 import { logger } from "@/lib/observability/logger";
 import {
@@ -254,12 +260,12 @@ export async function startVehicleTrip(formData: FormData) {
     // getAvailableVehicles).
     const vehicle = await prisma.vehicle.findUnique({
       where: { id: vehicleId },
-      select: { id: true, status: { select: { name: true } } },
+      select: { id: true, status: { select: { code: true, name: true } } },
     });
     if (!vehicle) throw new Error("Vehículo no encontrado");
     if (
       !userHasPermission(user, "vehicle-trips:manage-all") &&
-      vehicle.status?.name !== "AVAILABLE"
+      !isVehicleAvailable(vehicle.status)
     ) {
       businessRule("El vehículo no está disponible.");
     }
@@ -286,12 +292,12 @@ export async function startVehicleTrip(formData: FormData) {
     );
 
     const inUseStatus = await prisma.vehicleStatus.findUnique({
-      where: { name: "IN_USE" },
+      where: { code: VEHICLE_STATUS.IN_USE },
     });
     if (!inUseStatus) throw new Error("Vehicle status IN_USE not found");
 
     const inProgressStatus = await prisma.vehicleTripStatus.findUnique({
-      where: { name: "EN_CURSO" },
+      where: { code: VEHICLE_TRIP_STATUS.EN_CURSO },
     });
     if (!inProgressStatus) throw new Error("Trip status EN_CURSO not found");
 
@@ -389,7 +395,7 @@ export async function endVehicleTrip(formData: FormData) {
         fsrId: true,
         vehicleId: true,
         startOdometer: true,
-        status: { select: { name: true } },
+        status: { select: { code: true, name: true } },
       },
     });
 
@@ -405,7 +411,7 @@ export async function endVehicleTrip(formData: FormData) {
       businessRule("Solo puedes finalizar tus propios viajes.");
     }
 
-    if (trip.status?.name !== "EN_CURSO") {
+    if (!isVehicleTripOpen(trip.status)) {
       businessRule("El viaje ya está finalizado o cancelado.");
     }
 
@@ -414,12 +420,12 @@ export async function endVehicleTrip(formData: FormData) {
     }
 
     const completedStatus = await prisma.vehicleTripStatus.findUnique({
-      where: { name: "COMPLETADO" },
+      where: { code: VEHICLE_TRIP_STATUS.COMPLETADO },
     });
     if (!completedStatus) throw new Error("Trip status COMPLETADO not found");
 
     const availableStatus = await prisma.vehicleStatus.findUnique({
-      where: { name: "AVAILABLE" },
+      where: { code: VEHICLE_STATUS.AVAILABLE },
     });
     if (!availableStatus) throw new Error("Vehicle status AVAILABLE not found");
 
@@ -484,7 +490,7 @@ export async function getAvailableVehicles() {
   const vehicles = await prisma.vehicle.findMany({
     where: {
       active: true,
-      status: { name: "AVAILABLE" },
+      status: { code: VEHICLE_STATUS.AVAILABLE },
     },
     orderBy: { licensePlate: "asc" },
   });
@@ -505,8 +511,11 @@ export async function getMyAssignmentsForTrips() {
       },
       active: true,
       status: {
-        name: {
-          notIn: ["COMPLETADO", "CANCELADO", "COMPLETADA", "CANCELADA"],
+        code: {
+          notIn: [
+            VEHICLE_TRIP_STATUS.COMPLETADO,
+            VEHICLE_TRIP_STATUS.CANCELADO,
+          ],
         },
       },
     },
@@ -587,7 +596,7 @@ export async function deleteVehicleTrip(id: string) {
       where: { id },
       select: {
         fsrId: true,
-        status: { select: { name: true } },
+        status: { select: { code: true, name: true } },
         startPhotoUrl: true,
         startPhotoProvider: true,
         endPhotoUrl: true,
@@ -632,9 +641,9 @@ export async function deleteVehicleTrip(id: string) {
     }
 
     // If trip was EN_CURSO, set vehicle back to AVAILABLE
-    if (trip.status?.name === "EN_CURSO") {
+    if (isVehicleTripOpen(trip.status)) {
       const availableStatus = await prisma.vehicleStatus.findUnique({
-        where: { name: "AVAILABLE" },
+        where: { code: VEHICLE_STATUS.AVAILABLE },
       });
       if (availableStatus) {
         await prisma.vehicle.update({
