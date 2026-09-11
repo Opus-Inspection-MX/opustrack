@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Outfit, Roboto } from "next/font/google";
 import type React from "react";
 import "./globals.css";
+import { HydrationMarker } from "@/components/hydration-marker";
 import { MotionProvider } from "@/components/motion/motion-provider";
 import { SessionProvider } from "@/components/providers/session-provider";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -40,6 +41,7 @@ export default function RootLayout({
   return (
     <html lang="es" suppressHydrationWarning>
       <body className={`${roboto.variable} ${outfit.variable}`}>
+        <HydrationMarker />
         <SessionProvider>
           <ThemeProvider
             attribute="class"

@@ -2,6 +2,7 @@ import { expect, type Page, test } from "@playwright/test";
 import { authFile } from "./fixtures/auth";
 import { db, uniqueSuffix } from "./fixtures/db";
 import { fillStable } from "./fixtures/forms";
+import { gotoReady } from "./fixtures/navigation";
 
 /**
  * The role split (ROOT / ADMIN_OPERACION / ADMIN_VACACIONES / EMPLEADO).
@@ -60,7 +61,7 @@ async function makeUser(roleNames: string[]): Promise<Actor> {
 
 /** Sign in through the real form, so the JWT is built the way production does. */
 async function signIn(page: Page, actor: Actor) {
-  await page.goto("/login");
+  await gotoReady(page, "/login");
   await fillStable(page.locator("#email"), actor.email);
   await fillStable(page.locator("#password"), actor.password);
   await page.getByRole("button", { name: /Iniciar|Entrar|Ingresar/i }).click();
@@ -82,7 +83,7 @@ function menu(page: Page) {
 
 /** Follow a path and report where the app actually left us. */
 async function landsOn(page: Page, path: string): Promise<string> {
-  await page.goto(path, { waitUntil: "networkidle" });
+  await gotoReady(page, path);
   return new URL(page.url()).pathname;
 }
 
@@ -95,8 +96,12 @@ async function landsOn(page: Page, path: string): Promise<string> {
  * `flows`, `Mobile Chrome` and `iPad` projects.
  */
 async function openMenuOnMobile(page: Page) {
-  const tabBar = page.locator('nav[aria-label="Navegación principal"]');
-  if (await tabBar.isVisible()) {
+  // Por el viewport, no por lo que se ve en ese instante: `isVisible` no
+  // espera y en CI el `networkidle` puede llegar antes de hidratar.
+  const width = page.viewportSize()?.width ?? 1280;
+  if (width < 1024) {
+    const tabBar = page.locator('nav[aria-label="Navegación principal"]');
+    await expect(tabBar).toBeVisible();
     await page.getByRole("button", { name: "Más", exact: true }).click();
     await expect(menu(page).getByRole("link").first()).toBeVisible();
   }
@@ -135,7 +140,7 @@ test.describe("ADMIN_VACACIONES", () => {
 
   test("el menú no ofrece lo que no puede abrir", async ({ page }) => {
     await signIn(page, actor);
-    await page.goto("/admin/vacations", { waitUntil: "networkidle" });
+    await gotoReady(page, "/admin/vacations");
     await openMenuOnMobile(page);
 
     const nav = menu(page);
