@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ReopenAssignmentButton } from "@/components/admin/assignments/reopen-assignment-button";
 import { AssignmentItems } from "@/components/assignments/assignment-items";
 import { AttachmentPreview } from "@/components/assignments/attachment-preview";
 import { BackButton } from "@/components/common/back-button";
@@ -22,6 +23,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { getAssignmentActivities } from "@/lib/actions/assignment-activities";
 import { getAssignmentItems } from "@/lib/actions/assignment-items";
 import { getAssignmentById } from "@/lib/actions/assignments";
+import { canPerform } from "@/lib/auth/auth";
 import { formatMX } from "@/lib/utils/datetime";
 
 interface Attachment {
@@ -48,6 +50,14 @@ export default async function AssignmentDetailPage({
   ]);
 
   if (!assignment) notFound();
+
+  // Fase 0d (H-06): every action button renders behind the permission its
+  // action requires, so the role that sees the button can use it.
+  const [canUpdate, canReopen] = await Promise.all([
+    canPerform("assignments:update"),
+    canPerform("assignments:reopen"),
+  ]);
+  const closed = assignment.status?.name === "CERRADO";
 
   // Helper to calculate time-to-unlock
   const formatTimeDifference = (
@@ -94,9 +104,16 @@ export default async function AssignmentDetailPage({
           { label: `AS-${assignment.folio}` },
         ]}
         actions={
-          <Button variant="outline" asChild className="w-full sm:w-auto">
-            <Link href={`/admin/assignments/${id}/edit`}>Editar</Link>
-          </Button>
+          <>
+            {canUpdate && (
+              <Button variant="outline" asChild className="w-full sm:w-auto">
+                <Link href={`/admin/assignments/${id}/edit`}>Editar</Link>
+              </Button>
+            )}
+            {closed && canReopen && (
+              <ReopenAssignmentButton assignmentId={id} />
+            )}
+          </>
         }
       />
       <div>

@@ -62,10 +62,15 @@ export default async function IncidentDetailPage({
   );
   // RF-217: same create-OR-update gate as the attachment actions — REPORTER
   // reporters hold create, operators hold update.
-  const [canCreate, canUpdate] = await Promise.all([
-    canPerform("incidents:create"),
-    canPerform("incidents:update"),
-  ]);
+  // Fase 0d (H-06): every action button renders behind the permission its
+  // action requires, so the role that sees the button can use it.
+  const [canCreate, canUpdate, canCancel, canCreateAssignment] =
+    await Promise.all([
+      canPerform("incidents:create"),
+      canPerform("incidents:update"),
+      canPerform("incidents:cancel"),
+      canPerform("assignments:create"),
+    ]);
   const terminal =
     incident.status?.name === "CERRADO" ||
     incident.status?.name === "CANCELADA";
@@ -84,17 +89,21 @@ export default async function IncidentDetailPage({
             {incident.status?.name !== "CERRADO" &&
               incident.status?.name !== "CANCELADA" && (
                 <>
-                  <Button
-                    variant="outline"
-                    asChild
-                    className="w-full sm:w-auto"
-                  >
-                    <Link href={`/admin/incidents/${incident.id}/edit`}>
-                      <EditIcon className="mr-2 h-4 w-4" aria-hidden />
-                      Editar incidencia
-                    </Link>
-                  </Button>
-                  <CancelIncidentButton incidentId={incident.id} />
+                  {canUpdate && (
+                    <Button
+                      variant="outline"
+                      asChild
+                      className="w-full sm:w-auto"
+                    >
+                      <Link href={`/admin/incidents/${incident.id}/edit`}>
+                        <EditIcon className="mr-2 h-4 w-4" aria-hidden />
+                        Editar incidencia
+                      </Link>
+                    </Button>
+                  )}
+                  {canCancel && (
+                    <CancelIncidentButton incidentId={incident.id} />
+                  )}
                 </>
               )}
             <StatusBadge tone={incidentStatusTone(incident.status?.name ?? "")}>
@@ -277,12 +286,14 @@ export default async function IncidentDetailPage({
         title={`Asignaciones (${incident.assignments?.length || 0})`}
         description="Todas las asignaciones de este incidente"
         actions={
-          <Button asChild className="w-full sm:w-auto">
-            <Link href={`/admin/assignments/new?incidentId=${incident.id}`}>
-              <Plus className="mr-2 h-4 w-4" aria-hidden />
-              Crear Asignación
-            </Link>
-          </Button>
+          canCreateAssignment ? (
+            <Button asChild className="w-full sm:w-auto">
+              <Link href={`/admin/assignments/new?incidentId=${incident.id}`}>
+                <Plus className="mr-2 h-4 w-4" aria-hidden />
+                Crear Asignación
+              </Link>
+            </Button>
+          ) : undefined
         }
       >
         {(incident.assignments?.length || 0) === 0 ? (
@@ -290,10 +301,14 @@ export default async function IncidentDetailPage({
             icon={Wrench}
             title="Aún no hay asignaciones"
             description="Crea una asignación para comenzar a dar seguimiento a este incidente"
-            action={{
-              label: "Crear primera asignación",
-              href: `/admin/assignments/new?incidentId=${incident.id}`,
-            }}
+            action={
+              canCreateAssignment
+                ? {
+                    label: "Crear primera asignación",
+                    href: `/admin/assignments/new?incidentId=${incident.id}`,
+                  }
+                : undefined
+            }
           />
         ) : (
           <ResponsiveTable

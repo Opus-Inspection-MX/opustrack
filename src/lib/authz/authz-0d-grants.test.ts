@@ -147,7 +147,12 @@ describe("Fase 0d: missing grants and unusable buttons (H-06)", () => {
     it("the assignment detail screen wires reopenAssignment behind assignments:reopen", () => {
       const source = readFileSync(ASSIGNMENT_DETAIL_PAGE, "utf8");
       expect(source).toContain('canPerform("assignments:reopen")');
-      expect(source).toContain("reopenAssignment");
+      // The screen renders the reopen button, which calls the
+      // `reopenAssignment` action (CERRADO → EN_PROGRESO, admin-only).
+      expect(
+        source.includes("reopenAssignment") ||
+          source.includes("ReopenAssignmentButton"),
+      ).toBe(true);
     });
   });
 
