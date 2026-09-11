@@ -122,12 +122,20 @@ export interface BroadcastAudienceInput {
   roleIds: number[];
   /** Every active user. The sender still opts in separately. */
   all: boolean;
+  /**
+   * Directly-addressed users (Parte C, `BroadcastUser` rows). Union with the
+   * role audience; `user.active` is always filtered, so someone deactivated
+   * between scheduling and send receives nothing. Reach was validated at
+   * create/edit time, not here (decision #3).
+   */
+  userIds?: string[];
 }
 
 /**
- * Users holding any of the target roles (or every active user for `all`).
- * Fail closed: a sender role with no targets reaches nobody, and a lookup
- * failure resolves to nobody rather than to everybody.
+ * Users holding any of the target roles (or every active user for `all`),
+ * plus the directly-addressed users. Fail closed: a sender role with no
+ * targets reaches nobody, and a lookup failure resolves to nobody rather
+ * than to everybody.
  */
 export async function broadcastAudience(
   input: BroadcastAudienceInput,
@@ -140,15 +148,26 @@ export async function broadcastAudience(
       });
       return users.map((u) => u.id);
     }
-    if (input.roleIds.length === 0) return [];
-    const users = await prisma.user.findMany({
-      where: {
-        active: true,
-        OR: input.roleIds.map((roleId) => whereHasRoleId(roleId)),
-      },
-      select: { id: true },
-    });
-    return [...new Set(users.map((u) => u.id))];
+    const direct = [...new Set((input.userIds ?? []).filter(Boolean))];
+    if (input.roleIds.length === 0 && direct.length === 0) return [];
+    const [byRole, byDirect] = await Promise.all([
+      input.roleIds.length === 0
+        ? Promise.resolve([])
+        : prisma.user.findMany({
+            where: {
+              active: true,
+              OR: input.roleIds.map((roleId) => whereHasRoleId(roleId)),
+            },
+            select: { id: true },
+          }),
+      direct.length === 0
+        ? Promise.resolve([])
+        : prisma.user.findMany({
+            where: { id: { in: direct }, active: true },
+            select: { id: true },
+          }),
+    ]);
+    return [...new Set([...byRole, ...byDirect].map((u) => u.id))];
   } catch (error) {
     logger.error("[audiences] Error resolving broadcast audience:", error);
     return [];

@@ -41,6 +41,7 @@ const ROW = {
   createdById: "admin-1",
   active: true,
   roles: [{ roleId: 3 }],
+  users: [],
 };
 
 beforeEach(() => {
@@ -98,6 +99,7 @@ describe("audiencia al enviar", () => {
     expect(broadcastAudience).toHaveBeenCalledWith({
       all: false,
       roleIds: [3],
+      userIds: [],
     });
     expect(dispatch).toHaveBeenCalledWith(
       "announcement",

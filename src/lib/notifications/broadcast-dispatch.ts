@@ -16,6 +16,12 @@ import { ENTITY_TYPES, NOTIFICATION_TYPES } from "./notification-types";
  * only picks the catalog entry (priority/label), unlike the legacy path that
  * forced every announcement to all users.
  *
+ * Parte C: the audience is the union of the role pivot (`BroadcastRole`) and
+ * the direct-user pivot (`BroadcastUser`), both read with `active` only — a
+ * user deactivated between scheduling and send receives nothing. Reach is NOT
+ * revalidated here: it was checked at create/edit time (decision #3), so a
+ * user who lost the role still gets this one.
+ *
  * Never throws: a delivery failure marks the row FALLIDA instead of rolling
  * back the caller (the "send now" action already committed the broadcast).
  */
@@ -66,6 +72,7 @@ export async function dispatchBroadcast(
       where: { id: broadcastId },
       include: {
         roles: { where: { active: true }, select: { roleId: true } },
+        users: { where: { active: true }, select: { userId: true } },
       },
     });
     if (!broadcast || !broadcast.active) {
@@ -79,6 +86,7 @@ export async function dispatchBroadcast(
         : {
             all: false,
             roleIds: broadcast.roles.map((r) => r.roleId),
+            userIds: broadcast.users.map((u) => u.userId),
           },
     );
     const delivered = deliveredAudience(
