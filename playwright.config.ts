@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import path from "node:path";
 import { defineConfig, devices } from "@playwright/test";
 import dotenv from "dotenv";
@@ -34,6 +35,17 @@ assertEphemeralDatabase(process.env.DATABASE_URL);
 const PORT = Number(process.env.PLAYWRIGHT_PORT ?? 3100);
 const BASE_URL =
   process.env.PLAYWRIGHT_TEST_BASE_URL ?? `http://localhost:${PORT}`;
+
+// Boxes without Playwright's bundled browsers (e.g. Arch Linux, where the
+// Ubuntu-built Chromium doesn't run): fall back to the system Chromium when
+// it exists. CI/Ubuntu keeps the bundled build. Firefox/WebKit projects are
+// untouched — they still need their own binaries.
+const SYSTEM_CHROMIUM = existsSync("/usr/bin/chromium")
+  ? "/usr/bin/chromium"
+  : undefined;
+const SYSTEM_CHROMIUM_USE = SYSTEM_CHROMIUM
+  ? { launchOptions: { executablePath: SYSTEM_CHROMIUM } }
+  : {};
 
 export default defineConfig({
   testDir: "./e2e",
@@ -77,7 +89,7 @@ export default defineConfig({
       // catalog's fixture becomes another's dependency and deletes start
       // failing on guards that have nothing to do with the test.
       fullyParallel: false,
-      use: { ...devices["Desktop Chrome"] },
+      use: { ...devices["Desktop Chrome"], ...SYSTEM_CHROMIUM_USE },
       dependencies: ["setup"],
     },
     // Programación and seguimiento: dense flows over shared operational data
@@ -89,14 +101,14 @@ export default defineConfig({
       testMatch:
         /(programacion|tracking|errors|vacations|rbac-roles|notifications-mail|incident-operations)\.spec\.ts$/,
       fullyParallel: false,
-      use: { ...devices["Desktop Chrome"] },
+      use: { ...devices["Desktop Chrome"], ...SYSTEM_CHROMIUM_USE },
       dependencies: ["setup"],
     },
     {
       name: "chromium",
       testIgnore:
         /(catalogs|programacion|tracking|errors|vacations|rbac-roles|notifications-mail|incident-operations)\.spec\.ts$/,
-      use: { ...devices["Desktop Chrome"] },
+      use: { ...devices["Desktop Chrome"], ...SYSTEM_CHROMIUM_USE },
       dependencies: ["setup"],
     },
     {
@@ -117,7 +129,7 @@ export default defineConfig({
       name: "Mobile Chrome",
       testIgnore:
         /(catalogs|programacion|tracking|errors|vacations|rbac-roles|notifications-mail|incident-operations)\.spec\.ts$/,
-      use: { ...devices["Pixel 5"] },
+      use: { ...devices["Pixel 5"], ...SYSTEM_CHROMIUM_USE },
       dependencies: ["setup"],
     },
     {
