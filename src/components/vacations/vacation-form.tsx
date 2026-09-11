@@ -147,16 +147,21 @@ export function VacationForm({
         </CardContent>
       </Card>
 
-      <div className="flex justify-end gap-4">
+      <div className="sticky bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-20 flex flex-col gap-2 rounded-xl border bg-background/95 p-3 shadow-lg backdrop-blur sm:static sm:flex-row sm:justify-end sm:gap-4 sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none md:bottom-0">
         <Button
           type="button"
           variant="outline"
           onClick={() => router.back()}
           disabled={loading}
+          className="min-h-[44px] w-full sm:w-auto"
         >
           Cancelar
         </Button>
-        <Button type="submit" disabled={loading}>
+        <Button
+          type="submit"
+          disabled={loading}
+          className="min-h-[44px] w-full sm:w-auto"
+        >
           {loading ? "Enviando..." : "Enviar Solicitud"}
         </Button>
       </div>

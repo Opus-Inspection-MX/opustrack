@@ -1,4 +1,6 @@
 import { BackButton } from "@/components/common/back-button";
+import { PageContainer } from "@/components/common/page-container";
+import { PageHeader } from "@/components/common/page-header";
 import { VacationForm } from "@/components/vacations/vacation-form";
 import { getEmployeesForVacations } from "@/lib/actions/vacations";
 import { requireRouteAccess } from "@/lib/auth/auth";
@@ -8,15 +10,17 @@ export default async function AdminNewVacationPage() {
   const fsrs = await getEmployeesForVacations();
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-4">
+    <PageContainer size="narrow">
+      <PageHeader
+        title="Nueva Solicitud de Vacaciones"
+        description="Cree una solicitud de vacaciones en nombre de un FSR"
+        breadcrumbs={[
+          { label: "Solicitudes de Vacaciones", href: "/admin/vacations" },
+          { label: "Nueva" },
+        ]}
+      />
+      <div>
         <BackButton fallback="/admin/vacations" />
-        <div>
-          <h1 className="text-3xl font-bold">Nueva Solicitud de Vacaciones</h1>
-          <p className="text-muted-foreground">
-            Cree una solicitud de vacaciones en nombre de un FSR
-          </p>
-        </div>
       </div>
 
       <VacationForm
@@ -24,6 +28,6 @@ export default async function AdminNewVacationPage() {
         fsrs={fsrs}
         redirectPath="/admin/vacations"
       />
-    </div>
+    </PageContainer>
   );
 }

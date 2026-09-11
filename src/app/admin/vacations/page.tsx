@@ -1,16 +1,12 @@
 import { CalendarDays, Plus } from "lucide-react";
 import Link from "next/link";
-import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/common/empty-state";
+import { PageContainer } from "@/components/common/page-container";
+import { PageHeader } from "@/components/common/page-header";
+import { ResponsiveTable } from "@/components/common/responsive-table";
+import { SectionCard } from "@/components/common/section-card";
+import { StatusBadge, type StatusTone } from "@/components/common/status-badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { VacationApprovalButtons } from "@/components/vacations/vacation-approval-buttons";
 import { VacationPlanner } from "@/components/vacations/vacation-planner";
 import type { CalendarVacation } from "@/components/vacations/vacation-year-calendar";
@@ -23,10 +19,16 @@ import {
 import { canPerform, requireRouteAccess } from "@/lib/auth/auth";
 import { formatMX } from "@/lib/utils/datetime";
 
-const STATUS_BADGE: Record<string, string> = {
-  PENDIENTE: "bg-amber-100 text-amber-800 border-amber-300",
-  APROBADA: "bg-green-100 text-green-800 border-green-300",
-  RECHAZADA: "bg-red-100 text-red-800 border-red-300",
+const STATUS_TONE: Record<string, StatusTone> = {
+  PENDIENTE: "warning",
+  APROBADA: "success",
+  RECHAZADA: "danger",
+};
+
+const STATUS_LABEL: Record<string, string> = {
+  PENDIENTE: "Pendiente",
+  APROBADA: "Aprobada",
+  RECHAZADA: "Rechazada",
 };
 
 export default async function AdminVacationsPage() {
@@ -44,21 +46,19 @@ export default async function AdminVacationsPage() {
     fsrs.length > 0 ? await getVacationBalanceData(fsrs[0].id) : null;
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Solicitudes de Vacaciones</h1>
-          <p className="text-muted-foreground">
-            Gestione días disponibles y apruebe las solicitudes de los FSR
-          </p>
-        </div>
-        <Button asChild>
-          <Link href="/admin/vacations/new">
-            <Plus className="mr-2 h-4 w-4" />
-            Nueva Solicitud
-          </Link>
-        </Button>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Solicitudes de Vacaciones"
+        description="Gestione días disponibles y apruebe las solicitudes de los FSR"
+        actions={
+          <Button asChild className="w-full sm:w-auto">
+            <Link href="/admin/vacations/new">
+              <Plus className="mr-2 h-4 w-4" aria-hidden />
+              Nueva Solicitud
+            </Link>
+          </Button>
+        }
+      />
 
       {balance && !isFailure(balance) && (
         <VacationPlanner
@@ -75,77 +75,97 @@ export default async function AdminVacationsPage() {
         />
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>
-            <div className="flex items-center gap-2">
-              <CalendarDays className="h-5 w-5" />
-              Todas las Solicitudes ({vacations.length})
-            </div>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {vacations.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              <CalendarDays className="mx-auto h-12 w-12 mb-4 opacity-50" />
-              <p>No hay solicitudes de vacaciones registradas.</p>
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>FSR</TableHead>
-                  <TableHead>Inicio</TableHead>
-                  <TableHead>Fin</TableHead>
-                  <TableHead>Motivo</TableHead>
-                  <TableHead>Estado</TableHead>
-                  <TableHead>Aprobado por</TableHead>
-                  <TableHead className="text-right">Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {vacations.map((vacation) => (
-                  <TableRow key={vacation.id}>
-                    <TableCell className="font-medium">
-                      {vacation.user.name}
-                    </TableCell>
-                    <TableCell>
-                      {formatMX(vacation.startDate, { dateStyle: "short" })}
-                    </TableCell>
-                    <TableCell>
-                      {formatMX(vacation.endDate, { dateStyle: "short" })}
-                    </TableCell>
-                    <TableCell className="max-w-xs truncate text-sm text-muted-foreground">
-                      {vacation.reason ?? "—"}
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant="outline"
-                        className={STATUS_BADGE[vacation.status.name] ?? ""}
-                      >
-                        {vacation.status.name === "PENDIENTE"
-                          ? "Pendiente"
-                          : vacation.status.name === "APROBADA"
-                            ? "Aprobada"
-                            : "Rechazada"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {vacation.approvedBy?.name ?? "—"}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <VacationApprovalButtons
-                        vacationId={vacation.id}
-                        statusName={vacation.status.name}
-                      />
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+      <SectionCard title={`Todas las Solicitudes (${vacations.length})`}>
+        {vacations.length === 0 ? (
+          <EmptyState
+            icon={CalendarDays}
+            title="Sin solicitudes"
+            description="No hay solicitudes de vacaciones registradas."
+          />
+        ) : (
+          <ResponsiveTable
+            data={vacations}
+            rowKey={(vacation) => vacation.id}
+            columns={[
+              {
+                header: "FSR",
+                cell: (vacation) => (
+                  <span className="font-medium">{vacation.user.name}</span>
+                ),
+              },
+              {
+                header: "Inicio",
+                cell: (vacation) =>
+                  formatMX(vacation.startDate, { dateStyle: "short" }),
+              },
+              {
+                header: "Fin",
+                cell: (vacation) =>
+                  formatMX(vacation.endDate, { dateStyle: "short" }),
+              },
+              {
+                header: "Motivo",
+                cell: (vacation) => (
+                  <span className="max-w-xs truncate text-sm text-muted-foreground block">
+                    {vacation.reason ?? "—"}
+                  </span>
+                ),
+              },
+              {
+                header: "Estado",
+                cell: (vacation) => (
+                  <StatusBadge
+                    tone={STATUS_TONE[vacation.status.name] ?? "neutral"}
+                  >
+                    {STATUS_LABEL[vacation.status.name] ?? vacation.status.name}
+                  </StatusBadge>
+                ),
+              },
+              {
+                header: "Aprobado por",
+                cell: (vacation) => (
+                  <span className="text-sm text-muted-foreground">
+                    {vacation.approvedBy?.name ?? "—"}
+                  </span>
+                ),
+              },
+              {
+                header: "Acciones",
+                headerClassName: "text-right",
+                className: "text-right",
+                cell: (vacation) => (
+                  <VacationApprovalButtons
+                    vacationId={vacation.id}
+                    statusName={vacation.status.name}
+                  />
+                ),
+              },
+            ]}
+            mobileCard={(vacation) => (
+              <div className="space-y-2 rounded-xl border bg-card p-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="font-medium">{vacation.user.name}</p>
+                  <StatusBadge
+                    tone={STATUS_TONE[vacation.status.name] ?? "neutral"}
+                  >
+                    {STATUS_LABEL[vacation.status.name] ?? vacation.status.name}
+                  </StatusBadge>
+                </div>
+                <p className="text-sm">
+                  {formatMX(vacation.startDate, { dateStyle: "short" })} →{" "}
+                  {formatMX(vacation.endDate, { dateStyle: "short" })}
+                </p>
+                <VacationApprovalButtons
+                  vacationId={vacation.id}
+                  statusName={vacation.status.name}
+                />
+              </div>
+            )}
+            emptyTitle="Sin solicitudes"
+            emptyMessage="No hay solicitudes de vacaciones registradas."
+          />
+        )}
+      </SectionCard>
+    </PageContainer>
   );
 }

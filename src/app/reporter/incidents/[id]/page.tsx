@@ -1,11 +1,12 @@
 import { Building, Calendar, FileText, User } from "lucide-react";
 import Link from "next/link";
 import { BackButton } from "@/components/common/back-button";
+import { PageContainer } from "@/components/common/page-container";
+import { PageHeader } from "@/components/common/page-header";
+import { SectionCard } from "@/components/common/section-card";
 import { IncidentAttachments } from "@/components/incidents/incident-attachments";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import { getIncidentById } from "@/lib/actions/incidents";
 import { canPerform, requireRouteAccess } from "@/lib/auth/auth";
 import { formatIncidentDateTime, formatMX } from "@/lib/utils/datetime";
@@ -51,37 +52,35 @@ export default async function ReporterIncidentDetailPage({
     incident.status?.name === "CANCELADA";
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <BackButton fallback="/reporter" />
-        <div className="flex-1">
-          <div className="flex items-center gap-3">
-            <h1 className="text-3xl font-bold">{incident.title}</h1>
-          </div>
-          <p className="text-muted-foreground">Folio: INC-{incident.id}</p>
-        </div>
-        <div className="flex gap-3">
+    <PageContainer>
+      <PageHeader
+        title={incident.title}
+        description={`Folio: INC-${incident.id}`}
+        breadcrumbs={[
+          { label: "Mis Incidentes", href: "/reporter" },
+          { label: `INC-${incident.id}` },
+        ]}
+        actions={
           <div className="text-xl">{getStatusBadge(incident.status)}</div>
-        </div>
+        }
+      />
+      <div>
+        <BackButton fallback="/reporter" />
       </div>
 
       {/* Incident Details Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Detalles del Incidente</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
+      <SectionCard title="Detalles del Incidente">
+        <div className="space-y-6">
           {/* Description */}
           <div>
             <p className="text-sm text-muted-foreground mb-2">Descripcion</p>
             <p className="text-base">{incident.description}</p>
           </div>
 
-          <Separator />
+          <div className="border-t" />
 
           {/* Info Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             <div className="flex items-start gap-3">
               <FileText className="h-5 w-5 text-muted-foreground mt-0.5" />
               <div>
@@ -167,7 +166,7 @@ export default async function ReporterIncidentDetailPage({
 
           {incident.schedule && (
             <>
-              <Separator />
+              <div className="border-t" />
               <div>
                 <p className="text-sm text-muted-foreground mb-2">Agenda</p>
                 <p className="font-medium">{incident.schedule.title}</p>
@@ -177,8 +176,8 @@ export default async function ReporterIncidentDetailPage({
               </div>
             </>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </SectionCard>
 
       {/* Evidence photos filed with the report (RF-217) */}
       <IncidentAttachments
@@ -190,42 +189,42 @@ export default async function ReporterIncidentDetailPage({
 
       {/* Assignments */}
       {incident.assignments && incident.assignments.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Asignaciones ({incident.assignments.length})</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {incident.assignments.map((wo) => (
-                <div
-                  key={wo.id}
-                  className="flex items-center justify-between border rounded-lg p-4 hover:bg-accent/50 transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    {wo.status && (
-                      <Badge
-                        className="text-white"
-                        style={{
-                          backgroundColor: wo.status.color || "#6B7280",
-                        }}
-                      >
-                        {wo.status.name}
-                      </Badge>
-                    )}
-                    <span className="text-sm text-muted-foreground">
-                      Orden #{wo.id.slice(0, 8)}
-                    </span>
-                  </div>
-                  <Button variant="outline" size="sm" asChild>
-                    <Link href={`/reporter/assignments/${wo.id}`}>
-                      Ver Progreso
-                    </Link>
-                  </Button>
+        <SectionCard title={`Asignaciones (${incident.assignments.length})`}>
+          <ul className="space-y-3">
+            {incident.assignments.map((wo) => (
+              <li
+                key={wo.id}
+                className="flex flex-col gap-3 border rounded-lg p-4 hover:bg-accent/50 transition-colors sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div className="flex items-center gap-3">
+                  {wo.status && (
+                    <Badge
+                      className="text-white"
+                      style={{
+                        backgroundColor: wo.status.color || "#6B7280",
+                      }}
+                    >
+                      {wo.status.name}
+                    </Badge>
+                  )}
+                  <span className="text-sm text-muted-foreground">
+                    Orden #{wo.id.slice(0, 8)}
+                  </span>
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  asChild
+                  className="w-full sm:w-auto"
+                >
+                  <Link href={`/reporter/assignments/${wo.id}`}>
+                    Ver Progreso
+                  </Link>
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </SectionCard>
       )}
 
       {/* Back Button */}
@@ -234,6 +233,6 @@ export default async function ReporterIncidentDetailPage({
           <Link href="/reporter">Volver</Link>
         </Button>
       </div>
-    </div>
+    </PageContainer>
   );
 }

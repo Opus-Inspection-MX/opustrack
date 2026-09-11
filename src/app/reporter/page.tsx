@@ -6,16 +6,15 @@ import {
   Plus,
 } from "lucide-react";
 import Link from "next/link";
+import { EmptyState } from "@/components/common/empty-state";
+import { PageContainer } from "@/components/common/page-container";
+import { PageHeader } from "@/components/common/page-header";
+import { SectionCard } from "@/components/common/section-card";
+import { StatCard } from "@/components/common/stat-card";
 import { PriorityBadge } from "@/components/incident-types/priority-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { getReporterIncidents } from "@/lib/actions/incidents";
 import { getMyProfile } from "@/lib/actions/users";
 import { requireRouteAccess } from "@/lib/auth/auth";
@@ -58,29 +57,26 @@ export default async function ReporterDashboard() {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Mis Incidentes</h1>
-          <p className="text-muted-foreground mt-2">
-            Rastrea y reporta incidentes para tu Cliente
-          </p>
-        </div>
-        <Button asChild>
-          <Link href="/reporter/new">
-            <Plus className="h-4 w-4 mr-2" />
-            Reportar Incidente
-          </Link>
-        </Button>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Mis Incidentes"
+        description="Rastrea y reporta incidentes para tu Cliente"
+        actions={
+          <Button asChild className="w-full sm:w-auto">
+            <Link href="/reporter/new">
+              <Plus className="h-4 w-4 mr-2" aria-hidden />
+              Reportar Incidente
+            </Link>
+          </Button>
+        }
+      />
 
       {/* Cliente Info */}
       {user?.client && (
         <Card className="bg-muted/30">
           <CardContent className="py-4">
             <div className="flex items-center gap-3">
-              <Building className="h-5 w-5 text-primary" />
+              <Building className="h-5 w-5 text-primary" aria-hidden />
               <div>
                 <p className="text-sm text-muted-foreground">Tu Cliente</p>
                 <p className="font-medium">
@@ -93,163 +89,137 @@ export default async function ReporterDashboard() {
       )}
 
       {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Incidentes Totales
-            </CardTitle>
-            <AlertTriangle className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.total}</div>
-            <p className="text-xs text-muted-foreground">Histórico</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Abiertos</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-blue-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.open}</div>
-            <p className="text-xs text-muted-foreground">Esperando respuesta</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">En Progreso</CardTitle>
-            <Clock className="h-4 w-4 text-yellow-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.inProgress}</div>
-            <p className="text-xs text-muted-foreground">Resolviéndose</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Resueltos</CardTitle>
-            <CheckCircle className="h-4 w-4 text-green-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.closed}</div>
-            <p className="text-xs text-muted-foreground">Completados</p>
-          </CardContent>
-        </Card>
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          title="Incidentes Totales"
+          value={stats.total}
+          description="Histórico"
+          icon={AlertTriangle}
+        />
+        <StatCard
+          title="Abiertos"
+          value={stats.open}
+          description="Esperando respuesta"
+          icon={AlertTriangle}
+          tone="info"
+        />
+        <StatCard
+          title="En Progreso"
+          value={stats.inProgress}
+          description="Resolviéndose"
+          icon={Clock}
+          tone="warning"
+        />
+        <StatCard
+          title="Resueltos"
+          value={stats.closed}
+          description="Completados"
+          icon={CheckCircle}
+          tone="success"
+        />
       </div>
 
       {/* Incidents List */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Incidentes Recientes</CardTitle>
-          <CardDescription>
-            Tus incidentes reportados y su estado
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {incidents.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              <AlertTriangle className="mx-auto h-12 w-12 mb-4 opacity-50" />
-              <p>No hay incidentes reportados aún</p>
-              <Button asChild variant="outline" className="mt-4">
-                <Link href="/reporter/new">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Reporta tu Primer Incidente
-                </Link>
-              </Button>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {incidents.map((incident) => (
-                <div
-                  key={incident.id}
-                  className="flex items-start justify-between p-4 border rounded-lg hover:bg-accent transition-colors"
-                >
-                  <div className="space-y-2 flex-1">
-                    {/* Badges */}
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-mono text-sm text-muted-foreground">
-                        INC-{incident.id}
-                      </span>
-                      {getStatusBadge(incident.status)}
-                      {incident.type && (
-                        <>
-                          <Badge variant="outline">{incident.type.name}</Badge>
-                          <PriorityBadge priority={incident.type.priority} />
-                        </>
-                      )}
-                    </div>
-
-                    {/* Title */}
-                    <h3 className="font-semibold text-lg">{incident.title}</h3>
-
-                    {/* Description */}
-                    <p className="text-sm text-muted-foreground line-clamp-2">
-                      {incident.description}
-                    </p>
-
-                    {/* Details */}
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                      <span>
-                        Reportado:{" "}
-                        {formatIncidentDateTime(
-                          incident.reportedAt,
-                          incident.client?.state?.code,
-                        )}
-                      </span>
-                      {incident._count?.assignments &&
-                        incident._count.assignments > 0 && (
-                          <span>
-                            Asignaciones: {incident._count.assignments}
-                          </span>
-                        )}
-                    </div>
+      <SectionCard
+        title="Incidentes Recientes"
+        description="Tus incidentes reportados y su estado"
+      >
+        {incidents.length === 0 ? (
+          <EmptyState
+            icon={AlertTriangle}
+            title="Sin incidentes"
+            description="No hay incidentes reportados aún"
+            action={{
+              label: "Reporta tu Primer Incidente",
+              href: "/reporter/new",
+            }}
+          />
+        ) : (
+          <div className="space-y-4">
+            {incidents.map((incident) => (
+              <div
+                key={incident.id}
+                className="flex items-start justify-between p-4 border rounded-lg hover:bg-accent transition-colors"
+              >
+                <div className="space-y-2 flex-1">
+                  {/* Badges */}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-mono text-sm text-muted-foreground">
+                      INC-{incident.id}
+                    </span>
+                    {getStatusBadge(incident.status)}
+                    {incident.type && (
+                      <>
+                        <Badge variant="outline">{incident.type.name}</Badge>
+                        <PriorityBadge priority={incident.type.priority} />
+                      </>
+                    )}
                   </div>
 
-                  {/* Action Button */}
-                  <Button variant="ghost" size="sm" asChild>
-                    <Link href={`/reporter/incidents/${incident.id}`}>
-                      Ver Detalles
-                    </Link>
-                  </Button>
+                  {/* Title */}
+                  <h3 className="font-semibold text-lg">{incident.title}</h3>
+
+                  {/* Description */}
+                  <p className="text-sm text-muted-foreground line-clamp-2">
+                    {incident.description}
+                  </p>
+
+                  {/* Details */}
+                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                    <span>
+                      Reportado:{" "}
+                      {formatIncidentDateTime(
+                        incident.reportedAt,
+                        incident.client?.state?.code,
+                      )}
+                    </span>
+                    {incident._count?.assignments &&
+                      incident._count.assignments > 0 && (
+                        <span>Asignaciones: {incident._count.assignments}</span>
+                      )}
+                  </div>
                 </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+
+                {/* Action Button */}
+                <Button variant="ghost" size="sm" asChild>
+                  <Link href={`/reporter/incidents/${incident.id}`}>
+                    Ver Detalles
+                  </Link>
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </SectionCard>
 
       {/* Quick Actions */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Acciones Rápidas</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Button asChild variant="outline" className="h-auto py-4">
-              <Link
-                href="/reporter/new"
-                className="flex flex-col items-center gap-2"
-              >
-                <Plus className="h-6 w-6" />
-                <span>Reportar Nuevo Incidente</span>
-              </Link>
-            </Button>
-            <Button asChild variant="outline" className="h-auto py-4">
-              <Link
-                href="/profile"
-                className="flex flex-col items-center gap-2"
-              >
-                <Building className="h-6 w-6" />
-                <span>Mi Perfil</span>
-              </Link>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+      <SectionCard title="Acciones Rápidas">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Button
+            asChild
+            variant="outline"
+            className="h-auto py-4 min-h-[44px]"
+          >
+            <Link
+              href="/reporter/new"
+              className="flex flex-col items-center gap-2"
+            >
+              <Plus className="h-6 w-6" aria-hidden />
+              <span>Reportar Nuevo Incidente</span>
+            </Link>
+          </Button>
+          <Button
+            asChild
+            variant="outline"
+            className="h-auto py-4 min-h-[44px]"
+          >
+            <Link href="/profile" className="flex flex-col items-center gap-2">
+              <Building className="h-6 w-6" aria-hidden />
+              <span>Mi Perfil</span>
+            </Link>
+          </Button>
+        </div>
+      </SectionCard>
+    </PageContainer>
   );
 }

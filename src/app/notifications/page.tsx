@@ -1,6 +1,6 @@
-import { Bell } from "lucide-react";
 import { BackButton } from "@/components/common/back-button";
 import { PageContainer } from "@/components/common/page-container";
+import { PageHeader } from "@/components/common/page-header";
 import { SectionCard } from "@/components/common/section-card";
 import { getNotificationsWithCount } from "@/lib/actions/notifications";
 import { requireRouteAccess } from "@/lib/auth/auth";
@@ -14,19 +14,14 @@ export default async function NotificationsPage() {
 
   return (
     <PageContainer size="narrow">
-      <div className="flex items-center gap-4">
+      <PageHeader
+        title="Mis Notificaciones"
+        description={
+          unreadCount > 0 ? `Tienes ${unreadCount} sin leer` : "Estás al día"
+        }
+      />
+      <div>
         <BackButton fallback="/" />
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <Bell className="h-7 w-7" />
-            Mis Notificaciones
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            {unreadCount > 0
-              ? `Tienes ${unreadCount} sin leer`
-              : "Estás al día"}
-          </p>
-        </div>
       </div>
 
       <SectionCard

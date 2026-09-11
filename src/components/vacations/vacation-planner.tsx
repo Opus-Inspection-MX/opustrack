@@ -126,7 +126,7 @@ export function VacationPlanner({
   return (
     <div className="space-y-4">
       {fsrs && fsrs.length > 0 && (
-        <div className="max-w-md">
+        <div className="w-full sm:max-w-md">
           <SearchableSelect
             options={fsrs.map((fsr) => ({
               value: fsr.id,

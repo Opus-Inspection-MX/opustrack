@@ -1,17 +1,14 @@
 "use client";
 
-import { AlertTriangle, Building, Loader2, Send } from "lucide-react";
+import { Building, Loader2, Send } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { BackButton } from "@/components/common/back-button";
+import { PageContainer } from "@/components/common/page-container";
+import { PageHeader } from "@/components/common/page-header";
+import { SectionCard } from "@/components/common/section-card";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { FileUpload } from "@/components/ui/file-upload";
 import { FormError } from "@/components/ui/form-error";
 import { Input } from "@/components/ui/input";
@@ -252,30 +249,42 @@ export default function ReportIncidentPage() {
   }
 
   return (
-    <div className="container mx-auto p-4 md:p-6 space-y-6 max-w-4xl">
-      <div className="flex items-center gap-4">
+    <PageContainer size="narrow">
+      <PageHeader
+        title="Reportar un Incidente"
+        description="Responderemos lo más pronto posible"
+      />
+      <div>
         <BackButton fallback="/reporter" label="Volver" />
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-lg bg-orange-500/10 flex items-center justify-center">
-            <AlertTriangle className="h-5 w-5 text-orange-500" />
-          </div>
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold">
-              Reportar un Incidente
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              Responderemos lo más pronto posible
-            </p>
-          </div>
-        </div>
       </div>
+
+      {/* Mobile step guide: anchor navigation, never hides fields so the
+          e2e contract (ids + button texts) holds on every project. */}
+      <nav aria-label="Pasos del reporte" className="md:hidden">
+        <ol className="grid grid-cols-3 gap-2 text-center text-xs">
+          {[
+            { href: "#paso-describe", label: "1. Describe" },
+            { href: "#paso-clasifica", label: "2. Clasifica" },
+            { href: "#paso-envia", label: "3. Envía" },
+          ].map((step) => (
+            <li key={step.href}>
+              <a
+                href={step.href}
+                className="block rounded-lg border bg-card px-2 py-2.5 font-medium text-muted-foreground"
+              >
+                {step.label}
+              </a>
+            </li>
+          ))}
+        </ol>
+      </nav>
 
       {/* Cliente Info Card */}
       {userClient && (
         <Card className="bg-muted/30 border-primary/20">
           <CardContent className="py-4">
             <div className="flex items-center gap-3">
-              <Building className="h-5 w-5 text-primary" />
+              <Building className="h-5 w-5 text-primary" aria-hidden />
               <div>
                 <p className="text-sm text-muted-foreground">
                   Reportando para Cliente
@@ -291,27 +300,23 @@ export default function ReportIncidentPage() {
 
       {errors.general && <FormError message={errors.general} />}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Detalles del Incidente</CardTitle>
-          <CardDescription>
-            Por favor proporciona tantos detalles como sea posible para
-            ayudarnos a resolver el problema rápidamente
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <SectionCard
+          title="Describe el problema"
+          description="Por favor proporciona tantos detalles como sea posible para ayudarnos a resolver el problema rápidamente"
+        >
+          <div id="paso-describe" className="scroll-mt-24 space-y-6">
             {/* Title */}
             <div className="space-y-2">
               <Label htmlFor="title">
-                Título del Incidente <span className="text-red-500">*</span>
+                Título del Incidente <span className="text-destructive">*</span>
               </Label>
               <Input
                 id="title"
                 value={formData.title}
                 onChange={(e) => handleChange("title", e.target.value)}
                 placeholder="Breve descripción del problema"
-                className={errors.title ? "border-red-500" : ""}
+                className={errors.title ? "border-destructive" : ""}
                 disabled={!userClient}
               />
               {errors.title && <FormError message={errors.title} />}
@@ -338,7 +343,7 @@ export default function ReportIncidentPage() {
             {/* Description */}
             <div className="space-y-2">
               <Label htmlFor="description">
-                Descripción <span className="text-red-500">*</span>
+                Descripción <span className="text-destructive">*</span>
               </Label>
               <Textarea
                 id="description"
@@ -346,7 +351,7 @@ export default function ReportIncidentPage() {
                 onChange={(e) => handleChange("description", e.target.value)}
                 placeholder="Proporciona información detallada sobre el incidente..."
                 rows={5}
-                className={errors.description ? "border-red-500" : ""}
+                className={errors.description ? "border-destructive" : ""}
                 disabled={!userClient}
               />
               {errors.description && <FormError message={errors.description} />}
@@ -360,11 +365,18 @@ export default function ReportIncidentPage() {
               showCamera
               label="Fotos de evidencia (opcional)"
             />
+          </div>
+        </SectionCard>
 
+        <SectionCard
+          title="Clasifica el incidente"
+          description="Tipo, línea y equipo donde ocurrió"
+        >
+          <div id="paso-clasifica" className="scroll-mt-24 space-y-6">
             {/* Type */}
             <div className="space-y-2">
               <Label htmlFor="typeId">
-                Tipo de Incidente <span className="text-red-500">*</span>
+                Tipo de Incidente <span className="text-destructive">*</span>
               </Label>
               <Select
                 value={formData.typeId}
@@ -372,7 +384,7 @@ export default function ReportIncidentPage() {
                 disabled={!userClient}
               >
                 <SelectTrigger
-                  className={errors.typeId ? "border-red-500" : ""}
+                  className={errors.typeId ? "border-destructive" : ""}
                 >
                   <SelectValue placeholder="Selecciona el tipo de incidente" />
                 </SelectTrigger>
@@ -451,32 +463,36 @@ export default function ReportIncidentPage() {
                 Selecciona el equipo específico relacionado con el incidente
               </p>
             </div>
+          </div>
+        </SectionCard>
 
-            {/* Submit Buttons */}
-            <div className="flex flex-col sm:flex-row gap-3 pt-4">
-              <Button
-                type="submit"
-                disabled={isSubmitting || !userClient}
-                className="flex-1 sm:flex-initial"
-              >
-                {isSubmitting && (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                )}
-                <Send className="mr-2 h-4 w-4" />
-                {isSubmitting ? "Enviando..." : "Enviar Reporte"}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => router.push("/reporter")}
-                disabled={isSubmitting}
-              >
-                Cancelar
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
-    </div>
+        {/* Submit Buttons */}
+        <div
+          id="paso-envia"
+          className="sticky bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-20 flex scroll-mt-24 flex-col gap-3 rounded-xl border bg-background/95 p-3 shadow-lg backdrop-blur sm:static sm:flex-row md:bottom-0"
+        >
+          <Button
+            type="submit"
+            disabled={isSubmitting || !userClient}
+            className="min-h-[44px] flex-1 sm:flex-initial"
+          >
+            {isSubmitting && (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
+            )}
+            <Send className="mr-2 h-4 w-4" aria-hidden />
+            {isSubmitting ? "Enviando..." : "Enviar Reporte"}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => router.push("/reporter")}
+            disabled={isSubmitting}
+            className="min-h-[44px]"
+          >
+            Cancelar
+          </Button>
+        </div>
+      </form>
+    </PageContainer>
   );
 }

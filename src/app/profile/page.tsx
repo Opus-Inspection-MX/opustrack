@@ -12,13 +12,18 @@ import {
   X,
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import { EmptyState } from "@/components/common/empty-state";
+import { PageContainer } from "@/components/common/page-container";
+import { PageHeader } from "@/components/common/page-header";
+import { SectionCard } from "@/components/common/section-card";
+import { StatusBadge } from "@/components/common/status-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FormError } from "@/components/ui/form-error";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/hooks/use-toast";
 import { isFailure } from "@/lib/actions/result";
 import {
@@ -208,378 +213,300 @@ export default function FSRProfilePage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Spinner size="lg" text="Cargando perfil..." />
-      </div>
+      <PageContainer>
+        <div className="flex h-64 items-center justify-center">
+          <Spinner size="lg" text="Cargando perfil..." />
+        </div>
+      </PageContainer>
     );
   }
 
   if (!user) {
     return (
-      <div className="space-y-6">
-        <p>Perfil no encontrado</p>
-      </div>
+      <PageContainer>
+        <PageHeader title="Mi Perfil" />
+        <EmptyState title="Sin perfil" description="Perfil no encontrado" />
+      </PageContainer>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Mi Perfil</h1>
-          <p className="text-muted-foreground">
-            Administra tu información personal
-          </p>
-        </div>
-        {!isEditing && !isChangingPassword && (
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setIsChangingPassword(true)}
-            >
-              <Lock className="mr-2 h-4 w-4" />
-              Cambiar Contraseña
-            </Button>
-            <Button onClick={() => setIsEditing(true)}>
-              <Edit2 className="mr-2 h-4 w-4" />
-              Editar Perfil
-            </Button>
-          </div>
-        )}
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Mi Perfil"
+        description="Administra tu información personal"
+        actions={
+          !isEditing && !isChangingPassword ? (
+            <>
+              <Button
+                variant="outline"
+                onClick={() => setIsChangingPassword(true)}
+                className="w-full sm:w-auto"
+              >
+                <Lock className="mr-2 h-4 w-4" aria-hidden />
+                Cambiar Contraseña
+              </Button>
+              <Button
+                onClick={() => setIsEditing(true)}
+                className="w-full sm:w-auto"
+              >
+                <Edit2 className="mr-2 h-4 w-4" aria-hidden />
+                Editar Perfil
+              </Button>
+            </>
+          ) : undefined
+        }
+      />
 
       {successMessage && (
-        <div className="p-4 bg-green-50 text-green-800 border border-green-200 rounded-lg dark:bg-green-950 dark:text-green-200 dark:border-green-800">
+        <div className="rounded-lg border border-success/40 bg-success-muted p-4 text-success-muted-foreground">
           {successMessage}
         </div>
       )}
 
-      <div className="grid gap-6">
-        {/* Personal Information Card */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Información Personal</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {isEditing ? (
-              <>
-                <div className="space-y-2">
-                  <Label htmlFor="name">
-                    Nombre <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={(e) =>
-                      setFormData({ ...formData, name: e.target.value })
-                    }
-                  />
-                  {errors.name && <FormError message={errors.name} />}
-                </div>
+      <Tabs defaultValue="info" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="info">Información</TabsTrigger>
+          <TabsTrigger value="seguridad">Seguridad</TabsTrigger>
+        </TabsList>
+        <TabsContent value="info" className="space-y-6 pt-4">
+          <div className="grid gap-6">
+            {/* Personal Information Card */}
+            <SectionCard title="Información Personal">
+              <div className="space-y-4">
+                {isEditing ? (
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="name">
+                        Nombre <span className="text-destructive">*</span>
+                      </Label>
+                      <Input
+                        id="name"
+                        value={formData.name}
+                        onChange={(e) =>
+                          setFormData({ ...formData, name: e.target.value })
+                        }
+                      />
+                      {errors.name && <FormError message={errors.name} />}
+                    </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-2">
-                      Correo Electrónico
-                    </p>
-                    <p className="font-medium">{user.email}</p>
-                    <p className="text-xs text-muted-foreground">
-                      El correo no puede ser cambiado
-                    </p>
-                  </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-sm text-muted-foreground mb-2">
+                          Correo Electrónico
+                        </p>
+                        <p className="font-medium">{user.email}</p>
+                        <p className="text-xs text-muted-foreground">
+                          El correo no puede ser cambiado
+                        </p>
+                      </div>
 
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-2">Rol</p>
-                    <Badge variant="outline">{user.role?.name || "N/A"}</Badge>
-                  </div>
-                </div>
-              </>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="flex items-center gap-3">
-                  <User className="h-5 w-5 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Nombre</p>
-                    <p className="font-medium">{user.name}</p>
-                  </div>
-                </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground mb-2">
+                          Rol
+                        </p>
+                        <Badge variant="outline">
+                          {user.role?.name || "N/A"}
+                        </Badge>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="flex items-center gap-3">
+                      <User className="h-5 w-5 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm text-muted-foreground">Nombre</p>
+                        <p className="font-medium">{user.name}</p>
+                      </div>
+                    </div>
 
-                <div className="flex items-center gap-3">
-                  <Mail className="h-5 w-5 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">
-                      Correo Electrónico
-                    </p>
-                    <p className="font-medium">{user.email}</p>
-                  </div>
-                </div>
+                    <div className="flex items-center gap-3">
+                      <Mail className="h-5 w-5 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm text-muted-foreground">
+                          Correo Electrónico
+                        </p>
+                        <p className="font-medium">{user.email}</p>
+                      </div>
+                    </div>
 
-                <div className="flex items-center gap-3">
-                  <Shield className="h-5 w-5 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Rol</p>
-                    <Badge variant="outline">{user.role?.name || "N/A"}</Badge>
-                  </div>
-                </div>
+                    <div className="flex items-center gap-3">
+                      <Shield className="h-5 w-5 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm text-muted-foreground">Rol</p>
+                        <Badge variant="outline">
+                          {user.role?.name || "N/A"}
+                        </Badge>
+                      </div>
+                    </div>
 
-                <div className="flex items-center gap-3">
-                  <Building className="h-5 w-5 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Cliente</p>
-                    <p className="font-medium">
-                      {user.client
-                        ? `${user.client.name} (${user.client.code})`
-                        : "No asignado"}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Contact Information Card */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Información de Contacto</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {isEditing ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="telephone">Teléfono</Label>
-                  <Input
-                    id="telephone"
-                    value={formData.telephone}
-                    onChange={(e) =>
-                      setFormData({ ...formData, telephone: e.target.value })
-                    }
-                    placeholder="+52-555-0123"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="secondaryTelephone">
-                    Teléfono Secundario
-                  </Label>
-                  <Input
-                    id="secondaryTelephone"
-                    value={formData.secondaryTelephone}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        secondaryTelephone: e.target.value,
-                      })
-                    }
-                    placeholder="+52-555-0124"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="jobPosition">Puesto de Trabajo</Label>
-                  <Input
-                    id="jobPosition"
-                    value={formData.jobPosition}
-                    onChange={(e) =>
-                      setFormData({ ...formData, jobPosition: e.target.value })
-                    }
-                    placeholder="ej., Técnico Senior"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="emergencyContact">
-                    Contacto de Emergencia
-                  </Label>
-                  <Input
-                    id="emergencyContact"
-                    value={formData.emergencyContact}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        emergencyContact: e.target.value,
-                      })
-                    }
-                    placeholder="Nombre - Teléfono"
-                  />
-                </div>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {user.userProfile?.telephone && (
-                  <div className="flex items-center gap-3">
-                    <Phone className="h-5 w-5 text-muted-foreground" />
-                    <div>
-                      <p className="text-sm text-muted-foreground">Teléfono</p>
-                      <p className="font-medium">
-                        {user.userProfile.telephone}
-                      </p>
+                    <div className="flex items-center gap-3">
+                      <Building
+                        className="h-5 w-5 text-muted-foreground"
+                        aria-hidden
+                      />
+                      <div>
+                        <p className="text-sm text-muted-foreground">Cliente</p>
+                        <p className="font-medium">
+                          {user.client
+                            ? `${user.client.name} (${user.client.code})`
+                            : "No asignado"}
+                        </p>
+                      </div>
                     </div>
                   </div>
                 )}
+              </div>
+            </SectionCard>
 
-                {user.userProfile?.secondaryTelephone && (
-                  <div className="flex items-center gap-3">
-                    <Phone className="h-5 w-5 text-muted-foreground" />
-                    <div>
-                      <p className="text-sm text-muted-foreground">
+            {/* Contact Information Card */}
+            <SectionCard title="Información de Contacto">
+              <div className="space-y-4">
+                {isEditing ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="telephone">Teléfono</Label>
+                      <Input
+                        id="telephone"
+                        value={formData.telephone}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            telephone: e.target.value,
+                          })
+                        }
+                        placeholder="+52-555-0123"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="secondaryTelephone">
                         Teléfono Secundario
-                      </p>
-                      <p className="font-medium">
-                        {user.userProfile.secondaryTelephone}
-                      </p>
+                      </Label>
+                      <Input
+                        id="secondaryTelephone"
+                        value={formData.secondaryTelephone}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            secondaryTelephone: e.target.value,
+                          })
+                        }
+                        placeholder="+52-555-0124"
+                      />
                     </div>
-                  </div>
-                )}
 
-                {user.userProfile?.jobPosition && (
-                  <div className="flex items-center gap-3">
-                    <Building className="h-5 w-5 text-muted-foreground" />
-                    <div>
-                      <p className="text-sm text-muted-foreground">
-                        Puesto de Trabajo
-                      </p>
-                      <p className="font-medium">
-                        {user.userProfile.jobPosition}
-                      </p>
+                    <div className="space-y-2">
+                      <Label htmlFor="jobPosition">Puesto de Trabajo</Label>
+                      <Input
+                        id="jobPosition"
+                        value={formData.jobPosition}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            jobPosition: e.target.value,
+                          })
+                        }
+                        placeholder="ej., Técnico Senior"
+                      />
                     </div>
-                  </div>
-                )}
 
-                {user.userProfile?.emergencyContact && (
-                  <div className="flex items-center gap-3">
-                    <Phone className="h-5 w-5 text-muted-foreground" />
-                    <div>
-                      <p className="text-sm text-muted-foreground">
+                    <div className="space-y-2">
+                      <Label htmlFor="emergencyContact">
                         Contacto de Emergencia
-                      </p>
-                      <p className="font-medium">
-                        {user.userProfile.emergencyContact}
-                      </p>
+                      </Label>
+                      <Input
+                        id="emergencyContact"
+                        value={formData.emergencyContact}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            emergencyContact: e.target.value,
+                          })
+                        }
+                        placeholder="Nombre - Teléfono"
+                      />
                     </div>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {user.userProfile?.telephone && (
+                      <div className="flex items-center gap-3">
+                        <Phone className="h-5 w-5 text-muted-foreground" />
+                        <div>
+                          <p className="text-sm text-muted-foreground">
+                            Teléfono
+                          </p>
+                          <p className="font-medium">
+                            {user.userProfile.telephone}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {user.userProfile?.secondaryTelephone && (
+                      <div className="flex items-center gap-3">
+                        <Phone className="h-5 w-5 text-muted-foreground" />
+                        <div>
+                          <p className="text-sm text-muted-foreground">
+                            Teléfono Secundario
+                          </p>
+                          <p className="font-medium">
+                            {user.userProfile.secondaryTelephone}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {user.userProfile?.jobPosition && (
+                      <div className="flex items-center gap-3">
+                        <Building className="h-5 w-5 text-muted-foreground" />
+                        <div>
+                          <p className="text-sm text-muted-foreground">
+                            Puesto de Trabajo
+                          </p>
+                          <p className="font-medium">
+                            {user.userProfile.jobPosition}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {user.userProfile?.emergencyContact && (
+                      <div className="flex items-center gap-3">
+                        <Phone className="h-5 w-5 text-muted-foreground" />
+                        <div>
+                          <p className="text-sm text-muted-foreground">
+                            Contacto de Emergencia
+                          </p>
+                          <p className="font-medium">
+                            {user.userProfile.emergencyContact}
+                          </p>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
-            )}
-          </CardContent>
-        </Card>
+            </SectionCard>
 
-        {/* Edit Profile Actions */}
-        {isEditing && (
-          <div className="flex justify-end gap-2">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setIsEditing(false);
-                setErrors({});
-                setFormData({
-                  name: user.name || "",
-                  telephone: user.userProfile?.telephone || "",
-                  secondaryTelephone:
-                    user.userProfile?.secondaryTelephone || "",
-                  emergencyContact: user.userProfile?.emergencyContact || "",
-                  jobPosition: user.userProfile?.jobPosition || "",
-                });
-              }}
-              disabled={isSaving}
-            >
-              <X className="mr-2 h-4 w-4" />
-              Cancelar
-            </Button>
-            <Button onClick={handleSaveProfile} disabled={isSaving}>
-              {isSaving ? (
-                "Guardando..."
-              ) : (
-                <>
-                  <Save className="mr-2 h-4 w-4" />
-                  Guardar Cambios
-                </>
-              )}
-            </Button>
-          </div>
-        )}
-
-        {/* Change Password Card */}
-        {isChangingPassword && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Cambiar Contraseña</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="currentPassword">
-                  Contraseña Actual <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="currentPassword"
-                  type="password"
-                  value={passwordData.currentPassword}
-                  onChange={(e) =>
-                    setPasswordData({
-                      ...passwordData,
-                      currentPassword: e.target.value,
-                    })
-                  }
-                />
-                {errors.currentPassword && (
-                  <FormError message={errors.currentPassword} />
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="newPassword">
-                  Nueva Contraseña <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="newPassword"
-                  type="password"
-                  value={passwordData.newPassword}
-                  onChange={(e) =>
-                    setPasswordData({
-                      ...passwordData,
-                      newPassword: e.target.value,
-                    })
-                  }
-                />
-                {errors.newPassword && (
-                  <FormError message={errors.newPassword} />
-                )}
-                <p className="text-xs text-muted-foreground">
-                  Debe tener al menos 8 caracteres
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="confirmPassword">
-                  Confirmar Nueva Contraseña{" "}
-                  <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="confirmPassword"
-                  type="password"
-                  value={passwordData.confirmPassword}
-                  onChange={(e) =>
-                    setPasswordData({
-                      ...passwordData,
-                      confirmPassword: e.target.value,
-                    })
-                  }
-                />
-                {errors.confirmPassword && (
-                  <FormError message={errors.confirmPassword} />
-                )}
-              </div>
-
-              <div className="flex justify-end gap-2">
+            {/* Edit Profile Actions */}
+            {isEditing && (
+              <div className="sticky bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-20 flex flex-col gap-2 rounded-xl border bg-background/95 p-3 shadow-lg backdrop-blur sm:static sm:flex-row sm:justify-end md:bottom-0">
                 <Button
                   variant="outline"
                   onClick={() => {
-                    setIsChangingPassword(false);
+                    setIsEditing(false);
                     setErrors({});
-                    setPasswordData({
-                      currentPassword: "",
-                      newPassword: "",
-                      confirmPassword: "",
+                    setFormData({
+                      name: user.name || "",
+                      telephone: user.userProfile?.telephone || "",
+                      secondaryTelephone:
+                        user.userProfile?.secondaryTelephone || "",
+                      emergencyContact:
+                        user.userProfile?.emergencyContact || "",
+                      jobPosition: user.userProfile?.jobPosition || "",
                     });
                   }}
                   disabled={isSaving}
@@ -587,55 +514,161 @@ export default function FSRProfilePage() {
                   <X className="mr-2 h-4 w-4" />
                   Cancelar
                 </Button>
-                <Button onClick={handleChangePassword} disabled={isSaving}>
+                <Button onClick={handleSaveProfile} disabled={isSaving}>
                   {isSaving ? (
-                    "Cambiando..."
+                    "Guardando..."
                   ) : (
                     <>
-                      <Lock className="mr-2 h-4 w-4" />
-                      Cambiar Contraseña
+                      <Save className="mr-2 h-4 w-4" aria-hidden />
+                      Guardar Cambios
                     </>
                   )}
                 </Button>
               </div>
-            </CardContent>
-          </Card>
-        )}
+            )}
+          </div>
+        </TabsContent>
+        <TabsContent value="seguridad" className="space-y-6 pt-4">
+          <div className="grid gap-6">
+            {/* Change Password Card */}
+            {isChangingPassword && (
+              <SectionCard title="Cambiar Contraseña">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="currentPassword">
+                      Contraseña Actual{" "}
+                      <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="currentPassword"
+                      type="password"
+                      value={passwordData.currentPassword}
+                      onChange={(e) =>
+                        setPasswordData({
+                          ...passwordData,
+                          currentPassword: e.target.value,
+                        })
+                      }
+                    />
+                    {errors.currentPassword && (
+                      <FormError message={errors.currentPassword} />
+                    )}
+                  </div>
 
-        {/* Account Status Card */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Estado de la Cuenta</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <p className="text-sm text-muted-foreground">Status</p>
-                <Badge
-                  variant={
-                    user.userStatus?.name === "ACTIVO" ? "default" : "secondary"
-                  }
-                >
-                  {user.userStatus?.name || "N/A"}
-                </Badge>
-              </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="newPassword">
+                      Nueva Contraseña{" "}
+                      <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="newPassword"
+                      type="password"
+                      value={passwordData.newPassword}
+                      onChange={(e) =>
+                        setPasswordData({
+                          ...passwordData,
+                          newPassword: e.target.value,
+                        })
+                      }
+                    />
+                    {errors.newPassword && (
+                      <FormError message={errors.newPassword} />
+                    )}
+                    <p className="text-xs text-muted-foreground">
+                      Debe tener al menos 8 caracteres
+                    </p>
+                  </div>
 
-              {user.createdAt && (
-                <div>
-                  <p className="text-sm text-muted-foreground">Miembro desde</p>
-                  <p className="font-medium">
-                    {formatMX(user.createdAt, {
-                      year: "numeric",
-                      month: "long",
-                      day: "numeric",
-                    })}
-                  </p>
+                  <div className="space-y-2">
+                    <Label htmlFor="confirmPassword">
+                      Confirmar Nueva Contraseña{" "}
+                      <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="confirmPassword"
+                      type="password"
+                      value={passwordData.confirmPassword}
+                      onChange={(e) =>
+                        setPasswordData({
+                          ...passwordData,
+                          confirmPassword: e.target.value,
+                        })
+                      }
+                    />
+                    {errors.confirmPassword && (
+                      <FormError message={errors.confirmPassword} />
+                    )}
+                  </div>
+
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setIsChangingPassword(false);
+                        setErrors({});
+                        setPasswordData({
+                          currentPassword: "",
+                          newPassword: "",
+                          confirmPassword: "",
+                        });
+                      }}
+                      disabled={isSaving}
+                    >
+                      <X className="mr-2 h-4 w-4" />
+                      Cancelar
+                    </Button>
+                    <Button onClick={handleChangePassword} disabled={isSaving}>
+                      {isSaving ? (
+                        "Cambiando..."
+                      ) : (
+                        <>
+                          <Lock className="mr-2 h-4 w-4" aria-hidden />
+                          Cambiar Contraseña
+                        </>
+                      )}
+                    </Button>
+                  </div>
                 </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
+              </SectionCard>
+            )}
+
+            {/* Account Status Card */}
+            <SectionCard title="Estado de la Cuenta">
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Status</p>
+                    <StatusBadge
+                      tone={
+                        user.userStatus?.name === "ACTIVO"
+                          ? "success"
+                          : "neutral"
+                      }
+                    >
+                      {user.userStatus?.name || "N/A"}
+                    </StatusBadge>
+                  </div>
+
+                  {user.createdAt && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">
+                        Miembro desde
+                      </p>
+                      <p className="font-medium">
+                        {formatMX(user.createdAt, {
+                          year: "numeric",
+                          month: "long",
+                          day: "numeric",
+                        })}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </SectionCard>
+          </div>
+        </TabsContent>
+      </Tabs>
+    </PageContainer>
   );
 }
