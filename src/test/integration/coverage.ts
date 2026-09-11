@@ -141,6 +141,8 @@ export const ALLOWLIST: Record<string, string> = {
     "global catalog: the fleet has no Client dimension",
   "broadcasts.ts :: updateBroadcast":
     "global: broadcasts target roles, no Client dimension",
+  "broadcasts.ts :: listBroadcasts":
+    "global: broadcast listing resolves audience from roles, no Client dimension",
   "broadcasts.ts :: cancelBroadcast":
     "global: broadcasts target roles, no Client dimension",
   "broadcasts.ts :: getRoleBroadcastTargets":
@@ -156,6 +158,12 @@ export const ALLOWLIST: Record<string, string> = {
     "own data: ownership enforced with user.id in the notification service",
   "notifications.ts :: deleteMyNotification":
     "own data: ownership enforced with user.id in the notification service",
+  "home-personal.ts :: getMyWorkSummary": "own data: assignee rows of user.id",
+  "home-personal.ts :: getMyActiveTrip": "own data: fsrId is user.id",
+  "home-personal.ts :: getMyReportsSummary":
+    "own data: reportedById is user.id",
+  "home-personal.ts :: getMyVacationSummary":
+    "own data: vacation rows of user.id",
   "users.ts :: getMyProfile": "own data: filtered by user.id",
   "users.ts :: updateMyProfile": "own data: filtered by user.id",
   "users.ts :: updateMyPassword": "own data: filtered by user.id",
@@ -165,6 +173,16 @@ export const ALLOWLIST: Record<string, string> = {
   "vehicle-trips.ts :: getMyAssignmentsForTrips":
     "own data: assignee rows of user.id",
   // Vacation administration: per-user rows, no Client dimension.
+  "vacations.ts :: getVacations":
+    "vacation flows; vacations have no Client dimension",
+  "vacations.ts :: getVacationById":
+    "vacation flows; vacations have no Client dimension",
+  "vacations.ts :: deleteVacation":
+    "vacation flows; vacations have no Client dimension",
+  "vacations.ts :: getVacationBalanceData":
+    "vacation flows; vacations have no Client dimension",
+  "vacations.ts :: createVacation":
+    "vacation flows; vacations have no Client dimension",
   "vacations.ts :: approveVacation":
     "vacation admin flow (vacations:approve); vacations have no Client dimension",
   "vacations.ts :: rejectVacation":
@@ -239,6 +257,8 @@ export const ALLOWLIST: Record<string, string> = {
     "TODO(0c): guard incident scope, then IDOR case",
   "assignments.ts :: deleteAssignment": "TODO(0c): guard scope, then IDOR case",
   "assignments.ts :: markAssignmentSeen":
+    "TODO(0c): worker guard, then IDOR case",
+  "assignments.ts :: startAssignmentWork":
     "TODO(0c): worker guard, then IDOR case",
   "assignments.ts :: pauseAssignment": "TODO(0c): worker guard, then IDOR case",
   "assignments.ts :: resumeAssignment":
