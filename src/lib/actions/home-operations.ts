@@ -94,8 +94,7 @@ export async function getIncidentsByStatus() {
       // Catalog color travels as data (never a source literal): the style
       // contract forbids raw hex outside the token layer, and the seed
       // guarantees every status row carries its own color.
-      color:
-        g.statusId !== null ? (byId.get(g.statusId)?.color ?? null) : null,
+      color: g.statusId !== null ? (byId.get(g.statusId)?.color ?? null) : null,
       count: g._count.statusId,
     })),
   };
