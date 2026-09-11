@@ -173,6 +173,12 @@ test.describe("1 · Inicio offline con reintento idempotente", () => {
     await expectAssignmentStatus(assignmentId, "VISTO");
 
     await page.goto(`/fsr/assignments/${assignmentId}`);
+    // The page must finish loading while still online: going offline with
+    // fetchData in flight rejects the server-action request and leaves the
+    // page in the "Failed to fetch" error state with no action buttons.
+    await expect(
+      page.getByRole("button", { name: "Iniciar trabajo" }),
+    ).toBeVisible();
     // Warm up the mocked position while still online so the capture after
     // setOffline(true) resolves deterministically instead of racing the
     // 15s highAccuracy timeout in handleStartWork.
@@ -205,9 +211,12 @@ test.describe("1 · Inicio offline con reintento idempotente", () => {
     await expectAssignmentStatus(assignmentId, "VISTO");
 
     await page.context().setOffline(false);
-    await page.getByRole("button", { name: "Reintentar" }).first().click();
-    // Badge gone + server state moved: the flush applied.
-    await expect(page.getByText("Pendiente de envío")).toHaveCount(0);
+    // The component auto-flushes on reconnect, so the draft may already be
+    // applied before any manual retry could run: assert the converged state
+    // instead of racing it with a click.
+    await expect(page.getByText("Pendiente de envío")).toHaveCount(0, {
+      timeout: 30_000,
+    });
     await expectAssignmentStatus(assignmentId, "INICIADO");
 
     const row = await db().assignment.findUniqueOrThrow({
@@ -263,17 +272,26 @@ test.describe("2 · Cierre offline", () => {
   test("sin conexión el cierre queda pendiente y al volver se aplica", async ({
     page,
   }, testInfo) => {
+    test.setTimeout(60_000);
     await prepareAssignmentForClose(assignmentId);
-    await page.goto(`/fsr/assignments/${assignmentId}`);
     page.on("dialog", (dialog) => dialog.accept());
+    await page.goto(`/fsr/assignments/${assignmentId}`);
+    // The page must finish loading while still online: going offline with
+    // fetchData in flight rejects the server-action request and leaves the
+    // page in the "Failed to fetch" error state with no action buttons.
+    await expect(
+      page.getByRole("button", { name: "Cerrar trabajo" }),
+    ).toBeVisible();
     await page.context().setOffline(true);
     await page.getByRole("button", { name: "Cerrar trabajo" }).click();
     await expect(page.getByText("Pendiente de envío")).toBeVisible();
     await expect(page.getByText("Cierre de asignación")).toBeVisible();
     await evidence(page, testInfo, "cierre offline guardado como borrador");
     await page.context().setOffline(false);
-    await page.getByRole("button", { name: "Reintentar" }).first().click();
-    await expect(page.getByText("Pendiente de envío")).toHaveCount(0);
+    // Same auto-flush race as the offline start above: assert convergence.
+    await expect(page.getByText("Pendiente de envío")).toHaveCount(0, {
+      timeout: 30_000,
+    });
     await expectAssignmentStatus(assignmentId, "CERRADO");
   });
 });
@@ -306,7 +324,7 @@ test.describe("3 · Borradores vencidos y con estado movido", () => {
     await page.reload();
     await page.getByRole("button", { name: "Reintentar" }).first().click();
     // The server's Spanish freshness rejection lands in the entry detail…
-    await expect(page.getByText(/24 horas/)).toBeVisible();
+    await expect(page.getByText(/24 horas/).first()).toBeVisible();
     // …and the entry is kept, not silently dropped.
     await expect(page.getByText("Pendiente de envío")).toBeVisible();
   });
@@ -338,7 +356,7 @@ test.describe("3 · Borradores vencidos y con estado movido", () => {
     await page.reload();
     await page.getByRole("button", { name: "Reintentar" }).first().click();
     // The standard terminal-incident rule, surfaced like any online failure…
-    await expect(page.getByText(/cancelada/)).toBeVisible();
+    await expect(page.getByText(/cancelada/).first()).toBeVisible();
     // …with the draft kept for manual resolution.
     await expect(page.getByText("Pendiente de envío")).toBeVisible();
   });

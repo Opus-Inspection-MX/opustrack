@@ -197,9 +197,9 @@ test.describe("2 · El admin lee la bitácora y cancela", () => {
   test("el Historial muestra el cierre", async ({ page }, testInfo) => {
     await page.goto(`/admin/incidents/${closeIncidentId}`);
 
-    await expect(
-      page.getByRole("heading", { name: /Historial/ }),
-    ).toBeVisible();
+    // CardTitle renders a div, not a heading, so a role query can never
+    // match: assert on the text the timeline actually renders.
+    await expect(page.getByText("Historial").first()).toBeVisible();
     await expect(page.getByText("Cambio de estado").first()).toBeVisible();
     await expect(page.getByText(/CERRADO/).first()).toBeVisible();
 
@@ -233,9 +233,7 @@ test.describe("2 · El admin lee la bitácora y cancela", () => {
     expect(cancelledRow.cancellationReason).toBe(CANCEL_REASON);
 
     await page.goto(`/admin/incidents/${cancelIncidentId}`);
-    await expect(
-      page.getByRole("heading", { name: /Historial/ }),
-    ).toBeVisible();
+    await expect(page.getByText("Historial").first()).toBeVisible();
     await expect(page.getByText("Incidencia cancelada").first()).toBeVisible();
     await expect(page.getByText(CANCEL_REASON).first()).toBeVisible();
 
