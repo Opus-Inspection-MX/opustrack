@@ -58,12 +58,17 @@ const SYSTEM_CHROMIUM_USE = SYSTEM_CHROMIUM
 // them. CI never skips — a missing browser there must fail loudly.
 const WEBKIT_AVAILABLE = Boolean(process.env.CI) || hasWebkit();
 
-// Default runs are Chromium-only: Firefox, WebKit and Mobile Safari are
+// Default runs are Chromium-only: Firefox, WebKit, Mobile Safari and iPad are
 // opt-in behind E2E_EXTRA_BROWSERS=1. Chromium, Mobile Chrome and the
 // Chromium-based catalogs/flows projects always run. (Firefox entries that
 // finish in 1-3ms are skips from a missing binary, not passes.)
 const EXTRA_BROWSERS = process.env.E2E_EXTRA_BROWSERS === "1";
-const EXTRA_BROWSER_PROJECTS = new Set(["firefox", "webkit", "Mobile Safari"]);
+const EXTRA_BROWSER_PROJECTS = new Set([
+  "firefox",
+  "webkit",
+  "Mobile Safari",
+  "iPad",
+]);
 
 function hasWebkit(): boolean {
   try {
@@ -181,9 +186,24 @@ export default defineConfig({
     },
     {
       name: "Mobile Chrome",
+      // Navigation, RBAC and inicio run here too (Fase 5): auth-rbac was
+      // never excluded, and rbac-roles/inicio assertions hold on small
+      // viewports — the rbac menu spec opens the "Más" drawer first. The
+      // remaining flows specs stay desktop-only: they drive dense
+      // operational grids over shared rows.
       testIgnore:
-        /(catalogs|programacion|tracking|errors|vacations|rbac-roles|notifications-mail|incident-operations|inicio)\.spec\.ts$/,
+        /(catalogs|programacion|tracking|errors|vacations|notifications-mail|incident-operations)\.spec\.ts$/,
       use: { ...devices["Pixel 5"], ...SYSTEM_CHROMIUM_USE },
+      dependencies: ["setup"],
+    },
+    {
+      name: "iPad",
+      // Tablet companion to Mobile Chrome (Fase 5): same spec set, iPad
+      // viewport with touch. WebKit-based, so it joins the
+      // E2E_EXTRA_BROWSERS=1 opt-in set like Mobile Safari.
+      testIgnore:
+        /(catalogs|programacion|tracking|errors|vacations|notifications-mail|incident-operations)\.spec\.ts$/,
+      use: { ...devices["iPad (gen 7)"] },
       dependencies: ["setup"],
     },
     {

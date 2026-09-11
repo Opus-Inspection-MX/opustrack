@@ -86,6 +86,22 @@ async function landsOn(page: Page, path: string): Promise<string> {
   return new URL(page.url()).pathname;
 }
 
+/**
+ * Open the navigation drawer on small viewports.
+ *
+ * Below lg the sidebar lives inside a closed Sheet and its links are not
+ * visible; the "Más" tab of the mobile tab bar opens it. On desktop the tab
+ * bar is hidden and this is a no-op, so the same assertions hold in the
+ * `flows`, `Mobile Chrome` and `iPad` projects.
+ */
+async function openMenuOnMobile(page: Page) {
+  const tabBar = page.locator('nav[aria-label="Navegación principal"]');
+  if (await tabBar.isVisible()) {
+    await page.getByRole("button", { name: "Más", exact: true }).click();
+    await expect(menu(page).getByRole("link").first()).toBeVisible();
+  }
+}
+
 test.describe("ADMIN_VACACIONES", () => {
   let actor: Actor;
 
@@ -120,6 +136,7 @@ test.describe("ADMIN_VACACIONES", () => {
   test("el menú no ofrece lo que no puede abrir", async ({ page }) => {
     await signIn(page, actor);
     await page.goto("/admin/vacations", { waitUntil: "networkidle" });
+    await openMenuOnMobile(page);
 
     const nav = menu(page);
     await expect(nav.getByRole("link", { name: "Solicitudes" })).toBeVisible();
@@ -147,6 +164,7 @@ test.describe("ADMIN_VACACIONES + FSR", () => {
     // Both halves, reachable at once — this is the whole point of multi-role.
     expect(await landsOn(page, "/admin/vacations")).toBe("/admin/vacations");
     expect(await landsOn(page, "/fsr/assignments")).toBe("/fsr/assignments");
+    await openMenuOnMobile(page);
 
     const nav = menu(page);
     await expect(nav.getByRole("link", { name: "Solicitudes" })).toBeVisible();
