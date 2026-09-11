@@ -69,6 +69,9 @@ export const AUDIT_PAYLOAD_ALLOWLIST: Record<AuditEntity, readonly string[]> = {
   ],
   [AuditEntity.LINE]: ["clientId", "active", "reason"],
   [AuditEntity.EQUIPMENT]: ["lineId", "statusId", "active", "reason"],
+  // Employment data (Parte B): the hire date drives vacation accrual.
+  // Identifiers only — no names, emails, or phone numbers.
+  [AuditEntity.USER]: ["hireDate", "active", "reason"],
   [AuditEntity.VEHICLE]: ["statusId", "assignedFsrId", "active", "reason"],
   [AuditEntity.VEHICLE_TRIP]: [
     "vehicleId",

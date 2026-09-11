@@ -1,0 +1,28 @@
+-- Parte B (fecha de ingreso) · USER value for the AuditEntity enum.
+--
+-- What moves here: a single `USER` value on the `AuditEntity` Postgres enum
+-- so `updateUserEmployment` can write its hire-date change through `logAudit`
+-- (RF-551 single writer). User administration writes were never audited
+-- before — no backfill, no behavior change for existing rows.
+--
+-- Deploy order: MIGRATION FIRST, CODE SECOND. The generated Prisma client
+-- already knows `AuditEntity.USER`, but the live database rejects the value
+-- until this runs. The change is purely additive: existing enum values and
+-- every existing audit row are untouched.
+--
+-- Idempotency: `ADD VALUE IF NOT EXISTS`, so a half-applied run converges.
+-- Safe to re-run after a failed deploy.
+--
+-- Identifier provenance (checked against schema, never against a local DB):
+-- enum from `prisma/schema.prisma` (AuditEntity); pattern copied from
+-- `20260914000000_inicio_home`.
+--
+-- Verification: SELECT enumlabel FROM pg_enum e JOIN pg_type t
+-- ON t.oid = e.enumtypid WHERE t.typname = 'AuditEntity';
+-- -- expect USER among the labels.
+--
+-- Rollback: Postgres cannot drop an enum value inside a transaction once it
+-- is in use. If USER was never written, recreate the type without it; if it
+-- was, keep the value — an unused label is harmless.
+
+ALTER TYPE "AuditEntity" ADD VALUE IF NOT EXISTS 'USER';
