@@ -1,11 +1,14 @@
-# Verificación en cada push: formato, tipos y pruebas unitarias.
+# Verificación en cada push: formato, tipos, pruebas unitarias e integración
+# contra Postgres real.
 #
-# Deliberadamente NO corre los e2e: son pesados (185 pruebas en 5 navegadores,
-# más Docker y un build) y se ejecutan en local con `npm run test:all`.
+# Deliberadamente NO corre los e2e de Playwright: son pesados (185 pruebas en
+# 5 navegadores, más Docker y un build) y se ejecutan en local con
+# `npm run test:all`.
 #
 # No requiere ningún secreto. Las pruebas unitarias mockean el cliente de
 # Prisma, así que funcionan sin DATABASE_URL ni archivos .env — que además
-# están en .gitignore y no existen en el runner.
+# están en .gitignore y no existen en el runner. La integración levanta su
+# propia base efímera en Docker con `config/e2e.env` (versionado).
 #
 # El despliegue no vive aquí: lo hace la integración de Vercel con GitHub
 # directamente sobre el push.
@@ -45,3 +48,27 @@ jobs:
 
       - name: Pruebas unitarias
         run: npm run test:unit
+
+  integration:
+    name: Integración (Postgres real)
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      # Levanta solo el contenedor e2e-db, migra + siembra y corre el
+      # proyecto integration de Vitest. Corre en paralelo con e2e (Fase 1):
+      # ambos declaran solo `needs: verify` y cada uno destruye su base al
+      # terminar — en CI cada job tiene su propio runner, así que no chocan.
+      - name: Pruebas de integración
+        run: npm run test:int
