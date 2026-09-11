@@ -105,8 +105,10 @@ export default defineConfig({
   testDir: "./e2e",
   // Only .spec.ts files are browser tests. `*.test.ts` under e2e/ belongs to
   // vitest (pure helpers); the setup projects override this with their own
-  // testMatch.
+  // testMatch. `zz-*` debug specs never run anywhere, not even locally: they
+  // are throwaway files that must not be committed.
   testMatch: /.*\.spec\.ts$/,
+  testIgnore: /zz-.*\.spec\.ts$/,
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
