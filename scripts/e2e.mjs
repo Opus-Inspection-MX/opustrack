@@ -18,12 +18,18 @@
  *   4. build     — production server (skipped with --dev)
  *   5. playwright
  *   6. down -v   — always, in a finally
+ *
+ * NOTE: `test:int` and `test:e2e` share the same compose project, container
+ * name and port — they MUST NOT run simultaneously on one machine.
  */
-import { spawnSync } from "node:child_process";
 import { rmSync } from "node:fs";
 import { loadProfile } from "./lib/env-profiles.mjs";
-
-const COMPOSE = ["compose", "-f", "docker-compose.e2e.yml"];
+import {
+  bringUpDatabase,
+  installCleanup,
+  prepareDatabase,
+  run,
+} from "./lib/ephemeral-stack.mjs";
 
 const args = process.argv.slice(2);
 const devMode = args.includes("--dev");
@@ -32,50 +38,13 @@ const playwrightArgs = args.filter((a) => a !== "--dev");
 loadProfile("e2e");
 if (devMode) process.env.E2E_SERVER = "dev";
 
-function run(command, commandArgs, { quiet = false, check = true } = {}) {
-  const result = spawnSync(command, commandArgs, {
-    stdio: quiet ? "ignore" : "inherit",
-    shell: false,
-    env: process.env,
-  });
-  if (check && result.status !== 0) {
-    throw new Error(`Falló: ${command} ${commandArgs.join(" ")}`);
-  }
-  return result.status ?? 1;
-}
-
-/** Remove the container and its volumes. Never throws — it is the cleanup. */
-function teardown({ quiet = true } = {}) {
-  run("docker", [...COMPOSE, "down", "-v"], { quiet, check: false });
-}
+const cleanup = installCleanup();
 
 let exitCode = 1;
-let tornDown = false;
-
-function cleanup() {
-  if (tornDown) return;
-  tornDown = true;
-  console.log("\n🧹 Destruyendo la base efímera...");
-  teardown({ quiet: false });
-}
-
-// Ctrl-C and terminations must not leak the container either.
-for (const signal of ["SIGINT", "SIGTERM"]) {
-  process.on(signal, () => {
-    cleanup();
-    process.exit(130);
-  });
-}
 
 try {
-  // A previous crash may have left one running; start from nothing.
-  teardown();
-
-  console.log("🐳 Creando la base efímera...");
-  run("docker", [...COMPOSE, "up", "-d", "--wait"]);
-
-  console.log("\n📦 Migrando y sembrando...");
-  run("npx", ["tsx", "scripts/e2e-prepare.ts"]);
+  bringUpDatabase();
+  prepareDatabase();
 
   if (!devMode) {
     console.log("\n🏗️  Compilando la app...");

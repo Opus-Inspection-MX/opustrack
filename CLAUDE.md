@@ -35,7 +35,8 @@ npm start            # Production server
 ```bash
 npm run check        # biome + tsc + knip (unused files fail CI) — must stay clean
 npm run format       # Format with Biome (writes changes)
-npm run test:unit    # Vitest, 75% thresholds
+npm run test:unit    # Vitest unit project, 75% thresholds
+npm run test:int     # Vitest integration project vs ephemeral Postgres (DB only, no browser)
 npm run test:e2e     # Playwright against an ephemeral Docker DB (never the real one)
 ```
 

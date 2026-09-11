@@ -14,9 +14,9 @@ This directory contains the testing setup and utilities for OpusTrack.
 ```
 src/test/
 ├── README.md           # This file
-├── setup.ts            # Global test setup (mocks, cleanup)
-├── db.ts              # Test database utilities
+├── setup.ts            # Unit setup (mocks, cleanup)
 ├── helpers.tsx        # Testing helper functions and utilities
+├── integration/       # Postgres integration suites (*.int.test.ts)
 └── mocks/
     ├── handlers.ts    # MSW API route handlers
     └── server.ts      # MSW server setup for Node
@@ -36,6 +36,9 @@ npm run test:ui
 
 # Run tests with coverage
 npm run test:coverage
+
+# Run integration tests (ephemeral Postgres, DB only)
+npm run test:int
 
 # Run E2E tests
 npm run test:e2e
@@ -81,33 +84,15 @@ describe("MyComponent", () => {
 });
 ```
 
-### Integration Tests with Database
+### Integration Tests against Postgres
 
-```typescript
-// src/lib/actions/myAction.test.ts
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import {
-  getTestPrismaClient,
-  seedTestDatabase,
-  cleanupTestDatabase,
-} from "@/test/db";
-import { myAction } from "./myAction";
-
-describe("myAction", () => {
-  beforeEach(async () => {
-    await seedTestDatabase();
-  });
-
-  afterEach(async () => {
-    await cleanupTestDatabase();
-  });
-
-  it("should perform action correctly", async () => {
-    const result = await myAction();
-    expect(result).toBeDefined();
-  });
-});
-```
+`src/test/integration/*.int.test.ts` run in the `integration` Vitest
+project via `npm run test:int`, which brings up the ephemeral e2e database
+(DB container only), migrates + seeds it, and tears it down afterwards.
+Each file builds its own world (`fixtures.ts`, unique suffix per file) and
+selects the caller with `actAs(userId)` — every action runs for real, only
+the framework edges (`next/cache`, `next/navigation`, `getServerSession`)
+are mocked. What each suite proves is registered in `coverage.ts`.
 
 ### E2E Tests
 
@@ -158,43 +143,12 @@ test("handles API error", async () => {
 });
 ```
 
-### Database Utilities
-
-```typescript
-import {
-  getTestPrismaClient,
-  seedTestDatabase,
-  cleanupTestDatabase,
-  resetTestDatabase,
-  disconnectTestDatabase,
-} from "@/test/db";
-
-// Get Prisma client for tests
-const prisma = getTestPrismaClient();
-
-// Seed test database with minimal data
-await seedTestDatabase();
-
-// Clean up all test data
-await cleanupTestDatabase();
-
-// Reset database (run migrations)
-await resetTestDatabase();
-
-// Disconnect (usually in afterAll)
-await disconnectTestDatabase();
-```
-
 ## Test Database Setup
 
-Tests use a separate test database to avoid interfering with development data.
-
-1. Set `TEST_DATABASE_URL` in `.env` (or it will default to `opustrack_test`)
-2. Run migrations on test database:
-
-```bash
-TEST_DATABASE_URL="postgresql://user:pass@localhost:5432/opustrack_test" npx prisma migrate deploy
-```
+Integration tests never touch the development database: `npm run test:int`
+asserts the URL is the ephemeral container (`localhost:5433/opustrack_e2e`)
+before importing Prisma. `test:int` and `test:e2e` share that container, so
+they must not run simultaneously on one machine.
 
 ## Coverage Targets
 

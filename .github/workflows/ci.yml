@@ -92,3 +92,27 @@ jobs:
             playwright-report/
             test-results/
           retention-days: 7
+
+  integration:
+    name: Integración (Postgres real)
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      # Levanta solo el contenedor e2e-db, migra + siembra y corre el
+      # proyecto integration de Vitest. Corre en paralelo con e2e (Fase 1):
+      # ambos declaran solo `needs: verify` y cada uno destruye su base al
+      # terminar — en CI cada job tiene su propio runner, así que no chocan.
+      - name: Pruebas de integración
+        run: npm run test:int
