@@ -27,10 +27,9 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#000000" },
-  ],
+  // Un solo color de marca: con dos temas elegibles, la barra del navegador
+  // ya no depende de si el tema elegido coincide con el del sistema.
+  themeColor: "#004851",
 };
 
 export default function RootLayout({
@@ -47,8 +46,8 @@ export default function RootLayout({
             attribute="class"
             defaultTheme="system"
             enableSystem
-            themes={["light", "dark", "opus"]}
-            value={{ light: "light", dark: "dark", opus: "opus" }}
+            themes={["light", "dark"]}
+            value={{ light: "light", dark: "dark" }}
           >
             <MotionProvider>
               {children}
