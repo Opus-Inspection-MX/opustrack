@@ -81,29 +81,26 @@ describe("assignments", () => {
     expect(after).toEqual(before);
   });
 
-  it(
-    "updateAssignment: fsrA2 cannot rewrite fsrA's assignment",
-    async () => {
-      const before = await prisma.assignment.findUniqueOrThrow({
-        where: { id: world.assignmentA.id },
-        select: { notes: true },
-      });
-      actAs(world.fsrA2.id);
-      const outcome = await capture(() =>
-        updateAssignment(world.assignmentA.id, {
-          incidentId: world.incidentA.id,
-          assigneeIds: [world.fsrA.id],
-          notes: "int-idor-probe",
-        }),
-      );
-      expect(isDenial(outcome)).toBe(true);
-      const after = await prisma.assignment.findUniqueOrThrow({
-        where: { id: world.assignmentA.id },
-        select: { notes: true },
-      });
-      expect(after).toEqual(before);
-    },
-  );
+  it("updateAssignment: fsrA2 cannot rewrite fsrA's assignment", async () => {
+    const before = await prisma.assignment.findUniqueOrThrow({
+      where: { id: world.assignmentA.id },
+      select: { notes: true },
+    });
+    actAs(world.fsrA2.id);
+    const outcome = await capture(() =>
+      updateAssignment(world.assignmentA.id, {
+        incidentId: world.incidentA.id,
+        assigneeIds: [world.fsrA.id],
+        notes: "int-idor-probe",
+      }),
+    );
+    expect(isDenial(outcome)).toBe(true);
+    const after = await prisma.assignment.findUniqueOrThrow({
+      where: { id: world.assignmentA.id },
+      select: { notes: true },
+    });
+    expect(after).toEqual(before);
+  });
 
   it("updateAssignment: opsAll rewrites assignment A", async () => {
     actAs(world.opsAll.id);
@@ -120,25 +117,22 @@ describe("assignments", () => {
     expect(row.notes).toBe("int-idor-manager-note");
   });
 
-  it(
-    "updateAssignmentOdtFolio: fsrA cannot stamp assignment B",
-    async () => {
-      const before = await prisma.assignment.findUniqueOrThrow({
-        where: { id: world.assignmentB.id },
-        select: { odtFolio: true },
-      });
-      actAs(world.fsrA.id);
-      const outcome = await capture(() =>
-        updateAssignmentOdtFolio(world.assignmentB.id, "INT-IDOR-PROBE"),
-      );
-      expect(isDenial(outcome)).toBe(true);
-      const after = await prisma.assignment.findUniqueOrThrow({
-        where: { id: world.assignmentB.id },
-        select: { odtFolio: true },
-      });
-      expect(after).toEqual(before);
-    },
-  );
+  it("updateAssignmentOdtFolio: fsrA cannot stamp assignment B", async () => {
+    const before = await prisma.assignment.findUniqueOrThrow({
+      where: { id: world.assignmentB.id },
+      select: { odtFolio: true },
+    });
+    actAs(world.fsrA.id);
+    const outcome = await capture(() =>
+      updateAssignmentOdtFolio(world.assignmentB.id, "INT-IDOR-PROBE"),
+    );
+    expect(isDenial(outcome)).toBe(true);
+    const after = await prisma.assignment.findUniqueOrThrow({
+      where: { id: world.assignmentB.id },
+      select: { odtFolio: true },
+    });
+    expect(after).toEqual(before);
+  });
 
   it("updateAssignmentOdtFolio: opsAll stamps assignment A", async () => {
     actAs(world.opsAll.id);
@@ -150,57 +144,51 @@ describe("assignments", () => {
   });
 
   // Fixed(0c/H-17): soft-deleted rows stay editable — no `active` check.
-  it(
-    "updateAssignment: a soft-deleted assignment is rejected",
-    async () => {
-      const dead = await prisma.assignment.create({
-        data: {
-          incidentId: world.incidentA.id,
-          statusId: (
-            await prisma.assignmentStatus.findUniqueOrThrow({
-              where: { name: "ASIGNADO" },
-            })
-          ).id,
-          notes: "int-idor-dead",
-          active: false,
-        },
-        select: { id: true },
-      });
-      actAs(world.opsAll.id);
-      const outcome = await capture(() =>
-        updateAssignment(dead.id, {
-          incidentId: world.incidentA.id,
-          assigneeIds: [],
-          notes: "int-idor-probe",
-        }),
-      );
-      expect(isDenial(outcome)).toBe(true);
-    },
-  );
+  it("updateAssignment: a soft-deleted assignment is rejected", async () => {
+    const dead = await prisma.assignment.create({
+      data: {
+        incidentId: world.incidentA.id,
+        statusId: (
+          await prisma.assignmentStatus.findUniqueOrThrow({
+            where: { name: "ASIGNADO" },
+          })
+        ).id,
+        notes: "int-idor-dead",
+        active: false,
+      },
+      select: { id: true },
+    });
+    actAs(world.opsAll.id);
+    const outcome = await capture(() =>
+      updateAssignment(dead.id, {
+        incidentId: world.incidentA.id,
+        assigneeIds: [],
+        notes: "int-idor-probe",
+      }),
+    );
+    expect(isDenial(outcome)).toBe(true);
+  });
 });
 
 describe("assignment items and activities", () => {
   // Fixed(0c): partidas y actividades solo revisan permiso, nunca scope.
-  it(
-    "createAssignmentItem: fsrA cannot add to assignment B",
-    async () => {
-      actAs(world.fsrA.id);
-      const outcome = await capture(() =>
-        createAssignmentItem({
-          assignmentId: world.assignmentB.id,
-          name: "int-idor-part",
-          quantity: 1,
-          unitPrice: 1,
-        }),
-      );
-      expect(isDenial(outcome)).toBe(true);
-      expect(
-        await prisma.assignmentItem.findMany({
-          where: { assignmentId: world.assignmentB.id, name: "int-idor-part" },
-        }),
-      ).toEqual([]);
-    },
-  );
+  it("createAssignmentItem: fsrA cannot add to assignment B", async () => {
+    actAs(world.fsrA.id);
+    const outcome = await capture(() =>
+      createAssignmentItem({
+        assignmentId: world.assignmentB.id,
+        name: "int-idor-part",
+        quantity: 1,
+        unitPrice: 1,
+      }),
+    );
+    expect(isDenial(outcome)).toBe(true);
+    expect(
+      await prisma.assignmentItem.findMany({
+        where: { assignmentId: world.assignmentB.id, name: "int-idor-part" },
+      }),
+    ).toEqual([]);
+  });
 
   it("createAssignmentItem: opsAll adds to assignment A", async () => {
     actAs(world.opsAll.id);
@@ -233,19 +221,16 @@ describe("assignment items and activities", () => {
     expect(row.active).toBe(true);
   });
 
-  it(
-    "createAssignmentActivity: fsrA cannot add to assignment B",
-    async () => {
-      actAs(world.fsrA.id);
-      const outcome = await capture(() =>
-        createAssignmentActivity({
-          assignmentId: world.assignmentB.id,
-          description: "int-idor-activity",
-        }),
-      );
-      expect(isDenial(outcome)).toBe(true);
-    },
-  );
+  it("createAssignmentActivity: fsrA cannot add to assignment B", async () => {
+    actAs(world.fsrA.id);
+    const outcome = await capture(() =>
+      createAssignmentActivity({
+        assignmentId: world.assignmentB.id,
+        description: "int-idor-activity",
+      }),
+    );
+    expect(isDenial(outcome)).toBe(true);
+  });
 
   it("createAssignmentActivity: opsAll adds to assignment A", async () => {
     actAs(world.opsAll.id);
@@ -256,27 +241,24 @@ describe("assignment items and activities", () => {
     expect(outcome).toMatchObject({ success: true });
   });
 
-  it(
-    "updateAssignmentActivity: fsrA cannot edit activity B",
-    async () => {
-      const before = await prisma.assignmentActivity.findUniqueOrThrow({
-        where: { id: world.activityB.id },
-        select: { description: true },
-      });
-      actAs(world.fsrA.id);
-      const outcome = await capture(() =>
-        updateAssignmentActivity(world.activityB.id, {
-          description: "int-idor-probe",
-        }),
-      );
-      expect(isDenial(outcome)).toBe(true);
-      const after = await prisma.assignmentActivity.findUniqueOrThrow({
-        where: { id: world.activityB.id },
-        select: { description: true },
-      });
-      expect(after).toEqual(before);
-    },
-  );
+  it("updateAssignmentActivity: fsrA cannot edit activity B", async () => {
+    const before = await prisma.assignmentActivity.findUniqueOrThrow({
+      where: { id: world.activityB.id },
+      select: { description: true },
+    });
+    actAs(world.fsrA.id);
+    const outcome = await capture(() =>
+      updateAssignmentActivity(world.activityB.id, {
+        description: "int-idor-probe",
+      }),
+    );
+    expect(isDenial(outcome)).toBe(true);
+    const after = await prisma.assignmentActivity.findUniqueOrThrow({
+      where: { id: world.activityB.id },
+      select: { description: true },
+    });
+    expect(after).toEqual(before);
+  });
 });
 
 describe("incidents", () => {
@@ -300,22 +282,19 @@ describe("incidents", () => {
     ).toEqual([]);
   });
 
-  it(
-    "createIncident: reporterA cannot impersonate another reporter",
-    async () => {
-      actAs(world.reporterA.id);
-      const outcome = await capture(() =>
-        createIncident({
-          title: "int-idor impersonation",
-          description: "probe",
-          typeId: world.typeId,
-          clientId: world.clientA.id,
-          reportedById: world.fsrA.id,
-        }),
-      );
-      expect(isDenial(outcome)).toBe(true);
-    },
-  );
+  it("createIncident: reporterA cannot impersonate another reporter", async () => {
+    actAs(world.reporterA.id);
+    const outcome = await capture(() =>
+      createIncident({
+        title: "int-idor impersonation",
+        description: "probe",
+        typeId: world.typeId,
+        clientId: world.clientA.id,
+        reportedById: world.fsrA.id,
+      }),
+    );
+    expect(isDenial(outcome)).toBe(true);
+  });
 
   it("createIncident: reporterA files under client A", async () => {
     actAs(world.reporterA.id);
@@ -342,41 +321,38 @@ describe("incidents", () => {
 
   // Fixed(0c): updateIncident checks the CURRENT client but not the new one —
   // fsrA moves A's incident to B.
-  it(
-    "updateIncident: fsrA cannot move incident A to client B",
-    async () => {
-      const movable = await prisma.incident.create({
-        data: {
-          title: "int-idor movable",
-          description: "probe",
-          typeId: world.typeId,
-          statusId: (
-            await prisma.incidentStatus.findUniqueOrThrow({
-              where: { name: "ABIERTO" },
-            })
-          ).id,
-          clientId: world.clientA.id,
-          reportedById: world.reporterA.id,
-        },
-        select: { id: true },
-      });
-      actAs(world.fsrA.id);
-      const outcome = await capture(() =>
-        updateIncident(movable.id, {
-          title: "int-idor movable",
-          description: "probe",
-          typeId: world.typeId,
-          clientId: world.clientB.id,
-        }),
-      );
-      expect(isDenial(outcome)).toBe(true);
-      const after = await prisma.incident.findUniqueOrThrow({
-        where: { id: movable.id },
-        select: { clientId: true },
-      });
-      expect(after.clientId).toBe(world.clientA.id);
-    },
-  );
+  it("updateIncident: fsrA cannot move incident A to client B", async () => {
+    const movable = await prisma.incident.create({
+      data: {
+        title: "int-idor movable",
+        description: "probe",
+        typeId: world.typeId,
+        statusId: (
+          await prisma.incidentStatus.findUniqueOrThrow({
+            where: { name: "ABIERTO" },
+          })
+        ).id,
+        clientId: world.clientA.id,
+        reportedById: world.reporterA.id,
+      },
+      select: { id: true },
+    });
+    actAs(world.fsrA.id);
+    const outcome = await capture(() =>
+      updateIncident(movable.id, {
+        title: "int-idor movable",
+        description: "probe",
+        typeId: world.typeId,
+        clientId: world.clientB.id,
+      }),
+    );
+    expect(isDenial(outcome)).toBe(true);
+    const after = await prisma.incident.findUniqueOrThrow({
+      where: { id: movable.id },
+      select: { clientId: true },
+    });
+    expect(after.clientId).toBe(world.clientA.id);
+  });
 
   it("updateIncident: opsAll edits incident A", async () => {
     actAs(world.opsAll.id);
@@ -457,19 +433,16 @@ describe("lines and equipments", () => {
     expect(isDenial(outcome)).toBe(true);
   });
 
-  it(
-    "updateEquipment: fsrA cannot move equipment B to line A",
-    async () => {
-      actAs(world.fsrA.id);
-      const outcome = await capture(() =>
-        updateEquipment(world.equipmentB.id, { lineId: world.lineA.id }),
-      );
-      expect(isDenial(outcome)).toBe(true);
-      const after = await prisma.equipment.findUniqueOrThrow({
-        where: { id: world.equipmentB.id },
-        select: { lineId: true },
-      });
-      expect(after.lineId).toBe(world.lineB.id);
-    },
-  );
+  it("updateEquipment: fsrA cannot move equipment B to line A", async () => {
+    actAs(world.fsrA.id);
+    const outcome = await capture(() =>
+      updateEquipment(world.equipmentB.id, { lineId: world.lineA.id }),
+    );
+    expect(isDenial(outcome)).toBe(true);
+    const after = await prisma.equipment.findUniqueOrThrow({
+      where: { id: world.equipmentB.id },
+      select: { lineId: true },
+    });
+    expect(after.lineId).toBe(world.lineB.id);
+  });
 });

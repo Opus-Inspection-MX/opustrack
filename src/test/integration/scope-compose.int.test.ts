@@ -54,30 +54,24 @@ describe("scope composition registration", () => {
 describe("H-02: clientIds must narrow the scope, never replace it", () => {
   // Fixed(0b): incidentWindowWhere spreads the scope's clientId key and then
   // spreads the requested clientIds over it — fsrA reads B's program.
-  it(
-    "getIncidentProgramReport: clientIds=[B] stays empty for fsrA",
-    async () => {
-      actAs(world.fsrA.id);
-      const report = await getIncidentProgramReport({
-        ...todayRange(),
-        clientIds: [world.clientB.id],
-      });
-      expect(report.incidentCount).toBe(0);
-    },
-  );
+  it("getIncidentProgramReport: clientIds=[B] stays empty for fsrA", async () => {
+    actAs(world.fsrA.id);
+    const report = await getIncidentProgramReport({
+      ...todayRange(),
+      clientIds: [world.clientB.id],
+    });
+    expect(report.incidentCount).toBe(0);
+  });
 
-  it(
-    "getScheduleOptions: clientIds=[B] shows no B for fsrA",
-    async () => {
-      actAs(world.fsrA.id);
-      const options = await getScheduleOptions({
-        ...todayRange(),
-        clientIds: [world.clientB.id],
-      });
-      const codes = options.flatMap((option) => option.clientCodes);
-      expect(codes).not.toContain(world.clientB.code);
-    },
-  );
+  it("getScheduleOptions: clientIds=[B] shows no B for fsrA", async () => {
+    actAs(world.fsrA.id);
+    const options = await getScheduleOptions({
+      ...todayRange(),
+      clientIds: [world.clientB.id],
+    });
+    const codes = options.flatMap((option) => option.clientCodes);
+    expect(codes).not.toContain(world.clientB.code);
+  });
 
   it("getScheduleOptions: clientIds=[A] still filters for fsrA", async () => {
     actAs(world.fsrA.id);

@@ -215,15 +215,12 @@ describe("incidents", () => {
 
   // Fixed(0c/H-05): the null check is skipped for clientId null, so a user
   // with no Client can open it by id while listings hide it. Fail closed.
-  it(
-    "getIncidentById: sinCliente cannot open the null-client incident",
-    async () => {
-      actAs(world.sinCliente.id);
-      expect(
-        isDenial(await capture(() => getIncidentById(world.incidentNull.id))),
-      ).toBe(true);
-    },
-  );
+  it("getIncidentById: sinCliente cannot open the null-client incident", async () => {
+    actAs(world.sinCliente.id);
+    expect(
+      isDenial(await capture(() => getIncidentById(world.incidentNull.id))),
+    ).toBe(true);
+  });
 
   it("getReporterIncidents: reporterA sees only their own A incident", async () => {
     actAs(world.reporterA.id);
@@ -271,13 +268,10 @@ describe("assignments", () => {
   });
 
   // Fixed(0a/H-01): incident.reportedBy travels with `include`, hash included.
-  it(
-    "getAssignmentById: no response carries a password key",
-    async () => {
-      actAs(world.fsrA.id);
-      assertNoPasswordKey(await getAssignmentById(world.assignmentA.id));
-    },
-  );
+  it("getAssignmentById: no response carries a password key", async () => {
+    actAs(world.fsrA.id);
+    assertNoPasswordKey(await getAssignmentById(world.assignmentA.id));
+  });
 });
 
 describe("tracking", () => {
@@ -475,13 +469,10 @@ describe("unscoped readers (H-03)", () => {
     ).toBe(true);
   });
 
-  it(
-    "getEquipmentsByLineId: fsrA cannot list line B equipment",
-    async () => {
-      actAs(world.fsrA.id);
-      expect(await getEquipmentsByLineId(world.lineB.id)).toEqual([]);
-    },
-  );
+  it("getEquipmentsByLineId: fsrA cannot list line B equipment", async () => {
+    actAs(world.fsrA.id);
+    expect(await getEquipmentsByLineId(world.lineB.id)).toEqual([]);
+  });
 
   it("getAllAssignmentActivities: fsrA sees only A", async () => {
     actAs(world.fsrA.id);
@@ -490,42 +481,30 @@ describe("unscoped readers (H-03)", () => {
     expect(ids).not.toContain(world.activityB.id);
   });
 
-  it(
-    "getAssignmentActivities: fsrA cannot list assignment B",
-    async () => {
-      actAs(world.fsrA.id);
-      expect(await getAssignmentActivities(world.assignmentB.id)).toEqual([]);
-    },
-  );
+  it("getAssignmentActivities: fsrA cannot list assignment B", async () => {
+    actAs(world.fsrA.id);
+    expect(await getAssignmentActivities(world.assignmentB.id)).toEqual([]);
+  });
 
-  it(
-    "getAssignmentActivityById: fsrA cannot open activity B",
-    async () => {
-      actAs(world.fsrA.id);
-      expect(
-        isDenial(
-          await capture(() => getAssignmentActivityById(world.activityB.id)),
-        ),
-      ).toBe(true);
-    },
-  );
+  it("getAssignmentActivityById: fsrA cannot open activity B", async () => {
+    actAs(world.fsrA.id);
+    expect(
+      isDenial(
+        await capture(() => getAssignmentActivityById(world.activityB.id)),
+      ),
+    ).toBe(true);
+  });
 
   // Fixed(0a/H-01): assignees.user travels with `user: true`, hash included.
-  it(
-    "getAssignmentActivityById: no response carries a password key",
-    async () => {
-      actAs(world.opsAll.id);
-      assertNoPasswordKey(await getAssignmentActivityById(world.activityA.id));
-    },
-  );
+  it("getAssignmentActivityById: no response carries a password key", async () => {
+    actAs(world.opsAll.id);
+    assertNoPasswordKey(await getAssignmentActivityById(world.activityA.id));
+  });
 
-  it(
-    "getAssignmentItems: fsrA cannot list assignment B items",
-    async () => {
-      actAs(world.fsrA.id);
-      expect(await getAssignmentItems(world.assignmentB.id)).toEqual([]);
-    },
-  );
+  it("getAssignmentItems: fsrA cannot list assignment B items", async () => {
+    actAs(world.fsrA.id);
+    expect(await getAssignmentItems(world.assignmentB.id)).toEqual([]);
+  });
 
   // users:read scoping is product decision #1 (pending): no contract for
   // WHAT a scoped reader sees, only that B-only users must stay invisible.

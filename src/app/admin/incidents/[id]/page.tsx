@@ -100,9 +100,7 @@ export default async function IncidentDetailPage({
                     </Link>
                   </Button>
                 )}
-                {canCancel && (
-                  <CancelIncidentButton incidentId={incident.id} />
-                )}
+                {canCancel && <CancelIncidentButton incidentId={incident.id} />}
               </>
             )}
             <StatusBadge tone={incidentStatusTone(incident.status?.name ?? "")}>
