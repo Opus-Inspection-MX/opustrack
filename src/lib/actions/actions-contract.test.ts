@@ -23,6 +23,7 @@ const STATE_MACHINE_DIR = join(process.cwd(), "src/lib/state-machine");
 // exports do not become public actions) still throw defects with Spanish
 // seed messages — the same production-invisibility rule applies to them.
 const EXTRA_SCAN_FILES = [
+  join(process.cwd(), "src/lib/auth/access.ts"),
   join(process.cwd(), "src/lib/auth/filters.ts"),
   join(process.cwd(), "src/lib/assignments/ensure-fsrs.ts"),
   join(process.cwd(), "src/lib/incidents/shared.ts"),

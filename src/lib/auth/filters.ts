@@ -19,6 +19,7 @@ import {
   userHasPermission,
 } from "@/lib/authz/authz";
 import { getUserClientIds } from "@/lib/utils/client-assignments";
+import { clientInScope } from "./access";
 
 /**
  * Returns WHERE clause for filtering by Client (async - supports multi-Client)
@@ -87,6 +88,10 @@ export function isAdmin(user: UserWithPermissions): boolean {
 /**
  * Check if user can access a specific Client's data (async - supports multi-Client)
  *
+ * Single fail-closed rule in `auth/access.ts`: a `null` Client is only
+ * reachable with an unrestricted scope, and a user with no assignments
+ * matches nothing (H-05). This function keeps its signature and delegates.
+ *
  * @param user - The authenticated user
  * @param clientId - The Client ID to check access for
  * @returns true if user can access the Client
@@ -95,7 +100,7 @@ export function isAdmin(user: UserWithPermissions): boolean {
  * ```typescript
  * const canAccess = await canAccessClientAsync(user, incident.clientId);
  * if (!canAccess) {
- *   businessRule("Sin acceso a los datos de este Cliente");
+ *   businessRule("Sin acceso a los datos de este Cliente.");
  * }
  * ```
  */
@@ -108,21 +113,8 @@ export async function canAccessClientAsync(
     return true;
   }
 
-  // Null Client data requires null Client user
-  if (clientId === null) {
-    const clientIds = await getUserClientIds(user.id);
-    return clientIds.length === 0;
-  }
-
-  // Check if user is assigned to this Client
   const clientIds = await getUserClientIds(user.id);
-
-  // Check Client assignments first
-  if (clientIds.includes(clientId)) {
-    return true;
-  }
-
-  return false;
+  return clientInScope({ clientIds }, clientId);
 }
 
 /**
@@ -147,6 +139,6 @@ export async function assertClientAccessAsync(
 ): Promise<void> {
   const hasAccess = await canAccessClientAsync(user, clientId);
   if (!hasAccess) {
-    businessRule("Sin acceso a los datos de este Cliente");
+    businessRule("Sin acceso a los datos de este Cliente.");
   }
 }
