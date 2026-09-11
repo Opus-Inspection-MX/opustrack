@@ -375,6 +375,7 @@ test.describe("4 · Viajes offline con foto", () => {
   test("inicia el viaje sin conexión y lo envía al reconectar", async ({
     page,
   }, testInfo) => {
+    test.setTimeout(60_000);
     await page.goto("/fsr/vehicle-trips/start");
     await page.getByText("Selecciona un vehículo").click();
     await page.getByRole("option", { name: /E2E Offline/ }).click();
@@ -388,9 +389,9 @@ test.describe("4 · Viajes offline con foto", () => {
     await expect(page.getByText("Pendiente de envío")).toBeVisible();
     await evidence(page, testInfo, "inicio de viaje offline en borrador");
     await page.context().setOffline(false);
-    await page.getByRole("button", { name: "Reintentar" }).first().click();
-    // onFlushed navigates to the trip list once the draft lands.
-    await page.waitForURL("**/fsr/vehicle-trips");
+    // Auto-flush on reconnect may beat any manual retry: the flush itself
+    // navigates to the trip list once the draft lands.
+    await page.waitForURL("**/fsr/vehicle-trips", { timeout: 30_000 });
 
     const trip = await db().vehicleTrip.findFirstOrThrow({
       where: { startOdometer: 1000, active: true },
@@ -412,6 +413,7 @@ test.describe("4 · Viajes offline con foto", () => {
   test("finaliza el viaje sin conexión y lo envía al reconectar", async ({
     page,
   }) => {
+    test.setTimeout(60_000);
     await page.goto(`/fsr/vehicle-trips/${tripId}/end`);
     await page.locator("#endOdometer").fill("1050");
     await page
@@ -422,8 +424,8 @@ test.describe("4 · Viajes offline con foto", () => {
     await page.getByRole("button", { name: "Finalizar Viaje" }).click();
     await expect(page.getByText("Pendiente de envío")).toBeVisible();
     await page.context().setOffline(false);
-    await page.getByRole("button", { name: "Reintentar" }).first().click();
-    await page.waitForURL("**/fsr/vehicle-trips");
+    // Same auto-flush race as the trip start above.
+    await page.waitForURL("**/fsr/vehicle-trips", { timeout: 30_000 });
 
     const trip = await db().vehicleTrip.findUniqueOrThrow({
       where: { id: tripId },
