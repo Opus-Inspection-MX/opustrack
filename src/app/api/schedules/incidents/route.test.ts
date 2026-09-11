@@ -262,7 +262,11 @@ describe("GET /api/schedules/incidents · alcance por Cliente", () => {
   it("aplica el alcance cuando no se pide un Cliente", async () => {
     await call(RANGE);
 
-    expect(lastWhere().clientId).toEqual({ in: ["c1", "c2"] });
+    // The scope AND-composes around the range OR — it must never merge into
+    // it, or one OR would replace the other.
+    expect(lastWhere().AND).toContainEqual({
+      clientId: { in: ["c1", "c2"] },
+    });
   });
 
   it("respeta un Cliente pedido dentro del alcance", async () => {
@@ -286,6 +290,6 @@ describe("GET /api/schedules/incidents · alcance por Cliente", () => {
 
     await call(RANGE);
 
-    expect(lastWhere().clientId).toEqual({ in: [] });
+    expect(lastWhere().AND).toContainEqual({ clientId: { in: [] } });
   });
 });

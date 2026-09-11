@@ -4,10 +4,7 @@ import type { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requirePermission } from "@/lib/auth/auth";
-import {
-  canAccessClientAsync,
-  getClientWhereClauseAsync,
-} from "@/lib/auth/filters";
+import { canAccessClientAsync } from "@/lib/auth/filters";
 import { getReportScope, scheduleScopeWhere } from "@/lib/auth/report-scope";
 import { prisma } from "@/lib/database/prisma.singleton";
 import {
@@ -372,9 +369,14 @@ export async function deleteSchedule(id: string) {
  */
 export async function getClientsForSchedules() {
   const user = await requirePermission("schedules:read");
+  const scope = await getReportScope(user);
 
+  // Client owns no `clientId` column, so the scope resolves to its own ids.
   const clients = await prisma.client.findMany({
-    where: { active: true, ...(await getClientWhereClauseAsync(user)) },
+    where:
+      scope.clientIds === null
+        ? { active: true }
+        : { active: true, id: { in: scope.clientIds } },
     orderBy: { name: "asc" },
   });
 

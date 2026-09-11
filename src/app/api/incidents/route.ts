@@ -1,7 +1,11 @@
 import type { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { withPermission } from "@/lib/auth/auth";
-import { getReportScope, incidentScopeWhere } from "@/lib/auth/report-scope";
+import {
+  getReportScope,
+  incidentScopeWhere,
+  withScope,
+} from "@/lib/auth/report-scope";
 import { FALLBACK_INCIDENT_TYPE_NAME } from "@/lib/constants/incident-type";
 import { prisma } from "@/lib/database/prisma.singleton";
 import { logger } from "@/lib/observability/logger";
@@ -142,14 +146,17 @@ export const GET = withPermission("incidents:read", async (request, user) => {
     const { searchParams } = new URL(request.url);
     const clientId = searchParams.get("clientId");
 
-    const where: Prisma.IncidentWhereInput = {
+    const baseWhere: Prisma.IncidentWhereInput = {
       active: true,
     };
 
     // Tenant boundary (cross-cutting rule #4). A requested Client outside
     // the caller's scope is rejected instead of silently returning rows the
     // caller must never see — or an empty list that hides the denial.
+    // The scope composes via AND, never Object.assign: a later spread would
+    // let a duplicate key replace the scope (or vice versa).
     const scope = await getReportScope(user);
+    let where = baseWhere;
     if (clientId) {
       if (scope.clientIds !== null && !scope.clientIds.includes(clientId)) {
         return NextResponse.json(
@@ -157,9 +164,9 @@ export const GET = withPermission("incidents:read", async (request, user) => {
           { status: 403 },
         );
       }
-      where.clientId = clientId;
+      where = { ...baseWhere, clientId };
     } else {
-      Object.assign(where, incidentScopeWhere(scope));
+      where = withScope(baseWhere, incidentScopeWhere(scope));
     }
 
     const incidents = await prisma.incident.findMany({

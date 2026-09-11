@@ -3,10 +3,12 @@ import {
   assignmentScopeWhere,
   fsrScopeWhere,
   incidentScopeWhere,
+  narrowClientIds,
   type ReportScope,
   scheduleScopeWhere,
   scopeIncludesClient,
   vehicleTripScopeWhere,
+  withScope,
 } from "./report-scope";
 
 const ADMIN: ReportScope = { clientIds: null };
@@ -128,5 +130,38 @@ describe("fsrScopeWhere", () => {
         some: { active: true, clientId: { in: ["c1", "c2"] } },
       },
     });
+  });
+});
+
+describe("withScope", () => {
+  it("ANDs the caller where with a non-empty scope fragment", () => {
+    expect(withScope({ active: true }, { clientId: { in: ["c1"] } })).toEqual({
+      AND: [{ active: true }, { clientId: { in: ["c1"] } }],
+    });
+  });
+
+  it("returns the caller where untouched for an empty scope", () => {
+    // An admin scope carries no fragment: no AND wrapper, same reference.
+    const where = { active: true };
+    expect(withScope(where, {} as typeof where)).toBe(where);
+  });
+});
+
+describe("narrowClientIds", () => {
+  it("passes the request through for an admin scope", () => {
+    expect(narrowClientIds(["cB"], ADMIN)).toEqual(["cB"]);
+    expect(narrowClientIds(undefined, ADMIN)).toBeUndefined();
+  });
+
+  it("intersects a request with the scope", () => {
+    expect(narrowClientIds(["c1", "c9"], MANY)).toEqual(["c1"]);
+  });
+
+  it("matches nothing when the request falls fully outside the scope", () => {
+    expect(narrowClientIds(["c9"], ONE)).toEqual([]);
+  });
+
+  it("falls back to the scope when nothing is requested", () => {
+    expect(narrowClientIds(undefined, MANY)).toEqual(["c1", "c2"]);
   });
 });

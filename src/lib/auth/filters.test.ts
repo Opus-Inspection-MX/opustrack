@@ -18,7 +18,6 @@ import { getUserClientIds } from "@/lib/utils/client-assignments";
 import {
   assertClientAccessAsync,
   canAccessClientAsync,
-  getClientWhereClauseAsync,
   isAdmin,
 } from "./filters";
 
@@ -110,38 +109,6 @@ describe("assertClientAccessAsync", () => {
     await expect(assertClientAccessAsync(user(), "c2")).rejects.toThrow(
       /Sin acceso a los datos de este Cliente/,
     );
-  });
-});
-
-describe("getClientWhereClauseAsync (multi-Client)", () => {
-  beforeEach(() => vi.clearAllMocks());
-
-  it("returns an empty filter for admins without querying assignments", async () => {
-    expect(await getClientWhereClauseAsync(admin)).toEqual({});
-    expect(getIds).not.toHaveBeenCalled();
-  });
-
-  it("uses a direct filter for a single assigned Client", async () => {
-    getIds.mockResolvedValue(["c1"]);
-    expect(await getClientWhereClauseAsync(user())).toEqual({
-      clientId: "c1",
-    });
-  });
-
-  it("uses an IN filter for multiple assigned Clients", async () => {
-    getIds.mockResolvedValue(["c1", "c2"]);
-    expect(await getClientWhereClauseAsync(user())).toEqual({
-      clientId: { in: ["c1", "c2"] },
-    });
-  });
-
-  it("filters by null Client when there are no assignments (fail closed)", async () => {
-    // The deprecated User.clientId scalar is gone: no assignments matches
-    // nothing, with no legacy fallback left to consult.
-    getIds.mockResolvedValue([]);
-    expect(await getClientWhereClauseAsync(user())).toEqual({
-      clientId: { equals: null },
-    });
   });
 });
 

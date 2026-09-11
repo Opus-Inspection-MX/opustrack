@@ -21,58 +21,6 @@ import {
 import { getUserClientIds } from "@/lib/utils/client-assignments";
 
 /**
- * Returns WHERE clause for filtering by Client (async - supports multi-Client)
- *
- * - Scope holders: No filter (can see all Clients)
- * - Other roles: Filter by all their assigned Clients
- * - Users without Client assignments: Filter by clientId: null
- *
- * @param user - The authenticated user with role information
- * @returns Prisma WHERE clause for clientId filtering (using IN for multiple Clients)
- *
- * @example
- * ```typescript
- * const user = await requirePermission("incidents:read");
- * const clientFilter = await getClientWhereClauseAsync(user);
- *
- * const incidents = await prisma.incident.findMany({
- *   where: {
- *     active: true,
- *     ...clientFilter,  // Apply Client filter
- *   }
- * });
- * ```
- */
-export async function getClientWhereClauseAsync(
-  user: UserWithPermissions,
-): Promise<{
-  clientId?: string | { in: string[] } | { equals: null };
-}> {
-  // Admin can see everything
-  if (isAdmin(user)) {
-    return {};
-  }
-
-  // Get all Client IDs assigned to the user
-  const clientIds = await getUserClientIds(user.id);
-
-  // Users without Client assignments can only see records without Client.
-  // (The deprecated User.clienteId scalar fallback died with the column:
-  // the junction table is the only source of truth.)
-  if (clientIds.length === 0) {
-    return { clientId: { equals: null } };
-  }
-
-  // Single Client - use direct filter
-  if (clientIds.length === 1) {
-    return { clientId: clientIds[0] };
-  }
-
-  // Multiple Clients - use IN filter
-  return { clientId: { in: clientIds } };
-}
-
-/**
  * Whether the user's data scope spans every Client.
  *
  * This is NOT "is a superuser". `ADMINISTRADOR` used to mean both, and keeping

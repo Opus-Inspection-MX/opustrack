@@ -51,14 +51,24 @@ export const GET = withPermission("schedules:read", async (request, user) => {
 
     const where: Prisma.ScheduleWhereInput = {
       active: true,
-      ...overlapWhere(from, to),
     };
 
+    // Every filter rides its own AND branch next to the tenant scope (never
+    // merged into a shared OR): spreading them into one object lets a
+    // duplicate `OR` key silently replace the search or the scope.
+    const and: Prisma.ScheduleWhereInput[] = [];
+    const overlap = overlapWhere(from, to);
+    if (overlap.AND) {
+      and.push(...(Array.isArray(overlap.AND) ? overlap.AND : [overlap.AND]));
+    }
+
     if (search) {
-      where.OR = [
-        { title: { contains: search, mode: "insensitive" } },
-        { description: { contains: search, mode: "insensitive" } },
-      ];
+      and.push({
+        OR: [
+          { title: { contains: search, mode: "insensitive" } },
+          { description: { contains: search, mode: "insensitive" } },
+        ],
+      });
     }
 
     // Tenant boundary (cross-cutting rule #4). A requested Client outside
@@ -71,14 +81,16 @@ export const GET = withPermission("schedules:read", async (request, user) => {
           { status: 403 },
         );
       }
-      where.clients = { some: { clientId, active: true } };
+      and.push({ clients: { some: { clientId, active: true } } });
     } else {
-      Object.assign(where, scheduleScopeWhere(scope));
+      const scopeWhere = scheduleScopeWhere(scope);
+      if (Object.keys(scopeWhere).length > 0) and.push(scopeWhere);
     }
 
     if (statusId) {
-      where.statusId = parseInt(statusId, 10);
+      and.push({ statusId: parseInt(statusId, 10) });
     }
+    if (and.length > 0) where.AND = and;
 
     const total = await prisma.schedule.count({ where });
 

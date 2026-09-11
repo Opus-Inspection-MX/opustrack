@@ -42,6 +42,45 @@ export function incidentScopeWhere(
   return { clientId: { in: scope.clientIds } };
 }
 
+/**
+ * Compose a caller-built `where` with a scope fragment so the scope cannot
+ * be overwritten by a later spread.
+ *
+ * Prisma merges duplicate keys by replacement, so `{ ...where, ...scope }`
+ * silently drops one side whenever both set the same key (`OR`, `clientId`,
+ * …). Keeping the scope on its own AND branch makes key collisions
+ * impossible: user filters narrow the result but can never widen it past
+ * the scope. An empty fragment (admin scope) needs no branch.
+ */
+export function withScope<T>(where: T, scopeWhere: T): T {
+  if (
+    scopeWhere !== null &&
+    typeof scopeWhere === "object" &&
+    Object.keys(scopeWhere).length === 0
+  ) {
+    return where;
+  }
+  return { AND: [where, scopeWhere] } as T;
+}
+
+/**
+ * Intersect caller-requested Client ids with the resolved scope.
+ *
+ * An admin scope (`clientIds: null`) passes the request through untouched;
+ * any other scope reduces the request to what the caller may actually see
+ * (empty when the request falls fully outside the scope). No request means
+ * the scope itself, so the filter stays fail closed.
+ */
+export function narrowClientIds(
+  requested: string[] | undefined,
+  scope: ReportScope,
+): string[] | undefined {
+  if (scope.clientIds === null) return requested;
+  if (!requested || requested.length === 0) return [...scope.clientIds];
+  const allowed = new Set(scope.clientIds);
+  return requested.filter((id) => allowed.has(id));
+}
+
 /** Assignment: reaches the Client through its incident. */
 export function assignmentScopeWhere(
   scope: ReportScope,
