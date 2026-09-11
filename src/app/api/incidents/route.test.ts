@@ -19,6 +19,9 @@ const { prismaMock, getUserClientIds, userBox } = vi.hoisted(() => ({
     incident: { findMany: vi.fn(), create: vi.fn() },
     incidentType: { findUnique: vi.fn() },
     incidentStatus: { findUnique: vi.fn() },
+    line: { findFirst: vi.fn() },
+    equipment: { findFirst: vi.fn() },
+    schedule: { findFirst: vi.fn() },
   },
   getUserClientIds: vi.fn(async (_userId: string) => [] as string[]),
   // Swappable user: superuser by default; scope tests replace it.
@@ -147,6 +150,26 @@ describe("POST /api/incidents · alcance por Cliente", () => {
 
   it("un superusuario conserva acceso total", async () => {
     const response = await postJson(validBody({ clientId: "c9" }));
+
+    expect(response.status).toBe(200);
+    expect(prismaMock.incident.create).toHaveBeenCalled();
+  });
+
+  it("rechaza una línea de otro Cliente con 404 y no escribe", async () => {
+    asScopedUser();
+    prismaMock.line.findFirst.mockResolvedValue({ clientId: "otro" });
+
+    const response = await postJson(validBody({ lineId: 3 }));
+
+    expect(response.status).toBe(404);
+    expect(prismaMock.incident.create).not.toHaveBeenCalled();
+  });
+
+  it("acepta una línea del propio Cliente", async () => {
+    asScopedUser();
+    prismaMock.line.findFirst.mockResolvedValue({ clientId: SCOPED });
+
+    const response = await postJson(validBody({ lineId: 3 }));
 
     expect(response.status).toBe(200);
     expect(prismaMock.incident.create).toHaveBeenCalled();

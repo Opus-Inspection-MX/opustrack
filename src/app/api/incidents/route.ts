@@ -1,6 +1,8 @@
 import type { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
+import { BusinessRuleError } from "@/lib/actions/result";
 import { withPermission } from "@/lib/auth/auth";
+import { assertBelongsToClient } from "@/lib/auth/access";
 import { getReportScope, incidentScopeWhere } from "@/lib/auth/report-scope";
 import { FALLBACK_INCIDENT_TYPE_NAME } from "@/lib/constants/incident-type";
 import { prisma } from "@/lib/database/prisma.singleton";
@@ -76,6 +78,25 @@ export const POST = withPermission(
             { status: 403 },
           );
         }
+      }
+
+      // Cross-references arrive from the client: the line, equipment and
+      // schedule must belong to the incident's Client (H-04). A mismatch
+      // answers 404 so it never confirms another Client's rows exist.
+      try {
+        await assertBelongsToClient(
+          {
+            lineId: lineId ? parseInt(lineId, 10) : null,
+            equipmentId: equipmentId ? parseInt(equipmentId, 10) : null,
+            scheduleId: scheduleId || null,
+          },
+          clientId || null,
+        );
+      } catch (error) {
+        if (error instanceof BusinessRuleError) {
+          return NextResponse.json({ error: error.message }, { status: 404 });
+        }
+        throw error;
       }
 
       // Crear incidente
