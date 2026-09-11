@@ -99,6 +99,8 @@ test("la contraseña actual equivocada se explica, no se generaliza", async ({
 
   await gotoReady(page, "/profile");
   await page.getByRole("button", { name: "Cambiar Contraseña" }).click();
+  // El formulario vive en el tab Seguridad (el default es Información).
+  await page.getByRole("tab", { name: "Seguridad" }).click();
 
   await fillStable(page.locator("#currentPassword"), "contrasena-incorrecta");
   await fillStable(page.locator("#newPassword"), "OtraPassword123!");
