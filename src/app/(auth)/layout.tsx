@@ -32,7 +32,9 @@ export default function AuthLayout({
             recorridos.
           </p>
         </div>
-        <p className="text-sm text-hero-muted-foreground">OpusInspection · México</p>
+        <p className="text-sm text-hero-muted-foreground">
+          OpusInspection · México
+        </p>
       </aside>
       <main className="flex flex-col items-center justify-center gap-6 p-6">
         <div className="flex items-center gap-2 lg:hidden">

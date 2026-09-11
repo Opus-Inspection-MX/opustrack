@@ -38,10 +38,7 @@ export default async function InicioPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <section
-        aria-label="Bienvenida"
-        className="bg-opus-hero rounded-xl p-5"
-      >
+      <section aria-label="Bienvenida" className="bg-opus-hero rounded-xl p-5">
         <h1 className="text-2xl font-bold tracking-tight">
           {greeting(mxHour(now))}, {user.name}
         </h1>
