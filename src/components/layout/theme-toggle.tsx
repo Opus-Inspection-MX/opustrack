@@ -15,19 +15,23 @@ import {
 import { cn } from "@/lib/utils";
 
 const OPTIONS = [
-  { value: "light", label: "Claro", Icon: Sun, swatch: "bg-white border" },
-  { value: "dark", label: "Oscuro", Icon: Moon, swatch: "bg-black border" },
   {
-    value: "opus",
-    label: "Opus",
-    Icon: null,
-    swatch: "bg-opus-hero border-transparent",
+    value: "light",
+    label: "Claro",
+    Icon: Sun,
+    swatch: "bg-background border",
+  },
+  {
+    value: "dark",
+    label: "Oscuro",
+    Icon: Moon,
+    swatch: "bg-brand-navy border",
   },
   {
     value: "system",
     label: "Sistema",
     Icon: Monitor,
-    swatch: "bg-gradient-to-b from-white to-black border",
+    swatch: "bg-gradient-to-b from-background to-brand-navy border",
   },
 ] as const;
 
@@ -52,7 +56,10 @@ export function ThemeToggle() {
     );
   }
 
-  const active = OPTIONS.find((o) => o.value === theme) ?? OPTIONS[3];
+  const active =
+    OPTIONS.find((o) => o.value === theme) ??
+    OPTIONS.find((o) => o.value === "system") ??
+    OPTIONS[0];
   const ActiveIcon = active.Icon;
 
   return (
@@ -64,14 +71,7 @@ export function ThemeToggle() {
           className="h-11 w-11"
           aria-label="Cambiar tema"
         >
-          {ActiveIcon ? (
-            <ActiveIcon className="h-4 w-4" />
-          ) : (
-            <span
-              aria-hidden
-              className="h-4 w-4 rounded-full bg-opus-hero ring-1 ring-border"
-            />
-          )}
+          <ActiveIcon className="h-4 w-4" />
           <span className="sr-only">Cambiar tema</span>
         </Button>
       </DropdownMenuTrigger>

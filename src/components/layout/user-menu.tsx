@@ -21,7 +21,6 @@ import {
 const THEME_OPTIONS = [
   { value: "light", label: "Claro", Icon: Sun },
   { value: "dark", label: "Oscuro", Icon: Moon },
-  { value: "opus", label: "Opus", Icon: null },
   { value: "system", label: "Sistema", Icon: Monitor },
 ] as const;
 
@@ -101,14 +100,7 @@ export function UserMenu() {
                 onClick={() => setTheme(value)}
                 className="min-h-[44px]"
               >
-                {Icon ? (
-                  <Icon className="h-4 w-4" aria-hidden />
-                ) : (
-                  <span
-                    aria-hidden
-                    className="h-4 w-4 rounded-full bg-opus-hero ring-1 ring-border"
-                  />
-                )}
+                <Icon className="h-4 w-4" aria-hidden />
                 <span>{label}</span>
                 {activeTheme === value && (
                   <Check className="ml-auto h-4 w-4" aria-hidden />
