@@ -159,6 +159,8 @@ const ALLOWLIST: Record<string, string> = {
     "user admin: personnel roster scoping is decision #1 (pending); users:read untouched in 0c",
   "users.ts :: updateUser":
     "user admin: personnel roster scoping is decision #1 (pending); client logic lives in a shared helper, not a per-id gate",
+  "users.ts :: updateUserEmployment":
+    "user admin: personnel roster scoping is decision #1 (pending); narrow hire-date capture with no Client dimension",
   "users.ts :: deleteUser":
     "user admin: personnel roster scoping is decision #1 (pending); users:delete held by ROOT",
   "roles.ts :: getRoleById": "role admin: roles are global, ROOT-administered",

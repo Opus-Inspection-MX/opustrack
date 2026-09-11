@@ -34,11 +34,13 @@ const STATUS_LABEL: Record<string, string> = {
 
 export default async function AdminVacationsPage() {
   await requireRouteAccess("/admin/vacations");
-  const [vacationPage, employees, canManage] = await Promise.all([
-    getVacations(),
-    getEmployeesForVacations(),
-    canPerform("vacations:manage"),
-  ]);
+  const [vacationPage, employees, canManage, canCaptureHireDate] =
+    await Promise.all([
+      getVacations(),
+      getEmployeesForVacations(),
+      canPerform("vacations:manage"),
+      canPerform("users:manage-employment"),
+    ]);
   const vacations = vacationPage.data;
   const fsrs = employees;
 
@@ -73,6 +75,7 @@ export default async function AdminVacationsPage() {
           }}
           fsrs={fsrs}
           canManage={canManage}
+          canCaptureHireDate={canCaptureHireDate}
         />
       )}
 

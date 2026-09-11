@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/hooks/use-toast";
 import { isFailure } from "@/lib/actions/result";
+import { updateUserEmployment } from "@/lib/actions/users";
 import type { VacationPeriodSummary } from "@/lib/actions/vacations";
 import { updatePeriodOverride } from "@/lib/actions/vacations";
 import { formatMX } from "@/lib/utils/datetime";
@@ -20,6 +21,13 @@ interface VacationBalancePanelProps {
   canManage?: boolean;
   hasHireDate: boolean;
   onChanged?: () => void;
+  /** User the balance belongs to, for the hire-date capture form. */
+  userId?: string;
+  /**
+   * Shows the hire-date capture form when the user has none. Server still
+   * enforces users:manage-employment.
+   */
+  canCaptureHireDate?: boolean;
 }
 
 /** One period's day counts, and the admin control to correct the allotment. */
@@ -174,6 +182,61 @@ function PeriodCard({
 }
 
 /**
+ * Hire-date capture for a user that has none.
+ *
+ * Rendered inside the balance panel on the admin screen only, behind
+ * `canCaptureHireDate`. Saving reloads the panel through `onChanged`, so the
+ * freshly earned periods appear without leaving the screen.
+ */
+function HireDateCapture({
+  userId,
+  onChanged,
+}: {
+  userId: string;
+  onChanged?: () => void;
+}) {
+  const [hireDate, setHireDate] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const save = async () => {
+    if (!hireDate) {
+      toast.error("Selecciona la fecha de contratación.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const result = await updateUserEmployment(userId, { hireDate });
+      if (isFailure(result)) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success("Fecha de ingreso guardada");
+      onChanged?.();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="mt-4 space-y-2 border-t pt-4">
+      <label htmlFor="hire-date" className="text-sm font-medium">
+        Fecha de contratación
+      </label>
+      <Input
+        id="hire-date"
+        type="date"
+        value={hireDate}
+        onChange={(e) => setHireDate(e.target.value)}
+        max={new Date().toISOString().slice(0, 10)}
+      />
+      <Button onClick={save} disabled={saving} className="w-full sm:w-auto">
+        {saving ? "Guardando…" : "Guardar fecha de ingreso"}
+      </Button>
+    </div>
+  );
+}
+
+/**
  * Left-hand panel: how many days each period grants, spends and has left.
  *
  * Every number here is derived server-side from the period's allotment minus
@@ -187,6 +250,8 @@ export function VacationBalancePanel({
   canManage = false,
   hasHireDate,
   onChanged,
+  userId,
+  canCaptureHireDate = false,
 }: VacationBalancePanelProps) {
   if (!hasHireDate) {
     return (
@@ -196,10 +261,13 @@ export function VacationBalancePanel({
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground">
-            Este usuario no tiene fecha de contratación registrada. Un
-            administrador debe capturarla para calcular sus períodos y días de
-            vacaciones.
+            Este usuario no tiene fecha de contratación registrada. El
+            administrador de vacaciones puede capturarla para calcular sus
+            períodos y días de vacaciones.
           </p>
+          {canCaptureHireDate && userId && (
+            <HireDateCapture userId={userId} onChanged={onChanged} />
+          )}
         </CardContent>
       </Card>
     );

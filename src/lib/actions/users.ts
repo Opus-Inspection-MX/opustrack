@@ -1,7 +1,9 @@
 "use server";
 
 import type { Prisma } from "@prisma/client";
+import { AuditAction, AuditEntity } from "@prisma/client";
 import { revalidatePath } from "next/cache";
+import { logAudit } from "@/lib/audit/log-audit";
 import { type requireAuth, requirePermission } from "@/lib/auth/auth";
 import { clearPermissionsCache } from "@/lib/authz/authz";
 import { assertCanManageRoles } from "@/lib/authz/role-assignment";
@@ -218,6 +220,85 @@ function parseHireDate(value: string | null | undefined): Date | null {
   return mxDayRange(value).gte;
 }
 
+/** Earliest hire date the employment capture accepts. */
+const MIN_HIRE_YEAR = 1950;
+
+/**
+ * Validate a "YYYY-MM-DD" hire date for employment capture.
+ *
+ * Present, well-formed, not in the future, and not before 1950. Rules are
+ * raised (never thrown as defects) so the operator reads them in production.
+ */
+function parseEmploymentHireDate(value: string | null | undefined): Date {
+  if (!value) {
+    businessRule("La fecha de contratación es obligatoria.");
+  }
+  const parsed = mxDayRange(value).gte;
+  if (Number.isNaN(parsed.getTime())) {
+    businessRule("La fecha de contratación no es válida.");
+  }
+  if (parsed.getTime() > Date.now()) {
+    businessRule("La fecha de contratación no puede ser futura.");
+  }
+  if (parsed.getFullYear() < MIN_HIRE_YEAR) {
+    businessRule("La fecha de contratación no puede ser anterior a 1950.");
+  }
+  return parsed;
+}
+
+/**
+ * Move a user's vacation periods along with a hire-date change, and write
+ * the user row itself.
+ *
+ * Hire date drives every vacation period, so a correction has to move the
+ * existing windows with it. `recomputePeriodsForNewHireDate` refuses the
+ * change if it would strand a vacation someone already booked, which is what
+ * makes editing a mistyped date safe rather than destructive.
+ *
+ * Shared by `updateUser` (ROOT form) and `updateUserEmployment` (vacation
+ * admin): the same correction must never behave differently depending on who
+ * typed it. No duplication of the accrual logic.
+ */
+async function applyHireDateChange(
+  userId: string,
+  currentHireDate: Date | null,
+  nextHireDate: Date | null,
+): Promise<void> {
+  const hireDateChanged =
+    nextHireDate?.getTime() !== currentHireDate?.getTime();
+  if (!hireDateChanged) return;
+
+  if (nextHireDate === null) {
+    const periodsWithVacations = await prisma.vacationPeriod.count({
+      where: { userId, vacations: { some: { active: true } } },
+    });
+    if (periodsWithVacations > 0) {
+      businessRule(
+        "No se puede quitar la fecha de contratación: el usuario tiene solicitudes de vacaciones registradas.",
+      );
+    }
+    await prisma.vacationPeriod.deleteMany({ where: { userId } });
+  } else if (currentHireDate) {
+    const { recomputePeriodsForNewHireDate } = await import(
+      "@/lib/services/vacation-periods"
+    );
+    await recomputePeriodsForNewHireDate(userId, nextHireDate);
+  }
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: { hireDate: nextHireDate },
+  });
+
+  // Create the periods a newly-set hire date has already earned.
+  if (nextHireDate) {
+    const { ensurePeriodsUpToNow } = await import(
+      "@/lib/services/vacation-periods"
+    );
+    await ensurePeriodsUpToNow(userId);
+  }
+}
+
 /**
  * Update existing user
  */
@@ -274,33 +355,12 @@ async function updateUserInner(
     updateData.sessionVersion = { increment: 1 };
   }
 
-  // Hire date drives every vacation period, so a correction has to move the
-  // existing windows with it. `recomputePeriodsForNewHireDate` refuses the
-  // change if it would strand a vacation someone already booked, which is what
-  // makes editing a mistyped date safe rather than destructive.
+  // Hire date drives every vacation period: delegate to the shared helper so
+  // a correction here behaves exactly like one captured by the vacation
+  // administrator. The helper writes the user row itself.
   const nextHireDate = parseHireDate(data.hireDate);
-  const hireDateChanged =
-    nextHireDate?.getTime() !== currentUser?.hireDate?.getTime();
-
-  if (hireDateChanged) {
-    updateData.hireDate = nextHireDate;
-
-    if (nextHireDate === null) {
-      const periodsWithVacations = await prisma.vacationPeriod.count({
-        where: { userId: id, vacations: { some: { active: true } } },
-      });
-      if (periodsWithVacations > 0) {
-        businessRule(
-          "No se puede quitar la fecha de contratación: el usuario tiene solicitudes de vacaciones registradas.",
-        );
-      }
-      await prisma.vacationPeriod.deleteMany({ where: { userId: id } });
-    } else if (currentUser?.hireDate) {
-      const { recomputePeriodsForNewHireDate } = await import(
-        "@/lib/services/vacation-periods"
-      );
-      await recomputePeriodsForNewHireDate(id, nextHireDate);
-    }
+  if (nextHireDate?.getTime() !== currentUser?.hireDate?.getTime()) {
+    await applyHireDateChange(id, currentUser?.hireDate ?? null, nextHireDate);
   }
 
   const user = await prisma.user.update({
@@ -376,19 +436,66 @@ async function updateUserInner(
     await invalidateUserSessions(id);
   }
 
-  // Create the periods a newly-set hire date has already earned.
-  if (hireDateChanged && nextHireDate) {
-    const { ensurePeriodsUpToNow } = await import(
-      "@/lib/services/vacation-periods"
-    );
-    await ensurePeriodsUpToNow(id);
-  }
-
   revalidatePath("/admin/users");
   revalidatePath(`/admin/users/${id}`);
   revalidatePath("/admin/vacations");
   revalidatePath("/vacations");
   return { data: { ...user, client: primaryClientOf(user) } };
+}
+
+export type UserEmploymentData = {
+  /** "YYYY-MM-DD" from the date input. Required: this action never clears. */
+  hireDate: string;
+};
+
+/**
+ * Capture a user's hire date without full user administration.
+ *
+ * The vacation administrator (`users:manage-employment`) sets the date that
+ * drives vacation accrual from `/admin/vacations`. Roles, passwords, status
+ * and Client assignment stay ROOT-only. Period recalculation is the shared
+ * `applyHireDateChange` helper, so a date captured here behaves exactly like
+ * one typed in the ROOT user form.
+ */
+export async function updateUserEmployment(
+  userId: string,
+  data: UserEmploymentData,
+) {
+  const caller = await requirePermission("users:manage-employment");
+
+  return guarded(async () => {
+    const nextHireDate = parseEmploymentHireDate(data.hireDate);
+
+    const target = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { hireDate: true, active: true },
+    });
+    if (!target || !target.active) {
+      businessRule("No encontrado.");
+    }
+
+    if (nextHireDate.getTime() === target.hireDate?.getTime()) {
+      return {};
+    }
+
+    await applyHireDateChange(userId, target.hireDate, nextHireDate);
+
+    await logAudit(prisma, {
+      actorId: caller.id,
+      entity: AuditEntity.USER,
+      entityId: userId,
+      action: AuditAction.UPDATE,
+      payload: {
+        hireDate: nextHireDate.toISOString(),
+        reason: "hire-date-capture",
+      },
+    });
+
+    revalidatePath("/admin/vacations");
+    revalidatePath("/vacations");
+    revalidatePath(`/admin/users/${userId}`);
+    return {};
+  });
 }
 
 /**

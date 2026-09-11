@@ -33,6 +33,8 @@ interface VacationPlannerProps {
   /** Admin-only: lets the panel switch between users. */
   fsrs?: FsrOption[];
   canManage?: boolean;
+  /** Admin-only: lets the panel capture a missing hire date in place. */
+  canCaptureHireDate?: boolean;
 }
 
 /**
@@ -46,6 +48,7 @@ export function VacationPlanner({
   initialData,
   fsrs,
   canManage = false,
+  canCaptureHireDate = false,
 }: VacationPlannerProps) {
   const [data, setData] = useState(initialData);
   const [targetUserId, setTargetUserId] = useState(initialData.user.id);
@@ -152,6 +155,8 @@ export function VacationPlanner({
             canManage={canManage}
             hasHireDate={data.hasHireDate}
             onChanged={() => void refresh()}
+            userId={data.user.id}
+            canCaptureHireDate={canCaptureHireDate}
           />
         </div>
 

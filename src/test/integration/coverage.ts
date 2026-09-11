@@ -193,6 +193,7 @@ export const ALLOWLIST: Record<string, string> = {
   // product decision #1, pending).
   "users.ts :: createUser": "user administration: global rows",
   "users.ts :: updateUser": "user administration: global rows",
+  "users.ts :: updateUserEmployment": "user administration: global rows",
   "users.ts :: deleteUser": "user administration: global rows",
   "roles.ts :: getRoleById": "role administration: global rows",
   "roles.ts :: updateRole": "role administration: global rows",
