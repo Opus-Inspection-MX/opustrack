@@ -195,7 +195,11 @@ export async function getAssignmentActivityById(id: string) {
           incident: true,
           assignees: {
             where: { active: true },
-            include: { user: true },
+            // H-01: the detail screen renders `a.user.name` only. A bare
+            // `user: true` used to ship the password hash to the browser.
+            include: {
+              user: { select: { id: true, name: true, email: true } },
+            },
           },
         },
       },
