@@ -9,7 +9,7 @@ import {
 import { requireRouteAccess } from "@/lib/auth/auth";
 
 export default async function VacationAccrualSettingsPage() {
-  await requireRouteAccess("/admin/settings");
+  await requireRouteAccess("/admin/settings/vacation-accrual");
 
   const [rules, setting] = await Promise.all([
     getAccrualRules(),
