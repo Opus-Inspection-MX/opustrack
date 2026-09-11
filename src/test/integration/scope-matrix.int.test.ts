@@ -48,9 +48,8 @@ import { actAs } from "./session-state";
  * - `opsAll` (scope:all-clients) and `root` see A and B.
  * - No response carries a `password` key (H-01).
  *
- * Cases marked `it.fails` document live holes with their fix TODO: they
- * fail as expected today, and fixing the behavior without removing the
- * marker fails the suite on purpose.
+ * Cases assert the fixed behavior directly (0a/0c merged): any regression
+ * fails the suite like any other test.
  */
 
 // Every MATRIX_SCOPE entry has a case in this file (checked below).
@@ -214,9 +213,9 @@ describe("incidents", () => {
     ).toBe(true);
   });
 
-  // TODO(0c/H-05): the null check is skipped for clientId null, so a user
+  // Fixed(0c/H-05): the null check is skipped for clientId null, so a user
   // with no Client can open it by id while listings hide it. Fail closed.
-  it.fails(
+  it(
     "getIncidentById: sinCliente cannot open the null-client incident",
     async () => {
       actAs(world.sinCliente.id);
@@ -271,8 +270,8 @@ describe("assignments", () => {
     ).toBe(true);
   });
 
-  // TODO(0a/H-01): incident.reportedBy travels with `include`, hash included.
-  it.fails(
+  // Fixed(0a/H-01): incident.reportedBy travels with `include`, hash included.
+  it(
     "getAssignmentById: no response carries a password key",
     async () => {
       actAs(world.fsrA.id);
@@ -355,8 +354,8 @@ describe("schedules", () => {
     }
   });
 
-  // TODO(0c): getScheduleById checks the permission but never the scope.
-  it.fails("getScheduleById: fsrA cannot open schedule B", async () => {
+  // Fixed(0c): getScheduleById checks the permission but never the scope.
+  it("getScheduleById: fsrA cannot open schedule B", async () => {
     actAs(world.fsrA.id);
     expect(
       isDenial(await capture(() => getScheduleById(world.scheduleB.id))),
@@ -414,69 +413,69 @@ describe("vehicle trips", () => {
 });
 
 describe("unscoped readers (H-03)", () => {
-  // TODO(0c): none of these filter by scope — tenant B rows (and users with
+  // Fixed(0c): none of these filter by scope — tenant B rows (and users with
   // no Client) are visible to any holder of the read permission.
-  it.fails("getClients: fsrA sees only A", async () => {
+  it("getClients: fsrA sees only A", async () => {
     actAs(world.fsrA.id);
     const ids = (await getClients({ limit: 100 })).data.map((row) => row.id);
     expect(ids).toContain(world.clientA.id);
     expect(ids).not.toContain(world.clientB.id);
   });
 
-  it.fails("getClientsForSelect: fsrA sees only A", async () => {
+  it("getClientsForSelect: fsrA sees only A", async () => {
     actAs(world.fsrA.id);
     const ids = (await getClientsForSelect()).map((row) => row.id);
     expect(ids).toContain(world.clientA.id);
     expect(ids).not.toContain(world.clientB.id);
   });
 
-  it.fails("getClientById: fsrA cannot open client B", async () => {
+  it("getClientById: fsrA cannot open client B", async () => {
     actAs(world.fsrA.id);
     expect(isDenial(await capture(() => getClientById(world.clientB.id)))).toBe(
       true,
     );
   });
 
-  // TODO(0a/H-01): userAssignments.user travels with `include`, hash included.
-  it.fails("getClientById: no response carries a password key", async () => {
+  // Fixed(0a/H-01): userAssignments.user travels with `include`, hash included.
+  it("getClientById: no response carries a password key", async () => {
     actAs(world.opsAll.id);
     assertNoPasswordKey(await getClientById(world.clientA.id));
   });
 
-  it.fails("getLines: fsrA sees only A lines", async () => {
+  it("getLines: fsrA sees only A lines", async () => {
     actAs(world.fsrA.id);
     const ids = (await getLines({ limit: 100 })).data.map((row) => row.id);
     expect(ids).toContain(world.lineA.id);
     expect(ids).not.toContain(world.lineB.id);
   });
 
-  it.fails("getLineById: fsrA cannot open line B", async () => {
+  it("getLineById: fsrA cannot open line B", async () => {
     actAs(world.fsrA.id);
     expect(isDenial(await capture(() => getLineById(world.lineB.id)))).toBe(
       true,
     );
   });
 
-  it.fails("getLinesByClientId: fsrA cannot list client B lines", async () => {
+  it("getLinesByClientId: fsrA cannot list client B lines", async () => {
     actAs(world.fsrA.id);
     expect(await getLinesByClientId(world.clientB.id)).toEqual([]);
   });
 
-  it.fails("getEquipments: fsrA sees only A equipment", async () => {
+  it("getEquipments: fsrA sees only A equipment", async () => {
     actAs(world.fsrA.id);
     const ids = (await getEquipments({ limit: 100 })).data.map((row) => row.id);
     expect(ids).toContain(world.equipmentA.id);
     expect(ids).not.toContain(world.equipmentB.id);
   });
 
-  it.fails("getEquipmentById: fsrA cannot open equipment B", async () => {
+  it("getEquipmentById: fsrA cannot open equipment B", async () => {
     actAs(world.fsrA.id);
     expect(
       isDenial(await capture(() => getEquipmentById(world.equipmentB.id))),
     ).toBe(true);
   });
 
-  it.fails(
+  it(
     "getEquipmentsByLineId: fsrA cannot list line B equipment",
     async () => {
       actAs(world.fsrA.id);
@@ -484,14 +483,14 @@ describe("unscoped readers (H-03)", () => {
     },
   );
 
-  it.fails("getAllAssignmentActivities: fsrA sees only A", async () => {
+  it("getAllAssignmentActivities: fsrA sees only A", async () => {
     actAs(world.fsrA.id);
     const ids = (await getAllAssignmentActivities()).map((row) => row.id);
     expect(ids).toContain(world.activityA.id);
     expect(ids).not.toContain(world.activityB.id);
   });
 
-  it.fails(
+  it(
     "getAssignmentActivities: fsrA cannot list assignment B",
     async () => {
       actAs(world.fsrA.id);
@@ -499,7 +498,7 @@ describe("unscoped readers (H-03)", () => {
     },
   );
 
-  it.fails(
+  it(
     "getAssignmentActivityById: fsrA cannot open activity B",
     async () => {
       actAs(world.fsrA.id);
@@ -511,8 +510,8 @@ describe("unscoped readers (H-03)", () => {
     },
   );
 
-  // TODO(0a/H-01): assignees.user travels with `user: true`, hash included.
-  it.fails(
+  // Fixed(0a/H-01): assignees.user travels with `user: true`, hash included.
+  it(
     "getAssignmentActivityById: no response carries a password key",
     async () => {
       actAs(world.opsAll.id);
@@ -520,7 +519,7 @@ describe("unscoped readers (H-03)", () => {
     },
   );
 
-  it.fails(
+  it(
     "getAssignmentItems: fsrA cannot list assignment B items",
     async () => {
       actAs(world.fsrA.id);
@@ -530,24 +529,24 @@ describe("unscoped readers (H-03)", () => {
 
   // users:read scoping is product decision #1 (pending): no contract for
   // WHAT a scoped reader sees, only that B-only users must stay invisible.
-  it.fails("getUsers: fsrA never sees the B canary", async () => {
+  it("getUsers: fsrA never sees the B canary", async () => {
     actAs(world.fsrA.id);
     const ids = (await getUsers({ limit: 100 })).data.map((row) => row.id);
     expect(ids).not.toContain(userBId);
   });
 
-  it.fails("getUserById: fsrA cannot open the B canary", async () => {
+  it("getUserById: fsrA cannot open the B canary", async () => {
     actAs(world.fsrA.id);
     expect(isDenial(await capture(() => getUserById(userBId)))).toBe(true);
   });
 
-  // TODO(0a/H-01): user rows travel with `include`, hash included.
-  it.fails("getUsers: no response carries a password key", async () => {
+  // Fixed(0a/H-01): user rows travel with `include`, hash included.
+  it("getUsers: no response carries a password key", async () => {
     actAs(world.opsAll.id);
     assertNoPasswordKey(await getUsers({ limit: 5 }));
   });
 
-  it.fails("getUserById: no response carries a password key", async () => {
+  it("getUserById: no response carries a password key", async () => {
     actAs(world.opsAll.id);
     assertNoPasswordKey(await getUserById(world.fsrA.id));
   });

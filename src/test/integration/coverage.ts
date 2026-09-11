@@ -341,60 +341,10 @@ export const ALLOWLIST: Record<string, string> = {
     "TODO(0c): bulk flow; scope assignment",
 };
 
-/** Matrix entries whose test is `it.fails` until the noted fix lands. */
-export const EXPECTED_FAIL: Record<string, string> = {
-  // H-01: the password hash travels in User includes (Fase 0a `omit`).
-  "clients.ts :: getClientById": "TODO(0a): userAssignments.user include",
-  "users.ts :: getUsers": "TODO(0a): user include without select",
-  "users.ts :: getUserById": "TODO(0a): user include without select",
-  "assignments.ts :: getAssignmentById": "TODO(0a): reportedBy: true",
-  "assignment-activities.ts :: getAssignmentActivityById":
-    "TODO(0a): assignees.user: true",
-  "incidents.ts :: createIncident":
-    "TODO(0a): reportedBy: true; TODO(0c): any clientId/reportedById accepted",
-  // Reads with no Client scope (Fase 0c guards).
-  "clients.ts :: getClients": "TODO(0c): no scope filter",
-  "clients.ts :: getClientsForSelect": "TODO(0c): no scope filter",
-  "lines.ts :: getLines": "TODO(0c): no scope filter",
-  "lines.ts :: getLineById": "TODO(0c): no scope check",
-  "lines.ts :: getLinesByClientId": "TODO(0c): no scope check",
-  "equipments.ts :: getEquipments": "TODO(0c): no scope filter",
-  "equipments.ts :: getEquipmentById": "TODO(0c): no scope check",
-  "equipments.ts :: getEquipmentsByLineId": "TODO(0c): no scope check",
-  "assignment-activities.ts :: getAllAssignmentActivities":
-    "TODO(0c): no scope filter",
-  "assignment-activities.ts :: getAssignmentActivities":
-    "TODO(0c): no scope check",
-  "assignment-items.ts :: getAssignmentItems": "TODO(0c): no scope check",
-  "schedules.ts :: getScheduleById": "TODO(0c): no scope check",
-  "incidents.ts :: getIncidentById":
-    "TODO(0c): null-client incidents skip the check (H-05)",
-  // Writes with no scope/ownership check (Fase 0c guards).
-  "assignments.ts :: updateAssignment": "TODO(0c): no scope/owner check",
-  "assignments.ts :: updateAssignmentOdtFolio": "TODO(0c): no scope check",
-  "assignment-items.ts :: createAssignmentItem": "TODO(0c): no scope check",
-  "assignment-items.ts :: deleteAssignmentItem": "TODO(0c): no scope check",
-  "assignment-activities.ts :: createAssignmentActivity":
-    "TODO(0c): no scope check",
-  "assignment-activities.ts :: updateAssignmentActivity":
-    "TODO(0c): no scope check",
-  "incidents.ts :: updateIncident":
-    "TODO(0a): reportedBy: true; TODO(0c): new clientId unchecked, active unchecked (H-17)",
-  "lines.ts :: createLine": "TODO(0c): any clientId accepted",
-  "lines.ts :: updateLine": "TODO(0c): clientId move unchecked",
-  "lines.ts :: deleteLine": "TODO(0c): no scope check",
-  "equipments.ts :: createEquipment": "TODO(0c): any line accepted",
-  "equipments.ts :: updateEquipment": "TODO(0c): line move unchecked",
-  // Scope composed with spread/Object.assign instead of AND (Fase 0b).
-  "incident-program.ts :: getScheduleOptions":
-    "TODO(0b): clientIds spread replaces the scope key",
-  "incident-program.ts :: getIncidentProgramReport":
-    "TODO(0b): clientIds spread replaces the scope key",
-  "app/api/schedules/route.ts :: GET":
-    "TODO(0b): Object.assign drops the search OR",
-  // Concurrency without an atomic claim (Fase 5a).
-  "mail/outbox.ts :: retryDueEmails":
-    "TODO(5a): no ENVIANDO claim; parallel runs double-send",
-  "vehicle-trips.ts :: startVehicleTrip":
-    "TODO(5a): check-then-write idempotency; parallel starts duplicate",
-};
+/** Matrix entries whose test is `it.fails` until the noted fix lands.
+ *
+ * Empty: every 0a/0b/0c/5a fix is merged and every marker was flipped to a
+ * plain `it`. Keep the export (and the dangling-key test) so the next known
+ * gap can register here again instead of silently shipping without a case.
+ */
+export const EXPECTED_FAIL: Record<string, string> = {};

@@ -13,7 +13,7 @@ import { actAs } from "./session-state";
  *
  * Tenant scope must compose with user filters through AND, never through a
  * spread or Object.assign that lets one side replace the other's keys.
- * Cases marked `it.fails` leak or drop data on main (TODO(0b)).
+ * The 0b `withScope` composition is merged, so cases assert it directly.
  */
 
 const COVERED_COMPOSE = new Set([
@@ -52,9 +52,9 @@ describe("scope composition registration", () => {
 });
 
 describe("H-02: clientIds must narrow the scope, never replace it", () => {
-  // TODO(0b): incidentWindowWhere spreads the scope's clientId key and then
+  // Fixed(0b): incidentWindowWhere spreads the scope's clientId key and then
   // spreads the requested clientIds over it — fsrA reads B's program.
-  it.fails(
+  it(
     "getIncidentProgramReport: clientIds=[B] stays empty for fsrA",
     async () => {
       actAs(world.fsrA.id);
@@ -66,7 +66,7 @@ describe("H-02: clientIds must narrow the scope, never replace it", () => {
     },
   );
 
-  it.fails(
+  it(
     "getScheduleOptions: clientIds=[B] shows no B for fsrA",
     async () => {
       actAs(world.fsrA.id);
@@ -91,11 +91,11 @@ describe("H-02: clientIds must narrow the scope, never replace it", () => {
 });
 
 describe("H-18: /api/schedules keeps search AND scope", () => {
-  // TODO(0b): `where.OR = [search]` is overwritten by
+  // Fixed(0b): `where.OR = [search]` is overwritten by
   // `Object.assign(where, scheduleScopeWhere(scope))` — the search is lost
   // (the scope survives, so B never leaks here; the global schedule that
   // does not match the search proves the filter died).
-  it.fails("search narrows inside the scope for fsrA", async () => {
+  it("search narrows inside the scope for fsrA", async () => {
     actAs(world.fsrA.id);
     const response = await GET(schedulesUrl({ search: world.scheduleA.title }));
     const body = (await response.json()) as {

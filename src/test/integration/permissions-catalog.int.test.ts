@@ -17,10 +17,8 @@ import { assertLocalDatabase } from "../../../scripts/lib/db-guard";
  * removes, so extra UI-created grants stay legitimate (the diff script
  * reports them as INFO) while a missing catalog grant fails (an H-06 hole).
  *
- * TODO(promote): wire into `test:int` once Fase 2 lands (ephemeral Postgres
- * + fixtures + `*.int.test.ts` project split). Until then this file is
- * excluded from the unit run and exercised manually against the local
- * container: `npm run db:up && npm run db:init && <run this file>`.
+ * Runs in `test:int` (Fase 2): the ephemeral Postgres stack migrates and
+ * seeds before this file, so the catalog is checked against a fresh seed.
  */
 describe("catálogo ↔ base de datos", () => {
   it("los permisos del catálogo existen y están activos", async () => {

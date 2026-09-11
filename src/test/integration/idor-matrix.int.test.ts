@@ -24,9 +24,8 @@ import { actAs } from "./session-state";
  * IDOR matrix: every H-04 write, called as the wrong actor.
  *
  * Each case asserts a rejection AND re-reads the row to prove nothing
- * changed; the same action as the correct actor must succeed. Cases marked
- * `it.fails` document live holes with their TODO(0x): on main the wrong
- * actor succeeds and the row moves.
+ * changed; the same action as the correct actor must succeed. The 0c gates
+ * are merged, so every case asserts the fixed behavior directly.
  */
 
 const COVERED = new Set([
@@ -59,9 +58,9 @@ describe("idor matrix registration", () => {
 });
 
 describe("assignments", () => {
-  // TODO(0c): updateAssignment checks the permission but never the scope or
+  // Fixed(0c): updateAssignment checks the permission but never the scope or
   // the assignee — fsrA rewrites B, fsrA2 rewrites work they were not given.
-  it.fails("updateAssignment: fsrA cannot rewrite assignment B", async () => {
+  it("updateAssignment: fsrA cannot rewrite assignment B", async () => {
     const before = await prisma.assignment.findUniqueOrThrow({
       where: { id: world.assignmentB.id },
       select: { notes: true },
@@ -82,7 +81,7 @@ describe("assignments", () => {
     expect(after).toEqual(before);
   });
 
-  it.fails(
+  it(
     "updateAssignment: fsrA2 cannot rewrite fsrA's assignment",
     async () => {
       const before = await prisma.assignment.findUniqueOrThrow({
@@ -121,7 +120,7 @@ describe("assignments", () => {
     expect(row.notes).toBe("int-idor-manager-note");
   });
 
-  it.fails(
+  it(
     "updateAssignmentOdtFolio: fsrA cannot stamp assignment B",
     async () => {
       const before = await prisma.assignment.findUniqueOrThrow({
@@ -150,8 +149,8 @@ describe("assignments", () => {
     expect(outcome).toMatchObject({ success: true });
   });
 
-  // TODO(0c/H-17): soft-deleted rows stay editable — no `active` check.
-  it.fails(
+  // Fixed(0c/H-17): soft-deleted rows stay editable — no `active` check.
+  it(
     "updateAssignment: a soft-deleted assignment is rejected",
     async () => {
       const dead = await prisma.assignment.create({
@@ -181,8 +180,8 @@ describe("assignments", () => {
 });
 
 describe("assignment items and activities", () => {
-  // TODO(0c): partidas y actividades solo revisan permiso, nunca scope.
-  it.fails(
+  // Fixed(0c): partidas y actividades solo revisan permiso, nunca scope.
+  it(
     "createAssignmentItem: fsrA cannot add to assignment B",
     async () => {
       actAs(world.fsrA.id);
@@ -214,7 +213,7 @@ describe("assignment items and activities", () => {
     expect(outcome).toMatchObject({ success: true });
   });
 
-  it.fails("deleteAssignmentItem: fsrA cannot delete item B", async () => {
+  it("deleteAssignmentItem: fsrA cannot delete item B", async () => {
     const target = await prisma.assignmentItem.create({
       data: {
         assignmentId: world.assignmentB.id,
@@ -234,7 +233,7 @@ describe("assignment items and activities", () => {
     expect(row.active).toBe(true);
   });
 
-  it.fails(
+  it(
     "createAssignmentActivity: fsrA cannot add to assignment B",
     async () => {
       actAs(world.fsrA.id);
@@ -257,7 +256,7 @@ describe("assignment items and activities", () => {
     expect(outcome).toMatchObject({ success: true });
   });
 
-  it.fails(
+  it(
     "updateAssignmentActivity: fsrA cannot edit activity B",
     async () => {
       const before = await prisma.assignmentActivity.findUniqueOrThrow({
@@ -281,9 +280,9 @@ describe("assignment items and activities", () => {
 });
 
 describe("incidents", () => {
-  // TODO(0c): createIncident accepts any clientId and any reportedById —
+  // Fixed(0c): createIncident accepts any clientId and any reportedById —
   // cross-client creation plus reporter impersonation in one hole.
-  it.fails("createIncident: reporterA cannot file under client B", async () => {
+  it("createIncident: reporterA cannot file under client B", async () => {
     actAs(world.reporterA.id);
     const outcome = await capture(() =>
       createIncident({
@@ -301,7 +300,7 @@ describe("incidents", () => {
     ).toEqual([]);
   });
 
-  it.fails(
+  it(
     "createIncident: reporterA cannot impersonate another reporter",
     async () => {
       actAs(world.reporterA.id);
@@ -329,8 +328,8 @@ describe("incidents", () => {
     expect(outcome).toMatchObject({ success: true });
   });
 
-  // TODO(0a/H-01): the created incident returns `reportedBy: true`.
-  it.fails("createIncident: no response carries a password key", async () => {
+  // Fixed(0a/H-01): the created incident returns `reportedBy: true`.
+  it("createIncident: no response carries a password key", async () => {
     actAs(world.reporterA.id);
     const outcome = await createIncident({
       title: "int-idor password probe",
@@ -341,9 +340,9 @@ describe("incidents", () => {
     assertNoPasswordKey(outcome);
   });
 
-  // TODO(0c): updateIncident checks the CURRENT client but not the new one —
+  // Fixed(0c): updateIncident checks the CURRENT client but not the new one —
   // fsrA moves A's incident to B.
-  it.fails(
+  it(
     "updateIncident: fsrA cannot move incident A to client B",
     async () => {
       const movable = await prisma.incident.create({
@@ -393,8 +392,8 @@ describe("incidents", () => {
     expect(outcome).toMatchObject({ success: true });
   });
 
-  // TODO(0a/H-01): the updated incident returns `reportedBy: true`.
-  it.fails("updateIncident: no response carries a password key", async () => {
+  // Fixed(0a/H-01): the updated incident returns `reportedBy: true`.
+  it("updateIncident: no response carries a password key", async () => {
     actAs(world.opsAll.id);
     const incident = await prisma.incident.findUniqueOrThrow({
       where: { id: world.incidentA.id },
@@ -410,8 +409,8 @@ describe("incidents", () => {
 });
 
 describe("lines and equipments", () => {
-  // TODO(0c): FSR holds lines:*/equipments:* with no scope — any center.
-  it.fails("createLine: fsrA cannot create under client B", async () => {
+  // Fixed(0c): FSR holds lines:*/equipments:* with no scope — any center.
+  it("createLine: fsrA cannot create under client B", async () => {
     actAs(world.fsrA.id);
     const outcome = await capture(() =>
       createLine({ name: "int-idor line", clientId: world.clientB.id }),
@@ -422,7 +421,7 @@ describe("lines and equipments", () => {
     ).toEqual([]);
   });
 
-  it.fails("updateLine: fsrA cannot move line B to client A", async () => {
+  it("updateLine: fsrA cannot move line B to client A", async () => {
     actAs(world.fsrA.id);
     const outcome = await capture(() =>
       updateLine(world.lineB.id, { clientId: world.clientA.id }),
@@ -435,7 +434,7 @@ describe("lines and equipments", () => {
     expect(after.clientId).toBe(world.clientB.id);
   });
 
-  it.fails("deleteLine: fsrA cannot delete line B", async () => {
+  it("deleteLine: fsrA cannot delete line B", async () => {
     const target = await prisma.line.create({
       data: { name: "int-idor expendable", clientId: world.clientB.id },
       select: { id: true },
@@ -450,7 +449,7 @@ describe("lines and equipments", () => {
     expect(row.active).toBe(true);
   });
 
-  it.fails("createEquipment: fsrA cannot create on line B", async () => {
+  it("createEquipment: fsrA cannot create on line B", async () => {
     actAs(world.fsrA.id);
     const outcome = await capture(() =>
       createEquipment({ name: "int-idor equip", lineId: world.lineB.id }),
@@ -458,7 +457,7 @@ describe("lines and equipments", () => {
     expect(isDenial(outcome)).toBe(true);
   });
 
-  it.fails(
+  it(
     "updateEquipment: fsrA cannot move equipment B to line A",
     async () => {
       actAs(world.fsrA.id);

@@ -12,8 +12,8 @@ import { actAs } from "./session-state";
  *
  * Two parallel `retryDueEmails` must send each mail once, and two parallel
  * `startVehicleTrip` with the same idempotency key must create one trip.
- * Neither claim exists on main yet, so both cases are `it.fails` with
- * TODO(5a) — the suite pins the desired behavior without implementing it.
+ * Both claims are merged (Fase 5: ENVIANDO claim + idempotent start), so the
+ * cases assert the fixed behavior directly.
  */
 
 vi.mock("@/lib/mail/transport", () => {
@@ -72,9 +72,9 @@ describe("concurrency registration", () => {
 });
 
 describe("mail outbox", () => {
-  // TODO(5a/H-12): no ENVIANDO claim — both runners pick the same PENDIENTE
+  // Fixed(5a/H-12): no ENVIANDO claim — both runners pick the same PENDIENTE
   // rows and send them twice.
-  it.fails("two parallel retryDueEmails send each mail once", async () => {
+  it("two parallel retryDueEmails send each mail once", async () => {
     const subjects = ["int-conc mail 1", "int-conc mail 2"];
     for (const subject of subjects) {
       await prisma.emailOutbox.create({
@@ -118,9 +118,9 @@ describe("vehicle trips", () => {
     return form;
   }
 
-  // TODO(5a/H-13): check-then-write idempotency — both runners pass the
+  // Fixed(5a/H-13): check-then-write idempotency — both runners pass the
   // replay lookup before either claims the key, so two trips are created.
-  it.fails("two parallel starts with one key create one trip", async () => {
+  it("two parallel starts with one key create one trip", async () => {
     const available = await prisma.vehicleStatus.findUniqueOrThrow({
       where: { name: "AVAILABLE" },
     });
