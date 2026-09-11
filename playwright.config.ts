@@ -73,10 +73,15 @@ export default defineConfig({
       name: "db",
       testMatch: /db\.setup\.ts/,
     },
-    // Authenticates each role once and persists storage state.
+    // Authenticates each role once and persists storage state. Needs a
+    // working Chromium like every other browser project (the setup tests
+    // launch a real login page), so it carries the system-Chromium
+    // fallback too — otherwise it falls back to the bundled headless
+    // shell that Arch boxes cannot download.
     {
       name: "setup",
       testMatch: /auth\.setup\.ts/,
+      use: { ...SYSTEM_CHROMIUM_USE },
       dependencies: ["db"],
     },
     // Catalog CRUD: 16 catalogs x 4 tests. Chromium only — it is not
