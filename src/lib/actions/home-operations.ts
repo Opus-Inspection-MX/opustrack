@@ -91,10 +91,11 @@ export async function getIncidentsByStatus() {
     groups: groups.map((g) => ({
       statusId: g.statusId,
       name: g.statusId !== null ? (byId.get(g.statusId)?.name ?? null) : null,
+      // Catalog color travels as data (never a source literal): the style
+      // contract forbids raw hex outside the token layer, and the seed
+      // guarantees every status row carries its own color.
       color:
-        g.statusId !== null
-          ? (byId.get(g.statusId)?.color ?? "#6B7280")
-          : "#6B7280",
+        g.statusId !== null ? (byId.get(g.statusId)?.color ?? null) : null,
       count: g._count.statusId,
     })),
   };

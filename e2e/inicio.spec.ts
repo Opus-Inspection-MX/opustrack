@@ -99,26 +99,24 @@ test.describe("landing / → /inicio", () => {
       await context.close();
     }
   });
+});
 
 test.describe("ROOT", () => {
   test.use({ storageState: authFile("admin") });
 
   test("ve la operación completa", async ({ page }) => {
     await page.goto("/inicio");
-    await expectWidgets(
-      page,
-      [
-        "quick-actions",
-        "notifications",
-        "tracking-queue",
-        "ops-kpis",
-        "incidents-by-status",
-        "sla-risk",
-        "upcoming-schedules",
-        "vacation-approvals",
-        "upcoming-absences",
-      ],
-    );
+    await expectWidgets(page, [
+      "quick-actions",
+      "notifications",
+      "tracking-queue",
+      "ops-kpis",
+      "incidents-by-status",
+      "sla-risk",
+      "upcoming-schedules",
+      "vacation-approvals",
+      "upcoming-absences",
+    ]);
   });
 });
 

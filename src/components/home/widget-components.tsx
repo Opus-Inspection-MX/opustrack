@@ -570,8 +570,8 @@ async function IncidentsByStatusWidget(_props: WidgetProps) {
               className="flex items-center gap-2 text-sm"
             >
               <span
-                className="h-2.5 w-2.5 shrink-0 rounded-full"
-                style={{ backgroundColor: g.color }}
+                className="h-2.5 w-2.5 shrink-0 rounded-full bg-muted"
+                style={g.color ? { backgroundColor: g.color } : undefined}
                 aria-hidden
               />
               <span className="flex-1 truncate font-medium">

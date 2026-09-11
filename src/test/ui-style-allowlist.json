@@ -59,7 +59,6 @@
     "text-green-800",
     "text-red-800"
   ],
-  "src/app/admin/page.tsx": ["text-blue-600", "text-green-600", "text-red-600"],
   "src/app/admin/reports/assignment-aging/assignment-aging-client.tsx": [
     "bg-gray-100",
     "bg-green-100",
@@ -284,15 +283,11 @@
     "bg-red-950",
     "border-red-200",
     "border-red-800",
-    "text-gray-500",
-    "text-green-500",
     "text-red-300",
     "text-red-400",
     "text-red-600",
-    "text-red-700",
-    "text-yellow-500"
+    "text-red-700"
   ],
-  "src/app/guest/page.tsx": ["bg-yellow-50", "text-green-500", "text-red-500"],
   "src/app/layout.tsx": ["#000000", "#ffffff"],
   "src/app/page.tsx": [
     "bg-blue-500",
