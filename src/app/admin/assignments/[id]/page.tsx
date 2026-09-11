@@ -12,9 +12,13 @@ import { notFound } from "next/navigation";
 import { AssignmentItems } from "@/components/assignments/assignment-items";
 import { AttachmentPreview } from "@/components/assignments/attachment-preview";
 import { BackButton } from "@/components/common/back-button";
-import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/common/empty-state";
+import { PageContainer } from "@/components/common/page-container";
+import { PageHeader } from "@/components/common/page-header";
+import { SectionCard } from "@/components/common/section-card";
+import { StatusBadge, type StatusTone } from "@/components/common/status-badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { getAssignmentActivities } from "@/lib/actions/assignment-activities";
 import { getAssignmentItems } from "@/lib/actions/assignment-items";
 import { getAssignmentById } from "@/lib/actions/assignments";
@@ -62,35 +66,48 @@ export default async function AssignmentDetailPage({
     return `${days}d ${remainingHours}h`;
   };
 
-  const _getStatusColor = (status: string) => {
+  function statusTone(status: string): StatusTone {
     switch (status) {
-      case "CERRADO":
-        return "default";
+      case "ASIGNADO":
+        return "open";
+      case "VISTO":
+        return "info";
       case "INICIADO":
-        return "secondary";
+      case "EN_PROGRESO":
+        return "progress";
+      case "CERRADO":
+        return "done";
+      case "CANCELADA":
+        return "cancelled";
       default:
-        return "outline";
+        return "neutral";
     }
-  };
+  }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-4">
+    <PageContainer>
+      <PageHeader
+        title="Asignación"
+        description={assignment.incident.title}
+        breadcrumbs={[
+          { label: "Asignaciones", href: "/admin/assignments" },
+          { label: `AS-${assignment.folio}` },
+        ]}
+        actions={
+          <Button variant="outline" asChild className="w-full sm:w-auto">
+            <Link href={`/admin/assignments/${id}/edit`}>Editar</Link>
+          </Button>
+        }
+      />
+      <div>
         <BackButton fallback="/admin/assignments" />
-        <div className="flex-1">
-          <h1 className="text-3xl font-bold">Asignación</h1>
-          <p className="text-muted-foreground">{assignment.incident.title}</p>
-        </div>
-        <Button variant="outline" asChild>
-          <Link href={`/admin/assignments/${id}/edit`}>Editar</Link>
-        </Button>
       </div>
 
       {/* Parent Incident Link */}
       <Card className="bg-muted/30">
-        <CardContent className="flex items-center justify-between py-4">
+        <CardContent className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
-            <AlertTriangle className="h-5 w-5 text-primary" />
+            <AlertTriangle className="h-5 w-5 text-primary" aria-hidden />
             <div>
               <p className="text-sm text-muted-foreground">Incidencia padre</p>
               <p className="font-medium">{assignment.incident.title}</p>
@@ -99,23 +116,28 @@ export default async function AssignmentDetailPage({
               </p>
             </div>
           </div>
-          <Button variant="outline" size="sm" asChild>
+          <Button
+            variant="outline"
+            size="sm"
+            asChild
+            className="w-full sm:w-auto"
+          >
             <Link href={`/admin/incidents/${assignment.incident.id}`}>
-              <ExternalLink className="mr-2 h-4 w-4" />
+              <ExternalLink className="mr-2 h-4 w-4" aria-hidden />
               Ver incidencia
             </Link>
           </Button>
         </CardContent>
       </Card>
 
-      <div className="grid gap-6 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Detalles de la Asignación</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
+      <div className="grid gap-6 grid-cols-1 md:grid-cols-2">
+        <SectionCard title="Detalles de la Asignación">
+          <div className="space-y-4">
             <div className="flex items-center gap-3">
-              <AlertTriangle className="h-5 w-5 text-muted-foreground" />
+              <AlertTriangle
+                className="h-5 w-5 text-muted-foreground"
+                aria-hidden
+              />
               <div>
                 <p className="text-sm text-muted-foreground">Incidente</p>
                 <p className="font-medium">{assignment.incident.title}</p>
@@ -143,11 +165,13 @@ export default async function AssignmentDetailPage({
             </div>
 
             <div className="flex items-center gap-3">
-              <Calendar className="h-5 w-5 text-muted-foreground" />
+              <Calendar className="h-5 w-5 text-muted-foreground" aria-hidden />
               <div>
                 <p className="text-sm text-muted-foreground">Estado</p>
                 {assignment.status ? (
-                  <Badge variant="secondary">{assignment.status.name}</Badge>
+                  <StatusBadge tone={statusTone(assignment.status.name)}>
+                    {assignment.status.name}
+                  </StatusBadge>
                 ) : (
                   <span className="text-sm text-muted-foreground">
                     Sin estado
@@ -162,14 +186,11 @@ export default async function AssignmentDetailPage({
                 <p className="text-sm mt-1">{assignment.notes}</p>
               </div>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </SectionCard>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Resumen</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
+        <SectionCard title="Resumen">
+          <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <p className="text-sm text-muted-foreground">Actividades</p>
@@ -201,10 +222,10 @@ export default async function AssignmentDetailPage({
               </p>
               {assignment.seenAt ? (
                 <div className="mt-1">
-                  <Badge variant="default" className="bg-green-600">
-                    <CheckCircle className="h-3 w-3 mr-1" />
+                  <StatusBadge tone="success">
+                    <CheckCircle className="h-3 w-3 mr-1" aria-hidden />
                     Desbloqueado
-                  </Badge>
+                  </StatusBadge>
                   <p className="text-sm mt-1">{formatMX(assignment.seenAt)}</p>
                   {assignment.assignedAt && (
                     <p className="text-xs text-muted-foreground">
@@ -217,13 +238,10 @@ export default async function AssignmentDetailPage({
                   )}
                 </div>
               ) : (
-                <Badge
-                  variant="outline"
-                  className="bg-yellow-50 text-yellow-700 border-yellow-300 mt-1"
-                >
-                  <Lock className="h-3 w-3 mr-1" />
+                <StatusBadge tone="warning">
+                  <Lock className="h-3 w-3 mr-1" aria-hidden />
                   No Desbloqueado
-                </Badge>
+                </StatusBadge>
               )}
             </div>
 
@@ -240,69 +258,59 @@ export default async function AssignmentDetailPage({
                 <p className="font-medium">{formatMX(assignment.finishedAt)}</p>
               </div>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </SectionCard>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Actividades Realizadas</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {activities.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8">
-              No hay actividades registradas
-            </p>
-          ) : (
-            <div className="space-y-4">
-              {activities.map((activity) => (
-                <div
-                  key={activity.id}
-                  className="border-l-2 border-primary pl-4 py-2"
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <p className="font-medium">{activity.description}</p>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        {formatMX(activity.performedAt)}
-                      </p>
-                    </div>
+      <SectionCard title="Actividades Realizadas">
+        {activities.length === 0 ? (
+          <EmptyState
+            title="Sin actividades"
+            description="No hay actividades registradas"
+          />
+        ) : (
+          <div className="space-y-4">
+            {activities.map((activity) => (
+              <div
+                key={activity.id}
+                className="border-l-2 border-primary pl-4 py-2"
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <p className="font-medium">{activity.description}</p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {formatMX(activity.performedAt)}
+                    </p>
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+              </div>
+            ))}
+          </div>
+        )}
+      </SectionCard>
 
       <AssignmentItems assignmentId={id} items={items} readOnly />
 
       {/* Attachments */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Paperclip className="h-5 w-5" />
-            Adjuntos ({assignment.attachments?.length || 0})
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {!assignment.attachments || assignment.attachments.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8">
-              No hay archivos adjuntos
-            </p>
-          ) : (
-            <div className="grid grid-cols-1 gap-3">
-              {assignment.attachments.map((attachment: Attachment) => (
-                <AttachmentPreview
-                  key={attachment.id}
-                  attachment={attachment}
-                  readOnly={true}
-                />
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+      <SectionCard title={`Adjuntos (${assignment.attachments?.length || 0})`}>
+        {!assignment.attachments || assignment.attachments.length === 0 ? (
+          <EmptyState
+            icon={Paperclip}
+            title="Sin adjuntos"
+            description="No hay archivos adjuntos"
+          />
+        ) : (
+          <div className="grid grid-cols-1 gap-3">
+            {assignment.attachments.map((attachment: Attachment) => (
+              <AttachmentPreview
+                key={attachment.id}
+                attachment={attachment}
+                readOnly={true}
+              />
+            ))}
+          </div>
+        )}
+      </SectionCard>
+    </PageContainer>
   );
 }

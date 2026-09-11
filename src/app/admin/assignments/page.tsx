@@ -1,6 +1,9 @@
 import { Plus } from "lucide-react";
 import Link from "next/link";
 import { AssignmentsTable } from "@/components/admin/assignments/assignments-table";
+import { PageContainer } from "@/components/common/page-container";
+import { PageHeader } from "@/components/common/page-header";
+import { SectionCard } from "@/components/common/section-card";
 import { Button } from "@/components/ui/button";
 import { getAssignments } from "@/lib/actions/assignments";
 
@@ -8,23 +11,23 @@ export default async function AssignmentsPage() {
   const assignments = await getAssignments();
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Asignaciones</h1>
-          <p className="text-muted-foreground">
-            Administre las asignaciones del sistema
-          </p>
-        </div>
-        <Button asChild>
-          <Link href="/admin/assignments/new">
-            <Plus className="mr-2 h-4 w-4" />
-            Agregar Orden
-          </Link>
-        </Button>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Asignaciones"
+        description="Administre las asignaciones del sistema"
+        actions={
+          <Button asChild className="w-full sm:w-auto">
+            <Link href="/admin/assignments/new">
+              <Plus className="mr-2 h-4 w-4" aria-hidden />
+              Agregar Orden
+            </Link>
+          </Button>
+        }
+      />
 
-      <AssignmentsTable assignments={assignments} />
-    </div>
+      <SectionCard title={`Asignaciones (${assignments.length})`}>
+        <AssignmentsTable assignments={assignments} />
+      </SectionCard>
+    </PageContainer>
   );
 }

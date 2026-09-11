@@ -11,35 +11,37 @@ import Link from "next/link";
 import { CancelIncidentButton } from "@/components/admin/incidents/cancel-incident-button";
 import { IncidentTimeline } from "@/components/admin/incidents/incident-timeline";
 import { BackButton } from "@/components/common/back-button";
+import { EmptyState } from "@/components/common/empty-state";
+import { PageContainer } from "@/components/common/page-container";
+import { PageHeader } from "@/components/common/page-header";
+import { ResponsiveTable } from "@/components/common/responsive-table";
+import { SectionCard } from "@/components/common/section-card";
+import { StatusBadge, type StatusTone } from "@/components/common/status-badge";
 import { IncidentAttachments } from "@/components/incidents/incident-attachments";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { getIncidentById } from "@/lib/actions/incidents";
 import { canPerform, requireRouteAccess } from "@/lib/auth/auth";
 import { formatIncidentDateTime, formatMX } from "@/lib/utils/datetime";
 import { formatReporter } from "@/lib/utils/incident-display";
 
-function getStatusColor(status: string) {
+function incidentStatusTone(status: string): StatusTone {
   switch (status) {
-    case "CERRADO":
-      return "default";
-    case "INICIADO":
-      return "secondary";
-    case "VISTO":
+    case "ABIERTO":
     case "ASIGNADO":
-      return "outline";
+      return "open";
+    case "VISTO":
+      return "info";
+    case "INICIADO":
+    case "EN_PROGRESO":
+      return "progress";
+    case "CERRADO":
+      return "done";
+    case "CANCELADA":
+      return "cancelled";
     default:
-      return "outline";
+      return "neutral";
   }
 }
 
@@ -69,46 +71,46 @@ export default async function IncidentDetailPage({
     incident.status?.name === "CANCELADA";
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-4">
+    <PageContainer>
+      <PageHeader
+        title={incident.title}
+        description={`Folio: INC-${incident.id}`}
+        breadcrumbs={[
+          { label: "Incidentes", href: "/admin/incidents" },
+          { label: `INC-${incident.id}` },
+        ]}
+        actions={
+          <>
+            {incident.status?.name !== "CERRADO" &&
+              incident.status?.name !== "CANCELADA" && (
+                <>
+                  <Button
+                    variant="outline"
+                    asChild
+                    className="w-full sm:w-auto"
+                  >
+                    <Link href={`/admin/incidents/${incident.id}/edit`}>
+                      <EditIcon className="mr-2 h-4 w-4" aria-hidden />
+                      Editar incidencia
+                    </Link>
+                  </Button>
+                  <CancelIncidentButton incidentId={incident.id} />
+                </>
+              )}
+            <StatusBadge tone={incidentStatusTone(incident.status?.name ?? "")}>
+              {incident.status?.name || "Sin estado"}
+            </StatusBadge>
+          </>
+        }
+      />
+      <div>
         <BackButton fallback="/admin/incidents" />
-        <div className="flex-1">
-          <div className="flex items-center gap-3">
-            <h1 className="text-3xl font-bold">{incident.title}</h1>
-          </div>
-          <p className="text-muted-foreground">Folio: INC-{incident.id}</p>
-        </div>
-        <div className="flex gap-2">
-          {incident.status?.name !== "CERRADO" &&
-            incident.status?.name !== "CANCELADA" && (
-              <>
-                <Button variant="outline" asChild>
-                  <Link href={`/admin/incidents/${incident.id}/edit`}>
-                    <EditIcon className="mr-2 h-4 w-4" />
-                    Editar incidencia
-                  </Link>
-                </Button>
-                <CancelIncidentButton incidentId={incident.id} />
-              </>
-            )}
-          <Badge
-            variant="secondary"
-            className={
-              incident.status?.name === "CANCELADA"
-                ? "h-9 px-3 bg-red-600 text-white"
-                : "h-9 px-3"
-            }
-          >
-            {incident.status?.name || "Sin estado"}
-          </Badge>
-        </div>
       </div>
 
       {incident.status?.name === "CANCELADA" && incident.cancellationReason && (
-        <Card className="border-red-300 bg-red-50 dark:bg-red-950/30">
+        <Card className="border-danger/50 bg-danger-muted">
           <CardHeader>
-            <CardTitle className="text-red-700 dark:text-red-300">
+            <CardTitle className="text-danger-muted-foreground">
               Incidencia cancelada
             </CardTitle>
           </CardHeader>
@@ -127,21 +129,18 @@ export default async function IncidentDetailPage({
       )}
 
       {/* Incident Details Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Detalles del Incidente</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
+      <SectionCard title="Detalles del Incidente">
+        <div className="space-y-6">
           {/* Description */}
           <div>
             <p className="text-sm text-muted-foreground mb-2">Descripción</p>
             <p className="text-base">{incident.description}</p>
           </div>
 
-          <Separator />
+          <div className="border-t" />
 
           {/* Info Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             <div className="flex items-start gap-3">
               <FileText className="h-5 w-5 text-muted-foreground mt-0.5" />
               <div>
@@ -229,7 +228,7 @@ export default async function IncidentDetailPage({
 
           {incident.schedule && (
             <>
-              <Separator />
+              <div className="border-t" />
               <div>
                 <p className="text-sm text-muted-foreground mb-2">
                   Programación
@@ -242,7 +241,7 @@ export default async function IncidentDetailPage({
             </>
           )}
 
-          <Separator />
+          <div className="border-t" />
           <div>
             <p className="text-sm text-muted-foreground mb-2">
               FSRs Habilitados ({incident.assignees?.length || 0})
@@ -262,10 +261,8 @@ export default async function IncidentDetailPage({
               </p>
             )}
           </div>
-        </CardContent>
-      </Card>
-
-      <Separator />
+        </div>
+      </SectionCard>
 
       {/* Evidence photos filed with the report (RF-217) */}
       <IncidentAttachments
@@ -275,127 +272,153 @@ export default async function IncidentDetailPage({
         terminal={terminal}
       />
 
-      <Separator />
-
       {/* Assignments Section */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-bold flex items-center gap-2">
-              <Wrench className="h-6 w-6" />
-              Asignaciones ({incident.assignments?.length || 0})
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              Todas las asignaciones de este incidente
-            </p>
-          </div>
-          <Button asChild>
+      <SectionCard
+        title={`Asignaciones (${incident.assignments?.length || 0})`}
+        description="Todas las asignaciones de este incidente"
+        actions={
+          <Button asChild className="w-full sm:w-auto">
             <Link href={`/admin/assignments/new?incidentId=${incident.id}`}>
-              <Plus className="mr-2 h-4 w-4" />
+              <Plus className="mr-2 h-4 w-4" aria-hidden />
               Crear Asignación
             </Link>
           </Button>
-        </div>
-
-        {!incident.assignments || incident.assignments.length === 0 ? (
-          <Card>
-            <CardContent className="py-12 text-center text-muted-foreground">
-              <Wrench className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p className="text-lg font-medium mb-2">
-                Aún no hay asignaciones
-              </p>
-              <p className="text-sm mb-4">
-                Crea una asignación para comenzar a dar seguimiento a este
-                incidente
-              </p>
-              <Button asChild variant="outline">
-                <Link href={`/admin/assignments/new?incidentId=${incident.id}`}>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Crear primera asignación
-                </Link>
-              </Button>
-            </CardContent>
-          </Card>
+        }
+      >
+        {(incident.assignments?.length || 0) === 0 ? (
+          <EmptyState
+            icon={Wrench}
+            title="Aún no hay asignaciones"
+            description="Crea una asignación para comenzar a dar seguimiento a este incidente"
+            action={{
+              label: "Crear primera asignación",
+              href: `/admin/assignments/new?incidentId=${incident.id}`,
+            }}
+          />
         ) : (
-          <Card>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Estado</TableHead>
-                    <TableHead>Asignado a</TableHead>
-                    <TableHead>Actividades</TableHead>
-                    <TableHead>Partes</TableHead>
-                    <TableHead>Creado</TableHead>
-                    <TableHead>Finalizado</TableHead>
-                    <TableHead className="text-right">Acciones</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {incident.assignments?.map((wo) => (
-                    <TableRow key={wo.id}>
-                      <TableCell>
-                        <Badge variant={getStatusColor(wo.status?.name || "")}>
-                          {wo.status?.name || "Sin estado"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="space-y-1">
-                          {wo.assignees.length === 0 ? (
-                            <p className="text-xs text-muted-foreground">
-                              Sin asignar
-                            </p>
-                          ) : (
-                            wo.assignees.map((aa) => (
-                              <div key={aa.user.id}>
-                                <p className="font-medium">{aa.user.name}</p>
-                                <p className="text-xs text-muted-foreground">
-                                  {aa.user.email}
-                                </p>
-                              </div>
-                            ))
-                          )}
+          <ResponsiveTable
+            data={incident.assignments ?? []}
+            rowKey={(wo) => wo.id}
+            columns={[
+              {
+                header: "Estado",
+                cell: (wo) => (
+                  <StatusBadge tone={incidentStatusTone(wo.status?.name ?? "")}>
+                    {wo.status?.name || "Sin estado"}
+                  </StatusBadge>
+                ),
+              },
+              {
+                header: "Asignado a",
+                cell: (wo) => (
+                  <div className="space-y-1">
+                    {wo.assignees.length === 0 ? (
+                      <p className="text-xs text-muted-foreground">
+                        Sin asignar
+                      </p>
+                    ) : (
+                      wo.assignees.map((aa) => (
+                        <div key={aa.user.id}>
+                          <p className="font-medium">{aa.user.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {aa.user.email}
+                          </p>
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline">
-                          {wo._count?.assignmentActivities || 0}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {formatMX(wo.createdAt, { dateStyle: "short" })}
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {wo.finishedAt
-                          ? formatMX(wo.finishedAt, { dateStyle: "short" })
-                          : "-"}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button variant="ghost" size="sm" asChild>
-                            <Link href={`/admin/assignments/${wo.id}`}>
-                              Ver
-                            </Link>
-                          </Button>
-                          <Button variant="outline" size="sm" asChild>
-                            <Link href={`/admin/assignments/${wo.id}/edit`}>
-                              <EditIcon className="mr-2 h-4 w-4" />
-                              Editar
-                            </Link>
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
+                      ))
+                    )}
+                  </div>
+                ),
+              },
+              {
+                header: "Actividades",
+                cell: (wo) => (
+                  <Badge variant="outline">
+                    {wo._count?.assignmentActivities || 0}
+                  </Badge>
+                ),
+              },
+              {
+                header: "Creado",
+                cell: (wo) => (
+                  <span className="text-sm text-muted-foreground">
+                    {formatMX(wo.createdAt, { dateStyle: "short" })}
+                  </span>
+                ),
+              },
+              {
+                header: "Finalizado",
+                cell: (wo) => (
+                  <span className="text-sm text-muted-foreground">
+                    {wo.finishedAt
+                      ? formatMX(wo.finishedAt, { dateStyle: "short" })
+                      : "-"}
+                  </span>
+                ),
+              },
+              {
+                header: "Acciones",
+                headerClassName: "text-right",
+                className: "text-right",
+                cell: (wo) => (
+                  <div className="flex justify-end gap-2">
+                    <Button variant="ghost" size="sm" asChild>
+                      <Link href={`/admin/assignments/${wo.id}`}>Ver</Link>
+                    </Button>
+                    <Button variant="outline" size="sm" asChild>
+                      <Link href={`/admin/assignments/${wo.id}/edit`}>
+                        <EditIcon className="mr-2 h-4 w-4" aria-hidden />
+                        Editar
+                      </Link>
+                    </Button>
+                  </div>
+                ),
+              },
+            ]}
+            mobileCard={(wo) => (
+              <div className="space-y-2 rounded-xl border bg-card p-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <StatusBadge tone={incidentStatusTone(wo.status?.name ?? "")}>
+                    {wo.status?.name || "Sin estado"}
+                  </StatusBadge>
+                  <span className="text-xs text-muted-foreground">
+                    {wo._count?.assignmentActivities || 0} actividades
+                  </span>
+                </div>
+                <p className="text-sm">
+                  {wo.assignees.length === 0
+                    ? "Sin asignar"
+                    : wo.assignees.map((aa) => aa.user.name).join(", ")}
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    asChild
+                    className="flex-1"
+                  >
+                    <Link href={`/admin/assignments/${wo.id}`}>Ver</Link>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    asChild
+                    className="flex-1"
+                  >
+                    <Link href={`/admin/assignments/${wo.id}/edit`}>
+                      Editar
+                    </Link>
+                  </Button>
+                </div>
+              </div>
+            )}
+            emptyTitle="Aún no hay asignaciones"
+            emptyMessage="Crea una asignación para comenzar a dar seguimiento a este incidente"
+          />
         )}
-      </div>
+      </SectionCard>
 
       {/* Audit trail (RF-219): append-only event history, read-only. */}
       <IncidentTimeline incidentId={incident.id} page={historyPage} />
-    </div>
+    </PageContainer>
   );
 }

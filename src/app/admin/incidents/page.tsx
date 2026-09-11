@@ -8,6 +8,9 @@ import type {
   CatalogColumn,
 } from "@/components/common/catalog-table";
 import { CatalogTable } from "@/components/common/catalog-table";
+import { PageContainer } from "@/components/common/page-container";
+import { PageHeader } from "@/components/common/page-header";
+import { StatusBadge, type StatusTone } from "@/components/common/status-badge";
 import { PriorityBadge } from "@/components/incident-types/priority-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,6 +23,25 @@ import { formatIncidentDateTime } from "@/lib/utils/datetime";
 import { formatReporter } from "@/lib/utils/incident-display";
 
 type IncidentRow = Awaited<ReturnType<typeof getIncidents>>["data"][number];
+
+function incidentStatusTone(statusName: string | undefined): StatusTone {
+  switch (statusName) {
+    case "ABIERTO":
+    case "ASIGNADO":
+      return "open";
+    case "VISTO":
+      return "info";
+    case "INICIADO":
+    case "EN_PROGRESO":
+      return "progress";
+    case "CERRADO":
+      return "done";
+    case "CANCELADA":
+      return "cancelled";
+    default:
+      return "neutral";
+  }
+}
 
 const columns: CatalogColumn<IncidentRow>[] = [
   {
@@ -58,7 +80,9 @@ const columns: CatalogColumn<IncidentRow>[] = [
     header: "Estado",
     cell: (row) =>
       row.status ? (
-        <Badge variant="secondary">{row.status.name}</Badge>
+        <StatusBadge tone={incidentStatusTone(row.status.name)}>
+          {row.status.name}
+        </StatusBadge>
       ) : (
         <span className="text-muted-foreground text-sm">Sin estado</span>
       ),
@@ -176,35 +200,61 @@ export default function IncidentsPage() {
   ];
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Incidentes</h1>
-          <p className="text-muted-foreground">
-            Administre los incidentes reportados en el sistema
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" asChild>
-            <Link href="/admin/incidents/bulk">
-              <Upload className="mr-2 h-4 w-4" />
-              Carga masiva
-            </Link>
-          </Button>
-          <Button asChild>
-            <Link href="/admin/incidents/new">
-              <Plus className="mr-2 h-4 w-4" />
-              Agregar Incidente
-            </Link>
-          </Button>
-        </div>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Incidentes"
+        description="Administre los incidentes reportados en el sistema"
+        actions={
+          <>
+            <Button variant="outline" asChild className="w-full sm:w-auto">
+              <Link href="/admin/incidents/bulk">
+                <Upload className="mr-2 h-4 w-4" aria-hidden />
+                Carga masiva
+              </Link>
+            </Button>
+            <Button asChild className="w-full sm:w-auto">
+              <Link href="/admin/incidents/new">
+                <Plus className="mr-2 h-4 w-4" aria-hidden />
+                Agregar Incidente
+              </Link>
+            </Button>
+          </>
+        }
+      />
 
       <CatalogTable
         data={incidents}
         columns={columns}
         actions={actions}
         rowKey={(row) => row.id}
+        mobileCard={(row) => (
+          <div className="space-y-2 rounded-xl border bg-card p-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <StatusBadge tone={incidentStatusTone(row.status?.name)}>
+                {row.status?.name || "Sin estado"}
+              </StatusBadge>
+              {row.type && (
+                <Badge variant="outline" className="text-xs">
+                  {row.type.name}
+                </Badge>
+              )}
+            </div>
+            <p className="font-medium">{row.title}</p>
+            <p className="text-xs text-muted-foreground">
+              {row.client?.name || "Sin Cliente"} · {row._count.assignments}{" "}
+              asignaciones ·{" "}
+              {formatIncidentDateTime(row.reportedAt, row.client?.state?.code)}
+            </p>
+            <div className="flex gap-2">
+              <Button asChild variant="outline" size="sm" className="flex-1">
+                <Link href={`/admin/incidents/${row.id}`}>Ver</Link>
+              </Button>
+              <Button asChild variant="outline" size="sm" className="flex-1">
+                <Link href={`/admin/incidents/${row.id}/edit`}>Editar</Link>
+              </Button>
+            </div>
+          </div>
+        )}
         searchValue={searchQuery}
         onSearchChange={handleSearchChange}
         searchPlaceholder="Buscar por título o descripción..."
@@ -220,6 +270,6 @@ export default function IncidentsPage() {
         loading={isLoading}
         emptyMessage="No hay incidentes registrados."
       />
-    </div>
+    </PageContainer>
   );
 }

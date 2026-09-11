@@ -953,7 +953,7 @@ export function BulkIncidentsClient({ catalogs }: { catalogs: Catalogs }) {
                 4. Previsualización ({previewRows.length} filas)
               </CardTitle>
               <div className="flex items-center gap-3 text-sm">
-                <span className="text-emerald-600">
+                <span className="text-success-muted-foreground">
                   <CheckCircle2 className="inline h-4 w-4 mr-1" />
                   {validCount} válidas
                 </span>
@@ -973,17 +973,13 @@ export function BulkIncidentsClient({ catalogs }: { catalogs: Catalogs }) {
                   <TableRow>
                     <TableHead className="w-12">#</TableHead>
                     <TableHead className="w-24">Estado</TableHead>
-                    <TableHead className="min-w-[180px]">Título</TableHead>
-                    <TableHead className="min-w-[240px]">Descripción</TableHead>
-                    <TableHead className="min-w-[180px]">Tipo</TableHead>
-                    <TableHead className="min-w-[200px]">Cliente</TableHead>
-                    <TableHead className="min-w-[220px]">FSRs</TableHead>
-                    <TableHead className="min-w-[180px]">
-                      Fecha inicio
-                    </TableHead>
-                    <TableHead className="min-w-[180px]">
-                      Fecha resolución
-                    </TableHead>
+                    <TableHead>Título</TableHead>
+                    <TableHead>Descripción</TableHead>
+                    <TableHead>Tipo</TableHead>
+                    <TableHead>Cliente</TableHead>
+                    <TableHead>FSRs</TableHead>
+                    <TableHead>Fecha inicio</TableHead>
+                    <TableHead>Fecha resolución</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1005,7 +1001,10 @@ export function BulkIncidentsClient({ catalogs }: { catalogs: Catalogs }) {
                         </TableCell>
                         <TableCell className="align-top pt-3">
                           {ok ? (
-                            <Badge variant="default" className="bg-emerald-600">
+                            <Badge
+                              variant="default"
+                              className="bg-success text-success-foreground"
+                            >
                               OK
                             </Badge>
                           ) : !row.clientId ? (

@@ -325,7 +325,7 @@ export function TrackingFilters({
             </div>
 
             {/* Search and Clear Buttons */}
-            <div className="flex justify-between gap-2 pt-4 border-t">
+            <div className="flex flex-col sm:flex-row sm:justify-between gap-2 pt-4 border-t">
               {hasActiveFilters && (
                 <Button
                   variant="outline"
@@ -339,7 +339,7 @@ export function TrackingFilters({
               <Button
                 variant="default"
                 onClick={handleSearch}
-                className="gap-2 ml-auto"
+                className="gap-2 sm:ml-auto"
               >
                 <Search className="h-4 w-4" />
                 Buscar

@@ -1,8 +1,12 @@
 "use client";
 
-import { ClipboardList, Loader2, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { FilterBar } from "@/components/common/filter-bar";
+import { PageContainer } from "@/components/common/page-container";
+import { PageHeader } from "@/components/common/page-header";
+import { TableSkeleton } from "@/components/common/skeletons";
 import { TrackingFilters } from "@/components/tracking/tracking-filters";
 import { TrackingTable } from "@/components/tracking/tracking-table";
 import { Button } from "@/components/ui/button";
@@ -163,43 +167,40 @@ export default function TrackingPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
+      <PageContainer>
+        <PageHeader
+          title="Seguimiento de Atención"
+          description="Monitorea y gestiona el seguimiento de incidentes"
+        />
+        <TableSkeleton rows={6} />
+      </PageContainer>
     );
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-4">
-        <div className="h-10 w-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
-          <ClipboardList className="h-5 w-5 text-blue-500" />
-        </div>
-        <div>
-          <h1 className="text-3xl font-bold">Seguimiento de Atención</h1>
-          <p className="text-muted-foreground">
-            Monitorea y gestiona el seguimiento de incidentes
-          </p>
-        </div>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Seguimiento de Atención"
+        description="Monitorea y gestiona el seguimiento de incidentes"
+        actions={
+          <Button asChild className="min-h-[44px] w-full sm:w-auto">
+            <Link href="/admin/incidents/new">
+              <Plus className="h-4 w-4 mr-2" aria-hidden />
+              Crear Incidente
+            </Link>
+          </Button>
+        }
+      />
 
-      <div>
+      <FilterBar activeCount={Object.keys(filters).length}>
         <TrackingFilters
           clients={clients}
           incidentTypes={incidentTypes}
           incidentStatuses={incidentStatuses}
           fsrs={allFsrs}
           onFilterChange={handleFilterChange}
-          createButton={
-            <Button asChild>
-              <Link href="/admin/incidents/new">
-                <Plus className="h-4 w-4 mr-2" />
-                Crear Incidente
-              </Link>
-            </Button>
-          }
         />
-      </div>
+      </FilterBar>
 
       <div className="bg-muted/30 rounded-lg p-4 flex items-center gap-3 flex-wrap">
         <div className="text-sm text-muted-foreground">
@@ -207,7 +208,7 @@ export default function TrackingPage() {
           <span className="font-semibold text-foreground">{totalCount}</span>
         </div>
         {incidents.length < totalCount && (
-          <span className="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">
+          <span className="inline-flex items-center rounded-full bg-warning-muted px-2.5 py-0.5 text-xs font-medium text-warning-muted-foreground">
             Mostrando {incidents.length} de {totalCount} — aplique filtros para
             acotar
           </span>
@@ -222,6 +223,6 @@ export default function TrackingPage() {
           onDataChange={() => loadIncidents(filters)}
         />
       </div>
-    </div>
+    </PageContainer>
   );
 }

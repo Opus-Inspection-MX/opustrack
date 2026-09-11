@@ -81,4 +81,12 @@ export interface CatalogTableProps<T> {
   loading?: boolean;
   /** Message shown when `data` is empty and `loading` is false. */
   emptyMessage?: string;
+
+  // Mobile cards (optional — omit to keep the plain table on all sizes)
+  /**
+   * Card rendered per row below the `md` breakpoint. When provided, the
+   * desktop `<table>` (which e2e `getByRole("row")` relies on) hides on
+   * mobile and rows render as a `<ul>` of cards instead.
+   */
+  mobileCard?: (row: T) => ReactNode;
 }

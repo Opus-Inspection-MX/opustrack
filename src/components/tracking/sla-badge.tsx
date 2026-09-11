@@ -1,4 +1,4 @@
-import { Badge } from "@/components/ui/badge";
+import { SlaBadge as CommonSlaBadge } from "@/components/common/sla-badge";
 import type { SlaState } from "@/lib/constants/sla-policy";
 import { cn } from "@/lib/utils";
 
@@ -11,20 +11,20 @@ interface SlaBadgeProps {
  * SLA breach flag for a tracking row (RF-218), rendered next to the
  * `PriorityBadge`. Only the actionable states render: on-track and
  * non-applicable rows show no badge at all.
+ *
+ * Colors come from the shared `--sla-*` tokens via the common SlaBadge.
  */
 export function SlaBadge({ state, className }: SlaBadgeProps) {
   if (!state || state === "ON_TRACK" || state === "NOT_APPLICABLE") {
     return null;
   }
 
-  const colorClass =
-    state === "BREACHED"
-      ? "bg-destructive text-white border-transparent"
-      : "bg-amber-500 text-white border-transparent";
-
   return (
-    <Badge className={cn(colorClass, className)}>
+    <CommonSlaBadge
+      tone={state === "BREACHED" ? "breach" : "risk"}
+      className={cn("whitespace-nowrap", className)}
+    >
       {state === "BREACHED" ? "SLA vencido" : "SLA en riesgo"}
-    </Badge>
+    </CommonSlaBadge>
   );
 }

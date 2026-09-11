@@ -1,5 +1,6 @@
 import { BulkIncidentsClient } from "@/components/admin/incidents/bulk-incidents-client";
-import { BackButton } from "@/components/common/back-button";
+import { PageContainer } from "@/components/common/page-container";
+import { PageHeader } from "@/components/common/page-header";
 import { getBulkIncidentCatalogs } from "@/lib/actions/incidents-bulk";
 import { requireRouteAccess } from "@/lib/auth/auth";
 
@@ -8,19 +9,17 @@ export default async function BulkIncidentsPage() {
   const catalogs = await getBulkIncidentCatalogs();
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <BackButton fallback="/admin/incidents" />
-        <div>
-          <h1 className="text-3xl font-bold">Carga masiva de incidentes</h1>
-          <p className="text-muted-foreground">
-            Selecciona programación, descarga la plantilla, súbela y edita el
-            resultado antes de guardar.
-          </p>
-        </div>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Carga masiva de incidentes"
+        description="Selecciona programación, descarga la plantilla, súbela y edita el resultado antes de guardar."
+        breadcrumbs={[
+          { label: "Incidentes", href: "/admin/incidents" },
+          { label: "Carga masiva" },
+        ]}
+      />
 
       <BulkIncidentsClient catalogs={catalogs} />
-    </div>
+    </PageContainer>
   );
 }

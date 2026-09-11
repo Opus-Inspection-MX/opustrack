@@ -2,6 +2,8 @@
 
 import { Calendar, ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
+import { PageContainer } from "@/components/common/page-container";
+import { PageHeader } from "@/components/common/page-header";
 import { CreateIncidentDialog } from "@/components/programacion/create-incident-dialog";
 import { CreateProgramDialog } from "@/components/programacion/create-program-dialog";
 import { ScheduleActivities } from "@/components/programacion/schedule-activities";
@@ -54,81 +56,78 @@ export default function ProgramacionPage() {
   const [calendarCollapsed, setCalendarCollapsed] = useState(false);
 
   return (
-    <div className="flex flex-col space-y-4 h-full">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <div className="h-10 w-10 rounded-lg bg-purple-500/10 flex items-center justify-center">
-            <Calendar className="h-5 w-5 text-purple-500" />
-          </div>
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold">
-              Asignación de Programación
-            </h1>
-            <p className="text-sm sm:text-base text-muted-foreground hidden sm:block">
-              Asigna incidentes a programaciones, calibraciones y mantenimientos
-            </p>
-          </div>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setSelectScheduleDialogOpen(true)}
-          >
-            <Calendar className="h-4 w-4 sm:mr-2" />
-            <span className="hidden sm:inline">Seleccionar Programación</span>
-          </Button>
-          {selectedSchedule && (
-            <>
+    <PageContainer>
+      <PageHeader
+        title="Asignación de Programación"
+        description="Asigna incidentes a programaciones, calibraciones y mantenimientos"
+        actions={
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setSelectScheduleDialogOpen(true)}
+              className="w-full sm:w-auto"
+            >
+              <Calendar className="h-4 w-4 sm:mr-2" aria-hidden />
+              <span className="hidden sm:inline">Seleccionar Programación</span>
+            </Button>
+            {selectedSchedule && (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSelectedSchedule(null)}
+                  className="w-full sm:w-auto"
+                >
+                  <span className="hidden sm:inline">Limpiar Selección</span>
+                </Button>
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={() => setCreateDialogOpen(true)}
+                  className="w-full sm:w-auto"
+                >
+                  <Plus className="h-4 w-4 sm:mr-2" aria-hidden />
+                  <span className="hidden sm:inline">
+                    Nuevo Incidente en Programación
+                  </span>
+                  <span className="sm:hidden">Incidente</span>
+                </Button>
+              </>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              className="hidden lg:flex"
+              onClick={() => setCalendarCollapsed(!calendarCollapsed)}
+            >
+              {calendarCollapsed ? (
+                <ChevronLeft className="h-4 w-4 sm:mr-2" aria-hidden />
+              ) : (
+                <ChevronRight className="h-4 w-4 sm:mr-2" aria-hidden />
+              )}
+              <span className="hidden sm:inline">
+                {calendarCollapsed ? "Mostrar" : "Ocultar"} Calendario
+              </span>
+            </Button>
+            {!selectedSchedule && (
               <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setSelectedSchedule(null)}
-              >
-                <span className="hidden sm:inline">Limpiar Selección</span>
-              </Button>
-              <Button
-                variant="default"
                 size="sm"
                 onClick={() => setCreateDialogOpen(true)}
+                className="w-full sm:w-auto"
               >
-                <Plus className="h-4 w-4 sm:mr-2" />
+                <Plus className="h-4 w-4 sm:mr-2" aria-hidden />
                 <span className="hidden sm:inline">
-                  Nuevo Incidente en Programación
+                  {selectedDateRange.type === "day"
+                    ? "Nuevo Incidente"
+                    : "Nueva Programación"}
                 </span>
-                <span className="sm:hidden">Incidente</span>
+                <span className="sm:hidden">Nuevo</span>
               </Button>
-            </>
-          )}
-          <Button
-            variant="outline"
-            size="sm"
-            className="hidden lg:flex"
-            onClick={() => setCalendarCollapsed(!calendarCollapsed)}
-          >
-            {calendarCollapsed ? (
-              <ChevronLeft className="h-4 w-4 sm:mr-2" />
-            ) : (
-              <ChevronRight className="h-4 w-4 sm:mr-2" />
             )}
-            <span className="hidden sm:inline">
-              {calendarCollapsed ? "Mostrar" : "Ocultar"} Calendario
-            </span>
-          </Button>
-          {!selectedSchedule && (
-            <Button size="sm" onClick={() => setCreateDialogOpen(true)}>
-              <Plus className="h-4 w-4 sm:mr-2" />
-              <span className="hidden sm:inline">
-                {selectedDateRange.type === "day"
-                  ? "Nuevo Incidente"
-                  : "Nueva Programación"}
-              </span>
-              <span className="sm:hidden">Nuevo</span>
-            </Button>
-          )}
-        </div>
-      </div>
+          </>
+        }
+      />
 
       {/* Responsive layout */}
       <div className="flex flex-col gap-4 lg:grid lg:gap-4 transition-all duration-500 ease-in-out">
@@ -213,6 +212,6 @@ export default function ProgramacionPage() {
           dateRange={selectedDateRange}
         />
       )}
-    </div>
+    </PageContainer>
   );
 }

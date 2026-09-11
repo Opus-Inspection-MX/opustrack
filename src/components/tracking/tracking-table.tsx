@@ -20,6 +20,7 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import React, { useMemo, useState } from "react";
+import { StatusBadge, type StatusTone } from "@/components/common/status-badge";
 import { PriorityBadge } from "@/components/incident-types/priority-badge";
 import { SlaBadge } from "@/components/tracking/sla-badge";
 import { Badge } from "@/components/ui/badge";
@@ -83,13 +84,23 @@ const assignmentStatusLabels: Record<string, string> = {
   CERRADO: "Cerrado",
 };
 
-const assignmentStatusColors: Record<string, string> = {
-  PENDIENTE_DE_ASIGNACION: "bg-gray-100 text-gray-800",
-  ASIGNADO: "bg-purple-100 text-purple-800",
-  VISTO: "bg-cyan-100 text-cyan-800",
-  INICIADO: "bg-amber-100 text-amber-800",
-  EN_PROGRESO: "bg-blue-100 text-blue-800",
-  CERRADO: "bg-green-100 text-green-800",
+const assignmentStatusTone: Record<string, StatusTone> = {
+  PENDIENTE_DE_ASIGNACION: "neutral",
+  ASIGNADO: "open",
+  VISTO: "info",
+  INICIADO: "progress",
+  EN_PROGRESO: "progress",
+  CERRADO: "done",
+};
+
+const incidentStatusTone: Record<string, StatusTone> = {
+  ABIERTO: "open",
+  ASIGNADO: "open",
+  VISTO: "info",
+  INICIADO: "progress",
+  EN_PROGRESO: "progress",
+  CERRADO: "done",
+  CANCELADA: "cancelled",
 };
 
 // Utility function to convert hex color to rgba for background
@@ -628,1118 +639,1209 @@ export function TrackingTable({
   };
 
   return (
-    <div className="border rounded-lg overflow-x-auto">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-10"></TableHead>
-            <TableHead>
-              <Button
-                variant="ghost"
-                onClick={() => handleSort("client")}
-                className="h-auto p-0 font-semibold hover:bg-transparent"
-              >
-                Cliente
-                {getSortIcon("client")}
+    <div>
+      {/* Mobile cards: read-only summary. Full editing stays on desktop. */}
+      <ul className="space-y-3 md:hidden">
+        {sortedIncidents.length === 0 ? (
+          <li className="rounded-lg border border-dashed px-6 py-8 text-center text-sm text-muted-foreground">
+            No se encontraron incidentes
+          </li>
+        ) : (
+          sortedIncidents.map((incident) => (
+            <li
+              key={incident.id}
+              className="space-y-2 rounded-xl border bg-card p-4"
+            >
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="outline">
+                  {incident.client?.name || "Sin Cliente"}
+                </Badge>
+                <StatusBadge
+                  tone={
+                    incidentStatusTone[incident.status?.name ?? ""] ?? "neutral"
+                  }
+                >
+                  {incident.status?.name || "Sin estado"}
+                </StatusBadge>
+                <SlaBadge state={incident.sla} />
+              </div>
+              <p className="font-medium">{incident.title}</p>
+              <p className="font-mono text-xs text-muted-foreground">
+                INC-{incident.id}
+                {incident.assignments.length > 0 &&
+                  ` · ${incident.assignments.length} asignación(es)`}
+              </p>
+              <Button asChild variant="outline" size="sm" className="w-full">
+                <Link href={`/admin/incidents/${incident.id}`}>Ver</Link>
               </Button>
-            </TableHead>
-            <TableHead>
-              <Button
-                variant="ghost"
-                onClick={() => handleSort("incidente")}
-                className="h-auto p-0 font-semibold hover:bg-transparent"
-              >
-                Incidente
-                {getSortIcon("incidente")}
-              </Button>
-            </TableHead>
-            <TableHead>Folio</TableHead>
-            <TableHead>Línea</TableHead>
-            <TableHead>FSR Asignado</TableHead>
-            <TableHead>Folio Asignaciones</TableHead>
-            <TableHead>
-              <Button
-                variant="ghost"
-                onClick={() => handleSort("tipo")}
-                className="h-auto p-0 font-semibold hover:bg-transparent"
-              >
-                Tipo de Incidente
-                {getSortIcon("tipo")}
-              </Button>
-            </TableHead>
-            <TableHead>
-              <Button
-                variant="ghost"
-                onClick={() => handleSort("fechaInicio")}
-                className="h-auto p-0 font-semibold hover:bg-transparent"
-              >
-                Fecha Inicio
-                {getSortIcon("fechaInicio")}
-              </Button>
-            </TableHead>
-            <TableHead>Hora Inicio</TableHead>
-            <TableHead>
-              <Button
-                variant="ghost"
-                onClick={() => handleSort("fechaFin")}
-                className="h-auto p-0 font-semibold hover:bg-transparent"
-              >
-                Fecha Fin
-                {getSortIcon("fechaFin")}
-              </Button>
-            </TableHead>
-            <TableHead>Hora Fin</TableHead>
-            <TableHead>
-              <Button
-                variant="ghost"
-                onClick={() => handleSort("status")}
-                className="h-auto p-0 font-semibold hover:bg-transparent"
-              >
-                Status
-                {getSortIcon("status")}
-              </Button>
-            </TableHead>
-            <TableHead>Observaciones</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {sortedIncidents.length === 0 ? (
+            </li>
+          ))
+        )}
+      </ul>
+      <div className="hidden overflow-x-auto rounded-lg border md:block">
+        <Table>
+          <TableHeader>
             <TableRow>
-              <TableCell
-                colSpan={14}
-                className="text-center py-8 text-muted-foreground"
-              >
-                No se encontraron incidentes
-              </TableCell>
+              <TableHead className="w-10"></TableHead>
+              <TableHead>
+                <Button
+                  variant="ghost"
+                  onClick={() => handleSort("client")}
+                  className="h-auto p-0 font-semibold hover:bg-transparent"
+                >
+                  Cliente
+                  {getSortIcon("client")}
+                </Button>
+              </TableHead>
+              <TableHead>
+                <Button
+                  variant="ghost"
+                  onClick={() => handleSort("incidente")}
+                  className="h-auto p-0 font-semibold hover:bg-transparent"
+                >
+                  Incidente
+                  {getSortIcon("incidente")}
+                </Button>
+              </TableHead>
+              <TableHead>Folio</TableHead>
+              <TableHead>Línea</TableHead>
+              <TableHead>FSR Asignado</TableHead>
+              <TableHead>Folio Asignaciones</TableHead>
+              <TableHead>
+                <Button
+                  variant="ghost"
+                  onClick={() => handleSort("tipo")}
+                  className="h-auto p-0 font-semibold hover:bg-transparent"
+                >
+                  Tipo de Incidente
+                  {getSortIcon("tipo")}
+                </Button>
+              </TableHead>
+              <TableHead>
+                <Button
+                  variant="ghost"
+                  onClick={() => handleSort("fechaInicio")}
+                  className="h-auto p-0 font-semibold hover:bg-transparent"
+                >
+                  Fecha Inicio
+                  {getSortIcon("fechaInicio")}
+                </Button>
+              </TableHead>
+              <TableHead>Hora Inicio</TableHead>
+              <TableHead>
+                <Button
+                  variant="ghost"
+                  onClick={() => handleSort("fechaFin")}
+                  className="h-auto p-0 font-semibold hover:bg-transparent"
+                >
+                  Fecha Fin
+                  {getSortIcon("fechaFin")}
+                </Button>
+              </TableHead>
+              <TableHead>Hora Fin</TableHead>
+              <TableHead>
+                <Button
+                  variant="ghost"
+                  onClick={() => handleSort("status")}
+                  className="h-auto p-0 font-semibold hover:bg-transparent"
+                >
+                  Status
+                  {getSortIcon("status")}
+                </Button>
+              </TableHead>
+              <TableHead>Observaciones</TableHead>
             </TableRow>
-          ) : (
-            sortedIncidents.map((incident) => {
-              const assignedFSRs = getAssignedFSRs(incident);
-              const fsrOptions = buildFsrOptions(incident.client?.id);
-              const isExpanded = expandedRows.has(incident.id);
+          </TableHeader>
+          <TableBody>
+            {sortedIncidents.length === 0 ? (
+              <TableRow>
+                <TableCell
+                  colSpan={14}
+                  className="text-center py-8 text-muted-foreground"
+                >
+                  No se encontraron incidentes
+                </TableCell>
+              </TableRow>
+            ) : (
+              sortedIncidents.map((incident) => {
+                const assignedFSRs = getAssignedFSRs(incident);
+                const fsrOptions = buildFsrOptions(incident.client?.id);
+                const isExpanded = expandedRows.has(incident.id);
 
-              // Get status color for row background
-              const statusColor = incident.status?.color || "#6B7280";
-              const rowStyle = {
-                backgroundColor: hexToRgba(statusColor, 0.1),
-                borderLeft: `4px solid ${statusColor}`,
-              };
+                // Get status color for row background
+                const statusColor = incident.status?.color || "#6B7280";
+                const rowStyle = {
+                  backgroundColor: hexToRgba(statusColor, 0.1),
+                  borderLeft: `4px solid ${statusColor}`,
+                };
 
-              return (
-                <React.Fragment key={incident.id}>
-                  <TableRow
-                    className="hover:bg-muted/50 cursor-pointer transition-colors"
-                    style={rowStyle}
-                  >
-                    <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => toggleRowExpansion(incident.id)}
-                        className="p-0 h-6 w-6"
-                      >
-                        {isExpanded ? (
-                          <ChevronDown className="h-4 w-4" />
-                        ) : (
-                          <ChevronRight className="h-4 w-4" />
-                        )}
-                      </Button>
-                    </TableCell>
-                    <TableCell onClick={() => toggleRowExpansion(incident.id)}>
-                      <Badge variant="outline">
-                        {incident.client?.name || "Sin Cliente"} (
-                        {incident.client?.code || "N/A"})
-                      </Badge>
-                    </TableCell>
-                    <TableCell onClick={() => toggleRowExpansion(incident.id)}>
-                      <div className="font-medium">{incident.title}</div>
-                    </TableCell>
-                    <TableCell
-                      onClick={() => toggleRowExpansion(incident.id)}
-                      className="font-mono text-sm whitespace-nowrap"
+                return (
+                  <React.Fragment key={incident.id}>
+                    <TableRow
+                      className="hover:bg-muted/50 cursor-pointer transition-colors"
+                      style={rowStyle}
                     >
-                      INC-{incident.id}
-                    </TableCell>
-                    <TableCell onClick={() => toggleRowExpansion(incident.id)}>
-                      {incident.line?.name ? (
-                        <span className="text-sm">{incident.line.name}</span>
-                      ) : (
-                        <span className="text-sm text-muted-foreground">-</span>
-                      )}
-                    </TableCell>
-                    <TableCell onClick={() => toggleRowExpansion(incident.id)}>
-                      {assignedFSRs.length > 0 ? (
-                        <div className="flex flex-col gap-1">
-                          {assignedFSRs.map((fsr) => (
-                            <div
-                              key={fsr.id}
-                              className="flex items-center gap-2"
-                              title={
-                                fsr.fromAssignment
-                                  ? "Asignado a una orden"
-                                  : "Habilitado, sin orden todavía"
-                              }
-                            >
-                              <User className="h-3 w-3" />
-                              <span className="text-sm">{fsr.name}</span>
-                              {!fsr.fromAssignment && (
-                                <Badge
-                                  variant="outline"
-                                  className="text-[10px] px-1 py-0"
-                                >
-                                  Habilitado
-                                </Badge>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <span className="text-sm text-muted-foreground">
-                          Sin asignar
-                        </span>
-                      )}
-                    </TableCell>
-                    <TableCell onClick={() => toggleRowExpansion(incident.id)}>
-                      {incident.assignments &&
-                      incident.assignments.length > 0 ? (
-                        <div className="flex flex-col gap-1">
-                          {incident.assignments.map((wo: TrackingAssignment) =>
-                            wo.folio ? (
-                              <Badge
-                                key={wo.id}
-                                variant="outline"
-                                className="text-xs"
-                              >
-                                AS-{wo.folio}
-                              </Badge>
-                            ) : null,
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => toggleRowExpansion(incident.id)}
+                          className="p-0 h-6 w-6"
+                        >
+                          {isExpanded ? (
+                            <ChevronDown className="h-4 w-4" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4" />
                           )}
-                        </div>
-                      ) : (
-                        <span className="text-sm text-muted-foreground">-</span>
-                      )}
-                    </TableCell>
-                    <TableCell onClick={() => toggleRowExpansion(incident.id)}>
-                      <div className="flex items-center gap-2">
-                        <Badge variant="secondary">
-                          {incident.type?.name || "Sin tipo"}
-                        </Badge>
-                        {incident.type?.priority !== undefined && (
-                          <PriorityBadge priority={incident.type.priority} />
-                        )}
-                        <SlaBadge state={incident.sla} />
-                      </div>
-                    </TableCell>
-                    <TableCell onClick={() => toggleRowExpansion(incident.id)}>
-                      {formatDate(incident.reportedAt)}
-                    </TableCell>
-                    <TableCell onClick={() => toggleRowExpansion(incident.id)}>
-                      {formatTime(incident.reportedAt)}
-                    </TableCell>
-                    <TableCell onClick={() => toggleRowExpansion(incident.id)}>
-                      {incident.resolvedAt
-                        ? formatDate(incident.resolvedAt)
-                        : "-"}
-                    </TableCell>
-                    <TableCell onClick={() => toggleRowExpansion(incident.id)}>
-                      {incident.resolvedAt
-                        ? formatTime(incident.resolvedAt)
-                        : "-"}
-                    </TableCell>
-                    <TableCell onClick={() => toggleRowExpansion(incident.id)}>
-                      <Badge
-                        style={{
-                          backgroundColor: statusColor,
-                          color: "#FFFFFF",
-                          borderColor: statusColor,
-                        }}
+                        </Button>
+                      </TableCell>
+                      <TableCell
+                        onClick={() => toggleRowExpansion(incident.id)}
                       >
-                        {incident.status?.name || "Sin estado"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell onClick={() => toggleRowExpansion(incident.id)}>
-                      <div className="max-w-xs truncate text-sm text-muted-foreground">
-                        {incident.description}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-
-                  {isExpanded && (
-                    <TableRow>
-                      <TableCell colSpan={14} className="bg-muted/30">
-                        <div className="p-4 space-y-4">
-                          {/* Actions Menu */}
-                          <div className="flex items-center justify-between pb-4 border-b">
-                            <h4 className="font-semibold">
-                              Detalles del Incidente
-                            </h4>
-                            <div className="flex items-center gap-2">
-                              {editingIncident === incident.id ? (
-                                <>
-                                  <Button
+                        <Badge variant="outline">
+                          {incident.client?.name || "Sin Cliente"} (
+                          {incident.client?.code || "N/A"})
+                        </Badge>
+                      </TableCell>
+                      <TableCell
+                        onClick={() => toggleRowExpansion(incident.id)}
+                      >
+                        <div className="font-medium">{incident.title}</div>
+                      </TableCell>
+                      <TableCell
+                        onClick={() => toggleRowExpansion(incident.id)}
+                        className="font-mono text-sm whitespace-nowrap"
+                      >
+                        INC-{incident.id}
+                      </TableCell>
+                      <TableCell
+                        onClick={() => toggleRowExpansion(incident.id)}
+                      >
+                        {incident.line?.name ? (
+                          <span className="text-sm">{incident.line.name}</span>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">
+                            -
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell
+                        onClick={() => toggleRowExpansion(incident.id)}
+                      >
+                        {assignedFSRs.length > 0 ? (
+                          <div className="flex flex-col gap-1">
+                            {assignedFSRs.map((fsr) => (
+                              <div
+                                key={fsr.id}
+                                className="flex items-center gap-2"
+                                title={
+                                  fsr.fromAssignment
+                                    ? "Asignado a una orden"
+                                    : "Habilitado, sin orden todavía"
+                                }
+                              >
+                                <User className="h-3 w-3" />
+                                <span className="text-sm">{fsr.name}</span>
+                                {!fsr.fromAssignment && (
+                                  <Badge
                                     variant="outline"
-                                    size="sm"
-                                    onClick={handleCancelEdit}
-                                    disabled={savingIncident}
+                                    className="text-[10px] px-1 py-0"
                                   >
-                                    <XIcon className="h-4 w-4 mr-2" />
-                                    Cancelar
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    onClick={() =>
-                                      handleSaveIncident(incident.id)
-                                    }
-                                    disabled={savingIncident}
-                                  >
-                                    <Save className="h-4 w-4 mr-2" />
-                                    {savingIncident
-                                      ? "Guardando..."
-                                      : "Guardar"}
-                                  </Button>
-                                </>
-                              ) : (
-                                <>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => handleEditIncident(incident)}
-                                  >
-                                    <Edit className="h-4 w-4 mr-2" />
-                                    Edición Rápida
-                                  </Button>
-                                  <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        className="gap-2"
-                                      >
-                                        <MoreHorizontal className="h-4 w-4" />
-                                        Acciones
-                                      </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                      <DropdownMenuItem asChild>
-                                        <Link
-                                          href={`/admin/incidents/${incident.id}`}
-                                        >
-                                          <Eye className="h-4 w-4 mr-2" />
-                                          Ver Incidente
-                                        </Link>
-                                      </DropdownMenuItem>
-                                      <DropdownMenuItem asChild>
-                                        <Link
-                                          href={`/admin/incidents/${incident.id}/edit`}
-                                        >
-                                          <Edit className="h-4 w-4 mr-2" />
-                                          Edición Completa
-                                        </Link>
-                                      </DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                  </DropdownMenu>
-                                </>
-                              )}
-                            </div>
-                          </div>
-
-                          {editingIncident === incident.id ? (
-                            <>
-                              <div className="space-y-4 p-4 bg-background rounded-lg border">
-                                <h5 className="font-semibold">
-                                  Editar Incidente
-                                </h5>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                  <div className="space-y-2">
-                                    <Label htmlFor="title">
-                                      Nombre del Incidente
-                                    </Label>
-                                    <Input
-                                      id="title"
-                                      value={editForm.title}
-                                      onChange={(e) =>
-                                        setEditForm({
-                                          ...editForm,
-                                          title: e.target.value,
-                                        })
-                                      }
-                                    />
-                                  </div>
-                                  <div className="space-y-2">
-                                    <Label htmlFor="statusId">Status</Label>
-                                    <Select
-                                      value={
-                                        editForm.statusId?.toString() || ""
-                                      }
-                                      onValueChange={(value) =>
-                                        setEditForm({
-                                          ...editForm,
-                                          statusId: value,
-                                        })
-                                      }
-                                    >
-                                      <SelectTrigger id="statusId">
-                                        <SelectValue placeholder="Seleccionar status" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        {incidentStatuses.map((status) => (
-                                          <SelectItem
-                                            key={status.id}
-                                            value={status.id.toString()}
-                                          >
-                                            {status.name}
-                                          </SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
-                                  </div>
-                                  <div className="space-y-2">
-                                    <Label htmlFor="lineId">Línea</Label>
-                                    <Select
-                                      value={
-                                        editForm.lineId?.toString() || "none"
-                                      }
-                                      onValueChange={handleLineChange}
-                                    >
-                                      <SelectTrigger id="lineId">
-                                        <SelectValue placeholder="Seleccionar línea" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        <SelectItem value="none">
-                                          Sin línea
-                                        </SelectItem>
-                                        {linesForEdit.map((line) => (
-                                          <SelectItem
-                                            key={line.id}
-                                            value={line.id.toString()}
-                                          >
-                                            {line.name}
-                                          </SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
-                                  </div>
-                                  <div className="space-y-2">
-                                    <Label htmlFor="equipmentId">Equipo</Label>
-                                    <Select
-                                      value={
-                                        editForm.equipmentId?.toString() ||
-                                        "none"
-                                      }
-                                      onValueChange={(value) =>
-                                        setEditForm({
-                                          ...editForm,
-                                          equipmentId:
-                                            value === "none" ? "" : value,
-                                        })
-                                      }
-                                      disabled={
-                                        !editForm.lineId ||
-                                        equipmentsForEdit.length === 0
-                                      }
-                                    >
-                                      <SelectTrigger id="equipmentId">
-                                        <SelectValue
-                                          placeholder={
-                                            !editForm.lineId
-                                              ? "Selecciona una línea primero"
-                                              : "Seleccionar equipo"
-                                          }
-                                        />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        <SelectItem value="none">
-                                          Sin equipo
-                                        </SelectItem>
-                                        {equipmentsForEdit.map((equipment) => (
-                                          <SelectItem
-                                            key={equipment.id}
-                                            value={equipment.id.toString()}
-                                          >
-                                            {equipment.name}
-                                          </SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
-                                  </div>
-                                  <div className="space-y-2 md:col-span-2">
-                                    <Label htmlFor={`fsrs-${incident.id}`}>
-                                      FSRs habilitados
-                                    </Label>
-                                    <MultiSelect
-                                      options={fsrOptions}
-                                      value={editForm.assigneeIds ?? []}
-                                      onValueChange={(ids) =>
-                                        setEditForm({
-                                          ...editForm,
-                                          assigneeIds: ids,
-                                        })
-                                      }
-                                      placeholder="Seleccionar FSRs"
-                                      searchPlaceholder="Buscar FSR..."
-                                      emptyMessage="Sin resultados"
-                                    />
-                                    <p className="text-xs text-muted-foreground">
-                                      Solo estos FSRs podrán tomar la asignación
-                                      generada de este incidente.
-                                    </p>
-                                  </div>
-                                  <div className="space-y-2">
-                                    <Label htmlFor="reportedAt">
-                                      Fecha y Hora de Inicio
-                                    </Label>
-                                    <Input
-                                      id="reportedAt"
-                                      type="datetime-local"
-                                      value={editForm.reportedAt}
-                                      onChange={(e) =>
-                                        setEditForm({
-                                          ...editForm,
-                                          reportedAt: e.target.value,
-                                        })
-                                      }
-                                    />
-                                  </div>
-                                  <div className="space-y-2">
-                                    <Label htmlFor="resolvedAt">
-                                      Fecha y Hora de Fin
-                                    </Label>
-                                    <Input
-                                      id="resolvedAt"
-                                      type="datetime-local"
-                                      value={editForm.resolvedAt || ""}
-                                      onChange={(e) =>
-                                        setEditForm({
-                                          ...editForm,
-                                          resolvedAt: e.target.value,
-                                        })
-                                      }
-                                    />
-                                  </div>
-                                </div>
-                                <div className="space-y-2">
-                                  <Label htmlFor="description">
-                                    Observaciones
-                                  </Label>
-                                  <Textarea
-                                    id="description"
-                                    rows={4}
-                                    value={editForm.description || ""}
-                                    onChange={(e) =>
-                                      setEditForm({
-                                        ...editForm,
-                                        description: e.target.value,
-                                      })
-                                    }
-                                  />
-                                </div>
-                              </div>
-
-                              {/* Create Assignment in Edit Mode */}
-                              <div className="p-4 bg-muted/50 rounded-lg border border-dashed space-y-4">
-                                <div className="flex items-center justify-between">
-                                  <h5 className="font-semibold">
-                                    Crear Asignación
-                                  </h5>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() =>
-                                      handleStartCreateAssignment(incident.id)
-                                    }
-                                    disabled={
-                                      creatingAssignment === incident.id
-                                    }
-                                  >
-                                    <Plus className="h-4 w-4 mr-2" />
-                                    Nueva Asignación
-                                  </Button>
-                                </div>
-
-                                {creatingAssignment === incident.id && (
-                                  <div className="p-4 bg-background rounded-lg border space-y-4">
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                      <div className="space-y-2">
-                                        <Label
-                                          htmlFor={`edit-mode-fsr-${incident.id}`}
-                                        >
-                                          FSRs Asignados
-                                        </Label>
-                                        <MultiSelect
-                                          options={fsrOptions}
-                                          value={
-                                            newAssignmentForm.assigneeIds ?? []
-                                          }
-                                          onValueChange={(ids) =>
-                                            setNewAssignmentForm({
-                                              ...newAssignmentForm,
-                                              assigneeIds: ids,
-                                            })
-                                          }
-                                          placeholder="Seleccionar FSRs"
-                                          className="w-full"
-                                        />
-                                        {fsrOptions.length === 0 && (
-                                          <p className="text-xs text-muted-foreground">
-                                            No hay FSRs registrados
-                                          </p>
-                                        )}
-                                      </div>
-                                    </div>
-                                    <div className="space-y-2">
-                                      <Label
-                                        htmlFor={`edit-mode-notes-${incident.id}`}
-                                      >
-                                        Notas
-                                      </Label>
-                                      <Textarea
-                                        id={`edit-mode-notes-${incident.id}`}
-                                        value={newAssignmentForm.notes}
-                                        onChange={(e) =>
-                                          setNewAssignmentForm({
-                                            ...newAssignmentForm,
-                                            notes: e.target.value,
-                                          })
-                                        }
-                                        placeholder="Notas opcionales..."
-                                        rows={3}
-                                      />
-                                    </div>
-                                    <div className="flex justify-end gap-2">
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={handleCancelCreateAssignment}
-                                        disabled={savingNewAssignment}
-                                      >
-                                        <XIcon className="h-4 w-4 mr-2" />
-                                        Cancelar
-                                      </Button>
-                                      <Button
-                                        size="sm"
-                                        onClick={() =>
-                                          handleCreateAssignment(incident.id)
-                                        }
-                                        disabled={savingNewAssignment}
-                                      >
-                                        <Save className="h-4 w-4 mr-2" />
-                                        {savingNewAssignment
-                                          ? "Guardando..."
-                                          : "Crear Asignación"}
-                                      </Button>
-                                    </div>
-                                  </div>
+                                    Habilitado
+                                  </Badge>
                                 )}
                               </div>
-                            </>
-                          ) : (
-                            <div className="space-y-4">
-                              <div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
-                                  <div>
-                                    <span className="font-medium text-muted-foreground">
-                                      Fecha Inicio:
-                                    </span>
-                                    <p>
-                                      {formatDate(incident.reportedAt)} -{" "}
-                                      {formatTime(incident.reportedAt)}
-                                    </p>
-                                  </div>
-                                  {incident.resolvedAt && (
-                                    <div>
-                                      <span className="font-medium text-muted-foreground">
-                                        Fecha Fin:
-                                      </span>
-                                      <p>
-                                        {formatDate(incident.resolvedAt)} -{" "}
-                                        {formatTime(incident.resolvedAt)}
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">
+                            Sin asignar
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell
+                        onClick={() => toggleRowExpansion(incident.id)}
+                      >
+                        {incident.assignments &&
+                        incident.assignments.length > 0 ? (
+                          <div className="flex flex-col gap-1">
+                            {incident.assignments.map(
+                              (wo: TrackingAssignment) =>
+                                wo.folio ? (
+                                  <Badge
+                                    key={wo.id}
+                                    variant="outline"
+                                    className="text-xs"
+                                  >
+                                    AS-{wo.folio}
+                                  </Badge>
+                                ) : null,
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">
+                            -
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell
+                        onClick={() => toggleRowExpansion(incident.id)}
+                      >
+                        <div className="flex items-center gap-2">
+                          <Badge variant="secondary">
+                            {incident.type?.name || "Sin tipo"}
+                          </Badge>
+                          {incident.type?.priority !== undefined && (
+                            <PriorityBadge priority={incident.type.priority} />
+                          )}
+                          <SlaBadge state={incident.sla} />
+                        </div>
+                      </TableCell>
+                      <TableCell
+                        onClick={() => toggleRowExpansion(incident.id)}
+                      >
+                        {formatDate(incident.reportedAt)}
+                      </TableCell>
+                      <TableCell
+                        onClick={() => toggleRowExpansion(incident.id)}
+                      >
+                        {formatTime(incident.reportedAt)}
+                      </TableCell>
+                      <TableCell
+                        onClick={() => toggleRowExpansion(incident.id)}
+                      >
+                        {incident.resolvedAt
+                          ? formatDate(incident.resolvedAt)
+                          : "-"}
+                      </TableCell>
+                      <TableCell
+                        onClick={() => toggleRowExpansion(incident.id)}
+                      >
+                        {incident.resolvedAt
+                          ? formatTime(incident.resolvedAt)
+                          : "-"}
+                      </TableCell>
+                      <TableCell
+                        onClick={() => toggleRowExpansion(incident.id)}
+                      >
+                        <Badge
+                          style={{
+                            backgroundColor: statusColor,
+                            color: "#FFFFFF",
+                            borderColor: statusColor,
+                          }}
+                        >
+                          {incident.status?.name || "Sin estado"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell
+                        onClick={() => toggleRowExpansion(incident.id)}
+                      >
+                        <div className="max-w-xs truncate text-sm text-muted-foreground">
+                          {incident.description}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+
+                    {isExpanded && (
+                      <TableRow>
+                        <TableCell colSpan={14} className="bg-muted/30">
+                          <div className="p-4 space-y-4">
+                            {/* Actions Menu */}
+                            <div className="flex items-center justify-between pb-4 border-b">
+                              <h4 className="font-semibold">
+                                Detalles del Incidente
+                              </h4>
+                              <div className="flex items-center gap-2">
+                                {editingIncident === incident.id ? (
+                                  <>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={handleCancelEdit}
+                                      disabled={savingIncident}
+                                    >
+                                      <XIcon className="h-4 w-4 mr-2" />
+                                      Cancelar
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      onClick={() =>
+                                        handleSaveIncident(incident.id)
+                                      }
+                                      disabled={savingIncident}
+                                    >
+                                      <Save className="h-4 w-4 mr-2" />
+                                      {savingIncident
+                                        ? "Guardando..."
+                                        : "Guardar"}
+                                    </Button>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() =>
+                                        handleEditIncident(incident)
+                                      }
+                                    >
+                                      <Edit className="h-4 w-4 mr-2" />
+                                      Edición Rápida
+                                    </Button>
+                                    <DropdownMenu>
+                                      <DropdownMenuTrigger asChild>
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          className="gap-2"
+                                        >
+                                          <MoreHorizontal className="h-4 w-4" />
+                                          Acciones
+                                        </Button>
+                                      </DropdownMenuTrigger>
+                                      <DropdownMenuContent align="end">
+                                        <DropdownMenuItem asChild>
+                                          <Link
+                                            href={`/admin/incidents/${incident.id}`}
+                                          >
+                                            <Eye className="h-4 w-4 mr-2" />
+                                            Ver Incidente
+                                          </Link>
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem asChild>
+                                          <Link
+                                            href={`/admin/incidents/${incident.id}/edit`}
+                                          >
+                                            <Edit className="h-4 w-4 mr-2" />
+                                            Edición Completa
+                                          </Link>
+                                        </DropdownMenuItem>
+                                      </DropdownMenuContent>
+                                    </DropdownMenu>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+
+                            {editingIncident === incident.id ? (
+                              <>
+                                <div className="space-y-4 p-4 bg-background rounded-lg border">
+                                  <h5 className="font-semibold">
+                                    Editar Incidente
+                                  </h5>
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                      <Label htmlFor="title">
+                                        Nombre del Incidente
+                                      </Label>
+                                      <Input
+                                        id="title"
+                                        value={editForm.title}
+                                        onChange={(e) =>
+                                          setEditForm({
+                                            ...editForm,
+                                            title: e.target.value,
+                                          })
+                                        }
+                                      />
+                                    </div>
+                                    <div className="space-y-2">
+                                      <Label htmlFor="statusId">Status</Label>
+                                      <Select
+                                        value={
+                                          editForm.statusId?.toString() || ""
+                                        }
+                                        onValueChange={(value) =>
+                                          setEditForm({
+                                            ...editForm,
+                                            statusId: value,
+                                          })
+                                        }
+                                      >
+                                        <SelectTrigger id="statusId">
+                                          <SelectValue placeholder="Seleccionar status" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          {incidentStatuses.map((status) => (
+                                            <SelectItem
+                                              key={status.id}
+                                              value={status.id.toString()}
+                                            >
+                                              {status.name}
+                                            </SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+                                    <div className="space-y-2">
+                                      <Label htmlFor="lineId">Línea</Label>
+                                      <Select
+                                        value={
+                                          editForm.lineId?.toString() || "none"
+                                        }
+                                        onValueChange={handleLineChange}
+                                      >
+                                        <SelectTrigger id="lineId">
+                                          <SelectValue placeholder="Seleccionar línea" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="none">
+                                            Sin línea
+                                          </SelectItem>
+                                          {linesForEdit.map((line) => (
+                                            <SelectItem
+                                              key={line.id}
+                                              value={line.id.toString()}
+                                            >
+                                              {line.name}
+                                            </SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+                                    <div className="space-y-2">
+                                      <Label htmlFor="equipmentId">
+                                        Equipo
+                                      </Label>
+                                      <Select
+                                        value={
+                                          editForm.equipmentId?.toString() ||
+                                          "none"
+                                        }
+                                        onValueChange={(value) =>
+                                          setEditForm({
+                                            ...editForm,
+                                            equipmentId:
+                                              value === "none" ? "" : value,
+                                          })
+                                        }
+                                        disabled={
+                                          !editForm.lineId ||
+                                          equipmentsForEdit.length === 0
+                                        }
+                                      >
+                                        <SelectTrigger id="equipmentId">
+                                          <SelectValue
+                                            placeholder={
+                                              !editForm.lineId
+                                                ? "Selecciona una línea primero"
+                                                : "Seleccionar equipo"
+                                            }
+                                          />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="none">
+                                            Sin equipo
+                                          </SelectItem>
+                                          {equipmentsForEdit.map(
+                                            (equipment) => (
+                                              <SelectItem
+                                                key={equipment.id}
+                                                value={equipment.id.toString()}
+                                              >
+                                                {equipment.name}
+                                              </SelectItem>
+                                            ),
+                                          )}
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+                                    <div className="space-y-2 md:col-span-2">
+                                      <Label htmlFor={`fsrs-${incident.id}`}>
+                                        FSRs habilitados
+                                      </Label>
+                                      <MultiSelect
+                                        options={fsrOptions}
+                                        value={editForm.assigneeIds ?? []}
+                                        onValueChange={(ids) =>
+                                          setEditForm({
+                                            ...editForm,
+                                            assigneeIds: ids,
+                                          })
+                                        }
+                                        placeholder="Seleccionar FSRs"
+                                        searchPlaceholder="Buscar FSR..."
+                                        emptyMessage="Sin resultados"
+                                      />
+                                      <p className="text-xs text-muted-foreground">
+                                        Solo estos FSRs podrán tomar la
+                                        asignación generada de este incidente.
                                       </p>
                                     </div>
-                                  )}
-                                  <div>
-                                    <span className="font-medium text-muted-foreground">
-                                      Status:
-                                    </span>
-                                    <div className="mt-1">
-                                      <Badge
-                                        style={{
-                                          backgroundColor:
-                                            incident.status?.color || "#6B7280",
-                                          color: "#FFFFFF",
-                                        }}
-                                      >
-                                        {incident.status?.name || "Sin estado"}
-                                      </Badge>
+                                    <div className="space-y-2">
+                                      <Label htmlFor="reportedAt">
+                                        Fecha y Hora de Inicio
+                                      </Label>
+                                      <Input
+                                        id="reportedAt"
+                                        type="datetime-local"
+                                        value={editForm.reportedAt}
+                                        onChange={(e) =>
+                                          setEditForm({
+                                            ...editForm,
+                                            reportedAt: e.target.value,
+                                          })
+                                        }
+                                      />
+                                    </div>
+                                    <div className="space-y-2">
+                                      <Label htmlFor="resolvedAt">
+                                        Fecha y Hora de Fin
+                                      </Label>
+                                      <Input
+                                        id="resolvedAt"
+                                        type="datetime-local"
+                                        value={editForm.resolvedAt || ""}
+                                        onChange={(e) =>
+                                          setEditForm({
+                                            ...editForm,
+                                            resolvedAt: e.target.value,
+                                          })
+                                        }
+                                      />
                                     </div>
                                   </div>
-                                  <div>
-                                    <span className="font-medium text-muted-foreground">
-                                      Tipo:
-                                    </span>
-                                    <div className="flex items-center gap-2 mt-1">
-                                      <span>
-                                        {incident.type?.name || "Sin tipo"}
-                                      </span>
-                                      {incident.type?.priority !==
-                                        undefined && (
-                                        <PriorityBadge
-                                          priority={incident.type.priority}
-                                        />
-                                      )}
-                                      <SlaBadge state={incident.sla} />
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                              <div>
-                                <h4 className="font-semibold mb-2">
-                                  Observaciones Completas
-                                </h4>
-                                <p className="text-sm">
-                                  {incident.description}
-                                </p>
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Assignments Section */}
-                          <div>
-                            <div className="flex items-center justify-between mb-3">
-                              <h4 className="font-semibold">Asignaciones</h4>
-                              {creatingAssignment !== incident.id && (
-                                <Button
-                                  size="sm"
-                                  onClick={() =>
-                                    handleStartCreateAssignment(incident.id)
-                                  }
-                                  disabled={editingIncident === incident.id}
-                                >
-                                  <Plus className="h-4 w-4 mr-2" />
-                                  Crear Asignación
-                                </Button>
-                              )}
-                            </div>
-
-                            {/* Create Assignment Form */}
-                            {creatingAssignment === incident.id && (
-                              <div className="p-4 bg-background rounded-lg border space-y-4 mb-3">
-                                <h5 className="font-medium">
-                                  Nueva Asignación
-                                </h5>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                   <div className="space-y-2">
-                                    <Label htmlFor={`new-fsr-${incident.id}`}>
-                                      FSRs Asignados
+                                    <Label htmlFor="description">
+                                      Observaciones
                                     </Label>
-                                    <MultiSelect
-                                      id={`new-fsr-${incident.id}`}
-                                      options={fsrOptions}
-                                      value={
-                                        newAssignmentForm.assigneeIds ?? []
-                                      }
-                                      onValueChange={(ids) =>
-                                        setNewAssignmentForm({
-                                          ...newAssignmentForm,
-                                          assigneeIds: ids,
+                                    <Textarea
+                                      id="description"
+                                      rows={4}
+                                      value={editForm.description || ""}
+                                      onChange={(e) =>
+                                        setEditForm({
+                                          ...editForm,
+                                          description: e.target.value,
                                         })
                                       }
-                                      placeholder="Seleccionar FSRs"
-                                      searchPlaceholder="Buscar FSR..."
                                     />
-                                    {fsrOptions.length === 0 && (
-                                      <p className="text-xs text-muted-foreground">
-                                        No hay FSRs registrados
-                                      </p>
-                                    )}
                                   </div>
                                 </div>
-                                <div className="space-y-2">
-                                  <Label htmlFor={`new-notes-${incident.id}`}>
-                                    Notas
-                                  </Label>
-                                  <Textarea
-                                    id={`new-notes-${incident.id}`}
-                                    value={newAssignmentForm.notes}
-                                    onChange={(e) =>
-                                      setNewAssignmentForm({
-                                        ...newAssignmentForm,
-                                        notes: e.target.value,
-                                      })
-                                    }
-                                    placeholder="Notas opcionales..."
-                                    rows={3}
-                                  />
+
+                                {/* Create Assignment in Edit Mode */}
+                                <div className="p-4 bg-muted/50 rounded-lg border border-dashed space-y-4">
+                                  <div className="flex items-center justify-between">
+                                    <h5 className="font-semibold">
+                                      Crear Asignación
+                                    </h5>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() =>
+                                        handleStartCreateAssignment(incident.id)
+                                      }
+                                      disabled={
+                                        creatingAssignment === incident.id
+                                      }
+                                    >
+                                      <Plus className="h-4 w-4 mr-2" />
+                                      Nueva Asignación
+                                    </Button>
+                                  </div>
+
+                                  {creatingAssignment === incident.id && (
+                                    <div className="p-4 bg-background rounded-lg border space-y-4">
+                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                          <Label
+                                            htmlFor={`edit-mode-fsr-${incident.id}`}
+                                          >
+                                            FSRs Asignados
+                                          </Label>
+                                          <MultiSelect
+                                            options={fsrOptions}
+                                            value={
+                                              newAssignmentForm.assigneeIds ??
+                                              []
+                                            }
+                                            onValueChange={(ids) =>
+                                              setNewAssignmentForm({
+                                                ...newAssignmentForm,
+                                                assigneeIds: ids,
+                                              })
+                                            }
+                                            placeholder="Seleccionar FSRs"
+                                            className="w-full"
+                                          />
+                                          {fsrOptions.length === 0 && (
+                                            <p className="text-xs text-muted-foreground">
+                                              No hay FSRs registrados
+                                            </p>
+                                          )}
+                                        </div>
+                                      </div>
+                                      <div className="space-y-2">
+                                        <Label
+                                          htmlFor={`edit-mode-notes-${incident.id}`}
+                                        >
+                                          Notas
+                                        </Label>
+                                        <Textarea
+                                          id={`edit-mode-notes-${incident.id}`}
+                                          value={newAssignmentForm.notes}
+                                          onChange={(e) =>
+                                            setNewAssignmentForm({
+                                              ...newAssignmentForm,
+                                              notes: e.target.value,
+                                            })
+                                          }
+                                          placeholder="Notas opcionales..."
+                                          rows={3}
+                                        />
+                                      </div>
+                                      <div className="flex justify-end gap-2">
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          onClick={handleCancelCreateAssignment}
+                                          disabled={savingNewAssignment}
+                                        >
+                                          <XIcon className="h-4 w-4 mr-2" />
+                                          Cancelar
+                                        </Button>
+                                        <Button
+                                          size="sm"
+                                          onClick={() =>
+                                            handleCreateAssignment(incident.id)
+                                          }
+                                          disabled={savingNewAssignment}
+                                        >
+                                          <Save className="h-4 w-4 mr-2" />
+                                          {savingNewAssignment
+                                            ? "Guardando..."
+                                            : "Crear Asignación"}
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  )}
                                 </div>
-                                <div className="flex justify-end gap-2">
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={handleCancelCreateAssignment}
-                                    disabled={savingNewAssignment}
-                                  >
-                                    <XIcon className="h-4 w-4 mr-2" />
-                                    Cancelar
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    onClick={() =>
-                                      handleCreateAssignment(incident.id)
-                                    }
-                                    disabled={savingNewAssignment}
-                                  >
-                                    <Save className="h-4 w-4 mr-2" />
-                                    {savingNewAssignment
-                                      ? "Guardando..."
-                                      : "Crear Asignación"}
-                                  </Button>
+                              </>
+                            ) : (
+                              <div className="space-y-4">
+                                <div>
+                                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+                                    <div>
+                                      <span className="font-medium text-muted-foreground">
+                                        Fecha Inicio:
+                                      </span>
+                                      <p>
+                                        {formatDate(incident.reportedAt)} -{" "}
+                                        {formatTime(incident.reportedAt)}
+                                      </p>
+                                    </div>
+                                    {incident.resolvedAt && (
+                                      <div>
+                                        <span className="font-medium text-muted-foreground">
+                                          Fecha Fin:
+                                        </span>
+                                        <p>
+                                          {formatDate(incident.resolvedAt)} -{" "}
+                                          {formatTime(incident.resolvedAt)}
+                                        </p>
+                                      </div>
+                                    )}
+                                    <div>
+                                      <span className="font-medium text-muted-foreground">
+                                        Status:
+                                      </span>
+                                      <div className="mt-1">
+                                        <Badge
+                                          style={{
+                                            backgroundColor:
+                                              incident.status?.color ||
+                                              "#6B7280",
+                                            color: "#FFFFFF",
+                                          }}
+                                        >
+                                          {incident.status?.name ||
+                                            "Sin estado"}
+                                        </Badge>
+                                      </div>
+                                    </div>
+                                    <div>
+                                      <span className="font-medium text-muted-foreground">
+                                        Tipo:
+                                      </span>
+                                      <div className="flex items-center gap-2 mt-1">
+                                        <span>
+                                          {incident.type?.name || "Sin tipo"}
+                                        </span>
+                                        {incident.type?.priority !==
+                                          undefined && (
+                                          <PriorityBadge
+                                            priority={incident.type.priority}
+                                          />
+                                        )}
+                                        <SlaBadge state={incident.sla} />
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                                <div>
+                                  <h4 className="font-semibold mb-2">
+                                    Observaciones Completas
+                                  </h4>
+                                  <p className="text-sm">
+                                    {incident.description}
+                                  </p>
                                 </div>
                               </div>
                             )}
 
-                            {/* Existing Assignments */}
-                            {incident.assignments &&
-                              incident.assignments.length > 0 && (
-                                <div className="space-y-3">
-                                  {incident.assignments.map(
-                                    (assignment: TrackingAssignment) => (
-                                      <div
-                                        key={assignment.id}
-                                        className="p-4 bg-background rounded-lg border space-y-3"
-                                      >
-                                        <div className="flex items-start justify-between gap-4">
-                                          <div className="flex-1 space-y-2">
-                                            {editingAssignment !==
-                                              assignment.id && (
-                                              <div className="flex items-center gap-2 flex-wrap">
-                                                <Badge
-                                                  className={
-                                                    (assignment.status?.name &&
-                                                      assignmentStatusColors[
-                                                        assignment.status.name
-                                                      ]) ||
-                                                    "bg-gray-100 text-gray-800"
-                                                  }
-                                                >
-                                                  {assignment.status?.name
-                                                    ? assignmentStatusLabels[
-                                                        assignment.status.name
-                                                      ] ||
-                                                      assignment.status.name
-                                                    : "Sin estado"}
-                                                </Badge>
-                                                {assignment.seenAt ? (
-                                                  <Badge
-                                                    variant="outline"
-                                                    className="bg-green-50 text-green-700 border-green-300"
-                                                  >
-                                                    <CheckCircle className="h-3 w-3 mr-1" />
-                                                    Desbloqueado
-                                                  </Badge>
-                                                ) : (
-                                                  <Badge
-                                                    variant="outline"
-                                                    className="bg-yellow-50 text-yellow-700 border-yellow-300"
-                                                  >
-                                                    <Lock className="h-3 w-3 mr-1" />
-                                                    No Desbloqueado
-                                                  </Badge>
-                                                )}
-                                                {assignment.createdAt && (
-                                                  <span className="text-sm text-muted-foreground">
-                                                    Creado:{" "}
-                                                    {formatDate(
-                                                      assignment.createdAt,
-                                                    )}{" "}
-                                                    -{" "}
-                                                    {formatTime(
-                                                      assignment.createdAt,
-                                                    )}
-                                                  </span>
-                                                )}
-                                              </div>
-                                            )}
+                            {/* Assignments Section */}
+                            <div>
+                              <div className="flex items-center justify-between mb-3">
+                                <h4 className="font-semibold">Asignaciones</h4>
+                                {creatingAssignment !== incident.id && (
+                                  <Button
+                                    size="sm"
+                                    onClick={() =>
+                                      handleStartCreateAssignment(incident.id)
+                                    }
+                                    disabled={editingIncident === incident.id}
+                                  >
+                                    <Plus className="h-4 w-4 mr-2" />
+                                    Crear Asignación
+                                  </Button>
+                                )}
+                              </div>
 
-                                            {editingAssignment !==
-                                              assignment.id && (
-                                              <>
-                                                <div className="flex items-center gap-2">
-                                                  <span className="text-sm font-medium min-w-[100px]">
-                                                    Fecha Inicio:
-                                                  </span>
-                                                  <span className="text-sm text-muted-foreground">
-                                                    {assignment.startedAt
-                                                      ? `${formatDate(assignment.startedAt)} - ${formatTime(assignment.startedAt)}`
-                                                      : "-"}
-                                                  </span>
-                                                </div>
-
-                                                <div className="flex items-center gap-2">
-                                                  <span className="text-sm font-medium min-w-[100px]">
-                                                    Fecha Fin:
-                                                  </span>
-                                                  <span className="text-sm text-muted-foreground">
-                                                    {assignment.finishedAt
-                                                      ? `${formatDate(assignment.finishedAt)} - ${formatTime(assignment.finishedAt)}`
-                                                      : "-"}
-                                                  </span>
-                                                </div>
-                                              </>
-                                            )}
-
-                                            {assignment.folio && (
-                                              <div className="flex items-center gap-2">
-                                                <span className="text-sm font-medium min-w-[100px]">
-                                                  Folio:
-                                                </span>
-                                                <Badge
-                                                  variant="outline"
-                                                  className="text-sm"
-                                                >
-                                                  AS-{assignment.folio}
-                                                </Badge>
-                                              </div>
-                                            )}
-
-                                            {editingAssignment !==
-                                              assignment.id && (
-                                              <div className="flex items-center gap-2">
-                                                <span className="text-sm font-medium min-w-[100px]">
-                                                  FSR Asignado:
-                                                </span>
-                                                <span className="text-sm">
-                                                  <User className="h-4 w-4 inline mr-2" />
-                                                  {assignment.assignees
-                                                    ?.map((a) => a.user.name)
-                                                    .join(", ") ||
-                                                    "Sin asignar"}
-                                                </span>
-                                              </div>
-                                            )}
-
-                                            {editingAssignment ===
-                                              assignment.id && (
-                                              <div className="space-y-3 pt-3 border-t">
-                                                <h5 className="font-semibold text-sm">
-                                                  Editar Asignación
-                                                </h5>
-                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                                  <div className="space-y-2">
-                                                    <Label
-                                                      htmlFor={`wo-fsr-${assignment.id}`}
-                                                    >
-                                                      FSRs Asignados
-                                                    </Label>
-                                                    <MultiSelect
-                                                      id={`wo-fsr-${assignment.id}`}
-                                                      options={fsrOptions}
-                                                      value={
-                                                        assignmentEditForm.assigneeIds ??
-                                                        []
-                                                      }
-                                                      onValueChange={(ids) =>
-                                                        setAssignmentEditForm({
-                                                          ...assignmentEditForm,
-                                                          assigneeIds: ids,
-                                                        })
-                                                      }
-                                                      placeholder="Seleccionar FSRs"
-                                                      searchPlaceholder="Buscar FSR..."
-                                                    />
-                                                  </div>
-                                                  <div className="space-y-2">
-                                                    <Label
-                                                      htmlFor={`wo-status-${assignment.id}`}
-                                                    >
-                                                      Estado
-                                                    </Label>
-                                                    <Select
-                                                      value={
-                                                        assignmentEditForm.statusId?.toString() ||
-                                                        ""
-                                                      }
-                                                      onValueChange={(value) =>
-                                                        setAssignmentEditForm({
-                                                          ...assignmentEditForm,
-                                                          statusId: value,
-                                                        })
-                                                      }
-                                                    >
-                                                      <SelectTrigger
-                                                        id={`wo-status-${assignment.id}`}
-                                                      >
-                                                        <SelectValue placeholder="Seleccionar estado" />
-                                                      </SelectTrigger>
-                                                      <SelectContent>
-                                                        {incidentStatuses.map(
-                                                          (status) => (
-                                                            <SelectItem
-                                                              key={status.id}
-                                                              value={status.id.toString()}
-                                                            >
-                                                              {status.name}
-                                                            </SelectItem>
-                                                          ),
-                                                        )}
-                                                      </SelectContent>
-                                                    </Select>
-                                                  </div>
-                                                  <div className="space-y-2">
-                                                    <Label
-                                                      htmlFor={`wo-started-${assignment.id}`}
-                                                    >
-                                                      Fecha y Hora de Inicio
-                                                    </Label>
-                                                    <Input
-                                                      id={`wo-started-${assignment.id}`}
-                                                      type="datetime-local"
-                                                      value={
-                                                        assignmentEditForm.startedAt
-                                                      }
-                                                      onChange={(e) =>
-                                                        setAssignmentEditForm({
-                                                          ...assignmentEditForm,
-                                                          startedAt:
-                                                            e.target.value,
-                                                        })
-                                                      }
-                                                    />
-                                                  </div>
-                                                  <div className="space-y-2">
-                                                    <Label
-                                                      htmlFor={`wo-finished-${assignment.id}`}
-                                                    >
-                                                      Fecha y Hora de Fin
-                                                    </Label>
-                                                    <Input
-                                                      id={`wo-finished-${assignment.id}`}
-                                                      type="datetime-local"
-                                                      value={
-                                                        assignmentEditForm.finishedAt
-                                                      }
-                                                      onChange={(e) =>
-                                                        setAssignmentEditForm({
-                                                          ...assignmentEditForm,
-                                                          finishedAt:
-                                                            e.target.value,
-                                                        })
-                                                      }
-                                                    />
-                                                  </div>
-                                                </div>
-                                              </div>
-                                            )}
-                                          </div>
-
-                                          <div className="flex items-center gap-2">
-                                            {editingAssignment ===
-                                            assignment.id ? (
-                                              <>
-                                                <Button
-                                                  variant="outline"
-                                                  size="sm"
-                                                  onClick={() =>
-                                                    handleCancelAssignmentEdit(
-                                                      assignment.id,
-                                                    )
-                                                  }
-                                                  disabled={
-                                                    savingAssignment ===
-                                                    assignment.id
-                                                  }
-                                                >
-                                                  <XIcon className="h-4 w-4 mr-2" />
-                                                  Cancelar
-                                                </Button>
-                                                <Button
-                                                  size="sm"
-                                                  onClick={() =>
-                                                    handleSaveAssignment(
-                                                      assignment.id,
-                                                    )
-                                                  }
-                                                  disabled={
-                                                    savingAssignment ===
-                                                    assignment.id
-                                                  }
-                                                >
-                                                  <Save className="h-4 w-4 mr-2" />
-                                                  {savingAssignment ===
-                                                  assignment.id
-                                                    ? "Guardando..."
-                                                    : "Guardar"}
-                                                </Button>
-                                              </>
-                                            ) : (
-                                              <>
-                                                <Button
-                                                  variant="outline"
-                                                  size="sm"
-                                                  onClick={() =>
-                                                    handleEditAssignment(
-                                                      assignment,
-                                                    )
-                                                  }
-                                                >
-                                                  <Edit className="h-4 w-4 mr-2" />
-                                                  Edición Rápida
-                                                </Button>
-                                                <DropdownMenu>
-                                                  <DropdownMenuTrigger asChild>
-                                                    <Button
-                                                      variant="outline"
-                                                      size="sm"
-                                                    >
-                                                      <MoreHorizontal className="h-4 w-4" />
-                                                    </Button>
-                                                  </DropdownMenuTrigger>
-                                                  <DropdownMenuContent align="end">
-                                                    <DropdownMenuItem asChild>
-                                                      <Link
-                                                        href={`/admin/assignments/${assignment.id}`}
-                                                      >
-                                                        <Eye className="h-4 w-4 mr-2" />
-                                                        Ver Asignación
-                                                      </Link>
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuItem asChild>
-                                                      <Link
-                                                        href={`/admin/assignments/${assignment.id}/edit`}
-                                                      >
-                                                        <Edit className="h-4 w-4 mr-2" />
-                                                        Edición Completa
-                                                      </Link>
-                                                    </DropdownMenuItem>
-                                                  </DropdownMenuContent>
-                                                </DropdownMenu>
-                                              </>
-                                            )}
-                                          </div>
-                                        </div>
-
-                                        {assignment.notes && (
-                                          <div className="text-sm pt-2 border-t">
-                                            <span className="font-medium">
-                                              Notas:
-                                            </span>{" "}
-                                            {assignment.notes}
-                                          </div>
-                                        )}
-                                      </div>
-                                    ),
-                                  )}
+                              {/* Create Assignment Form */}
+                              {creatingAssignment === incident.id && (
+                                <div className="p-4 bg-background rounded-lg border space-y-4 mb-3">
+                                  <h5 className="font-medium">
+                                    Nueva Asignación
+                                  </h5>
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                      <Label htmlFor={`new-fsr-${incident.id}`}>
+                                        FSRs Asignados
+                                      </Label>
+                                      <MultiSelect
+                                        id={`new-fsr-${incident.id}`}
+                                        options={fsrOptions}
+                                        value={
+                                          newAssignmentForm.assigneeIds ?? []
+                                        }
+                                        onValueChange={(ids) =>
+                                          setNewAssignmentForm({
+                                            ...newAssignmentForm,
+                                            assigneeIds: ids,
+                                          })
+                                        }
+                                        placeholder="Seleccionar FSRs"
+                                        searchPlaceholder="Buscar FSR..."
+                                      />
+                                      {fsrOptions.length === 0 && (
+                                        <p className="text-xs text-muted-foreground">
+                                          No hay FSRs registrados
+                                        </p>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label htmlFor={`new-notes-${incident.id}`}>
+                                      Notas
+                                    </Label>
+                                    <Textarea
+                                      id={`new-notes-${incident.id}`}
+                                      value={newAssignmentForm.notes}
+                                      onChange={(e) =>
+                                        setNewAssignmentForm({
+                                          ...newAssignmentForm,
+                                          notes: e.target.value,
+                                        })
+                                      }
+                                      placeholder="Notas opcionales..."
+                                      rows={3}
+                                    />
+                                  </div>
+                                  <div className="flex justify-end gap-2">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={handleCancelCreateAssignment}
+                                      disabled={savingNewAssignment}
+                                    >
+                                      <XIcon className="h-4 w-4 mr-2" />
+                                      Cancelar
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      onClick={() =>
+                                        handleCreateAssignment(incident.id)
+                                      }
+                                      disabled={savingNewAssignment}
+                                    >
+                                      <Save className="h-4 w-4 mr-2" />
+                                      {savingNewAssignment
+                                        ? "Guardando..."
+                                        : "Crear Asignación"}
+                                    </Button>
+                                  </div>
                                 </div>
                               )}
+
+                              {/* Existing Assignments */}
+                              {incident.assignments &&
+                                incident.assignments.length > 0 && (
+                                  <div className="space-y-3">
+                                    {incident.assignments.map(
+                                      (assignment: TrackingAssignment) => (
+                                        <div
+                                          key={assignment.id}
+                                          className="p-4 bg-background rounded-lg border space-y-3"
+                                        >
+                                          <div className="flex items-start justify-between gap-4">
+                                            <div className="flex-1 space-y-2">
+                                              {editingAssignment !==
+                                                assignment.id && (
+                                                <div className="flex items-center gap-2 flex-wrap">
+                                                  <StatusBadge
+                                                    tone={
+                                                      (assignment.status
+                                                        ?.name &&
+                                                        assignmentStatusTone[
+                                                          assignment.status.name
+                                                        ]) ||
+                                                      "neutral"
+                                                    }
+                                                  >
+                                                    {assignment.status?.name
+                                                      ? assignmentStatusLabels[
+                                                          assignment.status.name
+                                                        ] ||
+                                                        assignment.status.name
+                                                      : "Sin estado"}
+                                                  </StatusBadge>
+                                                  {assignment.seenAt ? (
+                                                    <StatusBadge tone="success">
+                                                      <CheckCircle
+                                                        className="h-3 w-3 mr-1"
+                                                        aria-hidden
+                                                      />
+                                                      Desbloqueado
+                                                    </StatusBadge>
+                                                  ) : (
+                                                    <StatusBadge tone="warning">
+                                                      <Lock
+                                                        className="h-3 w-3 mr-1"
+                                                        aria-hidden
+                                                      />
+                                                      No Desbloqueado
+                                                    </StatusBadge>
+                                                  )}
+                                                  {assignment.createdAt && (
+                                                    <span className="text-sm text-muted-foreground">
+                                                      Creado:{" "}
+                                                      {formatDate(
+                                                        assignment.createdAt,
+                                                      )}{" "}
+                                                      -{" "}
+                                                      {formatTime(
+                                                        assignment.createdAt,
+                                                      )}
+                                                    </span>
+                                                  )}
+                                                </div>
+                                              )}
+
+                                              {editingAssignment !==
+                                                assignment.id && (
+                                                <>
+                                                  <div className="flex items-center gap-2">
+                                                    <span className="text-sm font-medium shrink-0">
+                                                      Fecha Inicio:
+                                                    </span>
+                                                    <span className="text-sm text-muted-foreground">
+                                                      {assignment.startedAt
+                                                        ? `${formatDate(assignment.startedAt)} - ${formatTime(assignment.startedAt)}`
+                                                        : "-"}
+                                                    </span>
+                                                  </div>
+
+                                                  <div className="flex items-center gap-2">
+                                                    <span className="text-sm font-medium shrink-0">
+                                                      Fecha Fin:
+                                                    </span>
+                                                    <span className="text-sm text-muted-foreground">
+                                                      {assignment.finishedAt
+                                                        ? `${formatDate(assignment.finishedAt)} - ${formatTime(assignment.finishedAt)}`
+                                                        : "-"}
+                                                    </span>
+                                                  </div>
+                                                </>
+                                              )}
+
+                                              {assignment.folio && (
+                                                <div className="flex items-center gap-2">
+                                                  <span className="text-sm font-medium shrink-0">
+                                                    Folio:
+                                                  </span>
+                                                  <Badge
+                                                    variant="outline"
+                                                    className="text-sm"
+                                                  >
+                                                    AS-{assignment.folio}
+                                                  </Badge>
+                                                </div>
+                                              )}
+
+                                              {editingAssignment !==
+                                                assignment.id && (
+                                                <div className="flex items-center gap-2">
+                                                  <span className="text-sm font-medium shrink-0">
+                                                    FSR Asignado:
+                                                  </span>
+                                                  <span className="text-sm">
+                                                    <User className="h-4 w-4 inline mr-2" />
+                                                    {assignment.assignees
+                                                      ?.map((a) => a.user.name)
+                                                      .join(", ") ||
+                                                      "Sin asignar"}
+                                                  </span>
+                                                </div>
+                                              )}
+
+                                              {editingAssignment ===
+                                                assignment.id && (
+                                                <div className="space-y-3 pt-3 border-t">
+                                                  <h5 className="font-semibold text-sm">
+                                                    Editar Asignación
+                                                  </h5>
+                                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                                    <div className="space-y-2">
+                                                      <Label
+                                                        htmlFor={`wo-fsr-${assignment.id}`}
+                                                      >
+                                                        FSRs Asignados
+                                                      </Label>
+                                                      <MultiSelect
+                                                        id={`wo-fsr-${assignment.id}`}
+                                                        options={fsrOptions}
+                                                        value={
+                                                          assignmentEditForm.assigneeIds ??
+                                                          []
+                                                        }
+                                                        onValueChange={(ids) =>
+                                                          setAssignmentEditForm(
+                                                            {
+                                                              ...assignmentEditForm,
+                                                              assigneeIds: ids,
+                                                            },
+                                                          )
+                                                        }
+                                                        placeholder="Seleccionar FSRs"
+                                                        searchPlaceholder="Buscar FSR..."
+                                                      />
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                      <Label
+                                                        htmlFor={`wo-status-${assignment.id}`}
+                                                      >
+                                                        Estado
+                                                      </Label>
+                                                      <Select
+                                                        value={
+                                                          assignmentEditForm.statusId?.toString() ||
+                                                          ""
+                                                        }
+                                                        onValueChange={(
+                                                          value,
+                                                        ) =>
+                                                          setAssignmentEditForm(
+                                                            {
+                                                              ...assignmentEditForm,
+                                                              statusId: value,
+                                                            },
+                                                          )
+                                                        }
+                                                      >
+                                                        <SelectTrigger
+                                                          id={`wo-status-${assignment.id}`}
+                                                        >
+                                                          <SelectValue placeholder="Seleccionar estado" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                          {incidentStatuses.map(
+                                                            (status) => (
+                                                              <SelectItem
+                                                                key={status.id}
+                                                                value={status.id.toString()}
+                                                              >
+                                                                {status.name}
+                                                              </SelectItem>
+                                                            ),
+                                                          )}
+                                                        </SelectContent>
+                                                      </Select>
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                      <Label
+                                                        htmlFor={`wo-started-${assignment.id}`}
+                                                      >
+                                                        Fecha y Hora de Inicio
+                                                      </Label>
+                                                      <Input
+                                                        id={`wo-started-${assignment.id}`}
+                                                        type="datetime-local"
+                                                        value={
+                                                          assignmentEditForm.startedAt
+                                                        }
+                                                        onChange={(e) =>
+                                                          setAssignmentEditForm(
+                                                            {
+                                                              ...assignmentEditForm,
+                                                              startedAt:
+                                                                e.target.value,
+                                                            },
+                                                          )
+                                                        }
+                                                      />
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                      <Label
+                                                        htmlFor={`wo-finished-${assignment.id}`}
+                                                      >
+                                                        Fecha y Hora de Fin
+                                                      </Label>
+                                                      <Input
+                                                        id={`wo-finished-${assignment.id}`}
+                                                        type="datetime-local"
+                                                        value={
+                                                          assignmentEditForm.finishedAt
+                                                        }
+                                                        onChange={(e) =>
+                                                          setAssignmentEditForm(
+                                                            {
+                                                              ...assignmentEditForm,
+                                                              finishedAt:
+                                                                e.target.value,
+                                                            },
+                                                          )
+                                                        }
+                                                      />
+                                                    </div>
+                                                  </div>
+                                                </div>
+                                              )}
+                                            </div>
+
+                                            <div className="flex items-center gap-2">
+                                              {editingAssignment ===
+                                              assignment.id ? (
+                                                <>
+                                                  <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() =>
+                                                      handleCancelAssignmentEdit(
+                                                        assignment.id,
+                                                      )
+                                                    }
+                                                    disabled={
+                                                      savingAssignment ===
+                                                      assignment.id
+                                                    }
+                                                  >
+                                                    <XIcon className="h-4 w-4 mr-2" />
+                                                    Cancelar
+                                                  </Button>
+                                                  <Button
+                                                    size="sm"
+                                                    onClick={() =>
+                                                      handleSaveAssignment(
+                                                        assignment.id,
+                                                      )
+                                                    }
+                                                    disabled={
+                                                      savingAssignment ===
+                                                      assignment.id
+                                                    }
+                                                  >
+                                                    <Save className="h-4 w-4 mr-2" />
+                                                    {savingAssignment ===
+                                                    assignment.id
+                                                      ? "Guardando..."
+                                                      : "Guardar"}
+                                                  </Button>
+                                                </>
+                                              ) : (
+                                                <>
+                                                  <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() =>
+                                                      handleEditAssignment(
+                                                        assignment,
+                                                      )
+                                                    }
+                                                  >
+                                                    <Edit className="h-4 w-4 mr-2" />
+                                                    Edición Rápida
+                                                  </Button>
+                                                  <DropdownMenu>
+                                                    <DropdownMenuTrigger
+                                                      asChild
+                                                    >
+                                                      <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                      >
+                                                        <MoreHorizontal className="h-4 w-4" />
+                                                      </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end">
+                                                      <DropdownMenuItem asChild>
+                                                        <Link
+                                                          href={`/admin/assignments/${assignment.id}`}
+                                                        >
+                                                          <Eye className="h-4 w-4 mr-2" />
+                                                          Ver Asignación
+                                                        </Link>
+                                                      </DropdownMenuItem>
+                                                      <DropdownMenuItem asChild>
+                                                        <Link
+                                                          href={`/admin/assignments/${assignment.id}/edit`}
+                                                        >
+                                                          <Edit className="h-4 w-4 mr-2" />
+                                                          Edición Completa
+                                                        </Link>
+                                                      </DropdownMenuItem>
+                                                    </DropdownMenuContent>
+                                                  </DropdownMenu>
+                                                </>
+                                              )}
+                                            </div>
+                                          </div>
+
+                                          {assignment.notes && (
+                                            <div className="text-sm pt-2 border-t">
+                                              <span className="font-medium">
+                                                Notas:
+                                              </span>{" "}
+                                              {assignment.notes}
+                                            </div>
+                                          )}
+                                        </div>
+                                      ),
+                                    )}
+                                  </div>
+                                )}
+                            </div>
                           </div>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </React.Fragment>
-              );
-            })
-          )}
-        </TableBody>
-      </Table>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </React.Fragment>
+                );
+              })
+            )}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 }

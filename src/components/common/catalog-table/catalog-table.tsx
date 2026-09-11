@@ -49,6 +49,7 @@ export function CatalogTable<T>({
   onItemsPerPageChange,
   loading = false,
   emptyMessage = "Sin resultados.",
+  mobileCard,
 }: CatalogTableProps<T>) {
   // Internal confirm dialog state.
   const [pendingAction, setPendingAction] = useState<{
@@ -126,65 +127,110 @@ export function CatalogTable<T>({
         </div>
       )}
 
-      {/* Table */}
-      <Table>
-        <TableHeader>
-          <TableRow>
-            {columns.map((col, idx) => (
-              <TableHead
-                // biome-ignore lint/suspicious/noArrayIndexKey: static column order
-                key={idx}
-                className={col.headerClassName}
-              >
-                {col.header}
-              </TableHead>
-            ))}
-            {actions && actions.length > 0 && (
-              <TableHead className="text-right">Acciones</TableHead>
-            )}
-          </TableRow>
-        </TableHeader>
-
-        <TableBody>
-          {loading ? (
+      {/* Table (desktop, or all sizes when no mobileCard is given) */}
+      {mobileCard && !loading && data.length > 0 && (
+        <ul className="space-y-3 md:hidden">
+          {data.map((row) => (
+            <li key={rowKey(row)}>{mobileCard(row)}</li>
+          ))}
+        </ul>
+      )}
+      {mobileCard && !loading && data.length === 0 && (
+        <div className="rounded-lg border border-dashed px-6 py-8 text-center text-sm text-muted-foreground md:hidden">
+          {emptyMessage}
+        </div>
+      )}
+      <div
+        className={
+          mobileCard ? "hidden overflow-x-auto md:block" : "overflow-x-auto"
+        }
+      >
+        <Table>
+          <TableHeader>
             <TableRow>
-              <TableCell colSpan={colSpan} className="h-24 text-center">
-                <div className="flex justify-center">
-                  <Spinner text="Cargando..." />
-                </div>
-              </TableCell>
+              {columns.map((col, idx) => (
+                <TableHead
+                  // biome-ignore lint/suspicious/noArrayIndexKey: static column order
+                  key={idx}
+                  className={col.headerClassName}
+                >
+                  {col.header}
+                </TableHead>
+              ))}
+              {actions && actions.length > 0 && (
+                <TableHead className="text-right">Acciones</TableHead>
+              )}
             </TableRow>
-          ) : data.length === 0 ? (
-            <TableRow>
-              <TableCell
-                colSpan={colSpan}
-                className="h-24 text-center text-muted-foreground"
-              >
-                {emptyMessage}
-              </TableCell>
-            </TableRow>
-          ) : (
-            data.map((row) => (
-              <TableRow key={rowKey(row)}>
-                {columns.map((col, colIdx) => (
-                  <TableCell
-                    // biome-ignore lint/suspicious/noArrayIndexKey: static column order
-                    key={colIdx}
-                    className={col.className}
-                  >
-                    {col.cell(row)}
-                  </TableCell>
-                ))}
+          </TableHeader>
 
-                {actions && actions.length > 0 && (
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      {actions.map((action, actionIdx) => {
-                        const isDisabled = action.disabled?.(row) ?? false;
-                        const Icon = action.icon;
+          <TableBody>
+            {loading ? (
+              <TableRow>
+                <TableCell colSpan={colSpan} className="h-24 text-center">
+                  <div className="flex justify-center">
+                    <Spinner text="Cargando..." />
+                  </div>
+                </TableCell>
+              </TableRow>
+            ) : data.length === 0 ? (
+              <TableRow>
+                <TableCell
+                  colSpan={colSpan}
+                  className="h-24 text-center text-muted-foreground"
+                >
+                  {emptyMessage}
+                </TableCell>
+              </TableRow>
+            ) : (
+              data.map((row) => (
+                <TableRow key={rowKey(row)}>
+                  {columns.map((col, colIdx) => (
+                    <TableCell
+                      // biome-ignore lint/suspicious/noArrayIndexKey: static column order
+                      key={colIdx}
+                      className={col.className}
+                    >
+                      {col.cell(row)}
+                    </TableCell>
+                  ))}
 
-                        if (action.href) {
-                          const href = action.href(row);
+                  {actions && actions.length > 0 && (
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        {actions.map((action, actionIdx) => {
+                          const isDisabled = action.disabled?.(row) ?? false;
+                          const Icon = action.icon;
+
+                          if (action.href) {
+                            const href = action.href(row);
+                            return (
+                              <Tooltip
+                                // biome-ignore lint/suspicious/noArrayIndexKey: static action order
+                                key={actionIdx}
+                              >
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    asChild
+                                    aria-label={action.label}
+                                    aria-disabled={isDisabled}
+                                    className={
+                                      isDisabled
+                                        ? "pointer-events-none opacity-50"
+                                        : undefined
+                                    }
+                                  >
+                                    <Link href={href} aria-label={action.label}>
+                                      <Icon className="h-4 w-4" />
+                                    </Link>
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>{action.label}</TooltipContent>
+                              </Tooltip>
+                            );
+                          }
+
                           return (
                             <Tooltip
                               // biome-ignore lint/suspicious/noArrayIndexKey: static action order
@@ -194,53 +240,26 @@ export function CatalogTable<T>({
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  asChild
                                   aria-label={action.label}
-                                  aria-disabled={isDisabled}
-                                  className={
-                                    isDisabled
-                                      ? "pointer-events-none opacity-50"
-                                      : undefined
-                                  }
+                                  disabled={isDisabled}
+                                  onClick={() => handleActionClick(action, row)}
                                 >
-                                  <Link href={href} aria-label={action.label}>
-                                    <Icon className="h-4 w-4" />
-                                  </Link>
+                                  <Icon className="h-4 w-4" />
                                 </Button>
                               </TooltipTrigger>
                               <TooltipContent>{action.label}</TooltipContent>
                             </Tooltip>
                           );
-                        }
-
-                        return (
-                          <Tooltip
-                            // biome-ignore lint/suspicious/noArrayIndexKey: static action order
-                            key={actionIdx}
-                          >
-                            <TooltipTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                aria-label={action.label}
-                                disabled={isDisabled}
-                                onClick={() => handleActionClick(action, row)}
-                              >
-                                <Icon className="h-4 w-4" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>{action.label}</TooltipContent>
-                          </Tooltip>
-                        );
-                      })}
-                    </div>
-                  </TableCell>
-                )}
-              </TableRow>
-            ))
-          )}
-        </TableBody>
-      </Table>
+                        })}
+                      </div>
+                    </TableCell>
+                  )}
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
 
       {/* Pagination — rendered only when all pagination props are present and there are multiple pages */}
       {paginationReady && (

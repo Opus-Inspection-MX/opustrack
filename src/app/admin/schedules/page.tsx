@@ -4,6 +4,10 @@ import { Calendar, Plus, Search } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { QuickEditScheduleDialog } from "@/components/admin/schedules/quick-edit-schedule-dialog";
+import { FilterBar } from "@/components/common/filter-bar";
+import { PageContainer } from "@/components/common/page-container";
+import { PageHeader } from "@/components/common/page-header";
+import { TableSkeleton } from "@/components/common/skeletons";
 import { ScheduleTable } from "@/components/schedules/schedule-table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,7 +20,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/hooks/use-toast";
 import { isFailure } from "@/lib/actions/result";
 import { deleteSchedule, getSchedules } from "@/lib/actions/schedules";
@@ -214,120 +217,160 @@ export default function SchedulesPage() {
     setCurrentPage(1); // Reset to first page on filter change
   };
 
+  const clearFilters = () => {
+    setSearchQuery("");
+    setSelectedCliente("all");
+    setSelectedStatus("all");
+    setStartDate("");
+    setEndDate("");
+    setCurrentPage(1);
+  };
+
+  const activeFilterCount =
+    (searchQuery ? 1 : 0) +
+    (selectedCliente !== "all" ? 1 : 0) +
+    (selectedStatus !== "all" ? 1 : 0) +
+    (startDate || endDate ? 1 : 0);
+
   if (isLoading && schedules.length === 0) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Spinner size="lg" text="Cargando programaciones..." />
-      </div>
+      <PageContainer>
+        <PageHeader
+          title="Programación"
+          description="Gestionar programaciones de mantenimiento y actividades planificadas"
+        />
+        <TableSkeleton rows={5} />
+      </PageContainer>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Programación</h1>
-          <p className="text-muted-foreground">
-            Gestionar programaciones de mantenimiento y actividades planificadas
-          </p>
-        </div>
-        <Button onClick={() => router.push("/admin/schedules/new")}>
-          <Plus className="mr-2 h-4 w-4" />
-          Nueva Programación
-        </Button>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Programación"
+        description="Gestionar programaciones de mantenimiento y actividades planificadas"
+        actions={
+          <Button
+            onClick={() => router.push("/admin/schedules/new")}
+            className="min-h-[44px] w-full sm:w-auto"
+          >
+            <Plus className="mr-2 h-4 w-4" aria-hidden />
+            Nueva Programación
+          </Button>
+        }
+      />
 
       {/* Filters */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="space-y-2">
-          <Label className="text-xs font-medium">Buscar</Label>
-          <div className="relative">
-            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar por título o descripción..."
-              value={searchQuery}
-              onChange={(e) => handleSearch(e.target.value)}
-              className="pl-8"
-            />
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <Label className="text-xs font-medium">Cliente</Label>
-          <Select
-            value={selectedCliente}
-            onValueChange={(value) => {
-              setSelectedCliente(value);
-              handleFilterChange();
-            }}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos los Clientes</SelectItem>
-              {clients.map((client) => (
-                <SelectItem key={client.id} value={client.id}>
-                  {client.name} ({client.code})
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-2">
-          <Label className="text-xs font-medium">Estado</Label>
-          <Select
-            value={selectedStatus}
-            onValueChange={(value) => {
-              setSelectedStatus(value);
-              handleFilterChange();
-            }}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos los estados</SelectItem>
-              {statuses.map((status) => (
-                <SelectItem key={status.id} value={status.id.toString()}>
-                  {status.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-2">
-          <Label className="text-xs font-medium">Rango de Fechas</Label>
-          <div className="flex gap-2">
-            <div className="relative flex-1">
-              <Calendar className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-              <Input
-                type="date"
-                value={startDate}
-                onChange={(e) => {
-                  setStartDate(e.target.value);
-                  handleFilterChange();
-                }}
-                className="pl-8"
+      <FilterBar activeCount={activeFilterCount} onClear={clearFilters}>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="space-y-2">
+            <Label className="text-xs font-medium" htmlFor="schedule-search">
+              Buscar
+            </Label>
+            <div className="relative">
+              <Search
+                className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"
+                aria-hidden
               />
-            </div>
-            <div className="relative flex-1">
-              <Calendar className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
               <Input
-                type="date"
-                value={endDate}
-                onChange={(e) => {
-                  setEndDate(e.target.value);
-                  handleFilterChange();
-                }}
+                id="schedule-search"
+                placeholder="Buscar por título o descripción..."
+                value={searchQuery}
+                onChange={(e) => handleSearch(e.target.value)}
                 className="pl-8"
               />
             </div>
           </div>
+
+          <div className="space-y-2">
+            <Label className="text-xs font-medium" htmlFor="schedule-client">
+              Cliente
+            </Label>
+            <Select
+              value={selectedCliente}
+              onValueChange={(value) => {
+                setSelectedCliente(value);
+                handleFilterChange();
+              }}
+            >
+              <SelectTrigger id="schedule-client" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos los Clientes</SelectItem>
+                {clients.map((client) => (
+                  <SelectItem key={client.id} value={client.id}>
+                    {client.name} ({client.code})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-xs font-medium" htmlFor="schedule-status">
+              Estado
+            </Label>
+            <Select
+              value={selectedStatus}
+              onValueChange={(value) => {
+                setSelectedStatus(value);
+                handleFilterChange();
+              }}
+            >
+              <SelectTrigger id="schedule-status" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos los estados</SelectItem>
+                {statuses.map((status) => (
+                  <SelectItem key={status.id} value={status.id.toString()}>
+                    {status.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-xs font-medium">Rango de Fechas</Label>
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Calendar
+                  className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none"
+                  aria-hidden
+                />
+                <Input
+                  type="date"
+                  value={startDate}
+                  aria-label="Fecha de inicio"
+                  onChange={(e) => {
+                    setStartDate(e.target.value);
+                    handleFilterChange();
+                  }}
+                  className="pl-8"
+                />
+              </div>
+              <div className="relative flex-1">
+                <Calendar
+                  className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none"
+                  aria-hidden
+                />
+                <Input
+                  type="date"
+                  value={endDate}
+                  aria-label="Fecha de fin"
+                  onChange={(e) => {
+                    setEndDate(e.target.value);
+                    handleFilterChange();
+                  }}
+                  className="pl-8"
+                />
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
+      </FilterBar>
 
       <ScheduleTable
         data={schedules}
@@ -363,6 +406,6 @@ export default function SchedulesPage() {
           }}
         />
       )}
-    </div>
+    </PageContainer>
   );
 }
