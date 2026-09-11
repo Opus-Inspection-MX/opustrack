@@ -77,9 +77,12 @@ const SCOPE_EVIDENCE = [
  */
 const ALLOWLIST: Record<string, string> = {
   // Global catalogs: no clientId anywhere in their schema.
-  "holidays.ts :: getHolidayById": "global catalog: holidays are system-wide dates",
-  "holidays.ts :: updateHoliday": "global catalog: holidays are system-wide dates",
-  "holidays.ts :: deleteHoliday": "global catalog: holidays are system-wide dates",
+  "holidays.ts :: getHolidayById":
+    "global catalog: holidays are system-wide dates",
+  "holidays.ts :: updateHoliday":
+    "global catalog: holidays are system-wide dates",
+  "holidays.ts :: deleteHoliday":
+    "global catalog: holidays are system-wide dates",
   "lookups.ts :: getStateById": "global catalog: shared lookup tables",
   "lookups.ts :: updateState": "global catalog: shared lookup tables",
   "lookups.ts :: deleteState": "global catalog: shared lookup tables",
@@ -92,63 +95,105 @@ const ALLOWLIST: Record<string, string> = {
   "lookups.ts :: getIncidentStatusById": "global catalog: shared lookup tables",
   "lookups.ts :: updateIncidentStatus": "global catalog: shared lookup tables",
   "lookups.ts :: deleteIncidentStatus": "global catalog: shared lookup tables",
-  "lookups.ts :: getAssignmentStatusById": "global catalog: shared lookup tables",
-  "lookups.ts :: updateAssignmentStatus": "global catalog: shared lookup tables",
-  "lookups.ts :: deleteAssignmentStatus": "global catalog: shared lookup tables",
-  "lookups.ts :: getEquipmentStatusById": "global catalog: shared lookup tables",
+  "lookups.ts :: getAssignmentStatusById":
+    "global catalog: shared lookup tables",
+  "lookups.ts :: updateAssignmentStatus":
+    "global catalog: shared lookup tables",
+  "lookups.ts :: deleteAssignmentStatus":
+    "global catalog: shared lookup tables",
+  "lookups.ts :: getEquipmentStatusById":
+    "global catalog: shared lookup tables",
   "lookups.ts :: updateEquipmentStatus": "global catalog: shared lookup tables",
   "lookups.ts :: deleteEquipmentStatus": "global catalog: shared lookup tables",
   "lookups.ts :: getVehicleStatusById": "global catalog: shared lookup tables",
   "lookups.ts :: updateVehicleStatus": "global catalog: shared lookup tables",
   "lookups.ts :: deleteVehicleStatus": "global catalog: shared lookup tables",
-  "lookups.ts :: getVehicleTripStatusById": "global catalog: shared lookup tables",
-  "lookups.ts :: updateVehicleTripStatus": "global catalog: shared lookup tables",
-  "lookups.ts :: deleteVehicleTripStatus": "global catalog: shared lookup tables",
-  "lookups.ts :: deletePermission": "permission catalog admin: global, ROOT-administered",
-  "vacation-accrual-rules.ts :: getAccrualRuleById": "global config: accrual rules apply to everyone",
-  "vacation-accrual-rules.ts :: updateAccrualRule": "global config: accrual rules apply to everyone",
-  "vacation-accrual-rules.ts :: deleteAccrualRule": "global config: accrual rules apply to everyone",
-  "vehicles.ts :: getVehicleById": "global catalog: the fleet has no Client dimension",
-  "vehicles.ts :: updateVehicle": "global catalog: the fleet has no Client dimension",
-  "vehicles.ts :: deleteVehicle": "global catalog: the fleet has no Client dimension",
-  "vehicles.ts :: updateVehicleStatus": "global catalog: the fleet has no Client dimension",
-  "broadcasts.ts :: updateBroadcast": "global: broadcasts target roles, no Client dimension",
-  "broadcasts.ts :: cancelBroadcast": "global: broadcasts target roles, no Client dimension",
-  "broadcasts.ts :: getRoleBroadcastTargets": "role broadcast config: targets are roles, no Client dimension",
-  "broadcasts.ts :: setRoleBroadcastTargets": "role broadcast config: targets are roles, no Client dimension",
-  "notification-settings.ts :: retryFailedEmail": "global ops: email outbox retry, no Client dimension",
-  "vacations.ts :: updatePeriodOverride": "global payroll config: accrual periods, no Client dimension",
+  "lookups.ts :: getVehicleTripStatusById":
+    "global catalog: shared lookup tables",
+  "lookups.ts :: updateVehicleTripStatus":
+    "global catalog: shared lookup tables",
+  "lookups.ts :: deleteVehicleTripStatus":
+    "global catalog: shared lookup tables",
+  "lookups.ts :: deletePermission":
+    "permission catalog admin: global, ROOT-administered",
+  "vacation-accrual-rules.ts :: getAccrualRuleById":
+    "global config: accrual rules apply to everyone",
+  "vacation-accrual-rules.ts :: updateAccrualRule":
+    "global config: accrual rules apply to everyone",
+  "vacation-accrual-rules.ts :: deleteAccrualRule":
+    "global config: accrual rules apply to everyone",
+  "vehicles.ts :: getVehicleById":
+    "global catalog: the fleet has no Client dimension",
+  "vehicles.ts :: updateVehicle":
+    "global catalog: the fleet has no Client dimension",
+  "vehicles.ts :: deleteVehicle":
+    "global catalog: the fleet has no Client dimension",
+  "vehicles.ts :: updateVehicleStatus":
+    "global catalog: the fleet has no Client dimension",
+  "broadcasts.ts :: updateBroadcast":
+    "global: broadcasts target roles, no Client dimension",
+  "broadcasts.ts :: cancelBroadcast":
+    "global: broadcasts target roles, no Client dimension",
+  "broadcasts.ts :: getRoleBroadcastTargets":
+    "role broadcast config: targets are roles, no Client dimension",
+  "broadcasts.ts :: setRoleBroadcastTargets":
+    "role broadcast config: targets are roles, no Client dimension",
+  "notification-settings.ts :: retryFailedEmail":
+    "global ops: email outbox retry, no Client dimension",
+  "vacations.ts :: updatePeriodOverride":
+    "global payroll config: accrual periods, no Client dimension",
   // Own data: ownership enforced with the caller's id.
-  "notifications.ts :: markNotificationAsRead": "own data: ownership enforced with user.id in the notification service",
-  "notifications.ts :: deleteMyNotification": "own data: ownership enforced with user.id in the notification service",
+  "notifications.ts :: markNotificationAsRead":
+    "own data: ownership enforced with user.id in the notification service",
+  "notifications.ts :: deleteMyNotification":
+    "own data: ownership enforced with user.id in the notification service",
   // Vacation administration: vacations are per-user rows, no Client dimension.
-  "vacations.ts :: approveVacation": "vacation admin flow (vacations:approve); vacations have no Client dimension",
-  "vacations.ts :: rejectVacation": "vacation admin flow (vacations:approve); vacations have no Client dimension",
-  "vacations.ts :: getVacationApprovalConflicts": "vacation approval helper (vacations:approve); conflict check over assignee userIds",
+  "vacations.ts :: approveVacation":
+    "vacation admin flow (vacations:approve); vacations have no Client dimension",
+  "vacations.ts :: rejectVacation":
+    "vacation admin flow (vacations:approve); vacations have no Client dimension",
+  "vacations.ts :: getVacationApprovalConflicts":
+    "vacation approval helper (vacations:approve); conflict check over assignee userIds",
   // User and role administration (users:read scoping is decision #1, pending).
-  "users.ts :: getUserById": "user admin: personnel roster scoping is decision #1 (pending); users:read untouched in 0c",
-  "users.ts :: updateUser": "user admin: personnel roster scoping is decision #1 (pending); client logic lives in a shared helper, not a per-id gate",
-  "users.ts :: deleteUser": "user admin: personnel roster scoping is decision #1 (pending); users:delete held by ROOT",
+  "users.ts :: getUserById":
+    "user admin: personnel roster scoping is decision #1 (pending); users:read untouched in 0c",
+  "users.ts :: updateUser":
+    "user admin: personnel roster scoping is decision #1 (pending); client logic lives in a shared helper, not a per-id gate",
+  "users.ts :: deleteUser":
+    "user admin: personnel roster scoping is decision #1 (pending); users:delete held by ROOT",
   "roles.ts :: getRoleById": "role admin: roles are global, ROOT-administered",
   "roles.ts :: updateRole": "role admin: roles are global, ROOT-administered",
   "roles.ts :: deleteRole": "role admin: roles are global, ROOT-administered",
-  "roles.ts :: assignPermissionsToRole": "role admin: roles are global, ROOT-administered",
+  "roles.ts :: assignPermissionsToRole":
+    "role admin: roles are global, ROOT-administered",
   // Tenant administration: the Client itself is not inside a scope.
-  "clients.ts :: updateClient": "tenant admin: clients:update held only by scope-unrestricted roles",
-  "clients.ts :: deleteClient": "tenant admin: clients:delete held only by scope-unrestricted roles",
+  "clients.ts :: updateClient":
+    "tenant admin: clients:update held only by scope-unrestricted roles",
+  "clients.ts :: deleteClient":
+    "tenant admin: clients:delete held only by scope-unrestricted roles",
   // Id guards explicitly deferred: permission held only by scope-unrestricted
   // roles (or nobody) today, so no live hole — but roles are UI-editable
   // (H-09), so each lands in the Fase 2 real-SQL IDOR matrix, not here.
-  "assignments.ts :: deleteAssignment": "deferred: assignments:delete held only by scope-unrestricted roles; id guard lands with the Fase 2 IDOR matrix",
-  "assignments.ts :: reopenAssignment": "deferred: assignments:reopen held by no seeded role (H-06/0d); id guard lands with the Fase 2 IDOR matrix",
-  "incidents.ts :: cancelIncident": "deferred: incidents:cancel held by no seeded role (H-06/0d); id guard lands with the Fase 2 IDOR matrix",
-  "schedules.ts :: getScheduleById": "deferred: schedule row guard pending (writes already check the client list); full guard with the Fase 2 IDOR matrix",
-  "schedules.ts :: deleteSchedule": "deferred: schedule row guard pending; full guard with the Fase 2 IDOR matrix",
-  "tracking.ts :: assignFSRToIncident": "deferred: tracking:update held only by scope-unrestricted roles; id guard lands with the Fase 2 IDOR matrix",
-  "tracking.ts :: updateAssignmentAssignees": "deferred: tracking:update held only by scope-unrestricted roles; id guard lands with the Fase 2 IDOR matrix",
-  "tracking.ts :: updateIncidentDetails": "deferred: tracking:update held only by scope-unrestricted roles; id guard lands with the Fase 2 IDOR matrix",
-  "tracking.ts :: overrideIncidentStatus": "deferred: tracking:update held only by scope-unrestricted roles; id guard lands with the Fase 2 IDOR matrix",
-  "tracking.ts :: updateAssignmentDetails": "deferred: tracking:update held only by scope-unrestricted roles; id guard lands with the Fase 2 IDOR matrix",
+  "assignments.ts :: deleteAssignment":
+    "deferred: assignments:delete held only by scope-unrestricted roles; id guard lands with the Fase 2 IDOR matrix",
+  "assignments.ts :: reopenAssignment":
+    "deferred: assignments:reopen held by no seeded role (H-06/0d); id guard lands with the Fase 2 IDOR matrix",
+  "incidents.ts :: cancelIncident":
+    "deferred: incidents:cancel held by no seeded role (H-06/0d); id guard lands with the Fase 2 IDOR matrix",
+  "schedules.ts :: getScheduleById":
+    "deferred: schedule row guard pending (writes already check the client list); full guard with the Fase 2 IDOR matrix",
+  "schedules.ts :: deleteSchedule":
+    "deferred: schedule row guard pending; full guard with the Fase 2 IDOR matrix",
+  "tracking.ts :: assignFSRToIncident":
+    "deferred: tracking:update held only by scope-unrestricted roles; id guard lands with the Fase 2 IDOR matrix",
+  "tracking.ts :: updateAssignmentAssignees":
+    "deferred: tracking:update held only by scope-unrestricted roles; id guard lands with the Fase 2 IDOR matrix",
+  "tracking.ts :: updateIncidentDetails":
+    "deferred: tracking:update held only by scope-unrestricted roles; id guard lands with the Fase 2 IDOR matrix",
+  "tracking.ts :: overrideIncidentStatus":
+    "deferred: tracking:update held only by scope-unrestricted roles; id guard lands with the Fase 2 IDOR matrix",
+  "tracking.ts :: updateAssignmentDetails":
+    "deferred: tracking:update held only by scope-unrestricted roles; id guard lands with the Fase 2 IDOR matrix",
 };
 
 type Candidate = { file: string; action: string; region: string };

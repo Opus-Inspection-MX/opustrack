@@ -1,8 +1,8 @@
 import type { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { BusinessRuleError } from "@/lib/actions/result";
-import { withPermission } from "@/lib/auth/auth";
 import { assertBelongsToClient } from "@/lib/auth/access";
+import { withPermission } from "@/lib/auth/auth";
 import { getReportScope, incidentScopeWhere } from "@/lib/auth/report-scope";
 import { FALLBACK_INCIDENT_TYPE_NAME } from "@/lib/constants/incident-type";
 import { prisma } from "@/lib/database/prisma.singleton";

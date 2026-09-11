@@ -105,9 +105,7 @@ describe("withScope", () => {
     // H-02/H-18: spreading would let one side replace the other's
     // `clientId` key. AND-compose keeps both, so a requested client outside
     // the scope matches nothing instead of leaking.
-    expect(
-      withScope({ active: true }, { clientId: { in: ["c1"] } }),
-    ).toEqual({
+    expect(withScope({ active: true }, { clientId: { in: ["c1"] } })).toEqual({
       AND: [{ active: true }, { clientId: { in: ["c1"] } }],
     });
   });

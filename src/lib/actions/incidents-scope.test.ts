@@ -125,10 +125,7 @@ describe("createIncident scope (H-04)", () => {
 
   it("proves the schedule belongs to the incident Client", async () => {
     await createIncident({ ...base, clientId: C1, scheduleId: S1 });
-    expect(assertBelongsToClient).toHaveBeenCalledWith(
-      { scheduleId: S1 },
-      C1,
-    );
+    expect(assertBelongsToClient).toHaveBeenCalledWith({ scheduleId: S1 }, C1);
   });
 
   it("files under the caller unless they hold the cross-Client scope", async () => {

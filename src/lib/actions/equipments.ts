@@ -2,8 +2,12 @@
 
 import type { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
+import {
+  loadEquipmentFor,
+  loadLineFor,
+  requireClientAccess,
+} from "@/lib/auth/access";
 import { requirePermission } from "@/lib/auth/auth";
-import { loadEquipmentFor, loadLineFor, requireClientAccess } from "@/lib/auth/access";
 import { getReportScope } from "@/lib/auth/report-scope";
 import { prisma } from "@/lib/database/prisma.singleton";
 import { guarded, ok, rejected } from "./result";

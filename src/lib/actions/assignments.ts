@@ -3,11 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { resolveAssignmentStatusId } from "@/lib/assignments/ensure-fsrs";
+import { loadAssignmentFor, loadIncidentFor } from "@/lib/auth/access";
 import { requirePermission } from "@/lib/auth/auth";
-import {
-  loadAssignmentFor,
-  loadIncidentFor,
-} from "@/lib/auth/access";
 import { getReportScope, incidentScopeWhere } from "@/lib/auth/report-scope";
 import { whereHasRole } from "@/lib/authz/user-queries";
 import { prisma } from "@/lib/database/prisma.singleton";

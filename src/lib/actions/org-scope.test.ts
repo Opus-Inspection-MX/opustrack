@@ -37,11 +37,7 @@ vi.mock("@/lib/utils/client-assignments", () => ({ getUserClientIds }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
 import { getClientById, getClients, getClientsForSelect } from "./clients";
-import {
-  createEquipment,
-  getEquipmentById,
-  getEquipments,
-} from "./equipments";
+import { createEquipment, getEquipmentById, getEquipments } from "./equipments";
 import { createLine, getLineById, getLines, getLinesByClientId } from "./lines";
 
 const SCOPED = "c100000001";

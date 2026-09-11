@@ -1,8 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requirePermission } from "@/lib/auth/auth";
 import { loadAssignmentFor } from "@/lib/auth/access";
+import { requirePermission } from "@/lib/auth/auth";
 import { prisma } from "@/lib/database/prisma.singleton";
 import { BusinessRuleError, businessRule, guarded } from "./result";
 

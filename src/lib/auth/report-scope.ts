@@ -87,10 +87,7 @@ export function scheduleScopeWhere(
  * `AND` keeps both: the caller filter narrows INSIDE the scope, never
  * outside it. Returns `where` untouched when the scope is unrestricted (`{}`).
  */
-export function withScope<T extends object>(
-  where: T,
-  scopeWhere: object,
-): T {
+export function withScope<T extends object>(where: T, scopeWhere: object): T {
   if (Object.keys(scopeWhere).length === 0) return where;
   return { AND: [where, scopeWhere] } as T;
 }

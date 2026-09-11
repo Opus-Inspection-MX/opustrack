@@ -344,7 +344,10 @@ function buildTrackingWhere(
   // The scope composes with AND, never with spread: a spread would let the
   // caller filter replace the scope's `clientId` key (or vice versa) and
   // leak another Client's rows (H-02, H-18).
-  return { where: withScope(where, incidentScopeWhere(scope)), assignmentsWhere };
+  return {
+    where: withScope(where, incidentScopeWhere(scope)),
+    assignmentsWhere,
+  };
 }
 
 /**

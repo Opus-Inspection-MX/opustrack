@@ -4,23 +4,20 @@ import type { Prisma } from "@prisma/client";
 import { IncidentEventType } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { assertBelongsToClient, requireClientAccess } from "@/lib/auth/access";
 import { requirePermission } from "@/lib/auth/auth";
-import {
-  assertBelongsToClient,
-  requireClientAccess,
-} from "@/lib/auth/access";
 import { assertClientAccessAsync } from "@/lib/auth/filters";
 import {
   getReportScope,
   incidentScopeWhere,
   scheduleScopeWhere,
 } from "@/lib/auth/report-scope";
+import { SCOPE_ALL_CLIENTS, userHasPermission } from "@/lib/authz/authz";
 import {
   includeRoles,
   roleNamesOf,
   whereHasRole,
 } from "@/lib/authz/user-queries";
-import { SCOPE_ALL_CLIENTS, userHasPermission } from "@/lib/authz/authz";
 import { prisma } from "@/lib/database/prisma.singleton";
 import {
   resolveTypeIdOrFallback,

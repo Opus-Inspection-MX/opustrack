@@ -21,8 +21,8 @@
 import { businessRule } from "@/lib/actions/result";
 import {
   SCOPE_ALL_CLIENTS,
-  userHasPermission,
   type UserWithPermissions,
+  userHasPermission,
 } from "@/lib/authz/authz";
 import { whereHasPermission } from "@/lib/authz/user-queries";
 import { prisma } from "@/lib/database/prisma.singleton";
@@ -176,10 +176,7 @@ async function ensureCallerManagesAll(callerId: string): Promise<void> {
  * Load an active line the caller may see, or raise. Lines reach their Client
  * directly via `line.clientId`.
  */
-export async function loadLineFor(
-  user: UserWithPermissions,
-  lineId: number,
-) {
+export async function loadLineFor(user: UserWithPermissions, lineId: number) {
   const line = await prisma.line.findFirst({
     where: { id: lineId, active: true },
     select: { id: true, clientId: true },

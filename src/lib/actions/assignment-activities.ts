@@ -1,12 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requirePermission } from "@/lib/auth/auth";
 import { loadAssignmentFor } from "@/lib/auth/access";
-import {
-  assignmentScopeWhere,
-  getReportScope,
-} from "@/lib/auth/report-scope";
+import { requirePermission } from "@/lib/auth/auth";
+import { assignmentScopeWhere, getReportScope } from "@/lib/auth/report-scope";
 import { prisma } from "@/lib/database/prisma.singleton";
 import { isFsrUnavailable } from "@/lib/utils/availability";
 import { BusinessRuleError, businessRule, guarded } from "./result";

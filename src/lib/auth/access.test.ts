@@ -18,13 +18,13 @@ vi.mock("@/lib/utils/client-assignments", () => ({
     (getUserClientIds as (...a: unknown[]) => unknown)(...args),
 }));
 
+import { getReportScope } from "@/lib/auth/report-scope";
 import {
   mergeRoles,
   type Role,
   SCOPE_ALL_CLIENTS,
   type UserWithPermissions,
 } from "@/lib/authz/authz";
-import { getReportScope } from "@/lib/auth/report-scope";
 import {
   assertBelongsToClient,
   clientInScope,
@@ -185,9 +185,9 @@ describe("loadAssignmentFor", () => {
 
   it("reader: returns the active, in-scope assignment", async () => {
     prismaMock.assignment.findFirst.mockResolvedValue(row());
-    await expect(loadAssignmentFor(scopedUser(), "a1", "reader")).resolves.toEqual(
-      row(),
-    );
+    await expect(
+      loadAssignmentFor(scopedUser(), "a1", "reader"),
+    ).resolves.toEqual(row());
     expect(prismaMock.assignment.findFirst).toHaveBeenCalledWith(
       expect.objectContaining({ where: { id: "a1", active: true } }),
     );
@@ -195,25 +195,25 @@ describe("loadAssignmentFor", () => {
 
   it("reports a missing or soft-deleted assignment as not found (H-17)", async () => {
     prismaMock.assignment.findFirst.mockResolvedValue(null);
-    await expect(loadAssignmentFor(scopedUser(), "a1", "worker")).rejects.toThrow(
-      "No encontrado.",
-    );
+    await expect(
+      loadAssignmentFor(scopedUser(), "a1", "worker"),
+    ).rejects.toThrow("No encontrado.");
   });
 
   it("denies an assignment whose incident is out of scope", async () => {
     prismaMock.assignment.findFirst.mockResolvedValue(
       row({ incident: { clientId: "c9" } }),
     );
-    await expect(loadAssignmentFor(scopedUser(), "a1", "reader")).rejects.toThrow(
-      "Sin acceso a los datos de este Cliente.",
-    );
+    await expect(
+      loadAssignmentFor(scopedUser(), "a1", "reader"),
+    ).rejects.toThrow("Sin acceso a los datos de este Cliente.");
   });
 
   it("worker: lets the assigned FSR through without a permission query", async () => {
     prismaMock.assignment.findFirst.mockResolvedValue(row());
-    await expect(loadAssignmentFor(scopedUser(), "a1", "worker")).resolves.toEqual(
-      row(),
-    );
+    await expect(
+      loadAssignmentFor(scopedUser(), "a1", "worker"),
+    ).resolves.toEqual(row());
     expect(prismaMock.user.count).not.toHaveBeenCalled();
   });
 
@@ -222,7 +222,9 @@ describe("loadAssignmentFor", () => {
       row({ assignees: [{ userId: "other" }] }),
     );
     prismaMock.user.count.mockResolvedValue(0);
-    await expect(loadAssignmentFor(scopedUser(), "a1", "worker")).rejects.toThrow(
+    await expect(
+      loadAssignmentFor(scopedUser(), "a1", "worker"),
+    ).rejects.toThrow(
       "Solo un FSR asignado o un administrador puede ejecutar esta acción",
     );
   });
@@ -232,21 +234,21 @@ describe("loadAssignmentFor", () => {
       row({ assignees: [{ userId: "other" }] }),
     );
     prismaMock.user.count.mockResolvedValue(1);
-    await expect(loadAssignmentFor(scopedUser(), "a1", "worker")).resolves.toEqual(
-      row({ assignees: [{ userId: "other" }] }),
-    );
+    await expect(
+      loadAssignmentFor(scopedUser(), "a1", "worker"),
+    ).resolves.toEqual(row({ assignees: [{ userId: "other" }] }));
   });
 
   it("manager: requires manage-all even for the assignee", async () => {
     prismaMock.assignment.findFirst.mockResolvedValue(row());
     prismaMock.user.count.mockResolvedValue(0);
-    await expect(loadAssignmentFor(scopedUser(), "a1", "manager")).rejects.toThrow(
-      "Solo un administrador puede editar esta asignación.",
-    );
+    await expect(
+      loadAssignmentFor(scopedUser(), "a1", "manager"),
+    ).rejects.toThrow("Solo un administrador puede editar esta asignación.");
     prismaMock.user.count.mockResolvedValue(1);
-    await expect(loadAssignmentFor(scopedUser(), "a1", "manager")).resolves.toEqual(
-      row(),
-    );
+    await expect(
+      loadAssignmentFor(scopedUser(), "a1", "manager"),
+    ).resolves.toEqual(row());
   });
 });
 
@@ -270,7 +272,9 @@ describe("loadLineFor / loadEquipmentFor", () => {
 
   it("reports a missing or soft-deleted line as not found", async () => {
     prismaMock.line.findFirst.mockResolvedValue(null);
-    await expect(loadLineFor(scopedUser(), 3)).rejects.toThrow("No encontrado.");
+    await expect(loadLineFor(scopedUser(), 3)).rejects.toThrow(
+      "No encontrado.",
+    );
   });
 
   it("denies a line of another client", async () => {
@@ -319,7 +323,10 @@ describe("assertBelongsToClient", () => {
       clients: [{ clientId: "c1" }],
     });
     await expect(
-      assertBelongsToClient({ lineId: 3, equipmentId: 5, scheduleId: "s1" }, "c1"),
+      assertBelongsToClient(
+        { lineId: 3, equipmentId: 5, scheduleId: "s1" },
+        "c1",
+      ),
     ).resolves.toBeUndefined();
   });
 
@@ -343,13 +350,13 @@ describe("assertBelongsToClient", () => {
       "No encontrado.",
     );
     prismaMock.equipment.findFirst.mockResolvedValue(null);
-    await expect(assertBelongsToClient({ equipmentId: 5 }, "c1")).rejects.toThrow(
-      "No encontrado.",
-    );
+    await expect(
+      assertBelongsToClient({ equipmentId: 5 }, "c1"),
+    ).rejects.toThrow("No encontrado.");
     prismaMock.schedule.findFirst.mockResolvedValue(null);
-    await expect(assertBelongsToClient({ scheduleId: "s1" }, "c1")).rejects.toThrow(
-      "No encontrado.",
-    );
+    await expect(
+      assertBelongsToClient({ scheduleId: "s1" }, "c1"),
+    ).rejects.toThrow("No encontrado.");
   });
 
   it("accepts a global schedule, rejects a schedule linked elsewhere", async () => {
@@ -360,8 +367,8 @@ describe("assertBelongsToClient", () => {
     prismaMock.schedule.findFirst.mockResolvedValue({
       clients: [{ clientId: "c9" }],
     });
-    await expect(assertBelongsToClient({ scheduleId: "s1" }, "c1")).rejects.toThrow(
-      "No encontrado.",
-    );
+    await expect(
+      assertBelongsToClient({ scheduleId: "s1" }, "c1"),
+    ).rejects.toThrow("No encontrado.");
   });
 });
