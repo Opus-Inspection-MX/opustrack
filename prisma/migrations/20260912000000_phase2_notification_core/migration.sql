@@ -86,36 +86,37 @@ CREATE INDEX IF NOT EXISTS "email_outbox_status_nextAttemptAt_idx"
 -- ============================================================================
 -- 3. Default channel policy (mail only where it matters, in-app everywhere)
 -- ============================================================================
-INSERT INTO "public"."notification_channel_policies" ("type", "inApp", "email")
+INSERT INTO "public"."notification_channel_policies" ("type", "inApp", "email", "updatedAt")
 VALUES
     -- Assignments: in-app only (mailing every edit trains the spam filter).
-    ('assignment_assigned', TRUE, FALSE),
-    ('assignment_updated', TRUE, FALSE),
-    ('assignment_completed', TRUE, FALSE),
-    ('assignment_reopened', TRUE, FALSE),
+    ('assignment_assigned', TRUE, FALSE, CURRENT_TIMESTAMP),
+    ('assignment_updated', TRUE, FALSE, CURRENT_TIMESTAMP),
+    ('assignment_completed', TRUE, FALSE, CURRENT_TIMESTAMP),
+    ('assignment_reopened', TRUE, FALSE, CURRENT_TIMESTAMP),
     -- Incidents: mail only for created / closed / cancelled.
-    ('incident_created', TRUE, TRUE),
-    ('incident_updated', TRUE, FALSE),
-    ('incident_assigned', TRUE, FALSE),
-    ('incident_phase_asignado', TRUE, FALSE),
-    ('incident_phase_visto', TRUE, FALSE),
-    ('incident_phase_iniciado', TRUE, FALSE),
-    ('incident_phase_en_progreso', TRUE, FALSE),
-    ('incident_closed', TRUE, TRUE),
-    ('incident_cancelled', TRUE, TRUE),
-    ('incident_reopened', TRUE, FALSE),
+    ('incident_created', TRUE, TRUE, CURRENT_TIMESTAMP),
+    ('incident_updated', TRUE, FALSE, CURRENT_TIMESTAMP),
+    ('incident_assigned', TRUE, FALSE, CURRENT_TIMESTAMP),
+    ('incident_phase_asignado', TRUE, FALSE, CURRENT_TIMESTAMP),
+    ('incident_phase_visto', TRUE, FALSE, CURRENT_TIMESTAMP),
+    ('incident_phase_iniciado', TRUE, FALSE, CURRENT_TIMESTAMP),
+    ('incident_phase_en_progreso', TRUE, FALSE, CURRENT_TIMESTAMP),
+    ('incident_closed', TRUE, TRUE, CURRENT_TIMESTAMP),
+    ('incident_cancelled', TRUE, TRUE, CURRENT_TIMESTAMP),
+    ('incident_reopened', TRUE, FALSE, CURRENT_TIMESTAMP),
     -- Vacations: mail for requested / approved / rejected.
-    ('vacation_requested', TRUE, TRUE),
-    ('vacation_approved', TRUE, TRUE),
-    ('vacation_rejected', TRUE, TRUE),
-    ('vacation_cancelled', TRUE, FALSE),
-    ('vacation_starting_soon', TRUE, FALSE),
+    ('vacation_requested', TRUE, TRUE, CURRENT_TIMESTAMP),
+    ('vacation_approved', TRUE, TRUE, CURRENT_TIMESTAMP),
+    ('vacation_rejected', TRUE, TRUE, CURRENT_TIMESTAMP),
+    ('vacation_cancelled', TRUE, FALSE, CURRENT_TIMESTAMP),
+    ('vacation_starting_soon', TRUE, FALSE, CURRENT_TIMESTAMP),
     -- System broadcasts: in-app only by default; the composer picks per send.
-    ('system', TRUE, FALSE),
-    ('announcement', TRUE, FALSE)
+    ('system', TRUE, FALSE, CURRENT_TIMESTAMP),
+    ('announcement', TRUE, FALSE, CURRENT_TIMESTAMP)
 ON CONFLICT ("type") DO UPDATE
 SET "inApp" = EXCLUDED."inApp",
-    "email" = EXCLUDED."email";
+    "email" = EXCLUDED."email",
+    "updatedAt" = CURRENT_TIMESTAMP;
 
 -- ============================================================================
 -- Rollback
