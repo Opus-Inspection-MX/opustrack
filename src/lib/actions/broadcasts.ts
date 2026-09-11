@@ -1,11 +1,11 @@
 "use server";
 
-import { BroadcastStatus } from "@prisma/client";
+import { BroadcastStatus, type Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { requirePermission } from "@/lib/auth/auth";
 import { SCOPE_ALL_CLIENTS } from "@/lib/authz/authz";
 import { assertCanManageRoles } from "@/lib/authz/role-assignment";
-import { whereHasPermission, whereHasRoleId } from "@/lib/authz/user-queries";
+import { whereHasPermission } from "@/lib/authz/user-queries";
 import { prisma } from "@/lib/database/prisma.singleton";
 import { broadcastAudience } from "@/lib/notifications/audiences";
 import { dispatchBroadcast } from "@/lib/notifications/broadcast-dispatch";
@@ -13,7 +13,7 @@ import { fromDatetimeLocalMX } from "@/lib/utils/datetime";
 import { type ActionResult, businessRule, guarded, ok } from "./result";
 
 /**
- * Role-scoped broadcasts (Phase 4).
+ * Role-scoped broadcasts (Phase 4) plus direct-user targeting (Parte C).
  *
  * Replaces the legacy `sendBroadcast` (single role, no channels, no
  * scheduling, announcements forced to everyone). Every action here demands
@@ -24,6 +24,11 @@ import { type ActionResult, businessRule, guarded, ok } from "./result";
  * `RoleBroadcastTarget` rows of their roles. No rows → nobody. ROOT
  * (`isSuperuser`) bypasses the table and reaches every role. Recipients
  * resolve AT SEND TIME (`dispatchBroadcast`), never at creation.
+ *
+ * Parte C adds `BroadcastUser` rows: the sender may also address specific
+ * users, each of whom must hold a reachable role AND — without
+ * `scope:all-clients` — share an active Client with the sender (decision #2).
+ * Reach is validated at create/edit time, never at dispatch (decision #3).
  */
 
 export type BroadcastKindInput = "SYSTEM" | "ANNOUNCEMENT";
@@ -104,11 +109,55 @@ async function assertUsersInScope(
 ): Promise<string[]> {
   const unique = [...new Set(userIds.filter(Boolean))];
   if (unique.length === 0) return [];
-  if (scope.allowedRoleIds.length === 0) {
+  const reachable = await filterUsersInScope(senderId, scope, unique);
+  if (reachable.length !== unique.length) {
     businessRule(
       "No puedes difundir a uno o más de los usuarios seleccionados",
     );
   }
+  return unique;
+}
+
+/**
+ * Silent twin of `assertUsersInScope`, for live search and previews: returns
+ * the in-reach subset of `userIds` (deduped) instead of raising. Never reveals
+ * anyone outside reach — the caller only ever sees reachable rows.
+ */
+async function filterUsersInScope(
+  senderId: string,
+  scope: { allowedRoleIds: number[]; canTargetAll: boolean },
+  userIds: string[],
+): Promise<string[]> {
+  const unique = [...new Set(userIds.filter(Boolean))];
+  if (unique.length === 0) return [];
+  const reach = await userReachWhere(senderId, scope);
+  if (!reach) return [];
+  const rows = await prisma.user.findMany({
+    where: { id: { in: unique }, ...reach },
+    select: { id: true },
+  });
+  return rows.map((r) => r.id);
+}
+
+/**
+ * Prisma `where` fragment for "users this sender may address directly".
+ * Returns `null` when the sender reaches nobody (fail closed): no reachable
+ * roles, or — without `scope:all-clients` — no shared active Client.
+ */
+async function userReachWhere(
+  senderId: string,
+  scope: { allowedRoleIds: number[]; canTargetAll: boolean },
+): Promise<Prisma.UserWhereInput | null> {
+  if (scope.allowedRoleIds.length === 0) return null;
+  const roleReach: Prisma.UserWhereInput = {
+    userRoles: {
+      some: {
+        active: true,
+        roleId: { in: scope.allowedRoleIds },
+        role: { active: true },
+      },
+    },
+  };
 
   const [superuser, unrestricted] = await Promise.all([
     prisma.userRole.count({
@@ -122,35 +171,22 @@ async function assertUsersInScope(
       where: { id: senderId, ...whereHasPermission(SCOPE_ALL_CLIENTS) },
     }),
   ]);
-  if (superuser > 0 || unrestricted > 0) return unique;
+  if (superuser > 0 || unrestricted > 0) return roleReach;
 
   const senderClients = await prisma.userClientAssignment.findMany({
     where: { userId: senderId, active: true },
     select: { clientId: true },
   });
-  const shared = senderClients.map((c) => c.clientId);
-  if (shared.length === 0) {
-    businessRule(
-      "No puedes difundir a uno o más de los usuarios seleccionados",
-    );
-  }
-
-  const reachable = await prisma.user.findMany({
-    where: {
-      id: { in: unique },
-      OR: scope.allowedRoleIds.map((roleId) => whereHasRoleId(roleId)),
-      clientAssignments: {
-        some: { active: true, clientId: { in: shared } },
+  if (senderClients.length === 0) return null;
+  return {
+    ...roleReach,
+    clientAssignments: {
+      some: {
+        active: true,
+        clientId: { in: senderClients.map((c) => c.clientId) },
       },
     },
-    select: { id: true },
-  });
-  if (reachable.length !== unique.length) {
-    businessRule(
-      "No puedes difundir a uno o más de los usuarios seleccionados",
-    );
-  }
-  return unique;
+  };
 }
 
 interface ValidBroadcast {
@@ -268,11 +304,67 @@ export async function getMyBroadcastTargets(): Promise<{
   return { roles, canTargetAll: scope.canTargetAll };
 }
 
+export interface BroadcastRecipientOption {
+  id: string;
+  name: string;
+  email: string;
+  roleNames: string[];
+}
+
+/**
+ * Recipient search for the "specific users" composer mode.
+ *
+ * Only ever returns users inside the sender's reach (Parte C, decision #2) —
+ * anyone outside it is invisible here, so the selector cannot leak them.
+ * Short queries return nothing (no error): this backs type-ahead, not a form.
+ */
+export async function searchBroadcastRecipients(
+  query: string,
+): Promise<BroadcastRecipientOption[]> {
+  const user = await requirePermission("notifications:broadcast");
+  const q = query.trim();
+  if (q.length < 2) return [];
+  const scope = await getSenderBroadcastScope(
+    user.id,
+    user.isSuperuser === true,
+  );
+  const reach = await userReachWhere(user.id, scope);
+  if (!reach) return [];
+  const rows = await prisma.user.findMany({
+    where: {
+      active: true,
+      OR: [
+        { name: { contains: q, mode: "insensitive" } },
+        { email: { contains: q, mode: "insensitive" } },
+      ],
+      ...reach,
+    },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      userRoles: {
+        where: { active: true, role: { active: true } },
+        select: { role: { select: { name: true } } },
+      },
+    },
+    orderBy: { name: "asc" },
+    take: 20,
+  });
+  return rows.map((row) => ({
+    id: row.id,
+    name: row.name,
+    email: row.email,
+    roleNames: row.userRoles.map((m) => m.role.name),
+  }));
+}
+
 /** Live recipient preview for the composer (clamped to the sender's scope). */
 export async function previewBroadcastRecipients(input: {
   roleIds: number[];
   allRoles: boolean;
   includeSender: boolean;
+  userIds: string[];
 }): Promise<{ count: number }> {
   const user = await requirePermission("notifications:broadcast");
   const scope = await getSenderBroadcastScope(
@@ -291,7 +383,10 @@ export async function previewBroadcastRecipients(input: {
       : picked.length === 0
         ? []
         : await broadcastAudience({ all: false, roleIds: picked });
-  const deduped = [...new Set(ids)];
+  // Union without duplicates: the role audience plus the in-reach direct
+  // users (silently clamped — a stale pick narrows the preview, never leaks).
+  const direct = await filterUsersInScope(user.id, scope, input.userIds ?? []);
+  const deduped = [...new Set([...ids, ...direct])];
   return {
     count: input.includeSender
       ? deduped.length
@@ -475,6 +570,12 @@ export async function cancelBroadcast(
   });
 }
 
+export interface BroadcastListUser {
+  id: string;
+  name: string;
+  email: string;
+}
+
 export interface BroadcastListRow {
   id: string;
   title: string;
@@ -490,8 +591,14 @@ export interface BroadcastListRow {
   recipientCount: number;
   createdByName: string | null;
   roles: Array<{ id: number; name: string }>;
+  /** Directly-addressed users: first 5 by name, with the total for "y N más". */
+  users: BroadcastListUser[];
+  usersTotal: number;
   createdAt: Date;
 }
+
+/** History display cap for directly-addressed users. */
+const LIST_USERS_PREVIEW = 5;
 
 /** Scheduled + history for the admin table (newest first, capped at 100). */
 export async function listBroadcasts(): Promise<BroadcastListRow[]> {
@@ -518,25 +625,53 @@ export async function listBroadcasts(): Promise<BroadcastListRow[]> {
           select: { id: true, name: true },
         });
   const names = new Map(senders.map((s) => [s.id, s.name]));
-  return rows.map((row) => ({
-    id: row.id,
-    title: row.title,
-    message: row.message,
-    kind: row.kind as BroadcastKindInput,
-    sendInApp: row.sendInApp,
-    sendEmail: row.sendEmail,
-    allRoles: row.allRoles,
-    includeSender: row.includeSender,
-    scheduledAt: row.scheduledAt,
-    status: row.status,
-    sentAt: row.sentAt,
-    recipientCount: row.recipientCount,
-    createdByName: row.createdById
-      ? (names.get(row.createdById) ?? null)
-      : null,
-    roles: row.roles.map((r) => ({ id: r.role.id, name: r.role.name })),
-    createdAt: row.createdAt,
-  }));
+  const directRows =
+    rows.length === 0
+      ? []
+      : await prisma.broadcastUser.findMany({
+          where: {
+            broadcastId: { in: rows.map((r) => r.id) },
+            active: true,
+          },
+          include: {
+            user: { select: { id: true, name: true, email: true } },
+          },
+          orderBy: { user: { name: "asc" } },
+        });
+  const directByBroadcast = new Map<string, BroadcastListUser[]>();
+  for (const pivot of directRows) {
+    const list = directByBroadcast.get(pivot.broadcastId) ?? [];
+    list.push({
+      id: pivot.user.id,
+      name: pivot.user.name,
+      email: pivot.user.email,
+    });
+    directByBroadcast.set(pivot.broadcastId, list);
+  }
+  return rows.map((row) => {
+    const direct = directByBroadcast.get(row.id) ?? [];
+    return {
+      id: row.id,
+      title: row.title,
+      message: row.message,
+      kind: row.kind as BroadcastKindInput,
+      sendInApp: row.sendInApp,
+      sendEmail: row.sendEmail,
+      allRoles: row.allRoles,
+      includeSender: row.includeSender,
+      scheduledAt: row.scheduledAt,
+      status: row.status,
+      sentAt: row.sentAt,
+      recipientCount: row.recipientCount,
+      createdByName: row.createdById
+        ? (names.get(row.createdById) ?? null)
+        : null,
+      roles: row.roles.map((r) => ({ id: r.role.id, name: r.role.name })),
+      users: direct.slice(0, LIST_USERS_PREVIEW),
+      usersTotal: direct.length,
+      createdAt: row.createdAt,
+    };
+  });
 }
 
 /** Which roles a role may broadcast to (for `/admin/roles/[id]`, ROOT edits). */

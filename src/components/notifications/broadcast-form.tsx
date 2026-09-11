@@ -104,6 +104,7 @@ export function BroadcastForm({
       roleIds: selectedRoleIds,
       allRoles,
       includeSender,
+      userIds: [],
     })
       .then((result) => {
         if (!cancelled) setPreview(String(result.count));

@@ -336,6 +336,7 @@ describe("vista previa", () => {
       roleIds: [4, 5],
       allRoles: false,
       includeSender: false,
+      userIds: [],
     });
 
     expect(broadcastAudience).toHaveBeenCalledWith({
