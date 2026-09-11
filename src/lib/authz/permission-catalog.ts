@@ -1075,9 +1075,10 @@ export function resolveSeedGrants(role: SeedRoleCode): PermissionName[] {
  * - Deliberately ROOT-only: user/role/permission administration. Only ROOT
  *   opens those screens, so nobody else needs them.
  * - H-06 debt: the code requires them but the seed never granted them
- *   (cancel/close, reopen, states, settings, notification channels,
- *   lookup-catalog writes). Each is reachable only as ROOT today. Fase 0d
- *   moves these into seed roles (needs user decision #2); when it does, the
+ *   (states/settings writes, notification channels, lookup-catalog writes).
+ *   Each is reachable only as ROOT today. incidents:cancel,
+ *   assignments:reopen and states:read already moved into the
+ *   ADMIN_OPERACION seed grants (Fase 0d); when the rest move, the
  *   reachability test below forces them OUT of this list — it fails if a
  *   listed permission gains a non-superuser holder.
  */
@@ -1092,13 +1093,11 @@ export const ROOT_ONLY: readonly PermissionName[] = [
   "roles:delete",
   "permissions:read",
   "permissions:manage",
-  // H-06 debt: terminal incident actions (closeIncident is dead code, see
-  // decision #3 in the maintainability plan).
-  "incidents:cancel",
-  "incidents:close",
-  "assignments:reopen",
+  // H-06 debt: terminal incident actions. incidents:cancel and
+  // assignments:reopen moved into the ADMIN_OPERACION seed grants (Fase 0d);
+  // the close-action grant died with its action (decision #3) and left
+  // with it.
   // H-06 debt: the states screen the operations admin opens but cannot use.
-  "states:read",
   "states:create",
   "states:update",
   "states:delete",
@@ -1281,8 +1280,8 @@ export const KNOWN_ROUTE_GAPS: readonly KnownRouteGap[] = [
   {
     route: "route:admin-states",
     role: "ADMIN_OPERACION",
-    missing: ["states:read", "states:create", "states:update", "states:delete"],
-    ref: "H-06: getStatesAdmin and the lookups catalog writes require states:*; grant in Fase 0d.",
+    missing: ["states:create", "states:update", "states:delete"],
+    ref: "H-06: getStatesAdmin and the lookups catalog writes require states:*; read granted in Fase 0d, writes stay ROOT-only.",
   },
   {
     route: "route:admin-vacation-accrual",
@@ -1294,11 +1293,5 @@ export const KNOWN_ROUTE_GAPS: readonly KnownRouteGap[] = [
       "settings:delete",
     ],
     ref: "H-06: the accrual page requires requireRouteAccess('/admin/settings') plus settings:*; Fase 0d switches the actions to vacations:manage.",
-  },
-  {
-    route: "route:admin-incidents",
-    role: "ADMIN_OPERACION",
-    missing: ["incidents:cancel"],
-    ref: "H-06: CancelIncidentButton renders without a canPerform gate and cancelIncident requires incidents:cancel; grant and gate in Fase 0d.",
   },
 ];

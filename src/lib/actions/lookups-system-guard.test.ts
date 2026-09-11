@@ -3,17 +3,19 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 /**
  * Fase 3 (H-08): a coded (system) state row cannot be deactivated, and a
  * renamed system role keeps working because resolution is by code.
- * TODO(promote): move to `src/test/integration/` once the Fase 2 Postgres
- * harness lands on main (no `*.int.test.ts` infra exists yet).
+ * Mock-based by design (no database): the same guarantees run against real
+ * Postgres in `src/test/integration/`.
  */
 
-const { prismaMock, requirePermissionMock } = vi.hoisted(() => ({
+const { prismaMock, txMock, requirePermissionMock } = vi.hoisted(() => ({
   prismaMock: {
     incidentStatus: { findUnique: vi.fn(), findMany: vi.fn(), update: vi.fn() },
     incident: { count: vi.fn() },
-    role: { update: vi.fn() },
+    role: { findUnique: vi.fn(), update: vi.fn() },
     rolePermission: { deleteMany: vi.fn(), createMany: vi.fn() },
+    $transaction: vi.fn(),
   },
+  txMock: { role: { update: vi.fn() } },
   requirePermissionMock: vi.fn(async (_name: string) => ({ id: "admin" })),
 }));
 
@@ -81,7 +83,17 @@ describe("system state guard", () => {
 
 describe("renaming the FSR role", () => {
   it("updateRole edits the label without touching the code", async () => {
-    prismaMock.role.update.mockResolvedValue({ id: 4 });
+    // updateRole reads the previous row, then writes inside ONE transaction
+    // (Fase 5c): the update itself runs on the tx client, never bare.
+    prismaMock.role.findUnique.mockResolvedValue({
+      id: 4,
+      defaultPath: "/fsr",
+      rolePermission: [],
+    });
+    prismaMock.$transaction.mockImplementation(async (cb: unknown) =>
+      (cb as (tx: unknown) => Promise<unknown>)(txMock),
+    );
+    txMock.role.update.mockResolvedValue({ id: 4 });
 
     const result = await updateRole(4, {
       name: "Field-renamed",
@@ -91,7 +103,7 @@ describe("renaming the FSR role", () => {
 
     expect(isFailure(result)).toBe(false);
     // The coded identity is never written: only the label moves.
-    expect(prismaMock.role.update).toHaveBeenCalledWith({
+    expect(txMock.role.update).toHaveBeenCalledWith({
       where: { id: 4 },
       data: {
         name: "Field-renamed",

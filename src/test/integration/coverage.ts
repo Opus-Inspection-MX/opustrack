@@ -282,9 +282,6 @@ export const ALLOWLIST: Record<string, string> = {
     "TODO(0c): guard scope, then IDOR case",
   "incidents.ts :: updateIncidentType": "TODO(0c): guard scope, then IDOR case",
   "incidents.ts :: deleteIncident": "TODO(0c): guard scope, then IDOR case",
-  "incidents.ts :: refreshIncidentStatus":
-    "TODO(0c): guard scope, then IDOR case",
-  "incidents.ts :: closeIncident": "TODO(0c): guard scope, then IDOR case",
   "incidents.ts :: cancelIncident": "TODO(0c): guard scope, then IDOR case",
   "incidents.ts :: getIncidentFormOptions":
     "TODO(0c): form options; scope with client options",

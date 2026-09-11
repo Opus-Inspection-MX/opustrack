@@ -32,7 +32,6 @@ const ALLOWLIST: Record<string, string> = {
     "pre-5d write path; needs 0c-style guard",
   "broadcasts.ts:updateBroadcast": "pre-5d write path; needs 0c-style guard",
   "broadcasts.ts:cancelBroadcast": "pre-5d write path; needs 0c-style guard",
-  "equipments.ts:deleteEquipment": "pre-5d write path; needs 0c-style guard",
   "equipments.ts:toggleEquipmentStatus":
     "pre-5d write path; needs 0c-style guard",
   "incident-attachments.ts:deleteIncidentAttachment":

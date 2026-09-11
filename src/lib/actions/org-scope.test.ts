@@ -65,7 +65,9 @@ beforeEach(() => {
   prismaMock.equipment.count.mockResolvedValue(0);
   prismaMock.client.findMany.mockResolvedValue([]);
   prismaMock.client.count.mockResolvedValue(0);
-  prismaMock.role.findFirst.mockResolvedValue(null);
+  // getClients resolves the FSR badge by stable role code (H-09); without a
+  // row it throws a defect instead of returning the list.
+  prismaMock.role.findFirst.mockResolvedValue({ id: 9, code: "FSR" });
 });
 
 describe("lines scope (H-03/H-04)", () => {

@@ -18,6 +18,7 @@ const mocks = vi.hoisted(() => ({
   userCount: vi.fn(),
   clientFindUnique: vi.fn(),
   activityFindUnique: vi.fn(),
+  assignmentFindFirst: vi.fn(),
   assignmentFindUnique: vi.fn(),
   incidentCreate: vi.fn(),
   incidentUpdate: vi.fn(),
@@ -26,7 +27,13 @@ const mocks = vi.hoisted(() => ({
   incidentTypeFindUnique: vi.fn(),
   incidentEventCreate: vi.fn(),
   incidentAssigneeFindMany: vi.fn(),
-  requirePermission: vi.fn(async (_name: string) => ({ id: "actor-1" })),
+  // Unrestricted actor: the 0c scope guards pass through to the query, which
+  // is what these shape assertions inspect (scope behavior itself is pinned
+  // in auth/access.test.ts and the integration matrices).
+  requirePermission: vi.fn(async (_name: string) => ({
+    id: "actor-1",
+    isSuperuser: true,
+  })),
   requireAuth: vi.fn(async () => ({ id: "actor-1" })),
   notifyIncidentCreated: vi.fn(),
   notifyIncidentUpdated: vi.fn(),
@@ -41,7 +48,10 @@ vi.mock("@/lib/database/prisma.singleton", () => ({
     },
     client: { findUnique: mocks.clientFindUnique },
     assignmentActivity: { findUnique: mocks.activityFindUnique },
-    assignment: { findUnique: mocks.assignmentFindUnique },
+    assignment: {
+      findFirst: mocks.assignmentFindFirst,
+      findUnique: mocks.assignmentFindUnique,
+    },
     incident: {
       create: mocks.incidentCreate,
       update: mocks.incidentUpdate,
@@ -143,6 +153,13 @@ beforeEach(() => {
   mocks.incidentTypeFindUnique.mockResolvedValue({ id: 3 });
   mocks.incidentEventCreate.mockResolvedValue({} as never);
   mocks.incidentAssigneeFindMany.mockResolvedValue([]);
+  // Reader gate (0c loadAssignmentFor): row visible to the superuser actor.
+  mocks.assignmentFindFirst.mockResolvedValue({
+    id: "a1",
+    incidentId: 1,
+    incident: { clientId: null },
+    assignees: [],
+  });
 });
 
 describe("top-level user reads", () => {
@@ -214,11 +231,13 @@ describe("nested user reads", () => {
   });
 
   it("getAssignmentActivityById selects assignees with the safe card", async () => {
-    mocks.activityFindUnique.mockResolvedValue({ id: "a1" });
+    // Two-phase read: a ref lookup for the gate, then the full include.
+    mocks.activityFindUnique.mockResolvedValue({ assignmentId: "a1" });
 
     await getAssignmentActivityById("a1");
 
-    const call = mocks.activityFindUnique.mock.calls[0]?.[0];
+    const calls = mocks.activityFindUnique.mock.calls;
+    const call = calls[calls.length - 1]?.[0];
     expectNoPasswordLeak(call);
     const selects = nestedUserSelects(call, "getAssignmentActivityById");
     for (const select of selects) {

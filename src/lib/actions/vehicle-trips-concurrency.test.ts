@@ -44,8 +44,8 @@ import { endVehicleTrip, startVehicleTrip } from "./vehicle-trips";
  * transaction fails.
  *
  * No integration infra exists on main yet (Fase 2), so these pin the
- * contract against the mocked delegate.
- * TODO(int): promote to concurrency.int.test.ts once Fase 2 infra lands.
+ * contract against the mocked delegate. The same scenarios run against real
+ * Postgres in `src/test/integration/concurrency.int.test.ts`.
  */
 
 const LIVE_TRIP = { id: "t1", vehicleId: "v1", startOdometer: 1000 };
@@ -83,16 +83,18 @@ beforeEach(() => {
   prismaMock.vehicleTrip.findUnique.mockResolvedValue(LIVE_TRIP);
   prismaMock.vehicle.findUnique.mockResolvedValue({
     id: "v1",
-    status: { name: "AVAILABLE" },
+    status: { code: "AVAILABLE", name: "AVAILABLE" },
   });
+  // Statuses resolve by stable code (Fase 3 · H-08); fall back to the name
+  // so rows that predate the backfill keep matching.
   prismaMock.vehicleStatus.findUnique.mockImplementation(
-    async (args: { where: { name: string } }) => ({
-      id: `${args.where.name}-id`,
+    async (args: { where: { code?: string; name?: string } }) => ({
+      id: `${args.where.code ?? args.where.name}-id`,
     }),
   );
   prismaMock.vehicleTripStatus.findUnique.mockImplementation(
-    async (args: { where: { name: string } }) => ({
-      id: `${args.where.name}-id`,
+    async (args: { where: { code?: string; name?: string } }) => ({
+      id: `${args.where.code ?? args.where.name}-id`,
     }),
   );
   prismaMock.$transaction.mockImplementation(async (cb: unknown) =>

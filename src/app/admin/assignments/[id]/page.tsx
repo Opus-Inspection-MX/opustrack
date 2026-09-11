@@ -24,6 +24,7 @@ import { getAssignmentActivities } from "@/lib/actions/assignment-activities";
 import { getAssignmentItems } from "@/lib/actions/assignment-items";
 import { getAssignmentById } from "@/lib/actions/assignments";
 import { canPerform } from "@/lib/auth/auth";
+import { isAssignmentClosed } from "@/lib/constants/status-codes";
 import { formatMX } from "@/lib/utils/datetime";
 
 interface Attachment {
@@ -57,7 +58,7 @@ export default async function AssignmentDetailPage({
     canPerform("assignments:update"),
     canPerform("assignments:reopen"),
   ]);
-  const closed = assignment.status?.name === "CERRADO";
+  const closed = isAssignmentClosed(assignment.status);
 
   // Helper to calculate time-to-unlock
   const formatTimeDifference = (
