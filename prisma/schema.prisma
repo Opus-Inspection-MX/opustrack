@@ -103,6 +103,9 @@ model UserRole {
 model Role {
   id          Int     @id @default(autoincrement())
   name        String  @unique
+  /// Stable system identity (H-09). `name` is an editable label; `code`
+  /// never changes once set. Null = custom row created from the UI.
+  code        String? @unique
   description String?
   defaultPath String
   /// Bypasses every route and permission check. ROOT only.
@@ -206,6 +209,9 @@ model RoleBroadcastTarget {
 model UserStatus {
   id     Int     @id @default(autoincrement())
   name   String  @unique
+  /// Stable system identity (H-08). `name` is an editable label; `code`
+  /// never changes once set. Null = custom row created from the UI.
+  code   String? @unique
   users  User[]
   active Boolean @default(true)
   // RF-550 attribution: null = system row (seed/migration), never backfilled.
@@ -349,6 +355,11 @@ model IncidentType {
 model IncidentStatus {
   id        Int        @id @default(autoincrement())
   name      String     @unique
+  /// Stable system identity (H-08). `name` is an editable label; `code`
+  /// never changes once set. Null = custom row created from the UI.
+  /// Decision #4: creating new incident/assignment states is NOT supported —
+  /// the state machines do not know them. Documented, not enforced.
+  code      String?    @unique
   color     String     @default("#6B7280") // Hexadecimal color for status badge
   incidents Incident[]
   active    Boolean    @default(true)
@@ -362,6 +373,8 @@ model IncidentStatus {
 model AssignmentStatus {
   id          Int          @id @default(autoincrement())
   name        String       @unique
+  /// Stable system identity (H-08). See IncidentStatus.code.
+  code        String?      @unique
   color       String       @default("#6B7280")
   assignments Assignment[]
   active      Boolean      @default(true)
@@ -388,6 +401,8 @@ model EquipmentStatus {
 model VehicleStatus {
   id       Int       @id @default(autoincrement())
   name     String    @unique
+  /// Stable system identity (H-08). See IncidentStatus.code.
+  code     String?   @unique
   vehicles Vehicle[]
   active   Boolean   @default(true)
   // RF-550 attribution: null = system row (seed/migration), never backfilled.
@@ -400,6 +415,8 @@ model VehicleStatus {
 model VehicleTripStatus {
   id     Int           @id @default(autoincrement())
   name   String        @unique
+  /// Stable system identity (H-08). See IncidentStatus.code.
+  code   String?       @unique
   trips  VehicleTrip[]
   active Boolean       @default(true)
   // RF-550 attribution: null = system row (seed/migration), never backfilled.
@@ -1029,6 +1046,8 @@ model Holiday {
 model VacationStatus {
   id          Int       @id @default(autoincrement())
   name        String    @unique
+  /// Stable system identity (H-08). See IncidentStatus.code.
+  code        String?   @unique
   description String?
   color       String    @default("#6B7280")
   createdAt   DateTime  @default(now())
