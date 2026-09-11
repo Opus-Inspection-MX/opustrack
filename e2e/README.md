@@ -178,3 +178,7 @@ First run only, install browsers: `npx playwright install`.
   id, nunca por nombre genérico ni por "el más reciente". Para columnas con
   límite de longitud usa `shortId()` (`fixtures/db.ts`); nunca truncar
   `uniqueSuffix()` con `.slice(0, n)`.
+- **Accesibilidad.** Cada página de `accessibility.spec.ts` declara un `ready`
+  (locator que solo existe con los datos cargados); el scan lo espera hasta
+  20 s y además falla si al auditar sigue visible un esqueleto
+  (`[data-slot="skeleton"]`) o un "Cargando".

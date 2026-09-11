@@ -25,6 +25,13 @@ interface AuditPage {
   name: string;
   path: string | (() => string);
   role: Role | null;
+  /**
+   * Locator que solo existe con los datos cargados. `networkidle` no
+   * garantiza que React ya haya pintado: tracking y el detalle FSR cargan
+   * con una Server Action después de hidratar, y axe medía a veces el
+   * spinner o el esqueleto en vez de la página.
+   */
+  ready: string | (() => string);
 }
 
 let fixture: TrackingFixture;
@@ -34,13 +41,34 @@ test.beforeAll(async () => {
 });
 
 const PAGES: AuditPage[] = [
-  { name: "inicio", path: "/inicio", role: "admin" },
-  { name: "login", path: "/login", role: null },
-  { name: "tracking", path: "/admin/tracking", role: "admin" },
+  {
+    name: "inicio",
+    path: "/inicio",
+    role: "admin",
+    // Acotado a `main` como en inicio.spec.ts (streaming).
+    ready: "main [data-widget-id]",
+  },
+  { name: "login", path: "/login", role: null, ready: "#email" },
+  {
+    name: "tracking",
+    path: "/admin/tracking",
+    role: "admin",
+    // Lo pinta la paginación compartida solo con datos.
+    ready: "text=/Mostrando \\d+ a \\d+ de \\d+/",
+  },
   {
     name: "detalle FSR",
     path: () => `/fsr/assignments/${fixture.assignmentId}`,
     role: "admin",
+    // El encabezado muestra el título del incidente del fixture.
+    ready: () => `text=${fixture.incidentTitle}`,
+  },
+  {
+    name: "clientes",
+    path: "/admin/clients",
+    role: "admin",
+    // Cubre la paginación compartida en los catálogos.
+    ready: "text=/Mostrando \\d+ a \\d+ de \\d+/",
   },
 ];
 
@@ -55,6 +83,8 @@ async function scan(browser: Browser, pageDef: AuditPage, theme: Theme) {
   );
   const page = await context.newPage();
   const path = typeof pageDef.path === "string" ? pageDef.path : pageDef.path();
+  const ready =
+    typeof pageDef.ready === "string" ? pageDef.ready : pageDef.ready();
   await page.goto(path, { waitUntil: "networkidle" });
 
   // The theme must actually be applied before axe measures contrast.
@@ -62,6 +92,20 @@ async function scan(browser: Browser, pageDef: AuditPage, theme: Theme) {
     page.locator(`html.${theme}`),
     `theme class "${theme}" on <html>`,
   ).toBeAttached({ timeout: 10_000 });
+
+  // Los datos, no el esqueleto: un escaneo del estado de carga no puede
+  // volver a pasar como verde.
+  await expect(page.locator(ready), `${pageDef.name}: datos cargados`).toBeVisible({
+    timeout: 20_000,
+  });
+  await expect(
+    page.locator('[data-slot="skeleton"]'),
+    `${pageDef.name}: sin esqueletos visibles al auditar`,
+  ).toHaveCount(0);
+  await expect(
+    page.getByText(/Cargando/),
+    `${pageDef.name}: sin estado de carga visible al auditar`,
+  ).toHaveCount(0);
 
   const results = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa"])
@@ -74,6 +118,9 @@ for (const pageDef of PAGES) {
   test.describe(`${pageDef.name}`, () => {
     for (const theme of THEMES) {
       test(`sin violaciones axe en tema ${theme}`, async ({ browser }) => {
+        // La carga con datos más axe excede el presupuesto de 30 s en
+        // runners lentos (visto en Mobile).
+        test.setTimeout(60_000);
         const results = await scan(browser, pageDef, theme);
         expect(
           results.violations.map((v) => ({
