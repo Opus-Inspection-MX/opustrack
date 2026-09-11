@@ -48,7 +48,6 @@ vi.mock("@/lib/auth/auth", () => ({
 vi.mock("@/lib/auth/filters", () => ({
   canAccessClientAsync: (user: unknown, clientId: unknown) =>
     canAccessClientAsync(user, clientId),
-  getClientWhereClauseAsync: async () => ({}),
 }));
 // Real scope fragments, controllable scope resolution: the regression tests
 // below prove getSchedules applies scheduleScopeWhere, not a lookalike.
