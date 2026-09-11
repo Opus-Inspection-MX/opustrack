@@ -84,7 +84,10 @@ jobs:
         run: npm run test:e2e
 
       - name: Subir reporte Playwright
-        if: failure()
+        # Siempre, no solo al fallar: una corrida verde con flaky tampoco
+        # deja traza, y con `trace: "on-first-retry"` cada flaky deja la
+        # suya para clasificarlo.
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report
