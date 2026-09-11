@@ -64,6 +64,7 @@
 
   /* Incident / assignment status tokens. */
   --status-open: #0277ad;
+  --status-open-foreground: #075e87;
   --status-open-muted: #dff1fa;
   --status-progress: #b25e05;
   --status-progress-muted: #fdeeda;
@@ -136,6 +137,7 @@
   --danger-muted-foreground: #f8b183;
 
   --status-open: #4cc3f7;
+  --status-open-foreground: #4cc3f7;
   --status-open-muted: #0f2a36;
   --status-progress: #f5a83d;
   --status-progress-muted: #33210a;
@@ -208,6 +210,7 @@
   --danger-muted-foreground: #93330a;
 
   --status-open: #0277ad;
+  --status-open-foreground: #075e87;
   --status-open-muted: #dff1fa;
   --status-progress: #b25e05;
   --status-progress-muted: #fdeeda;
@@ -279,6 +282,7 @@
   --color-danger-muted: var(--danger-muted);
   --color-danger-muted-foreground: var(--danger-muted-foreground);
   --color-status-open: var(--status-open);
+  --color-status-open-foreground: var(--status-open-foreground);
   --color-status-open-muted: var(--status-open-muted);
   --color-status-progress: var(--status-progress);
   --color-status-progress-muted: var(--status-progress-muted);
@@ -392,6 +396,20 @@
     animation-duration: 0.01ms;
     animation-iteration-count: 1;
   }
+}
+
+/*
+ * Opus sidebar footer: the compact account row sits on the teal sidebar,
+ * where the global `text-muted-foreground` (#54565a) and the default
+ * `bg-muted` avatar circle both fail AA. Unlayered so it beats the
+ * utilities it overrides; scoped to .opus so light/dark stay untouched.
+ */
+.opus [data-sidebar="footer"] .text-muted-foreground {
+  color: rgb(255 255 255 / 0.78);
+}
+.opus [data-sidebar="footer"] [data-slot="avatar-fallback"] {
+  background-color: rgb(255 255 255 / 0.16);
+  color: #ffffff;
 }
 
 /* Print styles for reports */

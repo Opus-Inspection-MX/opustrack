@@ -13,7 +13,9 @@ export type StatusTone =
   | "neutral";
 
 const toneClass: Record<StatusTone, string> = {
-  open: "border-transparent bg-status-open-muted text-status-open",
+  // `open` pairs the muted fill with the darker -foreground: the base token
+  // only reaches ~4.3:1 on it and fails AA for normal text (axe, Fase 5).
+  open: "border-transparent bg-status-open-muted text-status-open-foreground",
   progress: "border-transparent bg-status-progress-muted text-status-progress",
   done: "border-transparent bg-status-done-muted text-status-done",
   cancelled:

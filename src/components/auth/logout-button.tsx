@@ -57,6 +57,7 @@ export function LogoutButton({
       onClick={handleLogout}
       disabled={isLoggingOut}
       className={className}
+      aria-label={iconOnly ? "Cerrar sesión" : undefined}
     >
       {showIcon && <LogOut className={iconOnly ? "h-4 w-4" : "h-4 w-4 mr-2"} />}
       {!iconOnly &&

@@ -786,6 +786,12 @@ export function TrackingTable({
                           variant="ghost"
                           size="sm"
                           onClick={() => toggleRowExpansion(incident.id)}
+                          aria-expanded={isExpanded}
+                          aria-label={
+                            isExpanded
+                              ? "Contraer detalle del incidente"
+                              : "Expandir detalle del incidente"
+                          }
                           className="p-0 h-6 w-6"
                         >
                           {isExpanded ? (
