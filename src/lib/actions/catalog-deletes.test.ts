@@ -14,6 +14,7 @@ const { prismaMock, requirePermission } = vi.hoisted(() => {
     count: vi.fn(),
     update: vi.fn(),
     findUnique: vi.fn(),
+    findFirst: vi.fn(),
   });
   return {
     prismaMock: {
@@ -118,6 +119,15 @@ beforeEach(() => {
     model.count.mockResolvedValue(0);
     model.update.mockResolvedValue({ id: 1 });
     model.findUnique.mockResolvedValue({ id: 1, lineId: 1 });
+    // Fase 0c gates: deleteLine/deleteEquipment prove the row through the
+    // access loaders (findFirst with active:true). The caller here is a
+    // superuser, so the scope check short-circuits without extra mocks.
+    model.findFirst.mockResolvedValue({
+      id: 1,
+      lineId: 1,
+      clientId: "c1",
+      line: { clientId: "c1" },
+    });
   }
 });
 

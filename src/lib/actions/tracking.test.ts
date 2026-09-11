@@ -803,19 +803,35 @@ describe("getIncidentsForTracking · alcance por Cliente", () => {
   it("aplica el alcance multi-Cliente cuando no hay filtro explícito", async () => {
     await getIncidentsForTracking();
 
-    expect(lastWhere().clientId).toEqual({ in: ["c1", "c2"] });
+    // AND-compose (H-02, H-18): the scope rides in its own AND branch so no
+    // caller key can ever replace it — never a bare `clientId` on the where.
+    expect(lastWhere()).toEqual({
+      AND: [{ active: true }, { clientId: { in: ["c1", "c2"] } }],
+    });
   });
 
   it("respeta un filtro explícito dentro del alcance", async () => {
     await getIncidentsForTracking({ clientId: "c1" });
 
-    expect(lastWhere().clientId).toBe("c1");
+    expect(lastWhere()).toEqual({
+      AND: [
+        { active: true, clientId: "c1" },
+        { clientId: { in: ["c1", "c2"] } },
+      ],
+    });
   });
 
   it("un filtro fuera del alcance no devuelve nada (fail closed)", async () => {
     await getIncidentsForTracking({ clientId: "c9" });
 
-    expect(lastWhere().clientId).toEqual({ in: [] });
+    // The explicit filter already matches nothing; the scope AND keeps it
+    // that way instead of replacing it.
+    expect(lastWhere()).toEqual({
+      AND: [
+        { active: true, clientId: { in: [] } },
+        { clientId: { in: ["c1", "c2"] } },
+      ],
+    });
     expect(prismaMock.incident.findMany).toHaveBeenCalled();
   });
 
@@ -824,7 +840,9 @@ describe("getIncidentsForTracking · alcance por Cliente", () => {
 
     await getIncidentsForTracking();
 
-    expect(lastWhere().clientId).toEqual({ in: [] });
+    expect(lastWhere()).toEqual({
+      AND: [{ active: true }, { clientId: { in: [] } }],
+    });
   });
 
   it("la firma cubre el mismo conjunto con alcance", async () => {

@@ -3,10 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { resolveAssignmentStatusId } from "@/lib/assignments/ensure-fsrs";
-import { requireAuth, requirePermission } from "@/lib/auth/auth";
-import { assertClientAccessAsync } from "@/lib/auth/filters";
+import { loadAssignmentFor, loadIncidentFor } from "@/lib/auth/access";
+import { requirePermission } from "@/lib/auth/auth";
 import { getReportScope, incidentScopeWhere } from "@/lib/auth/report-scope";
-import { whereHasPermission, whereHasRole } from "@/lib/authz/user-queries";
+import { whereHasRole } from "@/lib/authz/user-queries";
 import { prisma } from "@/lib/database/prisma.singleton";
 import {
   notifyAssignmentAssigned,
@@ -36,7 +36,7 @@ import {
   AssignmentCreateSchema,
   AssignmentUpdateSchema,
 } from "@/lib/validations/assignments";
-import { businessRule, guarded } from "./result";
+import { BusinessRuleError, businessRule, guarded } from "./result";
 
 export type AssignmentFormData = {
   incidentId: number;
@@ -120,9 +120,21 @@ export async function getAssignments() {
 
 /**
  * Get single assignment by ID
+ *
+ * Reader gate: the assignment must be active and its incident's Client in
+ * the caller's scope (H-03, H-17). The full row is then read separately so
+ * this detail view keeps its includes.
  */
 export async function getAssignmentById(id: string) {
   const user = await requirePermission("assignments:read");
+  try {
+    await loadAssignmentFor(user, id, "reader");
+  } catch (error) {
+    // Reads answer "not found": the pages turn null into notFound(), and a
+    // denial must not confirm the row exists either.
+    if (error instanceof BusinessRuleError) return null;
+    throw error;
+  }
 
   const assignment = await prisma.assignment.findUnique({
     where: { id },
@@ -149,10 +161,6 @@ export async function getAssignmentById(id: string) {
     },
   });
 
-  if (assignment?.incident?.clientId) {
-    await assertClientAccessAsync(user, assignment.incident.clientId);
-  }
-
   return assignment;
 }
 
@@ -169,6 +177,10 @@ export async function createAssignment(data: AssignmentFormData) {
     // Validation-only: the schema rejects malformed payloads up front; the
     // body keeps using `data` so optional-field behavior is unchanged.
     AssignmentCreateSchema.parse(data);
+    // The incident must be active and inside the caller's scope (H-04): filing
+    // an assignment under another Client's incident is the same leak as
+    // reading it.
+    await loadIncidentFor(user, data.incidentId);
     const uniqueAssignees = Array.from(new Set(data.assigneeIds));
 
     await assertAssigneesAreFsrs(uniqueAssignees);
@@ -238,11 +250,16 @@ export async function createAssignment(data: AssignmentFormData) {
 
 /**
  * Update existing assignment
+ *
+ * Manager gate (H-04): reassigning technicians, dates, notes and folios of
+ * ANY assignment is administration. Field work goes through the lifecycle
+ * actions below, which only ask for worker mode.
  */
 export async function updateAssignment(id: string, data: AssignmentFormData) {
   const user = await requirePermission("assignments:update");
 
   return guarded(async () => {
+    await loadAssignmentFor(user, id, "manager");
     // The action takes `id` separately, so the schema's `id` is omitted —
     // the payload itself is still validated.
     AssignmentUpdateSchema.omit({ id: true }).parse(data);
@@ -523,23 +540,6 @@ async function loadAssignmentForTransition(
   return assignment;
 }
 
-async function ensureCallerIsAssigneeOrAdmin(
-  callerId: string,
-  assignees: { userId: string }[],
-): Promise<boolean> {
-  const isAssignee = assignees.some((a) => a.userId === callerId);
-  if (isAssignee) return true;
-  // Overriding someone else's assignment is a capability, not a role name: an
-  // operations admin needs it, a vacation admin must not have it.
-  const override = await prisma.user.count({
-    where: { id: callerId, ...whereHasPermission("assignments:manage-all") },
-  });
-  if (override > 0) return true;
-  businessRule(
-    "Solo un FSR asignado o un administrador puede ejecutar esta acción",
-  );
-}
-
 /**
  * Throws if the parent incident is in a terminal state (CERRADO/CANCELADA).
  * Use to block FSR mutations on assignments whose incident is no longer editable.
@@ -573,8 +573,10 @@ export async function markAssignmentSeen(id: string) {
 
   return guarded(async () => {
     const result = await transactionWithNotifications(async (tx) => {
+      // Worker gate: scope + active + assignee-or-manage-all (H-04, H-17).
+      // The transition loader below re-reads inside the transaction.
+      await loadAssignmentFor(user, id, "worker");
       const current = await loadAssignmentForTransition(tx, id);
-      await ensureCallerIsAssigneeOrAdmin(user.id, current.assignees);
       await assertIncidentEditable(tx, current.incidentId);
       const from = current.status?.name as AssignmentState;
       if (from === ASSIGNMENT_STATE.VISTO) {
@@ -668,8 +670,10 @@ export async function startAssignmentWork(formData: FormData) {
     }
 
     const result = await transactionWithNotifications(async (tx) => {
+      // Worker gate: scope + active + assignee-or-manage-all (H-04, H-17).
+      // The transition loader below re-reads inside the transaction.
+      await loadAssignmentFor(user, id, "worker");
       const current = await loadAssignmentForTransition(tx, id);
-      await ensureCallerIsAssigneeOrAdmin(user.id, current.assignees);
       await assertIncidentEditable(tx, current.incidentId);
       const from = current.status?.name as AssignmentState;
       assertAssignmentTransition(from, ASSIGNMENT_STATE.INICIADO);
@@ -737,8 +741,10 @@ export async function pauseAssignment(id: string) {
 
   return guarded(async () => {
     const result = await transactionWithNotifications(async (tx) => {
+      // Worker gate: scope + active + assignee-or-manage-all (H-04, H-17).
+      // The transition loader below re-reads inside the transaction.
+      await loadAssignmentFor(user, id, "worker");
       const current = await loadAssignmentForTransition(tx, id);
-      await ensureCallerIsAssigneeOrAdmin(user.id, current.assignees);
       await assertIncidentEditable(tx, current.incidentId);
       const from = current.status?.name as AssignmentState;
       assertAssignmentTransition(from, ASSIGNMENT_STATE.EN_PROGRESO);
@@ -776,8 +782,10 @@ export async function resumeAssignment(id: string) {
 
   return guarded(async () => {
     const result = await transactionWithNotifications(async (tx) => {
+      // Worker gate: scope + active + assignee-or-manage-all (H-04, H-17).
+      // The transition loader below re-reads inside the transaction.
+      await loadAssignmentFor(user, id, "worker");
       const current = await loadAssignmentForTransition(tx, id);
-      await ensureCallerIsAssigneeOrAdmin(user.id, current.assignees);
       await assertIncidentEditable(tx, current.incidentId);
       const from = current.status?.name as AssignmentState;
       assertAssignmentTransition(from, ASSIGNMENT_STATE.INICIADO);
@@ -862,8 +870,10 @@ export async function closeAssignment(formData: FormData) {
     }
 
     const result = await transactionWithNotifications(async (tx) => {
+      // Worker gate: scope + active + assignee-or-manage-all (H-04, H-17).
+      // The transition loader below re-reads inside the transaction.
+      await loadAssignmentFor(user, id, "worker");
       const current = await loadAssignmentForTransition(tx, id);
-      await ensureCallerIsAssigneeOrAdmin(user.id, current.assignees);
       await assertIncidentEditable(tx, current.incidentId);
       const from = current.status?.name as AssignmentState;
       assertAssignmentTransition(from, ASSIGNMENT_STATE.CERRADO);
@@ -1091,7 +1101,7 @@ export async function getAssignmentFormOptions() {
  *  - description: string (optional)
  */
 export async function uploadAssignmentAttachment(formData: FormData) {
-  await requirePermission("assignments:update");
+  const user = await requirePermission("assignments:update");
 
   return guarded(async () => {
     const assignmentId = formData.get("assignmentId");
@@ -1120,19 +1130,11 @@ export async function uploadAssignmentAttachment(formData: FormData) {
     );
     assertAllowedUpload(mimetype, file.size);
 
-    // Verify the assignment exists and the caller can reach its Client
-    const assignment = await prisma.assignment.findUnique({
-      where: { id: assignmentId },
-      select: { incidentId: true, incident: { select: { clientId: true } } },
-    });
-    if (!assignment) {
-      throw new Error("Asignación no encontrada");
-    }
-    await assertIncidentEditable(prisma, assignment.incidentId);
-    if (assignment.incident?.clientId) {
-      const user = await requireAuth();
-      await assertClientAccessAsync(user, assignment.incident.clientId);
-    }
+    // Worker gate: the assignment must be active, in scope, and the caller
+    // assigned to it (H-04, H-17). The old check skipped client-less
+    // incidents entirely (H-05).
+    const gate = await loadAssignmentFor(user, assignmentId, "worker");
+    await assertIncidentEditable(prisma, gate.incidentId);
 
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
@@ -1173,7 +1175,7 @@ export async function uploadAssignmentAttachment(formData: FormData) {
  * Delete assignment attachment
  */
 export async function deleteAssignmentAttachment(id: string) {
-  await requirePermission("assignments:update");
+  const user = await requirePermission("assignments:update");
 
   return guarded(async () => {
     const attachment = await prisma.assignmentAttachment.findUnique({
@@ -1185,6 +1187,9 @@ export async function deleteAssignmentAttachment(id: string) {
       throw new Error("Attachment not found");
     }
 
+    // Worker gate: deleting someone else's evidence is the same leak as
+    // uploading to it (H-04).
+    await loadAssignmentFor(user, attachment.assignmentId, "worker");
     await assertIncidentEditable(prisma, attachment.assignment.incidentId);
 
     await prisma.assignmentAttachment.update({
@@ -1222,12 +1227,10 @@ export async function updateAssignmentOdtFolio(
   return guarded(async () => {
     const trimmed = odtFolio?.trim() || null;
 
-    const existing = await prisma.assignment.findUnique({
-      where: { id },
-      select: { incidentId: true },
-    });
-    if (!existing) throw new Error("Asignación no encontrada");
-    await assertIncidentEditable(prisma, existing.incidentId);
+    // Worker gate: the folio rides on the assignment, so editing it needs
+    // the same scope + membership as any other field write (H-04).
+    const gate = await loadAssignmentFor(user, id, "worker");
+    await assertIncidentEditable(prisma, gate.incidentId);
 
     const assignment = await prisma.assignment.update({
       where: { id },
@@ -1267,6 +1270,9 @@ export async function updateAssignmentStatus(id: string, statusId: number) {
   const user = await requirePermission("assignments:update");
 
   return guarded(async () => {
+    // Manager gate, like updateAssignment: overriding the state machine of
+    // any assignment is administration, not field work.
+    await loadAssignmentFor(user, id, "manager");
     const result = await transactionWithNotifications(async (tx) => {
       const target = await tx.assignmentStatus.findUnique({
         where: { id: statusId },

@@ -136,9 +136,13 @@ describe("canAccessClientAsync (multi-Client)", () => {
     expect(await canAccessClientAsync(user(), "c2")).toBe(false);
   });
 
-  it("allows null-Client data only for fully Client-less users", async () => {
+  it("denies null-Client data to scoped users, even client-less ones", async () => {
+    // H-05, fail closed: `null` is only reachable with an unrestricted scope.
+    // Only admins (scope holders) pass; a user with no assignments matches
+    // nothing instead of every client-less record.
+    expect(await canAccessClientAsync(admin, null)).toBe(true);
     getIds.mockResolvedValue([]);
-    expect(await canAccessClientAsync(user(), null)).toBe(true);
+    expect(await canAccessClientAsync(user(), null)).toBe(false);
     getIds.mockResolvedValue(["c1"]);
     expect(await canAccessClientAsync(user(), null)).toBe(false);
   });

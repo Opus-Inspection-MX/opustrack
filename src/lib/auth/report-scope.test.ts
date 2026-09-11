@@ -88,10 +88,27 @@ describe("scopeIncludesClient", () => {
 
   it("denies assigned clients on an empty scope", () => {
     expect(scopeIncludesClient(NONE, "c1")).toBe(false);
-    // Null-client data stays reachable for a fully client-less user —
-    // the same answer `canAccessClientAsync` gives for that user.
-    expect(scopeIncludesClient(NONE, null)).toBe(true);
+    // H-05, fail closed: null-client data is only reachable with an
+    // unrestricted scope. A client-less user matches nothing — the old
+    // "client-less sees client-less" backdoor is gone.
+    expect(scopeIncludesClient(NONE, null)).toBe(false);
     expect(scopeIncludesClient(MANY, null)).toBe(false);
+  });
+});
+
+describe("withScope", () => {
+  it("returns the filter untouched for an unrestricted scope", () => {
+    const where = { active: true };
+    expect(withScope(where, {})).toBe(where);
+  });
+
+  it("keeps both the caller filter and the scope under AND", () => {
+    // H-02/H-18: spreading would let one side replace the other's
+    // `clientId` key. AND-compose keeps both, so a requested client outside
+    // the scope matches nothing instead of leaking.
+    expect(withScope({ active: true }, { clientId: { in: ["c1"] } })).toEqual({
+      AND: [{ active: true }, { clientId: { in: ["c1"] } }],
+    });
   });
 });
 

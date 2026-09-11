@@ -4,6 +4,7 @@ import type { Prisma } from "@prisma/client";
 import { IncidentEventType } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { assertBelongsToClient, requireClientAccess } from "@/lib/auth/access";
 import { requirePermission } from "@/lib/auth/auth";
 import { assertClientAccessAsync } from "@/lib/auth/filters";
 import {
@@ -11,6 +12,7 @@ import {
   incidentScopeWhere,
   scheduleScopeWhere,
 } from "@/lib/auth/report-scope";
+import { SCOPE_ALL_CLIENTS, userHasPermission } from "@/lib/authz/authz";
 import {
   includeRoles,
   roleNamesOf,
@@ -308,6 +310,16 @@ export async function createIncident(data: unknown) {
     // Validate input
     const validated = IncidentCreateSchema.parse(data);
 
+    // Tenant gate (H-04): the Client must be in scope — filing under another
+    // Client is the write-side of the same leak the reads close. A null
+    // Client is admin-only (fail closed, H-05).
+    const targetClientId = validated.clientId || null;
+    await requireClientAccess(user, targetClientId);
+    await assertBelongsToClient(
+      { scheduleId: validated.scheduleId ?? null },
+      targetClientId,
+    );
+
     // State machine: every new incident starts at ABIERTO. Any caller-provided
     // statusId is ignored so the flow can't be skipped.
     const initialStatus = await prisma.incidentStatus.findUnique({
@@ -322,15 +334,23 @@ export async function createIncident(data: unknown) {
 
     const typeId = await resolveTypeIdOrFallback(validated.typeId);
 
+    // The reporter is whoever files it, unless the caller can see every
+    // Client (H-04): a scoped caller passing someone else's id would file
+    // incidents under another person's name.
+    const reportedById =
+      validated.reportedById && userHasPermission(user, SCOPE_ALL_CLIENTS)
+        ? validated.reportedById
+        : user.id;
+
     const incident = await prisma.incident.create({
       data: {
         title: validated.title,
         description: validated.description,
         typeId,
         statusId: initialStatus.id,
-        clientId: validated.clientId || null,
+        clientId: targetClientId,
         scheduleId: validated.scheduleId || null,
-        reportedById: validated.reportedById || user.id,
+        reportedById,
         reporterName: validated.reporterName?.trim() || null,
         startedAt: validated.startedAt ?? null,
         resolvedAt: null,
@@ -414,6 +434,16 @@ export async function createIncidentAsReporter(data: unknown) {
     if (!userClientId) {
       businessRule("El usuario no tiene un Cliente asignado");
     }
+
+    // Cross-references arrive from the client: the line and equipment must
+    // belong to the reporter's own Client (H-04).
+    await assertBelongsToClient(
+      {
+        lineId: validated.lineId ?? null,
+        equipmentId: validated.equipmentId ?? null,
+      },
+      userClientId,
+    );
 
     const typeId = await resolveTypeIdOrFallback(validated.typeId);
 
@@ -526,6 +556,10 @@ export async function updateIncident(id: number, data: IncidentFormData) {
     }
 
     await assertClientAccessAsync(user, existing.clientId);
+
+    // The new Client needs the same proof (H-04): checking only the current
+    // one lets anyone move an incident to another Client.
+    await requireClientAccess(user, data.clientId || null);
 
     // typeId NOT NULL en BD. Si el caller intenta poner null/undefined, fallback.
     const typeId = data.typeId

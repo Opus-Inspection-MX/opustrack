@@ -1,10 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { loadAssignmentFor } from "@/lib/auth/access";
 import { requirePermission } from "@/lib/auth/auth";
+import { assignmentScopeWhere, getReportScope } from "@/lib/auth/report-scope";
 import { prisma } from "@/lib/database/prisma.singleton";
 import { isFsrUnavailable } from "@/lib/utils/availability";
-import { businessRule, guarded } from "./result";
+import { BusinessRuleError, businessRule, guarded } from "./result";
 
 export type AssignmentActivityFormData = {
   assignmentId: string;
@@ -29,13 +31,18 @@ async function assertAssignmentEditable(assignmentId: string): Promise<void> {
 
 /**
  * Get all assignment activities (admin view)
+ *
+ * Scoped to the caller's Clients through the assignment's incident (H-03):
+ * the old query returned every Client's activities to anyone who could read.
  */
 export async function getAllAssignmentActivities() {
-  await requirePermission("assignments:read");
+  const user = await requirePermission("assignments:read");
+  const scope = await getReportScope(user);
 
   const activities = await prisma.assignmentActivity.findMany({
     where: {
       active: true,
+      assignment: assignmentScopeWhere(scope),
     },
     include: {
       assignment: {
@@ -58,7 +65,14 @@ export async function getAllAssignmentActivities() {
  * Get assignment activities for an assignment
  */
 export async function getAssignmentActivities(assignmentId: string) {
-  await requirePermission("assignments:read");
+  const user = await requirePermission("assignments:read");
+  try {
+    await loadAssignmentFor(user, assignmentId, "reader");
+  } catch (error) {
+    // List reads answer empty: no leak, and the pages keep rendering.
+    if (error instanceof BusinessRuleError) return [];
+    throw error;
+  }
 
   const activities = await prisma.assignmentActivity.findMany({
     where: {
@@ -77,9 +91,11 @@ export async function getAssignmentActivities(assignmentId: string) {
 export async function createAssignmentActivity(
   data: AssignmentActivityFormData,
 ) {
-  await requirePermission("assignments:update");
+  const user = await requirePermission("assignments:update");
 
   return guarded(async () => {
+    // Worker gate: logging work on someone's assignment needs membership.
+    await loadAssignmentFor(user, data.assignmentId, "worker");
     await assertAssignmentEditable(data.assignmentId);
 
     // Resolve effective performedAt — caller-supplied value or now.
@@ -123,14 +139,17 @@ export async function updateAssignmentActivity(
   id: string,
   data: Partial<AssignmentActivityFormData>,
 ) {
-  await requirePermission("assignments:update");
+  const user = await requirePermission("assignments:update");
 
   return guarded(async () => {
     const ref0 = await prisma.assignmentActivity.findUnique({
       where: { id },
       select: { assignmentId: true },
     });
-    if (ref0) await assertAssignmentEditable(ref0.assignmentId);
+    if (ref0) {
+      await loadAssignmentFor(user, ref0.assignmentId, "worker");
+      await assertAssignmentEditable(ref0.assignmentId);
+    }
 
     const activity = await prisma.assignmentActivity.update({
       where: { id },
@@ -157,7 +176,7 @@ export async function updateAssignmentActivity(
  * Delete assignment activity
  */
 export async function deleteAssignmentActivity(id: string) {
-  await requirePermission("assignments:delete");
+  const user = await requirePermission("assignments:delete");
 
   return guarded(async () => {
     const activity = await prisma.assignmentActivity.findUnique({
@@ -165,7 +184,10 @@ export async function deleteAssignmentActivity(id: string) {
       select: { assignmentId: true },
     });
 
-    if (activity) await assertAssignmentEditable(activity.assignmentId);
+    if (activity) {
+      await loadAssignmentFor(user, activity.assignmentId, "worker");
+      await assertAssignmentEditable(activity.assignmentId);
+    }
 
     await prisma.assignmentActivity.update({
       where: { id },
@@ -183,9 +205,26 @@ export async function deleteAssignmentActivity(id: string) {
 
 /**
  * Get assignment activity by ID
+ *
+ * Reader gate through the parent assignment (H-03): the old query returned
+ * any activity — including its assignees' user rows — to any reader.
  */
 export async function getAssignmentActivityById(id: string) {
-  await requirePermission("assignments:read");
+  const user = await requirePermission("assignments:read");
+
+  const ref = await prisma.assignmentActivity.findUnique({
+    where: { id },
+    select: { assignmentId: true },
+  });
+  if (!ref) return null;
+  try {
+    await loadAssignmentFor(user, ref.assignmentId, "reader");
+  } catch (error) {
+    // Reads answer "not found": the page turns null into notFound(), and a
+    // denial must not confirm the row exists either.
+    if (error instanceof BusinessRuleError) return null;
+    throw error;
+  }
 
   const activity = await prisma.assignmentActivity.findUnique({
     where: { id },

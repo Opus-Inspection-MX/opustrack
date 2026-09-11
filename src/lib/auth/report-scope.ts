@@ -13,6 +13,7 @@
 import type { Prisma } from "@prisma/client";
 import type { UserWithPermissions } from "@/lib/authz/authz";
 import { getUserClientIds } from "@/lib/utils/client-assignments";
+import { clientInScope } from "./access";
 import { isAdmin } from "./filters";
 
 export interface ReportScope {
@@ -40,27 +41,6 @@ export function incidentScopeWhere(
 ): Prisma.IncidentWhereInput {
   if (scope.clientIds === null) return {};
   return { clientId: { in: scope.clientIds } };
-}
-
-/**
- * Compose a caller-built `where` with a scope fragment so the scope cannot
- * be overwritten by a later spread.
- *
- * Prisma merges duplicate keys by replacement, so `{ ...where, ...scope }`
- * silently drops one side whenever both set the same key (`OR`, `clientId`,
- * …). Keeping the scope on its own AND branch makes key collisions
- * impossible: user filters narrow the result but can never widen it past
- * the scope. An empty fragment (admin scope) needs no branch.
- */
-export function withScope<T>(where: T, scopeWhere: T): T {
-  if (
-    scopeWhere !== null &&
-    typeof scopeWhere === "object" &&
-    Object.keys(scopeWhere).length === 0
-  ) {
-    return where;
-  }
-  return { AND: [where, scopeWhere] } as T;
 }
 
 /**
@@ -117,20 +97,33 @@ export function scheduleScopeWhere(
 }
 
 /**
+ * Compose a caller filter with a scope fragment so the scope can never be
+ * overwritten (H-02, H-18).
+ *
+ * Spreading (`{...scopeWhere, ...filters}` in either order) lets one side
+ * replace the other's `clientId` key; the comment then claims the opposite.
+ * `AND` keeps both: the caller filter narrows INSIDE the scope, never
+ * outside it. Returns `where` untouched when the scope is unrestricted (`{}`).
+ */
+export function withScope<T extends object>(where: T, scopeWhere: object): T {
+  if (Object.keys(scopeWhere).length === 0) return where;
+  return { AND: [where, scopeWhere] } as T;
+}
+
+/**
  * Sync membership check against an already-resolved scope.
  *
  * For sync callbacks (`Array.some`, `Array.filter`) where the async
  * `canAccessClientAsync` cannot run. Resolve the scope once with
- * `getReportScope` and reuse it for every element. Equivalent to
- * `canAccessClientAsync` for non-null ids, including the legacy fallback.
+ * `getReportScope` and reuse it for every element. Delegates to the single
+ * fail-closed rule in `auth/access.ts` (H-05): `null` is only reachable with
+ * an unrestricted scope.
  */
 export function scopeIncludesClient(
   scope: ReportScope,
   clientId: string | null,
 ): boolean {
-  if (scope.clientIds === null) return true;
-  if (clientId === null) return scope.clientIds.length === 0;
-  return scope.clientIds.includes(clientId);
+  return clientInScope(scope, clientId);
 }
 
 /** User (FSR): scoped by their active Client assignments. */
