@@ -43,10 +43,13 @@ nombres de rol: usa `whereHasRole()` / `whereHasPermission()`
 `Credentials` de NextAuth. Sin OAuth ni SSO.
 
 **Reglas de negocio:**
-- El usuario debe existir con `active: true` y `userStatus.name === "ACTIVO"`.
+- El usuario debe existir con `active: true` y código de estado
+  `userStatus.code === "ACTIVO"` (Fase 3, H-08: el `name` es una etiqueta
+  editable, la identidad estable es el `code`).
 - Credenciales inválidas o usuario inexistente devuelven el mismo mensaje
   genérico, para no exponer si el email existe.
-- El JWT expira a los 30 días y contiene: `roleNames[]`, `isSuperuser`,
+- El JWT expira a los 30 días y contiene: `roleNames[]`, `roleCodes[]`
+  (Fase 3, H-09: la UI resuelve roles por código), `isSuperuser`,
   `defaultPath`, `routePaths[]`, `exactRoutePaths[]`, `sessionVersion`,
   `clienteId`.
 
