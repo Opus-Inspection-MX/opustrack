@@ -1,0 +1,57 @@
+# Cron de notificaciones cada 5 minutos.
+#
+# `vercel.json` conserva un cron DIARIO a propósito: el plan Hobby de Vercel
+# rechaza el deployment completo cuando la expresión correría más de una vez al
+# día (eso tumbó los deploys del 11-09). La cadencia real vive aquí: el
+# endpoint solo valida el bearer, no le importa quién lo llame.
+#
+# Requiere, en Settings del repositorio:
+#   - Variable `PRODUCTION_URL`, sin barra final (p. ej. https://opustrack.vercel.app).
+#   - Secreto `CRON_SECRET`, el mismo valor que la variable de entorno en Vercel.
+# Si falta cualquiera de los dos, el paso avisa y sale en verde, para no
+# mandar un correo de falla cada 5 minutos mientras se configura.
+#
+# GitHub puede atrasar los disparos programados varios minutos, y desactiva los
+# workflows programados si el repositorio pasa 60 días sin actividad; se
+# reactivan desde la pestaña Actions o con `workflow_dispatch`.
+name: Cron de notificaciones
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+# Nunca dos llamadas encimadas: el despacho reclama sus filas de forma atómica,
+# pero una corrida lenta no debe acumular otra detrás.
+concurrency:
+  group: cron-notifications
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  disparar:
+    name: Difusiones, reintentos de correo y recordatorios
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Llamar al endpoint
+        env:
+          URL: ${{ vars.PRODUCTION_URL }}
+          SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$URL" ] || [ -z "$SECRET" ]; then
+            echo "::notice::Falta la variable PRODUCTION_URL o el secreto CRON_SECRET; no hay nada que disparar."
+            exit 0
+          fi
+          code=$(curl -sS --max-time 60 -o respuesta.json -w '%{http_code}' \
+            -H "Authorization: Bearer $SECRET" \
+            "$URL/api/cron/notifications")
+          cat respuesta.json
+          echo
+          if [ "$code" != "200" ]; then
+            echo "::error::El endpoint respondió $code"
+            exit 1
+          fi

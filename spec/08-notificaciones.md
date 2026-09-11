@@ -597,10 +597,12 @@ tres tareas pendientes de forma idempotente y devuelve el resumen en JSON.
   `{ broadcasts: { claimed, delivered }, emails: { attempted, sent, failed },
   vacationReminders: { checked, sent, skipped } }`.
 - `vercel.json` → `crons: [{ path: "/api/cron/notifications", schedule:
-  "*/5 * * * *" }]`. Nota: Vercel Hobby solo permite un cron diario — en ese
-  plan la programación tendría precisión de un día; la alternativa sin costo
-  es un workflow de GitHub Actions cada 5 min con `curl` y el secreto (el
-  endpoint no distingue el cliente HTTP). Desarrollo local:
+  "0 13 * * *" }]`, un cron **diario** (07:00 CDMX): Vercel Hobby rechaza el
+  deployment completo si la expresión corre más de una vez al día. La cadencia
+  real de 5 min la da `.github/workflows/cron-notifications.yml` con `curl` y
+  el secreto (el endpoint no distingue el cliente HTTP), sujeta a los atrasos
+  de los horarios de GitHub Actions. Necesita la variable `PRODUCTION_URL` y el
+  secreto `CRON_SECRET` en el repositorio. Desarrollo local:
   `npm run cron:notifications` (llama al endpoint con el secret de `.env`).
 - Variable nueva: `CRON_SECRET`. SMTP ya existía.
 

@@ -20,11 +20,12 @@ import { logger } from "@/lib/observability/logger";
  * malformed or wrong secret (or an unset `CRON_SECRET`) all answer the same
  * generic 401, so failures leak nothing about which half was wrong.
  *
- * Scheduling note: Vercel Hobby only allows one DAILY cron, so on Hobby this
- * 5-minute schedule will not run as written. The no-cost alternative is a
- * GitHub Actions workflow hitting this same endpoint on a 5-minute `cron`
- * schedule with `CRON_SECRET` stored as an Actions secret — the endpoint does
- * not care who the HTTP client is as long as the bearer matches.
+ * Scheduling note: `vercel.json` keeps a DAILY cron (`0 13 * * *`, 07:00 in
+ * CDMX) because Vercel Hobby rejects the whole deployment when the expression
+ * would run more than once a day. The real 5-minute cadence lives in
+ * `.github/workflows/cron-notifications.yml`, which curls this endpoint with
+ * `CRON_SECRET` — the endpoint does not care who the HTTP client is as long as
+ * the bearer matches.
  */
 
 export const dynamic = "force-dynamic";
