@@ -143,7 +143,9 @@ for (const catalog of CATALOGS) {
 
     test("lo edita", async ({ page }) => {
       await page.goto(catalog.path);
-      await search(page, catalog, name);
+      // Como en "lo elimina": la búsqueda es debounced y clicar Editar con
+      // las filas aún del query anterior navega a medias o nunca.
+      await searchFor(page, catalog, name);
 
       await rowWith(page, name).getByRole("link", { name: "Editar" }).click();
       await page.waitForURL(/\/edit$/);
