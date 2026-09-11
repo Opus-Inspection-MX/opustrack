@@ -1,5 +1,6 @@
 "use server";
 
+import type { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireAuth, requirePermission } from "@/lib/auth/auth";
@@ -282,11 +283,14 @@ export async function startVehicleTrip(formData: FormData) {
     });
     if (!inUseStatus) throw new Error("Vehicle status IN_USE not found");
 
-    const availableStatus = await prisma.vehicleStatus.findUnique({
-      where: { name: "AVAILABLE" },
-    });
-    if (needsAvailable && !availableStatus)
-      throw new Error("Vehicle status AVAILABLE not found");
+    const availableStatusId = needsAvailable
+      ? await prisma.vehicleStatus
+          .findUnique({ where: { name: "AVAILABLE" } })
+          .then((s) => {
+            if (!s) throw new Error("Vehicle status AVAILABLE not found");
+            return s.id;
+          })
+      : null;
 
     const inProgressStatus = await prisma.vehicleTripStatus.findUnique({
       where: { name: "EN_CURSO" },
@@ -308,12 +312,14 @@ export async function startVehicleTrip(formData: FormData) {
     // creating a second trip. The upload above cannot run inside the
     // transaction, so every failure path below deletes it (no orphaned
     // photos) and a P2002 converges on the winner's live trip.
-    let trip;
+    let trip: Prisma.VehicleTripGetPayload<{
+      include: { vehicle: true; assignment: true };
+    }>;
     try {
       trip = await prisma.$transaction(async (tx) => {
-        if (needsAvailable) {
+        if (availableStatusId !== null) {
           const claimed = await tx.vehicle.updateMany({
-            where: { id: vehicleId, statusId: availableStatus!.id },
+            where: { id: vehicleId, statusId: availableStatusId },
             data: { statusId: inUseStatus.id },
           });
           if (claimed.count !== 1) {
@@ -490,7 +496,9 @@ export async function endVehicleTrip(formData: FormData) {
     // Fase 5b: same claim-first contract as the start path — the upload
     // cannot run inside the transaction, so failures delete it and a P2002
     // converges on the winner's live trip.
-    let updatedTrip;
+    let updatedTrip: Prisma.VehicleTripGetPayload<{
+      include: { vehicle: true; assignment: true };
+    }>;
     try {
       updatedTrip = await prisma.$transaction(async (tx) => {
         const updated = await tx.vehicleTrip.update({

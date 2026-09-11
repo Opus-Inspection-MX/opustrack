@@ -244,11 +244,14 @@ describe("Fase 5a: atomic email claim", () => {
         }),
       }),
     );
-    const cutoff = prismaMock.emailOutbox.findMany.mock.calls[0][0].where.OR.find(
-      (branch: Record<string, unknown>) =>
-        branch.status === EmailOutboxStatus.PENDIENTE,
-    ).createdAt.lte as Date;
-    expect(Date.now() - cutoff.getTime()).toBeGreaterThanOrEqual(2 * 60_000 - 5000);
+    const cutoff =
+      prismaMock.emailOutbox.findMany.mock.calls[0][0].where.OR.find(
+        (branch: Record<string, unknown>) =>
+          branch.status === EmailOutboxStatus.PENDIENTE,
+      ).createdAt.lte as Date;
+    expect(Date.now() - cutoff.getTime()).toBeGreaterThanOrEqual(
+      2 * 60_000 - 5000,
+    );
   });
 
   it("reclama PENDIENTE→ENVIANDO condicionado a attempts y solo envía si gana", async () => {
@@ -327,16 +330,16 @@ describe("Fase 5a: atomic email claim", () => {
       { id: "r1", attempts: 0 },
     ]);
     let claims = 0;
-    prismaMock.emailOutbox.updateMany.mockImplementation(async (args: {
-      data: { status: unknown };
-    }) => {
-      if (args.data.status !== EmailOutboxStatus.ENVIANDO) {
-        return { count: 0 }; // stuck-row requeue: nothing stuck in this test
-      }
-      claims += 1;
-      // First claim wins, second loses — the atomic race.
-      return { count: claims === 1 ? 1 : 0 };
-    });
+    prismaMock.emailOutbox.updateMany.mockImplementation(
+      async (args: { data: { status: unknown } }) => {
+        if (args.data.status !== EmailOutboxStatus.ENVIANDO) {
+          return { count: 0 }; // stuck-row requeue: nothing stuck in this test
+        }
+        claims += 1;
+        // First claim wins, second loses — the atomic race.
+        return { count: claims === 1 ? 1 : 0 };
+      },
+    );
     // Slow transport so both runs overlap inside attemptDelivery.
     transportSend.mockImplementation(
       () => new Promise((resolve) => setTimeout(() => resolve("ok"), 20)),

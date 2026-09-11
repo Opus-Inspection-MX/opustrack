@@ -195,7 +195,10 @@ export async function retryDueEmails(
         data: { status: EmailOutboxStatus.FALLIDO, nextAttemptAt: now },
       });
     } catch (error) {
-      logger.error("[mail:outbox] No se pudieron recuperar envíos atascados:", error);
+      logger.error(
+        "[mail:outbox] No se pudieron recuperar envíos atascados:",
+        error,
+      );
     }
     const due = await prisma.emailOutbox.findMany({
       where: {

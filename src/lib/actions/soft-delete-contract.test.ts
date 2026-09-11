@@ -62,8 +62,9 @@ const ALLOWLIST: Record<string, string> = {
 function functionBodies(src: string): Map<string, string> {
   const bodies = new Map<string, string>();
   const re = /export\s+(?:async\s+)?function\s+(\w+)/g;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(src)) !== null) {
+  for (;;) {
+    const m = re.exec(src);
+    if (!m) break;
     const name = m[1];
     // Skip the parameter list (it may hold inline object types with braces),
     // then skip an optional return type (it may hold Promise<{...}>), so the
@@ -115,8 +116,9 @@ function functionBodies(src: string): Map<string, string> {
 function violationsIn(body: string): Set<string> {
   const reads = new Map<string, number>();
   const readRe = /(\w+)\.findUnique\(\s*\{\s*where:\s*\{([^{}]*)\}/g;
-  let m: RegExpExecArray | null;
-  while ((m = readRe.exec(body)) !== null) {
+  for (;;) {
+    const m = readRe.exec(body);
+    if (!m) break;
     const [, model, where] = m;
     if (/\bid\b/.test(where) && !/\bactive\b/.test(where)) {
       reads.set(model, (reads.get(model) ?? 0) + 1);
@@ -124,7 +126,11 @@ function violationsIn(body: string): Set<string> {
   }
   const writes = new Set<string>();
   const writeRe = /(\w+)\.update(?:Many)?\s*\(/g;
-  while ((m = writeRe.exec(body)) !== null) writes.add(m[1]);
+  for (;;) {
+    const m = writeRe.exec(body);
+    if (!m) break;
+    writes.add(m[1]);
+  }
   const out = new Set<string>();
   for (const model of reads.keys()) {
     if (writes.has(model)) out.add(model);

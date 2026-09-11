@@ -86,10 +86,14 @@ beforeEach(() => {
     status: { name: "AVAILABLE" },
   });
   prismaMock.vehicleStatus.findUnique.mockImplementation(
-    async (args: { where: { name: string } }) => ({ id: `${args.where.name}-id` }),
+    async (args: { where: { name: string } }) => ({
+      id: `${args.where.name}-id`,
+    }),
   );
   prismaMock.vehicleTripStatus.findUnique.mockImplementation(
-    async (args: { where: { name: string } }) => ({ id: `${args.where.name}-id` }),
+    async (args: { where: { name: string } }) => ({
+      id: `${args.where.name}-id`,
+    }),
   );
   prismaMock.$transaction.mockImplementation(async (cb: unknown) =>
     (cb as (tx: unknown) => Promise<unknown>)(txMock),
@@ -157,8 +161,7 @@ describe("startVehicleTrip claim-first", () => {
     );
 
     expect(result.success).toBe(true);
-    if (result.success)
-      expect((result.data as { id: string }).id).toBe("t1");
+    if (result.success) expect((result.data as { id: string }).id).toBe("t1");
     expect(storageMock.deleteFile).toHaveBeenCalledWith(
       UPLOAD.url,
       UPLOAD.provider,
@@ -169,8 +172,7 @@ describe("startVehicleTrip claim-first", () => {
     let calls = 0;
     prismaMock.$transaction.mockImplementation(async (cb: unknown) => {
       calls += 1;
-      if (calls === 1)
-        return (cb as (tx: unknown) => Promise<unknown>)(txMock);
+      if (calls === 1) return (cb as (tx: unknown) => Promise<unknown>)(txMock);
       throw { code: "P2002" };
     });
     // Both pre-transaction lookups miss; the loser converges on the winner.

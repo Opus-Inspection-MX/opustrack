@@ -72,15 +72,13 @@ describe("assignment idempotency converge on P2002", () => {
     const result = await startAssignmentWork(workForm("key-5b-start"));
 
     expect(result.success).toBe(true);
-    if (result.success)
-      expect((result.data as { id: string }).id).toBe("a1");
+    if (result.success) expect((result.data as { id: string }).id).toBe("a1");
   });
 
   it("closeAssignment devuelve la fila viva en vez de un error genérico", async () => {
     const result = await closeAssignment(closeForm("key-5b-close"));
 
     expect(result.success).toBe(true);
-    if (result.success)
-      expect((result.data as { id: string }).id).toBe("a1");
+    if (result.success) expect((result.data as { id: string }).id).toBe("a1");
   });
 });
