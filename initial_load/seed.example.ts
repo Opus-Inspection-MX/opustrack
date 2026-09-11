@@ -426,6 +426,12 @@ async function main() {
           action: "update",
         },
         {
+          name: "users:manage-employment",
+          description: "Capturar datos laborales: fecha de ingreso",
+          resource: "users",
+          action: "manage-employment",
+        },
+        {
           name: "users:delete",
           description: "Delete users",
           resource: "users",
@@ -1163,6 +1169,8 @@ async function main() {
             // Needs the roster to know whose days these are. Read only: user
             // administration stays with ROOT.
             "users:read",
+            // Narrow employment-data capture (Parte B): hire date only.
+            "users:manage-employment",
             "notifications:read",
             "notifications:update",
             "notifications:delete",

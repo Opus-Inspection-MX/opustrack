@@ -258,6 +258,12 @@ export const PERMISSIONS = [
     action: "update",
   },
   {
+    name: "users:manage-employment",
+    description: "Capturar datos laborales: fecha de ingreso",
+    resource: "users",
+    action: "manage-employment",
+  },
+  {
     name: "users:delete",
     description: "Delete users",
     resource: "users",
@@ -930,6 +936,10 @@ export const SEED_ROLES = {
       "holidays:delete",
       "route:admin-vacation-accrual",
       "users:read",
+      // Narrow employment-data capture (Parte B): hire date only. Full user
+      // administration (users:create/update/delete, roles, passwords) stays
+      // ROOT-only.
+      "users:manage-employment",
       "notifications:read",
       "notifications:update",
       "notifications:delete",
@@ -1220,6 +1230,7 @@ export const ROUTE_REQUIRES: Record<string, readonly PermissionName[]> = {
     "vacations:read",
     "vacations:approve",
     "vacations:manage",
+    "users:manage-employment",
   ],
   "route:admin-vacation-accrual": [
     "settings:read",
