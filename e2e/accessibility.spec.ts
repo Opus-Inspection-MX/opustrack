@@ -94,9 +94,11 @@ async function scan(browser: Browser, pageDef: AuditPage, theme: Theme) {
   ).toBeAttached({ timeout: 10_000 });
 
   // Los datos, no el esqueleto: un escaneo del estado de carga no puede
-  // volver a pasar como verde.
+  // volver a pasar como verde. `.first()` evita el strict-mode cuando el
+  // texto existe en dos nodos (detalle FSR) o hay N widgets en inicio;
+  // axe sigue escaneando la página entera.
   await expect(
-    page.locator(ready),
+    page.locator(ready).first(),
     `${pageDef.name}: datos cargados`,
   ).toBeVisible({
     timeout: 20_000,
