@@ -1,7 +1,7 @@
 import { type Prisma, PrismaClient } from "@prisma/client";
 
 const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined;
+  prisma: PrismaClientWithOmit | undefined;
 };
 
 // Query logging is expensive in dev (every SQL statement is serialized to
@@ -14,10 +14,20 @@ const logLevels: Prisma.LogLevel[] =
       : ["error", "warn"]
     : ["error"];
 
-export const prisma =
-  globalForPrisma.prisma ??
-  new PrismaClient({
+function createPrismaClient() {
+  return new PrismaClient({
     log: logLevels,
+    // H-01: the password hash must never reach a Server Action response.
+    // Every `include` over User (or `user: true`) used to drag the hash to
+    // the browser. This global omit strips it from all reads, including
+    // nested relations; explicit `select: { password: true }` still works
+    // for the two legitimate uses (login, password change).
+    omit: { user: { password: true } },
   });
+}
+
+type PrismaClientWithOmit = ReturnType<typeof createPrismaClient>;
+
+export const prisma = globalForPrisma.prisma ?? createPrismaClient();
 
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
