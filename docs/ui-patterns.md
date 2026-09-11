@@ -6,17 +6,18 @@ system as it stands, not the journey.
 
 ## Themes and tokens (`src/app/globals.css`)
 
-Three themes, one token surface:
+Two Opus-branded themes, one token surface:
 
 | Theme | Class | Look |
 |-------|-------|------|
-| Claro | (default, `:root`) | White surfaces, Opus teal as a discrete brand accent |
-| Oscuro | `.dark` | Black (`#000000`) surfaces — stays on `.dark` so every existing `dark:` variant keeps working |
-| Opus | `.opus` | Brand theme: teal `#004851`/`#00968f` sidebar, navy `#141e29` text, hero gradient `#004851 → #00968f` on `/inicio` |
+| Claro | (default, `:root`) | Teal-gray surfaces, navy text, teal sidebar, brand hero gradient |
+| Oscuro | `.dark` | Brand navy (`#141e29`) surfaces with teal accents, deep-teal sidebar — stays on `.dark` so every existing `dark:` variant keeps working |
 
-The selector (`ThemeToggle`, dropdown: Claro / Oscuro / Opus / Sistema) lives
+The selector (`ThemeToggle`, dropdown: Claro / Oscuro / Sistema) lives
 in the global header, reachable on every viewport. `next-themes` with
-`themes={["light","dark","opus"]}`, `enableSystem`, `attribute="class"`.
+`themes={["light","dark"]}`, `enableSystem`, `attribute="class"`. A stored
+`"opus"` preference (the removed third theme) migrates to Claro on load
+(`OpusThemeMigration` in `src/components/theme-provider.tsx`).
 
 Token families (all three themes define all of them):
 
@@ -38,16 +39,24 @@ Token families (all three themes define all of them):
 - **SLA**: `--sla-ok`, `--sla-risk`, `--sla-breach` (+ `-muted`).
 - **Charts**: `--chart-1..5` (teal, blue, green, orange, gray) — actually
   used by the report charts, not decoration.
-- **Sidebar**: `--sidebar-*` — Opus paints it teal with white text; content
-  inside must use sidebar tokens, never the global muted ones (the account
-  footer learned this the hard way, see below).
+- **Sidebar**: `--sidebar-*` — teal in both themes (deep teal in Oscuro)
+  with light text; content inside must use sidebar tokens, never the global
+  muted ones. Secondary text uses `--sidebar-muted-foreground`, the avatar
+  circle `bg-sidebar-accent` + `text-sidebar-accent-foreground` (the global
+  `text-muted-foreground`/`bg-muted` fail AA on teal).
+- **Hero/brand**: `--hero-from`/`--hero-to` (the `/inicio` + login gradient,
+  same dark ramp in both themes), `--hero-foreground` /
+  `--hero-muted-foreground` (AA-safe on both ramp ends) and the constant
+  `--brand-navy` (the Oscuro swatch in the theme selector). `.bg-opus-hero`
+  keeps its name — "Opus" is the brand, not a theme.
 - **Typography**: Roboto (`--font-sans`) + Outfit (`--font-display`) via
   `next/font`. Dates via `src/lib/utils/datetime.ts` (`formatMX…`) — no new
   `moment` or `toLocaleString` calls.
 
-Adding a token: declare it in `:root`, `.dark` and `.opus`, then map it in
+Adding a token: declare it in `:root` and `.dark`, then map it in
 the `@theme inline` block (`--color-…: var(…)`) so the Tailwind utility
-(`bg-…`, `text-…`) exists. Raw hex and palette classes
+(`bg-…`, `text-…`) exists. All theme colors are 6-digit hex (no `oklch`):
+`src/test/theme-contrast.test.ts` parses them and fails otherwise. Raw hex and palette classes
 (`text-red-500`, `bg-green-100`) outside `ui/` fail
 `src/test/ui-style.test.ts` — the allowlist in
 `src/test/ui-style-allowlist.json` covers legacy only and shrinks per area.
@@ -120,11 +129,16 @@ CSS only (`button`, `card/interactive`). **Never animate large tables.**
 
 ## Accessibility and verification
 
-- AA contrast in all three themes, visible focus (`:focus-visible` ring),
+- AA contrast in both themes, visible focus (`:focus-visible` ring),
   touch targets ≥ 44 px, Spanish accessible names on icon-only controls.
 - `e2e/accessibility.spec.ts`: axe (WCAG 2A/2AA) over `/inicio`, `/login`,
-  tracking and the FSR detail × light/dark/opus. Zero exclusions — a
-  failure is fixed in code or recorded here as debt. Current debt: none.
+  tracking, the FSR detail and `/admin/clients` × light/dark. Zero
+  exclusions — a failure is fixed in code or recorded here as debt.
+  Current debt: none.
+- `src/test/theme-contrast.test.ts`: WCAG 2.x contrast over the token
+  pairs in both themes, no browser. It covers what axe cannot — text on
+  the hero gradient (axe marks gradients `incomplete`, never a violation)
+  — and fails on any non-hex value or a reappearing `.opus` selector.
 - `e2e/responsive.spec.ts`: one route per area × 360/768/1024/1440 —
   no document horizontal scroll, exactly one bell, header + tab bar in
   their viewport. Plus a `prefers-reduced-motion` sweep.

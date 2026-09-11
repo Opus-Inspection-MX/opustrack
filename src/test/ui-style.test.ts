@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
  * The style contract, enforced instead of remembered.
  *
  * OpusTrack renders through semantic tokens (`--success`, `--status-*`,
- * `--sla-*`, `--chart-*`) so the Claro, Oscuro and Opus themes stay in sync.
+ * `--sla-*`, `--chart-*`) so the Claro and Oscuro themes stay in sync.
  * A raw hex or a raw palette class (`text-red-500`, `bg-green-100`) outside
  * the token layer compiles, looks right in one theme, and breaks the other
  * two — which is exactly why a human reviewer cannot be the check.

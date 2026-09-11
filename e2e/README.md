@@ -14,8 +14,8 @@ End-to-end coverage for the domain specs in `spec/`. Current coverage:
   one notification bell, header + tab bar in their viewport — plus a
   `prefers-reduced-motion` sweep proving CSS durations collapse.
 - **`accessibility.spec.ts`** — the Fase 5 axe audit (WCAG 2A/2AA) over
-  `/inicio`, `/login`, tracking and the FSR detail in the light, dark and
-  opus themes. Zero rule exclusions; see `docs/ui-patterns.md` for the
+  `/inicio`, `/login`, tracking, the FSR detail and `/admin/clients` in the
+  light and dark themes. Zero rule exclusions; see `docs/ui-patterns.md` for the
   system rules it guards.
 - **`incident-lifecycle.spec.ts`** — the business flow from
   `spec/00-overview.md`: a CLIENT reports an incident, an ADMIN schedules and
