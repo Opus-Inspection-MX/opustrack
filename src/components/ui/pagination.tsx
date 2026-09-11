@@ -57,7 +57,7 @@ export function Pagination({
             value={itemsPerPage.toString()}
             onValueChange={(value) => onItemsPerPageChange(Number(value))}
           >
-            <SelectTrigger className="h-8 w-[70px]">
+            <SelectTrigger className="h-8 w-[70px]" aria-label="Resultados por página">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -78,6 +78,7 @@ export function Pagination({
             className="h-8 w-8 hidden sm:flex"
             onClick={() => onPageChange(1)}
             disabled={currentPage === 1}
+            aria-label="Primera página"
           >
             <ChevronsLeft className="h-4 w-4" />
           </Button>
@@ -87,6 +88,7 @@ export function Pagination({
             className="h-8 w-8"
             onClick={() => onPageChange(currentPage - 1)}
             disabled={currentPage === 1}
+            aria-label="Página anterior"
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
@@ -103,6 +105,7 @@ export function Pagination({
             className="h-8 w-8"
             onClick={() => onPageChange(currentPage + 1)}
             disabled={currentPage === totalPages}
+            aria-label="Página siguiente"
           >
             <ChevronRight className="h-4 w-4" />
           </Button>
@@ -112,6 +115,7 @@ export function Pagination({
             className="h-8 w-8 hidden sm:flex"
             onClick={() => onPageChange(totalPages)}
             disabled={currentPage === totalPages}
+            aria-label="Última página"
           >
             <ChevronsRight className="h-4 w-4" />
           </Button>
