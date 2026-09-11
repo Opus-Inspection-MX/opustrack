@@ -6,7 +6,9 @@ import { requirePermission } from "@/lib/auth/auth";
 import {
   getReportScope,
   incidentScopeWhere,
+  narrowClientIds,
   type ReportScope,
+  withScope,
 } from "@/lib/auth/report-scope";
 import { prisma } from "@/lib/database/prisma.singleton";
 import {
@@ -83,14 +85,12 @@ function incidentWindowWhere(
   filters: Pick<IncidentProgramFilters, "stateIds" | "clientIds">,
   scope: ReportScope,
 ): Prisma.IncidentWhereInput {
-  return {
+  // Requested Clients narrow to the intersection with the scope: asking for
+  // another Client yields an empty set, never its rows.
+  const narrowed = narrowClientIds(filters.clientIds, scope);
+  const base: Prisma.IncidentWhereInput = {
     active: true,
-    // Tenant scope first — the user-supplied filters below can only narrow it,
-    // never widen it past the caller's own Clients.
-    ...incidentScopeWhere(scope),
-    ...(filters.clientIds?.length
-      ? { clientId: { in: filters.clientIds } }
-      : {}),
+    ...(narrowed !== undefined ? { clientId: { in: narrowed } } : {}),
     // A plaza filter constrains the client, so it composes with clientIds.
     ...(filters.stateIds?.length
       ? { client: { stateId: { in: filters.stateIds } } }
@@ -104,6 +104,11 @@ function incidentWindowWhere(
       { reportedAt: { gte: from, lte: to } },
     ],
   };
+  // The tenant scope rides on its own AND branch: user-supplied filters can
+  // only narrow it, never widen it past the caller's own Clients. (Spreading
+  // both into one object would let a duplicate `clientId` key replace the
+  // scope — the leak this composes against.)
+  return withScope(base, incidentScopeWhere(scope));
 }
 
 /**
@@ -229,8 +234,14 @@ export async function getIncidentProgramReport(
     if (realIds.length > 0) scopes.push({ scheduleId: { in: realIds } });
     if (includeUnlinked) scopes.push({ scheduleId: null });
 
-    // AND-composed with the window OR above, so both must hold.
-    where.AND = [{ OR: scopes }];
+    // AND-composed with the window AND above (which already carries the
+    // tenant scope), so all three must hold. Assigned, never overwritten.
+    const selection: Prisma.IncidentWhereInput = { OR: scopes };
+    where.AND = Array.isArray(where.AND)
+      ? [...where.AND, selection]
+      : where.AND
+        ? [where.AND, selection]
+        : [selection];
   }
 
   const [incidents, vacations, holidayRules] = await Promise.all([
