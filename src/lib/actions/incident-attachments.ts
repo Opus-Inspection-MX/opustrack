@@ -4,6 +4,10 @@ import { revalidatePath } from "next/cache";
 import { requireAuth } from "@/lib/auth/auth";
 import { assertClientAccessAsync } from "@/lib/auth/filters";
 import { userHasPermission } from "@/lib/authz/authz";
+import {
+  codeOf,
+  INCIDENT_STATE,
+} from "@/lib/constants/status-codes";
 import { prisma } from "@/lib/database/prisma.singleton";
 import { logger } from "@/lib/observability/logger";
 import { businessRule, guarded } from "./result";
@@ -59,19 +63,22 @@ async function assertIncidentAttachable(incidentId: number): Promise<{
     where: { id: incidentId },
     select: {
       clientId: true,
-      status: { select: { name: true } },
+      status: { select: { code: true, name: true } },
     },
   });
   if (!incident) {
     throw new Error("Incidencia no encontrada");
   }
-  const name = incident.status?.name;
-  if (name === "CERRADO" || name === "CANCELADA") {
+  // Stable code (H-08): a renamed label must still block writes.
+  const name = codeOf(incident.status);
+  if (name === INCIDENT_STATE.CERRADO || name === INCIDENT_STATE.CANCELADA) {
     businessRule(
-      name === "CANCELADA"
+      name === INCIDENT_STATE.CANCELADA
         ? "La incidencia está cancelada. No se pueden hacer cambios."
         : "La incidencia está cerrada. No se pueden hacer cambios.",
     );
+  }
+  return { clientId: incident.clientId };
   }
   return { clientId: incident.clientId };
 }

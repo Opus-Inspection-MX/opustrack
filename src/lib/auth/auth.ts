@@ -15,6 +15,7 @@ import {
   userCanPerformAction,
   userHasPermission,
 } from "@/lib/authz/authz";
+import { isUserActive } from "@/lib/constants/status-codes";
 import { prisma } from "@/lib/database/prisma.singleton";
 import { logger } from "@/lib/observability/logger";
 
@@ -91,7 +92,7 @@ export const getAuthenticatedUser = cache(
         email: true,
         name: true,
         sessionVersion: true,
-        userStatus: { select: { name: true } },
+        userStatus: { select: { code: true, name: true } },
       },
     });
 
@@ -101,7 +102,9 @@ export const getAuthenticatedUser = cache(
     // already refuses a non-ACTIVO account, but someone suspended while their
     // session was open kept it until the JWT expired — up to 30 days of access
     // after being locked out.
-    if (user.userStatus?.name !== "ACTIVO") {
+    // Resolved by stable code (H-08): renaming the "ACTIVO" label must not
+    // lock everybody out.
+    if (!isUserActive(user.userStatus)) {
       logger.debug("auth.session_rejected", {
         userId: user.id,
         status: user.userStatus?.name,

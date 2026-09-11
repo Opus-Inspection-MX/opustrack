@@ -13,9 +13,12 @@ import {
 } from "@/lib/auth/report-scope";
 import {
   includeRoles,
+  roleCodesOf,
   roleNamesOf,
   whereHasRole,
 } from "@/lib/authz/user-queries";
+import { ROLE } from "@/lib/authz/roles";
+import { codeOf } from "@/lib/constants/status-codes";
 import { prisma } from "@/lib/database/prisma.singleton";
 import {
   resolveTypeIdOrFallback,
@@ -612,7 +615,7 @@ export async function updateIncidentFsrs(
         where: {
           id: { in: fsrIds },
           active: true,
-          ...whereHasRole("FSR"),
+          ...whereHasRole(ROLE.FSR),
         },
         select: { id: true },
       });
@@ -855,7 +858,7 @@ export async function closeIncident(id: number) {
 export async function getFsrsForAssignment() {
   await requirePermission("incidents:update");
   const fsrs = await prisma.user.findMany({
-    where: { active: true, ...whereHasRole("FSR") },
+    where: { active: true, ...whereHasRole(ROLE.FSR) },
     select: {
       id: true,
       name: true,
@@ -928,13 +931,15 @@ export async function getIncidentFormOptions() {
     }),
   ]);
 
-  // `roleNames` is plural now: the picker highlights FSRs, and a user can be
-  // an FSR *and* an administrator at the same time.
+  // `roleCodes` is plural now: the picker highlights FSRs by stable code, and
+  // a user can be an FSR *and* an administrator at the same time.
+  // `roleNames` stays for display until the UI drops it.
   const usersWithClienteIds = users.map((u) => ({
     id: u.id,
     name: u.name,
     email: u.email,
     roleNames: roleNamesOf(u),
+    roleCodes: roleCodesOf(u),
     clientIds: u.clientAssignments.map((va) => va.clientId),
   }));
 
@@ -955,13 +960,14 @@ export async function cancelIncident(incidentId: number, reason?: string) {
         where: { id: incidentId },
         select: {
           id: true,
-          status: { select: { name: true } },
+          status: { select: { code: true, name: true } },
           resolvedAt: true,
         },
       });
       if (!incident) throw new Error("Incidencia no encontrada");
 
-      const currentStatus = incident.status?.name;
+      // Stable code (H-08): a renamed label must not bypass the guards.
+      const currentStatus = codeOf(incident.status);
       if (currentStatus === INCIDENT_STATE.CANCELADA) {
         businessRule("La incidencia ya está cancelada");
       }
@@ -970,7 +976,7 @@ export async function cancelIncident(incidentId: number, reason?: string) {
       }
 
       const cancelledStatus = await tx.incidentStatus.findUnique({
-        where: { name: INCIDENT_STATE.CANCELADA },
+        where: { code: INCIDENT_STATE.CANCELADA },
         select: { id: true },
       });
       if (!cancelledStatus) {

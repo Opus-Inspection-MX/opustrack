@@ -1,6 +1,7 @@
 import { compare } from "bcrypt";
 import type { NextAuthOptions } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
+import { isUserActive } from "@/lib/constants/status-codes";
 import { prisma } from "@/lib/database/prisma.singleton";
 
 export const authOptions: NextAuthOptions = {
@@ -46,6 +47,7 @@ export const authOptions: NextAuthOptions = {
                   select: {
                     id: true,
                     name: true,
+                    code: true,
                     defaultPath: true,
                     isSuperuser: true,
                     priority: true,
@@ -71,6 +73,7 @@ export const authOptions: NextAuthOptions = {
             userStatus: {
               select: {
                 id: true,
+                code: true,
                 name: true,
               },
             },
@@ -81,8 +84,8 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Invalid email or password");
         }
 
-        // Check if user is active
-        if (user.userStatus.name !== "ACTIVO") {
+        // Check if user is active — by stable code (H-08), never the label.
+        if (!isUserActive(user.userStatus)) {
           throw new Error("Account is not active");
         }
 
@@ -132,6 +135,8 @@ export const authOptions: NextAuthOptions = {
           email: user.email,
           name: user.name,
           roleNames: roles.map((role) => role.name),
+          // Stable role identity (H-09): UI role checks resolve by code.
+          roleCodes: roles.map((role) => role.code ?? role.name),
           isSuperuser: roles.some((role) => role.isSuperuser),
           defaultPath: landing.defaultPath,
           routePaths: [...prefixes],
@@ -149,6 +154,7 @@ export const authOptions: NextAuthOptions = {
         token.email = user.email;
         token.name = user.name;
         token.roleNames = user.roleNames ?? [];
+        token.roleCodes = user.roleCodes ?? [];
         token.isSuperuser = user.isSuperuser ?? false;
         token.defaultPath = user.defaultPath;
         token.routePaths = user.routePaths ?? [];
@@ -164,6 +170,7 @@ export const authOptions: NextAuthOptions = {
         session.user.email = token.email as string;
         session.user.name = token.name as string;
         session.user.roleNames = (token.roleNames as string[]) ?? [];
+        session.user.roleCodes = (token.roleCodes as string[]) ?? [];
         session.user.isSuperuser = (token.isSuperuser as boolean) ?? false;
         session.user.defaultPath = token.defaultPath as string;
         // The navigation menu filters against these, so they have to reach the

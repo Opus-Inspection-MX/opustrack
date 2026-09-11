@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requirePermission } from "@/lib/auth/auth";
 import { whereHasRole } from "@/lib/authz/user-queries";
+import { ROLE } from "@/lib/authz/roles";
 import { prisma } from "@/lib/database/prisma.singleton";
 import { ok, rejected } from "./result";
 
@@ -222,7 +223,7 @@ export async function getFsrUsersForAssignment() {
 
   return prisma.user.findMany({
     where: {
-      ...whereHasRole("FSR"),
+      ...whereHasRole(ROLE.FSR),
       active: true,
     },
     select: {

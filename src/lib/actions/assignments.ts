@@ -7,6 +7,8 @@ import { requireAuth, requirePermission } from "@/lib/auth/auth";
 import { assertClientAccessAsync } from "@/lib/auth/filters";
 import { getReportScope, incidentScopeWhere } from "@/lib/auth/report-scope";
 import { whereHasPermission, whereHasRole } from "@/lib/authz/user-queries";
+import { ROLE } from "@/lib/authz/roles";
+import { codeOf } from "@/lib/constants/status-codes";
 import { prisma } from "@/lib/database/prisma.singleton";
 import {
   notifyAssignmentAssigned,
@@ -71,7 +73,7 @@ const assigneesInclude = {
 async function assertAssigneesAreFsrs(userIds: string[]) {
   if (userIds.length === 0) return;
   const fsrs = await prisma.user.findMany({
-    where: { id: { in: userIds }, active: true, ...whereHasRole("FSR") },
+    where: { id: { in: userIds }, active: true, ...whereHasRole(ROLE.FSR) },
     select: { id: true },
   });
   if (fsrs.length !== new Set(userIds).size) {
@@ -329,9 +331,9 @@ export async function updateAssignment(id: string, data: AssignmentFormData) {
       if (isReassignment) {
         const current = await tx.assignment.findUnique({
           where: { id },
-          select: { status: { select: { name: true } } },
+          select: { status: { select: { code: true, name: true } } },
         });
-        const currentName = current?.status?.name;
+        const currentName = codeOf(current?.status);
         const totalActive = existingIds.size + toAdd.length - toRemove.length;
         if (totalActive === 0) {
           // Last assignee removed → revert to PENDIENTE_DE_ASIGNACION (only if
@@ -508,14 +510,14 @@ async function loadAssignmentForTransition(
     select: {
       id: true,
       incidentId: true,
-      status: { select: { name: true } },
+      status: { select: { code: true, name: true } },
       assignees: { where: { active: true }, select: { userId: true } },
     },
   });
   if (!assignment) throw new Error("Asignación no encontrada");
-  if (!assignment.status?.name || !isAssignmentState(assignment.status.name)) {
+  if (!codeOf(assignment.status) || !isAssignmentState(codeOf(assignment.status))) {
     throw new Error(
-      `Estado actual de la asignación inválido: '${assignment.status?.name ?? "(ninguno)"}'`,
+      `Estado actual de la asignación inválido: '${codeOf(assignment.status) ?? "(ninguno)"}'`,
     );
   }
   return assignment;
@@ -550,9 +552,10 @@ async function assertIncidentEditable(
 ): Promise<void> {
   const incident = await client.incident.findUnique({
     where: { id: incidentId },
-    select: { status: { select: { name: true } } },
+    select: { status: { select: { code: true, name: true } } },
   });
-  const name = incident?.status?.name;
+  // Stable code (H-08): a renamed "CERRADO" label must still block edits.
+  const name = codeOf(incident?.status);
   if (name === "CERRADO" || name === "CANCELADA") {
     businessRule(
       name === "CANCELADA"
@@ -574,7 +577,7 @@ export async function markAssignmentSeen(id: string) {
       const current = await loadAssignmentForTransition(tx, id);
       await ensureCallerIsAssigneeOrAdmin(user.id, current.assignees);
       await assertIncidentEditable(tx, current.incidentId);
-      const from = current.status?.name as AssignmentState;
+      const from = codeOf(current.status) as AssignmentState;
       if (from === ASSIGNMENT_STATE.VISTO) {
         return { assignment: null, incidentId: current.incidentId, noop: true };
       }
@@ -669,7 +672,7 @@ export async function startAssignmentWork(formData: FormData) {
       const current = await loadAssignmentForTransition(tx, id);
       await ensureCallerIsAssigneeOrAdmin(user.id, current.assignees);
       await assertIncidentEditable(tx, current.incidentId);
-      const from = current.status?.name as AssignmentState;
+      const from = codeOf(current.status) as AssignmentState;
       assertAssignmentTransition(from, ASSIGNMENT_STATE.INICIADO);
 
       const now = new Date();
@@ -738,7 +741,7 @@ export async function pauseAssignment(id: string) {
       const current = await loadAssignmentForTransition(tx, id);
       await ensureCallerIsAssigneeOrAdmin(user.id, current.assignees);
       await assertIncidentEditable(tx, current.incidentId);
-      const from = current.status?.name as AssignmentState;
+      const from = codeOf(current.status) as AssignmentState;
       assertAssignmentTransition(from, ASSIGNMENT_STATE.EN_PROGRESO);
       const statusId = await resolveAssignmentStatusId(
         tx,
@@ -777,7 +780,7 @@ export async function resumeAssignment(id: string) {
       const current = await loadAssignmentForTransition(tx, id);
       await ensureCallerIsAssigneeOrAdmin(user.id, current.assignees);
       await assertIncidentEditable(tx, current.incidentId);
-      const from = current.status?.name as AssignmentState;
+      const from = codeOf(current.status) as AssignmentState;
       assertAssignmentTransition(from, ASSIGNMENT_STATE.INICIADO);
       const statusId = await resolveAssignmentStatusId(
         tx,
@@ -863,7 +866,7 @@ export async function closeAssignment(formData: FormData) {
       const current = await loadAssignmentForTransition(tx, id);
       await ensureCallerIsAssigneeOrAdmin(user.id, current.assignees);
       await assertIncidentEditable(tx, current.incidentId);
-      const from = current.status?.name as AssignmentState;
+      const from = codeOf(current.status) as AssignmentState;
       assertAssignmentTransition(from, ASSIGNMENT_STATE.CERRADO);
 
       const attachmentCount = await tx.assignmentAttachment.count({
@@ -952,7 +955,7 @@ export async function reopenAssignment(id: string) {
   return guarded(async () => {
     const result = await transactionWithNotifications(async (tx) => {
       const current = await loadAssignmentForTransition(tx, id);
-      const from = current.status?.name as AssignmentState;
+      const from = codeOf(current.status) as AssignmentState;
       assertAssignmentTransition(from, ASSIGNMENT_STATE.EN_PROGRESO);
       const statusId = await resolveAssignmentStatusId(
         tx,
@@ -1042,7 +1045,7 @@ export async function getAssignmentFormOptions() {
       orderBy: { reportedAt: "desc" },
     }),
     prisma.user.findMany({
-      where: { active: true, ...whereHasRole("FSR") },
+      where: { active: true, ...whereHasRole(ROLE.FSR) },
       select: {
         id: true,
         name: true,
@@ -1268,16 +1271,16 @@ export async function updateAssignmentStatus(id: string, statusId: number) {
     const result = await transactionWithNotifications(async (tx) => {
       const target = await tx.assignmentStatus.findUnique({
         where: { id: statusId },
-        select: { name: true },
+        select: { code: true, name: true },
       });
-      if (!target?.name || !isAssignmentState(target.name)) {
+      if (!codeOf(target) || !isAssignmentState(codeOf(target))) {
         throw new Error(
-          `AssignmentStatus '${target?.name ?? statusId}' inválido`,
+          `AssignmentStatus '${codeOf(target) ?? statusId}' inválido`,
         );
       }
       const current = await loadAssignmentForTransition(tx, id);
-      const from = current.status?.name as AssignmentState;
-      const to = target.name as AssignmentState;
+      const from = codeOf(current.status) as AssignmentState;
+      const to = codeOf(target) as AssignmentState;
       assertAssignmentTransition(from, to);
 
       // For state-machine-managed transitions that require GPS/timestamps,

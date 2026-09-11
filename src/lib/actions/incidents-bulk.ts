@@ -11,6 +11,7 @@ import {
   scopeIncludesClient,
 } from "@/lib/auth/report-scope";
 import { whereHasRole } from "@/lib/authz/user-queries";
+import { ROLE } from "@/lib/authz/roles";
 import { prisma } from "@/lib/database/prisma.singleton";
 import {
   resolveTypeIdOrFallback,
@@ -84,7 +85,7 @@ export async function getBulkIncidentCatalogs() {
       },
     }),
     prisma.user.findMany({
-      where: { active: true, ...whereHasRole("FSR") },
+      where: { active: true, ...whereHasRole(ROLE.FSR) },
       select: {
         id: true,
         name: true,
@@ -261,7 +262,7 @@ export async function resolveBulkIncidentRows(
       select: { id: true, code: true },
     }),
     prisma.user.findMany({
-      where: { active: true, ...whereHasRole("FSR") },
+      where: { active: true, ...whereHasRole(ROLE.FSR) },
       select: { id: true },
     }),
   ]);
@@ -588,7 +589,7 @@ export async function createIncidentsFromPreview(
           where: {
             id: { in: assigneeIds },
             active: true,
-            ...whereHasRole("FSR"),
+            ...whereHasRole(ROLE.FSR),
           },
           select: { id: true },
         })
@@ -876,7 +877,7 @@ export async function bulkAssignIncidents(
       where: {
         id: { in: changes.fsrIds.ids },
         active: true,
-        ...whereHasRole("FSR"),
+        ...whereHasRole(ROLE.FSR),
       },
       select: { id: true },
     });

@@ -15,6 +15,8 @@ declare module "next-auth" {
     email: string;
     name: string;
     roleNames?: string[];
+    /** Stable role identity (H-09): logic checks codes, never labels. */
+    roleCodes?: string[];
     /** Holds a role marked `isSuperuser` (ROOT); bypasses every check. */
     isSuperuser?: boolean;
     /** Landing page of the highest-priority role. */
@@ -32,6 +34,7 @@ declare module "next-auth" {
       email: string;
       name: string;
       roleNames?: string[];
+      roleCodes?: string[];
       isSuperuser?: boolean;
       defaultPath?: string;
       routePaths?: string[];
@@ -47,6 +50,7 @@ declare module "next-auth/jwt" {
     email: string;
     name: string;
     roleNames?: string[];
+    roleCodes?: string[];
     isSuperuser?: boolean;
     defaultPath?: string;
     routePaths?: string[];

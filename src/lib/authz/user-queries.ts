@@ -8,13 +8,26 @@
  */
 
 import type { Prisma } from "@prisma/client";
+import type { RoleCode } from "@/lib/authz/roles";
 import { prisma } from "@/lib/database/prisma.singleton";
 
-/** Users holding a role by name. */
-export function whereHasRole(roleName: string): Prisma.UserWhereInput {
+/**
+ * Users holding a role by stable code (H-09).
+ *
+ * Resolves `code` first and falls back to `name` so rows that predate the
+ * backfill — and unit mocks without `code` — keep matching. Every caller
+ * passes a `ROLE.*` constant; never a raw label.
+ */
+export function whereHasRole(roleCode: RoleCode | string): Prisma.UserWhereInput {
   return {
     userRoles: {
-      some: { active: true, role: { name: roleName, active: true } },
+      some: {
+        active: true,
+        role: {
+          active: true,
+          OR: [{ code: roleCode }, { code: null, name: roleCode }],
+        },
+      },
     },
   };
 }
@@ -56,11 +69,18 @@ export const includeRoles = {
   },
 } as const;
 
-/** Flatten what `includeRoles` returns into plain role names. */
+/** Flatten what `includeRoles` returns into plain role names (labels). */
 export function roleNamesOf(user: {
   userRoles?: Array<{ role: { name: string } }>;
 }): string[] {
   return (user.userRoles ?? []).map((ur) => ur.role.name);
+}
+
+/** Stable role codes for the same rows (`code`, falling back to `name`). */
+export function roleCodesOf(user: {
+  userRoles?: Array<{ role: { code?: string | null; name: string } }>;
+}): string[] {
+  return (user.userRoles ?? []).map((ur) => ur.role.code ?? ur.role.name);
 }
 
 /** Ids of active users holding a permission — the audience for a notification. */
@@ -74,10 +94,12 @@ export async function getUserIdsWithPermission(
   return users.map((u) => u.id);
 }
 
-/** Ids of active users holding a role by name. */
-export async function getUserIdsWithRole(roleName: string): Promise<string[]> {
+/** Ids of active users holding a role by stable code. */
+export async function getUserIdsWithRole(
+  roleCode: RoleCode | string,
+): Promise<string[]> {
   const users = await prisma.user.findMany({
-    where: { active: true, ...whereHasRole(roleName) },
+    where: { active: true, ...whereHasRole(roleCode) },
     select: { id: true },
   });
   return users.map((u) => u.id);

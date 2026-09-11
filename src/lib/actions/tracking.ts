@@ -11,6 +11,8 @@ import {
   type ReportScope,
 } from "@/lib/auth/report-scope";
 import { whereHasRole } from "@/lib/authz/user-queries";
+import { ROLE } from "@/lib/authz/roles";
+import { codeOf } from "@/lib/constants/status-codes";
 import { getSlaState, type SlaState } from "@/lib/constants/sla-policy";
 import { prisma } from "@/lib/database/prisma.singleton";
 import { transactionWithNotifications } from "@/lib/notifications";
@@ -215,7 +217,7 @@ async function notifyNewlyEnabledFsrs(
 async function assertAreFsrs(userIds: string[]): Promise<boolean> {
   if (userIds.length === 0) return true;
   const fsrs = await prisma.user.findMany({
-    where: { id: { in: userIds }, active: true, ...whereHasRole("FSR") },
+    where: { id: { in: userIds }, active: true, ...whereHasRole(ROLE.FSR) },
     select: { id: true },
   });
   return fsrs.length === new Set(userIds).size;
@@ -431,6 +433,7 @@ export async function getIncidentsForTracking(filters?: TrackingFilters) {
       status: {
         select: {
           id: true,
+          code: true,
           name: true,
           color: true,
         },
@@ -543,7 +546,7 @@ export async function getIncidentsForTracking(filters?: TrackingFilters) {
         createdAt: incident.reportedAt,
         seenAt: firstSeenAt,
         resolvedAt: closureMap.get(incident.id) ?? incident.resolvedAt,
-        statusName: incident.status?.name ?? null,
+        statusName: codeOf(incident.status),
         now,
         holidays,
       });
@@ -571,7 +574,7 @@ export async function getTrackingFsrs() {
     await requirePermission("tracking:read");
 
     const users = await prisma.user.findMany({
-      where: { active: true, ...whereHasRole("FSR") },
+      where: { active: true, ...whereHasRole(ROLE.FSR) },
       select: {
         id: true,
         name: true,
@@ -691,14 +694,14 @@ export async function updateAssignmentAssignees(
       where: { id: assignmentId },
       select: {
         incidentId: true,
-        incident: { select: { status: { select: { name: true } } } },
+        incident: { select: { status: { select: { code: true, name: true } } } },
       },
     });
     if (!assignment) {
       return rejected("La asignación ya no existe.");
     }
     const terminalBlock = terminalIncidentMessage(
-      assignment.incident?.status?.name ?? null,
+      codeOf(assignment.incident?.status),
     );
     if (terminalBlock) return rejected(terminalBlock);
     if (!(await assertAreFsrs(uniqueIds))) {
@@ -800,7 +803,7 @@ export async function updateIncidentDetails(
         where: { id: incidentId },
         select: {
           statusId: true,
-          status: { select: { name: true } },
+          status: { select: { code: true, name: true } },
           assignments: {
             where: { active: true },
             select: { id: true },
@@ -809,21 +812,23 @@ export async function updateIncidentDetails(
         },
       });
       if (!incident) businessRule("La incidencia ya no existe.");
-      assertIncidentMutable(incident.status?.name ?? null);
+      assertIncidentMutable(codeOf(incident.status));
 
       // The status field is machine-owned: the edit may only walk a legal
       // edge, never jump. Cancellation has its own action (it records
       // cancelledAt + reason), so it is refused here.
-      const from = incident.status?.name ?? null;
+      // Resolved by stable code (H-08): a renamed label must not bypass the
+      // machine or its cancel guard.
+      const from = codeOf(incident.status);
       const target = data.statusId
         ? await prisma.incidentStatus.findUnique({
             where: { id: data.statusId },
-            select: { name: true },
+            select: { code: true, name: true },
           })
         : null;
       // `isIncidentState` validates at runtime; the cast below only satisfies
       // the compiler, which cannot narrow through the optional chain.
-      const toName = target?.name ?? null;
+      const toName = codeOf(target);
       if (data.statusId && !isIncidentState(toName)) {
         businessRule("Estado de incidencia no válido.");
       }
@@ -905,10 +910,13 @@ export async function updateIncidentDetails(
  * Rules: the reason is mandatory (an unexplained override defeats the log);
  * CANCELADA is never a target (use `cancelIncident`) and never a source
  * (terminal and irreversible).
+ *
+ * `toStatusCode` is a stable system code (H-08), not a label: renaming
+ * "EN_PROGRESO" in the catalog must not break the override.
  */
 export async function overrideIncidentStatus(
   incidentId: number,
-  toStatusName: string,
+  toStatusCode: string,
   reason: string,
 ) {
   const actor = await requirePermission("tracking:update");
@@ -920,10 +928,10 @@ export async function overrideIncidentStatus(
         "El motivo es obligatorio: queda registrado en la bitácora.",
       );
     }
-    if (!isIncidentState(toStatusName)) {
+    if (!isIncidentState(toStatusCode)) {
       businessRule("Estado de incidencia no válido.");
     }
-    if (toStatusName === INCIDENT_STATE.CANCELADA) {
+    if (toStatusCode === INCIDENT_STATE.CANCELADA) {
       businessRule(
         "Para cancelar una incidencia usa la acción de cancelación.",
       );
@@ -932,31 +940,31 @@ export async function overrideIncidentStatus(
     const incident = await prisma.incident.findUnique({
       where: { id: incidentId },
       select: {
-        status: { select: { name: true } },
+        status: { select: { code: true, name: true } },
         resolvedAt: true,
       },
     });
     if (!incident) businessRule("La incidencia ya no existe.");
-    const from = incident.status?.name ?? null;
+    const from = codeOf(incident.status);
     if (from === INCIDENT_STATE.CANCELADA) {
       businessRule("La incidencia está cancelada. No se pueden hacer cambios.");
     }
-    if (from === toStatusName) {
-      businessRule(`La incidencia ya está en ${toStatusName}.`);
+    if (from === toStatusCode) {
+      businessRule(`La incidencia ya está en ${toStatusCode}.`);
     }
 
     const target = await prisma.incidentStatus.findUnique({
-      where: { name: toStatusName },
+      where: { code: toStatusCode },
       select: { id: true },
     });
     if (!target) {
       throw new Error(
-        `IncidentStatus '${toStatusName}' no existe en el catálogo`,
+        `IncidentStatus '${toStatusCode}' no existe en el catálogo`,
       );
     }
 
     const resolvedAt =
-      toStatusName === INCIDENT_STATE.CERRADO ? new Date() : null;
+      toStatusCode === INCIDENT_STATE.CERRADO ? new Date() : null;
     await prisma.$transaction(async (tx) => {
       await tx.incident.update({
         where: { id: incidentId },
@@ -967,11 +975,11 @@ export async function overrideIncidentStatus(
         eventType: IncidentEventType.ADMIN_OVERRIDE,
         actorId: actor.id,
         fromStatus: from,
-        toStatus: toStatusName,
+        toStatus: toStatusCode,
         payload: {
           reason: trimmedReason,
           fromStatus: from,
-          toStatus: toStatusName,
+          toStatus: toStatusCode,
           priorResolvedAt: toIso(incident.resolvedAt),
         },
       });
@@ -980,7 +988,7 @@ export async function overrideIncidentStatus(
     revalidatePath("/admin/tracking");
     revalidatePath("/admin/incidents");
     revalidatePath(`/admin/incidents/${incidentId}`);
-    return ok({ before: from, after: toStatusName });
+    return ok({ before: from, after: toStatusCode });
   });
 }
 
@@ -1000,7 +1008,7 @@ export async function updateAssignmentDetails(
         where: { id: assignmentId },
         select: {
           incidentId: true,
-          status: { select: { name: true } },
+          status: { select: { code: true, name: true } },
           startedAt: true,
           finishedAt: true,
           startLatitude: true,
@@ -1008,7 +1016,7 @@ export async function updateAssignmentDetails(
           endLatitude: true,
           endLongitude: true,
           odtFolio: true,
-          incident: { select: { status: { select: { name: true } } } },
+          incident: { select: { status: { select: { code: true, name: true } } } },
         },
       });
       if (!row) businessRule("La asignación ya no existe.");
@@ -1016,7 +1024,7 @@ export async function updateAssignmentDetails(
       // Assignments of a terminal incident are read-only: every other
       // assignment mutation enforces this, and the tracking editor must not
       // be the back door.
-      assertIncidentMutable(row.incident?.status?.name ?? null);
+      assertIncidentMutable(codeOf(row.incident?.status));
 
       // CDMX wall clock, like `updateIncidentDetails` above. A plain `new Date()`
       // reads "YYYY-MM-DDTHH:mm" in the SERVER's zone — UTC on Vercel — so the
@@ -1029,18 +1037,20 @@ export async function updateAssignmentDetails(
       const target = data.statusId
         ? await prisma.assignmentStatus.findUnique({
             where: { id: data.statusId },
-            select: { name: true },
+            select: { code: true, name: true },
           })
         : null;
-      if (data.statusId && !isAssignmentState(target?.name)) {
+      if (data.statusId && !isAssignmentState(codeOf(target))) {
         businessRule("Estado de asignación no válido.");
       }
 
       // The dates are what the state means, so they are checked together with it.
       // Closing an assignment with no end date leaves a finished job that never
       // finished, and every report that measures duration silently skips it.
-      if (target?.name) {
-        const name = target.name;
+      // Resolved by stable code (H-08).
+      const targetCode = codeOf(target);
+      if (targetCode) {
+        const name = targetCode;
 
         if (name === ASSIGNMENT_STATE.CERRADO && !finishedAt) {
           return rejected(
@@ -1069,8 +1079,8 @@ export async function updateAssignmentDetails(
       // evaluated against the resulting row — this form writes no GPS columns
       // and no evidence, so closing or starting work from here fails unless
       // the dedicated actions already recorded them.
-      const from = row.status?.name ?? null;
-      const to = (target?.name ?? from) as AssignmentState | null;
+      const from = codeOf(row.status);
+      const to = (codeOf(target) ?? from) as AssignmentState | null;
       if (from && to && from !== to) {
         assertAssignmentTransition(from as AssignmentState, to);
       }
@@ -1146,7 +1156,7 @@ export async function getTrackingBootstrap() {
       orderBy: { id: "asc" },
     }),
     prisma.user.findMany({
-      where: { active: true, ...whereHasRole("FSR") },
+      where: { active: true, ...whereHasRole(ROLE.FSR) },
       select: {
         id: true,
         name: true,

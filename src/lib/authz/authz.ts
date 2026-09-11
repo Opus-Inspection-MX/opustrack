@@ -32,6 +32,8 @@ export type Permission = {
 export type Role = {
   id: number;
   name: string;
+  /** Stable system identity (H-09); null for custom UI-created roles. */
+  code: string | null;
   description: string | null;
   defaultPath: string;
   isSuperuser: boolean;
@@ -100,6 +102,7 @@ const roleInclude = {
 type RoleRow = {
   id: number;
   name: string;
+  code: string | null;
   description: string | null;
   defaultPath: string;
   isSuperuser: boolean;
@@ -112,6 +115,7 @@ function toRole(role: RoleRow): Role {
   return {
     id: role.id,
     name: role.name,
+    code: role.code ?? null,
     description: role.description,
     defaultPath: role.defaultPath,
     isSuperuser: role.isSuperuser,
@@ -209,6 +213,22 @@ export async function getRoleById(roleId: number): Promise<Role | null> {
 }
 
 /**
+ * Get a specific role by stable code with permissions.
+ *
+ * `getRoleByName` below stays for label lookups (admin UI); logic uses this.
+ */
+export async function getRoleByCode(roleCode: string): Promise<Role | null> {
+  return getCached(`role-code-${roleCode}`, async () => {
+    const role = await prisma.role.findUnique({
+      where: { code: roleCode },
+      include: roleInclude,
+    });
+    if (!role || !role.active) return null;
+    return toRole(role as RoleRow);
+  });
+}
+
+/**
  * Get a specific role by name with permissions
  */
 export async function getRoleByName(roleName: string): Promise<Role | null> {
@@ -293,9 +313,9 @@ export function isSuperuser(user: UserAuthz): boolean {
   return user.isSuperuser;
 }
 
-/** True when the user holds a role by name. */
-export function hasRole(user: UserAuthz, roleName: string): boolean {
-  return user.roles.some((role) => role.name === roleName);
+/** True when the user holds a role by stable code (H-09). */
+export function hasRole(user: UserAuthz, roleCode: string): boolean {
+  return user.roles.some((role) => (role.code ?? role.name) === roleCode);
 }
 
 /**

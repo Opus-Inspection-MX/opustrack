@@ -1,4 +1,5 @@
 import { IncidentEventType, type Prisma } from "@prisma/client";
+import { codeOf } from "@/lib/constants/status-codes";
 import { prisma } from "@/lib/database/prisma.singleton";
 import {
   deferAfterCommit,
@@ -81,14 +82,15 @@ export async function syncIncidentState(
   const incident = await client.incident.findUnique({
     where: { id: incidentId },
     select: {
-      status: { select: { name: true } },
+      status: { select: { code: true, name: true } },
       resolvedAt: true,
       title: true,
       reportedById: true,
       clientId: true,
     },
   });
-  const before = incident?.status?.name ?? null;
+  // Stable identity (H-08): renaming a "CERRADO" label must not break sync.
+  const before = codeOf(incident?.status);
 
   if (before === INCIDENT_STATE.CANCELADA) {
     return { before, after: INCIDENT_STATE.CANCELADA };
@@ -96,11 +98,11 @@ export async function syncIncidentState(
 
   const assignments = await client.assignment.findMany({
     where: { incidentId, active: true },
-    select: { status: { select: { name: true } } },
+    select: { status: { select: { code: true, name: true } } },
   });
 
   const states = assignments
-    .map((a) => a.status?.name)
+    .map((a) => codeOf(a.status))
     .filter((n): n is AssignmentState => Boolean(n)) as AssignmentState[];
 
   const target = computeIncidentStateFromAssignmentStates(states);
@@ -139,7 +141,7 @@ export async function syncIncidentState(
   }
 
   const status = await client.incidentStatus.findUnique({
-    where: { name: target },
+    where: { code: target },
     select: { id: true },
   });
   if (!status) {

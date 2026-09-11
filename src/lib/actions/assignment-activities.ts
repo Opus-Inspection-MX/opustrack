@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { assertAssignmentEditable } from "@/lib/assignments/incident-mutable";
 import { requirePermission } from "@/lib/auth/auth";
 import { prisma } from "@/lib/database/prisma.singleton";
 import { isFsrUnavailable } from "@/lib/utils/availability";
@@ -11,21 +12,6 @@ export type AssignmentActivityFormData = {
   description: string;
   performedAt?: Date;
 };
-
-async function assertAssignmentEditable(assignmentId: string): Promise<void> {
-  const row = await prisma.assignment.findUnique({
-    where: { id: assignmentId },
-    select: { incident: { select: { status: { select: { name: true } } } } },
-  });
-  const name = row?.incident?.status?.name;
-  if (name === "CERRADO" || name === "CANCELADA") {
-    businessRule(
-      name === "CANCELADA"
-        ? "La incidencia está cancelada. No se pueden hacer cambios."
-        : "La incidencia está cerrada. No se pueden hacer cambios.",
-    );
-  }
-}
 
 /**
  * Get all assignment activities (admin view)
