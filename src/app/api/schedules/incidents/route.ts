@@ -1,7 +1,11 @@
 import type { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { withPermission } from "@/lib/auth/auth";
-import { getReportScope, incidentScopeWhere } from "@/lib/auth/report-scope";
+import {
+  getReportScope,
+  incidentScopeWhere,
+  withScope,
+} from "@/lib/auth/report-scope";
 import { prisma } from "@/lib/database/prisma.singleton";
 import { logger } from "@/lib/observability/logger";
 
@@ -38,10 +42,15 @@ export const GET = withPermission("schedules:read", async (request, user) => {
       );
     }
 
-    // Construir filtro: incidencias cuyo schedule se solapa con el rango
+    // Tenant boundary (cross-cutting rule #4). A requested Client outside
+    // the caller's scope is a 403, not an empty calendar. The scope composes
+    // via AND around the range OR below — never Object.assign, which would
+    // let one OR replace the other.
+    const scope = await getReportScope(user);
+    // Range filter: incidents whose schedule overlaps the range
     // (scheduledAt <= end AND (endDate ?? scheduledAt) >= start), OR
-    // incidencias sin programación reportadas dentro del rango.
-    const where: Prisma.IncidentWhereInput = {
+    // unscheduled incidents reported inside it.
+    let where: Prisma.IncidentWhereInput = {
       active: true,
       OR: [
         {
@@ -60,10 +69,6 @@ export const GET = withPermission("schedules:read", async (request, user) => {
         },
       ],
     };
-
-    // Tenant boundary (cross-cutting rule #4). A requested Client outside
-    // the caller's scope is a 403, not an empty calendar.
-    const scope = await getReportScope(user);
     if (clientIdParam) {
       if (
         scope.clientIds !== null &&
@@ -74,9 +79,9 @@ export const GET = withPermission("schedules:read", async (request, user) => {
           { status: 403 },
         );
       }
-      where.clientId = clientIdParam;
+      where = { ...where, clientId: clientIdParam };
     } else {
-      Object.assign(where, incidentScopeWhere(scope));
+      where = withScope(where, incidentScopeWhere(scope));
     }
 
     // `?signature=1` responde "¿cambió algo?" sin traer las filas: cuatro

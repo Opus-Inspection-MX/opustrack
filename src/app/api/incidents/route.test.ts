@@ -88,7 +88,9 @@ describe("GET /api/incidents · alcance por Cliente", () => {
 
     await GET(new Request("http://localhost/api/incidents"));
 
-    expect(lastWhere().clientId).toEqual({ in: [SCOPED] });
+    // The scope rides its own AND branch (never a merged `clientId` key),
+    // so a later filter cannot replace it.
+    expect(lastWhere().AND).toContainEqual({ clientId: { in: [SCOPED] } });
   });
 
   it("un filtro fuera del alcance es 403, no una lista vacía", async () => {
@@ -115,7 +117,7 @@ describe("GET /api/incidents · alcance por Cliente", () => {
 
     await GET(new Request("http://localhost/api/incidents"));
 
-    expect(lastWhere().clientId).toEqual({ in: [] });
+    expect(lastWhere().AND).toContainEqual({ clientId: { in: [] } });
   });
 });
 
