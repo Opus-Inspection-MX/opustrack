@@ -1,5 +1,6 @@
 "use server";
 
+import type { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireAuth, requirePermission } from "@/lib/auth/auth";
@@ -14,8 +15,8 @@ import { prisma } from "@/lib/database/prisma.singleton";
 import { logger } from "@/lib/observability/logger";
 import {
   assertOfflineFreshness,
-  claimIdempotencyKey,
   findReplayTargetId,
+  isP2002,
   readOfflineFields,
 } from "@/lib/offline/idempotency";
 import {
@@ -242,7 +243,7 @@ export async function startVehicleTrip(formData: FormData) {
       const targetId = await findReplayTargetId(prisma, offline.idempotencyKey);
       if (targetId) {
         const live = await prisma.vehicleTrip.findUnique({
-          where: { id: targetId },
+          where: { id: targetId, active: true },
           include: { vehicle: true, assignment: true },
         });
         if (live) {
@@ -257,16 +258,17 @@ export async function startVehicleTrip(formData: FormData) {
 
     // Validate vehicle exists and is selectable. If the user is not admin, the
     // vehicle must be currently AVAILABLE (the same constraint exposed by
-    // getAvailableVehicles).
+    // getAvailableVehicles). The early check below is a fast fail; the write
+    // itself re-enforces it atomically with a conditional updateMany inside
+    // the transaction (Fase 5b), so two concurrent starts cannot take the
+    // same vehicle.
     const vehicle = await prisma.vehicle.findUnique({
-      where: { id: vehicleId },
+      where: { id: vehicleId, active: true },
       select: { id: true, status: { select: { code: true, name: true } } },
     });
     if (!vehicle) throw new Error("Vehículo no encontrado");
-    if (
-      !userHasPermission(user, "vehicle-trips:manage-all") &&
-      !isVehicleAvailable(vehicle.status)
-    ) {
+    const needsAvailable = !userHasPermission(user, "vehicle-trips:manage-all");
+    if (needsAvailable && !isVehicleAvailable(vehicle.status)) {
       businessRule("El vehículo no está disponible.");
     }
 
@@ -296,43 +298,101 @@ export async function startVehicleTrip(formData: FormData) {
     });
     if (!inUseStatus) throw new Error("Vehicle status IN_USE not found");
 
+    // Fase 5b: the id for the conditional claim below, by stable code.
+    const availableStatusId = needsAvailable
+      ? await prisma.vehicleStatus
+          .findUnique({ where: { code: VEHICLE_STATUS.AVAILABLE } })
+          .then((s) => {
+            if (!s) throw new Error("Vehicle status AVAILABLE not found");
+            return s.id;
+          })
+      : null;
+
     const inProgressStatus = await prisma.vehicleTripStatus.findUnique({
       where: { code: VEHICLE_TRIP_STATUS.EN_CURSO },
     });
     if (!inProgressStatus) throw new Error("Trip status EN_CURSO not found");
 
-    await prisma.vehicle.update({
-      where: { id: vehicleId },
-      data: { statusId: inUseStatus.id },
-    });
+    // Fase 5b: claim FIRST, inside the same transaction as the writes. The
+    // idempotency insert runs alongside `vehicle.update` + `trip.create`, so
+    // a concurrent flush with the same key aborts here with P2002 instead of
+    // creating a second trip. The upload above cannot run inside the
+    // transaction, so every failure path below deletes it (no orphaned
+    // photos) and a P2002 converges on the winner's live trip.
+    let trip: Prisma.VehicleTripGetPayload<{
+      include: { vehicle: true; assignment: true };
+    }>;
+    try {
+      trip = await prisma.$transaction(async (tx) => {
+        if (availableStatusId !== null) {
+          const claimed = await tx.vehicle.updateMany({
+            where: { id: vehicleId, statusId: availableStatusId },
+            data: { statusId: inUseStatus.id },
+          });
+          if (claimed.count !== 1) {
+            businessRule("El vehículo no está disponible.");
+          }
+        } else {
+          await tx.vehicle.update({
+            where: { id: vehicleId },
+            data: { statusId: inUseStatus.id },
+          });
+        }
 
-    const trip = await prisma.vehicleTrip.create({
-      data: {
-        vehicleId,
-        fsrId: user.id,
-        assignmentId,
-        startOdometer,
-        startPhotoUrl: startPhotoResult.url,
-        startPhotoProvider: startPhotoResult.provider,
-        startLatitude: getNumber(formData, "startLatitude") ?? null,
-        startLongitude: getNumber(formData, "startLongitude") ?? null,
-        startAddress: getString(formData, "startAddress") ?? null,
-        notes: getString(formData, "notes") ?? null,
-        statusId: inProgressStatus.id,
-      },
-      include: {
-        vehicle: true,
-        assignment: true,
-      },
-    });
+        const created = await tx.vehicleTrip.create({
+          data: {
+            vehicleId,
+            fsrId: user.id,
+            assignmentId,
+            startOdometer,
+            startPhotoUrl: startPhotoResult.url,
+            startPhotoProvider: startPhotoResult.provider,
+            startLatitude: getNumber(formData, "startLatitude") ?? null,
+            startLongitude: getNumber(formData, "startLongitude") ?? null,
+            startAddress: getString(formData, "startAddress") ?? null,
+            notes: getString(formData, "notes") ?? null,
+            statusId: inProgressStatus.id,
+          },
+          include: {
+            vehicle: true,
+            assignment: true,
+          },
+        });
 
-    if (offline.idempotencyKey) {
-      await claimIdempotencyKey(
-        prisma,
-        offline.idempotencyKey,
-        "startVehicleTrip",
-        trip.id,
-      );
+        if (offline.idempotencyKey) {
+          await tx.actionIdempotency.create({
+            data: {
+              key: offline.idempotencyKey,
+              action: "startVehicleTrip",
+              targetId: created.id,
+            },
+          });
+        }
+        return created;
+      });
+    } catch (error) {
+      await deleteFile(
+        startPhotoResult.url,
+        startPhotoResult.provider as "vercel-blob" | "filesystem",
+      ).catch(() => {});
+      if (offline.idempotencyKey && isP2002(error)) {
+        const targetId = await findReplayTargetId(
+          prisma,
+          offline.idempotencyKey,
+        );
+        if (targetId) {
+          const live = await prisma.vehicleTrip.findUnique({
+            where: { id: targetId, active: true },
+            include: { vehicle: true, assignment: true },
+          });
+          if (live) {
+            revalidatePath("/fsr/vehicle-trips");
+            revalidatePath("/admin/vehicles");
+            return { data: live };
+          }
+        }
+      }
+      throw error;
     }
 
     revalidatePath("/fsr/vehicle-trips");
@@ -375,7 +435,7 @@ export async function endVehicleTrip(formData: FormData) {
       const targetId = await findReplayTargetId(prisma, offline.idempotencyKey);
       if (targetId) {
         const live = await prisma.vehicleTrip.findUnique({
-          where: { id: targetId },
+          where: { id: targetId, active: true },
           include: { vehicle: true, assignment: true },
         });
         if (live) {
@@ -390,7 +450,7 @@ export async function endVehicleTrip(formData: FormData) {
     assertAllowedUpload(photoMimetype, photo.size);
 
     const trip = await prisma.vehicleTrip.findUnique({
-      where: { id },
+      where: { id, active: true },
       select: {
         fsrId: true,
         vehicleId: true,
@@ -440,38 +500,74 @@ export async function endVehicleTrip(formData: FormData) {
 
     const kmDriven = endOdometer - trip.startOdometer;
 
-    const updatedTrip = await prisma.vehicleTrip.update({
-      where: { id },
-      data: {
-        endOdometer,
-        endPhotoUrl: endPhotoResult.url,
-        endPhotoProvider: endPhotoResult.provider,
-        endLatitude: getNumber(formData, "endLatitude") ?? null,
-        endLongitude: getNumber(formData, "endLongitude") ?? null,
-        endAddress: getString(formData, "endAddress") ?? null,
-        endedAt: new Date(),
-        kmDriven,
-        statusId: completedStatus.id,
-        notes: getString(formData, "notes") ?? null,
-      },
-      include: {
-        vehicle: true,
-        assignment: true,
-      },
-    });
+    // Fase 5b: same claim-first contract as the start path — the upload
+    // cannot run inside the transaction, so failures delete it and a P2002
+    // converges on the winner's live trip.
+    let updatedTrip: Prisma.VehicleTripGetPayload<{
+      include: { vehicle: true; assignment: true };
+    }>;
+    try {
+      updatedTrip = await prisma.$transaction(async (tx) => {
+        const updated = await tx.vehicleTrip.update({
+          where: { id },
+          data: {
+            endOdometer,
+            endPhotoUrl: endPhotoResult.url,
+            endPhotoProvider: endPhotoResult.provider,
+            endLatitude: getNumber(formData, "endLatitude") ?? null,
+            endLongitude: getNumber(formData, "endLongitude") ?? null,
+            endAddress: getString(formData, "endAddress") ?? null,
+            endedAt: new Date(),
+            kmDriven,
+            statusId: completedStatus.id,
+            notes: getString(formData, "notes") ?? null,
+          },
+          include: {
+            vehicle: true,
+            assignment: true,
+          },
+        });
 
-    await prisma.vehicle.update({
-      where: { id: trip.vehicleId },
-      data: { statusId: availableStatus.id },
-    });
+        await tx.vehicle.update({
+          where: { id: trip.vehicleId },
+          data: { statusId: availableStatus.id },
+        });
 
-    if (offline.idempotencyKey) {
-      await claimIdempotencyKey(
-        prisma,
-        offline.idempotencyKey,
-        "endVehicleTrip",
-        updatedTrip.id,
-      );
+        if (offline.idempotencyKey) {
+          await tx.actionIdempotency.create({
+            data: {
+              key: offline.idempotencyKey,
+              action: "endVehicleTrip",
+              targetId: updated.id,
+            },
+          });
+        }
+        return updated;
+      });
+    } catch (error) {
+      await deleteFile(
+        endPhotoResult.url,
+        endPhotoResult.provider as "vercel-blob" | "filesystem",
+      ).catch(() => {});
+      if (offline.idempotencyKey && isP2002(error)) {
+        const targetId = await findReplayTargetId(
+          prisma,
+          offline.idempotencyKey,
+        );
+        if (targetId) {
+          const live = await prisma.vehicleTrip.findUnique({
+            where: { id: targetId, active: true },
+            include: { vehicle: true, assignment: true },
+          });
+          if (live) {
+            revalidatePath("/fsr/vehicle-trips");
+            revalidatePath(`/fsr/vehicle-trips/${targetId}`);
+            revalidatePath("/admin/vehicles");
+            return { data: live };
+          }
+        }
+      }
+      throw error;
     }
 
     revalidatePath("/fsr/vehicle-trips");
@@ -554,7 +650,7 @@ export async function updateVehicleTrip(
 
   return guarded(async () => {
     const trip = await prisma.vehicleTrip.findUnique({
-      where: { id },
+      where: { id, active: true },
       select: { fsrId: true },
     });
 
@@ -593,7 +689,7 @@ export async function deleteVehicleTrip(id: string) {
 
   return guarded(async () => {
     const trip = await prisma.vehicleTrip.findUnique({
-      where: { id },
+      where: { id, active: true },
       select: {
         fsrId: true,
         status: { select: { code: true, name: true } },

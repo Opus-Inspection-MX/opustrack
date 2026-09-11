@@ -1,5 +1,6 @@
 "use server";
 
+import type { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { requirePermission } from "@/lib/auth/auth";
 import { userHasPermission } from "@/lib/authz/authz";
@@ -73,32 +74,72 @@ export async function getVacations(params?: {
     ...(managesAllVacations(caller) ? {} : { userId: caller.id }),
   };
 
-  const [rows, total] = await Promise.all([
-    prisma.vacation.findMany({
-      where,
-      include: {
-        user: { select: { id: true, name: true, email: true } },
-        status: true,
-        approvedBy: { select: { id: true, name: true } },
-      },
-      // Pending first, decided last: this table is a work queue, and what needs
-      // a decision has to be on top instead of buried under months of history.
-      // `status.name` sorts PENDIENTE ahead of APROBADA/RECHAZADA only by luck
-      // of the alphabet, so the order is explicit below.
-      orderBy: [{ startDate: "desc" }],
-      skip,
-      take: limit,
-    }),
+  // Fase 5e (H-19): pending-first ordering belongs in the query. Sorting in
+  // memory after pagination buries page-2 pendings under history, so the
+  // queue is two slices: pending requests first, then everything else, with
+  // the page window taken across the union. (Once status codes exist —
+  // Fase 3 — this can become a single orderBy; on this base there is no
+  // stable code column yet, hence the two-query approach.)
+  const include = {
+    user: { select: { id: true, name: true, email: true } },
+    status: true,
+    approvedBy: { select: { id: true, name: true } },
+  } satisfies Prisma.VacationInclude;
+  type VacationRow = Prisma.VacationGetPayload<{
+    include: typeof include;
+  }>;
+  const orderBy = [{ startDate: "desc" as const }];
+
+  const pendienteStatus = await prisma.vacationStatus.findFirst({
+    // Stable code (Fase 3 · H-08), not the display name.
+    where: { code: VACATION_STATUS.PENDIENTE, active: true },
+    select: { id: true },
+  });
+
+  const pendingWhere = pendienteStatus
+    ? { ...where, statusId: pendienteStatus.id }
+    : { ...where, statusId: -1 };
+  const restWhere = pendienteStatus
+    ? { ...where, statusId: { not: pendienteStatus.id } }
+    : where;
+
+  const [pendingTotal, total] = await Promise.all([
+    prisma.vacation.count({ where: pendingWhere }),
     prisma.vacation.count({ where }),
   ]);
 
-  const rank = (
-    status?: { code?: string | null; name?: string | null } | null,
-  ) => (isVacationPending(status) ? 0 : 1);
-  const data = [...rows].sort((a, b) => rank(a.status) - rank(b.status));
+  let rows: VacationRow[];
+  if (skip < pendingTotal) {
+    const pendingRows = await prisma.vacation.findMany({
+      where: pendingWhere,
+      include,
+      orderBy,
+      skip,
+      take: limit,
+    });
+    const restRows =
+      pendingRows.length < limit
+        ? await prisma.vacation.findMany({
+            where: restWhere,
+            include,
+            orderBy,
+            skip: 0,
+            take: limit - pendingRows.length,
+          })
+        : [];
+    rows = [...pendingRows, ...restRows];
+  } else {
+    rows = await prisma.vacation.findMany({
+      where: restWhere,
+      include,
+      orderBy,
+      skip: skip - pendingTotal,
+      take: limit,
+    });
+  }
 
   return {
-    data,
+    data: rows,
     pagination: { total, page, limit, totalPages: Math.ceil(total / limit) },
   };
 }
@@ -470,7 +511,7 @@ export async function deleteVacation(id: string) {
   const caller = await requirePermission("vacations:delete");
 
   const vacation = await prisma.vacation.findUnique({
-    where: { id },
+    where: { id, active: true },
     select: { userId: true, user: { select: { name: true } } },
   });
 

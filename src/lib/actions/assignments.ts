@@ -23,6 +23,7 @@ import {
   assertOfflineFreshness,
   claimIdempotencyKey,
   findReplayTargetId,
+  isP2002,
   readOfflineFields,
 } from "@/lib/offline/idempotency";
 import {
@@ -268,7 +269,7 @@ export async function updateAssignment(id: string, data: AssignmentFormData) {
     const uniqueAssignees = Array.from(new Set(data.assigneeIds));
 
     const existingAssignment = await prisma.assignment.findUnique({
-      where: { id },
+      where: { id, active: true },
       select: { incidentId: true, scheduledDate: true },
     });
     if (!existingAssignment) throw new Error("Assignment not found");
@@ -349,7 +350,7 @@ export async function updateAssignment(id: string, data: AssignmentFormData) {
       let nextStatusId: number | undefined;
       if (isReassignment) {
         const current = await tx.assignment.findUnique({
-          where: { id },
+          where: { id, active: true },
           select: { status: { select: { code: true, name: true } } },
         });
         const currentName = codeOf(current?.status);
@@ -518,6 +519,28 @@ function revalidateAssignmentPaths(assignmentId: string, incidentId: number) {
   revalidatePath("/admin/tracking");
 }
 
+/**
+ * Fase 5b: converge when the idempotency claim loses the race INSIDE the
+ * transaction. The pre-transaction replay lookup already converges sequential
+ * retries, but a concurrent flush claims the same key mid-transaction: its
+ * P2002 aborts the whole Postgres transaction. Answer with the winner's
+ * live row instead of a generic error. Returns null when there is nothing
+ * to converge on (no key, another fault, or the winner's row is gone) so
+ * the caller rethrows the original error.
+ */
+async function convergeLiveAssignment(
+  idempotencyKey: string | undefined,
+  error: unknown,
+) {
+  if (!idempotencyKey || !isP2002(error)) return null;
+  const targetId = await findReplayTargetId(prisma, idempotencyKey);
+  if (!targetId) return null;
+  return prisma.assignment.findUnique({
+    where: { id: targetId, active: true },
+    include: { incident: true, ...assigneesInclude, status: true },
+  });
+}
+
 async function loadAssignmentForTransition(
   client:
     | typeof prisma
@@ -525,7 +548,7 @@ async function loadAssignmentForTransition(
   id: string,
 ) {
   const assignment = await client.assignment.findUnique({
-    where: { id },
+    where: { id, active: true },
     select: {
       id: true,
       incidentId: true,
@@ -665,7 +688,7 @@ export async function startAssignmentWork(formData: FormData) {
       const targetId = await findReplayTargetId(prisma, offline.idempotencyKey);
       if (targetId) {
         const live = await prisma.assignment.findUnique({
-          where: { id: targetId },
+          where: { id: targetId, active: true },
           include: { incident: true, ...assigneesInclude, status: true },
         });
         if (live) {
@@ -724,7 +747,21 @@ export async function startAssignmentWork(formData: FormData) {
         );
       }
       return { assignment: updated, incidentId: current.incidentId };
+    }).catch(async (error) => {
+      // Fase 5b: the claim lost the race INSIDE the transaction — answer
+      // with the winner's live row instead of a generic error.
+      const live = await convergeLiveAssignment(offline.idempotencyKey, error);
+      if (live) {
+        revalidateAssignmentPaths(live.id, live.incidentId);
+        return {
+          assignment: live,
+          incidentId: live.incidentId,
+          converged: true as const,
+        };
+      }
+      throw error;
     });
+    if ("converged" in result) return { data: result.assignment };
 
     const assigneeIds = result.assignment.assignees.map((a) => a.userId);
     await notifyAssignmentUpdated(
@@ -741,8 +778,7 @@ export async function startAssignmentWork(formData: FormData) {
 
 /**
  * INICIADO → EN_PROGRESO (paused on-site / work continues but not yet closed).
- */
-export async function pauseAssignment(id: string) {
+ */ export async function pauseAssignment(id: string) {
   const user = await requirePermission("assignments:update");
 
   return guarded(async () => {
@@ -864,7 +900,7 @@ export async function closeAssignment(formData: FormData) {
       const targetId = await findReplayTargetId(prisma, offline.idempotencyKey);
       if (targetId) {
         const live = await prisma.assignment.findUnique({
-          where: { id: targetId },
+          where: { id: targetId, active: true },
           include: { incident: true, ...assigneesInclude, status: true },
         });
         // No notifications on replay: the first flush already notified.
@@ -888,7 +924,7 @@ export async function closeAssignment(formData: FormData) {
         where: { assignmentId: id, active: true },
       });
       const odtRow = await tx.assignment.findUnique({
-        where: { id },
+        where: { id, active: true },
         select: { odtFolio: true },
       });
       const now = new Date();
@@ -938,7 +974,20 @@ export async function closeAssignment(formData: FormData) {
         assignment: updated,
         incidentId: current.incidentId,
       };
+    }).catch(async (error) => {
+      // Fase 5b: same in-transaction race as the start path — converge.
+      const live = await convergeLiveAssignment(offline.idempotencyKey, error);
+      if (live) {
+        revalidateAssignmentPaths(live.id, live.incidentId);
+        return {
+          assignment: live,
+          incidentId: live.incidentId,
+          converged: true as const,
+        };
+      }
+      throw error;
     });
+    if ("converged" in result) return { data: result.assignment };
 
     const assigneeIds = result.assignment.assignees.map((a) => a.userId);
     const adminIds = await operationsAudience(

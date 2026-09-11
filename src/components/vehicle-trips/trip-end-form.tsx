@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { type FormEvent, useState } from "react";
 import { PendingDrafts } from "@/components/offline/pending-drafts";
 import { Badge } from "@/components/ui/badge";
@@ -42,6 +43,8 @@ interface TripEndFormProps {
 
 export function TripEndForm({ trip }: TripEndFormProps) {
   const router = useRouter();
+  const { data: session } = useSession();
+  const currentUserId = session?.user?.id;
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
 
@@ -151,7 +154,12 @@ export function TripEndForm({ trip }: TripEndFormProps) {
       fields.endLongitude = String(formData.longitude);
     if (formData.address) fields.endAddress = formData.address;
     if (formData.notes) fields.notes = formData.notes;
-    const queued = saveDraft({ kind: "endVehicleTrip", fields, photo });
+    const queued = saveDraft({
+      kind: "endVehicleTrip",
+      fields,
+      photo,
+      userId: currentUserId,
+    });
     if (!queued.queued) {
       toast.error(describeEnqueueFailure(queued.reason));
       return;
@@ -166,6 +174,7 @@ export function TripEndForm({ trip }: TripEndFormProps) {
       <PendingDrafts
         kinds={["endVehicleTrip"]}
         matchField={{ key: "tripId", value: trip.id }}
+        currentUserId={currentUserId}
         onFlushed={() => router.push("/fsr/vehicle-trips")}
       />
       <Card>

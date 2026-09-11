@@ -29,6 +29,31 @@ export function entryRequiresPhoto(kind: OfflineActionKind): boolean {
   return kind === "startVehicleTrip" || kind === "endVehicleTrip";
 }
 
+/**
+ * Fase 5b (H-13): cross-tab flush lock. Two tabs (or a repeated `online`
+ * event plus a manual retry) must not flush the same draft concurrently —
+ * the second send would race the first instead of converging on it. Uses
+ * `navigator.locks` when available; older browsers fall back to the
+ * caller's in-tab in-flight set.
+ */
+export async function withEntryLock<T>(
+  key: string,
+  run: () => Promise<T>,
+): Promise<T> {
+  const locks =
+    typeof navigator !== "undefined"
+      ? (
+          navigator as Navigator & {
+            locks?: {
+              request: (name: string, fn: () => Promise<T>) => Promise<T>;
+            };
+          }
+        ).locks
+      : undefined;
+  if (locks) return locks.request(`opustrack-outbox-${key}`, run);
+  return run();
+}
+
 export function entryToFormData(entry: OutboxEntry, photo?: File): FormData {
   const fd = new FormData();
   for (const [key, value] of Object.entries(entry.fields)) {
@@ -86,6 +111,8 @@ export interface SaveDraftInput {
   kind: OfflineActionKind;
   fields: Record<string, string>;
   photo?: File;
+  /** Capturing user — entry flushes only under this session (H-14). */
+  userId?: string;
 }
 
 /**
@@ -100,6 +127,7 @@ export function saveDraft(input: SaveDraftInput): EnqueueResult {
     capturedAt: new Date().toISOString(),
     attempts: 0,
     photoName: input.photo?.name,
+    ...(input.userId ? { userId: input.userId } : {}),
   };
   if (input.photo) stagePhoto(entry.key, input.photo);
   return enqueueEntry(entry);

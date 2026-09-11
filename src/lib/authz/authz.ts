@@ -72,8 +72,16 @@ export type UserWithPermissions = {
 /**
  * Cache wrapper for database queries
  * Uses React's cache for request-level memoization
+ *
+ * Fase 5c (H-16): `getUserAuthz` keys on `userId + sessionVersion`.
+ * `getAuthenticatedUser` reads `sessionVersion` from the database on EVERY
+ * request, so a session bump (`invalidateRoleSessions` after a role edit)
+ * changes the key and every instance refetches on the next request —
+ * revocation is instant cluster-wide instead of lingering up to the TTL.
+ * Changes that do NOT bump the version (new permission rows, direct DB
+ * edits) still rely on the TTL below, kept short (60 s) for that reason.
  */
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const CACHE_TTL = 60 * 1000; // 60 seconds
 const permissionsCache = new Map<
   string,
   { data: unknown; timestamp: number }
@@ -169,21 +177,31 @@ export function mergeRoles(roles: Role[]): UserAuthz {
 
 /**
  * Every active role a user holds, with permissions, merged into one view.
+ *
+ * `sessionVersion` is part of the cache key (Fase 5c): callers that already
+ * read it per request — `getAuthenticatedUser` does — get instant
+ * cross-instance invalidation on role edits for free.
  */
-export async function getUserAuthz(userId: string): Promise<UserAuthz | null> {
-  return getCached(`user-authz-${userId}`, async () => {
-    const userRoles = await prisma.userRole.findMany({
-      where: { userId, active: true, role: { active: true } },
-      include: { role: { include: roleInclude } },
-    });
+export async function getUserAuthz(
+  userId: string,
+  sessionVersion?: number,
+): Promise<UserAuthz | null> {
+  return getCached(
+    `user-authz-${userId}-${sessionVersion ?? "none"}`,
+    async () => {
+      const userRoles = await prisma.userRole.findMany({
+        where: { userId, active: true, role: { active: true } },
+        include: { role: { include: roleInclude } },
+      });
 
-    // A user with no active role is not "unauthorized-by-default with an empty
-    // list" — that would silently look like a valid session with no access.
-    // Callers treat null as "cannot authenticate".
-    if (userRoles.length === 0) return null;
+      // A user with no active role is not "unauthorized-by-default with an empty
+      // list" — that would silently look like a valid session with no access.
+      // Callers treat null as "cannot authenticate".
+      if (userRoles.length === 0) return null;
 
-    return mergeRoles(userRoles.map((ur) => toRole(ur.role as RoleRow)));
-  });
+      return mergeRoles(userRoles.map((ur) => toRole(ur.role as RoleRow)));
+    },
+  );
 }
 
 /**

@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { type FormEvent, useCallback, useEffect, useState } from "react";
 import { PendingDrafts } from "@/components/offline/pending-drafts";
 import { Button } from "@/components/ui/button";
@@ -51,6 +52,8 @@ interface Assignment {
 
 export function TripStartForm() {
   const router = useRouter();
+  const { data: session } = useSession();
+  const currentUserId = session?.user?.id;
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
@@ -185,6 +188,7 @@ export function TripStartForm() {
       kind: "startVehicleTrip",
       fields,
       photo,
+      userId: currentUserId,
     });
     if (!queued.queued) {
       toast.error(describeEnqueueFailure(queued.reason));
@@ -224,6 +228,7 @@ export function TripStartForm() {
     <div className="space-y-4">
       <PendingDrafts
         kinds={["startVehicleTrip"]}
+        currentUserId={currentUserId}
         onFlushed={() => router.push("/fsr/vehicle-trips")}
       />
       <Card>

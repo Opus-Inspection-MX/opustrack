@@ -928,6 +928,7 @@ model EmailOutbox {
 
 enum EmailOutboxStatus {
   PENDIENTE
+  ENVIANDO
   ENVIADO
   FALLIDO
 }
