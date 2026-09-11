@@ -7,7 +7,16 @@ End-to-end coverage for the domain specs in `spec/`. Current coverage:
 - **`inicio.spec.ts`** — the Fase 3 personal home: every role lands from `/`
   on `/inicio`, and each role sees exactly its widgets (`data-widget-id`
   present and absent, including multi-role unions). Runs in the `flows`
-  project (serial, shared database).
+  project (serial, shared database) and on Mobile Chrome / iPad.
+- **`responsive.spec.ts`** — the Fase 5 responsive audit: one route per area
+  (login, inicio, tracking, FSR detail, reports, catalog, vacations) swept
+  across 360 / 768 / 1024 / 1440 px. No document horizontal scroll, exactly
+  one notification bell, header + tab bar in their viewport — plus a
+  `prefers-reduced-motion` sweep proving CSS durations collapse.
+- **`accessibility.spec.ts`** — the Fase 5 axe audit (WCAG 2A/2AA) over
+  `/inicio`, `/login`, tracking and the FSR detail in the light, dark and
+  opus themes. Zero rule exclusions; see `docs/ui-patterns.md` for the
+  system rules it guards.
 - **`incident-lifecycle.spec.ts`** — the business flow from
   `spec/00-overview.md`: a CLIENT reports an incident, an ADMIN schedules and
   assigns it, an FSR marks it seen, starts on site and closes it, and the
@@ -96,12 +105,18 @@ Arguments are forwarded, so `npm run test:e2e -- --project=chromium` works.
 ## Browsers
 
 Default runs are Chromium-only: `chromium`, `Mobile Chrome`, `catalogs`,
-`flows` (plus the `db`/`setup` scaffolding). Firefox, WebKit and
-Mobile Safari are opt-in behind `E2E_EXTRA_BROWSERS=1`:
+`flows` (plus the `db`/`setup` scaffolding). Firefox, WebKit,
+Mobile Safari and iPad are opt-in behind `E2E_EXTRA_BROWSERS=1`:
 
 ```bash
 E2E_EXTRA_BROWSERS=1 npm run test:e2e -- --project=firefox
 ```
+
+Explicit project selection still works, e.g.
+`--project=chromium --project="Mobile Chrome" --project=iPad --project=flows --project=catalogs`.
+Navigation, RBAC and inicio specs also run on Mobile Chrome and iPad (the
+RBAC menu spec opens the "Más" drawer below `lg`, where the sidebar lives
+in a Sheet).
 
 Explicit project selection still works, e.g.
 `--project=chromium --project="Mobile Chrome" --project=flows --project=catalogs`.

@@ -122,6 +122,11 @@ Production Next strips the message of anything a Server Action throws. Use
 - Next.js 15: `await params` in dynamic routes.
 - Prisma client always from `@/lib/database/prisma.singleton`.
 - UI toasts via `@/hooks/use-toast`; never `alert()`.
+- UI system reference: `docs/ui-patterns.md` (tokens, themes, components,
+  responsive patterns, a11y). Two rules from Fase 5: client components never
+  receive component *types* like `icon={Icon}` (RSC boundary — pass
+  elements/children), and the reduced-motion reset stays unlayered in
+  `globals.css`.
 - `knip --include files` runs in `npm run check`: no unused files allowed.
 
 ### File storage & email
