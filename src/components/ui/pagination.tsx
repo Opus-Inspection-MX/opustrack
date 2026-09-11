@@ -35,6 +35,9 @@ export function Pagination({
   const startItem = (currentPage - 1) * itemsPerPage + 1;
   const endItem = Math.min(currentPage * itemsPerPage, totalItems);
 
+  // Matches the legacy table pagination: no controls on an empty list.
+  if (totalItems === 0) return null;
+
   return (
     <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-2">
       <div className="text-sm text-muted-foreground">

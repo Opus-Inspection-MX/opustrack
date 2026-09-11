@@ -10,7 +10,6 @@ import {
   Trash2,
 } from "lucide-react";
 import { useState } from "react";
-import { TablePagination } from "@/components/common/table-pagination";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,6 +18,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Pagination } from "@/components/ui/pagination";
 import {
   Table,
   TableBody,
@@ -246,13 +246,11 @@ export function ScheduleTable({
         </Table>
       </div>
 
-      <TablePagination
+      <Pagination
         currentPage={currentPage}
         totalPages={totalPages}
         itemsPerPage={itemsPerPage}
         totalItems={data.length}
-        startIndex={startIndex}
-        endIndex={endIndex}
         onPageChange={setCurrentPage}
         onItemsPerPageChange={setItemsPerPage}
       />
