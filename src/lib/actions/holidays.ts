@@ -10,7 +10,7 @@ import {
   HolidayUpdateSchema,
   validateHolidayXOR,
 } from "@/lib/validations/holidays";
-import { ok } from "./result";
+import { guarded } from "./result";
 
 /**
  * Get all active holidays ordered by month and day.
@@ -45,22 +45,24 @@ export async function getHolidayById(id: number) {
 export async function createHoliday(data: HolidayFormData) {
   await requirePermission("holidays:create");
 
-  HolidayCreateSchema.parse(data);
-  validateHolidayXOR(data);
+  return guarded(async () => {
+    HolidayCreateSchema.parse(data);
+    validateHolidayXOR(data);
 
-  const holiday = await prisma.holiday.create({
-    data: {
-      name: data.name,
-      month: data.month,
-      day: data.day ?? null,
-      nthMonday: data.nthMonday ?? null,
-      isRecurring: data.isRecurring,
-      year: data.year ?? null,
-    },
+    const holiday = await prisma.holiday.create({
+      data: {
+        name: data.name,
+        month: data.month,
+        day: data.day ?? null,
+        nthMonday: data.nthMonday ?? null,
+        isRecurring: data.isRecurring,
+        year: data.year ?? null,
+      },
+    });
+
+    revalidatePath("/admin/holidays");
+    return { data: holiday };
   });
-
-  revalidatePath("/admin/holidays");
-  return ok({ data: holiday });
 }
 
 /**
@@ -69,24 +71,26 @@ export async function createHoliday(data: HolidayFormData) {
 export async function updateHoliday(id: number, data: HolidayFormData) {
   await requirePermission("holidays:update");
 
-  HolidayUpdateSchema.parse(data);
-  validateHolidayXOR(data);
+  return guarded(async () => {
+    HolidayUpdateSchema.parse(data);
+    validateHolidayXOR(data);
 
-  const holiday = await prisma.holiday.update({
-    where: { id },
-    data: {
-      name: data.name,
-      month: data.month,
-      day: data.day ?? null,
-      nthMonday: data.nthMonday ?? null,
-      isRecurring: data.isRecurring,
-      year: data.year ?? null,
-    },
+    const holiday = await prisma.holiday.update({
+      where: { id },
+      data: {
+        name: data.name,
+        month: data.month,
+        day: data.day ?? null,
+        nthMonday: data.nthMonday ?? null,
+        isRecurring: data.isRecurring,
+        year: data.year ?? null,
+      },
+    });
+
+    revalidatePath("/admin/holidays");
+    revalidatePath(`/admin/holidays/${id}/edit`);
+    return { data: holiday };
   });
-
-  revalidatePath("/admin/holidays");
-  revalidatePath(`/admin/holidays/${id}/edit`);
-  return ok({ data: holiday });
 }
 
 /**

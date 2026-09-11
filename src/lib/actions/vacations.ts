@@ -192,7 +192,6 @@ export async function createVacation(data: VacationFormData) {
   const caller = await requirePermission("vacations:create");
 
   VacationCreateSchema.parse(data);
-  validateVacationDates(data);
 
   // Normalize the picked calendar dates to CDMX day bounds so single-day and
   // multi-day vacations cover the full Mexico City day. The HTML date input
@@ -210,6 +209,8 @@ export async function createVacation(data: VacationFormData) {
   }
 
   const result = await guarded(async () => {
+    validateVacationDates(data);
+
     // Resolve PENDIENTE status id
     const pendienteStatus = await prisma.vacationStatus.findFirst({
       where: { name: "PENDIENTE", active: true },

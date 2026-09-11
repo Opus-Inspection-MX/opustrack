@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "@/hooks/use-toast";
 import { createHoliday, updateHoliday } from "@/lib/actions/holidays";
+import { isFailure } from "@/lib/actions/result";
 import type { HolidayFormData as ActionHolidayFormData } from "@/lib/validations/holidays";
 
 // Rule type controls which sub-field is displayed: fixed day or n-th Monday.
@@ -81,10 +82,13 @@ export function HolidayForm({
     setLoading(true);
 
     try {
-      if (holiday) {
-        await updateHoliday(holiday.id, formData);
-      } else {
-        await createHoliday(formData);
+      const result = holiday
+        ? await updateHoliday(holiday.id, formData)
+        : await createHoliday(formData);
+      if (isFailure(result)) {
+        toast.error(result.error);
+        setLoading(false);
+        return;
       }
       router.push(redirectPath);
       router.refresh();
