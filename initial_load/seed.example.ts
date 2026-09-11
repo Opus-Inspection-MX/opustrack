@@ -1,4 +1,6 @@
 // prisma/seed.ts
+
+import { SEED_ROLE_CODES } from "../src/lib/authz/roles";
 import {
   SYSTEM_ASSIGNMENT_STATUSES,
   SYSTEM_INCIDENT_STATUSES,
@@ -7,7 +9,6 @@ import {
   SYSTEM_VEHICLE_STATUSES,
   SYSTEM_VEHICLE_TRIP_STATUSES,
 } from "../src/lib/catalog/system-states";
-import { SEED_ROLE_CODES } from "../src/lib/authz/roles";
 import { prisma } from "../src/lib/database/prisma.singleton";
 import { defaultChannelPolicies } from "../src/lib/notifications/catalog";
 import { hashPassword } from "../src/lib/security/hash";

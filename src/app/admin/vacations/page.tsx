@@ -116,7 +116,9 @@ export default async function AdminVacationsPage() {
                 header: "Estado",
                 cell: (vacation) => (
                   <StatusBadge
-                    tone={STATUS_TONE[codeOf(vacation.status) ?? ""] ?? "neutral"}
+                    tone={
+                      STATUS_TONE[codeOf(vacation.status) ?? ""] ?? "neutral"
+                    }
                   >
                     {STATUS_LABEL[codeOf(vacation.status) ?? ""] ??
                       vacation.status.name}
@@ -148,7 +150,9 @@ export default async function AdminVacationsPage() {
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="font-medium">{vacation.user.name}</p>
                   <StatusBadge
-                    tone={STATUS_TONE[codeOf(vacation.status) ?? ""] ?? "neutral"}
+                    tone={
+                      STATUS_TONE[codeOf(vacation.status) ?? ""] ?? "neutral"
+                    }
                   >
                     {STATUS_LABEL[codeOf(vacation.status) ?? ""] ??
                       vacation.status.name}

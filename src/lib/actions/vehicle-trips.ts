@@ -512,7 +512,10 @@ export async function getMyAssignmentsForTrips() {
       active: true,
       status: {
         code: {
-          notIn: [VEHICLE_TRIP_STATUS.COMPLETADO, VEHICLE_TRIP_STATUS.CANCELADO],
+          notIn: [
+            VEHICLE_TRIP_STATUS.COMPLETADO,
+            VEHICLE_TRIP_STATUS.CANCELADO,
+          ],
         },
       },
     },

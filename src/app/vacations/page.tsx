@@ -124,7 +124,9 @@ export default async function MyVacationsPage() {
                 header: "Estado",
                 cell: (vacation) => (
                   <StatusBadge
-                    tone={STATUS_TONE[codeOf(vacation.status) ?? ""] ?? "neutral"}
+                    tone={
+                      STATUS_TONE[codeOf(vacation.status) ?? ""] ?? "neutral"
+                    }
                   >
                     {STATUS_LABEL[codeOf(vacation.status) ?? ""] ??
                       vacation.status.name}
@@ -144,7 +146,9 @@ export default async function MyVacationsPage() {
               <div className="space-y-2 rounded-xl border bg-card p-4">
                 <div className="flex flex-wrap items-center gap-2">
                   <StatusBadge
-                    tone={STATUS_TONE[codeOf(vacation.status) ?? ""] ?? "neutral"}
+                    tone={
+                      STATUS_TONE[codeOf(vacation.status) ?? ""] ?? "neutral"
+                    }
                   >
                     {STATUS_LABEL[codeOf(vacation.status) ?? ""] ??
                       vacation.status.name}

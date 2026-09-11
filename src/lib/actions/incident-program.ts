@@ -8,8 +8,8 @@ import {
   incidentScopeWhere,
   type ReportScope,
 } from "@/lib/auth/report-scope";
-import { prisma } from "@/lib/database/prisma.singleton";
 import { VACATION_STATUS } from "@/lib/constants/status-codes";
+import { prisma } from "@/lib/database/prisma.singleton";
 import {
   buildIncidentProgram,
   classifyIncidentType,

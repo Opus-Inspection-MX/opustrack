@@ -215,7 +215,10 @@ export function VehicleForm({
                 <SelectContent>
                   {statuses.length > 0 ? (
                     statuses.map((status) => (
-                      <SelectItem key={status.id} value={status.code ?? status.name}>
+                      <SelectItem
+                        key={status.id}
+                        value={status.code ?? status.name}
+                      >
                         {status.name}
                       </SelectItem>
                     ))

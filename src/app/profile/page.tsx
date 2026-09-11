@@ -26,12 +26,12 @@ import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/hooks/use-toast";
 import { isFailure } from "@/lib/actions/result";
-import { isUserActive } from "@/lib/constants/status-codes";
 import {
   getMyProfile,
   updateMyPassword,
   updateMyProfile,
 } from "@/lib/actions/users";
+import { isUserActive } from "@/lib/constants/status-codes";
 import { logger } from "@/lib/observability/logger";
 import { formatMX } from "@/lib/utils/datetime";
 

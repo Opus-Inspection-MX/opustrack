@@ -9,10 +9,15 @@ import {
   incidentScopeWhere,
   vehicleTripScopeWhere,
 } from "@/lib/auth/report-scope";
-import { whereHasRole } from "@/lib/authz/user-queries";
 import { ROLE } from "@/lib/authz/roles";
-import { codeOf, isAssignmentClosed, isIncidentCancelled, isIncidentClosed } from "@/lib/constants/status-codes";
+import { whereHasRole } from "@/lib/authz/user-queries";
 import { getSlaState } from "@/lib/constants/sla-policy";
+import {
+  codeOf,
+  isAssignmentClosed,
+  isIncidentCancelled,
+  isIncidentClosed,
+} from "@/lib/constants/status-codes";
 import { prisma } from "@/lib/database/prisma.singleton";
 import { getSlaHolidaySet } from "@/lib/sla/sla-holidays";
 import { getIncidentClosureMap } from "@/lib/state-machine/incident-events";

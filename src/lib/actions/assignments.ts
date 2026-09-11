@@ -6,8 +6,8 @@ import { resolveAssignmentStatusId } from "@/lib/assignments/ensure-fsrs";
 import { requireAuth, requirePermission } from "@/lib/auth/auth";
 import { assertClientAccessAsync } from "@/lib/auth/filters";
 import { getReportScope, incidentScopeWhere } from "@/lib/auth/report-scope";
-import { whereHasPermission, whereHasRole } from "@/lib/authz/user-queries";
 import { ROLE } from "@/lib/authz/roles";
+import { whereHasPermission, whereHasRole } from "@/lib/authz/user-queries";
 import { codeOf } from "@/lib/constants/status-codes";
 import { prisma } from "@/lib/database/prisma.singleton";
 import {
@@ -515,7 +515,10 @@ async function loadAssignmentForTransition(
     },
   });
   if (!assignment) throw new Error("Asignación no encontrada");
-  if (!codeOf(assignment.status) || !isAssignmentState(codeOf(assignment.status))) {
+  if (
+    !codeOf(assignment.status) ||
+    !isAssignmentState(codeOf(assignment.status))
+  ) {
     throw new Error(
       `Estado actual de la asignación inválido: '${codeOf(assignment.status) ?? "(ninguno)"}'`,
     );

@@ -7,10 +7,7 @@
  */
 
 import { businessRule } from "@/lib/actions/result";
-import {
-  codeOf,
-  INCIDENT_STATE,
-} from "@/lib/constants/status-codes";
+import { codeOf, INCIDENT_STATE } from "@/lib/constants/status-codes";
 import { prisma } from "@/lib/database/prisma.singleton";
 
 /** Refuse changes once the parent incident is closed or cancelled. */

@@ -238,9 +238,7 @@ export default async function ClientDetailPage({
                 header: "Estado",
                 cell: (user) => (
                   <StatusBadge
-                    tone={
-                      isUserActive(user.userStatus) ? "success" : "neutral"
-                    }
+                    tone={isUserActive(user.userStatus) ? "success" : "neutral"}
                   >
                     {user.userStatus.name}
                   </StatusBadge>
@@ -264,9 +262,7 @@ export default async function ClientDetailPage({
                 <div className="flex flex-wrap items-center gap-2">
                   <RoleBadges userRoles={user.userRoles} />
                   <StatusBadge
-                    tone={
-                      isUserActive(user.userStatus) ? "success" : "neutral"
-                    }
+                    tone={isUserActive(user.userStatus) ? "success" : "neutral"}
                   >
                     {user.userStatus.name}
                   </StatusBadge>

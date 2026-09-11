@@ -146,7 +146,7 @@ describe("getPeriodBalance", () => {
         where: expect.objectContaining({
           periodId: "period-1",
           active: true,
-          status: { name: { in: ["PENDIENTE", "APROBADA"] } },
+          status: { code: { in: ["PENDIENTE", "APROBADA"] } },
         }),
       }),
     );

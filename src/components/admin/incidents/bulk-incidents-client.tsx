@@ -31,10 +31,7 @@ import {
   type EditablePreviewRow,
   resolveBulkIncidentRows,
 } from "@/lib/actions/incidents-bulk";
-import {
-  codeOf,
-  INCIDENT_STATE,
-} from "@/lib/constants/status-codes";
+import { codeOf, INCIDENT_STATE } from "@/lib/constants/status-codes";
 import {
   excelDateCell,
   excelDateToWallClock,
@@ -46,7 +43,12 @@ import {
 
 type Catalogs = {
   types: Array<{ id: number; name: string }>;
-  statuses: Array<{ id: number; code?: string | null; name: string; color: string }>;
+  statuses: Array<{
+    id: number;
+    code?: string | null;
+    name: string;
+    color: string;
+  }>;
   clients: Array<{ id: string; name: string; code: string }>;
   schedules: Array<{
     id: string;

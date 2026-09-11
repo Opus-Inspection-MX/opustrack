@@ -10,10 +10,10 @@ import {
   incidentScopeWhere,
   type ReportScope,
 } from "@/lib/auth/report-scope";
-import { whereHasRole } from "@/lib/authz/user-queries";
 import { ROLE } from "@/lib/authz/roles";
-import { codeOf } from "@/lib/constants/status-codes";
+import { whereHasRole } from "@/lib/authz/user-queries";
 import { getSlaState, type SlaState } from "@/lib/constants/sla-policy";
+import { codeOf } from "@/lib/constants/status-codes";
 import { prisma } from "@/lib/database/prisma.singleton";
 import { transactionWithNotifications } from "@/lib/notifications";
 import {
@@ -694,7 +694,9 @@ export async function updateAssignmentAssignees(
       where: { id: assignmentId },
       select: {
         incidentId: true,
-        incident: { select: { status: { select: { code: true, name: true } } } },
+        incident: {
+          select: { status: { select: { code: true, name: true } } },
+        },
       },
     });
     if (!assignment) {
@@ -1016,7 +1018,9 @@ export async function updateAssignmentDetails(
           endLatitude: true,
           endLongitude: true,
           odtFolio: true,
-          incident: { select: { status: { select: { code: true, name: true } } } },
+          incident: {
+            select: { status: { select: { code: true, name: true } } },
+          },
         },
       });
       if (!row) businessRule("La asignación ya no existe.");

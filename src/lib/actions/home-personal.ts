@@ -63,7 +63,7 @@ export async function getMyWorkSummary() {
     prisma.assignment.findMany({
       where: {
         ...mine,
-        status: { name: { not: ASSIGNMENT_STATE.CERRADO } },
+        status: { code: { not: ASSIGNMENT_STATE.CERRADO } },
       },
       include: {
         status: true,
@@ -178,7 +178,7 @@ export async function getMyVacationSummary() {
         userId: user.id,
         active: true,
         startDate: { gte: new Date() },
-        status: { name: "APROBADA" },
+        status: { code: VACATION_STATUS.APROBADA },
       },
       include: { status: { select: { name: true, color: true } } },
       orderBy: { startDate: "asc" },
@@ -214,7 +214,7 @@ export async function getPendingVacationApprovals() {
 
   const where = {
     active: true,
-    status: { name: "PENDIENTE" },
+    status: { code: VACATION_STATUS.PENDIENTE },
   };
 
   const [count, top] = await Promise.all([
@@ -246,7 +246,7 @@ export async function getUpcomingAbsences() {
   const absences = await prisma.vacation.findMany({
     where: {
       active: true,
-      status: { name: "APROBADA" },
+      status: { code: VACATION_STATUS.APROBADA },
       startDate: { gte: now, lte: horizon },
     },
     include: {

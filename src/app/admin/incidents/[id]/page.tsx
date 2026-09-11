@@ -85,11 +85,7 @@ export default async function IncidentDetailPage({
           <>
             {!terminal && (
               <>
-                <Button
-                  variant="outline"
-                  asChild
-                  className="w-full sm:w-auto"
-                >
+                <Button variant="outline" asChild className="w-full sm:w-auto">
                   <Link href={`/admin/incidents/${incident.id}/edit`}>
                     <EditIcon className="mr-2 h-4 w-4" aria-hidden />
                     Editar incidencia

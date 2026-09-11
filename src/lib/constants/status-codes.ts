@@ -6,8 +6,8 @@
  * (they own the transition tables); the values here MUST stay identical to
  * those so `code` and machine state are the same string.
  *
- * Every comparison goes through `codeOf` + the `is*` helpers below — never
- * `status.name === "..."`. `codeOf` falls back to `name` so rows that predate
+ * Every comparison goes through `codeOf` + the `is*` helpers below — never a
+ * direct label comparison. `codeOf` falls back to `name` so rows that predate
  * the backfill (and unit mocks without `code`) keep working.
  */
 
@@ -27,8 +27,7 @@ export const USER_STATUS = {
   SUSPENDIDO: "SUSPENDIDO",
 } as const;
 
-export type UserStatusCode =
-  (typeof USER_STATUS)[keyof typeof USER_STATUS];
+export type UserStatusCode = (typeof USER_STATUS)[keyof typeof USER_STATUS];
 
 export const VACATION_STATUS = {
   PENDIENTE: "PENDIENTE",
@@ -73,34 +72,38 @@ export function codeOf(status: StatusRef | null | undefined): string | null {
 // --- incident ---------------------------------------------------------------
 
 export function isIncidentTerminalCode(code: string | null): boolean {
-  return (
-    code === INCIDENT_STATE.CERRADO || code === INCIDENT_STATE.CANCELADA
-  );
+  return code === INCIDENT_STATE.CERRADO || code === INCIDENT_STATE.CANCELADA;
 }
 
-export function isIncidentTerminal(status: StatusRef | null | undefined): boolean {
+export function isIncidentTerminal(
+  status: StatusRef | null | undefined,
+): boolean {
   return isIncidentTerminalCode(codeOf(status));
 }
 
-export function isIncidentCancelled(status: StatusRef | null | undefined): boolean {
+export function isIncidentCancelled(
+  status: StatusRef | null | undefined,
+): boolean {
   return codeOf(status) === INCIDENT_STATE.CANCELADA;
 }
 
-export function isIncidentClosed(status: StatusRef | null | undefined): boolean {
+export function isIncidentClosed(
+  status: StatusRef | null | undefined,
+): boolean {
   return codeOf(status) === INCIDENT_STATE.CERRADO;
 }
 
 /** Re-export for call sites that already import from here. */
-export { INCIDENT_TERMINAL_STATES };
-export type { IncidentState };
+export { ASSIGNMENT_STATE, INCIDENT_STATE, INCIDENT_TERMINAL_STATES };
+export type { AssignmentState, IncidentState };
 
 // --- assignment -------------------------------------------------------------
 
-export function isAssignmentClosed(status: StatusRef | null | undefined): boolean {
+export function isAssignmentClosed(
+  status: StatusRef | null | undefined,
+): boolean {
   return codeOf(status) === ASSIGNMENT_STATE.CERRADO;
 }
-
-export type { AssignmentState };
 
 // --- user -------------------------------------------------------------------
 
@@ -110,27 +113,39 @@ export function isUserActive(status: StatusRef | null | undefined): boolean {
 
 // --- vacation ---------------------------------------------------------------
 
-export function isVacationPending(status: StatusRef | null | undefined): boolean {
+export function isVacationPending(
+  status: StatusRef | null | undefined,
+): boolean {
   return codeOf(status) === VACATION_STATUS.PENDIENTE;
 }
 
-export function isVacationApproved(status: StatusRef | null | undefined): boolean {
+export function isVacationApproved(
+  status: StatusRef | null | undefined,
+): boolean {
   return codeOf(status) === VACATION_STATUS.APROBADA;
 }
 
-export function isVacationBlocking(status: StatusRef | null | undefined): boolean {
+export function isVacationBlocking(
+  status: StatusRef | null | undefined,
+): boolean {
   const code = codeOf(status);
-  return code === VACATION_STATUS.PENDIENTE || code === VACATION_STATUS.APROBADA;
+  return (
+    code === VACATION_STATUS.PENDIENTE || code === VACATION_STATUS.APROBADA
+  );
 }
 
 // --- vehicle ----------------------------------------------------------------
 
-export function isVehicleAvailable(status: StatusRef | null | undefined): boolean {
+export function isVehicleAvailable(
+  status: StatusRef | null | undefined,
+): boolean {
   return codeOf(status) === VEHICLE_STATUS.AVAILABLE;
 }
 
 // --- vehicle trip -----------------------------------------------------------
 
-export function isVehicleTripOpen(status: StatusRef | null | undefined): boolean {
+export function isVehicleTripOpen(
+  status: StatusRef | null | undefined,
+): boolean {
   return codeOf(status) === VEHICLE_TRIP_STATUS.EN_CURSO;
 }

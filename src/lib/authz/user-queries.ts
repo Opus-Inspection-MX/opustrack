@@ -18,7 +18,9 @@ import { prisma } from "@/lib/database/prisma.singleton";
  * backfill — and unit mocks without `code` — keep matching. Every caller
  * passes a `ROLE.*` constant; never a raw label.
  */
-export function whereHasRole(roleCode: RoleCode | string): Prisma.UserWhereInput {
+export function whereHasRole(
+  roleCode: RoleCode | string,
+): Prisma.UserWhereInput {
   return {
     userRoles: {
       some: {

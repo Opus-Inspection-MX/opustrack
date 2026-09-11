@@ -9,7 +9,6 @@ import {
   isVacationPending,
   VACATION_STATUS,
 } from "@/lib/constants/status-codes";
-import { ASSIGNMENT_STATE } from "@/lib/state-machine/assignment-machine";
 import { prisma } from "@/lib/database/prisma.singleton";
 import {
   notifyVacationApproved,
@@ -24,6 +23,7 @@ import {
   getPeriodBalance,
   resolveVacationPeriod,
 } from "@/lib/services/vacation-periods";
+import { ASSIGNMENT_STATE } from "@/lib/state-machine/assignment-machine";
 import { getHolidayDatesForYear } from "@/lib/utils/availability";
 import { mxDayRange } from "@/lib/utils/datetime";
 import { countBusinessDays } from "@/lib/utils/vacation-balance";
@@ -92,11 +92,10 @@ export async function getVacations(params?: {
     prisma.vacation.count({ where }),
   ]);
 
-  const rank = (status?: { code?: string | null; name?: string | null } | null) =>
-    isVacationPending(status) ? 0 : 1;
-  const data = [...rows].sort(
-    (a, b) => rank(a.status) - rank(b.status),
-  );
+  const rank = (
+    status?: { code?: string | null; name?: string | null } | null,
+  ) => (isVacationPending(status) ? 0 : 1);
+  const data = [...rows].sort((a, b) => rank(a.status) - rank(b.status));
 
   return {
     data,

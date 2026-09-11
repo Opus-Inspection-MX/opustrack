@@ -10,8 +10,8 @@ import {
   scheduleScopeWhere,
   scopeIncludesClient,
 } from "@/lib/auth/report-scope";
-import { whereHasRole } from "@/lib/authz/user-queries";
 import { ROLE } from "@/lib/authz/roles";
+import { whereHasRole } from "@/lib/authz/user-queries";
 import { prisma } from "@/lib/database/prisma.singleton";
 import {
   resolveTypeIdOrFallback,

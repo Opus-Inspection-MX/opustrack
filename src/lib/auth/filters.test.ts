@@ -34,6 +34,8 @@ function role(overrides: Partial<Role> = {}): Role {
     priority: 10,
     permissions: [],
     ...overrides,
+    // Seed roles carry code == name (see authz.test.ts helper).
+    code: overrides.code ?? overrides.name ?? "REPORTER",
   };
 }
 

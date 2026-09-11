@@ -4,10 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireAuth } from "@/lib/auth/auth";
 import { assertClientAccessAsync } from "@/lib/auth/filters";
 import { userHasPermission } from "@/lib/authz/authz";
-import {
-  codeOf,
-  INCIDENT_STATE,
-} from "@/lib/constants/status-codes";
+import { codeOf, INCIDENT_STATE } from "@/lib/constants/status-codes";
 import { prisma } from "@/lib/database/prisma.singleton";
 import { logger } from "@/lib/observability/logger";
 import { businessRule, guarded } from "./result";
@@ -77,8 +74,6 @@ async function assertIncidentAttachable(incidentId: number): Promise<{
         ? "La incidencia está cancelada. No se pueden hacer cambios."
         : "La incidencia está cerrada. No se pueden hacer cambios.",
     );
-  }
-  return { clientId: incident.clientId };
   }
   return { clientId: incident.clientId };
 }

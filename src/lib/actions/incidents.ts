@@ -11,13 +11,13 @@ import {
   incidentScopeWhere,
   scheduleScopeWhere,
 } from "@/lib/auth/report-scope";
+import { ROLE } from "@/lib/authz/roles";
 import {
   includeRoles,
   roleCodesOf,
   roleNamesOf,
   whereHasRole,
 } from "@/lib/authz/user-queries";
-import { ROLE } from "@/lib/authz/roles";
 import { codeOf } from "@/lib/constants/status-codes";
 import { prisma } from "@/lib/database/prisma.singleton";
 import {

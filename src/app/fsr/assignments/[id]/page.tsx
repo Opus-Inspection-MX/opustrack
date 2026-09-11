@@ -55,9 +55,9 @@ import {
   isIncidentCancelled,
   isIncidentTerminal,
 } from "@/lib/constants/status-codes";
-import { ASSIGNMENT_STATE } from "@/lib/state-machine/assignment-machine";
 import { logger } from "@/lib/observability/logger";
 import { describeEnqueueFailure, saveDraft } from "@/lib/offline/flush";
+import { ASSIGNMENT_STATE } from "@/lib/state-machine/assignment-machine";
 
 interface AssignmentStatus {
   id: number;
