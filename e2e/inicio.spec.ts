@@ -66,7 +66,11 @@ async function signIn(page: Page, actor: Actor) {
 }
 
 function widget(page: Page, id: string) {
-  return page.locator(`[data-widget-id="${id}"]`);
+  // Acotado a `main`: durante el streaming de React el mismo widget existe
+  // dos veces (una copia visible en `main` y otra en `div[hidden]` al final
+  // de <body>), y el locator sin acotar falla en modo estricto según el
+  // momento del chequeo.
+  return page.locator(`main [data-widget-id="${id}"]`);
 }
 
 async function expectWidgets(

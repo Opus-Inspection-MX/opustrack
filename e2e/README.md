@@ -166,3 +166,9 @@ First run only, install browsers: `npx playwright install`.
   changes what these tests expect — see `src/lib/authz/route-access.ts`.
 - Assert on real routes only. A non-existent path still returns its own URL on a
   404 page, so an access assertion against it passes trivially.
+- **Streaming.** En páginas con streaming (`/inicio` y cualquier Server
+  Component con `Suspense`), React duplica el HTML ya resuelto en un
+  `div[hidden]` al final de `<body>` mientras lo mueve a su lugar. Los
+  locators por atributo (`[data-…]`) se acotan a `main`
+  (`page.locator('main [data-widget-id="…"]')`); los locators por rol
+  (`getByRole`) ya ignoran lo oculto.
