@@ -45,15 +45,17 @@ Cliente reporta incidente
 
 | Rol | Alcance | defaultPath |
 |-----|---------|-------------|
-| **ROOT** | Superusuario (`isSuperuser`): omite todo check. Sin Cliente. | `/admin` |
-| **ADMIN_OPERACION** | Todo el alcance operativo + `scope:all-clientes` (ve todos los centros sin poder otorgar roles). | `/admin/tracking` |
-| **ADMIN_VACACIONES** | Solo su módulo y sus propias vacaciones; sin alcance global. | `/admin/vacations` |
-| **FSR** | Ejecuta asignaciones y viajes. Ligado a Cliente(s). | `/fsr` |
-| **EMPLEADO** | Vacaciones propias. | `/vacations` |
-| **CLIENT** | Levanta incidentes desde su Cliente; creación acotada. | `/client` |
-| **GUEST** | Solo lectura, sin creación. | `/guest` |
+| **ROOT** | Superusuario (`isSuperuser`): omite todo check. Sin Cliente. | `/inicio` |
+| **ADMIN_OPERACION** | Todo el alcance operativo + `scope:all-clientes` (ve todos los centros sin poder otorgar roles). | `/inicio` |
+| **ADMIN_VACACIONES** | Solo su módulo y sus propias vacaciones; sin alcance global. | `/inicio` |
+| **FSR** | Ejecuta asignaciones y viajes. Ligado a Cliente(s). | `/inicio` |
+| **EMPLEADO** | Vacaciones propias. | `/inicio` |
+| **REPORTER** | Levanta incidentes desde su Cliente; creación acotada. | `/inicio` |
+| **GUEST** | Solo lectura, sin creación. | `/inicio` |
 
-Un usuario puede tener varios roles a la vez. El detalle (JWT + Edge
+Cada rol aterriza en `/inicio`, la pantalla inicial personalizada hecha de
+widgets según sus permisos (la unión de todos sus roles, que un usuario
+puede tener varios a la vez). El detalle (JWT + Edge
 Runtime, `sessionVersion`, multi-Cliente) está en
 [01 · Autenticación y RBAC](./01-auth-rbac.md).
 

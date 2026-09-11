@@ -55,12 +55,12 @@ empty (gitignored real data); the tracked template is
 `initial_load/seed.example.ts`. There is no `prisma/seed.ts`. After schema
 changes run `npm run db:migrate` to regenerate the Prisma client.
 
-Seeded roles (`defaultPath`): **ROOT** (`/admin`, `isSuperuser`),
-**ADMIN_OPERACION** (`/admin/tracking`), **ADMIN_VACACIONES**
-(`/admin/vacations`), **FSR** (`/fsr`), **EMPLEADO** (`/vacations`),
-**CLIENT** (`/client`), **GUEST** (`/guest`). Test users follow
+Seeded roles (all land on `/inicio`, the personal widget home):
+**ROOT** (`isSuperuser`), **ADMIN_OPERACION**, **ADMIN_VACACIONES**,
+**FSR**, **EMPLEADO** (`/vacations` self-service), **REPORTER**,
+**GUEST** (read-only). Test users follow
 `{role}@opusinspection.com` / `password123` (e.g. `admin@`,
-`fsr@`, `client@`, `guest@`, three accounts per main role).
+`fsr@`, `reporter@`, `guest@`, three accounts per main role).
 
 ## Architecture
 
@@ -143,7 +143,7 @@ dependency. Never float versions as a side effect of an unrelated install.
 
 ## Testing credentials
 
-Seeded accounts (password `password123`): `admin@`, `fsr@`, `client@`,
+Seeded accounts (password `password123`): `admin@`, `fsr@`, `reporter@`,
 `guest@` (+ numbered variants) `@opusinspection.com`.
 
 ## Where the domain lives

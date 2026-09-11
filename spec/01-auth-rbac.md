@@ -67,7 +67,9 @@ puede instanciar Prisma: enruta solo con lo que viaja en el JWT.
   válida y aplican su propia autorización (`withPermission` / `requirePermission`).
 - Matcher: todo salvo `_next`, `favicon.ico` y `api/auth`. Rutas públicas:
   `/login`, `/signup`, `/logout`, `/unauthorized`. La raíz `/` redirige al
-  `defaultPath` del usuario.
+  `defaultPath` del usuario — `/inicio` para los siete roles del seed, la
+  pantalla inicial personalizada hecha de widgets según permisos
+  (`src/lib/home/widgets.ts`).
 
 ---
 
@@ -201,9 +203,15 @@ está vacía: usa `initial_load/seed.ts` (gitignored, datos reales) o el
 template tracked `initial_load/seed.example.ts`. No existe `prisma/seed.ts`.
 
 **Reglas de negocio:**
-- Roles: ROOT (`/admin`, `isSuperuser`), ADMIN_OPERACION
-  (`/admin/tracking`), ADMIN_VACACIONES (`/admin/vacations`), FSR (`/fsr`),
-  EMPLEADO (`/vacations`), CLIENT (`/client`), GUEST (`/guest`).
+- Roles: ROOT (`isSuperuser`), ADMIN_OPERACION, ADMIN_VACACIONES, FSR,
+  EMPLEADO, REPORTER, GUEST. Los siete aterrizan en `/inicio`
+  (`defaultPath`); los portales (`/admin`, `/fsr`, `/reporter`, `/guest`,
+  `/vacations`) siguen siendo páginas. Un rol creado desde la UI conserva
+  el landing que se le dio — la migración solo nombra los siete del seed.
+- `route:inicio` es universal (constante `UNIVERSAL_ROUTES` junto a
+  `route:notifications` y `route:profile`, repartida a los siete roles).
+- ADMIN_OPERACION tiene `tracking:read`/`tracking:update`: sin ellos ni su
+  propio `/admin/tracking` abre (Fase 3 · 3.0.1).
 - Usuarios de prueba `{rol}@opusinspection.com` / `password123`, tres por rol
   principal. FSR/CLIENT/EMPLEADO con asignaciones a Clientes; ROOT sin Cliente.
 - Cuentas nominales además de las genéricas: `empleado@` (EMPLEADO),
