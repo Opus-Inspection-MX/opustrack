@@ -67,19 +67,19 @@
   --status-open: #0277ad;
   --status-open-foreground: #075e87;
   --status-open-muted: #dff1fa;
-  --status-progress: #b25e05;
+  --status-progress: #9a5205;
   --status-progress-muted: #fdeeda;
-  --status-done: #3d7d25;
+  --status-done: #356e21;
   --status-done-muted: #e6f2df;
   --status-cancelled: #54565a;
   --status-cancelled-muted: #ededee;
 
   /* SLA tokens. */
-  --sla-ok: #3d7d25;
+  --sla-ok: #356e21;
   --sla-ok-muted: #e6f2df;
-  --sla-risk: #b25e05;
+  --sla-risk: #9a5205;
   --sla-risk-muted: #fdeeda;
-  --sla-breach: #c2410c;
+  --sla-breach: #b53a0b;
   --sla-breach-muted: #fdeadd;
 
   --sidebar: #004851;

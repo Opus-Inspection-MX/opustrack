@@ -97,6 +97,15 @@ const PAIRS: Array<[string, string, number]> = [
   ["danger-foreground", "danger", 4.5],
   ["danger-muted-foreground", "danger-muted", 4.5],
   ["status-open-foreground", "status-open-muted", 4.5],
+  // Badges de las tarjetas móvil de tracking (StatusBadge/SlaBadge): estos
+  // pares solo se renderizan en viewport móvil y axe los marcó en CI
+  // (tracking @ light). Sin ellos, el unitario daba verde con tokens bajo AA.
+  ["status-progress", "status-progress-muted", 4.5],
+  ["status-done", "status-done-muted", 4.5],
+  ["status-cancelled", "status-cancelled-muted", 4.5],
+  ["sla-ok", "sla-ok-muted", 4.5],
+  ["sla-risk", "sla-risk-muted", 4.5],
+  ["sla-breach", "sla-breach-muted", 4.5],
   // Gráficas sobre la tarjeta (gráficos: 3:1).
   ["chart-1", "card", 3],
   ["chart-2", "card", 3],
