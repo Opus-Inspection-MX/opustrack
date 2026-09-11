@@ -171,9 +171,11 @@ test.describe("GUEST", () => {
 
   test("no ve widgets de staff", async ({ page }) => {
     await page.goto("/inicio");
+    // GUEST no tiene acciones rápidas: QuickActionsWidget retorna null sin
+    // acciones, así que solo Notificaciones + Próximas programaciones.
     await expectWidgets(
       page,
-      ["quick-actions", "notifications", "upcoming-schedules"],
+      ["notifications", "upcoming-schedules"],
       [
         "my-work",
         "my-reports",
