@@ -125,7 +125,7 @@
     "text-green-200",
     "text-green-800"
   ],
-  "src/app/layout.tsx": ["#000000", "#ffffff"],
+  "src/app/layout.tsx": ["#004851"],
   "src/app/page.tsx": [
     "bg-blue-500",
     "bg-green-500",
