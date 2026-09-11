@@ -71,6 +71,17 @@ test.describe("0 · Prepara incidencias", () => {
       select: { id: true },
     });
 
+    // Report scope fails closed: the FSR fixture account is assigned to a
+    // single seeded Client, so link him to the picked one (the same step
+    // createTrackingFixture takes). Without it the FSR page denies with
+    // "Sin acceso a los datos de este Cliente" and the action buttons never
+    // render.
+    await prisma.userClientAssignment.upsert({
+      where: { userId_clientId: { userId: fsr.id, clientId: client.id } },
+      update: { active: true },
+      create: { userId: fsr.id, clientId: client.id },
+    });
+
     const toClose = await prisma.incident.create({
       data: {
         title: CLOSE_TITLE,
@@ -129,12 +140,17 @@ test.describe("1 · El FSR cierra el trabajo", () => {
   });
 
   test("da Visto e inicia el trabajo", async ({ page }) => {
+    // Two serial 15s DB polls plus GPS and navigations exhaust the default
+    // 30s budget on slower runners.
+    test.setTimeout(60_000);
+    // Register before any navigation: dialogs are dismissed by default, which
+    // would cancel the transition if the handler attached late.
+    page.on("dialog", (dialog) => dialog.accept());
     await page.goto(`/fsr/assignments/${assignmentId}`);
     await page.getByRole("button", { name: "Marcar como visto" }).click();
     await expectAssignmentStatus(assignmentId, "VISTO");
 
     await page.goto(`/fsr/assignments/${assignmentId}`);
-    page.on("dialog", (dialog) => dialog.accept());
     await page.getByRole("button", { name: "Iniciar trabajo" }).click();
     await expectAssignmentStatus(assignmentId, "INICIADO");
   });
@@ -144,8 +160,8 @@ test.describe("1 · El FSR cierra el trabajo", () => {
   }, testInfo) => {
     await prepareAssignmentForClose(assignmentId);
 
-    await page.goto(`/fsr/assignments/${assignmentId}`);
     page.on("dialog", (dialog) => dialog.accept());
+    await page.goto(`/fsr/assignments/${assignmentId}`);
 
     const closeButton = page.getByRole("button", { name: "Cerrar trabajo" });
     await expect(closeButton).toBeEnabled();

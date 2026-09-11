@@ -88,6 +88,19 @@ npm run e2e:down
 
 Arguments are forwarded, so `npm run test:e2e -- --project=chromium` works.
 
+## Browsers
+
+Default runs are Chromium-only: `chromium`, `Mobile Chrome`, `catalogs`,
+`flows` (plus the `db`/`setup` scaffolding). Firefox, WebKit and
+Mobile Safari are opt-in behind `E2E_EXTRA_BROWSERS=1`:
+
+```bash
+E2E_EXTRA_BROWSERS=1 npm run test:e2e -- --project=firefox
+```
+
+Explicit project selection still works, e.g.
+`--project=chromium --project="Mobile Chrome" --project=flows --project=catalogs`.
+
 `Access denied for role X to /y` lines in the output are **expected**: they are
 the middleware's own security warning, emitted once per RF-106 denial test.
 They are evidence those tests exercised the deny path.

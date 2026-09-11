@@ -58,6 +58,13 @@ const SYSTEM_CHROMIUM_USE = SYSTEM_CHROMIUM
 // them. CI never skips — a missing browser there must fail loudly.
 const WEBKIT_AVAILABLE = Boolean(process.env.CI) || hasWebkit();
 
+// Default runs are Chromium-only: Firefox, WebKit and Mobile Safari are
+// opt-in behind E2E_EXTRA_BROWSERS=1. Chromium, Mobile Chrome and the
+// Chromium-based catalogs/flows projects always run. (Firefox entries that
+// finish in 1-3ms are skips from a missing binary, not passes.)
+const EXTRA_BROWSERS = process.env.E2E_EXTRA_BROWSERS === "1";
+const EXTRA_BROWSER_PROJECTS = new Set(["firefox", "webkit", "Mobile Safari"]);
+
 function hasWebkit(): boolean {
   try {
     return existsSync(webkit.executablePath());
@@ -72,9 +79,22 @@ if (!WEBKIT_AVAILABLE && process.env.TEST_WORKER_INDEX === undefined) {
     "[playwright] WebKit no está instalado: se omiten los proyectos webkit y Mobile Safari. Instálalo con `npx playwright install webkit`.\n",
   );
 }
+if (!EXTRA_BROWSERS && process.env.TEST_WORKER_INDEX === undefined) {
+  process.stderr.write(
+    "[playwright] Chromium-only run: firefox, webkit and Mobile Safari are skipped. Opt in with E2E_EXTRA_BROWSERS=1.\n",
+  );
+}
 
-const onlyAvailableBrowsers = (project: PlaywrightTestProject) =>
-  WEBKIT_AVAILABLE || project.use?.defaultBrowserType !== "webkit";
+const onlyAvailableBrowsers = (project: PlaywrightTestProject) => {
+  if (
+    !EXTRA_BROWSERS &&
+    project.name !== undefined &&
+    EXTRA_BROWSER_PROJECTS.has(project.name)
+  ) {
+    return false;
+  }
+  return WEBKIT_AVAILABLE || project.use?.defaultBrowserType !== "webkit";
+};
 
 export default defineConfig({
   testDir: "./e2e",

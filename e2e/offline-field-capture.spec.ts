@@ -96,6 +96,17 @@ test.describe("0 · Prepara incidencia y vehículo", () => {
       select: { id: true },
     });
 
+    // Report scope fails closed: the FSR fixture account is assigned to a
+    // single seeded Client, so link him to the picked one (the same step
+    // createTrackingFixture takes). Without it the FSR page denies with
+    // "Sin acceso a los datos de este Cliente" and the action buttons never
+    // render.
+    await prisma.userClientAssignment.upsert({
+      where: { userId_clientId: { userId: fsr.id, clientId: client.id } },
+      update: { active: true },
+      create: { userId: fsr.id, clientId: client.id },
+    });
+
     const incident = await prisma.incident.create({
       data: {
         title: INCIDENT_TITLE,
@@ -154,14 +165,40 @@ test.describe("1 · Inicio offline con reintento idempotente", () => {
   test("sin conexión el inicio queda pendiente y al volver se aplica con el GPS del momento", async ({
     page,
   }, testInfo) => {
+    // GPS-under-offline plus the reconnect flush exceed the default 30s
+    // budget on slower runners.
+    test.setTimeout(60_000);
     await page.goto(`/fsr/assignments/${assignmentId}`);
     await page.getByRole("button", { name: "Marcar como visto" }).click();
     await expectAssignmentStatus(assignmentId, "VISTO");
 
     await page.goto(`/fsr/assignments/${assignmentId}`);
+    // Warm up the mocked position while still online so the capture after
+    // setOffline(true) resolves deterministically instead of racing the
+    // 15s highAccuracy timeout in handleStartWork.
+    const warmed = await page.evaluate(
+      () =>
+        new Promise<string>((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(
+            (pos) => resolve(`${pos.coords.latitude},${pos.coords.longitude}`),
+            (err) => reject(new Error(String(err.code))),
+            { enableHighAccuracy: true, timeout: 15_000, maximumAge: 0 },
+          );
+        }),
+    );
+    expect(warmed).toContain(String(GEO.latitude).slice(0, 5));
     await page.context().setOffline(true);
     await page.getByRole("button", { name: "Iniciar trabajo" }).click();
-    await expect(page.getByText("Pendiente de envío")).toBeVisible();
+    // A GPS failure surfaces as an error toast and creates no draft: prove
+    // it never appeared before asserting the pending badge.
+    await expect(
+      page.getByText(
+        /Permiso de ubicación denegado|Ubicación no disponible|Tiempo de espera agotado|No se pudo obtener la ubicación/,
+      ),
+    ).toHaveCount(0);
+    await expect(page.getByText("Pendiente de envío")).toBeVisible({
+      timeout: 30_000,
+    });
     await expect(page.getByText("Inicio de trabajo")).toBeVisible();
     await evidence(page, testInfo, "inicio offline guardado como borrador");
     // Still VISTO server-side: nothing was delivered while offline.
