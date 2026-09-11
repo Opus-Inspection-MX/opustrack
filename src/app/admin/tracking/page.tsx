@@ -10,6 +10,7 @@ import { TableSkeleton } from "@/components/common/skeletons";
 import { TrackingFilters } from "@/components/tracking/tracking-filters";
 import { TrackingTable } from "@/components/tracking/tracking-table";
 import { Button } from "@/components/ui/button";
+import { Pagination } from "@/components/ui/pagination";
 import { useLiveRefresh } from "@/hooks/use-live-refresh";
 import { toast } from "@/hooks/use-toast";
 import {
@@ -20,6 +21,10 @@ import {
 } from "@/lib/actions/tracking";
 import type { SlaState } from "@/lib/constants/sla-policy";
 import { logger } from "@/lib/observability/logger";
+import {
+  TRACKING_DEFAULT_PAGE_SIZE,
+  type TrackingPageSize,
+} from "@/lib/tracking/pagination";
 
 interface Client {
   id: string;
@@ -103,13 +108,28 @@ export default function TrackingPage() {
   const [allFsrs, setAllFsrs] = useState<FSR[]>([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState<TrackingFiltersState>({});
+  // Fase 6b: server-side pagination instead of the 200-row cut.
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<TrackingPageSize>(
+    TRACKING_DEFAULT_PAGE_SIZE,
+  );
+  const [totalPages, setTotalPages] = useState(1);
 
   const loadIncidents = useCallback(
-    async (filterParams: TrackingFiltersState) => {
+    async (
+      filterParams: TrackingFiltersState,
+      pageNum: number,
+      size: TrackingPageSize,
+    ) => {
       try {
-        const result = await getIncidentsForTracking(filterParams);
+        const result = await getIncidentsForTracking(filterParams, {
+          page: pageNum,
+          pageSize: size,
+        });
         setIncidents(result.data as TrackingIncident[]);
         setTotalCount(result.totalCount);
+        setTotalPages(result.totalPages);
+        setPage(result.page);
       } catch (error) {
         // Surfaced, not swallowed. A thrown query used to leave the table at
         // "Total de incidentes: 0", which reads as "no hay datos" and sent us
@@ -149,19 +169,42 @@ export default function TrackingPage() {
   const handleFilterChange = useCallback(
     (newFilters: TrackingFiltersState) => {
       setFilters(newFilters);
-      loadIncidents(newFilters);
+      // A new filter set is a new result set: back to page 1.
+      setPage(1);
+      loadIncidents(newFilters, 1, pageSize);
     },
-    [loadIncidents],
+    [loadIncidents, pageSize],
+  );
+
+  const handlePageChange = useCallback(
+    (nextPage: number) => {
+      setPage(nextPage);
+      loadIncidents(filters, nextPage, pageSize);
+    },
+    [loadIncidents, filters, pageSize],
+  );
+
+  const handlePageSizeChange = useCallback(
+    (nextSize: number) => {
+      const size = (
+        [50, 100, 200].includes(nextSize) ? nextSize : 50
+      ) as TrackingPageSize;
+      setPageSize(size);
+      setPage(1);
+      loadIncidents(filters, 1, size);
+    },
+    [loadIncidents, filters],
   );
 
   // The board is watched all day while other people assign, start and close
-  // work elsewhere. Poll the signature, not the table.
+  // work elsewhere. Poll the signature, not the table. The signature ignores
+  // paging, so staying on page 3 never triggers a reload by itself.
   useLiveRefresh({
     enabled: !loading,
     signature: useCallback(() => getTrackingSignature(filters), [filters]),
     onChanged: useCallback(
-      () => loadIncidents(filters),
-      [loadIncidents, filters],
+      () => loadIncidents(filters, page, pageSize),
+      [loadIncidents, filters, page, pageSize],
     ),
   });
 
@@ -207,12 +250,6 @@ export default function TrackingPage() {
           Total de incidentes:{" "}
           <span className="font-semibold text-foreground">{totalCount}</span>
         </div>
-        {incidents.length < totalCount && (
-          <span className="inline-flex items-center rounded-full bg-warning-muted px-2.5 py-0.5 text-xs font-medium text-warning-muted-foreground">
-            Mostrando {incidents.length} de {totalCount} — aplique filtros para
-            acotar
-          </span>
-        )}
       </div>
 
       <div>
@@ -220,9 +257,19 @@ export default function TrackingPage() {
           incidents={incidents}
           fsrs={allFsrs}
           incidentStatuses={incidentStatuses}
-          onDataChange={() => loadIncidents(filters)}
+          onDataChange={() => loadIncidents(filters, page, pageSize)}
         />
       </div>
+
+      <Pagination
+        currentPage={page}
+        totalPages={totalPages}
+        totalItems={totalCount}
+        itemsPerPage={pageSize}
+        onPageChange={handlePageChange}
+        onItemsPerPageChange={handlePageSizeChange}
+        pageSizeOptions={[50, 100, 200]}
+      />
     </PageContainer>
   );
 }

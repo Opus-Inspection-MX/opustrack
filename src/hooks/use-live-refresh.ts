@@ -5,6 +5,9 @@ import { useEffect, useRef } from "react";
 /** How often to ask "did anything change?" while the tab is in front. */
 export const LIVE_REFRESH_INTERVAL_MS = 30_000;
 
+/** Upper bound for the opt-in error backoff (Fase 6a). */
+export const LIVE_REFRESH_MAX_BACKOFF_MS = 5 * 60_000;
+
 interface UseLiveRefreshOptions {
   /**
    * Cheap question answered by the server: a short string that changes if and
@@ -16,6 +19,12 @@ interface UseLiveRefreshOptions {
   intervalMs?: number;
   /** Suspend polling — e.g. while the first load is still running. */
   enabled?: boolean;
+  /**
+   * Opt-in exponential backoff over consecutive signature failures: after the
+   * n-th failure the next attempts wait ~intervalMs·2ⁿ⁻¹, capped here. Absent,
+   * every visible tick asks again (the tracking board behavior).
+   */
+  maxBackoffMs?: number;
 }
 
 /**
@@ -39,6 +48,7 @@ export function useLiveRefresh({
   onChanged,
   intervalMs = LIVE_REFRESH_INTERVAL_MS,
   enabled = true,
+  maxBackoffMs,
 }: UseLiveRefreshOptions) {
   // Refs, not state: changing these must never re-render or restart the timer.
   const signatureRef = useRef(signature);
@@ -48,6 +58,8 @@ export function useLiveRefresh({
 
   const lastSeen = useRef<string | null>(null);
   const inFlight = useRef(false);
+  const failures = useRef(0);
+  const skipTicks = useRef(0);
 
   useEffect(() => {
     if (!enabled) return;
@@ -57,10 +69,18 @@ export function useLiveRefresh({
     const check = async () => {
       if (cancelled || inFlight.current) return;
       if (document.visibilityState !== "visible") return;
+      // Backoff accounting is in whole ticks: a skipped tick still costs its
+      // interval, so the wait stays time-based without touching Date.
+      if (skipTicks.current > 0) {
+        skipTicks.current -= 1;
+        return;
+      }
 
       inFlight.current = true;
       try {
         const next = await signatureRef.current();
+        failures.current = 0;
+
         if (cancelled || next === null) return;
 
         const previous = lastSeen.current;
@@ -71,7 +91,16 @@ export function useLiveRefresh({
         }
       } catch {
         // A failed check is not worth a toast: the next tick tries again, and
-        // the user still has the data already on screen.
+        // the user still has the data already on screen. With opt-in backoff,
+        // consecutive failures space the attempts instead of hammering.
+        failures.current += 1;
+        if (maxBackoffMs !== undefined) {
+          const waitMs = Math.min(
+            intervalMs * 2 ** (failures.current - 1),
+            maxBackoffMs,
+          );
+          skipTicks.current = Math.max(0, Math.ceil(waitMs / intervalMs) - 1);
+        }
       } finally {
         inFlight.current = false;
       }
@@ -92,5 +121,5 @@ export function useLiveRefresh({
       clearInterval(timer);
       document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, [enabled, intervalMs]);
+  }, [enabled, intervalMs, maxBackoffMs]);
 }

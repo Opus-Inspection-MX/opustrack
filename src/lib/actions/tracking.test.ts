@@ -276,22 +276,111 @@ describe("getIncidentsForTracking · folio (RF-513)", () => {
 });
 
 // ---------------------------------------------------------------------------
+// Fase 6b · paginación del seguimiento
+//
+// El corte duro en 200 se reemplaza por página + tamaño (50/100/200) con
+// orden estable. La firma no depende de la página: solo recibe filtros.
+//
+// TODO(promote-int): promote page-2-respects-scope to
+// src/test/integration once the Fase 2 harness lands on main (today only
+// the mocked-Prisma unit below pins the slice arguments).
+// ---------------------------------------------------------------------------
+describe("getIncidentsForTracking · paginación (Fase 6b)", () => {
+  it("por defecto trae la página 1 con 50 filas", async () => {
+    const result = await getIncidentsForTracking();
+
+    expect(lastArgs().take).toBe(50);
+    expect(lastArgs().skip ?? 0).toBe(0);
+    expect(result.page).toBe(1);
+    expect(result.pageSize).toBe(50);
+  });
+
+  it("la página 2 recorta el segmento correcto", async () => {
+    await getIncidentsForTracking({}, { page: 2 });
+
+    expect(lastArgs().take).toBe(50);
+    expect(lastArgs().skip).toBe(50);
+  });
+
+  it("acepta 100 y 200 como tamaños de página", async () => {
+    await getIncidentsForTracking({}, { page: 2, pageSize: 100 });
+    expect(lastArgs()).toMatchObject({ take: 100, skip: 100 });
+
+    await getIncidentsForTracking({}, { page: 3, pageSize: 200 });
+    expect(lastArgs()).toMatchObject({ take: 200, skip: 400 });
+  });
+
+  it("un tamaño fuera del contrato se acota a 50 y la página mínima es 1", async () => {
+    const result = await getIncidentsForTracking({}, { page: 0, pageSize: 30 });
+
+    expect(lastArgs()).toMatchObject({ take: 50, skip: 0 });
+    expect(result.page).toBe(1);
+    expect(result.pageSize).toBe(50);
+  });
+
+  it("ordena estable: reportedAt desc y desempate por id desc", async () => {
+    await getIncidentsForTracking();
+
+    expect(lastArgs().orderBy).toEqual([
+      { reportedAt: "desc" },
+      { id: "desc" },
+    ]);
+  });
+
+  it("devuelve el total y las páginas para la UI", async () => {
+    prismaMock.incident.count.mockResolvedValue(999);
+
+    const result = await getIncidentsForTracking({}, { page: 2 });
+
+    expect(result.totalCount).toBe(999);
+    expect(result.totalPages).toBe(20);
+  });
+
+  it("la firma no depende de la página: mismo where con distinta página", async () => {
+    await getIncidentsForTracking({ clientId: "c1" }, { page: 2 });
+    const page2Where = lastWhere();
+
+    await getIncidentsForTracking({ clientId: "c1" }, { page: 5 });
+    expect(lastWhere()).toEqual(page2Where);
+
+    vi.clearAllMocks();
+    prismaMock.incident.aggregate.mockResolvedValue({
+      _count: { _all: 0 },
+      _max: { updatedAt: null },
+    });
+    prismaMock.assignment.aggregate.mockResolvedValue({
+      _count: { _all: 0 },
+      _max: { updatedAt: null },
+    });
+
+    await getTrackingSignature({ clientId: "c1" });
+    expect(prismaMock.incident.aggregate.mock.calls[0][0].where).toEqual(
+      page2Where,
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
 // RF-513 · límite, orden y filtros
 // ---------------------------------------------------------------------------
 describe("getIncidentsForTracking · consulta (RF-513)", () => {
-  it("limita a 200 y cuenta el total por separado, para el indicador de truncado", async () => {
+  it("pagina por defecto y cuenta el total por separado, para la paginación", async () => {
     prismaMock.incident.count.mockResolvedValue(999);
 
     const result = await getIncidentsForTracking();
 
-    expect(lastArgs().take).toBe(200);
+    expect(lastArgs().take).toBe(50);
     expect(result.totalCount).toBe(999);
+    expect(result.totalPages).toBe(20);
   });
 
-  it("ordena incidentes por reportedAt desc y asignaciones por createdAt desc", async () => {
+  it("ordena incidentes por reportedAt desc con desempate por id, y asignaciones por createdAt desc", async () => {
     await getIncidentsForTracking();
 
-    expect(lastArgs().orderBy).toEqual({ reportedAt: "desc" });
+    expect(lastArgs().orderBy).toEqual([
+      { reportedAt: "desc" },
+      { id: "desc" },
+    ]);
     expect(lastArgs().select.assignments.orderBy).toEqual({
       createdAt: "desc",
     });

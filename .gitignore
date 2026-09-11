@@ -76,3 +76,7 @@ config/e2e.local.env
 
 # Capturas que la suite e2e genera como evidencia de cada corrida.
 evidencias/
+
+# zz-* debug specs: throwaway files, never commit nor run in CI
+# (playwright.config.ts also ignores them via testIgnore).
+e2e/zz-*

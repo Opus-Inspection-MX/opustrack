@@ -86,6 +86,29 @@ export async function getUnreadCount(userId: string): Promise<number> {
 }
 
 /**
+ * Cheap polling signature for the notification bell (Fase 6a).
+ *
+ * One count plus the newest row id — no bodies, no list. The bell polls THIS
+ * every 30 s and only reloads the full list when the answer moves. Kept as an
+ * object (not a preformatted string) so the API route owns the wire format.
+ */
+export async function getNotificationSignature(
+  userId: string,
+): Promise<{ unreadCount: number; latestId: string | null }> {
+  const [unreadCount, latest] = await Promise.all([
+    prisma.notification.count({
+      where: { userId, isRead: false, active: true },
+    }),
+    prisma.notification.findFirst({
+      where: { userId, active: true },
+      orderBy: { createdAt: "desc" },
+      select: { id: true },
+    }),
+  ]);
+  return { unreadCount, latestId: latest?.id ?? null };
+}
+
+/**
  * Mark a single notification as read
  */
 export async function markAsRead(notificationId: string, userId: string) {

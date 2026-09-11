@@ -1,14 +1,25 @@
 import { NextResponse } from "next/server";
 import { requirePermission } from "@/lib/auth/auth";
 import {
+  getNotificationSignature,
   getUnreadCount,
   getUserNotifications,
 } from "@/lib/notifications/notification-service";
 import { logger } from "@/lib/observability/logger";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const user = await requirePermission("notifications:read");
+
+    // Fase 6a: cheap polling signature (`unreadCount` + latest id). The bell
+    // polls this every 30 s and only reloads the full list when it moves.
+    const { searchParams } = new URL(request.url);
+    if (searchParams.get("signature") === "1") {
+      const { unreadCount, latestId } = await getNotificationSignature(user.id);
+      return NextResponse.json({
+        signature: `${unreadCount}:${latestId ?? "none"}`,
+      });
+    }
 
     const [notifications, unreadCount] = await Promise.all([
       getUserNotifications(user.id, { limit: 20 }),
