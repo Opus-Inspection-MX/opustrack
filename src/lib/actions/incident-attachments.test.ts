@@ -153,18 +153,24 @@ describe("uploadIncidentAttachment · reglas", () => {
   it("rechaza archivos sobre 10MB con el mensaje del validador compartido", async () => {
     const big = testFile(11 * 1024 * 1024, "big.jpg", "image/jpeg");
 
-    await expect(
-      uploadIncidentAttachment(uploadForm({ file: big })),
-    ).rejects.toThrow(/10MB/);
+    const result = await uploadIncidentAttachment(uploadForm({ file: big }));
+
+    expect(result).toEqual({
+      success: false,
+      error: expect.stringMatching(/demasiado grande/),
+    });
     expect(prismaMock.incidentAttachment.create).not.toHaveBeenCalled();
   });
 
   it("rechaza MIME fuera de la allowlist", async () => {
     const exe = testFile(10, "run.exe", "application/x-msdownload");
 
-    await expect(
-      uploadIncidentAttachment(uploadForm({ file: exe })),
-    ).rejects.toThrow(/no permitido/);
+    const result = await uploadIncidentAttachment(uploadForm({ file: exe }));
+
+    expect(result).toEqual({
+      success: false,
+      error: expect.stringMatching(/no permitido/),
+    });
   });
 
   it("registra el provider devuelto por el storage en la fila", async () => {
