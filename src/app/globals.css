@@ -4,45 +4,46 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * OpusTrack design tokens — three themes.
+ * OpusTrack design tokens — two themes with the Opus identity.
  *
- * - `:root` is Claro (light). `.dark` stays the class for the black theme so
- *   every existing `dark:` variant keeps working. `.opus` is the brand theme
- *   (teal #004851 / #00968f, navy #141e29, Opus grays, green #4c9c2e,
- *   blue #00a0e0, orange #f18006).
- * - Claro and Oscuro use the Opus teal only as a discrete brand accent; Opus
- *   puts it front and center (sidebar, hero gradient).
+ * - `:root` is Claro (light): teal-gray background, navy text, teal sidebar
+ *   and brand hero gradient. `.dark` stays the class for the dark theme
+ *   (brand navy surfaces, teal accents) so every existing `dark:` variant
+ *   keeps working.
+ * - Brand colors (from opus.global): teal #004851 / #00968f, navy #141e29,
+ *   grays #54565a / #a9aaac / #ededee, green #4c9c2e, blue #00a0e0,
+ *   orange #f18006.
  */
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.25 0.02 260);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.25 0.02 260);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.25 0.02 260);
+  --background: #f3f6f6;
+  --foreground: #141e29;
+  --card: #ffffff;
+  --card-foreground: #141e29;
+  --popover: #ffffff;
+  --popover-foreground: #141e29;
   --primary: #004851;
   --primary-foreground: #ffffff;
-  --secondary: #eef3f3;
-  --secondary-foreground: #004851;
-  --muted: #f2f5f5;
+  --secondary: #e5eced;
+  --secondary-foreground: #141e29;
+  --muted: #e5eced;
   --muted-foreground: #54565a;
   --accent: #e0efed;
   --accent-foreground: #004851;
   --destructive: #c2410c;
   --destructive-foreground: #ffffff;
-  --border: #e3e9e9;
-  --input: #e3e9e9;
+  --border: #dfe7e8;
+  --input: #dfe7e8;
   --ring: #00968f;
-  --chart-1: #00968f;
-  --chart-2: #00a0e0;
+  --chart-1: #004851;
+  --chart-2: #00968f;
   --chart-3: #4c9c2e;
   --chart-4: #f18006;
-  --chart-5: #54565a;
+  --chart-5: #00a0e0;
   --radius: 0.75rem;
-  --shadow-card: 0 1px 2px rgb(20 30 41 / 0.06), 0 1px 3px rgb(20 30 41 / 0.08);
+  --shadow-card: 0 1px 2px rgb(20 30 41 / 0.08), 0 2px 6px rgb(0 72 81 / 0.08);
   --shadow-elevated:
-    0 4px 6px rgb(20 30 41 / 0.07), 0 10px 20px rgb(20 30 41 / 0.1);
+    0 6px 10px rgb(20 30 41 / 0.08), 0 16px 32px rgb(0 72 81 / 0.14);
 
   /* Semantic feedback tokens (AA-safe pairs, see badges). */
   --success: #3d7d25;
@@ -81,43 +82,51 @@
   --sla-breach: #c2410c;
   --sla-breach-muted: #fdeadd;
 
-  --sidebar: oklch(1 0 0);
-  --sidebar-foreground: oklch(0.25 0.02 260);
-  --sidebar-primary: #004851;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #e0efed;
-  --sidebar-accent-foreground: #004851;
-  --sidebar-border: #e3e9e9;
+  --sidebar: #004851;
+  --sidebar-foreground: #ffffff;
+  --sidebar-primary: #00968f;
+  --sidebar-primary-foreground: #04191b;
+  --sidebar-accent: #1f5e66;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #245f67;
   --sidebar-ring: #00968f;
+  --sidebar-muted-foreground: #bcd3d6;
+
+  /* Brand hero (same in both themes) and constant brand navy. */
+  --hero-from: #004851;
+  --hero-to: #006a64;
+  --hero-foreground: #ffffff;
+  --hero-muted-foreground: #d6ecea;
+  --brand-navy: #141e29;
 }
 
 .dark {
-  --background: #000000;
-  --foreground: #fafafa;
-  --card: #0a0a0a;
-  --card-foreground: #fafafa;
-  --popover: #0a0a0a;
-  --popover-foreground: #fafafa;
+  --background: #0b141c;
+  --foreground: #e8eef0;
+  --card: #141e29;
+  --card-foreground: #e8eef0;
+  --popover: #18242f;
+  --popover-foreground: #e8eef0;
   --primary: #00968f;
   --primary-foreground: #04191b;
-  --secondary: #1c1c1c;
-  --secondary-foreground: #fafafa;
-  --muted: #1c1c1c;
-  --muted-foreground: #a9aaac;
-  --accent: #123b3d;
-  --accent-foreground: #fafafa;
-  --destructive: #f18006;
+  --secondary: #1e2c38;
+  --secondary-foreground: #e8eef0;
+  --muted: #1e2c38;
+  --muted-foreground: #9aa8b0;
+  --accent: #0e3b40;
+  --accent-foreground: #e8eef0;
+  --destructive: #f5975c;
   --destructive-foreground: #1a0d02;
-  --border: #262626;
-  --input: #262626;
-  --ring: #00968f;
-  --chart-1: #00968f;
+  --border: #2a3a48;
+  --input: #2a3a48;
+  --ring: #2bb5ab;
+  --chart-1: #2bb5ab;
   --chart-2: #00a0e0;
   --chart-3: #4c9c2e;
   --chart-4: #f18006;
   --chart-5: #a9aaac;
-  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.5), 0 1px 3px rgb(0 0 0 / 0.6);
-  --shadow-elevated: 0 4px 6px rgb(0 0 0 / 0.5), 0 12px 24px rgb(0 0 0 / 0.55);
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.45), 0 1px 3px rgb(0 0 0 / 0.55);
+  --shadow-elevated: 0 4px 6px rgb(0 0 0 / 0.45), 0 12px 24px rgb(0 0 0 / 0.5);
 
   --success: #7cc455;
   --success-foreground: #0c1f06;
@@ -144,7 +153,7 @@
   --status-done: #7cc455;
   --status-done-muted: #1d2f16;
   --status-cancelled: #a9aaac;
-  --status-cancelled-muted: #262626;
+  --status-cancelled-muted: #1e2c38;
 
   --sla-ok: #7cc455;
   --sla-ok-muted: #1d2f16;
@@ -153,87 +162,15 @@
   --sla-breach: #f5975c;
   --sla-breach-muted: #38200f;
 
-  --sidebar: #0a0a0a;
-  --sidebar-foreground: #fafafa;
+  --sidebar: #003a42;
+  --sidebar-foreground: #e8eef0;
   --sidebar-primary: #00968f;
   --sidebar-primary-foreground: #04191b;
-  --sidebar-accent: #123b3d;
-  --sidebar-accent-foreground: #fafafa;
-  --sidebar-border: #262626;
-  --sidebar-ring: #00968f;
-}
-
-.opus {
-  --background: #f3f6f6;
-  --foreground: #141e29;
-  --card: oklch(1 0 0);
-  --card-foreground: #141e29;
-  --popover: oklch(1 0 0);
-  --popover-foreground: #141e29;
-  --primary: #004851;
-  --primary-foreground: #ffffff;
-  --secondary: #e5eced;
-  --secondary-foreground: #141e29;
-  --muted: #e5eced;
-  --muted-foreground: #54565a;
-  --accent: #00968f;
-  --accent-foreground: #ffffff;
-  --destructive: #c2410c;
-  --destructive-foreground: #ffffff;
-  --border: #dfe7e8;
-  --input: #dfe7e8;
-  --ring: #00968f;
-  --chart-1: #004851;
-  --chart-2: #00968f;
-  --chart-3: #4c9c2e;
-  --chart-4: #f18006;
-  --chart-5: #00a0e0;
-  --shadow-card: 0 1px 2px rgb(20 30 41 / 0.08), 0 2px 6px rgb(0 72 81 / 0.08);
-  --shadow-elevated:
-    0 6px 10px rgb(20 30 41 / 0.08), 0 16px 32px rgb(0 72 81 / 0.14);
-
-  --success: #3d7d25;
-  --success-foreground: #ffffff;
-  --success-muted: #e6f2df;
-  --success-muted-foreground: #2f611c;
-  --warning: #b25e05;
-  --warning-foreground: #ffffff;
-  --warning-muted: #fdeeda;
-  --warning-muted-foreground: #8a4a04;
-  --info: #0277ad;
-  --info-foreground: #ffffff;
-  --info-muted: #dff1fa;
-  --info-muted-foreground: #075e87;
-  --danger: #c2410c;
-  --danger-foreground: #ffffff;
-  --danger-muted: #fdeadd;
-  --danger-muted-foreground: #93330a;
-
-  --status-open: #0277ad;
-  --status-open-foreground: #075e87;
-  --status-open-muted: #dff1fa;
-  --status-progress: #b25e05;
-  --status-progress-muted: #fdeeda;
-  --status-done: #3d7d25;
-  --status-done-muted: #e6f2df;
-  --status-cancelled: #54565a;
-  --status-cancelled-muted: #ededee;
-
-  --sla-ok: #3d7d25;
-  --sla-ok-muted: #e6f2df;
-  --sla-risk: #b25e05;
-  --sla-risk-muted: #fdeeda;
-  --sla-breach: #c2410c;
-  --sla-breach-muted: #fdeadd;
-
-  --sidebar: #004851;
-  --sidebar-foreground: #ffffff;
-  --sidebar-primary: #00968f;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: rgb(255 255 255 / 0.12);
-  --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: rgb(255 255 255 / 0.14);
-  --sidebar-ring: #00968f;
+  --sidebar-accent: #1a4e55;
+  --sidebar-accent-foreground: #e8eef0;
+  --sidebar-border: #1f4a51;
+  --sidebar-ring: #2bb5ab;
+  --sidebar-muted-foreground: #b9c9cf;
 }
 
 @theme inline {
@@ -310,6 +247,10 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-muted-foreground: var(--sidebar-muted-foreground);
+  --color-hero-foreground: var(--hero-foreground);
+  --color-hero-muted-foreground: var(--hero-muted-foreground);
+  --color-brand-navy: var(--brand-navy);
 }
 
 @layer base {
@@ -360,20 +301,17 @@
 }
 
 @layer utilities {
-  /* Brand hero for /inicio: subtle tint by default, full gradient on Opus. */
+  /* Brand hero: same dark gradient in both themes, with AA-safe text. */
   .bg-opus-hero {
     background-image: linear-gradient(
       135deg,
-      oklch(0.95 0.02 200) 0%,
-      oklch(0.93 0.03 190) 100%
+      var(--hero-from) 0%,
+      var(--hero-to) 100%
     );
+    color: var(--hero-foreground);
   }
-  .opus .bg-opus-hero {
-    background-image: linear-gradient(135deg, #004851 0%, #00968f 100%);
-    color: #fff;
-  }
-  .opus .bg-opus-hero .text-muted-foreground {
-    color: rgb(255 255 255 / 0.8);
+  .bg-opus-hero .text-muted-foreground {
+    color: var(--hero-muted-foreground);
   }
   .font-display {
     font-family: var(--font-display);
@@ -396,20 +334,6 @@
     animation-duration: 0.01ms;
     animation-iteration-count: 1;
   }
-}
-
-/*
- * Opus sidebar footer: the compact account row sits on the teal sidebar,
- * where the global `text-muted-foreground` (#54565a) and the default
- * `bg-muted` avatar circle both fail AA. Unlayered so it beats the
- * utilities it overrides; scoped to .opus so light/dark stay untouched.
- */
-.opus [data-sidebar="footer"] .text-muted-foreground {
-  color: rgb(255 255 255 / 0.78);
-}
-.opus [data-sidebar="footer"] [data-slot="avatar-fallback"] {
-  background-color: rgb(255 255 255 / 0.16);
-  color: #ffffff;
 }
 
 /* Print styles for reports */
@@ -435,8 +359,7 @@
 
   /* Reset background colors for printing */
   body,
-  .dark,
-  .opus {
+  .dark {
     background: white;
     color: black;
   }
