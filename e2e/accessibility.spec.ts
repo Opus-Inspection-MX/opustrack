@@ -8,7 +8,7 @@ import { createTrackingFixture, type TrackingFixture } from "./fixtures/flows";
  *
  * Four representative pages — /inicio (home), /login (logged out),
  * /admin/tracking (operación) and the FSR assignment detail (field flow) —
- * each scanned in the three themes (light/dark/opus) via the next-themes
+ * each scanned in the two Opus themes (light/dark) via the next-themes
  * localStorage key, so theme-specific contrast regressions surface here
  * instead of in a bug report.
  *
@@ -18,7 +18,7 @@ import { createTrackingFixture, type TrackingFixture } from "./fixtures/flows";
  * docs/ui-patterns.md — never silently.
  */
 
-const THEMES = ["light", "dark", "opus"] as const;
+const THEMES = ["light", "dark"] as const;
 type Theme = (typeof THEMES)[number];
 
 interface AuditPage {
