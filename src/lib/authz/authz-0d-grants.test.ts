@@ -12,7 +12,6 @@ import { describe, expect, it } from "vitest";
  */
 
 const ROOT = process.cwd();
-const ACTIONS_DIR = join(ROOT, "src/lib/actions");
 const SEED_TEMPLATE = join(ROOT, "initial_load/seed.example.ts");
 const INCIDENT_DETAIL_PAGE = join(
   ROOT,
@@ -158,10 +157,7 @@ describe("Fase 0d: missing grants and unusable buttons (H-06)", () => {
 
   describe("dead actions (decision #3: CONECTAR REAPERTURA)", () => {
     it("closeIncident and refreshIncidentStatus have no references left", () => {
-      const files = tsSources([
-        join(ROOT, "src"),
-        join(ROOT, "e2e"),
-      ]);
+      const files = tsSources([join(ROOT, "src"), join(ROOT, "e2e")]);
       const offenders: string[] = [];
       for (const file of files) {
         const source = readFileSync(file, "utf8");
@@ -172,9 +168,10 @@ describe("Fase 0d: missing grants and unusable buttons (H-06)", () => {
           offenders.push(file);
         }
       }
-      expect(offenders, "dead actions must be deleted with zero references").toEqual(
-        [],
-      );
+      expect(
+        offenders,
+        "dead actions must be deleted with zero references",
+      ).toEqual([]);
     });
   });
 });
