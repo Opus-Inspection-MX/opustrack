@@ -2,6 +2,7 @@ import { expect, type Page, test } from "@playwright/test";
 import { authFile, type Role } from "./fixtures/auth";
 import { db, uniqueSuffix } from "./fixtures/db";
 import { fillStable } from "./fixtures/forms";
+import { gotoReady } from "./fixtures/navigation";
 
 /**
  * The personal home (Fase 3 · /inicio).
@@ -185,6 +186,17 @@ test.describe("GUEST", () => {
         "ops-kpis",
       ],
     );
+  });
+});
+
+test.describe("volver desde notificaciones", () => {
+  test.use({ storageState: authFile("guest") });
+
+  test("Volver lleva de /notifications a /inicio", async ({ page }) => {
+    await gotoReady(page, "/inicio");
+    await gotoReady(page, "/notifications");
+    await page.locator("main").getByRole("link", { name: "Volver" }).click();
+    await expect(page).toHaveURL(/\/inicio$/);
   });
 });
 

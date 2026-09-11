@@ -21,7 +21,7 @@ export default async function NotificationsPage() {
         }
       />
       <div>
-        <BackButton fallback="/" />
+        <BackButton fallback="/inicio" />
       </div>
 
       <SectionCard
