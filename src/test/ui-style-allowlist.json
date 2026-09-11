@@ -1,0 +1,483 @@
+{
+  "src/app/admin/assignment-activities/[id]/edit/page.tsx": ["text-red-500"],
+  "src/app/admin/assignments/[id]/page.tsx": [
+    "bg-green-600",
+    "bg-yellow-50",
+    "border-yellow-300",
+    "text-yellow-700"
+  ],
+  "src/app/admin/equipments/[id]/page.tsx": [
+    "bg-green-100",
+    "bg-red-100",
+    "text-green-800",
+    "text-red-800"
+  ],
+  "src/app/admin/incident-status/[id]/page.tsx": [
+    "bg-gray-100",
+    "bg-gray-800",
+    "bg-green-100",
+    "bg-green-900",
+    "border-gray-300",
+    "text-gray-200",
+    "text-gray-800",
+    "text-green-200",
+    "text-green-800"
+  ],
+  "src/app/admin/incident-status/page.tsx": ["#FFFFFF", "border-gray-300"],
+  "src/app/admin/incident-types/[id]/page.tsx": [
+    "bg-gray-100",
+    "bg-gray-800",
+    "bg-green-100",
+    "bg-green-900",
+    "text-gray-200",
+    "text-gray-800",
+    "text-green-200",
+    "text-green-800"
+  ],
+  "src/app/admin/incidents/[id]/page.tsx": [
+    "bg-red-50",
+    "bg-red-600",
+    "bg-red-950",
+    "border-red-300",
+    "text-red-300",
+    "text-red-700"
+  ],
+  "src/app/admin/lifecycle/page.tsx": [
+    "#0284c7",
+    "#0c4a6e",
+    "#78350f",
+    "#7f1d1d",
+    "#d97706",
+    "#dc2626",
+    "#f0f9ff",
+    "#fee2e2",
+    "#fef3c7"
+  ],
+  "src/app/admin/lines/[id]/page.tsx": [
+    "bg-green-100",
+    "bg-red-100",
+    "text-green-800",
+    "text-red-800"
+  ],
+  "src/app/admin/page.tsx": ["text-blue-600", "text-green-600", "text-red-600"],
+  "src/app/admin/reports/assignment-aging/assignment-aging-client.tsx": [
+    "bg-gray-100",
+    "bg-green-100",
+    "bg-green-900",
+    "bg-red-100",
+    "bg-red-200",
+    "bg-red-50",
+    "bg-red-900",
+    "bg-red-950",
+    "bg-yellow-100",
+    "bg-yellow-900",
+    "border-red-200",
+    "border-red-800",
+    "text-gray-800",
+    "text-green-400",
+    "text-green-600",
+    "text-green-800",
+    "text-red-200",
+    "text-red-300",
+    "text-red-400",
+    "text-red-600",
+    "text-red-700",
+    "text-red-800",
+    "text-red-900",
+    "text-yellow-400",
+    "text-yellow-600",
+    "text-yellow-800"
+  ],
+  "src/app/admin/reports/assignments/assignments-report-client.tsx": [
+    "bg-blue-100",
+    "bg-gray-100",
+    "bg-green-100",
+    "text-blue-800",
+    "text-gray-800",
+    "text-green-800"
+  ],
+  "src/app/admin/reports/daily-trip-compliance/daily-trip-compliance-report-client.tsx": [
+    "text-red-500",
+    "text-red-600"
+  ],
+  "src/app/admin/reports/incident-program/incident-program-client.tsx": [
+    "#92D050",
+    "#BFBFBF",
+    "#DCEAF7",
+    "#E59EDD",
+    "#FFFF00"
+  ],
+  "src/app/admin/reports/notification-engagement/notification-engagement-report-client.tsx": [
+    "text-red-600"
+  ],
+  "src/app/admin/reports/page.tsx": [
+    "bg-blue-500",
+    "bg-red-500",
+    "text-blue-500"
+  ],
+  "src/app/admin/reports/seen-time/seen-time-client.tsx": [
+    "bg-green-100",
+    "bg-green-900",
+    "text-green-400",
+    "text-green-600",
+    "text-green-800",
+    "text-red-600",
+    "text-yellow-600"
+  ],
+  "src/app/admin/schedules/[id]/edit/page.tsx": [
+    "border-red-500",
+    "text-red-500"
+  ],
+  "src/app/admin/schedules/[id]/page.tsx": [
+    "text-blue-600",
+    "text-gray-600",
+    "text-green-600"
+  ],
+  "src/app/admin/schedules/new/page.tsx": ["border-red-500", "text-red-500"],
+  "src/app/admin/settings/assignment-status/[id]/page.tsx": [
+    "bg-gray-100",
+    "bg-gray-800",
+    "bg-green-100",
+    "bg-green-900",
+    "text-gray-200",
+    "text-gray-800",
+    "text-green-200",
+    "text-green-800"
+  ],
+  "src/app/admin/settings/assignment-status/page.tsx": [
+    "bg-gray-100",
+    "bg-gray-800",
+    "bg-green-100",
+    "bg-green-900",
+    "text-gray-200",
+    "text-gray-800",
+    "text-green-200",
+    "text-green-800"
+  ],
+  "src/app/admin/settings/equipment-status/[id]/page.tsx": [
+    "bg-gray-100",
+    "bg-gray-800",
+    "bg-green-100",
+    "bg-green-900",
+    "text-gray-200",
+    "text-gray-800",
+    "text-green-200",
+    "text-green-800"
+  ],
+  "src/app/admin/settings/equipment-status/page.tsx": [
+    "bg-gray-100",
+    "bg-gray-800",
+    "bg-green-100",
+    "bg-green-900",
+    "text-gray-200",
+    "text-gray-800",
+    "text-green-200",
+    "text-green-800"
+  ],
+  "src/app/admin/settings/page.tsx": ["text-blue-600", "text-green-600"],
+  "src/app/admin/settings/vehicle-status/[id]/page.tsx": [
+    "bg-gray-100",
+    "bg-gray-800",
+    "bg-green-100",
+    "bg-green-900",
+    "text-gray-200",
+    "text-gray-800",
+    "text-green-200",
+    "text-green-800"
+  ],
+  "src/app/admin/settings/vehicle-status/page.tsx": [
+    "bg-gray-100",
+    "bg-gray-800",
+    "bg-green-100",
+    "bg-green-900",
+    "text-gray-200",
+    "text-gray-800",
+    "text-green-200",
+    "text-green-800"
+  ],
+  "src/app/admin/settings/vehicle-trip-status/[id]/page.tsx": [
+    "bg-gray-100",
+    "bg-gray-800",
+    "bg-green-100",
+    "bg-green-900",
+    "text-gray-200",
+    "text-gray-800",
+    "text-green-200",
+    "text-green-800"
+  ],
+  "src/app/admin/settings/vehicle-trip-status/page.tsx": [
+    "bg-gray-100",
+    "bg-gray-800",
+    "bg-green-100",
+    "bg-green-900",
+    "text-gray-200",
+    "text-gray-800",
+    "text-green-200",
+    "text-green-800"
+  ],
+  "src/app/admin/states/[id]/page.tsx": ["text-green-600", "text-red-600"],
+  "src/app/admin/tracking/page.tsx": ["bg-blue-500", "text-blue-500"],
+  "src/app/admin/user-status/[id]/page.tsx": [
+    "bg-gray-100",
+    "bg-gray-800",
+    "bg-green-100",
+    "bg-green-900",
+    "text-gray-200",
+    "text-gray-800",
+    "text-green-200",
+    "text-green-800"
+  ],
+  "src/app/admin/user-status/page.tsx": [
+    "bg-gray-100",
+    "bg-gray-800",
+    "bg-green-100",
+    "bg-green-900",
+    "text-gray-200",
+    "text-gray-800",
+    "text-green-200",
+    "text-green-800"
+  ],
+  "src/app/admin/vacations/page.tsx": [
+    "bg-green-100",
+    "bg-red-100",
+    "border-green-300",
+    "border-red-300",
+    "text-green-800",
+    "text-red-800"
+  ],
+  "src/app/fsr/assignments/[id]/page.tsx": [
+    "bg-green-50",
+    "bg-green-600",
+    "bg-green-700",
+    "bg-green-950",
+    "bg-red-50",
+    "bg-red-600",
+    "bg-red-950",
+    "border-green-500",
+    "border-red-500",
+    "text-blue-600"
+  ],
+  "src/app/fsr/assignments/page.tsx": [
+    "bg-blue-100",
+    "bg-green-600",
+    "border-blue-400",
+    "text-blue-800",
+    "text-gray-500",
+    "text-green-500",
+    "text-yellow-500"
+  ],
+  "src/app/fsr/incidents/[id]/page.tsx": [
+    "bg-blue-100",
+    "bg-green-100",
+    "border-blue-300",
+    "border-green-300",
+    "text-blue-700",
+    "text-green-500",
+    "text-green-700"
+  ],
+  "src/app/fsr/incidents/page.tsx": [
+    "bg-blue-100",
+    "bg-green-100",
+    "border-blue-300",
+    "border-green-300",
+    "text-blue-700",
+    "text-green-700"
+  ],
+  "src/app/fsr/page.tsx": [
+    "bg-green-600",
+    "bg-red-50",
+    "bg-red-950",
+    "border-red-200",
+    "border-red-800",
+    "text-gray-500",
+    "text-green-500",
+    "text-red-300",
+    "text-red-400",
+    "text-red-600",
+    "text-red-700",
+    "text-yellow-500"
+  ],
+  "src/app/guest/page.tsx": ["bg-yellow-50", "text-green-500", "text-red-500"],
+  "src/app/layout.tsx": ["#000000", "#ffffff"],
+  "src/app/page.tsx": [
+    "bg-blue-500",
+    "bg-green-500",
+    "bg-red-500",
+    "text-blue-400",
+    "text-blue-600",
+    "text-green-400",
+    "text-green-600",
+    "text-red-400",
+    "text-red-600"
+  ],
+  "src/app/profile/page.tsx": [
+    "bg-green-50",
+    "bg-green-950",
+    "border-green-200",
+    "border-green-800",
+    "text-green-200",
+    "text-green-800",
+    "text-red-500"
+  ],
+  "src/app/reporter/assignments/[id]/page.tsx": [
+    "bg-blue-100",
+    "bg-gray-100",
+    "bg-green-100",
+    "text-blue-700",
+    "text-gray-400",
+    "text-green-700"
+  ],
+  "src/app/reporter/incidents/[id]/page.tsx": ["#6B7280"],
+  "src/app/reporter/new/page.tsx": ["border-red-500", "text-red-500"],
+  "src/app/reporter/page.tsx": [
+    "#6B7280",
+    "text-blue-500",
+    "text-green-500",
+    "text-yellow-500"
+  ],
+  "src/app/vacations/page.tsx": [
+    "bg-green-100",
+    "bg-red-100",
+    "border-green-300",
+    "border-red-300",
+    "text-green-600",
+    "text-green-800",
+    "text-red-600",
+    "text-red-800"
+  ],
+  "src/components/admin/assignments/assignments-table.tsx": [
+    "bg-green-600",
+    "bg-yellow-50",
+    "border-yellow-300",
+    "text-yellow-700"
+  ],
+  "src/components/admin/clientes/client-form.tsx": ["text-blue-600"],
+  "src/components/admin/incidents/cancel-incident-button.tsx": [
+    "bg-red-50",
+    "bg-red-600",
+    "bg-red-700",
+    "border-red-300",
+    "text-red-700",
+    "text-red-800"
+  ],
+  "src/components/admin/incidents/incident-form.tsx": ["text-red-500"],
+  "src/components/admin/schedules/quick-edit-schedule-dialog.tsx": [
+    "text-red-500"
+  ],
+  "src/components/assignment-activities/assignment-activity-table.tsx": [
+    "text-red-600"
+  ],
+  "src/components/assignment-activities/new-assignment-activity-form.tsx": [
+    "text-red-500"
+  ],
+  "src/components/assignments/assignment-activity-edit.tsx": ["text-red-500"],
+  "src/components/assignments/assignment-activity-form.tsx": ["text-red-500"],
+  "src/components/assignments/assignment-edit-form.tsx": ["text-red-500"],
+  "src/components/equipments/equipment-form.tsx": [
+    "border-red-500",
+    "text-red-500"
+  ],
+  "src/components/incident-status/incident-status-form.tsx": [
+    "#6B7280",
+    "#FF0000",
+    "#FFFFFF",
+    "bg-red-50",
+    "border-red-200",
+    "border-red-500",
+    "text-red-700",
+    "text-red-800"
+  ],
+  "src/components/incident-types/incident-type-form.tsx": [
+    "border-red-500",
+    "text-red-500"
+  ],
+  "src/components/lines/line-form.tsx": ["border-red-500", "text-red-500"],
+  "src/components/login/login-form.component.tsx": [
+    "bg-blue-50",
+    "bg-red-50",
+    "border-blue-200",
+    "border-red-200",
+    "text-blue-800",
+    "text-red-600"
+  ],
+  "src/components/notifications/notification-bell.tsx": ["bg-red-500"],
+  "src/components/notifications/notification-item.tsx": [
+    "bg-blue-100",
+    "bg-blue-500",
+    "bg-blue-900",
+    "bg-red-100",
+    "bg-red-900",
+    "bg-yellow-100",
+    "bg-yellow-900",
+    "text-blue-200",
+    "text-blue-800",
+    "text-red-200",
+    "text-red-800",
+    "text-yellow-200",
+    "text-yellow-800"
+  ],
+  "src/components/programacion/create-incident-dialog.tsx": [
+    "bg-blue-50",
+    "bg-blue-950",
+    "bg-red-50",
+    "bg-red-950",
+    "border-blue-200",
+    "border-blue-800",
+    "border-red-200",
+    "border-red-800",
+    "text-blue-100",
+    "text-blue-300",
+    "text-blue-400",
+    "text-blue-600",
+    "text-blue-700",
+    "text-blue-900",
+    "text-red-300",
+    "text-red-700"
+  ],
+  "src/components/programacion/schedule-calendar.tsx": [
+    "bg-blue-500",
+    "border-blue-500",
+    "text-blue-600"
+  ],
+  "src/components/schedules/schedule-table.tsx": ["text-red-600"],
+  "src/components/states/state-form.tsx": [
+    "bg-red-50",
+    "border-red-200",
+    "border-red-500",
+    "text-red-600"
+  ],
+  "src/components/tracking/tracking-table.tsx": [
+    "#6B7280",
+    "#FFFFFF",
+    "bg-blue-100",
+    "bg-gray-100",
+    "bg-green-100",
+    "bg-green-50",
+    "bg-yellow-50",
+    "border-green-300",
+    "border-yellow-300",
+    "text-blue-800",
+    "text-gray-800",
+    "text-green-700",
+    "text-green-800",
+    "text-yellow-700"
+  ],
+  "src/components/vacations/vacation-approval-buttons.tsx": [
+    "bg-green-600",
+    "bg-green-700"
+  ],
+  "src/components/vacations/vacation-year-calendar.tsx": [
+    "#10B981",
+    "#EF4444",
+    "#F59E0B",
+    "#fff"
+  ],
+  "src/lib/actions/lookups.ts": ["#6B7280"],
+  "src/lib/mail/templates.ts": [
+    "#111827",
+    "#1d4ed8",
+    "#6b7280",
+    "#9ca3af",
+    "#ffffff"
+  ]
+}
