@@ -22,18 +22,21 @@
 --
 -- Verification:
 --   SELECT tablename FROM pg_tables WHERE tablename IN
---     ('IncidentStatus','AssignmentStatus','UserStatus','VacationStatus',
+--     ('IncidentStatus','AssignmentStatus','UserStatus','vacation_statuses',
 --      'VehicleStatus','VehicleTripStatus','Role');
 --   SELECT name, code FROM "UserStatus" WHERE code IS DISTINCT FROM name;
 --     -- expect zero rows for system names (ACTIVO/INACTIVO/SUSPENDIDO);
 --     -- custom rows keep code NULL.
+--   SELECT name, code FROM "vacation_statuses" WHERE code IS NULL AND active;
+--     -- expect zero rows (all three system rows backfilled).
 --   SELECT name, code FROM "Role" WHERE code IS NULL AND active;
 --     -- expect zero rows for the seven seed roles.
 
 ALTER TABLE "UserStatus" ADD COLUMN IF NOT EXISTS "code" TEXT;
 ALTER TABLE "IncidentStatus" ADD COLUMN IF NOT EXISTS "code" TEXT;
 ALTER TABLE "AssignmentStatus" ADD COLUMN IF NOT EXISTS "code" TEXT;
-ALTER TABLE "VacationStatus" ADD COLUMN IF NOT EXISTS "code" TEXT;
+-- VacationStatus maps to snake_case (@@map("vacation_statuses")).
+ALTER TABLE "vacation_statuses" ADD COLUMN IF NOT EXISTS "code" TEXT;
 ALTER TABLE "VehicleStatus" ADD COLUMN IF NOT EXISTS "code" TEXT;
 ALTER TABLE "VehicleTripStatus" ADD COLUMN IF NOT EXISTS "code" TEXT;
 ALTER TABLE "Role" ADD COLUMN IF NOT EXISTS "code" TEXT;
@@ -51,7 +54,7 @@ UPDATE "AssignmentStatus" SET "code" = "name"
   WHERE "code" IS NULL AND "name" IN
     ('PENDIENTE_DE_ASIGNACION', 'ASIGNADO', 'VISTO', 'INICIADO', 'EN_PROGRESO', 'CERRADO');
 
-UPDATE "VacationStatus" SET "code" = "name"
+UPDATE "vacation_statuses" SET "code" = "name"
   WHERE "code" IS NULL AND "name" IN ('PENDIENTE', 'APROBADA', 'RECHAZADA');
 
 UPDATE "VehicleStatus" SET "code" = "name"
@@ -68,7 +71,7 @@ UPDATE "Role" SET "code" = "name"
 CREATE UNIQUE INDEX IF NOT EXISTS "UserStatus_code_key" ON "UserStatus"("code");
 CREATE UNIQUE INDEX IF NOT EXISTS "IncidentStatus_code_key" ON "IncidentStatus"("code");
 CREATE UNIQUE INDEX IF NOT EXISTS "AssignmentStatus_code_key" ON "AssignmentStatus"("code");
-CREATE UNIQUE INDEX IF NOT EXISTS "VacationStatus_code_key" ON "VacationStatus"("code");
+CREATE UNIQUE INDEX IF NOT EXISTS "VacationStatus_code_key" ON "vacation_statuses"("code");
 CREATE UNIQUE INDEX IF NOT EXISTS "VehicleStatus_code_key" ON "VehicleStatus"("code");
 CREATE UNIQUE INDEX IF NOT EXISTS "VehicleTripStatus_code_key" ON "VehicleTripStatus"("code");
 CREATE UNIQUE INDEX IF NOT EXISTS "Role_code_key" ON "Role"("code");
