@@ -20,6 +20,7 @@ import {
   PieChart,
   Settings,
   Shield,
+  ShieldAlert,
   Tag,
   TrendingUp,
   User,
@@ -301,6 +302,14 @@ export const MENU: MenuGroup[] = [
             showInSidebar: false,
             keywords: ["programa", "programacion", "excel", "exportar"],
             description: "Incidentes por programación, exportable a Excel",
+          },
+          {
+            title: "Incumplimiento SLA",
+            url: "/admin/reports/sla-breach",
+            icon: ShieldAlert,
+            showInSidebar: false,
+            keywords: ["sla", "vencido", "riesgo", "incumplimiento"],
+            description: "Incidentes vencidos y en riesgo por tipo",
           },
           {
             title: "Viajes de Vehículos",
