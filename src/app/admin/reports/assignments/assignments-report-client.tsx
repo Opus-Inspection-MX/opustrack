@@ -2,6 +2,11 @@
 
 import { CheckCircle, Clock, XCircle } from "lucide-react";
 import { useState, useTransition } from "react";
+import { EmptyState } from "@/components/common/empty-state";
+import { FilterBar } from "@/components/common/filter-bar";
+import { PageContainer } from "@/components/common/page-container";
+import { PageHeader } from "@/components/common/page-header";
+import { StatusBadge, type StatusTone } from "@/components/common/status-badge";
 import {
   ChartCard,
   DateRangeFilter,
@@ -9,7 +14,6 @@ import {
   PieChart,
   StatCard,
 } from "@/components/reports";
-import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -30,14 +34,14 @@ interface AssignmentsReportClientProps {
   initialSummary: Awaited<ReturnType<typeof getReportSummary>>;
 }
 
-const statusColors: Record<string, string> = {
-  PENDIENTE_DE_ASIGNACION: "bg-slate-100 text-slate-800",
-  ASIGNADO: "bg-purple-100 text-purple-800",
-  VISTO: "bg-cyan-100 text-cyan-800",
-  INICIADO: "bg-blue-100 text-blue-800",
-  EN_PROGRESO: "bg-amber-100 text-amber-800",
-  CERRADO: "bg-green-100 text-green-800",
-  "Sin Estado": "bg-gray-100 text-gray-800",
+const statusTones: Record<string, StatusTone> = {
+  PENDIENTE_DE_ASIGNACION: "neutral",
+  ASIGNADO: "open",
+  VISTO: "info",
+  INICIADO: "progress",
+  EN_PROGRESO: "progress",
+  CERRADO: "done",
+  "Sin Estado": "neutral",
 };
 
 export function AssignmentsReportClient({
@@ -88,29 +92,25 @@ export function AssignmentsReportClient({
   }));
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">
-            Estado de Asignaciones
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Distribucion y metricas de asignaciones.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <DateRangeFilter
-            startDate={startDate}
-            endDate={endDate}
-            onDateChange={handleDateChange}
-          />
+    <PageContainer>
+      <PageHeader
+        title="Estado de Asignaciones"
+        description="Distribucion y metricas de asignaciones."
+        actions={
           <PDFExportButton
             reportTitle="Estado de Asignaciones"
             reportId="work-orders"
           />
-        </div>
-      </div>
+        }
+      />
+
+      <FilterBar>
+        <DateRangeFilter
+          startDate={startDate}
+          endDate={endDate}
+          onDateChange={handleDateChange}
+        />
+      </FilterBar>
 
       {isPending && (
         <div className="text-center py-4 text-muted-foreground">
@@ -182,12 +182,9 @@ export function AssignmentsReportClient({
                 {data.map((row) => (
                   <TableRow key={row.status}>
                     <TableCell>
-                      <Badge
-                        variant="secondary"
-                        className={statusColors[row.status] || "bg-gray-100"}
-                      >
+                      <StatusBadge tone={statusTones[row.status] ?? "neutral"}>
                         {row.status}
-                      </Badge>
+                      </StatusBadge>
                     </TableCell>
                     <TableCell className="text-right">{row.count}</TableCell>
                     <TableCell className="text-right">
@@ -216,7 +213,7 @@ export function AssignmentsReportClient({
         title="Resumen del Periodo"
         description="Metricas clave del rango de fechas seleccionado"
       >
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div className="p-4 rounded-lg bg-muted/50">
             <p className="text-sm text-muted-foreground">Total Incidentes</p>
             <p className="text-2xl font-bold">{summary.totalIncidents}</p>
@@ -233,6 +230,6 @@ export function AssignmentsReportClient({
           </div>
         </div>
       </ChartCard>
-    </div>
+    </PageContainer>
   );
 }

@@ -2,6 +2,10 @@
 
 import { AlertTriangle, CheckCircle, TrendingUp } from "lucide-react";
 import { useState, useTransition } from "react";
+import { EmptyState } from "@/components/common/empty-state";
+import { FilterBar } from "@/components/common/filter-bar";
+import { PageContainer } from "@/components/common/page-container";
+import { PageHeader } from "@/components/common/page-header";
 import { PriorityBadge } from "@/components/incident-types/priority-badge";
 import {
   AreaChart,
@@ -110,42 +114,38 @@ export function IncidentsReportClient({
   }));
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">
-            Analisis de Incidentes
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Tendencias, tipos y metricas de resolucion de incidentes.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-56">
-            <MultiSelect
-              options={incidentTypes.map((t) => ({
-                value: t.id.toString(),
-                label: t.name,
-              }))}
-              value={selectedTypeIds}
-              onValueChange={handleTypeChange}
-              placeholder="Todos los tipos"
-              searchPlaceholder="Buscar tipo..."
-              emptyMessage="No se encontraron tipos."
-            />
-          </div>
-          <DateRangeFilter
-            startDate={startDate}
-            endDate={endDate}
-            onDateChange={handleDateChange}
-          />
+    <PageContainer>
+      <PageHeader
+        title="Analisis de Incidentes"
+        description="Tendencias, tipos y metricas de resolucion de incidentes."
+        actions={
           <PDFExportButton
             reportTitle="Analisis de Incidentes"
             reportId="incidents"
           />
+        }
+      />
+
+      <FilterBar activeCount={selectedTypeIds.length}>
+        <div className="w-full sm:w-56">
+          <MultiSelect
+            options={incidentTypes.map((t) => ({
+              value: t.id.toString(),
+              label: t.name,
+            }))}
+            value={selectedTypeIds}
+            onValueChange={handleTypeChange}
+            placeholder="Todos los tipos"
+            searchPlaceholder="Buscar tipo..."
+            emptyMessage="No se encontraron tipos."
+          />
         </div>
-      </div>
+        <DateRangeFilter
+          startDate={startDate}
+          endDate={endDate}
+          onDateChange={handleDateChange}
+        />
+      </FilterBar>
 
       {isPending && (
         <div className="text-center py-4 text-muted-foreground">
@@ -206,9 +206,10 @@ export function IncidentsReportClient({
             height={350}
           />
         ) : (
-          <div className="h-[350px] flex items-center justify-center text-muted-foreground">
-            No hay datos disponibles para el rango seleccionado
-          </div>
+          <EmptyState
+            title="Sin datos"
+            description="No hay datos disponibles para el rango seleccionado"
+          />
         )}
       </ChartCard>
 
@@ -226,9 +227,10 @@ export function IncidentsReportClient({
               height={300}
             />
           ) : (
-            <div className="h-[300px] flex items-center justify-center text-muted-foreground">
-              No hay datos disponibles
-            </div>
+            <EmptyState
+              title="Sin datos"
+              description="No hay datos disponibles"
+            />
           )}
         </ChartCard>
 
@@ -274,6 +276,6 @@ export function IncidentsReportClient({
           </div>
         </ChartCard>
       </div>
-    </div>
+    </PageContainer>
   );
 }

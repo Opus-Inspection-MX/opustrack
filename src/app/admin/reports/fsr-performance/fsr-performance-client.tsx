@@ -2,6 +2,10 @@
 
 import { Users } from "lucide-react";
 import { useState, useTransition } from "react";
+import { EmptyState } from "@/components/common/empty-state";
+import { FilterBar } from "@/components/common/filter-bar";
+import { PageContainer } from "@/components/common/page-container";
+import { PageHeader } from "@/components/common/page-header";
 import {
   BarChart,
   ChartCard,
@@ -83,29 +87,25 @@ export function FSRPerformanceClient({
   }));
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">
-            Rendimiento de FSR
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Analisis del desempeno de los Field Service Representatives.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <DateRangeFilter
-            startDate={startDate}
-            endDate={endDate}
-            onDateChange={handleDateChange}
-          />
+    <PageContainer>
+      <PageHeader
+        title="Rendimiento de FSR"
+        description="Analisis del desempeno de los Field Service Representatives."
+        actions={
           <PDFExportButton
             reportTitle="Rendimiento de FSR"
             reportId="fsr-performance"
           />
-        </div>
-      </div>
+        }
+      />
+
+      <FilterBar>
+        <DateRangeFilter
+          startDate={startDate}
+          endDate={endDate}
+          onDateChange={handleDateChange}
+        />
+      </FilterBar>
 
       {isPending && (
         <div className="text-center py-4 text-muted-foreground">
@@ -163,9 +163,10 @@ export function FSRPerformanceClient({
               height={300}
             />
           ) : (
-            <div className="h-[300px] flex items-center justify-center text-muted-foreground">
-              No hay datos disponibles
-            </div>
+            <EmptyState
+              title="Sin datos"
+              description="No hay datos disponibles"
+            />
           )}
         </ChartCard>
 
@@ -188,9 +189,10 @@ export function FSRPerformanceClient({
               showLegend={false}
             />
           ) : (
-            <div className="h-[300px] flex items-center justify-center text-muted-foreground">
-              No hay datos disponibles
-            </div>
+            <EmptyState
+              title="Sin datos"
+              description="No hay datos disponibles"
+            />
           )}
         </ChartCard>
       </div>
@@ -259,6 +261,6 @@ export function FSRPerformanceClient({
           </Table>
         </div>
       </ChartCard>
-    </div>
+    </PageContainer>
   );
 }

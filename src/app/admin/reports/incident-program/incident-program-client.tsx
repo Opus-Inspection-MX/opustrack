@@ -3,6 +3,10 @@
 import { AlertTriangle, Download, ListChecks, Loader2 } from "lucide-react";
 import moment from "moment-timezone";
 import { useState, useTransition } from "react";
+import { EmptyState } from "@/components/common/empty-state";
+import { FilterBar } from "@/components/common/filter-bar";
+import { PageContainer } from "@/components/common/page-container";
+import { PageHeader } from "@/components/common/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -344,38 +348,28 @@ export function IncidentProgramClient({
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-4">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-500/10">
-            <ListChecks className="h-5 w-5 text-emerald-500" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
-              Reporte de Incidentes
-            </h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Incidentes por programación, en el formato de reportería de la
-              operación.
-            </p>
-          </div>
-        </div>
-
-        <Button
-          onClick={handleDownload}
-          disabled={isDownloading || isPending || !rangeIsValid}
-        >
-          {isDownloading ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          ) : (
-            <Download className="mr-2 h-4 w-4" />
-          )}
-          Descargar Excel
-        </Button>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Reporte de Incidentes"
+        description="Incidentes por programación, en el formato de reportería de la operación."
+        actions={
+          <Button
+            onClick={handleDownload}
+            disabled={isDownloading || isPending || !rangeIsValid}
+            className="min-h-[44px] w-full sm:w-auto"
+          >
+            {isDownloading ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
+            ) : (
+              <Download className="mr-2 h-4 w-4" aria-hidden />
+            )}
+            Descargar Excel
+          </Button>
+        }
+      />
 
       {/* Filters */}
-      <div className="flex flex-wrap items-end gap-4">
+      <FilterBar>
         <div className="space-y-1.5">
           <Label htmlFor="program-start">Desde</Label>
           <Input
@@ -384,7 +378,7 @@ export function IncidentProgramClient({
             value={startDate}
             max={endDate}
             onChange={(e) => handleStartDateChange(e.target.value)}
-            className="w-[170px]"
+            className="w-full sm:w-[170px]"
           />
         </div>
         <div className="space-y-1.5">
@@ -395,7 +389,7 @@ export function IncidentProgramClient({
             value={endDate}
             min={startDate}
             onChange={(e) => handleEndDateChange(e.target.value)}
-            className="w-[170px]"
+            className="w-full sm:w-[170px]"
           />
         </div>
         <div className="flex gap-2 pb-0.5">
@@ -419,7 +413,7 @@ export function IncidentProgramClient({
             placeholder="Todos los estados"
             searchPlaceholder="Buscar estado..."
             emptyMessage="Sin estados"
-            className="w-[220px]"
+            className="w-full sm:w-[220px]"
           />
         </div>
         <div className="space-y-1.5">
@@ -431,10 +425,10 @@ export function IncidentProgramClient({
             placeholder="Todos los centros"
             searchPlaceholder="Buscar centro..."
             emptyMessage="Sin centros"
-            className="w-[260px]"
+            className="w-full sm:w-[260px]"
           />
         </div>
-      </div>
+      </FilterBar>
 
       {!rangeIsValid && (
         <p className="flex items-center gap-2 text-sm font-medium text-destructive">
@@ -468,9 +462,10 @@ export function IncidentProgramClient({
         </div>
 
         {schedules.length === 0 ? (
-          <p className="px-4 py-6 text-sm text-muted-foreground">
-            No hay programaciones con incidentes en este rango.
-          </p>
+          <EmptyState
+            title="Sin programaciones"
+            description="No hay programaciones con incidentes en este rango."
+          />
         ) : (
           <ScrollArea className="h-[260px]">
             <ul className="divide-y">
@@ -536,6 +531,6 @@ export function IncidentProgramClient({
           )}
         </div>
       </div>
-    </div>
+    </PageContainer>
   );
 }

@@ -2,6 +2,11 @@
 
 import { Eye, EyeOff, Timer } from "lucide-react";
 import { useState, useTransition } from "react";
+import { EmptyState } from "@/components/common/empty-state";
+import { FilterBar } from "@/components/common/filter-bar";
+import { PageContainer } from "@/components/common/page-container";
+import { PageHeader } from "@/components/common/page-header";
+import { StatusBadge } from "@/components/common/status-badge";
 import {
   BarChart,
   ChartCard,
@@ -10,7 +15,6 @@ import {
   PieChart,
   StatCard,
 } from "@/components/reports";
-import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -95,37 +99,32 @@ export function SeenTimeClient({ initialData }: SeenTimeClientProps) {
 
   const getTimeColor = (minutes: number | null) => {
     if (minutes === null) return "text-muted-foreground";
-    if (minutes <= 30) return "text-green-600";
-    if (minutes <= 60) return "text-yellow-600";
-    if (minutes <= 120) return "text-orange-600";
-    return "text-red-600";
+    if (minutes <= 30) return "text-success-muted-foreground";
+    if (minutes <= 60) return "text-warning-muted-foreground";
+    if (minutes <= 120) return "text-warning-muted-foreground";
+    return "text-danger-muted-foreground";
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">
-            Tiempo de Visualización
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Análisis del tiempo que toman los FSR en marcar como vistas las
-            asignaciones.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <DateRangeFilter
-            startDate={startDate}
-            endDate={endDate}
-            onDateChange={handleDateChange}
-          />
+    <PageContainer>
+      <PageHeader
+        title="Tiempo de Visualización"
+        description="Análisis del tiempo que toman los FSR en marcar como vistas las asignaciones."
+        actions={
           <PDFExportButton
             reportTitle="Tiempo de Visualización"
             reportId="seen-time"
           />
-        </div>
-      </div>
+        }
+      />
+
+      <FilterBar>
+        <DateRangeFilter
+          startDate={startDate}
+          endDate={endDate}
+          onDateChange={handleDateChange}
+        />
+      </FilterBar>
 
       {isPending && (
         <div className="text-center py-4 text-muted-foreground">
@@ -163,14 +162,17 @@ export function SeenTimeClient({ initialData }: SeenTimeClientProps) {
 
       {/* Warning for pending views */}
       {summary.pendingSeenCount > 0 && (
-        <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
+        <div className="bg-warning-muted/60 border border-warning/40 rounded-lg p-4">
           <div className="flex items-start gap-3">
-            <EyeOff className="h-5 w-5 text-amber-600 mt-0.5" />
+            <EyeOff
+              className="h-5 w-5 text-warning-muted-foreground mt-0.5"
+              aria-hidden
+            />
             <div>
-              <h3 className="font-semibold text-amber-800 dark:text-amber-200">
+              <h3 className="font-semibold text-warning-muted-foreground">
                 Asignaciones pendientes de visualizar
               </h3>
-              <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
+              <p className="text-sm text-warning-muted-foreground mt-1">
                 Hay {summary.pendingSeenCount} asignaciones que aún no han sido
                 vistas por los FSR asignados.
               </p>
@@ -338,18 +340,15 @@ export function SeenTimeClient({ initialData }: SeenTimeClientProps) {
                   </TableCell>
                   <TableCell>
                     {wo.isSeen ? (
-                      <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
-                        <Eye className="h-3 w-3 mr-1" />
+                      <StatusBadge tone="success">
+                        <Eye className="h-3 w-3 mr-1" aria-hidden />
                         Vista
-                      </Badge>
+                      </StatusBadge>
                     ) : (
-                      <Badge
-                        variant="outline"
-                        className="border-amber-500 text-amber-700 dark:text-amber-300"
-                      >
-                        <EyeOff className="h-3 w-3 mr-1" />
+                      <StatusBadge tone="warning">
+                        <EyeOff className="h-3 w-3 mr-1" aria-hidden />
                         Pendiente
-                      </Badge>
+                      </StatusBadge>
                     )}
                   </TableCell>
                 </TableRow>
@@ -368,6 +367,6 @@ export function SeenTimeClient({ initialData }: SeenTimeClientProps) {
           </Table>
         </div>
       </ChartCard>
-    </div>
+    </PageContainer>
   );
 }

@@ -3,6 +3,10 @@
 import { AlertTriangle, CheckCircle2, Clock, ShieldAlert } from "lucide-react";
 import Link from "next/link";
 import { useState, useTransition } from "react";
+import { EmptyState } from "@/components/common/empty-state";
+import { FilterBar } from "@/components/common/filter-bar";
+import { PageContainer } from "@/components/common/page-container";
+import { PageHeader } from "@/components/common/page-header";
 import { SlaBadge } from "@/components/common/sla-badge";
 import { PriorityBadge } from "@/components/incident-types/priority-badge";
 import {
@@ -74,30 +78,25 @@ export function SlaBreachClient({ initialData }: SlaBreachClientProps) {
   }));
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">
-            Incumplimiento SLA
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Incidentes vencidos, en riesgo y en tiempo por tipo, según los
-            objetivos SLA de su prioridad.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <DateRangeFilter
-            startDate={startDate}
-            endDate={endDate}
-            onDateChange={handleDateChange}
-          />
+    <PageContainer>
+      <PageHeader
+        title="Incumplimiento SLA"
+        description="Incidentes vencidos, en riesgo y en tiempo por tipo, según los objetivos SLA de su prioridad."
+        actions={
           <PDFExportButton
             reportTitle="Incumplimiento SLA"
             reportId="sla-breach"
           />
-        </div>
-      </div>
+        }
+      />
+
+      <FilterBar>
+        <DateRangeFilter
+          startDate={startDate}
+          endDate={endDate}
+          onDateChange={handleDateChange}
+        />
+      </FilterBar>
 
       {isPending && (
         <div className="text-center py-4 text-muted-foreground">
@@ -147,9 +146,10 @@ export function SlaBreachClient({ initialData }: SlaBreachClientProps) {
               height={300}
             />
           ) : (
-            <div className="h-[300px] flex items-center justify-center text-muted-foreground">
-              No hay datos disponibles
-            </div>
+            <EmptyState
+              title="Sin datos"
+              description="No hay datos disponibles"
+            />
           )}
         </ChartCard>
 
@@ -181,9 +181,10 @@ export function SlaBreachClient({ initialData }: SlaBreachClientProps) {
               height={300}
             />
           ) : (
-            <div className="h-[300px] flex items-center justify-center text-muted-foreground">
-              No hay datos disponibles
-            </div>
+            <EmptyState
+              title="Sin datos"
+              description="No hay datos disponibles"
+            />
           )}
         </ChartCard>
       </div>
@@ -237,9 +238,10 @@ export function SlaBreachClient({ initialData }: SlaBreachClientProps) {
             </TableBody>
           </Table>
         ) : (
-          <div className="py-8 text-center text-muted-foreground">
-            No hay incidentes en el rango seleccionado
-          </div>
+          <EmptyState
+            title="Sin incidentes"
+            description="No hay incidentes en el rango seleccionado"
+          />
         )}
       </ChartCard>
 
@@ -260,6 +262,6 @@ export function SlaBreachClient({ initialData }: SlaBreachClientProps) {
           Tiempo hasta Visto (RF-510)
         </Link>
       </div>
-    </div>
+    </PageContainer>
   );
 }

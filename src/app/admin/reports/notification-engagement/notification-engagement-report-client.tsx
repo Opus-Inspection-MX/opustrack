@@ -3,6 +3,10 @@
 import { AlertTriangle, Bell, CheckCircle2, Mail } from "lucide-react";
 import moment from "moment-timezone";
 import { useState, useTransition } from "react";
+import { EmptyState } from "@/components/common/empty-state";
+import { FilterBar } from "@/components/common/filter-bar";
+import { PageContainer } from "@/components/common/page-container";
+import { PageHeader } from "@/components/common/page-header";
 import {
   DateRangeFilter,
   PDFExportButton,
@@ -60,29 +64,25 @@ export function NotificationEngagementReportClient({
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">
-            Engagement de Notificaciones
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Qué FSRs han abierto sus notificaciones de trabajo y cuáles tienen
-            pendientes.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <DateRangeFilter
-            startDate={startDate}
-            endDate={endDate}
-            onDateChange={handleDateChange}
-          />
+    <PageContainer>
+      <PageHeader
+        title="Engagement de Notificaciones"
+        description="Qué FSRs han abierto sus notificaciones de trabajo y cuáles tienen pendientes."
+        actions={
           <PDFExportButton
             reportTitle="Engagement de Notificaciones"
             reportId="notification-engagement"
           />
-        </div>
-      </div>
+        }
+      />
+
+      <FilterBar>
+        <DateRangeFilter
+          startDate={startDate}
+          endDate={endDate}
+          onDateChange={handleDateChange}
+        />
+      </FilterBar>
 
       {isPending && (
         <div className="text-center py-4 text-muted-foreground">
@@ -117,7 +117,7 @@ export function NotificationEngagementReportClient({
         />
       </div>
 
-      <div className="border rounded-lg">
+      <div className="border rounded-lg overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
@@ -146,9 +146,7 @@ export function NotificationEngagementReportClient({
                 <TableRow
                   key={r.userId}
                   className={
-                    r.criticalUnreadCount > 0
-                      ? "bg-amber-50/60 dark:bg-amber-950/20"
-                      : ""
+                    r.criticalUnreadCount > 0 ? "bg-warning-muted/60" : ""
                   }
                 >
                   <TableCell className="font-medium">
@@ -163,7 +161,7 @@ export function NotificationEngagementReportClient({
                   <TableCell className="text-right">{r.readCount}</TableCell>
                   <TableCell
                     className={`text-right font-semibold ${
-                      r.unreadCount > 10 ? "text-red-600" : ""
+                      r.unreadCount > 10 ? "text-danger-muted-foreground" : ""
                     }`}
                   >
                     {r.unreadCount}
@@ -196,7 +194,11 @@ export function NotificationEngagementReportClient({
                       <span className="text-muted-foreground">—</span>
                     ) : (
                       <span
-                        className={r.oldestUnreadDays > 7 ? "text-red-600" : ""}
+                        className={
+                          r.oldestUnreadDays > 7
+                            ? "text-danger-muted-foreground"
+                            : ""
+                        }
                       >
                         {r.oldestUnreadDays} d
                       </span>
@@ -208,6 +210,6 @@ export function NotificationEngagementReportClient({
           </TableBody>
         </Table>
       </div>
-    </div>
+    </PageContainer>
   );
 }

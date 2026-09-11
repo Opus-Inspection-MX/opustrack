@@ -2,6 +2,10 @@
 
 import { Car, MapPin, TrendingUp } from "lucide-react";
 import { useState, useTransition } from "react";
+import { EmptyState } from "@/components/common/empty-state";
+import { FilterBar } from "@/components/common/filter-bar";
+import { PageContainer } from "@/components/common/page-container";
+import { PageHeader } from "@/components/common/page-header";
 import {
   BarChart,
   ChartCard,
@@ -92,29 +96,25 @@ export function VehicleTripsReportClient({
   }));
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">
-            Viajes de Vehiculos
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Seguimiento de viajes, kilometraje y utilizacion de la flota.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <DateRangeFilter
-            startDate={startDate}
-            endDate={endDate}
-            onDateChange={handleDateChange}
-          />
+    <PageContainer>
+      <PageHeader
+        title="Viajes de Vehiculos"
+        description="Seguimiento de viajes, kilometraje y utilizacion de la flota."
+        actions={
           <PDFExportButton
             reportTitle="Viajes de Vehiculos"
             reportId="vehicle-trips"
           />
-        </div>
-      </div>
+        }
+      />
+
+      <FilterBar>
+        <DateRangeFilter
+          startDate={startDate}
+          endDate={endDate}
+          onDateChange={handleDateChange}
+        />
+      </FilterBar>
 
       {isPending && (
         <div className="text-center py-4 text-muted-foreground">
@@ -168,9 +168,10 @@ export function VehicleTripsReportClient({
             height={300}
           />
         ) : (
-          <div className="h-[300px] flex items-center justify-center text-muted-foreground">
-            No hay datos disponibles para el rango seleccionado
-          </div>
+          <EmptyState
+            title="Sin datos"
+            description="No hay datos disponibles para el rango seleccionado"
+          />
         )}
       </ChartCard>
 
@@ -195,9 +196,10 @@ export function VehicleTripsReportClient({
               showLegend={false}
             />
           ) : (
-            <div className="h-[300px] flex items-center justify-center text-muted-foreground">
-              No hay datos disponibles
-            </div>
+            <EmptyState
+              title="Sin datos"
+              description="No hay datos disponibles"
+            />
           )}
         </ChartCard>
 
@@ -220,9 +222,10 @@ export function VehicleTripsReportClient({
               showLegend={false}
             />
           ) : (
-            <div className="h-[300px] flex items-center justify-center text-muted-foreground">
-              No hay datos disponibles
-            </div>
+            <EmptyState
+              title="Sin datos"
+              description="No hay datos disponibles"
+            />
           )}
         </ChartCard>
       </div>
@@ -267,6 +270,6 @@ export function VehicleTripsReportClient({
           </Table>
         </div>
       </ChartCard>
-    </div>
+    </PageContainer>
   );
 }

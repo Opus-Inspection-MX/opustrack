@@ -2,6 +2,11 @@
 
 import { AlertCircle, Calendar, Clock, FileWarning } from "lucide-react";
 import { useState, useTransition } from "react";
+import { EmptyState } from "@/components/common/empty-state";
+import { FilterBar } from "@/components/common/filter-bar";
+import { PageContainer } from "@/components/common/page-container";
+import { PageHeader } from "@/components/common/page-header";
+import { StatusBadge, type StatusTone } from "@/components/common/status-badge";
 import {
   BarChart,
   ChartCard,
@@ -9,7 +14,6 @@ import {
   PieChart,
   StatCard,
 } from "@/components/reports";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -57,27 +61,25 @@ export function AssignmentAgingClient({
     Porcentaje: b.percentage,
   }));
 
-  const getBucketColor = (bucket: string) => {
-    const colors: Record<string, string> = {
-      "0-7 dias":
-        "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
-      "8-14 dias":
-        "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
-      "15-30 dias":
-        "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400",
-      "31-60 dias":
-        "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
-      "60+ dias":
-        "bg-red-200 text-red-900 dark:bg-red-900/50 dark:text-red-300",
-    };
-    return colors[bucket] || "bg-gray-100 text-gray-800";
+  const getBucketTone = (bucket: string): StatusTone => {
+    switch (bucket) {
+      case "0-7 dias":
+        return "success";
+      case "8-14 dias":
+      case "15-30 dias":
+        return "warning";
+      case "31-60 dias":
+      case "60+ dias":
+        return "danger";
+      default:
+        return "neutral";
+    }
   };
 
   const getAgeColor = (days: number) => {
-    if (days <= 7) return "text-green-600";
-    if (days <= 14) return "text-yellow-600";
-    if (days <= 30) return "text-orange-600";
-    return "text-red-600";
+    if (days <= 7) return "text-success-muted-foreground";
+    if (days <= 30) return "text-warning-muted-foreground";
+    return "text-danger-muted-foreground";
   };
 
   const formatDate = (dateStr: string) => {
@@ -90,32 +92,28 @@ export function AssignmentAgingClient({
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">
-            Antiguedad de Ordenes
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Asignaciones abiertas clasificadas por tiempo sin resolver.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            onClick={handleRefresh}
-            disabled={isPending}
-          >
-            <Clock className="h-4 w-4 mr-2" />
-            Actualizar
-          </Button>
-          <PDFExportButton
-            reportTitle="Antiguedad de Ordenes"
-            reportId="work-order-aging"
-          />
-        </div>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Antiguedad de Ordenes"
+        description="Asignaciones abiertas clasificadas por tiempo sin resolver."
+        actions={
+          <>
+            <Button
+              variant="outline"
+              onClick={handleRefresh}
+              disabled={isPending}
+              className="w-full sm:w-auto"
+            >
+              <Clock className="h-4 w-4 mr-2" aria-hidden />
+              Actualizar
+            </Button>
+            <PDFExportButton
+              reportTitle="Antiguedad de Ordenes"
+              reportId="work-order-aging"
+            />
+          </>
+        }
+      />
 
       {isPending && (
         <div className="text-center py-4 text-muted-foreground">
@@ -230,9 +228,9 @@ export function AssignmentAgingClient({
               key={bucket.bucket}
               className="text-center p-4 rounded-lg border bg-card"
             >
-              <Badge className={getBucketColor(bucket.bucket)}>
+              <StatusBadge tone={getBucketTone(bucket.bucket)}>
                 {bucket.bucket}
-              </Badge>
+              </StatusBadge>
               <div className="mt-2 text-3xl font-bold">{bucket.count}</div>
               <div className="text-sm text-muted-foreground">
                 {bucket.percentage.toFixed(1)}%
@@ -272,7 +270,7 @@ export function AssignmentAgingClient({
                   </TableCell>
                   <TableCell>{wo.assignedTo}</TableCell>
                   <TableCell>
-                    <Badge variant="secondary">{wo.status}</Badge>
+                    <StatusBadge tone="neutral">{wo.status}</StatusBadge>
                   </TableCell>
                   <TableCell className="text-sm">
                     {formatDate(wo.createdAt)}
@@ -283,9 +281,9 @@ export function AssignmentAgingClient({
                     {wo.ageInDays}
                   </TableCell>
                   <TableCell>
-                    <Badge className={getBucketColor(wo.ageBucket)}>
+                    <StatusBadge tone={getBucketTone(wo.ageBucket)}>
                       {wo.ageBucket}
-                    </Badge>
+                    </StatusBadge>
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
                     {wo.lastActivity
@@ -308,6 +306,6 @@ export function AssignmentAgingClient({
           </Table>
         </div>
       </ChartCard>
-    </div>
+    </PageContainer>
   );
 }

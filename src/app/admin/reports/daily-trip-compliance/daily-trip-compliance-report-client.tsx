@@ -3,6 +3,10 @@
 import { AlertTriangle, Car, CheckCircle2, Users } from "lucide-react";
 import moment from "moment-timezone";
 import { useState, useTransition } from "react";
+import { EmptyState } from "@/components/common/empty-state";
+import { FilterBar } from "@/components/common/filter-bar";
+import { PageContainer } from "@/components/common/page-container";
+import { PageHeader } from "@/components/common/page-header";
 import {
   DateRangeFilter,
   PDFExportButton,
@@ -67,28 +71,25 @@ export function DailyTripComplianceReportClient({
   const missedToday = rows.filter((r) => !r.reportedToday);
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">
-            Cumplimiento Diario de Viajes
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Qué FSRs han reportado su viaje diario y cuáles no.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <DateRangeFilter
-            startDate={startDate}
-            endDate={endDate}
-            onDateChange={handleDateChange}
-          />
+    <PageContainer>
+      <PageHeader
+        title="Cumplimiento Diario de Viajes"
+        description="Qué FSRs han reportado su viaje diario y cuáles no."
+        actions={
           <PDFExportButton
             reportTitle="Cumplimiento Diario de Viajes"
             reportId="daily-trip-compliance"
           />
-        </div>
-      </div>
+        }
+      />
+
+      <FilterBar>
+        <DateRangeFilter
+          startDate={startDate}
+          endDate={endDate}
+          onDateChange={handleDateChange}
+        />
+      </FilterBar>
 
       {isPending && (
         <div className="text-center py-4 text-muted-foreground">
@@ -124,9 +125,12 @@ export function DailyTripComplianceReportClient({
       </div>
 
       {days.includes(today) && (
-        <div className="border rounded-lg p-4 bg-amber-50/60 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900">
+        <div className="border border-warning/40 rounded-lg p-4 bg-warning-muted/60">
           <div className="flex items-center gap-2 mb-3">
-            <AlertTriangle className="h-5 w-5 text-amber-700 dark:text-amber-300" />
+            <AlertTriangle
+              className="h-5 w-5 text-warning-muted-foreground"
+              aria-hidden
+            />
             <h2 className="font-semibold">FSRs sin reporte hoy ({today})</h2>
           </div>
           {missedToday.length === 0 ? (
@@ -198,7 +202,7 @@ export function DailyTripComplianceReportClient({
                         {cell?.reported ? (
                           <Badge
                             variant="outline"
-                            className="bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800"
+                            className="bg-success-muted text-success-muted-foreground border-success/40"
                             title={`${cell.tripCount} viaje${
                               cell.tripCount === 1 ? "" : "s"
                             } · ${cell.kmDriven} km`}
@@ -206,7 +210,9 @@ export function DailyTripComplianceReportClient({
                             {cell.tripCount}
                           </Badge>
                         ) : (
-                          <span className="text-red-500">—</span>
+                          <span className="text-danger-muted-foreground">
+                            —
+                          </span>
                         )}
                       </TableCell>
                     );
@@ -214,10 +220,10 @@ export function DailyTripComplianceReportClient({
                   <TableCell
                     className={`text-right font-semibold ${
                       r.complianceRatePct === 100
-                        ? "text-emerald-600"
+                        ? "text-success-muted-foreground"
                         : r.complianceRatePct < 50
-                          ? "text-red-600"
-                          : "text-amber-600"
+                          ? "text-danger-muted-foreground"
+                          : "text-warning-muted-foreground"
                     }`}
                   >
                     {r.complianceRatePct}%
@@ -231,6 +237,6 @@ export function DailyTripComplianceReportClient({
           </TableBody>
         </Table>
       </div>
-    </div>
+    </PageContainer>
   );
 }
