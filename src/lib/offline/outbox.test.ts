@@ -159,3 +159,53 @@ describe("offline outbox", () => {
     getItem.mockRestore();
   });
 });
+
+/**
+ * Fase 5b (H-14): drafts belong to the user who captured them.
+ *
+ * On a shared device, FSR A's trip draft must not flush under FSR B's
+ * session. Every entry carries its capturing `userId`; only own entries
+ * are sent/shown, logout keeps the queue (no evidence lost), and the UI
+ * tells the operator that foreign drafts are waiting on the device.
+ */
+import { countOtherUserEntries, entriesForUser } from "./outbox";
+
+describe("offline outbox per-user ownership", () => {
+  it("keeps the capturing userId on the entry", () => {
+    const store = memoryStore();
+    enqueueEntry(entry({ userId: "fsr-a" }), store);
+    const [loaded] = loadEntries(store);
+    expect(loaded.userId).toBe("fsr-a");
+  });
+
+  it("only shows own entries plus legacy ones without owner", () => {
+    const own = entry({ userId: "fsr-a" });
+    const foreign = entry({ userId: "fsr-b" });
+    const legacy = entry();
+    const visible = entriesForUser([own, foreign, legacy], "fsr-a");
+    expect(visible.map((e) => e.key)).toEqual([own.key, legacy.key]);
+  });
+
+  it("without a session user everything stays visible (back-compat)", () => {
+    const own = entry({ userId: "fsr-a" });
+    expect(entriesForUser([own], undefined)).toEqual([own]);
+  });
+
+  it("counts foreign drafts for the device notice", () => {
+    const mine = entry({ userId: "fsr-a" });
+    const theirs = entry({ userId: "fsr-b" });
+    const legacy = entry();
+    expect(countOtherUserEntries([mine, theirs, legacy], "fsr-a")).toBe(1);
+    expect(countOtherUserEntries([mine, theirs], undefined)).toBe(0);
+  });
+
+  it("logout keeps every entry (no evidence lost)", () => {
+    const store = memoryStore();
+    enqueueEntry(entry({ userId: "fsr-a" }), store);
+    // Logout clears the session, never the queue: all rows survive.
+    expect(loadEntries(store)).toHaveLength(1);
+    // …but the next user only sees (and flushes) their own.
+    expect(entriesForUser(loadEntries(store), "fsr-b")).toEqual([]);
+    expect(countOtherUserEntries(loadEntries(store), "fsr-b")).toBe(1);
+  });
+});

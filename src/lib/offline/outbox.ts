@@ -38,6 +38,13 @@ export interface OutboxEntry {
   lastError?: string;
   /** Original staged photo filename (the blob itself lives in memory only). */
   photoName?: string;
+  /**
+   * Fase 5b (H-14): user who captured the draft. Entries written before this
+   * field existed carry no owner and stay visible to everyone (legacy); new
+   * entries flush only under their owner's session, so a shared device never
+   * files A's trip under B's name.
+   */
+  userId?: string;
 }
 
 export const OFFLINE_OUTBOX_KEY = "opustrack.offline.outbox.v1";
@@ -108,6 +115,31 @@ function readRaw(store: StorageLike | null): OutboxEntry[] {
 /** All pending drafts, newest last. Never throws (SSR / corrupt JSON safe). */
 export function loadEntries(store?: StorageLike | null): OutboxEntry[] {
   return readRaw(store ?? defaultStore());
+}
+
+/**
+ * Entries the given session may see and flush: own drafts plus legacy
+ * drafts with no owner. Without a session user (`undefined`) everything
+ * stays visible, preserving the pre-ownership behavior.
+ */
+export function entriesForUser(
+  entries: OutboxEntry[],
+  userId: string | undefined,
+): OutboxEntry[] {
+  if (!userId) return entries;
+  return entries.filter((e) => !e.userId || e.userId === userId);
+}
+
+/**
+ * Drafts captured by somebody else on this device — shown as an
+ * operator-facing notice, never flushed under the current session.
+ */
+export function countOtherUserEntries(
+  entries: OutboxEntry[],
+  userId: string | undefined,
+): number {
+  if (!userId) return 0;
+  return entries.filter((e) => e.userId && e.userId !== userId).length;
 }
 
 export type PersistResult = { ok: true } | { ok: false; quotaExceeded: true };

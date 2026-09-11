@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useState } from "react";
 import { AssignmentActivityEdit } from "@/components/assignments/assignment-activity-edit";
 import { AssignmentActivityForm } from "@/components/assignments/assignment-activity-form";
@@ -118,6 +119,8 @@ export default function FSRAssignmentDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const router = useRouter();
+  const { data: session } = useSession();
+  const currentUserId = session?.user?.id;
   const [assignmentId, setAssignmentId] = useState<string | null>(null);
   const [assignment, setAssignment] = useState<FSRAssignment | null>(null);
   const [activities, setActivities] = useState<FSRAssignmentActivity[]>([]);
@@ -310,6 +313,7 @@ export default function FSRAssignmentDetailPage({
         latitude: String(latitude),
         longitude: String(longitude),
       },
+      userId: currentUserId,
     });
     if (!queued.queued) {
       toast.error(describeEnqueueFailure(queued.reason));
@@ -411,6 +415,7 @@ export default function FSRAssignmentDetailPage({
         latitude: String(latitude),
         longitude: String(longitude),
       },
+      userId: currentUserId,
     });
     if (!queued.queued) {
       toast.error(describeEnqueueFailure(queued.reason));
@@ -534,6 +539,7 @@ export default function FSRAssignmentDetailPage({
         <PendingDrafts
           kinds={["startAssignmentWork", "closeAssignment"]}
           matchField={{ key: "assignmentId", value: assignmentId }}
+          currentUserId={currentUserId}
           onFlushed={() => void fetchData()}
         />
       )}

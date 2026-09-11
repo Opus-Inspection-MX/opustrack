@@ -24,6 +24,7 @@ import {
   entryToFormData,
   flushEntry,
   saveDraft,
+  withEntryLock,
 } from "./flush";
 import type { OutboxEntry } from "./outbox";
 
@@ -116,5 +117,31 @@ describe("offline flush", () => {
       expect(Date.parse(entry.capturedAt)).toBeGreaterThanOrEqual(before);
       expect(entry.attempts).toBe(0);
     }
+  });
+
+  it("saveDraft keeps the capturing user on the entry", () => {
+    const queued = saveDraft({
+      kind: "closeAssignment",
+      fields: { assignmentId: "a9" },
+      userId: "fsr-a",
+    });
+    expect(queued.queued).toBe(true);
+    if (queued.queued) {
+      const [entry] = queued.entries.slice(-1);
+      expect(entry.userId).toBe("fsr-a");
+    }
+  });
+});
+
+/**
+ * Fase 5b (H-13): cross-tab flush lock serializes concurrent flushes of the
+ * same draft; without `navigator.locks` the run still executes (the
+ * caller's in-tab in-flight set is the fallback guard).
+ */
+describe("withEntryLock", () => {
+  it("runs directly when navigator.locks is unavailable", async () => {
+    const run = vi.fn(async () => "ok");
+    await expect(withEntryLock("key-1", run)).resolves.toBe("ok");
+    expect(run).toHaveBeenCalledTimes(1);
   });
 });
