@@ -278,3 +278,22 @@ test("reabrir el editor y guardar sin tocar nada conserva a TODOS los FSR", asyn
   expect(await countAssignee(fixture.enabledFsrId)).toBe(1);
   expect(await countAssignee(fixture.outsiderFsrId)).toBe(1);
 });
+
+test("pagina el seguimiento con la paginación compartida (Fase 6b)", async ({
+  page,
+}) => {
+  await page.goto(PAGE);
+  await searchFolio(page, `INC-${fixture.incidentId}`);
+
+  // One match: page 1 of 1 with the Fase 6b summary.
+  await expect(page.getByText("Mostrando 1 a 1 de 1 resultados")).toBeVisible();
+  await expect(page.getByText("Página 1 de 1")).toBeVisible();
+
+  // Switching page size round-trips through the server action and lands back
+  // on page 1 with the row still on screen. The page-size trigger is the only
+  // combobox showing a bare number (the filter selects show placeholders).
+  await page.getByRole("combobox").filter({ hasText: "50" }).click();
+  await page.getByRole("option", { name: "100" }).click();
+  await expect(page.getByText("Mostrando 1 a 1 de 1 resultados")).toBeVisible();
+  await expect(page.getByText("Página 1 de 1")).toBeVisible();
+});

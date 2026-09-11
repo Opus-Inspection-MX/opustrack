@@ -170,7 +170,13 @@ describe("getIncidentsForTracking · sla (RF-218)", () => {
   it("skips the closure and holiday lookups on an empty page", async () => {
     const result = await getIncidentsForTracking();
 
-    expect(result).toEqual({ data: [], totalCount: 0 });
+    expect(result).toEqual({
+      data: [],
+      totalCount: 0,
+      page: 1,
+      pageSize: 50,
+      totalPages: 1,
+    });
     expect(prismaMock.incidentEvent.findMany).not.toHaveBeenCalled();
     expect(prismaMock.holiday.findMany).not.toHaveBeenCalled();
   });

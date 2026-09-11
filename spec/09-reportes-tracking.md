@@ -295,7 +295,7 @@ reporte agregado, se construye sobre esa entidad.
 
 **Reglas de negocio:**
 - Requiere permiso `tracking:read`.
-- Carga hasta **`TRACKING_MAX_RESULTS` incidentes** activos por consulta (valor por defecto: 200, definido como constante en `src/lib/actions/tracking.ts`). Si el total de incidentes que coinciden con los filtros supera ese límite, la UI muestra un indicador `"Mostrando N de M — aplique filtros para acotar"`.
+- Carga los incidentes activos con **paginación de servidor** (`page` + `pageSize` de 50/100/200, por defecto página 1 de 50; contrato en `src/lib/actions/tracking.ts`). Orden estable `[{ reportedAt: "desc" }, { id: "desc" }]`. La UI usa la paginación compartida (`src/components/ui/pagination.tsx`) y vuelve a la página 1 cuando cambia un filtro. La firma de auto-refresh (`getTrackingSignature`) solo depende de los filtros, nunca de la página.
 - Filtros disponibles:
   - `clienteId`: filtra incidentes del cliente seleccionado
   - `typeId`: tipo de incidente
@@ -407,4 +407,4 @@ reporte agregado, se construye sobre esa entidad.
 - **Sin reporte de partes:** RF-507 está retirado (ver 05). El resumen no incluye métricas de partes.
 - **Cálculo de completadas (FSR Performance):** Una asignación se considera completada si `status.name = "CERRADO"` **o** `finishedAt != null`. En principio ambas condiciones deberían ser equivalentes, pero la doble comprobación actúa como salvaguarda ante inconsistencias de datos.
 - **Tracking no es GPS en tiempo real:** El módulo `/admin/tracking` es una vista filtrable de base de datos, no un mapa con actualización automática de posición GPS. La posición GPS (start/end) se captura durante las transiciones del FSR (INICIADO, CERRADO), no se actualiza de forma continua.
-- **Límite de resultados en tracking:** La consulta de tracking usa `take: TRACKING_MAX_RESULTS` (200). Si el total de coincidencias supera ese valor, la UI muestra un indicador de truncado. La solución es aplicar filtros más acotados para reducir el conjunto. No hay paginación por diseño — esta es una vista de monitoreo, no de navegación de registros.
+- **Paginación en tracking:** La consulta de tracking pagina en el servidor (`page` + `pageSize` de 50/100/200) con orden estable `[{ reportedAt: "desc" }, { id: "desc" }]`. La UI muestra el total y la paginación compartida; ya no hay corte duro ni indicador de truncado.

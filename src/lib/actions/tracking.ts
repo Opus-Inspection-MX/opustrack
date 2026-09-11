@@ -38,6 +38,10 @@ import {
   toIso,
 } from "@/lib/state-machine/incident-events";
 import { syncIncidentState } from "@/lib/state-machine/sync";
+import {
+  normalizePagination,
+  type TrackingPagination,
+} from "@/lib/tracking/pagination";
 import { localWallTimeToUTC, mxDayRange } from "@/lib/utils/datetime";
 import {
   BusinessRuleError,
@@ -244,8 +248,6 @@ function parseFolioQuery(input: string): FolioQuery {
   return { kind: "none" };
 }
 
-const TRACKING_MAX_RESULTS = 200;
-
 export interface TrackingFilters {
   clientId?: string;
   typeId?: number;
@@ -397,7 +399,10 @@ export async function getTrackingSignature(filters?: TrackingFilters) {
   }
 }
 
-export async function getIncidentsForTracking(filters?: TrackingFilters) {
+export async function getIncidentsForTracking(
+  filters?: TrackingFilters,
+  pagination?: TrackingPagination,
+) {
   try {
     const user = await requirePermission("tracking:read");
 
@@ -405,6 +410,9 @@ export async function getIncidentsForTracking(filters?: TrackingFilters) {
       filters,
       await getReportScope(user),
     );
+    // The signature deliberately takes only filters: paging never changes
+    // which rows match, so changing page must not trigger a reload.
+    const { page, pageSize } = normalizePagination(pagination);
 
     const incidentSelect = {
       id: true,
@@ -501,10 +509,11 @@ export async function getIncidentsForTracking(filters?: TrackingFilters) {
       prisma.incident.findMany({
         where,
         select: incidentSelect,
-        orderBy: {
-          reportedAt: "desc",
-        },
-        take: TRACKING_MAX_RESULTS,
+        // Stable order across pages: `reportedAt` ties (bulk imports share a
+        // timestamp) reopen on a different page without the `id` tiebreaker.
+        orderBy: [{ reportedAt: "desc" }, { id: "desc" }],
+        skip: (page - 1) * pageSize,
+        take: pageSize,
       }),
     ]);
 
@@ -550,7 +559,13 @@ export async function getIncidentsForTracking(filters?: TrackingFilters) {
       return { ...incident, sla };
     });
 
-    return { data, totalCount };
+    return {
+      data,
+      totalCount,
+      page,
+      pageSize,
+      totalPages: Math.max(1, Math.ceil(totalCount / pageSize)),
+    };
   } catch (error) {
     rethrowBusinessError(error);
     logger.error("Error fetching incidents for tracking:", error);
