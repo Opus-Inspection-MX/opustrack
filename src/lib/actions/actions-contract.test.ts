@@ -28,6 +28,7 @@ const EXTRA_SCAN_FILES = [
   join(process.cwd(), "src/lib/assignments/ensure-fsrs.ts"),
   join(process.cwd(), "src/lib/incidents/shared.ts"),
 ];
+const LIB_DIR = join(process.cwd(), "src/lib");
 
 /**
  * Spanish messages that legitimately throw.
@@ -55,6 +56,10 @@ const ALLOWED = [
   // statusId outside it means the catalog and the code disagree, not that the
   // operator picked wrong — the select never offers one.
   "AssignmentStatus '",
+  // English, not Spanish: the SPANISH heuristic fires on the standalone
+  // English word "no" here. Login failures must keep throwing a generic
+  // message (never reveal which half failed), so this stays an exception.
+  "has no roles assigned",
 ];
 
 /**
@@ -78,6 +83,32 @@ function scannedSources(): string[] {
     ...fromDir(STATE_MACHINE_DIR),
     ...EXTRA_SCAN_FILES,
   ];
+}
+
+/**
+ * Every non-test module under src/lib: helpers run inside actions (guarded
+ * or not), so a Spanish `throw new Error` in any of them is invisible in
+ * production — H-10 was exactly this, in storage/file-storage.ts. Tests are
+ * excluded: they assert throws on purpose.
+ */
+function ruleThrowSources(): string[] {
+  const out: string[] = [];
+  const walk = (dir: string) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      if (entry.name.startsWith(".")) continue;
+      const full = join(dir, entry.name);
+      if (entry.isDirectory()) {
+        walk(full);
+      } else if (
+        entry.name.endsWith(".ts") &&
+        !entry.name.endsWith(".test.ts")
+      ) {
+        out.push(full);
+      }
+    }
+  };
+  walk(LIB_DIR);
+  return out.sort();
 }
 
 /** Every `throw new Error("…")` literal in a file, with its line number. */
@@ -109,7 +140,7 @@ describe("contrato de errores de los Server Actions", () => {
   it("ninguna regla en español se lanza en vez de devolverse", () => {
     const offenders: string[] = [];
 
-    for (const file of scannedSources()) {
+    for (const file of ruleThrowSources()) {
       const source = readFileSync(file, "utf8");
 
       for (const { line, text } of thrownMessages(source)) {
@@ -131,7 +162,7 @@ describe("contrato de errores de los Server Actions", () => {
   it("la lista blanca sigue describiendo invariantes reales", () => {
     // A whitelist nobody prunes becomes a way to opt out of the rule. If an
     // entry stops matching anything, it is dead and should go.
-    const sources = scannedSources().map((f) => readFileSync(f, "utf8"));
+    const sources = ruleThrowSources().map((f) => readFileSync(f, "utf8"));
     const unused = ALLOWED.filter(
       (allowed) => !sources.some((s) => s.includes(allowed)),
     );
@@ -144,6 +175,11 @@ describe("contrato de errores de los Server Actions", () => {
     // `ActionResult` union discriminates; a raw `{ success: true, ... }`
     // widens to `boolean` and `result.error` stops compiling in the failure
     // branch. One constructor, no exceptions.
+    //
+    // Scoped to actions on purpose: client-side helpers carry their own
+    // explicitly-typed unions (offline/flush.ts returns FlushResult, whose
+    // `success: true` branch is already a literal), so the widening this
+    // pins cannot happen there.
     const offenders: string[] = [];
 
     for (const file of scannedSources()) {

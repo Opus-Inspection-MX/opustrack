@@ -8,6 +8,7 @@
  */
 
 import { del, put } from "@vercel/blob";
+import { businessRule } from "@/lib/actions/result";
 import { logger } from "@/lib/observability/logger";
 
 export type FileUploadResult = {
@@ -123,7 +124,6 @@ const ALLOWED_MIMETYPES = new Set([
   "image/webp",
   "image/bmp",
   "image/tiff",
-  "image/svg+xml",
   "image/heic",
   "image/heif",
   // Video
@@ -146,17 +146,20 @@ export function assertAllowedUpload(
   size: number,
   options?: { maxBytes?: number },
 ): void {
+  // Business rules, not defects: every caller runs inside guarded(), which
+  // converts these into returned rejections. A plain throw would lose the
+  // Spanish message in production builds.
   const maxBytes = options?.maxBytes ?? 10 * 1024 * 1024;
   if (!Number.isFinite(size) || size <= 0) {
-    throw new Error("Archivo vacío o tamaño inválido");
+    businessRule("Archivo vacío o tamaño inválido");
   }
   if (size > maxBytes) {
-    throw new Error(
+    businessRule(
       `El archivo es demasiado grande. Tamaño máximo: ${(maxBytes / (1024 * 1024)).toFixed(0)}MB, Tamaño del archivo: ${(size / (1024 * 1024)).toFixed(1)}MB`,
     );
   }
   if (!ALLOWED_MIMETYPES.has(mimetype)) {
-    throw new Error(`Tipo de archivo no permitido: ${mimetype}`);
+    businessRule(`Tipo de archivo no permitido: ${mimetype}`);
   }
 }
 

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { businessRule } from "@/lib/actions/result";
 import { cuidSchema } from "./common";
 
 /**
@@ -43,11 +44,12 @@ export type VacationFormData = {
 
 /**
  * Validate that endDate is not before startDate.
- * Throws with a Spanish message on failure.
+ * Raises a business rule (converted to a returned rejection by guarded())
+ * instead of throwing a plain Error whose Spanish message production strips.
  */
 export function validateVacationDates(data: VacationFormData): void {
   if (data.endDate < data.startDate) {
-    throw new Error(
+    businessRule(
       "La fecha de fin debe ser igual o posterior a la fecha de inicio.",
     );
   }

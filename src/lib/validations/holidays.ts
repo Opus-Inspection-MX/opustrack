@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { businessRule } from "@/lib/actions/result";
 
 /**
  * Schema for creating or updating a holiday rule.
@@ -80,26 +81,26 @@ export type HolidayFormData = {
 
 /**
  * Validate that the day/nthMonday XOR constraint is satisfied and that
- * a one-time holiday has a year. Throws with a Spanish message on failure.
+ * a one-time holiday has a year. Raises business rules (converted to returned
+ * rejections by guarded()) instead of plain Errors whose Spanish messages
+ * production strips.
  */
 export function validateHolidayXOR(data: HolidayFormData): void {
   const hasDay = data.day !== undefined && data.day !== null;
   const hasNthMonday = data.nthMonday !== undefined && data.nthMonday !== null;
 
   if (hasDay && hasNthMonday) {
-    throw new Error(
+    businessRule(
       "Solo se puede especificar 'día fijo' o 'lunes N' en un festivo, no ambos.",
     );
   }
 
   if (!hasDay && !hasNthMonday) {
-    throw new Error(
-      "Debe especificar un día fijo o un lunes N para el festivo.",
-    );
+    businessRule("Debe especificar un día fijo o un lunes N para el festivo.");
   }
 
   if (!data.isRecurring && (data.year === undefined || data.year === null)) {
-    throw new Error(
+    businessRule(
       "Los festivos de ocurrencia única requieren especificar el año.",
     );
   }
