@@ -1,6 +1,11 @@
 import { existsSync } from "node:fs";
 import path from "node:path";
-import { defineConfig, devices } from "@playwright/test";
+import {
+  defineConfig,
+  devices,
+  type PlaywrightTestProject,
+  webkit,
+} from "@playwright/test";
 import dotenv from "dotenv";
 import { assertEphemeralDatabase } from "./e2e/fixtures/ephemeral-db";
 
@@ -46,6 +51,30 @@ const SYSTEM_CHROMIUM = existsSync("/usr/bin/chromium")
 const SYSTEM_CHROMIUM_USE = SYSTEM_CHROMIUM
   ? { launchOptions: { executablePath: SYSTEM_CHROMIUM } }
   : {};
+
+// WebKit has no system fallback: Playwright's build targets Ubuntu and there is
+// no distro package to point at. When it isn't installed, drop the WebKit
+// projects (Desktop Safari, iPhone) locally instead of failing every test in
+// them. CI never skips — a missing browser there must fail loudly.
+const WEBKIT_AVAILABLE = Boolean(process.env.CI) || hasWebkit();
+
+function hasWebkit(): boolean {
+  try {
+    return existsSync(webkit.executablePath());
+  } catch {
+    return false;
+  }
+}
+
+// The config is evaluated by the runner and again by every worker; warn once.
+if (!WEBKIT_AVAILABLE && process.env.TEST_WORKER_INDEX === undefined) {
+  process.stderr.write(
+    "[playwright] WebKit no está instalado: se omiten los proyectos webkit y Mobile Safari. Instálalo con `npx playwright install webkit`.\n",
+  );
+}
+
+const onlyAvailableBrowsers = (project: PlaywrightTestProject) =>
+  WEBKIT_AVAILABLE || project.use?.defaultBrowserType !== "webkit";
 
 export default defineConfig({
   testDir: "./e2e",
@@ -144,7 +173,7 @@ export default defineConfig({
       use: { ...devices["iPhone 12"] },
       dependencies: ["setup"],
     },
-  ],
+  ].filter(onlyAvailableBrowsers),
 
   webServer: {
     // Production server by default. `next dev` logs every request Playwright
