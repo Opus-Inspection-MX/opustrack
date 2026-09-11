@@ -353,16 +353,6 @@
       position: fixed;
     }
   }
-  @media (prefers-reduced-motion: reduce) {
-    body,
-    body *,
-    body *::before,
-    body *::after {
-      transition-duration: 0.01ms;
-      animation-duration: 0.01ms;
-      animation-iteration-count: 1;
-    }
-  }
 }
 
 @layer utilities {
@@ -383,6 +373,24 @@
   }
   .font-display {
     font-family: var(--font-display);
+  }
+}
+
+/*
+ * Reduced-motion kill switch, deliberately UNLAYERED: the durations it
+ * overrides come from the base theme cross-fade above and from Tailwind
+ * utilities (`transition-all`, `duration-150`), and unlayered author styles
+ * beat every cascade layer without needing `!important` (which Biome bans).
+ * MotionConfig reducedMotion="user" covers the JS side (motion/react).
+ */
+@media (prefers-reduced-motion: reduce) {
+  body,
+  body *,
+  body *::before,
+  body *::after {
+    transition-duration: 0.01ms;
+    animation-duration: 0.01ms;
+    animation-iteration-count: 1;
   }
 }
 

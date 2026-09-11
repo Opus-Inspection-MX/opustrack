@@ -1,5 +1,3 @@
-"use client";
-
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { AnimatedNumber } from "@/components/motion/animated-number";
@@ -39,6 +37,12 @@ interface StatCardProps {
 /**
  * Generalized KPI card. Numeric values animate with a spring counter;
  * string values render as-is. Replaces the six hand-made KPI variants.
+ *
+ * Deliberately a Server Component even though it renders the client
+ * <AnimatedNumber>: the `icon` prop is a Lucide component reference, and
+ * instantiating it must stay on the server — passing it into a client
+ * component breaks RSC serialization ("Functions cannot be passed directly
+ * to Client Components") and takes the whole page to the error boundary.
  */
 export function StatCard({
   title,
