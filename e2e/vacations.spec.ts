@@ -1,6 +1,8 @@
 import { expect, test } from "@playwright/test";
-import { authFile } from "./fixtures/auth";
+import bcrypt from "bcrypt";
+import { authFile, E2E_PASSWORD } from "./fixtures/auth";
 import { db, uniqueSuffix } from "./fixtures/db";
+import { submitLogin } from "./fixtures/login";
 import { gotoReady } from "./fixtures/navigation";
 
 /**
@@ -416,6 +418,87 @@ test("el FSR ve su propio saldo sin selector de usuario", async ({
   await expect(page.getByPlaceholder("Buscar por nombre...")).toHaveCount(0);
 
   await fsrContext.close();
+});
+
+/**
+ * Parte B: the vacation administrator captures a missing hire date in place,
+ * and the employee can request right away.
+ *
+ * Drives the real /admin/vacations screen as admin-vacaciones (narrow
+ * users:manage-employment grant, never the full /admin/users screen), then
+ * signs in as the employee and proves the balance panel renders periods
+ * instead of the missing-date notice.
+ */
+test("el admin de vacaciones captura la fecha y el empleado ya puede solicitar", async ({
+  page,
+  browser,
+}) => {
+  const suffix = uniqueSuffix();
+  const name = `E2E Hire ${suffix}`;
+  const email = `e2e-vac-hire-${suffix}@example.com`;
+  const password = E2E_PASSWORD();
+
+  const [empleadoRole, activo] = await Promise.all([
+    db().role.findFirstOrThrow({ where: { name: "EMPLEADO" } }),
+    db().userStatus.findFirstOrThrow({ where: { name: "ACTIVO" } }),
+  ]);
+  const employee = await db().user.create({
+    data: {
+      name,
+      email,
+      password: await bcrypt.hash(password, 4),
+      userRoles: { create: [{ roleId: empleadoRole.id }] },
+      userStatusId: activo.id,
+      hireDate: null,
+    },
+    select: { id: true },
+  });
+
+  // 1. As admin-vacaciones: pick the employee, capture the hire date.
+  await gotoReady(page, "/admin/vacations");
+  await expect(
+    page.getByRole("heading", { name: "Solicitudes de Vacaciones" }),
+  ).toBeVisible();
+
+  // The picker shows the current user, not the placeholder, so it has no
+  // stable name: scope to the main content, where it is the only dialog
+  // trigger (the header bell lives outside main).
+  await page.locator('main button[aria-haspopup="dialog"]').click();
+  await page.getByPlaceholder("Buscar por nombre...").fill(name);
+  await page.getByRole("option", { name }).click();
+
+  await expect(
+    page.getByText("fecha de contratación registrada"),
+  ).toBeVisible();
+  await page.locator("#hire-date").fill("2020-03-15");
+  await page.getByRole("button", { name: "Guardar fecha de ingreso" }).click();
+
+  // The balance panel reloads with the earned periods, no navigation needed.
+  await expect(page.getByText("Año 1", { exact: true })).toBeVisible();
+
+  const stored = await db().user.findUniqueOrThrow({
+    where: { id: employee.id },
+    select: { hireDate: true },
+  });
+  expect(stored.hireDate).not.toBeNull();
+
+  // 2. As the employee: the balance is requestable, the notice is gone.
+  const employeeContext = await browser.newContext();
+  const employeePage = await employeeContext.newPage();
+  await employeePage.goto("/login");
+  await submitLogin(employeePage, email, password);
+  await employeePage.waitForURL("**/inicio");
+
+  await gotoReady(employeePage, "/vacations");
+  await expect(
+    employeePage.getByRole("heading", { name: "Mis Vacaciones" }),
+  ).toBeVisible();
+  await expect(employeePage.getByText("Año 1", { exact: true })).toBeVisible();
+  await expect(
+    employeePage.getByText("fecha de contratación registrada"),
+  ).toHaveCount(0);
+
+  await employeeContext.close();
 });
 
 // H-06, fails before Fase 0d: the accrual page requires
