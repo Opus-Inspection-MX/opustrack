@@ -40,6 +40,7 @@ model User {
   vehicleTrips        VehicleTrip[] // Vehicle trips driven by this FSR
   assignedVehicles    Vehicle[]                @relation("AssignedVehicles") // Vehicles assigned to this FSR
   notifications       Notification[] // User's notifications
+  broadcasts          BroadcastUser[] // Broadcasts addressing this user directly (Parte C)
   vacations           Vacation[]               @relation("VacationUser") // Vacation requests owned by this user (RF-701)
   approvedVacations   Vacation[]               @relation("VacationApprover") // Vacations approved/rejected by this user (RF-702)
   // Nullable: users created before vacation balances existed have no hire date.
@@ -958,6 +959,7 @@ model Broadcast {
   sentAt         DateTime?
   recipientCount Int             @default(0)
   roles          BroadcastRole[]
+  users          BroadcastUser[]
   active         Boolean         @default(true)
   // RF-550 attribution: null = system row (seed/migration), never backfilled.
   createdById     String?
@@ -1008,6 +1010,34 @@ model BroadcastRole {
   @@index([broadcastId])
   @@index([roleId])
   @@map("broadcast_roles")
+}
+
+/// `Broadcast ↔ User` audience pivot (broadcasts to specific users, Parte C).
+///
+/// Mirror of `BroadcastRole`: rows persist the per-user audience chosen in the
+/// composer and are DEACTIVATED on edit (`active: false`), never deleted.
+/// Recipients resolve AT SEND TIME from these rows (union with the role
+/// audience), so a scheduled broadcast reaches whoever is still active when
+/// the cron fires. Reach itself is validated at create/edit time, not at
+/// dispatch (decision #3 in `docs/plans/admin-y-difusiones.md`).
+model BroadcastUser {
+  id          Int       @id @default(autoincrement())
+  broadcastId String
+  broadcast   Broadcast @relation(fields: [broadcastId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  active      Boolean   @default(true)
+  createdById     String?
+  updatedById     String?
+  deactivatedAt   DateTime?
+  deactivatedById String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([broadcastId, userId])
+  @@index([broadcastId])
+  @@index([userId])
+  @@map("broadcast_users")
 }
 
 // ─── Holidays & Vacations (RF-700–RF-749) ────────────────────────────────────
