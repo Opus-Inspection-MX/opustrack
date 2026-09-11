@@ -236,7 +236,7 @@ export async function startVehicleTrip(formData: FormData) {
       const targetId = await findReplayTargetId(prisma, offline.idempotencyKey);
       if (targetId) {
         const live = await prisma.vehicleTrip.findUnique({
-          where: { id: targetId },
+          where: { id: targetId, active: true },
           include: { vehicle: true, assignment: true },
         });
         if (live) {
@@ -256,12 +256,11 @@ export async function startVehicleTrip(formData: FormData) {
     // the transaction (Fase 5b), so two concurrent starts cannot take the
     // same vehicle.
     const vehicle = await prisma.vehicle.findUnique({
-      where: { id: vehicleId },
+      where: { id: vehicleId, active: true },
       select: { id: true, status: { select: { name: true } } },
     });
     if (!vehicle) throw new Error("Vehículo no encontrado");
-    const needsAvailable =
-      !userHasPermission(user, "vehicle-trips:manage-all");
+    const needsAvailable = !userHasPermission(user, "vehicle-trips:manage-all");
     if (needsAvailable && vehicle.status?.name !== "AVAILABLE") {
       businessRule("El vehículo no está disponible.");
     }
@@ -370,7 +369,7 @@ export async function startVehicleTrip(formData: FormData) {
         );
         if (targetId) {
           const live = await prisma.vehicleTrip.findUnique({
-            where: { id: targetId },
+            where: { id: targetId, active: true },
             include: { vehicle: true, assignment: true },
           });
           if (live) {
@@ -423,7 +422,7 @@ export async function endVehicleTrip(formData: FormData) {
       const targetId = await findReplayTargetId(prisma, offline.idempotencyKey);
       if (targetId) {
         const live = await prisma.vehicleTrip.findUnique({
-          where: { id: targetId },
+          where: { id: targetId, active: true },
           include: { vehicle: true, assignment: true },
         });
         if (live) {
@@ -438,7 +437,7 @@ export async function endVehicleTrip(formData: FormData) {
     assertAllowedUpload(photoMimetype, photo.size);
 
     const trip = await prisma.vehicleTrip.findUnique({
-      where: { id },
+      where: { id, active: true },
       select: {
         fsrId: true,
         vehicleId: true,
@@ -542,7 +541,7 @@ export async function endVehicleTrip(formData: FormData) {
         );
         if (targetId) {
           const live = await prisma.vehicleTrip.findUnique({
-            where: { id: targetId },
+            where: { id: targetId, active: true },
             include: { vehicle: true, assignment: true },
           });
           if (live) {
@@ -633,7 +632,7 @@ export async function updateVehicleTrip(
 
   return guarded(async () => {
     const trip = await prisma.vehicleTrip.findUnique({
-      where: { id },
+      where: { id, active: true },
       select: { fsrId: true },
     });
 
@@ -672,7 +671,7 @@ export async function deleteVehicleTrip(id: string) {
 
   return guarded(async () => {
     const trip = await prisma.vehicleTrip.findUnique({
-      where: { id },
+      where: { id, active: true },
       select: {
         fsrId: true,
         status: { select: { name: true } },

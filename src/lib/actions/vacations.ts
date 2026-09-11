@@ -459,7 +459,7 @@ export async function deleteVacation(id: string) {
   const caller = await requirePermission("vacations:delete");
 
   const vacation = await prisma.vacation.findUnique({
-    where: { id },
+    where: { id, active: true },
     select: { userId: true, user: { select: { name: true } } },
   });
 

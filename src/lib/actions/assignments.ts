@@ -248,7 +248,7 @@ export async function updateAssignment(id: string, data: AssignmentFormData) {
     const uniqueAssignees = Array.from(new Set(data.assigneeIds));
 
     const existingAssignment = await prisma.assignment.findUnique({
-      where: { id },
+      where: { id, active: true },
       select: { incidentId: true, scheduledDate: true },
     });
     if (!existingAssignment) throw new Error("Assignment not found");
@@ -329,7 +329,7 @@ export async function updateAssignment(id: string, data: AssignmentFormData) {
       let nextStatusId: number | undefined;
       if (isReassignment) {
         const current = await tx.assignment.findUnique({
-          where: { id },
+          where: { id, active: true },
           select: { status: { select: { name: true } } },
         });
         const currentName = current?.status?.name;
@@ -515,18 +515,19 @@ async function convergeLiveAssignment(
   const targetId = await findReplayTargetId(prisma, idempotencyKey);
   if (!targetId) return null;
   return prisma.assignment.findUnique({
-    where: { id: targetId },
+    where: { id: targetId, active: true },
     include: { incident: true, ...assigneesInclude, status: true },
   });
 }
 
-async function loadAssignmentForTransition(  client:
+async function loadAssignmentForTransition(
+  client:
     | typeof prisma
     | Parameters<Parameters<typeof prisma.$transaction>[0]>[0],
   id: string,
 ) {
   const assignment = await client.assignment.findUnique({
-    where: { id },
+    where: { id, active: true },
     select: {
       id: true,
       incidentId: true,
@@ -677,7 +678,7 @@ export async function startAssignmentWork(formData: FormData) {
       const targetId = await findReplayTargetId(prisma, offline.idempotencyKey);
       if (targetId) {
         const live = await prisma.assignment.findUnique({
-          where: { id: targetId },
+          where: { id: targetId, active: true },
           include: { incident: true, ...assigneesInclude, status: true },
         });
         if (live) {
@@ -737,10 +738,7 @@ export async function startAssignmentWork(formData: FormData) {
     }).catch(async (error) => {
       // Fase 5b: the claim lost the race INSIDE the transaction — answer
       // with the winner's live row instead of a generic error.
-      const live = await convergeLiveAssignment(
-        offline.idempotencyKey,
-        error,
-      );
+      const live = await convergeLiveAssignment(offline.idempotencyKey, error);
       if (live) {
         revalidateAssignmentPaths(live.id, live.incidentId);
         return {
@@ -768,7 +766,7 @@ export async function startAssignmentWork(formData: FormData) {
 
 /**
  * INICIADO → EN_PROGRESO (paused on-site / work continues but not yet closed).
- */export async function pauseAssignment(id: string) {
+ */ export async function pauseAssignment(id: string) {
   const user = await requirePermission("assignments:update");
 
   return guarded(async () => {
@@ -886,7 +884,7 @@ export async function closeAssignment(formData: FormData) {
       const targetId = await findReplayTargetId(prisma, offline.idempotencyKey);
       if (targetId) {
         const live = await prisma.assignment.findUnique({
-          where: { id: targetId },
+          where: { id: targetId, active: true },
           include: { incident: true, ...assigneesInclude, status: true },
         });
         // No notifications on replay: the first flush already notified.
@@ -908,7 +906,7 @@ export async function closeAssignment(formData: FormData) {
         where: { assignmentId: id, active: true },
       });
       const odtRow = await tx.assignment.findUnique({
-        where: { id },
+        where: { id, active: true },
         select: { odtFolio: true },
       });
       const now = new Date();
@@ -960,10 +958,7 @@ export async function closeAssignment(formData: FormData) {
       };
     }).catch(async (error) => {
       // Fase 5b: same in-transaction race as the start path — converge.
-      const live = await convergeLiveAssignment(
-        offline.idempotencyKey,
-        error,
-      );
+      const live = await convergeLiveAssignment(offline.idempotencyKey, error);
       if (live) {
         revalidateAssignmentPaths(live.id, live.incidentId);
         return {
@@ -1275,7 +1270,7 @@ export async function updateAssignmentOdtFolio(
     const trimmed = odtFolio?.trim() || null;
 
     const existing = await prisma.assignment.findUnique({
-      where: { id },
+      where: { id, active: true },
       select: { incidentId: true },
     });
     if (!existing) throw new Error("Asignación no encontrada");

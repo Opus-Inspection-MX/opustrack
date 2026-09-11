@@ -185,7 +185,7 @@ export async function updateRole(id: number, data: RoleFormData) {
     assertCanManageRoles(caller);
 
     const previous = await prisma.role.findUnique({
-      where: { id },
+      where: { id, active: true },
       select: {
         defaultPath: true,
         rolePermission: {
@@ -194,6 +194,9 @@ export async function updateRole(id: number, data: RoleFormData) {
         },
       },
     });
+    if (!previous) {
+      businessRule("Rol no encontrado.");
+    }
 
     const role = await prisma.$transaction(async (tx) => {
       const updated = await tx.role.update({
