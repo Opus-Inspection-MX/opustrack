@@ -5,6 +5,7 @@ import {
   disconnectDb,
   expectAssignmentStatus,
   prepareAssignmentForClose,
+  shortId,
   uniqueSuffix,
 } from "./fixtures/db";
 import { evidence } from "./fixtures/evidence";
@@ -31,6 +32,10 @@ import { evidence } from "./fixtures/evidence";
 
 const SUFFIX = uniqueSuffix();
 const INCIDENT_TITLE = `E2E offline ${SUFFIX}`;
+// Corto y único por corrida: la placa tiene límite de longitud y el spec
+// corre en varios proyectos contra la misma base.
+const SHORT = shortId();
+const PLATE = `E2E-${SHORT}`;
 const GEO = { latitude: 19.0414, longitude: -98.2063 };
 const OUTBOX_KEY = "opustrack.offline.outbox.v1";
 
@@ -47,6 +52,7 @@ let incidentId: number;
 let assignmentId: string;
 let staleAssignmentId: string;
 let movedOnAssignmentId: string;
+let vehicleId: string;
 let tripId: string;
 
 test.describe.configure({ mode: "serial" });
@@ -140,15 +146,17 @@ test.describe("0 · Prepara incidencia y vehículo", () => {
       where: { name: "AVAILABLE" },
       select: { id: true },
     });
-    await prisma.vehicle.create({
+    const vehicle = await prisma.vehicle.create({
       data: {
         make: "E2E",
-        model: "Offline",
+        model: `Offline ${SHORT}`,
         year: 2024,
-        licensePlate: `E2E-${SUFFIX}`.slice(0, 12),
+        licensePlate: PLATE,
         statusId: available.id,
       },
+      select: { id: true },
     });
+    vehicleId = vehicle.id;
   });
 });
 
@@ -378,7 +386,7 @@ test.describe("4 · Viajes offline con foto", () => {
     test.setTimeout(60_000);
     await page.goto("/fsr/vehicle-trips/start");
     await page.getByText("Selecciona un vehículo").click();
-    await page.getByRole("option", { name: /E2E Offline/ }).click();
+    await page.getByRole("option", { name: new RegExp(PLATE) }).click();
     await page.locator("#startOdometer").fill("1000");
     await page
       .locator('input[type="file"]')
@@ -394,7 +402,7 @@ test.describe("4 · Viajes offline con foto", () => {
     await page.waitForURL("**/fsr/vehicle-trips", { timeout: 30_000 });
 
     const trip = await db().vehicleTrip.findFirstOrThrow({
-      where: { startOdometer: 1000, active: true },
+      where: { vehicleId, startOdometer: 1000, active: true },
       orderBy: { createdAt: "desc" },
       select: {
         id: true,

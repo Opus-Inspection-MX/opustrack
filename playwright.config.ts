@@ -169,8 +169,11 @@ export default defineConfig({
     },
     {
       name: "chromium",
+      // offline-field-capture tampoco corre aquí (decisión #4 en
+      // docs/plans/tema-opus.md): el FSR captura desde el celular, así que
+      // Mobile Chrome lo cubre y la suite baja ~1 min.
       testIgnore:
-        /(catalogs|programacion|tracking|errors|vacations|rbac-roles|notifications-mail|incident-operations|inicio)\.spec\.ts$/,
+        /(catalogs|programacion|tracking|errors|vacations|rbac-roles|notifications-mail|incident-operations|inicio|offline-field-capture)\.spec\.ts$/,
       use: { ...devices["Desktop Chrome"], ...SYSTEM_CHROMIUM_USE },
       dependencies: ["setup"],
     },

@@ -36,6 +36,18 @@ export function uniqueSuffix(): string {
   return `${Date.now()}-${Math.floor(Math.random() * 10_000)}`;
 }
 
+/**
+ * Short random id (8 base36 chars) for length-capped unique columns such as
+ * `licensePlate`. Never truncate `uniqueSuffix()` with `.slice(0, n)`: that
+ * keeps only the timestamp head (≈100 s resolution) and drops the random
+ * tail, so retries collide on `@unique`.
+ */
+export function shortId(): string {
+  return Math.floor(Math.random() * 36 ** 8)
+    .toString(36)
+    .padStart(8, "0");
+}
+
 export interface LifecycleIncident {
   id: number;
   title: string;

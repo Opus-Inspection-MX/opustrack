@@ -172,3 +172,9 @@ First run only, install browsers: `npx playwright install`.
   locators por atributo (`[data-…]`) se acotan a `main`
   (`page.locator('main [data-widget-id="…"]')`); los locators por rol
   (`getByRole`) ya ignoran lo oculto.
+- **Datos únicos por proyecto.** Todo spec que corre en más de un proyecto
+  contra la misma base (p. ej. el flujo offline en Mobile Chrome y en la
+  nocturna) crea sus datos con nombres únicos por corrida y los busca por
+  id, nunca por nombre genérico ni por "el más reciente". Para columnas con
+  límite de longitud usa `shortId()` (`fixtures/db.ts`); nunca truncar
+  `uniqueSuffix()` con `.slice(0, n)`.
