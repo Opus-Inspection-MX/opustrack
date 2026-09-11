@@ -112,7 +112,6 @@
   ],
   "src/app/admin/reports/page.tsx": [
     "bg-blue-500",
-    "bg-red-500",
     "text-blue-500"
   ],
   "src/app/admin/reports/seen-time/seen-time-client.tsx": [
@@ -174,7 +173,6 @@
     "text-green-200",
     "text-green-800"
   ],
-  "src/app/admin/settings/page.tsx": ["text-blue-600", "text-green-600"],
   "src/app/admin/settings/vehicle-status/[id]/page.tsx": [
     "bg-gray-100",
     "bg-gray-800",
