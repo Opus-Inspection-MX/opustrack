@@ -83,6 +83,19 @@ export async function findReplayTargetId(
   return hit?.targetId ?? null;
 }
 
+/**
+ * True for Prisma unique-constraint violations: another worker claimed the
+ * same idempotency key first. Callers converge on the winner's row instead
+ * of surfacing a generic error.
+ */
+export function isP2002(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    (error as { code?: string }).code === "P2002"
+  );
+}
+
 type DedupeWriter = {
   actionIdempotency: {
     create: (args: {
@@ -97,8 +110,9 @@ type DedupeWriter = {
  * retries never reach here twice: the pre-transaction lookup converges first.
  *
  * Accepts any client carrying the delegate (transaction or root): the
- * assignment actions claim atomically inside their `$transaction`, the trip
- * actions claim right after their write.
+ * assignment actions claim atomically inside their `$transaction`. Trip
+ * actions claim inside their own `$transaction` directly (they need the
+ * P2002 to propagate so they can delete the orphaned upload and converge).
  */
 export async function claimIdempotencyKey(
   tx: DedupeWriter,
