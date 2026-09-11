@@ -63,6 +63,8 @@ function usage() {
     "  DATABASE_URL           Must use host localhost/127.0.0.1.",
     "  SHADOW_DATABASE_URL    Must use host localhost/127.0.0.1. Its database",
     "                         is dropped WITH (FORCE) before and after the run.",
+    "                         Optional: when unset, defaults to the DATABASE_URL",
+    "                         server with a '<db>_shadow' database.",
     "",
     "Exit codes: 0 = PASS (green 0 and negative 2; green 0 with --green-only),",
     "             1 = any failure.",
@@ -126,9 +128,27 @@ function main() {
   if (!composeFile) fail(`missing required --compose-file.\n${usage()}`);
 
   const databaseUrl = process.env.DATABASE_URL;
-  const shadowUrl = process.env.SHADOW_DATABASE_URL;
+  let shadowUrl = process.env.SHADOW_DATABASE_URL;
   if (!databaseUrl?.trim()) fail("DATABASE_URL is not set.");
-  if (!shadowUrl?.trim()) fail("SHADOW_DATABASE_URL is not set.");
+  if (!shadowUrl?.trim()) {
+    // Zero-config default: same server as DATABASE_URL, "<db>_shadow"
+    // database. An explicitly set SHADOW_DATABASE_URL always wins. The
+    // derived value goes through the same localhost guard below.
+    let derived;
+    try {
+      derived = new URL(databaseUrl);
+    } catch {
+      fail("DATABASE_URL is not a valid URL, cannot derive a shadow database.");
+    }
+    const base = decodeURIComponent(derived.pathname.replace(/^\//, ""));
+    if (!base) {
+      fail(
+        "DATABASE_URL has no database name, cannot derive a shadow database.",
+      );
+    }
+    derived.pathname = `/${encodeURIComponent(`${base}_shadow`)}`;
+    shadowUrl = derived.toString();
+  }
 
   // Fail closed BEFORE any side effect: both hosts must be local.
   for (const [name, value] of [
