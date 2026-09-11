@@ -19,9 +19,11 @@ import {
  * them on the incident rather than demanding they already were. The picker
  * offers every FSR — the Client link only decides who is badged and sorted
  * first — and it is multi-select, so an assignment keeps all of its people.
+ * Fase 1 (H-07): runs as ADMIN_OPERACION, the module administrator that owns
+ * this screen — not as ROOT, which bypasses every permission check.
  */
 
-test.use({ storageState: authFile("admin") });
+test.use({ storageState: authFile("admin-operacion") });
 
 // Serial: every test edits the same incident and its assignment.
 test.describe.configure({ mode: "serial" });
@@ -143,7 +145,11 @@ test("un folio inexistente no devuelve resultados", async ({ page }) => {
   await fillStable(page.locator("#folio"), "INC-99999999");
   await page.getByRole("button", { name: "Buscar" }).click();
 
-  await expect(page.getByText("No se encontraron incidentes")).toBeVisible();
+  // Scoped to the table cell: the responsive layout renders a second,
+  // mobile-cards empty state with the same text, which trips strict mode.
+  await expect(
+    page.getByRole("cell", { name: "No se encontraron incidentes" }),
+  ).toBeVisible();
 });
 
 test("filtra por Cliente y por estado", async ({ page }) => {
@@ -176,7 +182,10 @@ test("un rango de fechas que excluye el incidente lo saca de la lista", async ({
   await fillStable(page.locator("#endDate"), "2020-01-31");
   await page.getByRole("button", { name: "Buscar" }).click();
 
-  await expect(page.getByText("No se encontraron incidentes")).toBeVisible();
+  // Same scoping as above: the mobile-cards empty state shares the text.
+  await expect(
+    page.getByRole("cell", { name: "No se encontraron incidentes" }),
+  ).toBeVisible();
 });
 
 test("edita el incidente en línea y persiste (RF-516)", async ({ page }) => {

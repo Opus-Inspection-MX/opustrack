@@ -107,10 +107,12 @@ test.describe("1 · El cliente reporta el incidente", () => {
 });
 
 // ---------------------------------------------------------------------------
-// 2 y 3 · El ADMIN programa y asigna (RF-400, RF-250, RF-452)
+// 2 y 3 · El ADMIN OPERACION programa y asigna (RF-400, RF-250, RF-452)
+//
+// Fase 1 (H-07): the scheduling step runs as ADMIN_OPERACION, not ROOT.
 // ---------------------------------------------------------------------------
 test.describe("2 · El admin programa y asigna", () => {
-  test.use({ storageState: authFile("admin") });
+  test.use({ storageState: authFile("admin-operacion") });
 
   test("crea la programación del mes", async ({ page }) => {
     await page.goto("/admin/schedules/new");

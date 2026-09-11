@@ -117,6 +117,9 @@ test("la contraseña actual equivocada se explica, no se generaliza", async ({
 });
 
 test.describe("regla de negocio devuelta desde Seguimiento", () => {
+  // Fase 1 (H-07): the tracking board belongs to ADMIN_OPERACION.
+  test.use({ storageState: authFile("admin-operacion") });
+
   let fixture: TrackingFixture;
   /**
    * An FSR created just for this test.
@@ -203,4 +206,34 @@ test.describe("regla de negocio devuelta desde Seguimiento", () => {
       }),
     ).toBe(0);
   });
+});
+
+test.describe("regla XOR de festivos", () => {
+  // Fase 1 (H-07): the holiday catalog belongs to ADMIN_VACACIONES.
+  test.use({ storageState: authFile("admin-vacaciones") });
+
+  // H-10 hook for Fase 0e: the XOR rule (exactly one of day / nthMonday) is
+  // THROWN — by the Zod superRefine and by validateHolidayXOR — instead of
+  // RETURNED, so the production build replaces the Spanish message with a
+  // generic error. Pinned as fixme until the 0e pattern (businessRule)
+  // reaches holidays.ts; then this proves the operator reads the reason.
+  test.fixme(
+    "sin día ni lunes N, el operador lee el motivo en español",
+    async ({ page }) => {
+      const suffix = uniqueSuffix();
+      await page.goto("/admin/holidays/new");
+
+      await fillStable(page.locator("#name"), `E2E Festivo ${suffix}`);
+      await fillStable(page.locator("#month"), "5");
+
+      // Neither day nor nthMonday: bypass the browser `required` on #day so
+      // the request reaches the server rule instead of dying in the form.
+      await page
+        .locator("#day")
+        .evaluate((el) => el.removeAttribute("required"));
+      await page.getByRole("button", { name: "Crear Festivo" }).click();
+
+      await expect(errorToast(page, /día fijo o un lunes N/)).toBeVisible();
+    },
+  );
 });

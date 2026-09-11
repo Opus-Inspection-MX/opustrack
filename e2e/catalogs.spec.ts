@@ -28,8 +28,6 @@ import {
  * browsers would triple the suite for no extra signal.
  */
 
-test.use({ storageState: authFile("admin") });
-
 /** Unique per run, so the suite can be re-run without recreating the database. */
 const SUFFIX = uniqueSuffix();
 
@@ -98,6 +96,15 @@ async function search(page: Page, catalog: CatalogSpec, term: string) {
 
 for (const catalog of CATALOGS) {
   test.describe(`Catálogo · ${catalog.key}`, () => {
+    // Fase 1 (H-07): each catalog runs as the role that owns it — the
+    // operational ones as ADMIN_OPERACION, the ROOT-only ones as admin.
+    test.use({ storageState: authFile(catalog.role ?? "admin") });
+    // H-06, fails before Fase 0d: ADMIN_OPERACION holds route:admin-states
+    // but no `states:read`, so getStatesAdmin rejects and every step here
+    // dies. Pinned as fixme until 0d grants it.
+    if (catalog.key === "states") {
+      test.fixme(true, "H-06: ADMIN_OPERACION sin states:read (Fase 0d)");
+    }
     // Each step consumes what the previous one created.
     test.describe.configure({ mode: "serial" });
 

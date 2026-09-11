@@ -84,7 +84,16 @@ async function expectWidgets(
 
 test.describe("landing / → /inicio", () => {
   test("cada rol cae de / en /inicio con su saludo", async ({ browser }) => {
-    for (const role of ["admin", "fsr", "reporter", "guest"] as Role[]) {
+    // Fase 1 (H-07): includes the module administrators, proving auth.setup
+    // generates their storage states too.
+    for (const role of [
+      "admin",
+      "admin-operacion",
+      "admin-vacaciones",
+      "fsr",
+      "reporter",
+      "guest",
+    ] as Role[]) {
       const context = await browser.newContext({
         storageState: authFile(role),
       });
