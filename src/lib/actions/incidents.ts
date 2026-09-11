@@ -28,7 +28,7 @@ import {
   notifyIncidentCreated,
   notifyIncidentUpdated,
 } from "@/lib/notifications";
-import { INCIDENT_STATE, syncIncidentState } from "@/lib/state-machine";
+import { INCIDENT_STATE } from "@/lib/state-machine";
 import { logIncidentEvent } from "@/lib/state-machine/incident-events";
 import { getPrimaryClientId } from "@/lib/utils/client-assignments";
 import {
@@ -37,7 +37,7 @@ import {
   IncidentReporterCreateSchema,
   IncidentUpdateSchema,
 } from "@/lib/validations/incidents";
-import { type ActionResult, businessRule, guarded, ok } from "./result";
+import { type ActionResult, businessRule, guarded } from "./result";
 
 // Keep legacy type for backward compatibility with existing forms
 export type IncidentFormData = IncidentCreateInput;
@@ -821,63 +821,6 @@ export async function deleteIncident(id: number) {
 
     revalidatePath("/admin/incidents");
     redirect("/admin/incidents");
-  });
-}
-
-/**
- * Recompute and persist this incident's status from its assignments.
- * Use this from admin UIs (e.g., "refresh status") — the incident state
- * is always derived, never set manually.
- */
-export async function refreshIncidentStatus(id: number) {
-  const user = await requirePermission("incidents:update");
-  const incident = await prisma.incident.findUnique({
-    where: { id },
-    select: { clientId: true },
-  });
-  if (!incident) {
-    throw new Error("Incident not found");
-  }
-  await assertClientAccessAsync(user, incident.clientId);
-
-  const result = await syncIncidentState(id);
-
-  revalidatePath("/admin/incidents");
-  revalidatePath(`/admin/incidents/${id}`);
-  revalidatePath("/fsr/incidents");
-  revalidatePath("/reporter/incidents");
-  return ok({ before: result.before, after: result.after });
-}
-
-/**
- * Force-close an incident. Only succeeds if every assignment is already
- * CERRADO — otherwise the sync will bring the status back automatically.
- */
-export async function closeIncident(id: number) {
-  const user = await requirePermission("incidents:close");
-
-  return guarded(async () => {
-    const incident = await prisma.incident.findUnique({
-      where: { id },
-      select: { clientId: true },
-    });
-    if (!incident) {
-      throw new Error("Incident not found");
-    }
-    await assertClientAccessAsync(user, incident.clientId);
-
-    const result = await syncIncidentState(id);
-    if (result.after !== INCIDENT_STATE.CERRADO) {
-      businessRule(
-        "No se puede cerrar la incidencia: aún tiene asignaciones abiertas",
-      );
-    }
-
-    revalidatePath("/admin/incidents");
-    revalidatePath(`/admin/incidents/${id}`);
-    revalidatePath("/fsr/incidents");
-    revalidatePath("/reporter/incidents");
-    return {};
   });
 }
 

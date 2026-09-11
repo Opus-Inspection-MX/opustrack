@@ -1070,11 +1070,17 @@ async function main() {
             "incidents:update",
             "incidents:delete",
             "incidents:assign",
+            // Cancels from the incident detail screen (Fase 0d · H-06): the
+            // role that sees CancelIncidentButton must hold this grant.
+            "incidents:cancel",
             "assignments:read",
             "assignments:create",
             "assignments:update",
             "assignments:delete",
             "assignments:complete",
+            // Reopens a CERRADO assignment from the admin detail screen
+            // (Fase 0d · H-06; CERRADO → EN_PROGRESO is admin-only).
+            "assignments:reopen",
             "assignment-activities:read",
             "assignment-activities:create",
             "assignment-activities:update",
@@ -1107,6 +1113,9 @@ async function main() {
             "incident-types:read",
             "incident-status:read",
             "assignment-status:read",
+            // Reads states for the /admin/states screen the role already
+            // routes to (Fase 0d · H-06; read only, not create/update/delete).
+            "states:read",
             // Reads users to pick an FSR; cannot create or edit them.
             "users:read",
             "reports:view",

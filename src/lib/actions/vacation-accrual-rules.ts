@@ -12,8 +12,9 @@ import { businessRule, guarded } from "./result";
  * if the LFT changes again, the days per year of service and how long they stay
  * usable are edited here rather than in a deploy.
  *
- * Both are gated by `settings:*`, matching the rest of the catalog management
- * under /admin/settings.
+ * Both are gated by `vacations:manage`, so the vacation administrator
+ * (ADMIN_VACACIONES) configures them without holding `settings:*` — which
+ * would also hand over the vehicle and equipment status catalogs.
  */
 
 export interface AccrualRuleFormData {
@@ -23,7 +24,7 @@ export interface AccrualRuleFormData {
 }
 
 export async function getAccrualRules() {
-  await requirePermission("settings:read");
+  await requirePermission("vacations:manage");
 
   return prisma.vacationAccrualRule.findMany({
     where: { active: true },
@@ -32,7 +33,7 @@ export async function getAccrualRules() {
 }
 
 export async function getAccrualRuleById(id: number) {
-  await requirePermission("settings:read");
+  await requirePermission("vacations:manage");
 
   return prisma.vacationAccrualRule.findUnique({ where: { id } });
 }
@@ -92,7 +93,7 @@ async function assertNoOverlap(
 }
 
 export async function createAccrualRule(data: AccrualRuleFormData) {
-  await requirePermission("settings:create");
+  await requirePermission("vacations:manage");
 
   return guarded(async () => {
     validateRule(data);
@@ -106,7 +107,7 @@ export async function createAccrualRule(data: AccrualRuleFormData) {
 }
 
 export async function updateAccrualRule(id: number, data: AccrualRuleFormData) {
-  await requirePermission("settings:update");
+  await requirePermission("vacations:manage");
 
   return guarded(async () => {
     validateRule(data);
@@ -129,7 +130,7 @@ export async function updateAccrualRule(id: number, data: AccrualRuleFormData) {
  * removing a tier only affects periods generated from now on.
  */
 export async function deleteAccrualRule(id: number) {
-  await requirePermission("settings:delete");
+  await requirePermission("vacations:manage");
 
   return guarded(async () => {
     await prisma.vacationAccrualRule.update({
@@ -147,7 +148,7 @@ export async function deleteAccrualRule(id: number) {
 // ---------------------------------------------------------------------------
 
 export async function getVacationSetting() {
-  await requirePermission("settings:read");
+  await requirePermission("vacations:manage");
 
   const setting = await prisma.vacationSetting.findUnique({ where: { id: 1 } });
   return setting ?? { id: 1, graceWindowMonths: 12, updatedAt: new Date() };
@@ -161,7 +162,7 @@ export async function getVacationSetting() {
  * somebody still had a claim on.
  */
 export async function updateVacationSetting(graceWindowMonths: number) {
-  await requirePermission("settings:update");
+  await requirePermission("vacations:manage");
 
   return guarded(async () => {
     if (!Number.isInteger(graceWindowMonths) || graceWindowMonths < 0) {
