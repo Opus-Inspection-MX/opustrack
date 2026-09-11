@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { prismaMock, requirePermission } = vi.hoisted(() => ({
+const { prismaMock, requirePermission, loadAssignmentFor } = vi.hoisted(() => ({
   prismaMock: {
     assignment: { findUnique: vi.fn() },
     assignmentItem: {
@@ -11,11 +11,16 @@ const { prismaMock, requirePermission } = vi.hoisted(() => ({
     },
   },
   requirePermission: vi.fn(async (_name: string) => ({ id: "u1" })),
+  loadAssignmentFor: vi.fn(async () => ({ id: "a1", incidentId: 7 })),
 }));
 
 vi.mock("@/lib/database/prisma.singleton", () => ({ prisma: prismaMock }));
 vi.mock("@/lib/auth/auth", () => ({
   requirePermission: (name: string) => requirePermission(name),
+}));
+vi.mock("@/lib/auth/access", () => ({
+  loadAssignmentFor: (...args: unknown[]) =>
+    (loadAssignmentFor as (...a: unknown[]) => unknown)(...args),
 }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
@@ -54,6 +59,15 @@ describe("createAssignmentItem", () => {
   it("exige el permiso assignments:update, que el FSR tiene", async () => {
     await createAssignmentItem(valid);
     expect(requirePermission).toHaveBeenCalledWith("assignments:update");
+  });
+
+  it("pide el gate worker sobre la asignación (scope + pertenencia)", async () => {
+    await createAssignmentItem(valid);
+    expect(loadAssignmentFor).toHaveBeenCalledWith(
+      { id: "u1" },
+      "a1",
+      "worker",
+    );
   });
 
   it("guarda el nombre recortado con su cantidad y precio", async () => {
@@ -127,6 +141,15 @@ describe("createAssignmentItem", () => {
 });
 
 describe("deleteAssignmentItem", () => {
+  it("pide el gate worker sobre la asignación de la línea", async () => {
+    await deleteAssignmentItem("i1");
+    expect(loadAssignmentFor).toHaveBeenCalledWith(
+      { id: "u1" },
+      "a1",
+      "worker",
+    );
+  });
+
   it("desactiva en vez de borrar", async () => {
     await deleteAssignmentItem("i1");
 

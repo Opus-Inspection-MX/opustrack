@@ -2,8 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { requirePermission } from "@/lib/auth/auth";
+import { loadAssignmentFor } from "@/lib/auth/access";
 import { prisma } from "@/lib/database/prisma.singleton";
-import { businessRule, guarded } from "./result";
+import { BusinessRuleError, businessRule, guarded } from "./result";
 
 /**
  * Parts and equipment used on an assignment, as a free-text list.
@@ -44,7 +45,14 @@ export type AssignmentItemInput = {
 };
 
 export async function getAssignmentItems(assignmentId: string) {
-  await requirePermission("assignments:read");
+  const user = await requirePermission("assignments:read");
+  try {
+    await loadAssignmentFor(user, assignmentId, "reader");
+  } catch (error) {
+    // List reads answer empty: no leak, and the pages keep rendering.
+    if (error instanceof BusinessRuleError) return [];
+    throw error;
+  }
 
   return prisma.assignmentItem.findMany({
     where: { assignmentId, active: true },
@@ -53,9 +61,11 @@ export async function getAssignmentItems(assignmentId: string) {
 }
 
 export async function createAssignmentItem(data: AssignmentItemInput) {
-  await requirePermission("assignments:update");
+  const user = await requirePermission("assignments:update");
 
   return guarded(async () => {
+    // Worker gate: costed lines are field writes on someone's assignment.
+    await loadAssignmentFor(user, data.assignmentId, "worker");
     await assertAssignmentEditable(data.assignmentId);
 
     const name = data.name?.trim();
@@ -85,7 +95,7 @@ export async function createAssignmentItem(data: AssignmentItemInput) {
 }
 
 export async function deleteAssignmentItem(id: string) {
-  await requirePermission("assignments:update");
+  const user = await requirePermission("assignments:update");
 
   return guarded(async () => {
     const existing = await prisma.assignmentItem.findUnique({
@@ -95,6 +105,7 @@ export async function deleteAssignmentItem(id: string) {
     if (!existing) {
       businessRule("La refacción ya no existe.");
     }
+    await loadAssignmentFor(user, existing.assignmentId, "worker");
     await assertAssignmentEditable(existing.assignmentId);
 
     // Soft delete, like every other record here: the list is part of the work
