@@ -34,7 +34,8 @@ export function ResponsiveDialog({
   children,
   className,
 }: ResponsiveDialogProps) {
-  const isDesktop = useMediaQuery("(min-width: 768px)");
+  // Same `lg` cut as the sidebar: dialog on desktop, drawer below it.
+  const isDesktop = useMediaQuery("(min-width: 1024px)");
 
   if (isDesktop) {
     return (

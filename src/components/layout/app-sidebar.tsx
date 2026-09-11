@@ -1,18 +1,26 @@
 "use client";
 
-import { Building2, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import {
+  Building2,
+  ChevronDown,
+  PanelLeftClose,
+  PanelLeftOpen,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { LogoutButton } from "@/components/auth/logout-button";
-import { NotificationBell } from "@/components/notifications";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
-  SidebarGroup,
-  SidebarGroupContent,
   SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
@@ -22,8 +30,25 @@ import {
   SidebarSeparator,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { visibleMenu } from "@/lib/navigation/menu";
-import { ThemeToggle } from "./theme-toggle";
+import { flattenMenu, visibleMenu } from "@/lib/navigation/menu";
+import { cn } from "@/lib/utils";
+import { userInitials } from "./user-menu";
+
+const GROUPS_COOKIE = "nav-groups-collapsed";
+const GROUPS_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
+
+function readCollapsedGroups(): string[] {
+  if (typeof document === "undefined") return [];
+  const match = document.cookie
+    .split("; ")
+    .find((part) => part.startsWith(`${GROUPS_COOKIE}=`));
+  if (!match) return [];
+  try {
+    return JSON.parse(decodeURIComponent(match.split("=")[1])) as string[];
+  } catch {
+    return [];
+  }
+}
 
 /**
  * The single navigation sidebar.
@@ -33,13 +58,24 @@ import { ThemeToggle } from "./theme-toggle";
  * their session, so someone holding ADMIN_VACACIONES + FSR gets one menu with
  * both — and without the operations or user-administration sections they cannot
  * open anyway.
+ *
+ * The five groups collapse independently with the state remembered in a
+ * cookie. Groups start expanded and collapsed content stays mounted
+ * (forceMount): the e2e suite addresses links inside them and must keep
+ * finding them. The footer is a compact account row — the bell and the theme
+ * selector moved to the global header, where they stay reachable on mobile.
  */
 export function AppSidebar() {
   const pathname = usePathname();
   const { toggleSidebar } = useSidebar();
   const { data: session } = useSession();
+  const [collapsed, setCollapsed] = useState<string[]>([]);
 
-  const sections = useMemo(() => {
+  useEffect(() => {
+    setCollapsed(readCollapsedGroups());
+  }, []);
+
+  const groups = useMemo(() => {
     const user = session?.user;
     if (!user) return [];
     return visibleMenu(
@@ -59,14 +95,25 @@ export function AppSidebar() {
    * item. The longest match is the specific one, and only it is active.
    */
   const activeUrl = useMemo(() => {
-    const candidates = sections
-      .flatMap((section) => section.items.map((item) => item.url))
+    const candidates = flattenMenu(groups)
+      .map((item) => item.url)
       .filter(
         (url) =>
           pathname === url || pathname.startsWith(`${url.replace(/\/$/, "")}/`),
       );
     return candidates.sort((a, b) => b.length - a.length)[0];
-  }, [sections, pathname]);
+  }, [groups, pathname]);
+
+  const toggleGroup = (title: string, open: boolean) => {
+    setCollapsed((prev) => {
+      const next = open
+        ? prev.filter((name) => name !== title)
+        : [...prev.filter((name) => name !== title), title];
+      // biome-ignore lint/suspicious/noDocumentCookie: Required to remember collapsed groups
+      document.cookie = `${GROUPS_COOKIE}=${encodeURIComponent(JSON.stringify(next))}; path=/; max-age=${GROUPS_COOKIE_MAX_AGE}`;
+      return next;
+    });
+  };
 
   return (
     <Sidebar collapsible="icon">
@@ -76,7 +123,7 @@ export function AppSidebar() {
             href={home}
             className="flex items-center gap-2 group-data-[collapsible=icon]:hidden"
           >
-            <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
               <Building2 className="h-5 w-5 text-primary-foreground" />
             </div>
             <span className="font-semibold">OpusTrack</span>
@@ -84,7 +131,7 @@ export function AppSidebar() {
           <button
             type="button"
             onClick={toggleSidebar}
-            className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center hover:bg-primary/90 transition-colors cursor-pointer hidden group-data-[collapsible=icon]:flex"
+            className="hidden h-8 w-8 cursor-pointer items-center justify-center rounded-lg bg-primary transition-colors group-data-[collapsible=icon]:flex hover:bg-primary/90"
             aria-label="Expandir menú"
           >
             <PanelLeftOpen className="h-5 w-5 text-primary-foreground" />
@@ -92,7 +139,7 @@ export function AppSidebar() {
           <button
             type="button"
             onClick={toggleSidebar}
-            className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center hover:bg-muted/80 transition-colors cursor-pointer group-data-[collapsible=icon]:hidden"
+            className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg bg-muted transition-colors group-data-[collapsible=icon]:hidden hover:bg-muted/80"
             aria-label="Contraer menú"
           >
             <PanelLeftClose className="h-5 w-5" />
@@ -101,54 +148,94 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent className="px-4 py-4 group-data-[collapsible=icon]:px-2">
-        {sections.map((section, index) => (
-          <div key={section.title}>
-            <SidebarGroup>
-              <SidebarGroupLabel>{section.title}</SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {section.items.map((item) => (
-                    <SidebarMenuItem key={item.url}>
-                      <SidebarMenuButton
-                        asChild
-                        isActive={item.url === activeUrl}
-                        tooltip={item.title}
-                      >
-                        <Link href={item.url}>
-                          <item.icon className="h-4 w-4" />
-                          <span>{item.title}</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
+        {groups.map((group, index) => {
+          const open = !collapsed.includes(group.title);
+          return (
+            <div key={group.title}>
+              <Collapsible
+                open={open}
+                onOpenChange={(next) => toggleGroup(group.title, next)}
+              >
+                <CollapsibleTrigger asChild>
+                  <button
+                    type="button"
+                    className="flex min-h-[44px] w-full cursor-pointer items-center justify-between rounded-md px-2 text-xs font-medium text-sidebar-foreground/70 transition-colors group-data-[collapsible=icon]:hidden hover:text-sidebar-foreground"
+                  >
+                    <span className="uppercase tracking-wide">
+                      {group.title}
+                    </span>
+                    <ChevronDown
+                      className={cn(
+                        "h-4 w-4 shrink-0 transition-transform",
+                        !open && "-rotate-90",
+                      )}
+                      aria-hidden
+                    />
+                  </button>
+                </CollapsibleTrigger>
+                {/* forceMount keeps the links in the DOM while collapsed, so
+                    role queries keep resolving them. */}
+                <CollapsibleContent forceMount>
+                  {group.sections.map((section) => (
+                    <div key={section.title}>
+                      {group.sections.length > 1 && (
+                        <SidebarGroupLabel className="group-data-[collapsible=icon]:hidden">
+                          {section.title}
+                        </SidebarGroupLabel>
+                      )}
+                      <SidebarMenu>
+                        {section.items.map((item) => (
+                          <SidebarMenuItem key={item.url}>
+                            <SidebarMenuButton
+                              asChild
+                              isActive={item.url === activeUrl}
+                              tooltip={item.title}
+                            >
+                              <Link href={item.url}>
+                                <item.icon className="h-4 w-4" />
+                                <span>{item.title}</span>
+                              </Link>
+                            </SidebarMenuButton>
+                          </SidebarMenuItem>
+                        ))}
+                      </SidebarMenu>
+                    </div>
                   ))}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-            {index < sections.length - 1 && <SidebarSeparator />}
-          </div>
-        ))}
+                </CollapsibleContent>
+              </Collapsible>
+              {index < groups.length - 1 && <SidebarSeparator />}
+            </div>
+          );
+        })}
       </SidebarContent>
 
       <SidebarFooter className="border-t p-4 group-data-[collapsible=icon]:p-2">
-        <div className="flex flex-col gap-2 group-data-[collapsible=icon]:items-center">
-          {/* Desktop bell: the header bell only renders below lg, so without
-              this nobody on a wide screen ever sees their notifications. The
-              popover's "Ver todas" leads to the universal inbox. */}
-          <div className="flex items-center gap-1 group-data-[collapsible=icon]:flex-col">
-            <ThemeToggle />
-            <NotificationBell />
-          </div>
-          <div className="w-full group-data-[collapsible=icon]:w-auto">
+        <div className="flex items-center gap-2 group-data-[collapsible=icon]:justify-center">
+          <Link
+            href="/profile"
+            className="flex min-h-[44px] min-w-0 flex-1 items-center gap-2 rounded-md px-1 group-data-[collapsible=icon]:flex-none group-data-[collapsible=icon]:px-0"
+            aria-label="Ver mi perfil"
+          >
+            <Avatar className="h-8 w-8 shrink-0">
+              <AvatarFallback className="text-xs">
+                {userInitials(session?.user?.name, session?.user?.email)}
+              </AvatarFallback>
+            </Avatar>
+            <span className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
+              <span className="block truncate text-sm font-medium">
+                {session?.user?.name ?? "Usuario"}
+              </span>
+              <span className="block truncate text-xs text-muted-foreground">
+                {session?.user?.email ?? ""}
+              </span>
+            </span>
+          </Link>
+          <div className="shrink-0">
             <LogoutButton
-              variant="outline"
-              size="sm"
-              className="w-full bg-transparent group-data-[collapsible=icon]:hidden"
-            />
-            <LogoutButton
-              variant="outline"
+              variant="ghost"
               size="icon"
-              className="hidden group-data-[collapsible=icon]:flex"
               iconOnly
+              className="min-h-[44px] min-w-[44px]"
             />
           </div>
         </div>

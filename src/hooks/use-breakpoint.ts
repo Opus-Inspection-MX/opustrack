@@ -1,11 +1,19 @@
 import * as React from "react";
 
-const MOBILE_BREAKPOINT = 768;
+/**
+ * The one responsive breakpoint of the app: `lg` (1024px).
+ *
+ * The sidebar is fixed at `lg` and up and a drawer below it; the header
+ * trigger, the tab bar, and the SidebarProvider all cut at the same width.
+ * Splitting `md` for one and `lg` for another rendered two notification
+ * bells between 768 and 1023px, so everything shares this constant.
+ */
+const MOBILE_BREAKPOINT = 1024;
 
 /**
  * Single breakpoint hook for the app.
  *
- * `useIsMobile` covers the `md` breakpoint; `useMediaQuery` covers any other
+ * `useIsMobile` covers below-`lg`; `useMediaQuery` covers any other
  * query. Both share one matchMedia subscription pattern. This file replaces
  * the former `use-mobile.ts` / `use-media-query.ts` pair (one of them is
  * gone, because knip forbids dead files).
