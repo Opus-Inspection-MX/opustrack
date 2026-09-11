@@ -18,9 +18,11 @@ import {
  * It is the one screen driven by REST endpoints instead of Server Actions, so
  * nothing here is revalidated by the framework: every assertion that matters is
  * confirmed against the database.
+ * Fase 1 (H-07): runs as ADMIN_OPERACION, the module administrator that owns
+ * this screen — not as ROOT, which bypasses every permission check.
  */
 
-test.use({ storageState: authFile("admin") });
+test.use({ storageState: authFile("admin-operacion") });
 
 // Serial: the tests build on one programación, and two workers editing the
 // same schedule race each other.

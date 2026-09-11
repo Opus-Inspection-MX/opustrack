@@ -1,0 +1,68 @@
+# Nightly e2e across every browser.
+#
+# The per-PR `e2e` job in ci.yml runs Chromium only for speed. Once a day this
+# workflow runs the same suite with E2E_EXTRA_BROWSERS=1 (Chromium + Firefox +
+# WebKit, including the iPad and Mobile Safari projects from ui-revamp Fase 5).
+#
+# No secrets required: same ephemeral database (docker-compose.e2e.yml),
+# tracked config/e2e.env credentials and local Mailpit as the PR job.
+#
+# A missing browser binary fails loudly here: with CI set,
+# playwright.config.ts refuses the system-Chromium and WebKit fallbacks, so a
+# broken `playwright install` step goes red instead of silently skipping.
+name: E2E nightly
+
+on:
+  schedule:
+    # 03:00 America/Mexico_City (CST, UTC-6 all year — Mexico abolished DST).
+    - cron: "0 9 * * *"
+  workflow_dispatch:
+
+# A new night cancels the previous one if it overran, for the same reason as
+# ci.yml: never spend minutes on a run that is already stale.
+concurrency:
+  group: e2e-nightly
+  cancel-in-progress: true
+
+jobs:
+  e2e-all-browsers:
+    name: E2E (todos los navegadores)
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      E2E_EXTRA_BROWSERS: "1"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Cache de navegadores Playwright
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            playwright-${{ runner.os }}-
+
+      - name: Instalar navegadores
+        run: npx playwright install --with-deps chromium firefox webkit
+
+      - name: Suite e2e
+        run: npm run test:e2e
+
+      - name: Subir reporte Playwright
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-nightly
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14

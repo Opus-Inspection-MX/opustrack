@@ -1,14 +1,17 @@
-# Verificación en cada push: formato, tipos y pruebas unitarias.
+# Verification on every push: format, types, unit tests and the e2e suite.
 #
-# Deliberadamente NO corre los e2e: son pesados (185 pruebas en 5 navegadores,
-# más Docker y un build) y se ejecutan en local con `npm run test:all`.
+# The `e2e` job runs the full Playwright suite in Chromium on every PR and on
+# `main` (not on branch pushes, where only `verify` runs). First-run duration
+# is not measured yet — adjust `timeout-minutes` once it is (placeholder: ~25
+# min budget; split into two jobs per project if it exceeds it).
 #
-# No requiere ningún secreto. Las pruebas unitarias mockean el cliente de
-# Prisma, así que funcionan sin DATABASE_URL ni archivos .env — que además
-# están en .gitignore y no existen en el runner.
+# No secrets required. The e2e database is an ephemeral container defined in
+# `docker-compose.e2e.yml`, credentials come from the tracked `config/e2e.env`,
+# and Mailpit captures every email locally.
 #
-# El despliegue no vive aquí: lo hace la integración de Vercel con GitHub
-# directamente sobre el push.
+# Deployment does not live here: the Vercel integration deploys directly on
+# push. Branch protection requiring `verify` + `e2e` before merge is a manual
+# setup step (see the Fase 1 PR description).
 name: CI
 
 on:
@@ -45,3 +48,47 @@ jobs:
 
       - name: Pruebas unitarias
         run: npm run test:unit
+
+  e2e:
+    name: E2E (Chromium)
+    needs: verify
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Cache de navegadores Playwright
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          # Keyed by the @playwright/test version: a bump invalidates the
+          # browser binaries. package-lock.json pins the exact resolved one.
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            playwright-${{ runner.os }}-
+
+      - name: Instalar Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Suite e2e
+        run: npm run test:e2e
+
+      - name: Subir reporte Playwright
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7

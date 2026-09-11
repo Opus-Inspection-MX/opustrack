@@ -12,7 +12,13 @@ import path from "node:path";
  * the suite is self-sufficient on a freshly created database.
  */
 
-export type Role = "admin" | "fsr" | "reporter" | "guest";
+export type Role =
+  | "admin"
+  | "admin-operacion"
+  | "admin-vacaciones"
+  | "fsr"
+  | "reporter"
+  | "guest";
 
 export interface RoleAccount {
   email: string;
@@ -49,6 +55,20 @@ const DEFINITIONS: Record<
     // superuser plus per-module administrators.
     roleName: "ROOT",
     // Fase 3: every seed role lands on the personal /inicio home.
+    defaultPath: "/inicio",
+  },
+  // Fase 1 (H-07): operational flows run as the module administrator that
+  // owns them, not as the superuser that bypasses every check.
+  "admin-operacion": {
+    envKey: "E2E_ADMIN_OPERACION_EMAIL",
+    name: "E2E Admin Operacion",
+    roleName: "ADMIN_OPERACION",
+    defaultPath: "/inicio",
+  },
+  "admin-vacaciones": {
+    envKey: "E2E_ADMIN_VACACIONES_EMAIL",
+    name: "E2E Admin Vacaciones",
+    roleName: "ADMIN_VACACIONES",
     defaultPath: "/inicio",
   },
   fsr: {

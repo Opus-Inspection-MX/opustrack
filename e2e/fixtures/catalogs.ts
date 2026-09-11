@@ -13,6 +13,7 @@
  *   - `select`          → Radix `<Select>` (lines, equipments, clients)
  */
 
+import type { Role } from "./auth";
 import { db } from "./db";
 
 export type CatalogField =
@@ -37,6 +38,13 @@ export interface CatalogSpec {
   key: string;
   /** List route. `/new` and `/:id/edit` hang off it. */
   path: string;
+  /**
+   * Role driving this catalog's CRUD. Fase 1 (H-07): operational catalogs
+   * run as ADMIN_OPERACION; ROOT-only catalogs (users/roles/permissions and
+   * the state catalogs, where the operator holds at most :read) stay on
+   * `admin`. Defaults to `admin` when omitted.
+   */
+  role?: Role;
   /** `aria-label` of the CatalogTable search box. */
   searchPlaceholder: string;
   /** Fields to fill on create. */
@@ -156,6 +164,7 @@ export const CATALOGS: CatalogSpec[] = [
     key: "states",
     model: "state",
     path: "/admin/states",
+    role: "admin-operacion",
     searchPlaceholder: "Buscar por nombre o código...",
     fields: [
       // StateForm rejects digits in the name (letters and spaces only) and
@@ -215,6 +224,7 @@ export const CATALOGS: CatalogSpec[] = [
     key: "clients",
     model: "client",
     path: "/admin/clients",
+    role: "admin-operacion",
     searchPlaceholder: "Buscar por código, nombre o razón social...",
     fields: [
       { kind: "text", id: "code", value: (s) => `E2E-${s.slice(-6)}` },
@@ -228,6 +238,7 @@ export const CATALOGS: CatalogSpec[] = [
     key: "lines",
     model: "line",
     path: "/admin/lines",
+    role: "admin-operacion",
     searchPlaceholder: "Buscar por nombre o descripción...",
     fields: [
       { kind: "text", id: "name", value: named("E2E Linea") },
@@ -240,6 +251,7 @@ export const CATALOGS: CatalogSpec[] = [
     key: "equipments",
     model: "equipment",
     path: "/admin/equipments",
+    role: "admin-operacion",
     searchPlaceholder: "Buscar por nombre o descripción...",
     fields: [
       { kind: "text", id: "name", value: named("E2E Equipo") },

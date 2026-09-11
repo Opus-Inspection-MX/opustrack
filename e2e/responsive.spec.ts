@@ -52,7 +52,13 @@ test.beforeAll(async () => {
 const ROUTES: AreaRoute[] = [
   { area: "login", path: "/login", role: null, shell: false },
   { area: "inicio", path: "/inicio", role: "admin", shell: true },
-  { area: "tracking", path: "/admin/tracking", role: "admin", shell: true },
+  // Fase 1 (H-07): operational pages swept as the role that owns them.
+  {
+    area: "tracking",
+    path: "/admin/tracking",
+    role: "admin-operacion",
+    shell: true,
+  },
   {
     area: "detalle FSR",
     path: () => `/fsr/assignments/${fixture.assignmentId}`,
@@ -60,7 +66,12 @@ const ROUTES: AreaRoute[] = [
     shell: true,
   },
   { area: "reportes", path: "/admin/reports", role: "admin", shell: true },
-  { area: "catálogo", path: "/admin/clients", role: "admin", shell: true },
+  {
+    area: "catálogo",
+    path: "/admin/clients",
+    role: "admin-operacion",
+    shell: true,
+  },
   { area: "vacations", path: "/vacations", role: "admin", shell: true },
 ];
 

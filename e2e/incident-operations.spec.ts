@@ -199,10 +199,12 @@ test.describe("El FSR documenta el trabajo", () => {
 });
 
 // ---------------------------------------------------------------------------
-// El admin sigue el mismo incidente desde Seguimiento
+// El admin de operación sigue el mismo incidente desde Seguimiento
+//
+// Fase 1 (H-07): ADMIN_OPERACION, not ROOT.
 // ---------------------------------------------------------------------------
 test.describe("El admin lo sigue desde Seguimiento de Atención", () => {
-  test.use({ storageState: authFile("admin") });
+  test.use({ storageState: authFile("admin-operacion") });
 
   test("encuentra el incidente por folio y ve su avance", async ({
     page,
@@ -224,4 +226,61 @@ test.describe("El admin lo sigue desde Seguimiento de Atención", () => {
     ).toBeVisible();
     await evidence(page, testInfo, "detalle del incidente con su asignacion");
   });
+
+  // -------------------------------------------------------------------------
+  // Fase 1 (H-06 pattern): every action button the detail pages offer to this
+  // role must be usable by it — a visible button whose action rejects is the
+  // exact bug class H-06 describes.
+  //
+  // PRE-EXISTING, fails on main as ROOT too: /admin/incidents/[id] crashes
+  // for every role (a Server Component passes `columns`/`rowKey` functions
+  // into the client ResponsiveTable — RSC boundary, Fase 8 territory).
+  // Pinned as fixme until Fase 8 extracts the table; then this proves the
+  // role can use the buttons.
+  // -------------------------------------------------------------------------
+  test.fixme(
+    "la incidencia muestra Editar y Crear Asignación usables",
+    async ({ page }) => {
+      await page.goto(`/admin/incidents/${incidentId}`);
+
+      // The detail page proves it loaded for this role: folio plus sections.
+      await expect(page.getByText(`Folio: INC-${incidentId}`)).toBeVisible();
+      await expect(
+        page.getByText("Detalles del Incidente").first(),
+      ).toBeVisible();
+
+      // "Editar incidencia" navigates to a form this role may submit.
+      await page.getByRole("link", { name: "Editar incidencia" }).click();
+      await page.waitForURL(`**/admin/incidents/${incidentId}/edit`);
+      await expect(
+        page.getByRole("button", { name: "Actualizar Incidente" }),
+      ).toBeVisible();
+    },
+  );
+
+  test("la asignación muestra Editar usable", async ({ page }) => {
+    await page.goto(`/admin/assignments/${assignmentId}`);
+
+    await page.getByRole("link", { name: "Editar" }).click();
+    await page.waitForURL(`**/admin/assignments/${assignmentId}/edit`);
+    await expect(
+      page.getByRole("button", { name: "Actualizar Asignación" }),
+    ).toBeVisible();
+  });
+
+  // H-06, fails before Fase 0d: ADMIN_OPERACION sees the Cancel button but
+  // holds no `incidents:cancel` grant, so the action rejects. Pinned as fixme
+  // until 0d grants it — then this proves the grant works.
+  test.fixme(
+    "cancela la incidencia desde su página de detalle",
+    async ({ page }) => {
+      await page.goto(`/admin/incidents/${incidentId}`);
+
+      await page.getByRole("button", { name: "Cancelar incidencia" }).click();
+      await page.getByLabel(/Razón/).fill(`E2E cancelación ${SUFFIX}`);
+      await page.getByRole("button", { name: "Confirmar cancelación" }).click();
+
+      await expect(page.getByText("CANCELADA")).toBeVisible();
+    },
+  );
 });
