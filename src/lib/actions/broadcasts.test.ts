@@ -24,6 +24,7 @@ const {
   txMock: {
     broadcast: { update: vi.fn() },
     broadcastRole: { deleteMany: vi.fn(), createMany: vi.fn() },
+    broadcastUser: { updateMany: vi.fn(), upsert: vi.fn() },
     roleBroadcastTarget: { updateMany: vi.fn(), upsert: vi.fn() },
   },
   requirePermission: vi.fn(),
@@ -82,6 +83,7 @@ const SEND_NOW: BroadcastFormInput = {
   sendEmail: false,
   allRoles: false,
   roleIds: [4],
+  userIds: [],
   includeSender: false,
   sendNow: true,
   scheduledAtLocal: null,
@@ -157,12 +159,12 @@ describe("validación en español (devuelta, no lanzada)", () => {
     expect(prismaMock.broadcast.create).not.toHaveBeenCalled();
   });
 
-  it("exige al menos un rol", async () => {
+  it("exige al menos un destinatario", async () => {
     const result = await createBroadcast({ ...SEND_NOW, roleIds: [] });
 
     expect(result).toEqual({
       success: false,
-      error: "Selecciona al menos un rol destinatario",
+      error: "Selecciona al menos un destinatario",
     });
   });
 

@@ -136,6 +136,7 @@ export function BroadcastForm({
         sendEmail,
         allRoles,
         roleIds: selectedRoleIds,
+        userIds: [],
         includeSender,
         scheduledAtLocal: sendNow ? null : scheduledAtLocal,
       };

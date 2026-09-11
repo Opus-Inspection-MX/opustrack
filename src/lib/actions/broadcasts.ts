@@ -3,7 +3,9 @@
 import { BroadcastStatus } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { requirePermission } from "@/lib/auth/auth";
+import { SCOPE_ALL_CLIENTS } from "@/lib/authz/authz";
 import { assertCanManageRoles } from "@/lib/authz/role-assignment";
+import { whereHasPermission, whereHasRoleId } from "@/lib/authz/user-queries";
 import { prisma } from "@/lib/database/prisma.singleton";
 import { broadcastAudience } from "@/lib/notifications/audiences";
 import { dispatchBroadcast } from "@/lib/notifications/broadcast-dispatch";
@@ -34,6 +36,8 @@ export interface BroadcastFormInput {
   sendEmail: boolean;
   allRoles: boolean;
   roleIds: number[];
+  /** Directly-addressed users (Parte C). Union with the role audience. */
+  userIds: string[];
   includeSender: boolean;
   /** Immediate send vs. scheduled. */
   sendNow: boolean;
@@ -80,6 +84,75 @@ async function getSenderBroadcastScope(
   };
 }
 
+/**
+ * Direct-user reach (Parte C, decision #2 — the most restrictive of the two
+ * rules the system already uses).
+ *
+ * A sender reaches user U when U holds at least one active role inside
+ * `scope.allowedRoleIds`, AND — unless the sender holds `scope:all-clients`
+ * — U shares at least one active Client with the sender
+ * (`UserClientAssignment`). ROOT (`isSuperuser`) reaches anyone.
+ *
+ * Fail closed: with no reachable roles there are no reachable users either.
+ * Returns the valid ids (deduped); any id outside reach raises `businessRule`.
+ * Reach is validated at create/edit time, never at dispatch (decision #3).
+ */
+async function assertUsersInScope(
+  senderId: string,
+  scope: { allowedRoleIds: number[]; canTargetAll: boolean },
+  userIds: string[],
+): Promise<string[]> {
+  const unique = [...new Set(userIds.filter(Boolean))];
+  if (unique.length === 0) return [];
+  if (scope.allowedRoleIds.length === 0) {
+    businessRule(
+      "No puedes difundir a uno o más de los usuarios seleccionados",
+    );
+  }
+
+  const [superuser, unrestricted] = await Promise.all([
+    prisma.userRole.count({
+      where: {
+        userId: senderId,
+        active: true,
+        role: { active: true, isSuperuser: true },
+      },
+    }),
+    prisma.user.count({
+      where: { id: senderId, ...whereHasPermission(SCOPE_ALL_CLIENTS) },
+    }),
+  ]);
+  if (superuser > 0 || unrestricted > 0) return unique;
+
+  const senderClients = await prisma.userClientAssignment.findMany({
+    where: { userId: senderId, active: true },
+    select: { clientId: true },
+  });
+  const shared = senderClients.map((c) => c.clientId);
+  if (shared.length === 0) {
+    businessRule(
+      "No puedes difundir a uno o más de los usuarios seleccionados",
+    );
+  }
+
+  const reachable = await prisma.user.findMany({
+    where: {
+      id: { in: unique },
+      OR: scope.allowedRoleIds.map((roleId) => whereHasRoleId(roleId)),
+      clientAssignments: {
+        some: { active: true, clientId: { in: shared } },
+      },
+    },
+    select: { id: true },
+  });
+  if (reachable.length !== unique.length) {
+    businessRule(
+      "No puedes difundir a uno o más de los usuarios seleccionados",
+    );
+  }
+  return unique;
+}
+
 interface ValidBroadcast {
   title: string;
   message: string;
@@ -88,15 +161,17 @@ interface ValidBroadcast {
   sendEmail: boolean;
   allRoles: boolean;
   roleIds: number[];
+  userIds: string[];
   includeSender: boolean;
   scheduledAt: Date;
 }
 
 /** Shared input validation for create/update. Throws `businessRule`. */
-function assertBroadcastInput(
+async function assertBroadcastInput(
   input: BroadcastFormInput,
   scope: { allowedRoleIds: number[]; canTargetAll: boolean },
-): ValidBroadcast {
+  senderId: string,
+): Promise<ValidBroadcast> {
   const title = input.title?.trim();
   const message = input.message?.trim();
   if (!title) businessRule("El título es obligatorio");
@@ -109,13 +184,18 @@ function assertBroadcastInput(
   }
 
   const roleIds = [...new Set(input.roleIds ?? [])];
+  const userIds = await assertUsersInScope(
+    senderId,
+    scope,
+    input.userIds ?? [],
+  );
   if (input.allRoles) {
     if (!scope.canTargetAll) {
       businessRule("No tienes permiso para difundir a todos los roles");
     }
   } else {
-    if (roleIds.length === 0) {
-      businessRule("Selecciona al menos un rol destinatario");
+    if (roleIds.length === 0 && userIds.length === 0) {
+      businessRule("Selecciona al menos un destinatario");
     }
     const allowed = new Set(scope.allowedRoleIds);
     if (!roleIds.every((id) => allowed.has(id))) {
@@ -149,6 +229,7 @@ function assertBroadcastInput(
     sendEmail: input.sendEmail,
     allRoles: input.allRoles,
     roleIds,
+    userIds,
     includeSender: input.includeSender,
     scheduledAt,
   };
@@ -231,7 +312,7 @@ export async function createBroadcast(
       user.id,
       user.isSuperuser === true,
     );
-    const data = assertBroadcastInput(input, scope);
+    const data = await assertBroadcastInput(input, scope, user.id);
 
     const broadcast = await prisma.broadcast.create({
       data: {
@@ -253,6 +334,15 @@ export async function createBroadcast(
                 createdById: user.id,
               })),
             },
+        users:
+          data.userIds.length === 0
+            ? undefined
+            : {
+                create: data.userIds.map((userId) => ({
+                  userId,
+                  createdById: user.id,
+                })),
+              },
       },
       select: { id: true },
     });
@@ -297,7 +387,11 @@ export async function updateBroadcast(
       user.id,
       user.isSuperuser === true,
     );
-    const data = assertBroadcastInput({ ...input, sendNow: false }, scope);
+    const data = await assertBroadcastInput(
+      { ...input, sendNow: false },
+      scope,
+      user.id,
+    );
 
     await prisma.$transaction(async (tx) => {
       await tx.broadcast.update({
@@ -323,6 +417,28 @@ export async function updateBroadcast(
             roleId,
             createdById: user.id,
           })),
+        });
+      }
+      // Per-user rows are DEACTIVATED, never deleted: the history of who was
+      // addressed stays queryable after the edit.
+      await tx.broadcastUser.updateMany({
+        where: {
+          broadcastId: id,
+          active: true,
+          userId: { notIn: data.userIds },
+        },
+        data: {
+          active: false,
+          updatedById: user.id,
+          deactivatedAt: new Date(),
+          deactivatedById: user.id,
+        },
+      });
+      for (const userId of data.userIds) {
+        await tx.broadcastUser.upsert({
+          where: { broadcastId_userId: { broadcastId: id, userId } },
+          update: { active: true, updatedById: user.id },
+          create: { broadcastId: id, userId, createdById: user.id },
         });
       }
     });
