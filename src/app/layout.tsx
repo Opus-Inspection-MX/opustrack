@@ -23,11 +23,6 @@ export const metadata: Metadata = {
   title: "OpusTrack - OpusInspection",
   description:
     "Sistema profesional de gestión de incidentes y seguimiento de asignaciones",
-  generator: "v0.app",
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#000000" },
-  ],
 };
 
 export const viewport: Viewport = {
