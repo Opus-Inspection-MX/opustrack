@@ -467,6 +467,10 @@ test.afterAll(async () => {
 
     await db().vacation.deleteMany({ where: { userId: { in: ids } } });
     await db().vacationPeriod.deleteMany({ where: { userId: { in: ids } } });
+    // Otras suites habilitan a estos FSR en incidentes (incident_assignees);
+    // se borra antes que el usuario o la FK incident_assignees_userId_fkey
+    // tumba el cleanup.
+    await db().incidentAssignee.deleteMany({ where: { userId: { in: ids } } });
     await db().user.deleteMany({ where: { id: { in: ids } } });
   }
 });
