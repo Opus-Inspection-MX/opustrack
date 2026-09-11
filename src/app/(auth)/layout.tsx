@@ -15,7 +15,7 @@ export default function AuthLayout({
 }) {
   return (
     <div className="grid min-h-screen lg:grid-cols-2">
-      <aside className="relative hidden flex-col justify-between overflow-hidden bg-opus-hero p-10 text-white lg:flex">
+      <aside className="relative hidden flex-col justify-between overflow-hidden bg-opus-hero p-10 text-hero-foreground lg:flex">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15">
             <Building2 className="h-6 w-6" aria-hidden />
@@ -26,13 +26,13 @@ export default function AuthLayout({
           <p className="font-display text-3xl font-semibold leading-tight">
             Incidentes, asignaciones y viajes en un solo lugar.
           </p>
-          <p className="max-w-md text-white/80">
+          <p className="max-w-md text-hero-muted-foreground">
             Seguimiento de la operación de inspección vehicular en México:
             reporta fallas, atiende órdenes de trabajo y registra tus
             recorridos.
           </p>
         </div>
-        <p className="text-sm text-white/60">OpusInspection · México</p>
+        <p className="text-sm text-hero-muted-foreground">OpusInspection · México</p>
       </aside>
       <main className="flex flex-col items-center justify-center gap-6 p-6">
         <div className="flex items-center gap-2 lg:hidden">
