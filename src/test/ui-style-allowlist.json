@@ -188,7 +188,6 @@
     "text-blue-800",
     "text-red-600"
   ],
-  "src/components/notifications/notification-bell.tsx": ["bg-red-500"],
   "src/components/notifications/notification-item.tsx": [
     "bg-blue-100",
     "bg-blue-500",
