@@ -15,6 +15,23 @@ vi.mock("@/lib/auth/auth", () => ({
 }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
+const { loggerErrorMock } = vi.hoisted(() => ({
+  loggerErrorMock: vi.fn(),
+}));
+
+// El caso "falls through" dispara a propósito el camino de defecto de
+// guarded(), que loguea action.defect antes de relanzar. Se mockea el logger
+// para que ese ERROR esperado no ensucie el stderr del CI (mismo patrón que
+// auth-split.test.ts).
+vi.mock("@/lib/observability/logger", () => ({
+  logger: {
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: loggerErrorMock,
+  },
+}));
+
 import { closeAssignment, startAssignmentWork } from "./assignments";
 import { isFailure } from "./result";
 
@@ -84,6 +101,11 @@ describe("closeAssignment offline retry", () => {
       closeAssignment(closeForm({ idempotencyKey: "key-new" })),
     ).rejects.toThrow("stop-before-guards");
     expect(prismaMock.$transaction).toHaveBeenCalled();
+    // El defecto se logueó antes de relanzar (contrato de guarded()).
+    expect(loggerErrorMock).toHaveBeenCalledWith(
+      "action.defect",
+      expect.anything(),
+    );
   });
 });
 
