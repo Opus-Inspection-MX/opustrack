@@ -132,7 +132,9 @@ export async function getAssignmentById(id: string) {
           type: true,
           status: true,
           client: true,
-          reportedBy: true,
+          // H-01: `reportedBy: true` shipped the password hash to anyone
+          // with `assignments:read`. Screens only render the reporter's name.
+          reportedBy: { select: { id: true, name: true, email: true } },
         },
       },
       ...assigneesInclude,

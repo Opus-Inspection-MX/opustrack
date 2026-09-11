@@ -339,7 +339,9 @@ export async function createIncident(data: unknown) {
         type: true,
         status: true,
         client: { include: { state: true } },
-        reportedBy: true,
+        // H-01: `reportedBy: true` shipped the password hash in the create
+        // response. Screens only render the reporter's name.
+        reportedBy: { select: { id: true, name: true, email: true } },
       },
     });
 
@@ -551,7 +553,8 @@ export async function updateIncident(id: number, data: IncidentFormData) {
         type: true,
         status: true,
         client: { include: { state: true } },
-        reportedBy: true,
+        // H-01: same as createIncident — the reporter card, not the hash.
+        reportedBy: { select: { id: true, name: true, email: true } },
       },
     });
 

@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { logAudit } from "@/lib/audit/log-audit";
 import { requirePermission } from "@/lib/auth/auth";
-import { includeRoles, whereHasRole } from "@/lib/authz/user-queries";
+import { whereHasRole } from "@/lib/authz/user-queries";
 import { prisma } from "@/lib/database/prisma.singleton";
 import { assignUserToClient } from "@/lib/utils/client-assignments";
 import { ok, rejected } from "./result";
@@ -151,10 +151,20 @@ export async function getClientById(id: string) {
       userAssignments: {
         where: { active: true },
         include: {
+          // H-01: the screens render a user card (id, name, email, status,
+          // roles), never the password hash. The global omit is the net;
+          // this select keeps the rest of the row out of the response too.
           user: {
-            include: {
-              ...includeRoles,
-              userStatus: true,
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              active: true,
+              userRoles: {
+                where: { active: true },
+                select: { role: true },
+              },
+              userStatus: { select: { id: true, name: true } },
             },
           },
         },
