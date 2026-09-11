@@ -119,8 +119,10 @@ export const getAuthenticatedUser = cache(
 
     // Union of every active role. A user stripped of all roles resolves to
     // null rather than to an empty permission set, so they cannot hold a
-    // session that looks valid but authorizes nothing.
-    const authz = await getUserAuthz(user.id);
+    // session that looks valid but authorizes nothing. The version joins the
+    // cache key (Fase 5c): a role edit bumps it, so the next request on ANY
+    // instance refetches instead of serving revoked grants from cache.
+    const authz = await getUserAuthz(user.id, user.sessionVersion);
     if (!authz) return null;
 
     return { ...user, ...authz };

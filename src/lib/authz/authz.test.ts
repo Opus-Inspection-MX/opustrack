@@ -236,6 +236,23 @@ describe("getUserAuthz", () => {
     // denies every page, which reads as a broken app rather than a revoked user.
     expect(await getUserAuthz("u1")).toBeNull();
   });
+
+  it("Fase 5c: sessionVersion distinta vuelve a leer (bump invalida en todas las instancias)", async () => {
+    const findMany = prisma.userRole.findMany as ReturnType<typeof vi.fn>;
+    findMany.mockResolvedValue([
+      { role: { ...FSR, active: true, rolePermission: rp(FSR) } },
+    ]);
+
+    await getUserAuthz("u1", 1);
+    await getUserAuthz("u1", 1);
+    expect(findMany).toHaveBeenCalledTimes(1);
+
+    // A session bump (invalidateRoleSessions) changes the key, so every
+    // instance refetches on the next request instead of serving the
+    // revoked grants until the TTL expires.
+    await getUserAuthz("u1", 2);
+    expect(findMany).toHaveBeenCalledTimes(2);
+  });
 });
 
 describe("helpers", () => {
