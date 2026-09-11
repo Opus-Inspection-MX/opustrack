@@ -8,6 +8,7 @@ import {
 } from "./fixtures/db";
 import { evidence } from "./fixtures/evidence";
 import { fillFieldById } from "./fixtures/forms";
+import { gotoReady } from "./fixtures/navigation";
 
 /**
  * E2E coverage for RF-217 (incident evidence photos).
@@ -50,7 +51,7 @@ test.describe("REPORTER reporta con evidencia (RF-217)", () => {
   test("adjunta un archivo al reportar y queda como IncidentAttachment", async ({
     page,
   }, testInfo) => {
-    await page.goto("/reporter/new");
+    await gotoReady(page, "/reporter/new");
 
     await fillFieldById(page, "title", INCIDENT_TITLE);
     await fillFieldById(
@@ -89,10 +90,17 @@ test.describe("REPORTER reporta con evidencia (RF-217)", () => {
   test("la evidencia se ve en el detalle del incidente", async ({
     page,
   }, testInfo) => {
-    await page.goto(`/reporter/incidents/${incidentId}`);
+    await gotoReady(page, `/reporter/incidents/${incidentId}`);
 
-    await expect(page.getByText("Evidencia fotográfica (1)")).toBeVisible();
-    await expect(page.getByText("evidencia-e2e.pdf")).toBeVisible();
+    // getByRole ignora las copias de streaming en `div[hidden]` (patrón A1
+    // de docs/plans/tema-opus.md): getByText resolvía a 2 <h2> y violaba el
+    // modo estricto en Mobile. Sigue asertando visibilidad para el usuario.
+    await expect(
+      page.getByRole("heading", { name: "Evidencia fotográfica (1)" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: "evidencia-e2e.pdf" }),
+    ).toBeVisible();
 
     await evidence(page, testInfo, "evidencia visible en el detalle");
   });
