@@ -48,25 +48,26 @@ const DEFINITIONS: Record<
     // ADMINISTRADOR became ROOT when the monolithic admin split into a
     // superuser plus per-module administrators.
     roleName: "ROOT",
-    defaultPath: "/admin",
+    // Fase 3: every seed role lands on the personal /inicio home.
+    defaultPath: "/inicio",
   },
   fsr: {
     envKey: "E2E_FSR_EMAIL",
     name: "E2E FSR",
     roleName: "FSR",
-    defaultPath: "/fsr",
+    defaultPath: "/inicio",
   },
   reporter: {
     envKey: "E2E_REPORTER_EMAIL",
     name: "E2E Reporter",
     roleName: "REPORTER",
-    defaultPath: "/reporter",
+    defaultPath: "/inicio",
   },
   guest: {
     envKey: "E2E_GUEST_EMAIL",
     name: "E2E Guest",
     roleName: "GUEST",
-    defaultPath: "/guest",
+    defaultPath: "/inicio",
   },
 };
 

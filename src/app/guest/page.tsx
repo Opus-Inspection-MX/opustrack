@@ -1,7 +1,5 @@
-import { Lock, User } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -9,101 +7,129 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { requireRouteAccess } from "@/lib/auth/auth";
+import { requireAuth, requireRouteAccess } from "@/lib/auth/auth";
+import {
+  getReportScope,
+  incidentScopeWhere,
+  scheduleScopeWhere,
+} from "@/lib/auth/report-scope";
+import { prisma } from "@/lib/database/prisma.singleton";
+import { formatMX } from "@/lib/utils/datetime";
 
+/**
+ * Read-only consultation landing (Fase 3): GUEST holds incidents:read,
+ * assignments:read and schedules:read, so instead of the old static
+ * "restricted" notice this page shows the scoped data without any
+ * create/update affordance — no links to detail pages, no buttons.
+ */
 export default async function GuestDashboard() {
   await requireRouteAccess("/guest");
+  const user = await requireAuth();
+  const scope = await getReportScope(user);
+
+  const [incidents, schedules] = await Promise.all([
+    prisma.incident.findMany({
+      where: { active: true, ...incidentScopeWhere(scope) },
+      include: {
+        status: { select: { name: true } },
+        client: { select: { name: true } },
+      },
+      orderBy: { reportedAt: "desc" },
+      take: 5,
+    }),
+    prisma.schedule.findMany({
+      where: {
+        active: true,
+        scheduledAt: { gte: new Date() },
+        ...scheduleScopeWhere(scope),
+      },
+      orderBy: { scheduledAt: "asc" },
+      take: 5,
+    }),
+  ]);
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div>
         <h1 className="text-3xl font-bold">Panel de Invitado</h1>
-        <p className="text-muted-foreground mt-2">Cuenta con acceso limitado</p>
+        <p className="text-muted-foreground mt-2">
+          Consulta de solo lectura ·{" "}
+          <Link href="/inicio" className="text-primary hover:underline">
+            volver a Inicio
+          </Link>
+        </p>
       </div>
 
-      {/* Access Restriction Notice */}
-      <div className="flex items-center justify-center min-h-[calc(100vh-16rem)]">
-        <Card className="max-w-2xl w-full border-orange-200 bg-orange-50/30">
-          <CardHeader className="text-center pb-4">
-            <div className="flex justify-center mb-4">
-              <div className="h-16 w-16 rounded-full bg-orange-100 flex items-center justify-center">
-                <Lock className="h-8 w-8 text-orange-600" />
-              </div>
-            </div>
-            <CardTitle className="text-2xl">Acceso Restringido</CardTitle>
-            <CardDescription className="text-base">
-              Tu cuenta tiene permisos limitados
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Incidentes recientes</CardTitle>
+            <CardDescription>
+              Últimos reportes en tu alcance, sin acciones disponibles
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="bg-white rounded-lg p-4 border">
-              <h3 className="font-semibold mb-2 flex items-center gap-2">
-                <Badge variant="outline" className="bg-yellow-50">
-                  Rol INVITADO
-                </Badge>
-              </h3>
-              <p className="text-sm text-muted-foreground">
-                Las cuentas de invitados actualmente están limitadas solo a la
-                gestión de perfil. Si necesitas acceso adicional para ver
-                incidentes, asignaciones u otros recursos, por favor contacta a
-                tu administrador del sistema.
+          <CardContent>
+            {incidents.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-4 text-center">
+                No hay incidentes en tu alcance.
               </p>
-            </div>
-
-            <div className="border-t pt-4">
-              <h4 className="text-sm font-medium mb-3">Lo que puedes hacer:</h4>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li className="flex items-start gap-2">
-                  <span className="text-green-500 mt-1">✓</span>
-                  <span>Ver y editar tu información de perfil</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-green-500 mt-1">✓</span>
-                  <span>Cambiar tu contraseña</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-green-500 mt-1">✓</span>
-                  <span>Actualizar información de contacto</span>
-                </li>
+            ) : (
+              <ul className="space-y-3">
+                {incidents.map((incident) => (
+                  <li
+                    key={incident.id}
+                    className="flex items-center justify-between gap-2 border-b py-2 last:border-0"
+                  >
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">{incident.title}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {incident.client?.name ?? "Sin centro"} ·{" "}
+                        {formatMX(incident.reportedAt)}
+                      </p>
+                    </div>
+                    <Badge variant="secondary">
+                      {incident.status?.name ?? "Sin estado"}
+                    </Badge>
+                  </li>
+                ))}
               </ul>
-            </div>
+            )}
+          </CardContent>
+        </Card>
 
-            <div className="border-t pt-4">
-              <h4 className="text-sm font-medium mb-3">
-                Actualmente no disponible:
-              </h4>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li className="flex items-start gap-2">
-                  <span className="text-red-500 mt-1">✗</span>
-                  <span>Ver o crear incidentes</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-red-500 mt-1">✗</span>
-                  <span>Acceder a asignaciones</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-red-500 mt-1">✗</span>
-                  <span>Ver inventario o horarios</span>
-                </li>
+        <Card>
+          <CardHeader>
+            <CardTitle>Próximas programaciones</CardTitle>
+            <CardDescription>Visitas agendadas en tu alcance</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {schedules.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-4 text-center">
+                Nada agendado.
+              </p>
+            ) : (
+              <ul className="space-y-3">
+                {schedules.map((schedule) => (
+                  <li
+                    key={schedule.id}
+                    className="flex items-center justify-between gap-2 border-b py-2 last:border-0"
+                  >
+                    <p className="text-sm font-medium">{schedule.title}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {formatMX(schedule.scheduledAt)}
+                    </p>
+                  </li>
+                ))}
               </ul>
-            </div>
-
-            <div className="flex justify-center pt-4">
-              <Button asChild>
-                <Link href="/profile">
-                  <User className="h-4 w-4 mr-2" />
-                  Ir a Mi Perfil
-                </Link>
-              </Button>
-            </div>
-
-            <div className="text-center text-xs text-muted-foreground border-t pt-4">
-              Para solicitar permisos adicionales, contacta a tu administrador
-            </div>
+            )}
           </CardContent>
         </Card>
       </div>
+
+      <p className="text-center text-xs text-muted-foreground">
+        Tu cuenta es de solo lectura: para solicitar permisos adicionales,
+        contacta a tu administrador.
+      </p>
     </div>
   );
 }

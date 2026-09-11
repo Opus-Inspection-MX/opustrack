@@ -4,6 +4,10 @@ End-to-end coverage for the domain specs in `spec/`. Current coverage:
 
 - **`auth-rbac.spec.ts`** — `spec/01-auth-rbac.md`: login, session redirect by
   `defaultPath`, ADMIN bypass, per-role route denial, public routes.
+- **`inicio.spec.ts`** — the Fase 3 personal home: every role lands from `/`
+  on `/inicio`, and each role sees exactly its widgets (`data-widget-id`
+  present and absent, including multi-role unions). Runs in the `flows`
+  project (serial, shared database).
 - **`incident-lifecycle.spec.ts`** — the business flow from
   `spec/00-overview.md`: a CLIENT reports an incident, an ADMIN schedules and
   assigns it, an FSR marks it seen, starts on site and closes it, and the
@@ -28,7 +32,8 @@ environments. `npm run test:e2e` does three things:
    container survived between runs and test data piled up.
 2. **Migrates and seeds it** with the tracked template seed
    (`initial_load/seed.example.ts`), which is self-contained mock data covering
-   all four roles.
+   all roles. Every seed role lands on `/inicio` (its `defaultPath`); the
+   `defaultPath` values in `fixtures/auth.ts` must match the seed.
 3. **Serves it on port 3100** and runs Playwright against it.
 
 Environment comes from `config/e2e.env`, loaded by `playwright.config.ts`

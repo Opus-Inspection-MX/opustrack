@@ -2,9 +2,7 @@ import {
   AlertTriangle,
   Bell,
   Calendar,
-  CheckCircle,
   CheckCircle2,
-  Clock,
   Wrench,
 } from "lucide-react";
 import moment from "moment";
@@ -48,16 +46,7 @@ export default async function FSRDashboardPage() {
     getMyUnreadCount(),
   ]);
 
-  // Calculate stats
-  const stats = {
-    total: assignments.length,
-    notStarted: assignments.filter((wo) => !wo.startedAt).length,
-    inProgress: assignments.filter((wo) => wo.startedAt && !wo.finishedAt)
-      .length,
-    completed: assignments.filter((wo) => wo.finishedAt).length,
-  };
-
-  // Get pending asignacións (not completed)
+  // Pending asignacións (not completed)
   const urgentAssignments = assignments
     .filter((wo) => !wo.finishedAt)
     .slice(0, 5);
@@ -82,59 +71,12 @@ export default async function FSRDashboardPage() {
       <div>
         <h1 className="text-3xl font-bold">Panel FSR</h1>
         <p className="text-muted-foreground mt-2">
-          ¡Bienvenido de nuevo! Aquí está tu resumen de trabajo
+          ¡Bienvenido de nuevo! Tus conteos viven en{" "}
+          <Link href="/inicio" className="text-primary hover:underline">
+            Inicio
+          </Link>
+          ; aquí está tu trabajo pendiente
         </p>
-      </div>
-
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Asignaciones Totales
-            </CardTitle>
-            <Wrench className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.total}</div>
-            <p className="text-xs text-muted-foreground">Asignadas a ti</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">No Iniciadas</CardTitle>
-            <Clock className="h-4 w-4 text-gray-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.notStarted}</div>
-            <p className="text-xs text-muted-foreground">Esperando comenzar</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">En Progreso</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-yellow-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.inProgress}</div>
-            <p className="text-xs text-muted-foreground">
-              Trabajando actualmente
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Completadas</CardTitle>
-            <CheckCircle className="h-4 w-4 text-green-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.completed}</div>
-            <p className="text-xs text-muted-foreground">Órdenes terminadas</p>
-          </CardContent>
-        </Card>
       </div>
 
       {/* Work Notifications */}

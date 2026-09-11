@@ -153,7 +153,7 @@ export default defineConfig({
     {
       name: "flows",
       testMatch:
-        /(programacion|tracking|errors|vacations|rbac-roles|notifications-mail|incident-operations)\.spec\.ts$/,
+        /(programacion|tracking|errors|vacations|rbac-roles|notifications-mail|incident-operations|inicio)\.spec\.ts$/,
       fullyParallel: false,
       use: { ...devices["Desktop Chrome"], ...SYSTEM_CHROMIUM_USE },
       dependencies: ["setup"],
@@ -161,35 +161,35 @@ export default defineConfig({
     {
       name: "chromium",
       testIgnore:
-        /(catalogs|programacion|tracking|errors|vacations|rbac-roles|notifications-mail|incident-operations)\.spec\.ts$/,
+        /(catalogs|programacion|tracking|errors|vacations|rbac-roles|notifications-mail|incident-operations|inicio)\.spec\.ts$/,
       use: { ...devices["Desktop Chrome"], ...SYSTEM_CHROMIUM_USE },
       dependencies: ["setup"],
     },
     {
       name: "firefox",
       testIgnore:
-        /(catalogs|programacion|tracking|errors|vacations|rbac-roles|notifications-mail|incident-operations)\.spec\.ts$/,
+        /(catalogs|programacion|tracking|errors|vacations|rbac-roles|notifications-mail|incident-operations|inicio)\.spec\.ts$/,
       use: { ...devices["Desktop Firefox"] },
       dependencies: ["setup"],
     },
     {
       name: "webkit",
       testIgnore:
-        /(catalogs|programacion|tracking|errors|vacations|rbac-roles|notifications-mail|incident-operations)\.spec\.ts$/,
+        /(catalogs|programacion|tracking|errors|vacations|rbac-roles|notifications-mail|incident-operations|inicio)\.spec\.ts$/,
       use: { ...devices["Desktop Safari"] },
       dependencies: ["setup"],
     },
     {
       name: "Mobile Chrome",
       testIgnore:
-        /(catalogs|programacion|tracking|errors|vacations|rbac-roles|notifications-mail|incident-operations)\.spec\.ts$/,
+        /(catalogs|programacion|tracking|errors|vacations|rbac-roles|notifications-mail|incident-operations|inicio)\.spec\.ts$/,
       use: { ...devices["Pixel 5"], ...SYSTEM_CHROMIUM_USE },
       dependencies: ["setup"],
     },
     {
       name: "Mobile Safari",
       testIgnore:
-        /(catalogs|programacion|tracking|errors|vacations|rbac-roles|notifications-mail|incident-operations)\.spec\.ts$/,
+        /(catalogs|programacion|tracking|errors|vacations|rbac-roles|notifications-mail|incident-operations|inicio)\.spec\.ts$/,
       use: { ...devices["iPhone 12"] },
       dependencies: ["setup"],
     },
