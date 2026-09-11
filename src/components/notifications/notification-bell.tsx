@@ -2,19 +2,15 @@
 
 import { Bell } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import {
-  canShowBrowserNotifications,
-  requestNotificationPermission,
-  showBrowserNotification,
-} from "@/lib/notifications/browser-notifications";
-import { logger } from "@/lib/observability/logger";
+import { useNotificationFeed } from "@/hooks/use-notification-feed";
+import { requestNotificationPermission } from "@/lib/notifications/browser-notifications";
 import { NotificationList } from "./notification-list";
 
 interface Notification {
@@ -38,118 +34,37 @@ export function NotificationBell({
   initialUnreadCount = 0,
 }: NotificationBellProps) {
   const router = useRouter();
-  const [unreadCount, setUnreadCount] = useState(initialUnreadCount);
-  const [notifications, setNotifications] =
-    useState<Notification[]>(initialNotifications);
   const [isOpen, setIsOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(
-    initialNotifications.length === 0 && initialUnreadCount === 0,
-  );
   const [mounted, setMounted] = useState(false);
+
+  // Polling lives in the feed hook (Fase 6a): a cheap signature every 30 s,
+  // visible tab only, full list only when the signature moves.
+  const handleNavigate = useCallback(
+    (url: string) => router.push(url),
+    [router],
+  );
+  const { notifications, unreadCount, isLoading, setUnreadCount } =
+    useNotificationFeed({
+      initialNotifications,
+      initialUnreadCount,
+      onNavigate: handleNavigate,
+    });
 
   useEffect(() => {
     setMounted(true);
   }, []);
-
-  // Track notification IDs we've already shown browser notifications for
-  const shownNotificationIds = useRef<Set<string>>(new Set());
-  const isFirstFetch = useRef(true);
 
   // Request browser notification permission on mount
   useEffect(() => {
     requestNotificationPermission();
   }, []);
 
-  // Show browser notification for new notifications
-  const showBrowserNotificationForNew = useCallback(
-    (newNotifications: Notification[]) => {
-      // Skip on first fetch to avoid showing notifications for existing items
-      if (isFirstFetch.current) {
-        // Mark all current notifications as "seen" for browser notification purposes
-        for (const n of newNotifications) {
-          shownNotificationIds.current.add(n.id);
-        }
-        isFirstFetch.current = false;
-        return;
-      }
-
-      if (!canShowBrowserNotifications()) return;
-
-      // Find notifications we haven't shown yet
-      const unseenNotifications = newNotifications.filter(
-        (n) => !n.isRead && !shownNotificationIds.current.has(n.id),
-      );
-
-      // Show browser notification for each new unread notification
-      for (const notification of unseenNotifications) {
-        shownNotificationIds.current.add(notification.id);
-
-        showBrowserNotification(notification.title, {
-          body: notification.message,
-          tag: notification.id,
-          onClick: () => {
-            if (notification.actionUrl) {
-              router.push(notification.actionUrl);
-            }
-          },
-        });
-      }
+  const handleCountChange = useCallback(
+    (count: number) => {
+      setUnreadCount(count);
     },
-    [router],
+    [setUnreadCount],
   );
-
-  // Seed the "already seen" set from any initial data. Runs once on mount.
-  const hasInitialData =
-    initialNotifications.length > 0 || initialUnreadCount > 0;
-  // biome-ignore lint/correctness/useExhaustiveDependencies: seed-once on mount only
-  useEffect(() => {
-    if (hasInitialData) {
-      for (const n of initialNotifications) {
-        shownNotificationIds.current.add(n.id);
-      }
-      isFirstFetch.current = false;
-    }
-  }, []);
-
-  // Keep latest browser-notification callback in a ref so the polling
-  // effect doesn't need it as a dep (prevents remount loops).
-  const showBrowserNotificationForNewRef = useRef(
-    showBrowserNotificationForNew,
-  );
-  useEffect(() => {
-    showBrowserNotificationForNewRef.current = showBrowserNotificationForNew;
-  }, [showBrowserNotificationForNew]);
-
-  // Fetch notifications on mount and poll every 10 seconds. Runs once.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: mount-only polling
-  useEffect(() => {
-    const fetchNotifications = async () => {
-      try {
-        const response = await fetch("/api/notifications");
-        if (response.ok) {
-          const data = await response.json();
-          setNotifications(data.notifications);
-          setUnreadCount(data.unreadCount);
-          showBrowserNotificationForNewRef.current(data.notifications);
-        }
-      } catch (error) {
-        logger.error("Failed to fetch notifications:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    if (!hasInitialData) {
-      fetchNotifications();
-    }
-
-    const interval = setInterval(fetchNotifications, 10000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const handleCountChange = useCallback((count: number) => {
-    setUnreadCount(count);
-  }, []);
 
   if (!mounted) {
     return (
