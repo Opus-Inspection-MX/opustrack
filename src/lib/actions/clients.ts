@@ -6,10 +6,12 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { logAudit } from "@/lib/audit/log-audit";
 import { requirePermission } from "@/lib/auth/auth";
+import { requireClientAccess } from "@/lib/auth/access";
+import { getReportScope } from "@/lib/auth/report-scope";
 import { includeRoles, whereHasRole } from "@/lib/authz/user-queries";
 import { prisma } from "@/lib/database/prisma.singleton";
 import { assignUserToClient } from "@/lib/utils/client-assignments";
-import { ok, rejected } from "./result";
+import { BusinessRuleError, ok, rejected } from "./result";
 
 export type ClientFormData = {
   code: string;
@@ -36,12 +38,19 @@ type GetClientsParams = {
  * Returns only { id, code, name, stateId } for all active Clients — no counts,
  * no pagination. Use this instead of getClients() when you just need options.
  * `stateId` lets callers narrow the options by plaza without a round-trip.
+ *
+ * Scoped like GET /api/clients (H-03): the same question used to have two
+ * answers depending on which door it knocked on.
  */
 export async function getClientsForSelect() {
-  await requirePermission("clients:read");
+  const user = await requirePermission("clients:read");
+  const scope = await getReportScope(user);
 
   return prisma.client.findMany({
-    where: { active: true },
+    where: {
+      active: true,
+      ...(scope.clientIds === null ? {} : { id: { in: scope.clientIds } }),
+    },
     select: { id: true, code: true, name: true, stateId: true },
     orderBy: { name: "asc" },
   });
@@ -49,25 +58,31 @@ export async function getClientsForSelect() {
 
 /**
  * Get Clients with relations, paginated and searchable (code, name, company).
+ *
+ * Scoped like GET /api/clients (H-03).
  */
 export async function getClients(params?: GetClientsParams) {
-  await requirePermission("clients:read");
+  const user = await requirePermission("clients:read");
+  const scope = await getReportScope(user);
 
   const page = params?.page ?? 1;
   const limit = params?.limit ?? 10;
   const skip = (page - 1) * limit;
   const search = params?.search?.trim();
 
+  const scopeFilter =
+    scope.clientIds === null ? {} : { id: { in: scope.clientIds } };
   const where: Prisma.ClientWhereInput = search
     ? {
         active: true,
+        ...scopeFilter,
         OR: [
           { code: { contains: search, mode: "insensitive" } },
           { name: { contains: search, mode: "insensitive" } },
           { companyName: { contains: search, mode: "insensitive" } },
         ],
       }
-    : { active: true };
+    : { active: true, ...scopeFilter };
 
   const [clients, total] = await Promise.all([
     prisma.client.findMany({
@@ -138,9 +153,20 @@ export async function getClients(params?: GetClientsParams) {
 
 /**
  * Get single Client by ID
+ *
+ * Scoped like GET /api/clients (H-03). A Client outside the caller's scope
+ * answers null — the page turns it into notFound(), and the denial never
+ * confirms the center exists.
  */
 export async function getClientById(id: string) {
-  await requirePermission("clients:read");
+  const user = await requirePermission("clients:read");
+
+  try {
+    await requireClientAccess(user, id);
+  } catch (error) {
+    if (error instanceof BusinessRuleError) return null;
+    throw error;
+  }
 
   const client = await prisma.client.findUnique({
     where: { id },

@@ -9,6 +9,7 @@ import {
   getReportScope,
   incidentScopeWhere,
   type ReportScope,
+  withScope,
 } from "@/lib/auth/report-scope";
 import { whereHasRole } from "@/lib/authz/user-queries";
 import { getSlaState, type SlaState } from "@/lib/constants/sla-policy";
@@ -284,8 +285,6 @@ function buildTrackingWhere(
       scope.clientIds !== null && !scope.clientIds.includes(filters.clientId)
         ? { in: [] }
         : filters.clientId;
-  } else {
-    Object.assign(where, incidentScopeWhere(scope));
   }
 
   if (filters?.typeId) {
@@ -342,7 +341,10 @@ function buildTrackingWhere(
     };
   }
 
-  return { where, assignmentsWhere };
+  // The scope composes with AND, never with spread: a spread would let the
+  // caller filter replace the scope's `clientId` key (or vice versa) and
+  // leak another Client's rows (H-02, H-18).
+  return { where: withScope(where, incidentScopeWhere(scope)), assignmentsWhere };
 }
 
 /**
