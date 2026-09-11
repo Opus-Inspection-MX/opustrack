@@ -33,10 +33,10 @@ const GUARDED_PORTALS = [
  */
 const PUBLIC_PAGES = new Set([
   "src/app/page.tsx",
-  "src/app/login/page.tsx",
+  "src/app/(auth)/login/page.tsx",
   "src/app/signup/page.tsx",
-  "src/app/logout/page.tsx",
-  "src/app/unauthorized/page.tsx",
+  "src/app/(auth)/logout/page.tsx",
+  "src/app/(auth)/unauthorized/page.tsx",
 ]);
 
 function walk(dir: string): string[] {

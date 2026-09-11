@@ -1,3 +1,5 @@
+import { TableSkeleton } from "@/components/common/skeletons";
+
 export default function Loading() {
-  return null;
+  return <TableSkeleton rows={6} />;
 }
