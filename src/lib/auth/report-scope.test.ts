@@ -135,9 +135,7 @@ describe("fsrScopeWhere", () => {
 
 describe("withScope", () => {
   it("ANDs the caller where with a non-empty scope fragment", () => {
-    expect(
-      withScope({ active: true }, { clientId: { in: ["c1"] } }),
-    ).toEqual({
+    expect(withScope({ active: true }, { clientId: { in: ["c1"] } })).toEqual({
       AND: [{ active: true }, { clientId: { in: ["c1"] } }],
     });
   });
@@ -145,7 +143,7 @@ describe("withScope", () => {
   it("returns the caller where untouched for an empty scope", () => {
     // An admin scope carries no fragment: no AND wrapper, same reference.
     const where = { active: true };
-    expect(withScope(where, {})).toBe(where);
+    expect(withScope(where, {} as typeof where)).toBe(where);
   });
 });
 
