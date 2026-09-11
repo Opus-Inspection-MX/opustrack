@@ -73,6 +73,7 @@ import { scheduleScopeWhere } from "@/lib/auth/report-scope";
 import {
   createSchedule,
   deleteSchedule,
+  getClientsForSchedules,
   getSchedules,
   quickUpdateSchedule,
 } from "./schedules";
@@ -320,6 +321,38 @@ describe("deleteSchedule (RF-405)", () => {
 
     expect(prismaMock.incident.count).toHaveBeenCalledWith({
       where: { scheduleId: "s1", active: true },
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// H-11 · getClientsForSchedules filtra Client por su propio id
+// ---------------------------------------------------------------------------
+// Regression: the picker spread a `{ clientId }` fragment into
+// `prisma.client.findMany`, but Client has no `clientId` column — Prisma
+// rejects the query at runtime for every scoped caller.
+describe("getClientsForSchedules · alcance por Cliente (H-11)", () => {
+  it("limits a scoped caller to their own clients by id", async () => {
+    getReportScope.mockResolvedValue({ clientIds: ["c1", "c2"] });
+    prismaMock.client.findMany.mockResolvedValue([]);
+
+    await getClientsForSchedules();
+
+    expect(prismaMock.client.findMany).toHaveBeenCalledWith({
+      where: { active: true, id: { in: ["c1", "c2"] } },
+      orderBy: { name: "asc" },
+    });
+  });
+
+  it("does not restrict an admin scope", async () => {
+    getReportScope.mockResolvedValue({ clientIds: null });
+    prismaMock.client.findMany.mockResolvedValue([]);
+
+    await getClientsForSchedules();
+
+    expect(prismaMock.client.findMany).toHaveBeenCalledWith({
+      where: { active: true },
+      orderBy: { name: "asc" },
     });
   });
 });
