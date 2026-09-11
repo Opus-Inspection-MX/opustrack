@@ -2,19 +2,20 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { canAccessRoute } from "@/lib/authz/route-access";
+import { flattenMenu } from "@/lib/navigation/menu";
 import {
   isCatalogPermission,
   KNOWN_ROUTE_GAPS,
-  PERMISSIONS,
+  PERMISSION_LIST,
   type PermissionName,
-  resolveSeedGrants,
   ROOT_ONLY,
   ROUTE_REQUIRES,
+  resolveSeedGrants,
   SEED_ROLES,
   type SeedRoleCode,
+  type SeedRoleDef,
   validateGrants,
 } from "./permission-catalog";
-import { flattenMenu } from "@/lib/navigation/menu";
 
 /**
  * The catalog is the single source of truth — enforced instead of remembered.
@@ -36,7 +37,7 @@ import { flattenMenu } from "@/lib/navigation/menu";
  */
 
 const NON_SUPERUSER_ROLES = (Object.keys(SEED_ROLES) as SeedRoleCode[]).filter(
-  (role) => !SEED_ROLES[role].isSuperuser,
+  (role) => !(SEED_ROLES[role] as SeedRoleDef).isSuperuser,
 );
 
 function grantsOf(role: SeedRoleCode): ReadonlySet<string> {
@@ -45,7 +46,7 @@ function grantsOf(role: SeedRoleCode): ReadonlySet<string> {
 
 describe("catálogo de permisos: forma", () => {
   it("no tiene nombres duplicados", () => {
-    const names = PERMISSIONS.map((permission) => permission.name);
+    const names = PERMISSION_LIST.map((permission) => permission.name);
     expect(new Set(names).size).toBe(names.length);
   });
 
@@ -72,15 +73,18 @@ describe("catálogo de permisos: forma", () => {
   it("ROUTE_REQUIRES y los gaps conocidos referencian permisos reales", () => {
     const offenders: string[] = [];
     for (const [route, required] of Object.entries(ROUTE_REQUIRES)) {
-      if (!isCatalogPermission(route)) offenders.push(`ruta desconocida: ${route}`);
+      if (!isCatalogPermission(route))
+        offenders.push(`ruta desconocida: ${route}`);
       for (const name of required) {
         if (!isCatalogPermission(name)) offenders.push(`${route} → ${name}`);
       }
     }
     for (const gap of KNOWN_ROUTE_GAPS) {
-      if (!isCatalogPermission(gap.route)) offenders.push(`gap ruta: ${gap.route}`);
+      if (!isCatalogPermission(gap.route))
+        offenders.push(`gap ruta: ${gap.route}`);
       for (const name of gap.missing) {
-        if (!isCatalogPermission(name)) offenders.push(`gap ${gap.route} → ${name}`);
+        if (!isCatalogPermission(name))
+          offenders.push(`gap ${gap.route} → ${name}`);
       }
     }
     expect(offenders).toEqual([]);
@@ -89,14 +93,18 @@ describe("catálogo de permisos: forma", () => {
 
 describe("H-20: el seed falla en vez de ignorar grants mal escritos", () => {
   it("validateGrants otorga lo conocido", () => {
-    expect(validateGrants("ADMIN_OPERACION", ["incidents:read", "route:inicio"])).toEqual([
-      "incidents:read",
-      "route:inicio",
-    ]);
+    expect(
+      validateGrants("ADMIN_OPERACION", ["incidents:read", "route:inicio"]),
+    ).toEqual(["incidents:read", "route:inicio"]);
   });
 
   it("validateGrants lanza nombrando el permiso desconocido", () => {
-    expect(() => validateGrants("ADMIN_OPERACION", ["incidents:read", "incidents:cancelled"])).toThrow(
+    expect(() =>
+      validateGrants("ADMIN_OPERACION", [
+        "incidents:read",
+        "incidents:cancelled",
+      ]),
+    ).toThrow(
       /Unknown permission "incidents:cancelled" in seed grants for role "ADMIN_OPERACION"/,
     );
   });
@@ -144,7 +152,8 @@ type RequiredUse = { file: string; line: number; name: string };
 function requiredPermissions(): RequiredUse[] {
   const callPattern =
     /(?:requirePermission|withPermission|canPerform|assertPermission|userHasPermission|whereHasPermission|getUserIdsWithPermission)\(\s*["']([^"'`$\n]+)["']/g;
-  const catalogConfigPattern = /(?:read|create|update|del):\s*["']([^"'`$\n]+)["']/g;
+  const catalogConfigPattern =
+    /(?:read|create|update|del):\s*["']([^"'`$\n]+)["']/g;
   const found: RequiredUse[] = [];
 
   for (const file of scannedSources()) {
@@ -193,7 +202,9 @@ describe("alcanzabilidad: lo que el código exige lo tiene algún rol (H-06)", (
 
   it("ROOT_ONLY no tiene entradas muertas: todo lo listado se exige de verdad", () => {
     const required = new Set(requiredPermissions().map((use) => use.name));
-    const dead = (ROOT_ONLY as readonly string[]).filter((name) => !required.has(name));
+    const dead = (ROOT_ONLY as readonly string[]).filter(
+      (name) => !required.has(name),
+    );
     expect(dead).toEqual([]);
   });
 });
@@ -227,7 +238,9 @@ describe("coherencia ruta–acciones", () => {
       const listed = ROUTE_REQUIRES[gap.route] ?? [];
       for (const name of gap.missing) {
         if (!listed.includes(name)) {
-          offenders.push(`${gap.route} ya no requiere ${name}: actualiza ROUTE_REQUIRES`);
+          offenders.push(
+            `${gap.route} ya no requiere ${name}: actualiza ROUTE_REQUIRES`,
+          );
           continue;
         }
         if (grantsOf(gap.role).has(name)) {
@@ -243,10 +256,10 @@ describe("coherencia ruta–acciones", () => {
 
 describe("cobertura del menú: cada ruta tiene su route:*", () => {
   it("toda URL del menú está cubierta por un permiso de ruta del catálogo", () => {
-    const prefixes = PERMISSIONS.filter((p) => p.routePath && !p.exact).map(
+    const prefixes = PERMISSION_LIST.filter((p) => p.routePath && !p.exact).map(
       (p) => p.routePath as string,
     );
-    const exact = PERMISSIONS.filter((p) => p.routePath && p.exact).map(
+    const exact = PERMISSION_LIST.filter((p) => p.routePath && p.exact).map(
       (p) => p.routePath as string,
     );
     const uncovered = flattenMenu()
@@ -256,7 +269,9 @@ describe("cobertura del menú: cada ruta tiene su route:*", () => {
   });
 
   it("los permisos de ruta existen como PermissionName tipado", () => {
-    const routeNames = PERMISSIONS.filter((p) => p.routePath).map((p) => p.name);
+    const routeNames = PERMISSION_LIST.filter((p) => p.routePath).map(
+      (p) => p.name,
+    );
     expect(routeNames.length).toBeGreaterThan(0);
     const check: PermissionName = "route:admin-tracking";
     expect(routeNames).toContain(check);

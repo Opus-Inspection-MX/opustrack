@@ -1,5 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import { SCOPE_ALL_CLIENTS } from "@/lib/authz/authz";
+import type { PermissionName } from "@/lib/authz/permission-catalog";
 import {
   getUserIdsWithPermission,
   whereHasPermission,
@@ -65,7 +66,7 @@ export async function operationsAudience(
 }
 
 /** Only someone who can approve a vacation needs to know one is waiting. */
-const VACATION_APPROVERS = "vacations:approve";
+const VACATION_APPROVERS: PermissionName = "vacations:approve";
 
 /** Whoever decides on a vacation request. */
 export async function getVacationApprovers(): Promise<string[]> {

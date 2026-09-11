@@ -26,6 +26,7 @@ import {
   userHasAnyPermission,
   userHasPermission,
 } from "./authz";
+import type { PermissionName } from "./permission-catalog";
 
 /**
  * These tests pin the rule that makes multi-role work: a user's authorization
@@ -165,8 +166,11 @@ describe("permisos del superusuario", () => {
     const authz = mergeRoles([ROOT]);
 
     // Implicit rather than seeded: a permission created after ROOT was seeded
-    // must not lock the superuser out of the feature it guards.
-    expect(userHasPermission(authz, "permiso:inventado")).toBe(true);
+    // must not lock the superuser out of the feature it guards. The cast is
+    // deliberate: the name sits OUTSIDE the catalog, which is the point.
+    expect(
+      userHasPermission(authz, "permiso:inventado" as PermissionName),
+    ).toBe(true);
     expect(userCanPerformAction(authz, "loquesea", "create")).toBe(true);
     expect(userCanAccessRoute(authz, "/admin/roles")).toBe(true);
   });

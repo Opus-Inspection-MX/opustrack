@@ -1,6 +1,7 @@
 // src/lib/authz/authz.ts
 
 import { prisma } from "@/lib/database/prisma.singleton";
+import type { PermissionName } from "./permission-catalog";
 import { canAccessRoute, type RouteGrants } from "./route-access";
 
 /**
@@ -14,7 +15,7 @@ import { canAccessRoute, type RouteGrants } from "./route-access";
 // NOTE (PR2): the value moved with the single sessionVersion bump
 // (spec ADDED-2). Pre-PR2 tokens carrying "scope:all-clientes" fail
 // validation until re-login; fresh logins emit "scope:all-clients".
-export const SCOPE_ALL_CLIENTS = "scope:all-clients";
+export const SCOPE_ALL_CLIENTS: PermissionName = "scope:all-clients";
 
 /**
  * Type definitions for authorization
@@ -223,7 +224,10 @@ export async function getRoleByName(roleName: string): Promise<Role | null> {
 }
 
 /** Check if a role has a specific permission */
-export function roleHasPermission(role: Role, permissionName: string): boolean {
+export function roleHasPermission(
+  role: Role,
+  permissionName: PermissionName,
+): boolean {
   return role.permissions.some((perm) => perm.name === permissionName);
 }
 
@@ -253,7 +257,7 @@ export function getAccessibleRoutes(user: UserAuthz): string[] {
  */
 export function userHasPermission(
   user: UserAuthz,
-  permissionName: string,
+  permissionName: PermissionName,
 ): boolean {
   return user.isSuperuser || user.permissions.has(permissionName);
 }
@@ -270,7 +274,7 @@ export function userCanPerformAction(
 /** Check multiple permissions (requires ALL) */
 export function userHasAllPermissions(
   user: UserAuthz,
-  permissionNames: string[],
+  permissionNames: PermissionName[],
 ): boolean {
   return permissionNames.every((permName) => userHasPermission(user, permName));
 }
@@ -278,7 +282,7 @@ export function userHasAllPermissions(
 /** Check multiple permissions (requires ANY) */
 export function userHasAnyPermission(
   user: UserAuthz,
-  permissionNames: string[],
+  permissionNames: PermissionName[],
 ): boolean {
   return permissionNames.some((permName) => userHasPermission(user, permName));
 }

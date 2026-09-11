@@ -26,26 +26,42 @@ export type PermissionDef = {
  * now upsert exactly this list, so a fresh database converges to it.
  */
 export const PERMISSIONS = [
-  { name: "route:inicio", description: "Personal landing screen", routePath: "/inicio" },
+  {
+    name: "route:inicio",
+    description: "Personal landing screen",
+    routePath: "/inicio",
+  },
   {
     name: "route:admin",
     description:
       "Whole admin panel (/admin prefix). For the landing page alone use route:admin-panel",
     routePath: "/admin",
   },
-  { name: "route:fsr", description: "Access to FSR dashboard", routePath: "/fsr" },
+  {
+    name: "route:fsr",
+    description: "Access to FSR dashboard",
+    routePath: "/fsr",
+  },
   {
     name: "route:reporter",
     description: "Access to reporter dashboard",
     routePath: "/reporter",
   },
-  { name: "route:guest", description: "Access to guest dashboard", routePath: "/guest" },
+  {
+    name: "route:guest",
+    description: "Access to guest dashboard",
+    routePath: "/guest",
+  },
   {
     name: "route:profile",
     description: "Access to the shared profile page",
     routePath: "/profile",
   },
-  { name: "route:vacations", description: "My vacations", routePath: "/vacations" },
+  {
+    name: "route:vacations",
+    description: "My vacations",
+    routePath: "/vacations",
+  },
   {
     name: "route:notifications",
     description: "My notifications",
@@ -97,13 +113,21 @@ export const PERMISSIONS = [
     description: "Organization: clients, lines, equipment, states",
     routePath: "/admin/clients",
   },
-  { name: "route:admin-lines", description: "Lines", routePath: "/admin/lines" },
+  {
+    name: "route:admin-lines",
+    description: "Lines",
+    routePath: "/admin/lines",
+  },
   {
     name: "route:admin-equipments",
     description: "Equipment",
     routePath: "/admin/equipments",
   },
-  { name: "route:admin-states", description: "States", routePath: "/admin/states" },
+  {
+    name: "route:admin-states",
+    description: "States",
+    routePath: "/admin/states",
+  },
   {
     name: "route:admin-vehicles",
     description: "Vehicles",
@@ -215,7 +239,12 @@ export const PERMISSIONS = [
     resource: "incidents",
     action: "cancel",
   },
-  { name: "users:read", description: "View users", resource: "users", action: "read" },
+  {
+    name: "users:read",
+    description: "View users",
+    resource: "users",
+    action: "read",
+  },
   {
     name: "users:create",
     description: "Create users",
@@ -234,7 +263,12 @@ export const PERMISSIONS = [
     resource: "users",
     action: "delete",
   },
-  { name: "roles:read", description: "View roles", resource: "roles", action: "read" },
+  {
+    name: "roles:read",
+    description: "View roles",
+    resource: "roles",
+    action: "read",
+  },
   {
     name: "roles:create",
     description: "Create roles",
@@ -397,7 +431,12 @@ export const PERMISSIONS = [
     resource: "reports",
     action: "export",
   },
-  { name: "states:read", description: "View states", resource: "states", action: "read" },
+  {
+    name: "states:read",
+    description: "View states",
+    resource: "states",
+    action: "read",
+  },
   {
     name: "states:create",
     description: "Create states",
@@ -561,7 +600,12 @@ export const PERMISSIONS = [
     resource: "vehicle-trips",
     action: "delete",
   },
-  { name: "lines:read", description: "View lines", resource: "lines", action: "read" },
+  {
+    name: "lines:read",
+    description: "View lines",
+    resource: "lines",
+    action: "read",
+  },
   {
     name: "lines:create",
     description: "Create lines",
@@ -723,6 +767,14 @@ export const PERMISSIONS = [
 
 /** Every permission name the system knows. Auth helper signatures use it. */
 export type PermissionName = (typeof PERMISSIONS)[number]["name"];
+
+/**
+ * Widened view of PERMISSIONS for runtime consumers (seeds, scripts) that
+ * read the optional fields. Iterating the `as const` tuple directly narrows
+ * each element to its literal shape, so `perm.resource` fails to compile on
+ * route entries that omit it.
+ */
+export const PERMISSION_LIST: readonly PermissionDef[] = PERMISSIONS;
 
 /** Fast membership check for seeds, scripts and tests. */
 const CATALOG_NAMES: ReadonlySet<string> = new Set(
@@ -970,7 +1022,10 @@ export const SEED_ROLES = {
  * Separated from `resolveSeedGrants` so tests can prove the throw without a
  * seed role carrying a bad grant (which `tsc` would already reject).
  */
-export function validateGrants(role: string, grants: readonly string[]): PermissionName[] {
+export function validateGrants(
+  role: string,
+  grants: readonly string[],
+): PermissionName[] {
   for (const grant of grants) {
     if (!CATALOG_NAMES.has(grant)) {
       throw new Error(
@@ -1104,7 +1159,10 @@ export const ROUTE_REQUIRES: Record<string, readonly PermissionName[]> = {
     "assignments:delete",
     "assignments:complete",
   ],
-  "route:admin-assignment-activities": ["assignments:read", "assignments:update"],
+  "route:admin-assignment-activities": [
+    "assignments:read",
+    "assignments:update",
+  ],
   "route:admin-reports": ["reports:view", "reports:export", "clients:read"],
   "route:admin-organization": [
     "clients:read",
@@ -1113,7 +1171,12 @@ export const ROUTE_REQUIRES: Record<string, readonly PermissionName[]> = {
     "clients:delete",
     "users:read",
   ],
-  "route:admin-lines": ["lines:read", "lines:create", "lines:update", "lines:delete"],
+  "route:admin-lines": [
+    "lines:read",
+    "lines:create",
+    "lines:update",
+    "lines:delete",
+  ],
   "route:admin-equipments": [
     "equipments:read",
     "equipments:create",
@@ -1215,7 +1278,12 @@ export const KNOWN_ROUTE_GAPS: readonly KnownRouteGap[] = [
   {
     route: "route:admin-vacation-accrual",
     role: "ADMIN_VACACIONES",
-    missing: ["settings:read", "settings:create", "settings:update", "settings:delete"],
+    missing: [
+      "settings:read",
+      "settings:create",
+      "settings:update",
+      "settings:delete",
+    ],
     ref: "H-06: the accrual page requires requireRouteAccess('/admin/settings') plus settings:*; Fase 0d switches the actions to vacations:manage.",
   },
   {

@@ -1,6 +1,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requirePermission } from "@/lib/auth/auth";
+import type { PermissionName } from "@/lib/authz/permission-catalog";
 import { ok, rejected } from "./result";
 
 /**
@@ -39,7 +40,12 @@ export type CatalogSchema = {
 
 export type CatalogConfig<ListRow, MappedRow, Detail, Created> = {
   /** Permission names for read/create/update/delete. */
-  permissions: { read: string; create: string; update: string; del: string };
+  permissions: {
+    read: PermissionName;
+    create: PermissionName;
+    update: PermissionName;
+    del: PermissionName;
+  };
   /** List path, revalidated on every write; delete redirects here. */
   basePath: string;
   /** Update also revalidates `${basePath}/${id}` unless false. */
