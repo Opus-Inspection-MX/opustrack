@@ -3,6 +3,7 @@ import { account, authFile } from "./fixtures/auth";
 import { db, uniqueSuffix } from "./fixtures/db";
 import { createTrackingFixture, type TrackingFixture } from "./fixtures/flows";
 import { fillStable, pickFromCombobox } from "./fixtures/forms";
+import { gotoReady } from "./fixtures/navigation";
 
 /**
  * Business rules reaching the user — in a PRODUCTION build.
@@ -43,7 +44,7 @@ test("un catálogo con hijos no se elimina, y el usuario ve por qué", async ({
     select: { id: true, name: true },
   });
 
-  await page.goto("/admin/incident-status");
+  await gotoReady(page, "/admin/incident-status");
   await fillStable(page.getByRole("searchbox"), status.name);
 
   const row = page.getByRole("row").filter({ hasText: status.name });
@@ -96,7 +97,7 @@ test("la contraseña actual equivocada se explica, no se generaliza", async ({
     select: { sessionVersion: true },
   });
 
-  await page.goto("/profile");
+  await gotoReady(page, "/profile");
   await page.getByRole("button", { name: "Cambiar Contraseña" }).click();
 
   await fillStable(page.locator("#currentPassword"), "contrasena-incorrecta");
@@ -151,7 +152,7 @@ test.describe("regla de negocio devuelta desde Seguimiento", () => {
   });
 
   test("muestra el motivo exacto en un toast", async ({ page }) => {
-    await page.goto("/admin/tracking");
+    await gotoReady(page, "/admin/tracking");
 
     await fillStable(page.locator("#folio"), `INC-${fixture.incidentId}`);
     await page.getByRole("button", { name: "Buscar" }).click();
@@ -221,7 +222,7 @@ test.describe("regla XOR de festivos", () => {
     "sin día ni lunes N, el operador lee el motivo en español",
     async ({ page }) => {
       const suffix = uniqueSuffix();
-      await page.goto("/admin/holidays/new");
+      await gotoReady(page, "/admin/holidays/new");
 
       await fillStable(page.locator("#name"), `E2E Festivo ${suffix}`);
       await fillStable(page.locator("#month"), "5");

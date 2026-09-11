@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { authFile } from "./fixtures/auth";
 import { db, uniqueSuffix } from "./fixtures/db";
+import { gotoReady } from "./fixtures/navigation";
 
 /**
  * Vacation balances: entitlement from years of service, spending in business
@@ -338,7 +339,7 @@ test.fixme(
       },
     });
 
-    await page.goto("/admin/vacations");
+    await gotoReady(page, "/admin/vacations");
     const row = page.locator("tr").filter({ hasText: user.name });
     await row.getByRole("button", { name: "Aprobar" }).click();
 
@@ -382,7 +383,7 @@ test.fixme(
 test.fixme(
   "la página de vacaciones del admin muestra saldo y calendario anual",
   async ({ page }) => {
-    await page.goto("/admin/vacations");
+    await gotoReady(page, "/admin/vacations");
 
     await expect(
       page.getByRole("heading", { name: "Solicitudes de Vacaciones" }),
@@ -405,7 +406,7 @@ test("el FSR ve su propio saldo sin selector de usuario", async ({
 
   // Self-service moved off the FSR portal: EMPLEADO has no portal, so the
   // page lives at a shared /vacations for every staff role.
-  await page.goto("/vacations");
+  await gotoReady(page, "/vacations");
   await expect(
     page.getByRole("heading", { name: "Mis Vacaciones" }),
   ).toBeVisible();
@@ -425,7 +426,7 @@ test("el FSR ve su propio saldo sin selector de usuario", async ({
 test.fixme(
   "el admin puede consultar la tabla de días por antigüedad",
   async ({ page }) => {
-    await page.goto("/admin/settings/vacation-accrual");
+    await gotoReady(page, "/admin/settings/vacation-accrual");
 
     await expect(
       page.getByRole("heading", { name: "Días de Vacaciones" }),

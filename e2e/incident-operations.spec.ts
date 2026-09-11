@@ -3,6 +3,7 @@ import { account, authFile } from "./fixtures/auth";
 import { db, disconnectDb, uniqueSuffix } from "./fixtures/db";
 import { evidence } from "./fixtures/evidence";
 import { fillFieldById } from "./fixtures/forms";
+import { gotoReady } from "./fixtures/navigation";
 
 /**
  * Day-to-day incident operations, with photographic evidence of each step.
@@ -95,7 +96,7 @@ test.describe("El FSR documenta el trabajo", () => {
   test("ve su asignación con el incidente que la originó", async ({
     page,
   }, testInfo) => {
-    await page.goto(`/fsr/assignments/${assignmentId}`);
+    await gotoReady(page, `/fsr/assignments/${assignmentId}`);
 
     await expect(page.getByText(INCIDENT_TITLE).first()).toBeVisible();
     await evidence(page, testInfo, "asignacion recibida por el FSR");
@@ -106,7 +107,7 @@ test.describe("El FSR documenta el trabajo", () => {
   }, testInfo) => {
     const description = `Se reemplazó el sensor de la línea (${SUFFIX})`;
 
-    await page.goto(`/fsr/assignments/${assignmentId}`);
+    await gotoReady(page, `/fsr/assignments/${assignmentId}`);
     await page.getByRole("button", { name: "Agregar Actividad" }).click();
     await fillFieldById(page, "description", description);
     await evidence(page, testInfo, "actividad capturada antes de guardar");
@@ -146,7 +147,7 @@ test.describe("El FSR documenta el trabajo", () => {
   test("registra refacciones y equipo usados", async ({ page }, testInfo) => {
     const part = `Sensor de proximidad ${SUFFIX}`;
 
-    await page.goto(`/fsr/assignments/${assignmentId}`);
+    await gotoReady(page, `/fsr/assignments/${assignmentId}`);
     await fillFieldById(page, "itemName", part);
     await fillFieldById(page, "itemQuantity", "2");
     await fillFieldById(page, "itemUnitPrice", "150.5");
@@ -172,7 +173,7 @@ test.describe("El FSR documenta el trabajo", () => {
   });
 
   test("pausa y retoma el trabajo", async ({ page }, testInfo) => {
-    await page.goto(`/fsr/assignments/${assignmentId}`);
+    await gotoReady(page, `/fsr/assignments/${assignmentId}`);
 
     // Work has to be running before it can be paused.
     await page.getByRole("button", { name: "Marcar como visto" }).click();
@@ -209,7 +210,7 @@ test.describe("El admin lo sigue desde Seguimiento de Atención", () => {
   test("encuentra el incidente por folio y ve su avance", async ({
     page,
   }, testInfo) => {
-    await page.goto("/admin/tracking");
+    await gotoReady(page, "/admin/tracking");
     await fillFieldById(page, "folio", `INC-${incidentId}`);
     await page.getByRole("button", { name: "Buscar" }).click();
 
@@ -241,7 +242,7 @@ test.describe("El admin lo sigue desde Seguimiento de Atención", () => {
   test.fixme(
     "la incidencia muestra Editar y Crear Asignación usables",
     async ({ page }) => {
-      await page.goto(`/admin/incidents/${incidentId}`);
+      await gotoReady(page, `/admin/incidents/${incidentId}`);
 
       // The detail page proves it loaded for this role: folio plus sections.
       await expect(page.getByText(`Folio: INC-${incidentId}`)).toBeVisible();
@@ -259,7 +260,7 @@ test.describe("El admin lo sigue desde Seguimiento de Atención", () => {
   );
 
   test("la asignación muestra Editar usable", async ({ page }) => {
-    await page.goto(`/admin/assignments/${assignmentId}`);
+    await gotoReady(page, `/admin/assignments/${assignmentId}`);
 
     await page.getByRole("link", { name: "Editar" }).click();
     await page.waitForURL(`**/admin/assignments/${assignmentId}/edit`);
@@ -277,7 +278,7 @@ test.describe("El admin lo sigue desde Seguimiento de Atención", () => {
   test.fixme(
     "cancela la incidencia desde su página de detalle",
     async ({ page }) => {
-      await page.goto(`/admin/incidents/${incidentId}`);
+      await gotoReady(page, `/admin/incidents/${incidentId}`);
 
       await page.getByRole("button", { name: "Cancelar incidencia" }).click();
       await page.getByLabel(/Razón/).fill(`E2E cancelación ${SUFFIX}`);
