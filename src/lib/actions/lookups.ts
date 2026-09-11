@@ -49,6 +49,20 @@ const insensitive = (value: string) =>
 const withActive = (parsed: Record<string, unknown>) =>
   parsed.active !== undefined ? { active: parsed.active as boolean } : {};
 
+/**
+ * System-row delete guard (Fase 3, H-08).
+ *
+ * A row carrying a stable `code` is owned by the state machines and can
+ * never be deactivated; `name` and `color` stay editable as labels. Custom
+ * rows (code null) deactivate as before.
+ */
+async function systemRowGuard(
+  findCode: () => Promise<{ code: string | null } | null>,
+): Promise<string | null> {
+  const row = await findCode();
+  return row?.code ? "No se puede desactivar un estado del sistema." : null;
+}
+
 // ==================== STATES ====================
 
 export type StateFormData = {
@@ -204,6 +218,10 @@ const userStatuses = createCatalogActions({
     }),
   runDeactivate: (id) =>
     prisma.userStatus.update({ where: { id }, data: { active: false } }),
+  preDelete: (id) =>
+    systemRowGuard(() =>
+      prisma.userStatus.findUnique({ where: { id }, select: { code: true } }),
+    ),
   countChildren: (id) =>
     prisma.user.count({ where: { userStatusId: id, active: true } }),
   blockedMessage: (n) =>
@@ -391,6 +409,7 @@ const incidentStatuses = createCatalogActions({
   mapRow: (row) => ({
     id: row.id,
     name: row.name,
+    code: row.code,
     color: row.color,
     active: row.active,
     incidentCount: row._count.incidents,
@@ -423,6 +442,13 @@ const incidentStatuses = createCatalogActions({
     }),
   runDeactivate: (id) =>
     prisma.incidentStatus.update({ where: { id }, data: { active: false } }),
+  preDelete: (id) =>
+    systemRowGuard(() =>
+      prisma.incidentStatus.findUnique({
+        where: { id },
+        select: { code: true },
+      }),
+    ),
   countChildren: (id) =>
     prisma.incident.count({ where: { statusId: id, active: true } }),
   blockedMessage: (n) =>
@@ -493,6 +519,7 @@ const assignmentStatuses = createCatalogActions({
   mapRow: (row) => ({
     id: row.id,
     name: row.name,
+    code: row.code,
     color: row.color,
     active: row.active,
     _count: { assignments: row._count.assignments },
@@ -523,6 +550,13 @@ const assignmentStatuses = createCatalogActions({
     }),
   runDeactivate: (id) =>
     prisma.assignmentStatus.update({ where: { id }, data: { active: false } }),
+  preDelete: (id) =>
+    systemRowGuard(() =>
+      prisma.assignmentStatus.findUnique({
+        where: { id },
+        select: { code: true },
+      }),
+    ),
   countChildren: (id) =>
     prisma.assignment.count({ where: { statusId: id, active: true } }),
   blockedMessage: (n) =>
@@ -691,6 +725,13 @@ const vehicleStatuses = createCatalogActions({
     }),
   runDeactivate: (id) =>
     prisma.vehicleStatus.update({ where: { id }, data: { active: false } }),
+  preDelete: (id) =>
+    systemRowGuard(() =>
+      prisma.vehicleStatus.findUnique({
+        where: { id },
+        select: { code: true },
+      }),
+    ),
   countChildren: (id) =>
     prisma.vehicle.count({ where: { statusId: id, active: true } }),
   blockedMessage: (n) =>
@@ -778,6 +819,13 @@ const vehicleTripStatuses = createCatalogActions({
       where: { id },
       data: { active: false },
     }),
+  preDelete: (id) =>
+    systemRowGuard(() =>
+      prisma.vehicleTripStatus.findUnique({
+        where: { id },
+        select: { code: true },
+      }),
+    ),
   countChildren: (id) =>
     prisma.vehicleTrip.count({ where: { statusId: id, active: true } }),
   blockedMessage: (n) =>

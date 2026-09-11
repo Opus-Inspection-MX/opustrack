@@ -12,6 +12,7 @@ import { CatalogTable } from "@/components/common/catalog-table";
 import { PageContainer } from "@/components/common/page-container";
 import { PageHeader } from "@/components/common/page-header";
 import { StatusBadge } from "@/components/common/status-badge";
+import { SystemBadge } from "@/components/common/system-badge";
 import { Button } from "@/components/ui/button";
 import { useDebounce } from "@/hooks/use-debounce";
 import { toast } from "@/hooks/use-toast";
@@ -30,7 +31,12 @@ const columns: CatalogColumn<VehicleStatus>[] = [
   },
   {
     header: "Nombre",
-    cell: (row) => <span className="font-medium">{row.name}</span>,
+    cell: (row) => (
+      <span className="flex items-center gap-2 font-medium">
+        {row.name}
+        <SystemBadge code={row.code} />
+      </span>
+    ),
   },
   {
     header: "Vehículos",
