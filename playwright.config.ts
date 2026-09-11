@@ -42,12 +42,14 @@ const BASE_URL =
   process.env.PLAYWRIGHT_TEST_BASE_URL ?? `http://localhost:${PORT}`;
 
 // Boxes without Playwright's bundled browsers (e.g. Arch Linux, where the
-// Ubuntu-built Chromium doesn't run): fall back to the system Chromium when
-// it exists. CI/Ubuntu keeps the bundled build. Firefox/WebKit projects are
-// untouched — they still need their own binaries.
-const SYSTEM_CHROMIUM = existsSync("/usr/bin/chromium")
-  ? "/usr/bin/chromium"
-  : undefined;
+// Ubuntu-built Chromium doesn't run): fall back to the system Chromium when it
+// exists and this is NOT CI. On CI the bundled build is mandatory — a missing
+// browser there must fail loudly instead of silently testing another binary
+// (H-23).
+const SYSTEM_CHROMIUM =
+  !process.env.CI && existsSync("/usr/bin/chromium")
+    ? "/usr/bin/chromium"
+    : undefined;
 const SYSTEM_CHROMIUM_USE = SYSTEM_CHROMIUM
   ? { launchOptions: { executablePath: SYSTEM_CHROMIUM } }
   : {};
@@ -105,8 +107,10 @@ export default defineConfig({
   testDir: "./e2e",
   // Only .spec.ts files are browser tests. `*.test.ts` under e2e/ belongs to
   // vitest (pure helpers); the setup projects override this with their own
-  // testMatch.
+  // testMatch. `zz-*` debug specs never run anywhere, not even locally: they
+  // are throwaway files that must not be committed.
   testMatch: /.*\.spec\.ts$/,
+  testIgnore: /zz-.*\.spec\.ts$/,
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
