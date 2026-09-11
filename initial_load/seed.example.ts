@@ -170,6 +170,11 @@ async function main() {
       const permissionsData = [
         // Route-based permissions
         {
+          name: "route:inicio",
+          description: "Pantalla inicial personalizada",
+          routePath: "/inicio",
+        },
+        {
           name: "route:admin",
           description:
             "TODO el panel de administración (prefijo /admin). Para dar solo la página de inicio usa route:admin-panel",
@@ -1001,6 +1006,14 @@ async function main() {
         "vacations:delete",
       ];
 
+      // Universal home: every role lands on /inicio and reaches the inbox
+      // and its profile from there. Spread into all seven seed roles.
+      const UNIVERSAL_ROUTES = [
+        "route:inicio",
+        "route:notifications",
+        "route:profile",
+      ];
+
       const OPERATIONS_ROUTES = [
         "route:admin-panel",
         "route:admin-tracking",
@@ -1025,7 +1038,7 @@ async function main() {
           name: "ROOT",
           description:
             "Superusuario: administra catálogos, roles, permisos y usuarios",
-          defaultPath: "/admin",
+          defaultPath: "/inicio",
           isSuperuser: true,
           priority: 100,
           permissions: [
@@ -1038,12 +1051,11 @@ async function main() {
           name: "ADMIN_OPERACION",
           description:
             "Administra incidentes, programación, asignaciones y organización",
-          defaultPath: "/admin/tracking",
+          defaultPath: "/inicio",
           priority: 80,
           permissions: [
             ...OPERATIONS_ROUTES,
-            "route:profile",
-            "route:notifications",
+            ...UNIVERSAL_ROUTES,
             // Diffuses to FSR / REPORTER / GUEST / ADMIN_OPERACION (targets
             // seeded in RoleBroadcastTarget below).
             "notifications:broadcast",
@@ -1099,6 +1111,11 @@ async function main() {
             "users:read",
             "reports:view",
             "reports:export",
+            // Owns the tracking queue: every tracking action gates on
+            // tracking:read/update, so without these the role's own landing
+            // (/admin/tracking) denies access (Fase 3 · 3.0.1).
+            "tracking:read",
+            "tracking:update",
             "notifications:read",
             "notifications:update",
             "notifications:delete",
@@ -1108,13 +1125,12 @@ async function main() {
         {
           name: "ADMIN_VACACIONES",
           description: "Administra las vacaciones de todo el personal",
-          defaultPath: "/admin/vacations",
+          defaultPath: "/inicio",
           priority: 70,
           permissions: [
             "route:admin-panel",
             "route:admin-vacations",
-            "route:profile",
-            "route:notifications",
+            ...UNIVERSAL_ROUTES,
             // Diffuses to EMPLEADO / FSR / ADMIN_OPERACION / ADMIN_VACACIONES
             // (targets seeded in RoleBroadcastTarget below).
             "notifications:broadcast",
@@ -1145,12 +1161,11 @@ async function main() {
           name: "FSR",
           description:
             "Field Service Representative - System user with management capabilities",
-          defaultPath: "/fsr",
+          defaultPath: "/inicio",
           priority: 50,
           permissions: [
             "route:fsr",
-            "route:profile",
-            "route:notifications",
+            ...UNIVERSAL_ROUTES,
             ...SELF_SERVICE_VACATIONS,
             "incidents:read",
             "incidents:update",
@@ -1192,11 +1207,10 @@ async function main() {
           name: "EMPLEADO",
           description:
             "Personal de oficina: solo su perfil y sus propias vacaciones",
-          defaultPath: "/vacations",
+          defaultPath: "/inicio",
           priority: 30,
           permissions: [
-            "route:profile",
-            "route:notifications",
+            ...UNIVERSAL_ROUTES,
             ...SELF_SERVICE_VACATIONS,
             "notifications:read",
             "notifications:update",
@@ -1206,12 +1220,11 @@ async function main() {
         {
           name: "REPORTER",
           description: "Reporter user - Raises incidents from Client",
-          defaultPath: "/reporter",
+          defaultPath: "/inicio",
           priority: 10,
           permissions: [
             "route:reporter",
-            "route:profile",
-            "route:notifications",
+            ...UNIVERSAL_ROUTES,
             "incidents:read",
             "incidents:create",
             "incident-types:read", // Needed to select incident type when creating
@@ -1230,12 +1243,11 @@ async function main() {
         {
           name: "GUEST",
           description: "Guest user - Read-only access (no create permissions)",
-          defaultPath: "/guest",
+          defaultPath: "/inicio",
           priority: 20,
           permissions: [
             "route:guest",
-            "route:profile",
-            "route:notifications",
+            ...UNIVERSAL_ROUTES,
             // No SELF_SERVICE_VACATIONS: a read-only account holds no balance.
             // (Re-seeding never REMOVES grants — the Phase 1 data migration
             // deactivates the four vacation rows on existing databases.)
