@@ -3,14 +3,9 @@
 import {
   Activity,
   AlertTriangle,
-  CheckCircle,
-  Eye,
   Lock,
-  MapPin,
   Paperclip,
-  Pause,
-  Play,
-  Trash2,
+  ScrollText,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -20,12 +15,24 @@ import { AssignmentActivityForm } from "@/components/assignments/assignment-acti
 import { AssignmentItems } from "@/components/assignments/assignment-items";
 import { AttachmentPreview } from "@/components/assignments/attachment-preview";
 import { OdtFolioCapture } from "@/components/assignments/odt-folio-capture";
-import { BackButton } from "@/components/common/back-button";
+import { PageContainer } from "@/components/common/page-container";
+import { PageHeader } from "@/components/common/page-header";
+import {
+  ActivitiesSection,
+  AssignmentDetails,
+  AssignmentHeader,
+  AttachmentsSection,
+  JobActions,
+} from "@/components/fsr/assignment-detail";
 import { PendingDrafts } from "@/components/offline/pending-drafts";
-import { Badge } from "@/components/ui/badge";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
+import { Card, CardContent } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/hooks/use-toast";
 import {
@@ -45,7 +52,6 @@ import {
 import { isFailure } from "@/lib/actions/result";
 import { logger } from "@/lib/observability/logger";
 import { describeEnqueueFailure, saveDraft } from "@/lib/offline/flush";
-import { formatMX } from "@/lib/utils/datetime";
 
 interface AssignmentStatus {
   id: number;
@@ -415,25 +421,32 @@ export default function FSRAssignmentDetailPage({
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Spinner size="lg" text="Cargando asignación..." />
-      </div>
+      <PageContainer>
+        <div className="flex h-64 items-center justify-center">
+          <Spinner size="lg" text="Cargando asignación..." />
+        </div>
+      </PageContainer>
     );
   }
 
   if (error || !assignment) {
     return (
-      <div className="space-y-6">
-        <div className="flex items-center gap-4">
-          <BackButton fallback="/fsr/assignments" />
-          <h1 className="text-3xl font-bold">Asignación</h1>
-        </div>
+      <PageContainer>
+        <PageHeader
+          title="Asignación"
+          breadcrumbs={[
+            { label: "Mis Asignaciones", href: "/fsr/assignments" },
+          ]}
+        />
         <Card className="border-destructive">
           <CardContent className="py-8">
             <div className="flex flex-col items-center gap-4 text-center">
-              <AlertTriangle className="h-12 w-12 text-destructive" />
+              <AlertTriangle
+                className="h-12 w-12 text-destructive"
+                aria-hidden
+              />
               <div>
-                <h3 className="text-lg font-semibold mb-2">
+                <h3 className="mb-2 text-lg font-semibold">
                   Error al Cargar la Asignación
                 </h3>
                 <p className="text-muted-foreground">
@@ -441,7 +454,7 @@ export default function FSRAssignmentDetailPage({
                     "Asignación no encontrada o no tienes permiso para verla."}
                 </p>
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-col gap-2 sm:flex-row">
                 <Button onClick={() => fetchData()} variant="outline">
                   Reintentar
                 </Button>
@@ -452,7 +465,7 @@ export default function FSRAssignmentDetailPage({
             </div>
           </CardContent>
         </Card>
-      </div>
+      </PageContainer>
     );
   }
 
@@ -480,112 +493,42 @@ export default function FSRAssignmentDetailPage({
           : undefined;
   const closeDisabled = actionLoading || !hasEvidence || !hasOdt;
 
+  const jobActions = (
+    <JobActions
+      isAssigned={isAssigned}
+      isSeen={isSeen}
+      isStarted={isStarted}
+      isInProgress={isInProgress}
+      actionLoading={actionLoading}
+      closeDisabled={closeDisabled}
+      closeDisabledReason={closeDisabledReason}
+      onMarkSeen={() => void handleMarkSeen()}
+      onStartWork={() => void handleStartWork()}
+      onPauseWork={() => void handlePauseWork()}
+      onResumeWork={() => void handleResumeWork()}
+      onCloseWork={() => void handleCloseWork()}
+    />
+  );
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <BackButton fallback="/fsr/assignments" />
-        <div className="flex-1">
-          <h1 className="text-3xl font-bold">Asignación</h1>
-          <p className="text-muted-foreground">
-            {assignment.incident?.title || "Sin incidente"}
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {incidentLocked ? (
-            <Badge
-              variant="default"
-              className={
-                incidentStatus === "CANCELADA"
-                  ? "bg-red-600 text-base py-2 px-4"
-                  : "bg-green-600 text-base py-2 px-4"
-              }
-            >
-              <Lock className="mr-2 h-4 w-4" />
-              Incidencia{" "}
-              {incidentStatus === "CANCELADA" ? "cancelada" : "cerrada"}
-            </Badge>
-          ) : (
-            <>
-              {/* ASIGNADO → VISTO */}
-              {isAssigned && (
-                <Button
-                  onClick={handleMarkSeen}
-                  disabled={actionLoading}
-                  className="bg-cyan-600 hover:bg-cyan-700"
-                >
-                  <Eye className="mr-2 h-4 w-4" />
-                  Marcar como visto
-                </Button>
-              )}
-              {/* VISTO → INICIADO (GPS) */}
-              {isSeen && (
-                <Button
-                  onClick={handleStartWork}
-                  disabled={actionLoading}
-                  variant="secondary"
-                >
-                  <Play className="mr-2 h-4 w-4" />
-                  Iniciar trabajo
-                </Button>
-              )}
-              {/* INICIADO → EN_PROGRESO | CERRADO */}
-              {isStarted && (
-                <>
-                  <Button
-                    onClick={handlePauseWork}
-                    disabled={actionLoading}
-                    variant="outline"
-                  >
-                    <Pause className="mr-2 h-4 w-4" />
-                    Pausar (En progreso)
-                  </Button>
-                  <Button
-                    onClick={handleCloseWork}
-                    disabled={closeDisabled}
-                    title={closeDisabledReason}
-                    className="bg-green-600 hover:bg-green-700"
-                  >
-                    <CheckCircle className="mr-2 h-4 w-4" />
-                    Cerrar trabajo
-                  </Button>
-                </>
-              )}
-              {/* EN_PROGRESO → INICIADO | CERRADO */}
-              {isInProgress && (
-                <>
-                  <Button
-                    onClick={handleResumeWork}
-                    disabled={actionLoading}
-                    variant="secondary"
-                  >
-                    <Play className="mr-2 h-4 w-4" />
-                    Retomar
-                  </Button>
-                  <Button
-                    onClick={handleCloseWork}
-                    disabled={closeDisabled}
-                    title={closeDisabledReason}
-                    className="bg-green-600 hover:bg-green-700"
-                  >
-                    <CheckCircle className="mr-2 h-4 w-4" />
-                    Cerrar trabajo
-                  </Button>
-                </>
-              )}
-              {/* CERRADO (asignación cerrada, sin reapertura por FSR) */}
-              {isClosed && (
-                <Badge
-                  variant="default"
-                  className="bg-green-600 text-lg py-2 px-4"
-                >
-                  Cerrada
-                </Badge>
-              )}
-            </>
-          )}
-        </div>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Asignación"
+        description={assignment.incident?.title || "Sin incidente"}
+        breadcrumbs={[
+          { label: "Mis Asignaciones", href: "/fsr/assignments" },
+          { label: `AS-${assignment.folio}` },
+        ]}
+        actions={<div className="hidden md:block">{jobActions}</div>}
+      />
+
+      <AssignmentHeader
+        incidentTitle={assignment.incident?.title || "Sin incidente"}
+        statusName={currentStatus}
+        incidentLocked={incidentLocked}
+        incidentStatus={incidentStatus}
+        assignmentClosed={isClosed}
+      />
 
       {assignmentId && (
         <PendingDrafts
@@ -599,12 +542,12 @@ export default function FSRAssignmentDetailPage({
         <Card
           className={
             incidentStatus === "CANCELADA"
-              ? "border-red-500 bg-red-50 dark:bg-red-950/30"
-              : "border-green-500 bg-green-50 dark:bg-green-950/30"
+              ? "border-danger/50 bg-danger-muted"
+              : "border-success/50 bg-success-muted"
           }
         >
-          <CardContent className="py-3 flex items-center gap-3">
-            <Lock className="h-5 w-5" />
+          <CardContent className="flex items-center gap-3 py-3">
+            <Lock className="h-5 w-5" aria-hidden />
             <p className="text-sm">
               {incidentStatus === "CANCELADA"
                 ? "La incidencia padre está cancelada. No puedes hacer cambios en esta asignación."
@@ -614,277 +557,154 @@ export default function FSRAssignmentDetailPage({
         </Card>
       )}
 
-      {/* Parent Incident Info */}
-      {assignment.incident && (
-        <Card className="bg-muted/30">
-          <CardContent className="py-4">
-            <div className="flex items-center gap-3">
-              <AlertTriangle className="h-5 w-5 text-primary" />
-              <div className="flex-1">
-                <p className="text-sm text-muted-foreground">
-                  Incidente Relacionado
-                </p>
-                <p className="font-medium">{assignment.incident.title}</p>
-                <div className="flex gap-4 text-xs text-muted-foreground mt-1">
-                  {assignment.incident.type?.name && (
-                    <span>Tipo: {assignment.incident.type.name}</span>
-                  )}
-                  {assignment.incident.status?.name && (
-                    <span>Estado: {assignment.incident.status.name}</span>
-                  )}
-                  {assignment.incident.client?.name && (
-                    <span>Client: {assignment.incident.client.name}</span>
-                  )}
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      <Accordion
+        type="multiple"
+        defaultValue={["details", "odt", "activities", "items", "attachments"]}
+        className="space-y-4"
+      >
+        <AccordionItem
+          value="details"
+          className="rounded-xl border px-4 last:border-b"
+        >
+          <AccordionTrigger className="text-base font-semibold hover:no-underline">
+            Detalles de la asignación
+          </AccordionTrigger>
+          <AccordionContent className="pb-4">
+            <AssignmentDetails
+              folio={assignment.folio}
+              statusName={currentStatus}
+              createdAt={assignment.createdAt}
+              seenAt={assignment.seenAt}
+              seenByName={assignment.seenBy?.name}
+              startedAt={assignment.startedAt}
+              finishedAt={assignment.finishedAt}
+              startLatitude={assignment.startLatitude}
+              startLongitude={assignment.startLongitude}
+              startAddress={assignment.startAddress}
+              endLatitude={assignment.endLatitude}
+              endLongitude={assignment.endLongitude}
+              endAddress={assignment.endAddress}
+              notes={assignment.notes}
+              incidentTitle={assignment.incident?.title}
+              incidentTypeName={assignment.incident?.type?.name}
+              incidentStatusName={assignment.incident?.status?.name}
+              incidentClientName={assignment.incident?.client?.name}
+            />
+          </AccordionContent>
+        </AccordionItem>
 
-      {/* Assignment Details */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Detalles de la Asignación</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <span className="font-medium">Estado:</span>{" "}
-            <Badge
-              variant="outline"
-              style={{
-                backgroundColor: assignment.status?.color
-                  ? `${assignment.status.color}20`
-                  : undefined,
-                borderColor: assignment.status?.color || undefined,
-                color: assignment.status?.color || undefined,
-              }}
-            >
-              {assignment.status?.name || "N/A"}
-            </Badge>
-          </div>
-          <div>
-            <span className="font-medium">Folio:</span> AS-{assignment.folio}
-          </div>
-
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            {assignment.createdAt && (
-              <div>
-                <span className="font-medium">Creada:</span>{" "}
-                {formatMX(assignment.createdAt)}
-              </div>
-            )}
-            {assignment.seenAt && (
-              <div>
-                <span className="font-medium">Vista:</span>{" "}
-                {formatMX(assignment.seenAt)}
-                {assignment.seenBy?.name && ` por ${assignment.seenBy.name}`}
-              </div>
-            )}
-            {assignment.startedAt && (
-              <div>
-                <span className="font-medium">Iniciada:</span>{" "}
-                {formatMX(assignment.startedAt)}
-              </div>
-            )}
-            {assignment.finishedAt && (
-              <div>
-                <span className="font-medium">Cerrada:</span>{" "}
-                {formatMX(assignment.finishedAt)}
-              </div>
-            )}
-          </div>
-          {(assignment.startLatitude != null ||
-            assignment.endLatitude != null) && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm pt-2 border-t">
-              {assignment.startLatitude != null &&
-                assignment.startLongitude != null && (
-                  <a
-                    href={`https://www.google.com/maps?q=${assignment.startLatitude},${assignment.startLongitude}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex items-start gap-2 text-blue-600 hover:underline"
-                  >
-                    <MapPin className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                    <span>
-                      <span className="font-medium">Inicio:</span>{" "}
-                      {assignment.startLatitude.toFixed(5)},{" "}
-                      {assignment.startLongitude.toFixed(5)}
-                      {assignment.startAddress && (
-                        <>
-                          <br />
-                          <span className="text-muted-foreground">
-                            {assignment.startAddress}
-                          </span>
-                        </>
-                      )}
-                    </span>
-                  </a>
-                )}
-              {assignment.endLatitude != null &&
-                assignment.endLongitude != null && (
-                  <a
-                    href={`https://www.google.com/maps?q=${assignment.endLatitude},${assignment.endLongitude}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex items-start gap-2 text-blue-600 hover:underline"
-                  >
-                    <MapPin className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                    <span>
-                      <span className="font-medium">Cierre:</span>{" "}
-                      {assignment.endLatitude.toFixed(5)},{" "}
-                      {assignment.endLongitude.toFixed(5)}
-                      {assignment.endAddress && (
-                        <>
-                          <br />
-                          <span className="text-muted-foreground">
-                            {assignment.endAddress}
-                          </span>
-                        </>
-                      )}
-                    </span>
-                  </a>
-                )}
-            </div>
-          )}
-          {assignment.notes && (
-            <div>
-              <p className="font-medium text-sm mb-1">Notas:</p>
-              <p className="text-sm text-muted-foreground">
-                {assignment.notes}
-              </p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      <Separator />
-
-      {assignmentId && (
-        <OdtFolioCapture
-          assignmentId={assignmentId}
-          initialValue={assignment.odtFolio || null}
-          disabled={isCompleted}
-          onChange={(v) =>
-            setAssignment((prev) => (prev ? { ...prev, odtFolio: v } : prev))
-          }
-        />
-      )}
-
-      {/* Work Activities Section */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-bold flex items-center gap-2">
-              <Activity className="h-6 w-6" />
-              Actividades de Trabajo ({activities.length})
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              Documenta todo el trabajo realizado en esta orden
-            </p>
-          </div>
-          {!isCompleted && (
-            <Button
-              onClick={() => setShowActivityForm(!showActivityForm)}
-              variant={showActivityForm ? "outline" : "default"}
-            >
-              {showActivityForm ? "Cancelar" : "Agregar Actividad"}
-            </Button>
-          )}
-        </div>
-
-        {showActivityForm && assignmentId && (
-          <AssignmentActivityForm
-            assignmentId={assignmentId}
-            onSuccess={handleActivitySuccess}
-            onCancel={() => setShowActivityForm(false)}
-          />
-        )}
-
-        {activities.length === 0 && !showActivityForm && (
-          <Card>
-            <CardContent className="py-8 text-center text-muted-foreground">
-              Sin actividades aún. Haz clic en "Agregar Actividad" para
-              registrar el trabajo.
-            </CardContent>
-          </Card>
-        )}
-
-        {activities.map((activity) => (
-          <Card key={activity.id}>
-            <CardHeader>
-              <div className="flex items-end justify-end gap-2">
-                {!isCompleted && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleDeleteActivity(activity.id)}
-                    className="text-destructive"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
-              <AssignmentActivityEdit
-                activity={activity}
-                onSuccess={fetchData}
-                readOnly={isCompleted}
+        <AccordionItem
+          value="odt"
+          className="rounded-xl border px-4 last:border-b"
+        >
+          <AccordionTrigger className="text-base font-semibold hover:no-underline">
+            Folio ODT
+          </AccordionTrigger>
+          <AccordionContent className="pb-4">
+            {assignmentId && (
+              <OdtFolioCapture
+                assignmentId={assignmentId}
+                initialValue={assignment.odtFolio || null}
+                disabled={isCompleted}
+                onChange={(v) =>
+                  setAssignment((prev) =>
+                    prev ? { ...prev, odtFolio: v } : prev,
+                  )
+                }
               />
-            </CardHeader>
-          </Card>
-        ))}
-      </div>
+            )}
+          </AccordionContent>
+        </AccordionItem>
 
-      <Separator />
-
-      {/* Refacciones y equipo usados: lista abierta, sin catálogo detrás. */}
-      {assignmentId && (
-        <AssignmentItems
-          assignmentId={assignmentId}
-          items={items}
-          onChange={fetchData}
-        />
-      )}
-
-      <Separator />
-
-      {/* Attachments Section */}
-      <div className="space-y-4">
-        <div>
-          <h2 className="text-2xl font-bold flex items-center gap-2">
-            <Paperclip className="h-6 w-6" />
-            Archivos Adjuntos ({attachments.length})
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            Fotos, videos y documentos adjuntos a esta orden
-          </p>
-        </div>
-
-        {attachments.length === 0 && (
-          <Card>
-            <CardContent className="py-8 text-center text-muted-foreground">
-              Sin archivos adjuntos. Los archivos se suben al agregar
-              actividades.
-            </CardContent>
-          </Card>
-        )}
-
-        {attachments.length > 0 && (
-          <div className="grid grid-cols-1 gap-3">
-            {attachments.map((attachment: AssignmentAttachment) => (
-              <Card key={attachment.id}>
-                <CardContent className="p-0">
-                  <AttachmentPreview
-                    attachment={attachment}
-                    onDelete={!isCompleted ? handleDeleteAttachment : undefined}
-                    readOnly={isCompleted}
+        <AccordionItem
+          value="activities"
+          className="rounded-xl border px-4 last:border-b"
+        >
+          <AccordionTrigger className="text-base font-semibold hover:no-underline">
+            <span className="flex items-center gap-2">
+              <Activity className="h-4 w-4" aria-hidden />
+              Actividades ({activities.length})
+            </span>
+          </AccordionTrigger>
+          <AccordionContent className="pb-4">
+            <ActivitiesSection
+              activities={activities}
+              showForm={showActivityForm}
+              form={
+                showActivityForm && assignmentId ? (
+                  <AssignmentActivityForm
+                    assignmentId={assignmentId}
+                    onSuccess={handleActivitySuccess}
+                    onCancel={() => setShowActivityForm(false)}
                   />
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
-      </div>
+                ) : null
+              }
+              renderEditor={(activity) => (
+                <AssignmentActivityEdit
+                  activity={activity}
+                  onSuccess={fetchData}
+                  readOnly={isCompleted}
+                />
+              )}
+              canEdit={!isCompleted}
+              onToggleForm={() => setShowActivityForm(!showActivityForm)}
+              onDeleteActivity={(id) => void handleDeleteActivity(id)}
+            />
+          </AccordionContent>
+        </AccordionItem>
+
+        <AccordionItem
+          value="items"
+          className="rounded-xl border px-4 last:border-b"
+        >
+          <AccordionTrigger className="text-base font-semibold hover:no-underline">
+            <span className="flex items-center gap-2">
+              <ScrollText className="h-4 w-4" aria-hidden />
+              Refacciones y equipo ({items.length})
+            </span>
+          </AccordionTrigger>
+          <AccordionContent className="pb-4">
+            {/* Refacciones y equipo usados: lista abierta, sin catálogo detrás. */}
+            {assignmentId && (
+              <AssignmentItems
+                assignmentId={assignmentId}
+                items={items}
+                onChange={fetchData}
+              />
+            )}
+          </AccordionContent>
+        </AccordionItem>
+
+        <AccordionItem
+          value="attachments"
+          className="rounded-xl border px-4 last:border-b"
+        >
+          <AccordionTrigger className="text-base font-semibold hover:no-underline">
+            <span className="flex items-center gap-2">
+              <Paperclip className="h-4 w-4" aria-hidden />
+              Adjuntos ({attachments.length})
+            </span>
+          </AccordionTrigger>
+          <AccordionContent className="pb-4">
+            <AttachmentsSection
+              attachments={attachments}
+              renderPreview={(attachment) => (
+                <AttachmentPreview
+                  attachment={attachment}
+                  onDelete={!isCompleted ? handleDeleteAttachment : undefined}
+                  readOnly={isCompleted}
+                />
+              )}
+            />
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
+
+      {!incidentLocked && !isClosed && (
+        <div className="sticky bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-20 rounded-xl border bg-background/95 p-3 shadow-lg backdrop-blur md:hidden">
+          {jobActions}
+        </div>
+      )}
 
       {/* Back Button */}
       <div className="flex justify-end">
@@ -892,6 +712,6 @@ export default function FSRAssignmentDetailPage({
           Volver a Órdenes
         </Button>
       </div>
-    </div>
+    </PageContainer>
   );
 }

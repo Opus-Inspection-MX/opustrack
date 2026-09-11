@@ -1,4 +1,6 @@
 import { notFound } from "next/navigation";
+import { PageContainer } from "@/components/common/page-container";
+import { PageHeader } from "@/components/common/page-header";
 import { TripEndForm } from "@/components/vehicle-trips/trip-end-form";
 import { getVehicleTripById } from "@/lib/actions/vehicle-trips";
 
@@ -40,27 +42,31 @@ export default async function EndTripPage({
 
   if (trip.endedAt) {
     return (
-      <div className="container mx-auto py-6 space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold">Finalizar Viaje</h1>
-          <p className="text-destructive">
-            Este viaje ya fue completado o cancelado.
-          </p>
-        </div>
-      </div>
+      <PageContainer size="narrow">
+        <PageHeader
+          title="Finalizar Viaje"
+          description="Este viaje ya fue completado o cancelado."
+          breadcrumbs={[
+            { label: "Mis Viajes", href: "/fsr/vehicle-trips" },
+            { label: "Finalizar Viaje" },
+          ]}
+        />
+      </PageContainer>
     );
   }
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Finalizar Viaje</h1>
-        <p className="text-muted-foreground">
-          Registra la lectura final del odómetro
-        </p>
-      </div>
+    <PageContainer size="narrow">
+      <PageHeader
+        title="Finalizar Viaje"
+        description="Registra la lectura final del odómetro"
+        breadcrumbs={[
+          { label: "Mis Viajes", href: "/fsr/vehicle-trips" },
+          { label: "Finalizar Viaje" },
+        ]}
+      />
 
       <TripEndForm trip={trip} />
-    </div>
+    </PageContainer>
   );
 }

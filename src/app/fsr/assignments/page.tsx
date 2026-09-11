@@ -7,9 +7,14 @@ import {
   Wrench,
 } from "lucide-react";
 import Link from "next/link";
+import { EmptyState } from "@/components/common/empty-state";
+import { PageContainer } from "@/components/common/page-container";
+import { PageHeader } from "@/components/common/page-header";
+import { SectionCard } from "@/components/common/section-card";
+import { StatCard } from "@/components/common/stat-card";
+import { StatusBadge, type StatusTone } from "@/components/common/status-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getMyAssignments } from "@/lib/actions/assignments";
 import { requireRouteAccess } from "@/lib/auth/auth";
 import { formatMX } from "@/lib/utils/datetime";
@@ -28,12 +33,12 @@ const STATUS_LABELS: Record<string, string> = {
   CERRADO: "Cerrada",
 };
 
-const STATUS_BADGE_CLASS: Record<string, string> = {
-  ASIGNADO: "bg-cyan-50 text-cyan-700 border-cyan-300",
-  VISTO: "bg-cyan-100 text-cyan-800 border-cyan-400",
-  INICIADO: "bg-blue-100 text-blue-800 border-blue-400",
-  EN_PROGRESO: "bg-amber-100 text-amber-800 border-amber-400",
-  CERRADO: "bg-green-600 text-white",
+const STATUS_TONE: Record<string, StatusTone> = {
+  ASIGNADO: "open",
+  VISTO: "info",
+  INICIADO: "progress",
+  EN_PROGRESO: "progress",
+  CERRADO: "done",
 };
 
 export default async function FSRAssignmentsPage() {
@@ -54,190 +59,134 @@ export default async function FSRAssignmentsPage() {
   const getStatusBadge = (status: AssignmentStatusRef) => {
     const name = status?.name ?? "";
     const label = STATUS_LABELS[name] ?? name ?? "Sin estado";
-    const cls = STATUS_BADGE_CLASS[name] ?? "";
-    if (name === "CERRADO") {
-      return <Badge className="bg-green-600 text-white">{label}</Badge>;
-    }
     return (
-      <Badge variant="outline" className={cls}>
-        {label}
-      </Badge>
+      <StatusBadge tone={STATUS_TONE[name] ?? "neutral"}>{label}</StatusBadge>
     );
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold">Mis Asignaciones</h1>
-        <p className="text-muted-foreground mt-2">
-          Asignaciones asignadas a ti
-        </p>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Mis Asignaciones"
+        description="Asignaciones asignadas a ti"
+      />
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total</CardTitle>
-            <Wrench className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.total}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Por visualizar
-            </CardTitle>
-            <Eye className="h-4 w-4 text-cyan-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-cyan-600">
-              {stats.pendingSeen}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">No Iniciadas</CardTitle>
-            <Clock className="h-4 w-4 text-gray-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.notStarted}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">En Progreso</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-yellow-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.inProgress}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Completadas</CardTitle>
-            <CheckCircle className="h-4 w-4 text-green-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.completed}</div>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+        <StatCard title="Total" value={stats.total} icon={Wrench} />
+        <StatCard
+          title="Por visualizar"
+          value={stats.pendingSeen}
+          icon={Eye}
+          tone="info"
+        />
+        <StatCard title="No Iniciadas" value={stats.notStarted} icon={Clock} />
+        <StatCard
+          title="En Progreso"
+          value={stats.inProgress}
+          icon={AlertTriangle}
+          tone="warning"
+        />
+        <StatCard
+          title="Completadas"
+          value={stats.completed}
+          icon={CheckCircle}
+          tone="success"
+        />
       </div>
 
       {/* Assignments List */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Asignaciones ({assignments.length})</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {assignments.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              <Wrench className="mx-auto h-12 w-12 mb-4 opacity-50" />
-              <p>No tienes asignaciones asignadas</p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {assignments.map((wo) => (
-                <div
-                  key={wo.id}
-                  className="border rounded-lg p-4 hover:bg-accent/50 transition-colors"
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1 space-y-3">
-                      {/* Status */}
-                      <div className="flex items-center gap-2 flex-wrap">
-                        {getStatusBadge(wo.status ?? null)}
-                        {wo.incident?.type && (
-                          <Badge variant="outline">
-                            {wo.incident.type.name}
-                          </Badge>
-                        )}
-                      </div>
+      <SectionCard title={`Asignaciones (${assignments.length})`}>
+        {assignments.length === 0 ? (
+          <EmptyState
+            icon={Wrench}
+            title="Sin asignaciones"
+            description="No tienes asignaciones asignadas"
+          />
+        ) : (
+          <div className="space-y-4">
+            {assignments.map((wo) => (
+              <div
+                key={wo.id}
+                className="border rounded-lg p-4 hover:bg-accent/50 transition-colors"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1 space-y-3">
+                    {/* Status */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {getStatusBadge(wo.status ?? null)}
+                      {wo.incident?.type && (
+                        <Badge variant="outline">{wo.incident.type.name}</Badge>
+                      )}
+                    </div>
 
-                      {/* Incident Title */}
-                      <div>
-                        <h3 className="font-semibold text-lg">
-                          {wo.incident?.title || "Sin incidente"}
-                        </h3>
-                        {wo.notes && (
-                          <p className="text-sm text-muted-foreground mt-1">
-                            {wo.notes}
-                          </p>
-                        )}
-                      </div>
+                    {/* Incident Title */}
+                    <div>
+                      <h3 className="font-semibold text-lg">
+                        {wo.incident?.title || "Sin incidente"}
+                      </h3>
+                      {wo.notes && (
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {wo.notes}
+                        </p>
+                      )}
+                    </div>
 
-                      {/* Details */}
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm text-muted-foreground">
-                        {wo.incident?.client && (
-                          <div>
-                            <span className="font-medium">Cliente:</span>{" "}
-                            {wo.incident.client.name}
-                          </div>
-                        )}
+                    {/* Details */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm text-muted-foreground">
+                      {wo.incident?.client && (
                         <div>
-                          <span className="font-medium">Actividades:</span>{" "}
-                          {wo._count?.assignmentActivities || 0}
+                          <span className="font-medium">Cliente:</span>{" "}
+                          {wo.incident.client.name}
                         </div>
-                      </div>
-
-                      {/* Dates */}
-                      <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
-                        <div className="flex items-center gap-1">
-                          <Calendar className="h-3 w-3" />
-                          Creada:{" "}
-                          {formatMX(wo.createdAt, { dateStyle: "short" })}
-                        </div>
-                        {wo.startedAt && (
-                          <div className="flex items-center gap-1">
-                            <Clock className="h-3 w-3" />
-                            Iniciada:{" "}
-                            {formatMX(wo.startedAt, { dateStyle: "short" })}
-                          </div>
-                        )}
-                        {wo.finishedAt && (
-                          <div className="flex items-center gap-1">
-                            <CheckCircle className="h-3 w-3" />
-                            Completada:{" "}
-                            {formatMX(wo.finishedAt, { dateStyle: "short" })}
-                          </div>
-                        )}
+                      )}
+                      <div>
+                        <span className="font-medium">Actividades:</span>{" "}
+                        {wo._count?.assignmentActivities || 0}
                       </div>
                     </div>
 
-                    {/* Action Button */}
-                    <div>
-                      <Button
-                        asChild
-                        className={
-                          wo.status?.name === "ASIGNADO"
-                            ? "bg-cyan-600 hover:bg-cyan-700"
-                            : ""
-                        }
-                      >
-                        <Link href={`/fsr/assignments/${wo.id}`}>
-                          {wo.status?.name === "CERRADO"
-                            ? "Ver"
-                            : wo.status?.name === "ASIGNADO"
-                              ? "Marcar visto"
-                              : "Trabajar"}
-                        </Link>
-                      </Button>
+                    {/* Dates */}
+                    <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <Calendar className="h-3 w-3" />
+                        Creada: {formatMX(wo.createdAt, { dateStyle: "short" })}
+                      </div>
+                      {wo.startedAt && (
+                        <div className="flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          Iniciada:{" "}
+                          {formatMX(wo.startedAt, { dateStyle: "short" })}
+                        </div>
+                      )}
+                      {wo.finishedAt && (
+                        <div className="flex items-center gap-1">
+                          <CheckCircle className="h-3 w-3" />
+                          Completada:{" "}
+                          {formatMX(wo.finishedAt, { dateStyle: "short" })}
+                        </div>
+                      )}
                     </div>
                   </div>
+
+                  {/* Action Button */}
+                  <div>
+                    <Button asChild className="min-h-[44px]">
+                      <Link href={`/fsr/assignments/${wo.id}`}>
+                        {wo.status?.name === "CERRADO"
+                          ? "Ver"
+                          : wo.status?.name === "ASIGNADO"
+                            ? "Marcar visto"
+                            : "Trabajar"}
+                      </Link>
+                    </Button>
+                  </div>
                 </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </SectionCard>
+    </PageContainer>
   );
 }

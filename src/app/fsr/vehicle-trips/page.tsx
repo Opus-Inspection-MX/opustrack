@@ -4,10 +4,16 @@ import { Car, Plus } from "lucide-react";
 import moment from "moment-timezone";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { EmptyState } from "@/components/common/empty-state";
+import { FilterBar } from "@/components/common/filter-bar";
+import { PageContainer } from "@/components/common/page-container";
+import { PageHeader } from "@/components/common/page-header";
+import { SectionCard } from "@/components/common/section-card";
+import { TableSkeleton } from "@/components/common/skeletons";
+import { StatusBadge } from "@/components/common/status-badge";
 import { DateRangeFilter } from "@/components/reports";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { getMyVehicleTrips } from "@/lib/actions/vehicle-trips";
 import { logger } from "@/lib/observability/logger";
 import { APP_TZ, formatMX } from "@/lib/utils/datetime";
@@ -69,99 +75,98 @@ export default function VehicleTripsPage() {
   };
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold">Viajes de Vehículo</h1>
-          <p className="text-sm sm:text-base text-muted-foreground">
-            Registro de kilómetros recorridos
-          </p>
-        </div>
-        <div className="flex flex-col sm:flex-row gap-2">
-          <DateRangeFilter
-            startDate={startDate}
-            endDate={endDate}
-            onDateChange={handleDateChange}
-          />
-          <Button asChild className="w-full sm:w-auto">
+    <PageContainer>
+      <PageHeader
+        title="Viajes de Vehículo"
+        description="Registro de kilómetros recorridos"
+        actions={
+          <Button asChild className="min-h-[44px] w-full sm:w-auto">
             <Link href="/fsr/vehicle-trips/start">
-              <Plus className="h-4 w-4 mr-2" />
+              <Plus className="h-4 w-4 mr-2" aria-hidden />
               Iniciar Viaje
             </Link>
           </Button>
-        </div>
-      </div>
+        }
+      />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Mis Viajes</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="text-center py-8 text-muted-foreground">
-              Cargando viajes...
-            </div>
-          ) : trips.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              No se encontraron viajes en este rango de fechas.
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {trips.map((trip) => (
-                <Link
-                  key={trip.id}
-                  href={
-                    !trip.endedAt
-                      ? `/fsr/vehicle-trips/${trip.id}/end`
-                      : `/fsr/vehicle-trips/${trip.id}`
-                  }
-                  className="block"
-                >
-                  <Card className="hover:bg-accent transition-colors">
-                    <CardContent className="pt-6">
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                        <div className="flex items-center gap-4">
-                          <Car className="h-8 w-8 text-muted-foreground flex-shrink-0" />
-                          <div className="min-w-0">
-                            <div className="font-semibold truncate">
-                              {trip.vehicle.make} {trip.vehicle.model}
-                            </div>
-                            <div className="text-sm text-muted-foreground">
-                              {trip.vehicle.licensePlate}
-                            </div>
-                            <div className="text-sm text-muted-foreground">
-                              {formatMX(trip.startedAt)}
-                            </div>
+      <FilterBar
+        activeCount={0}
+        onClear={() =>
+          handleDateChange(
+            moment().tz(APP_TZ).startOf("isoWeek").format("YYYY-MM-DD"),
+            moment().tz(APP_TZ).endOf("isoWeek").format("YYYY-MM-DD"),
+          )
+        }
+      >
+        <DateRangeFilter
+          startDate={startDate}
+          endDate={endDate}
+          onDateChange={handleDateChange}
+        />
+      </FilterBar>
+
+      <SectionCard title="Mis Viajes">
+        {loading ? (
+          <TableSkeleton rows={4} />
+        ) : trips.length === 0 ? (
+          <EmptyState
+            icon={Car}
+            title="Sin viajes"
+            description="No se encontraron viajes en este rango de fechas."
+            action={{
+              label: "Iniciar Viaje",
+              href: "/fsr/vehicle-trips/start",
+            }}
+          />
+        ) : (
+          <div className="space-y-4">
+            {trips.map((trip) => (
+              <Link
+                key={trip.id}
+                href={
+                  !trip.endedAt
+                    ? `/fsr/vehicle-trips/${trip.id}/end`
+                    : `/fsr/vehicle-trips/${trip.id}`
+                }
+                className="block"
+              >
+                <Card className="hover:bg-accent transition-colors">
+                  <CardContent className="pt-6">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                      <div className="flex items-center gap-4">
+                        <Car className="h-8 w-8 text-muted-foreground flex-shrink-0" />
+                        <div className="min-w-0">
+                          <div className="font-semibold truncate">
+                            {trip.vehicle.make} {trip.vehicle.model}
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            {trip.vehicle.licensePlate}
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            {formatMX(trip.startedAt)}
                           </div>
                         </div>
-                        <div className="flex sm:flex-col items-center sm:items-end gap-2">
-                          {!trip.endedAt ? (
-                            <Badge
-                              variant="secondary"
-                              className="whitespace-nowrap"
-                            >
-                              En Progreso
-                            </Badge>
-                          ) : (
-                            <>
-                              <div className="text-xl sm:text-2xl font-bold">
-                                {trip.kmDriven} km
-                              </div>
-                              <Badge className="whitespace-nowrap">
-                                Completado
-                              </Badge>
-                            </>
-                          )}
-                        </div>
                       </div>
-                    </CardContent>
-                  </Card>
-                </Link>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+                      <div className="flex sm:flex-col items-center sm:items-end gap-2">
+                        {!trip.endedAt ? (
+                          <StatusBadge tone="progress">En Progreso</StatusBadge>
+                        ) : (
+                          <>
+                            <div className="text-xl sm:text-2xl font-bold">
+                              {trip.kmDriven} km
+                            </div>
+                            <StatusBadge tone="done">Completado</StatusBadge>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        )}
+      </SectionCard>
+    </PageContainer>
   );
 }

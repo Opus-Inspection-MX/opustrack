@@ -285,6 +285,7 @@ export function TripStartForm() {
               <Input
                 id="startOdometer"
                 type="number"
+                inputMode="numeric"
                 value={formData.startOdometer}
                 onChange={(e) =>
                   setFormData({ ...formData, startOdometer: e.target.value })

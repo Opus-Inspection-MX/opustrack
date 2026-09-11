@@ -218,6 +218,7 @@ export function TripEndForm({ trip }: TripEndFormProps) {
               <Input
                 id="endOdometer"
                 type="number"
+                inputMode="numeric"
                 value={formData.endOdometer}
                 onChange={(e) =>
                   setFormData({ ...formData, endOdometer: e.target.value })

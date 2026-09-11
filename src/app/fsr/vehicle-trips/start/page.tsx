@@ -1,16 +1,20 @@
+import { PageContainer } from "@/components/common/page-container";
+import { PageHeader } from "@/components/common/page-header";
 import { TripStartForm } from "@/components/vehicle-trips/trip-start-form";
 
 export default function StartTripPage() {
   return (
-    <div className="container mx-auto py-6 space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Iniciar Viaje</h1>
-        <p className="text-muted-foreground">
-          Registra la lectura inicial del odómetro
-        </p>
-      </div>
+    <PageContainer size="narrow">
+      <PageHeader
+        title="Iniciar Viaje"
+        description="Registra la lectura inicial del odómetro"
+        breadcrumbs={[
+          { label: "Mis Viajes", href: "/fsr/vehicle-trips" },
+          { label: "Iniciar Viaje" },
+        ]}
+      />
 
       <TripStartForm />
-    </div>
+    </PageContainer>
   );
 }
