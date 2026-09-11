@@ -20,7 +20,11 @@ const { prismaMock, getReportScope } = vi.hoisted(() => ({
     },
     schedule: { count: vi.fn(async () => 0) },
   },
-  getReportScope: vi.fn(async (_user: unknown) => ({ clientIds: ["c1"] })),
+  getReportScope: vi.fn(
+    async (_user: unknown): Promise<{ clientIds: string[] | null }> => ({
+      clientIds: ["c1"],
+    }),
+  ),
 }));
 
 vi.mock("@/lib/database/prisma.singleton", () => ({ prisma: prismaMock }));
@@ -37,11 +41,15 @@ vi.mock("@/lib/auth/report-scope", async (importOriginal) => {
   };
 });
 
-import { getDashboardStats } from "./dashboard";
 import { scheduleScopeWhere } from "@/lib/auth/report-scope";
+import { getDashboardStats } from "./dashboard";
 
-const lastScheduleWhere = () =>
-  prismaMock.schedule.count.mock.calls.at(-1)?.[0]?.where;
+/** Schedule-count where of the last call. */
+function lastScheduleWhere(): Record<string, unknown> {
+  const calls = prismaMock.schedule.count.mock.calls as unknown[][];
+  return ((calls.at(-1)?.[0] ?? {}) as { where?: Record<string, unknown> })
+    .where as Record<string, unknown>;
+}
 
 beforeEach(() => {
   vi.clearAllMocks();

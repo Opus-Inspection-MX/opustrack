@@ -1,10 +1,7 @@
 "use server";
 
 import { requirePermission } from "@/lib/auth/auth";
-import {
-  getReportScope,
-  incidentScopeWhere,
-} from "@/lib/auth/report-scope";
+import { getReportScope, incidentScopeWhere } from "@/lib/auth/report-scope";
 import { prisma } from "@/lib/database/prisma.singleton";
 import { ASSIGNMENT_STATE } from "@/lib/state-machine/assignment-machine";
 import { getPrimaryClientId } from "@/lib/utils/client-assignments";

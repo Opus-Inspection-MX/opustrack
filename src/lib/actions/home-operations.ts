@@ -1,12 +1,12 @@
 "use server";
 
+import { getDashboardStats } from "@/lib/actions/dashboard";
 import { requirePermission } from "@/lib/auth/auth";
 import {
   getReportScope,
   incidentScopeWhere,
   scheduleScopeWhere,
 } from "@/lib/auth/report-scope";
-import { getDashboardStats } from "@/lib/actions/dashboard";
 import { prisma } from "@/lib/database/prisma.singleton";
 import { INCIDENT_TERMINAL_STATES } from "@/lib/state-machine/incident-machine";
 

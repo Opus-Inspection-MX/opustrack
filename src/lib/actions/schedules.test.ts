@@ -34,7 +34,11 @@ const { prismaMock, requirePermission, canAccessClientAsync, getReportScope } =
       role: { name: "ADMINISTRADOR" },
     })),
     canAccessClientAsync: vi.fn((_user: unknown, _clientId: unknown) => true),
-    getReportScope: vi.fn(async (_user: unknown) => ({ clientIds: ["c1"] })),
+    getReportScope: vi.fn(
+      async (_user: unknown): Promise<{ clientIds: string[] | null }> => ({
+        clientIds: ["c1"],
+      }),
+    ),
   }));
 
 vi.mock("@/lib/database/prisma.singleton", () => ({ prisma: prismaMock }));
@@ -65,13 +69,13 @@ vi.mock("next/navigation", () => ({
   },
 }));
 
+import { scheduleScopeWhere } from "@/lib/auth/report-scope";
 import {
   createSchedule,
   deleteSchedule,
   getSchedules,
   quickUpdateSchedule,
 } from "./schedules";
-import { scheduleScopeWhere } from "@/lib/auth/report-scope";
 
 const lastWhere = () =>
   prismaMock.schedule.findMany.mock.calls.at(-1)?.[0]?.where;
@@ -186,7 +190,9 @@ describe("getSchedules · alcance por Cliente (Fase 3 · 3.0.2)", () => {
 
     await getSchedules();
 
-    expect(lastWhere().AND).toContainEqual(scheduleScopeWhere({ clientIds: null }));
+    expect(lastWhere().AND).toContainEqual(
+      scheduleScopeWhere({ clientIds: null }),
+    );
     expect(JSON.stringify(lastWhere())).not.toContain("clients");
   });
 });

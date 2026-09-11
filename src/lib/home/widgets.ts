@@ -61,7 +61,7 @@ export interface WidgetDefinition {
 
 /** The minimum a viewer decision needs — buildable from UserAuthz or by hand. */
 export interface WidgetViewer {
-  permissions: ReadonlySet<string> | readonly string[];
+  permissions: Iterable<string>;
   routeGrants: RouteGrants;
   isSuperuser: boolean;
 }
@@ -79,11 +79,11 @@ export function viewerFromUser(user: {
 }
 
 function hasPermission(viewer: WidgetViewer, name: string): boolean {
-  return viewer.isSuperuser
-    ? true
-    : viewer.permissions instanceof Set
-      ? viewer.permissions.has(name)
-      : viewer.permissions.includes(name);
+  if (viewer.isSuperuser) return true;
+  for (const held of viewer.permissions) {
+    if (held === name) return true;
+  }
+  return false;
 }
 
 export function isWidgetVisible(
@@ -98,10 +98,7 @@ export function isWidgetVisible(
   if (anyPermission && !anyPermission.some((p) => hasPermission(viewer, p))) {
     return false;
   }
-  if (
-    route &&
-    !canAccessRoute(viewer.routeGrants, viewer.isSuperuser, route)
-  ) {
+  if (route && !canAccessRoute(viewer.routeGrants, viewer.isSuperuser, route)) {
     return false;
   }
   return true;

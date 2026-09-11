@@ -86,31 +86,34 @@ export async function getSchedules(params?: {
   // OR): a scoped user sees their linked schedules plus global ones, and an
   // empty scope matches nothing — not even globals.
   const overlap = overlapWhere(params?.activeFrom, params?.activeTo);
+  const overlapClauses = overlap.AND
+    ? Array.isArray(overlap.AND)
+      ? overlap.AND
+      : [overlap.AND]
+    : [];
+  const clauses: Prisma.ScheduleWhereInput[] = [
+    scheduleScopeWhere(scope),
+    ...overlapClauses,
+  ];
+  if (params?.search) {
+    clauses.push({
+      OR: [
+        { title: { contains: params.search, mode: "insensitive" } },
+        { description: { contains: params.search, mode: "insensitive" } },
+      ],
+    });
+  }
+  if (params?.clientId) {
+    clauses.push({
+      clients: { some: { clientId: params.clientId, active: true } },
+    });
+  }
+  if (params?.statusId) {
+    clauses.push({ statusId: params.statusId });
+  }
   const where: Prisma.ScheduleWhereInput = {
     active: true,
-    AND: [
-      scheduleScopeWhere(scope),
-      ...(overlap.AND ?? []),
-      ...(params?.search
-        ? [
-            {
-              OR: [
-                { title: { contains: params.search, mode: "insensitive" } },
-                {
-                  description: {
-                    contains: params.search,
-                    mode: "insensitive",
-                  },
-                },
-              ],
-            },
-          ]
-        : []),
-      ...(params?.clientId
-        ? [{ clients: { some: { clientId: params.clientId, active: true } } }]
-        : []),
-      ...(params?.statusId ? [{ statusId: params.statusId }] : []),
-    ],
+    AND: clauses,
   };
 
   const total = await prisma.schedule.count({ where });

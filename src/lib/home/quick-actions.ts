@@ -6,8 +6,8 @@ import {
   CheckCircle2,
   ClipboardList,
   FilePlus2,
-  Palmtree,
   type LucideIcon,
+  Palmtree,
 } from "lucide-react";
 import { canAccessRoute } from "@/lib/authz/route-access";
 import type { WidgetViewer } from "./widgets";
@@ -90,11 +90,11 @@ export const QUICK_ACTIONS: readonly QuickActionDef[] = [
 ];
 
 function hasPermission(viewer: WidgetViewer, name: string): boolean {
-  return viewer.isSuperuser
-    ? true
-    : viewer.permissions instanceof Set
-      ? viewer.permissions.has(name)
-      : viewer.permissions.includes(name);
+  if (viewer.isSuperuser) return true;
+  for (const held of viewer.permissions) {
+    if (held === name) return true;
+  }
+  return false;
 }
 
 /**

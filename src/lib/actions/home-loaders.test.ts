@@ -29,12 +29,24 @@ const { prismaMock, requirePermission, getReportScope, getPrimaryClientId } =
       },
       incidentStatus: { findMany: vi.fn(async () => []) },
       vacationPeriod: { findMany: vi.fn(async () => []) },
-      vacation: { count: vi.fn(async () => 0), findMany: vi.fn(async () => []) },
-      schedule: { count: vi.fn(async () => 0), findMany: vi.fn(async () => []) },
+      vacation: {
+        count: vi.fn(async () => 0),
+        findMany: vi.fn(async () => []),
+      },
+      schedule: {
+        count: vi.fn(async () => 0),
+        findMany: vi.fn(async () => []),
+      },
     },
     requirePermission: vi.fn(async (_name: string) => ({ id: "u1" })),
-    getReportScope: vi.fn(async (_user: unknown) => ({ clientIds: ["c1"] })),
-    getPrimaryClientId: vi.fn(async (_userId: string) => "c1"),
+    getReportScope: vi.fn(
+      async (_user: unknown): Promise<{ clientIds: string[] | null }> => ({
+        clientIds: ["c1"],
+      }),
+    ),
+    getPrimaryClientId: vi.fn(
+      async (_userId: string): Promise<string | null> => "c1",
+    ),
   }));
 
 vi.mock("@/lib/database/prisma.singleton", () => ({ prisma: prismaMock }));
@@ -53,6 +65,13 @@ vi.mock("@/lib/utils/client-assignments", () => ({
   getPrimaryClientId: (userId: string) => getPrimaryClientId(userId),
 }));
 
+import { WIDGETS, type WidgetId } from "@/lib/home/widgets";
+import {
+  getIncidentsByStatus,
+  getOperationalKpis,
+  getTrackingQueue,
+  getUpcomingSchedules,
+} from "./home-operations";
 import {
   getMyActiveTrip,
   getMyReportsSummary,
@@ -61,13 +80,6 @@ import {
   getPendingVacationApprovals,
   getUpcomingAbsences,
 } from "./home-personal";
-import {
-  getIncidentsByStatus,
-  getOperationalKpis,
-  getTrackingQueue,
-  getUpcomingSchedules,
-} from "./home-operations";
-import { WIDGETS, type WidgetId } from "@/lib/home/widgets";
 
 const permissionFor = (id: WidgetId): string => {
   const def = WIDGETS.find((w) => w.id === id);
@@ -101,36 +113,41 @@ describe("cada loader exige el permiso de su registro", () => {
   for (const [widgetId, loader] of cases) {
     it(`${widgetId} → requirePermission("${permissionFor(widgetId)}")`, async () => {
       await loader();
-      expect(requirePermission).toHaveBeenCalledWith(
-        permissionFor(widgetId),
-      );
+      expect(requirePermission).toHaveBeenCalledWith(permissionFor(widgetId));
     });
   }
 });
 
+/** First positional arg of the last mock call, as the loaders' input. */
+function lastInput(mock: { mock: { calls: Array<Array<unknown>> } }): {
+  where?: unknown;
+} {
+  return (mock.mock.calls.at(-1)?.[0] ?? {}) as { where?: unknown };
+}
+
 describe("el scope viaja en cada where", () => {
   it("my-work acota por incidente y dueño", async () => {
     await getMyWorkSummary();
-    const where = prismaMock.assignment.findMany.mock.calls.at(-1)?.[0]?.where;
+    const where = lastInput(prismaMock.assignment.findMany).where;
     expect(JSON.stringify(where)).toContain('"userId":"u1"');
     expect(JSON.stringify(where)).toContain('"in":["c1"]');
   });
 
   it("tracking-queue acota por Cliente", async () => {
     await getTrackingQueue();
-    const where = prismaMock.incident.findMany.mock.calls.at(-1)?.[0]?.where;
+    const where = lastInput(prismaMock.incident.findMany).where;
     expect(JSON.stringify(where)).toContain('"in":["c1"]');
   });
 
   it("incidents-by-status agrupa dentro del alcance", async () => {
     await getIncidentsByStatus();
-    const where = prismaMock.incident.groupBy.mock.calls.at(-1)?.[0]?.where;
+    const where = lastInput(prismaMock.incident.groupBy).where;
     expect(JSON.stringify(where)).toContain('"in":["c1"]');
   });
 
   it("upcoming-schedules acota por vínculo Cliente", async () => {
     await getUpcomingSchedules();
-    const where = prismaMock.schedule.findMany.mock.calls.at(-1)?.[0]?.where;
+    const where = lastInput(prismaMock.schedule.findMany).where;
     expect(JSON.stringify(where)).toContain("c1");
   });
 
@@ -142,9 +159,9 @@ describe("el scope viaja en cada where", () => {
     await getIncidentsByStatus();
 
     for (const where of [
-      prismaMock.assignment.findMany.mock.calls.at(-1)?.[0]?.where,
-      prismaMock.incident.findMany.mock.calls.at(-1)?.[0]?.where,
-      prismaMock.incident.groupBy.mock.calls.at(-1)?.[0]?.where,
+      lastInput(prismaMock.assignment.findMany).where,
+      lastInput(prismaMock.incident.findMany).where,
+      lastInput(prismaMock.incident.groupBy).where,
     ]) {
       expect(JSON.stringify(where)).toContain('"in":[]');
     }

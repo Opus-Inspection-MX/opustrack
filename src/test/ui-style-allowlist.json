@@ -110,10 +110,7 @@
   "src/app/admin/reports/notification-engagement/notification-engagement-report-client.tsx": [
     "text-red-600"
   ],
-  "src/app/admin/reports/page.tsx": [
-    "bg-blue-500",
-    "text-blue-500"
-  ],
+  "src/app/admin/reports/page.tsx": ["bg-blue-500", "text-blue-500"],
   "src/app/admin/reports/seen-time/seen-time-client.tsx": [
     "bg-green-100",
     "bg-green-900",

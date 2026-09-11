@@ -121,7 +121,7 @@ export const MENU: MenuGroup[] = [
         title: "FSR",
         items: [
           {
-            title: "Inicio",
+            title: "Panel FSR",
             url: "/fsr",
             icon: LayoutDashboard,
             keywords: ["fsr", "tecnico", "panel"],
@@ -170,7 +170,7 @@ export const MENU: MenuGroup[] = [
         title: "Centro",
         items: [
           {
-            title: "Inicio",
+            title: "Mis Reportes",
             url: "/reporter",
             icon: LayoutDashboard,
             keywords: ["centro", "cliente", "panel"],
@@ -190,7 +190,7 @@ export const MENU: MenuGroup[] = [
         title: "Consulta",
         items: [
           {
-            title: "Inicio",
+            title: "Panel de Invitado",
             url: "/guest",
             icon: LayoutDashboard,
             keywords: ["invitado", "consulta", "panel"],

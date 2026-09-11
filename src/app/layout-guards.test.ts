@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
  * Every page is authenticated somewhere.
  *
  * Portal layouts (`/admin`, `/fsr`, `/reporter`, `/guest`, `/vacations`,
- * `/profile`) carry the coarse `requireRouteAccess("<portal>")` gate, so a
+ * `/profile`, `/inicio`) carry the coarse `requireRouteAccess("<portal>")` gate, so a
  * page under one of them is covered even without its own guard. Pages outside
  * a guarded portal — and the public pages anyone may open — are enumerated
  * explicitly below. A new portal or a new public page must update this test,
@@ -24,6 +24,7 @@ const GUARDED_PORTALS = [
   "guest",
   "vacations",
   "profile",
+  "inicio",
 ] as const;
 
 /**

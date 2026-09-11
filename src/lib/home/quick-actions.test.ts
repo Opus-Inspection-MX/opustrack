@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { flattenMenu, MENU } from "@/lib/navigation/menu";
-import {
-  QUICK_ACTIONS,
-  visibleQuickActions,
-} from "./quick-actions";
+import { QUICK_ACTIONS, visibleQuickActions } from "./quick-actions";
 import type { WidgetViewer } from "./widgets";
 
 function viewer(
@@ -34,9 +31,9 @@ describe("visibleQuickActions", () => {
 
   it("un permiso sin ruta no alcanza", () => {
     const noRoute = viewer(["tracking:read"], ["/inicio"]);
-    expect(
-      visibleQuickActions(noRoute, 10).map((a) => a.title),
-    ).not.toContain("Seguimiento");
+    expect(visibleQuickActions(noRoute, 10).map((a) => a.title)).not.toContain(
+      "Seguimiento",
+    );
   });
 
   it("respeta el tope", () => {
