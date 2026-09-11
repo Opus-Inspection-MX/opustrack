@@ -6,6 +6,7 @@ import {
   fsrScopeWhere,
   getReportScope,
   incidentScopeWhere,
+  scheduleScopeWhere,
 } from "@/lib/auth/report-scope";
 import { CRITICAL_PRIORITY_THRESHOLD } from "@/lib/constants/incident-type";
 import { prisma } from "@/lib/database/prisma.singleton";
@@ -59,11 +60,13 @@ export async function getDashboardStats() {
       },
     }),
 
-    // Scheduled tasks (future schedules)
+    // Scheduled tasks (future schedules, inside the caller's Client scope —
+    // without scheduleScopeWhere every role saw the global agenda).
     prisma.schedule.count({
       where: {
         active: true,
         scheduledAt: { gte: new Date() },
+        ...scheduleScopeWhere(scope),
       },
     }),
 

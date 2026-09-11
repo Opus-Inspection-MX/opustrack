@@ -8,6 +8,7 @@ import {
   canAccessClientAsync,
   getClientWhereClauseAsync,
 } from "@/lib/auth/filters";
+import { getReportScope, scheduleScopeWhere } from "@/lib/auth/report-scope";
 import { prisma } from "@/lib/database/prisma.singleton";
 import {
   ScheduleCreateSchema,
@@ -74,31 +75,43 @@ export async function getSchedules(params?: {
   activeFrom?: Date;
   activeTo?: Date;
 }) {
-  await requirePermission("schedules:read");
+  const user = await requirePermission("schedules:read");
+  const scope = await getReportScope(user);
 
   const page = params?.page || 1;
   const limit = params?.limit || 10;
   const skip = (page - 1) * limit;
 
+  // The scope is one AND branch beside the filters (never merged into an
+  // OR): a scoped user sees their linked schedules plus global ones, and an
+  // empty scope matches nothing — not even globals.
+  const overlap = overlapWhere(params?.activeFrom, params?.activeTo);
   const where: Prisma.ScheduleWhereInput = {
     active: true,
-    ...overlapWhere(params?.activeFrom, params?.activeTo),
+    AND: [
+      scheduleScopeWhere(scope),
+      ...(overlap.AND ?? []),
+      ...(params?.search
+        ? [
+            {
+              OR: [
+                { title: { contains: params.search, mode: "insensitive" } },
+                {
+                  description: {
+                    contains: params.search,
+                    mode: "insensitive",
+                  },
+                },
+              ],
+            },
+          ]
+        : []),
+      ...(params?.clientId
+        ? [{ clients: { some: { clientId: params.clientId, active: true } } }]
+        : []),
+      ...(params?.statusId ? [{ statusId: params.statusId }] : []),
+    ],
   };
-
-  if (params?.search) {
-    where.OR = [
-      { title: { contains: params.search, mode: "insensitive" } },
-      { description: { contains: params.search, mode: "insensitive" } },
-    ];
-  }
-
-  if (params?.clientId) {
-    where.clients = { some: { clientId: params.clientId, active: true } };
-  }
-
-  if (params?.statusId) {
-    where.statusId = params.statusId;
-  }
 
   const total = await prisma.schedule.count({ where });
 

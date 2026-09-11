@@ -9,8 +9,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
  * programación with no Clients is reachable by anyone.
  */
 
-const { prismaMock, requirePermission, canAccessClientAsync } = vi.hoisted(
-  () => ({
+const { prismaMock, requirePermission, canAccessClientAsync, getReportScope } =
+  vi.hoisted(() => ({
     prismaMock: {
       schedule: {
         findMany: vi.fn(),
@@ -34,8 +34,8 @@ const { prismaMock, requirePermission, canAccessClientAsync } = vi.hoisted(
       role: { name: "ADMINISTRADOR" },
     })),
     canAccessClientAsync: vi.fn((_user: unknown, _clientId: unknown) => true),
-  }),
-);
+    getReportScope: vi.fn(async (_user: unknown) => ({ clientIds: ["c1"] })),
+  }));
 
 vi.mock("@/lib/database/prisma.singleton", () => ({ prisma: prismaMock }));
 vi.mock("@/lib/auth/auth", () => ({
@@ -46,6 +46,16 @@ vi.mock("@/lib/auth/filters", () => ({
     canAccessClientAsync(user, clientId),
   getClientWhereClauseAsync: async () => ({}),
 }));
+// Real scope fragments, controllable scope resolution: the regression tests
+// below prove getSchedules applies scheduleScopeWhere, not a lookalike.
+vi.mock("@/lib/auth/report-scope", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/lib/auth/report-scope")>();
+  return {
+    ...actual,
+    getReportScope: (user: unknown) => getReportScope(user),
+  };
+});
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
 const REDIRECT = "NEXT_REDIRECT";
@@ -61,6 +71,7 @@ import {
   getSchedules,
   quickUpdateSchedule,
 } from "./schedules";
+import { scheduleScopeWhere } from "@/lib/auth/report-scope";
 
 const lastWhere = () =>
   prismaMock.schedule.findMany.mock.calls.at(-1)?.[0]?.where;
@@ -109,25 +120,74 @@ describe("getSchedules · solapamiento (RF-400)", () => {
   it("sin rango no impone condición de solapamiento", async () => {
     await getSchedules();
 
-    expect(lastWhere().AND).toBeUndefined();
+    // The AND carries only the Client scope — no scheduledAt/endDate key.
+    expect(JSON.stringify(lastWhere())).not.toContain("scheduledAt");
+    expect(JSON.stringify(lastWhere())).not.toContain("endDate");
   });
 
   it("busca por título y descripción, y filtra por cliente y estado", async () => {
     await getSchedules({ search: "manto", clientId: "c1", statusId: 3 });
 
-    expect(lastWhere().OR).toEqual([
-      { title: { contains: "manto", mode: "insensitive" } },
-      { description: { contains: "manto", mode: "insensitive" } },
-    ]);
-    expect(lastWhere().clients).toEqual({
-      some: { clientId: "c1", active: true },
+    expect(lastWhere().AND).toContainEqual({
+      OR: [
+        { title: { contains: "manto", mode: "insensitive" } },
+        { description: { contains: "manto", mode: "insensitive" } },
+      ],
     });
-    expect(lastWhere().statusId).toBe(3);
+    expect(lastWhere().AND).toContainEqual({
+      clients: { some: { clientId: "c1", active: true } },
+    });
+    expect(lastWhere().AND).toContainEqual({ statusId: 3 });
   });
 
   it("solo devuelve programaciones activas", async () => {
     await getSchedules();
     expect(lastWhere().active).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 3.0.2 · getSchedules aplica el alcance por Cliente
+// ---------------------------------------------------------------------------
+// Regression: the list used to ignore the caller's scope entirely, so any
+// role with schedules:read saw every center's agenda. The scope rides as one
+// AND branch next to the filters — it must never merge into the search OR.
+describe("getSchedules · alcance por Cliente (Fase 3 · 3.0.2)", () => {
+  it("aplica scheduleScopeWhere junto a los filtros", async () => {
+    getReportScope.mockResolvedValue({ clientIds: ["c1"] });
+
+    await getSchedules({ search: "manto" });
+
+    expect(lastWhere().AND).toContainEqual(
+      scheduleScopeWhere({ clientIds: ["c1"] }),
+    );
+    // …and the search stays its own branch, ANDed with the scope.
+    expect(lastWhere().AND).toContainEqual({
+      OR: [
+        { title: { contains: "manto", mode: "insensitive" } },
+        { description: { contains: "manto", mode: "insensitive" } },
+      ],
+    });
+  });
+
+  it("un scope vacío no devuelve nada — ni siquiera globales", async () => {
+    getReportScope.mockResolvedValue({ clientIds: [] });
+
+    await getSchedules();
+
+    expect(lastWhere().AND).toContainEqual(
+      scheduleScopeWhere({ clientIds: [] }),
+    );
+    expect(JSON.stringify(lastWhere())).toContain('"in":[]');
+  });
+
+  it("un scope admin no restringe", async () => {
+    getReportScope.mockResolvedValue({ clientIds: null });
+
+    await getSchedules();
+
+    expect(lastWhere().AND).toContainEqual(scheduleScopeWhere({ clientIds: null }));
+    expect(JSON.stringify(lastWhere())).not.toContain("clients");
   });
 });
 
