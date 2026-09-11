@@ -3,7 +3,6 @@
 import { AlertTriangle, Car, CheckCircle2, Users } from "lucide-react";
 import moment from "moment-timezone";
 import { useState, useTransition } from "react";
-import { EmptyState } from "@/components/common/empty-state";
 import { FilterBar } from "@/components/common/filter-bar";
 import { PageContainer } from "@/components/common/page-container";
 import { PageHeader } from "@/components/common/page-header";

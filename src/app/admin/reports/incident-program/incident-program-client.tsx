@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, Download, ListChecks, Loader2 } from "lucide-react";
+import { AlertTriangle, Download, Loader2 } from "lucide-react";
 import moment from "moment-timezone";
 import { useState, useTransition } from "react";
 import { EmptyState } from "@/components/common/empty-state";

@@ -12,7 +12,6 @@ import { CatalogTable } from "@/components/common/catalog-table";
 import { PageContainer } from "@/components/common/page-container";
 import { PageHeader } from "@/components/common/page-header";
 import { StatusBadge } from "@/components/common/status-badge";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useDebounce } from "@/hooks/use-debounce";
 import { toast } from "@/hooks/use-toast";

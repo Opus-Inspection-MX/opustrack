@@ -2,7 +2,6 @@
 
 import { CheckCircle, Clock, XCircle } from "lucide-react";
 import { useState, useTransition } from "react";
-import { EmptyState } from "@/components/common/empty-state";
 import { FilterBar } from "@/components/common/filter-bar";
 import { PageContainer } from "@/components/common/page-container";
 import { PageHeader } from "@/components/common/page-header";
