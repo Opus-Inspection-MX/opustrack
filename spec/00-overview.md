@@ -46,7 +46,7 @@ Cliente reporta incidente
 | Rol | Alcance | defaultPath |
 |-----|---------|-------------|
 | **ROOT** | Superusuario (`isSuperuser`): omite todo check. Sin Cliente. | `/inicio` |
-| **ADMIN_OPERACION** | Todo el alcance operativo + `scope:all-clientes` (ve todos los centros sin poder otorgar roles). | `/inicio` |
+| **ADMIN_OPERACION** | Todo el alcance operativo + `scope:all-clients` (ve todos los centros sin poder otorgar roles). | `/inicio` |
 | **ADMIN_VACACIONES** | Solo su módulo y sus propias vacaciones; sin alcance global. | `/inicio` |
 | **FSR** | Ejecuta asignaciones y viajes. Ligado a Cliente(s). | `/inicio` |
 | **EMPLEADO** | Vacaciones propias. | `/inicio` |
@@ -96,7 +96,7 @@ No reutilices números ni renumeres requisitos existentes (se referencian de for
 2. **RBAC database-driven.** No hay checks de permiso hardcodeados. Cada página usa
    `requireRouteAccess()`, cada API/Server Action usa `requirePermission()` / `requireAction()`
    o sus wrappers. Solo ROOT (`isSuperuser`) pasa todos los checks; el alcance
-   de datos es un permiso aparte (`scope:all-clientes`).
+   de datos es un permiso aparte (`scope:all-clients`).
 
 3. **JWT + Edge Runtime.** El middleware enruta con datos del JWT (rápido, sin DB). Las rutas
    permitidas del rol (`Permission.routePath`) se embeben en el token al iniciar sesión y se
@@ -106,7 +106,7 @@ No reutilices números ni renumeres requisitos existentes (se referencian de for
    permisos finos. Cambios de rol/permiso requieren re-login. Detalle en
    [01](./01-auth-rbac.md).
 
-4. **Scoping por Cliente.** Sin el permiso `scope:all-clientes`, un usuario solo
+4. **Scoping por Cliente.** Sin el permiso `scope:all-clients`, un usuario solo
    ve datos de su(s) Cliente(s). Las consultas filtran por los Clientes
    asignados (`UserClienteAssignment`) vía `getReportScope()` +
    `*ScopeWhere()`, que falla cerrado (sin asignación ⇒ no ve nada). Las

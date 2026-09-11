@@ -308,4 +308,4 @@ Restricción única: `(assignmentId, userId)`.
   - `assignments:delete` — eliminar asignación/actividades.
   - `assignments:complete` — cerrar asignación.
   - `assignments:reopen` — reabrir (solo admin).
-- **Filtrado por Cliente**: `assignmentScopeWhere()` (ver 01 RF-104). Sin el permiso `scope:all-clientes` solo se ven asignaciones cuya incidencia pertenece a los Clientes del usuario.
+- **Filtrado por Cliente**: `assignmentScopeWhere()` (ver 01 RF-104). Sin el permiso `scope:all-clients` solo se ven asignaciones cuya incidencia pertenece a los Clientes del usuario.

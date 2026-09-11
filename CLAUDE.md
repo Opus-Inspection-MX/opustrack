@@ -72,7 +72,7 @@ Seeded roles (all land on `/inicio`, the personal widget home):
   (`src/lib/authz/user-queries.ts`), never a role-name comparison.
 - `isSuperuser` (ROOT only) bypasses every route and permission check. It is
   **not** "sees every Cliente": cross-Cliente data scope is the
-  `scope:all-clientes` permission (`SCOPE_ALL_CLIENTES`), so an operations
+  `scope:all-clients` permission (`SCOPE_ALL_CLIENTS`), so an operations
   admin sees all centers without holding the keys to roles.
 - JWT carries `roleNames[]`, `isSuperuser`, `defaultPath`, `routePaths[]`,
   `exactRoutePaths[]`, `sessionVersion`, `clienteId`. Middleware
@@ -82,6 +82,10 @@ Seeded roles (all land on `/inicio`, the personal widget home):
 - Multi-Cliente scoping: `getReportScope()` + `*ScopeWhere()` in
   `src/lib/auth/report-scope.ts`. Fail closed — no Cliente assignment means
   matching nothing. No sync single-Cliente helpers exist; everything is async.
+- Permissions: single source in `src/lib/authz/permission-catalog.ts`
+  (`PERMISSIONS`, `SEED_ROLES`, `ROOT_ONLY`, `ROUTE_REQUIRES`). Seeds upsert
+  exactly the catalog and fail on unknown grants; permission names are typed
+  (`PermissionName`), so a typo stops `tsc`.
 
 ### Auth helpers (`src/lib/auth/auth.ts`)
 

@@ -23,6 +23,8 @@ import { loadProfile } from "./lib/env-profiles.mjs";
 const ACTIONS = {
   status:
     "Muestra el estado de migraciones y el conteo de filas. Solo lectura.",
+  permissions:
+    "Compara el catálogo de permisos con la base (solo lectura). Acepta --sql.",
   migrate: "Aplica las migraciones pendientes (prisma migrate deploy).",
   seed: "Ejecuta el seed. NO borra, pero puede duplicar o sobrescribir datos.",
   reset: "BORRA TODA LA BASE, reaplica migraciones y siembra desde cero.",
@@ -129,6 +131,14 @@ async function main() {
     case "status":
       run("npx", ["prisma", "migrate", "status"], { check: false });
       break;
+    case "permissions": {
+      // Read-only catalog drift check. Extra args (e.g. --sql) pass through
+      // to scripts/permissions-diff.ts; --remote skips its local-only guard
+      // because showing the host above IS the confirmation for reads.
+      const extra = process.argv.slice(3).filter((arg) => arg === "--sql");
+      run("npx", ["tsx", "scripts/permissions-diff.ts", "--remote", ...extra]);
+      break;
+    }
     case "migrate":
       run("npx", ["prisma", "migrate", "deploy"]);
       break;

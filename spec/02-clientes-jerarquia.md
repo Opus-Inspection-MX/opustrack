@@ -210,7 +210,7 @@ Tabla pivote que vincula usuarios (FSR o CLIENT) con Clientes.
 **Descripción:** Las vistas de incidentes y FSRs disponibles filtran automáticamente por el/los Clientes accesibles al usuario en sesión.
 
 **Reglas de negocio:**
-- Usuarios con el permiso `scope:all-clientes` (ROOT, admins de operación) ven todos los Clientes (sin filtro).
+- Usuarios con el permiso `scope:all-clients` (ROOT, admins de operación) ven todos los Clientes (sin filtro).
 - Usuarios FSR y CLIENT solo ven datos de los Clientes asignados en `UserClienteAssignment`.
 - El filtro se aplica vía `getReportScope()` + `*ScopeWhere()` (ver 01 RF-104); todo async, fail closed.
 - Un usuario CLIENT sin asignaciones recibe lista vacía.

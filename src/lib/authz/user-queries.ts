@@ -8,6 +8,7 @@
  */
 
 import type { Prisma } from "@prisma/client";
+import type { PermissionName } from "@/lib/authz/permission-catalog";
 import type { RoleCode } from "@/lib/authz/roles";
 import { prisma } from "@/lib/database/prisma.singleton";
 
@@ -43,7 +44,7 @@ export function whereHasRole(
  * vacation administrators.
  */
 export function whereHasPermission(
-  permissionName: string,
+  permissionName: PermissionName,
 ): Prisma.UserWhereInput {
   return {
     userRoles: {
@@ -87,7 +88,7 @@ export function roleCodesOf(user: {
 
 /** Ids of active users holding a permission — the audience for a notification. */
 export async function getUserIdsWithPermission(
-  permissionName: string,
+  permissionName: PermissionName,
 ): Promise<string[]> {
   const users = await prisma.user.findMany({
     where: { active: true, ...whereHasPermission(permissionName) },

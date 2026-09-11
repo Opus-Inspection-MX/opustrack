@@ -40,6 +40,7 @@ function role(overrides: Partial<Role> = {}): Role {
   return {
     id: 2,
     name: "FSR",
+    code: "FSR",
     description: null,
     defaultPath: "/fsr",
     isSuperuser: false,

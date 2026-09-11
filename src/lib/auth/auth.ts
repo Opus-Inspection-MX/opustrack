@@ -15,6 +15,7 @@ import {
   userCanPerformAction,
   userHasPermission,
 } from "@/lib/authz/authz";
+import type { PermissionName } from "@/lib/authz/permission-catalog";
 import { isUserActive } from "@/lib/constants/status-codes";
 import { prisma } from "@/lib/database/prisma.singleton";
 import { logger } from "@/lib/observability/logger";
@@ -164,7 +165,7 @@ export async function requireAuthPage(
  */
 export function assertPermission(
   user: UserWithPermissions,
-  permissionName: string,
+  permissionName: PermissionName,
 ): void {
   if (!userHasPermission(user, permissionName)) {
     throw new AuthorizationError(`Permission denied: ${permissionName}`);
@@ -200,7 +201,7 @@ export function assertRouteAccess(
  * Require authentication and specific permission
  */
 export async function requirePermission(
-  permissionName: string,
+  permissionName: PermissionName,
 ): Promise<UserWithPermissions> {
   const user = await requireAuth();
   assertPermission(user, permissionName);
@@ -243,7 +244,9 @@ export async function requireRouteAccess(
 /**
  * Check if current user has permission (returns boolean)
  */
-export async function canPerform(permissionName: string): Promise<boolean> {
+export async function canPerform(
+  permissionName: PermissionName,
+): Promise<boolean> {
   const user = await getAuthenticatedUser();
   if (!user) return false;
   return userHasPermission(user, permissionName);
@@ -347,7 +350,7 @@ export function withAuth(
  * are 500 and logged. Business rules and redirects propagate untouched.
  */
 export function withPermission(
-  permissionName: string,
+  permissionName: PermissionName,
   handler: (req: Request, user: UserWithPermissions) => Promise<Response>,
 ) {
   return async (req: Request) => {
