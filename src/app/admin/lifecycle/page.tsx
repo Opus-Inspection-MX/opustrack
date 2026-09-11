@@ -1,12 +1,7 @@
-import { Workflow } from "lucide-react";
 import { LifecycleDiagram } from "@/components/admin/lifecycle/lifecycle-diagram";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { PageContainer } from "@/components/common/page-container";
+import { PageHeader } from "@/components/common/page-header";
+import { SectionCard } from "@/components/common/section-card";
 import { requireRouteAccess } from "@/lib/auth/auth";
 import {
   ASSIGNMENT_STATE,
@@ -90,38 +85,23 @@ export default async function LifecyclePage() {
   const definition = buildMermaid();
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center gap-3">
-        <div className="h-10 w-10 rounded-lg bg-purple-500/10 flex items-center justify-center">
-          <Workflow className="h-5 w-5 text-purple-500" />
-        </div>
-        <div>
-          <h1 className="text-3xl font-bold">Ciclo de Vida</h1>
-          <p className="text-muted-foreground">
-            Cómo se relacionan Programación, Incidente y Asignación en el
-            sistema.
-          </p>
-        </div>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Ciclo de Vida"
+        description="Cómo se relacionan Programación, Incidente y Asignación en el sistema."
+      />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Diagrama de flujo</CardTitle>
-          <CardDescription>
-            Refleja en tiempo real los estados definidos en{" "}
-            <code className="text-xs">src/lib/state-machine</code>.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="overflow-x-auto">
+      <SectionCard
+        title="Diagrama de flujo"
+        description="Refleja en tiempo real los estados definidos en src/lib/state-machine."
+      >
+        <div className="overflow-x-auto">
           <LifecycleDiagram definition={definition} />
-        </CardContent>
-      </Card>
+        </div>
+      </SectionCard>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Reglas clave</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3 text-sm">
+      <SectionCard title="Reglas clave">
+        <div className="space-y-3 text-sm">
           <p>
             <strong>Programación.</strong> Contenedor opcional con rango{" "}
             <code className="text-xs">scheduledAt → endDate</code> y uno o más
@@ -165,8 +145,8 @@ export default async function LifecyclePage() {
             incidencia congela todas sus asignaciones: ningún FSR puede editar
             actividades, evidencias ni transicionar estados después.
           </p>
-        </CardContent>
-      </Card>
-    </div>
+        </div>
+      </SectionCard>
+    </PageContainer>
   );
 }

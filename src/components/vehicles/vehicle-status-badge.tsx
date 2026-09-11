@@ -1,28 +1,22 @@
-import { Badge } from "@/components/ui/badge";
+import { StatusBadge, type StatusTone } from "@/components/common/status-badge";
 
 interface VehicleStatusBadgeProps {
   status: string | { id: number; name: string; active?: boolean };
 }
 
-const statusConfig: Record<
-  string,
-  {
-    label: string;
-    variant: "default" | "secondary" | "destructive" | "outline";
-  }
-> = {
-  AVAILABLE: { label: "Available", variant: "default" },
-  IN_USE: { label: "In Use", variant: "secondary" },
-  MAINTENANCE: { label: "Maintenance", variant: "outline" },
-  INACTIVE: { label: "Inactive", variant: "destructive" },
+const statusConfig: Record<string, { label: string; tone: StatusTone }> = {
+  AVAILABLE: { label: "Available", tone: "success" },
+  IN_USE: { label: "In Use", tone: "info" },
+  MAINTENANCE: { label: "Maintenance", tone: "warning" },
+  INACTIVE: { label: "Inactive", tone: "neutral" },
 };
 
 export function VehicleStatusBadge({ status }: VehicleStatusBadgeProps) {
   const statusName = typeof status === "string" ? status : status.name;
   const config = statusConfig[statusName] || {
     label: statusName,
-    variant: "outline" as const,
+    tone: "neutral" as const,
   };
 
-  return <Badge variant={config.variant}>{config.label}</Badge>;
+  return <StatusBadge tone={config.tone}>{config.label}</StatusBadge>;
 }

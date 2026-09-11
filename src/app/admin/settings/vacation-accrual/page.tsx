@@ -1,5 +1,6 @@
-import { Palmtree } from "lucide-react";
 import { BackButton } from "@/components/common/back-button";
+import { PageContainer } from "@/components/common/page-container";
+import { PageHeader } from "@/components/common/page-header";
 import { VacationAccrualClient } from "@/components/vacations/vacation-accrual-client";
 import {
   getAccrualRules,
@@ -16,24 +17,23 @@ export default async function VacationAccrualSettingsPage() {
   ]);
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-4">
+    <PageContainer>
+      <PageHeader
+        title="Días de Vacaciones"
+        description="Días otorgados por antigüedad y vigencia de los períodos"
+        breadcrumbs={[
+          { label: "Configuración", href: "/admin/settings" },
+          { label: "Días de Vacaciones" },
+        ]}
+      />
+      <div>
         <BackButton fallback="/admin/settings" />
-        <div className="flex items-center gap-3">
-          <Palmtree className="h-8 w-8" />
-          <div>
-            <h1 className="text-3xl font-bold">Días de Vacaciones</h1>
-            <p className="text-muted-foreground">
-              Días otorgados por antigüedad y vigencia de los períodos
-            </p>
-          </div>
-        </div>
       </div>
 
       <VacationAccrualClient
         initialRules={rules}
         initialGraceWindowMonths={setting.graceWindowMonths}
       />
-    </div>
+    </PageContainer>
   );
 }

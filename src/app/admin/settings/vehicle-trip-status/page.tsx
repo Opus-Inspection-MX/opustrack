@@ -1,6 +1,7 @@
 "use client";
 
 import { Eye, Pencil, Plus, Trash2 } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import type {
@@ -8,6 +9,9 @@ import type {
   CatalogColumn,
 } from "@/components/common/catalog-table";
 import { CatalogTable } from "@/components/common/catalog-table";
+import { PageContainer } from "@/components/common/page-container";
+import { PageHeader } from "@/components/common/page-header";
+import { StatusBadge } from "@/components/common/status-badge";
 import { Button } from "@/components/ui/button";
 import { useDebounce } from "@/hooks/use-debounce";
 import { toast } from "@/hooks/use-toast";
@@ -38,15 +42,9 @@ const columns: CatalogColumn<VehicleTripStatus>[] = [
   {
     header: "Estado",
     cell: (row) => (
-      <span
-        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-          row.active
-            ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-            : "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200"
-        }`}
-      >
+      <StatusBadge tone={row.active ? "success" : "neutral"}>
         {row.active ? "Activo" : "Inactivo"}
-      </span>
+      </StatusBadge>
     ),
   },
 ];
@@ -127,27 +125,52 @@ export default function VehicleTripStatusPage() {
   ];
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold">Estado de Viaje Vehicular</h1>
-          <p className="text-muted-foreground">
-            Gestionar tipos de estado de viaje vehicular
-          </p>
-        </div>
-        <Button
-          onClick={() => router.push("/admin/settings/vehicle-trip-status/new")}
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          Nuevo Estado
-        </Button>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Estado de Viaje Vehicular"
+        description="Gestionar tipos de estado de viaje vehicular"
+        actions={
+          <Button
+            onClick={() =>
+              router.push("/admin/settings/vehicle-trip-status/new")
+            }
+            className="w-full sm:w-auto"
+          >
+            <Plus className="mr-2 h-4 w-4" aria-hidden />
+            Nuevo Estado
+          </Button>
+        }
+      />
 
       <CatalogTable
         data={statuses}
         columns={columns}
         actions={actions}
         rowKey={(row) => row.id}
+        mobileCard={(row) => (
+          <div className="space-y-2 rounded-xl border bg-card p-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="font-medium">{row.name}</p>
+              <StatusBadge tone={row.active ? "success" : "neutral"}>
+                {row.active ? "Activo" : "Inactivo"}
+              </StatusBadge>
+            </div>
+            <div className="flex gap-2">
+              <Button asChild variant="outline" size="sm" className="flex-1">
+                <Link href={`/admin/settings/vehicle-trip-status/${row.id}`}>
+                  Ver
+                </Link>
+              </Button>
+              <Button asChild variant="outline" size="sm" className="flex-1">
+                <Link
+                  href={`/admin/settings/vehicle-trip-status/${row.id}/edit`}
+                >
+                  Editar
+                </Link>
+              </Button>
+            </div>
+          </div>
+        )}
         searchValue={searchQuery}
         onSearchChange={handleSearchChange}
         searchPlaceholder="Buscar por nombre..."
@@ -163,6 +186,6 @@ export default function VehicleTripStatusPage() {
         loading={isLoading}
         emptyMessage="Sin estados de viaje vehicular."
       />
-    </div>
+    </PageContainer>
   );
 }

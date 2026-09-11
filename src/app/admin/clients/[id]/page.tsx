@@ -14,15 +14,15 @@ import {
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BackButton } from "@/components/common/back-button";
-import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/common/empty-state";
+import { PageContainer } from "@/components/common/page-container";
+import { PageHeader } from "@/components/common/page-header";
+import { ResponsiveTable } from "@/components/common/responsive-table";
+import { SectionCard } from "@/components/common/section-card";
+import { StatCard } from "@/components/common/stat-card";
+import { StatusBadge } from "@/components/common/status-badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -48,88 +48,59 @@ export default async function ClientDetailPage({
   if (!client) notFound();
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <BackButton fallback="/admin/clients" />
-          <div>
-            <h1 className="text-3xl font-bold">{client.name}</h1>
-            <p className="text-muted-foreground">
-              Código Cliente: {client.code}
-            </p>
-          </div>
-        </div>
-        <Button asChild>
-          <Link href={`/admin/clients/${id}/edit`}>
-            <Edit className="h-4 w-4 mr-2" />
-            Editar
-          </Link>
-        </Button>
+    <PageContainer>
+      <PageHeader
+        title={client.name}
+        description={`Código Cliente: ${client.code}`}
+        breadcrumbs={[
+          { label: "Centros de Verificación", href: "/admin/clients" },
+          { label: client.code },
+        ]}
+        actions={
+          <Button asChild className="w-full sm:w-auto">
+            <Link href={`/admin/clients/${id}/edit`}>
+              <Edit className="h-4 w-4 mr-2" aria-hidden />
+              Editar
+            </Link>
+          </Button>
+        }
+      />
+      <div>
+        <BackButton fallback="/admin/clients" />
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Total Usuarios
-            </CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{client._count.users}</div>
-            <p className="text-xs text-muted-foreground">Usuarios asignados</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Líneas</CardTitle>
-            <Wrench className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{client._count.lines}</div>
-            <p className="text-xs text-muted-foreground">
-              Líneas de inspección
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Incidentes</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{client._count.incidents}</div>
-            <p className="text-xs text-muted-foreground">Total de incidentes</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Calendarios</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {client._count.scheduleClients}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Total de calendarios
-            </p>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <StatCard
+          title="Total Usuarios"
+          value={client._count.users}
+          description="Usuarios asignados"
+          icon={Users}
+        />
+        <StatCard
+          title="Líneas"
+          value={client._count.lines}
+          description="Líneas de inspección"
+          icon={Wrench}
+        />
+        <StatCard
+          title="Incidentes"
+          value={client._count.incidents}
+          description="Total de incidentes"
+          icon={AlertTriangle}
+        />
+        <StatCard
+          title="Calendarios"
+          value={client._count.scheduleClients}
+          description="Total de calendarios"
+          icon={Calendar}
+        />
       </div>
 
       {/* Cliente Information */}
-      <div className="grid gap-6 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Información Básica</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
+      <div className="grid gap-6 grid-cols-1 md:grid-cols-2">
+        <SectionCard title="Información Básica">
+          <div className="space-y-4">
             <div className="flex items-start gap-3">
               <Building className="h-5 w-5 text-muted-foreground mt-0.5" />
               <div className="flex-1">
@@ -160,21 +131,21 @@ export default async function ClientDetailPage({
 
             {client.rfc && (
               <div className="flex items-start gap-3">
-                <Building className="h-5 w-5 text-muted-foreground mt-0.5" />
+                <Building
+                  className="h-5 w-5 text-muted-foreground mt-0.5"
+                  aria-hidden
+                />
                 <div className="flex-1">
                   <p className="text-sm text-muted-foreground">RFC</p>
                   <p className="font-medium font-mono">{client.rfc}</p>
                 </div>
               </div>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </SectionCard>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Información de Contacto</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
+        <SectionCard title="Información de Contacto">
+          <div className="space-y-4">
             {client.address && (
               <div className="flex items-start gap-3">
                 <MapPin className="h-5 w-5 text-muted-foreground mt-0.5" />
@@ -217,7 +188,10 @@ export default async function ClientDetailPage({
 
             {client.email && (
               <div className="flex items-start gap-3">
-                <Mail className="h-5 w-5 text-muted-foreground mt-0.5" />
+                <Mail
+                  className="h-5 w-5 text-muted-foreground mt-0.5"
+                  aria-hidden
+                />
                 <div className="flex-1">
                   <p className="text-sm text-muted-foreground">
                     Correo Electrónico
@@ -226,229 +200,262 @@ export default async function ClientDetailPage({
                 </div>
               </div>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </SectionCard>
       </div>
 
       {/* Assigned Users */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Users className="h-5 w-5" />
-            Usuarios Asignados ({client.users.length})
-          </CardTitle>
-          <CardDescription>Usuarios asignados a este Cliente</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {client.users.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8">
-              No hay usuarios asignados a este Cliente
-            </p>
-          ) : (
-            <div className="border rounded-lg overflow-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Nombre</TableHead>
-                    <TableHead>Correo Electrónico</TableHead>
-                    <TableHead>Rol</TableHead>
-                    <TableHead>Estado</TableHead>
-                    <TableHead className="text-right">Acciones</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {client.users.map((user) => (
-                    <TableRow key={user.id}>
-                      <TableCell className="font-medium">{user.name}</TableCell>
-                      <TableCell>{user.email}</TableCell>
-                      <TableCell>
-                        <RoleBadges userRoles={user.userRoles} />
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={
-                            user.userStatus.name === "ACTIVO"
-                              ? "default"
-                              : "secondary"
-                          }
-                        >
-                          {user.userStatus.name}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button variant="ghost" size="sm" asChild>
-                          <Link href={`/admin/users/${user.id}`}>Ver</Link>
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      <SectionCard
+        title={`Usuarios Asignados (${client.users.length})`}
+        description="Usuarios asignados a este Cliente"
+      >
+        {client.users.length === 0 ? (
+          <EmptyState
+            icon={Users}
+            title="Sin usuarios"
+            description="No hay usuarios asignados a este Cliente"
+          />
+        ) : (
+          <ResponsiveTable
+            data={client.users}
+            rowKey={(user) => user.id}
+            columns={[
+              {
+                header: "Nombre",
+                cell: (user) => (
+                  <span className="font-medium">{user.name}</span>
+                ),
+              },
+              {
+                header: "Correo Electrónico",
+                cell: (user) => <span>{user.email}</span>,
+              },
+              {
+                header: "Rol",
+                cell: (user) => <RoleBadges userRoles={user.userRoles} />,
+              },
+              {
+                header: "Estado",
+                cell: (user) => (
+                  <StatusBadge
+                    tone={
+                      user.userStatus.name === "ACTIVO" ? "success" : "neutral"
+                    }
+                  >
+                    {user.userStatus.name}
+                  </StatusBadge>
+                ),
+              },
+              {
+                header: "Acciones",
+                headerClassName: "text-right",
+                className: "text-right",
+                cell: (user) => (
+                  <Button variant="ghost" size="sm" asChild>
+                    <Link href={`/admin/users/${user.id}`}>Ver</Link>
+                  </Button>
+                ),
+              },
+            ]}
+            mobileCard={(user) => (
+              <div className="space-y-2 rounded-xl border bg-card p-4">
+                <p className="font-medium">{user.name}</p>
+                <p className="text-xs text-muted-foreground">{user.email}</p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <RoleBadges userRoles={user.userRoles} />
+                  <StatusBadge
+                    tone={
+                      user.userStatus.name === "ACTIVO" ? "success" : "neutral"
+                    }
+                  >
+                    {user.userStatus.name}
+                  </StatusBadge>
+                </div>
+                <Button variant="outline" size="sm" asChild className="w-full">
+                  <Link href={`/admin/users/${user.id}`}>Ver</Link>
+                </Button>
+              </div>
+            )}
+            emptyTitle="Sin usuarios"
+            emptyMessage="No hay usuarios asignados a este Cliente"
+          />
+        )}
+      </SectionCard>
 
       {/* Lines and Equipment */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Wrench className="h-5 w-5" />
-            Líneas y Equipos ({client.lines.length})
-          </CardTitle>
-          <CardDescription>Líneas de inspección y sus equipos</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {client.lines.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8">
-              No hay líneas asignadas a este Cliente
-            </p>
-          ) : (
-            <div className="space-y-6">
-              {client.lines.map((line) => (
-                <div key={line.id} className="border rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-4">
-                    <div>
-                      <h3 className="font-semibold text-lg">{line.name}</h3>
-                      {line.description && (
-                        <p className="text-sm text-muted-foreground">
-                          {line.description}
-                        </p>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline">
-                        {line.equipments.length} equipos
-                      </Badge>
-                      <Button variant="ghost" size="sm" asChild>
-                        <Link href={`/admin/lines/${line.id}`}>Ver Línea</Link>
-                      </Button>
-                    </div>
+      <SectionCard
+        title={`Líneas y Equipos (${client.lines.length})`}
+        description="Líneas de inspección y sus equipos"
+      >
+        {client.lines.length === 0 ? (
+          <EmptyState
+            icon={Wrench}
+            title="Sin líneas"
+            description="No hay líneas asignadas a este Cliente"
+          />
+        ) : (
+          <div className="space-y-6">
+            {client.lines.map((line) => (
+              <div key={line.id} className="border rounded-lg p-4">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="font-semibold text-lg">{line.name}</h3>
+                    {line.description && (
+                      <p className="text-sm text-muted-foreground">
+                        {line.description}
+                      </p>
+                    )}
                   </div>
-
-                  {line.equipments.length > 0 ? (
-                    <div className="border rounded-lg overflow-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Equipo</TableHead>
-                            <TableHead>Descripción</TableHead>
-                            <TableHead className="text-right">
-                              Acciones
-                            </TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {line.equipments.map((equipment) => (
-                            <TableRow key={equipment.id}>
-                              <TableCell className="font-medium">
-                                <div className="flex items-center gap-2">
-                                  <Package className="h-4 w-4 text-muted-foreground" />
-                                  {equipment.name}
-                                </div>
-                              </TableCell>
-                              <TableCell className="text-sm text-muted-foreground max-w-xs truncate">
-                                {equipment.description || "-"}
-                              </TableCell>
-                              <TableCell className="text-right">
-                                <Button variant="ghost" size="sm" asChild>
-                                  <Link
-                                    href={`/admin/equipments/${equipment.id}/edit`}
-                                  >
-                                    Ver
-                                  </Link>
-                                </Button>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground text-center py-4">
-                      No hay equipos en esta línea
-                    </p>
-                  )}
+                  <div className="flex items-center gap-2">
+                    <StatusBadge tone="neutral">
+                      {line.equipments.length} equipos
+                    </StatusBadge>
+                    <Button variant="ghost" size="sm" asChild>
+                      <Link href={`/admin/lines/${line.id}`}>Ver Línea</Link>
+                    </Button>
+                  </div>
                 </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+
+                {line.equipments.length > 0 ? (
+                  <div className="border rounded-lg overflow-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Equipo</TableHead>
+                          <TableHead>Descripción</TableHead>
+                          <TableHead className="text-right">Acciones</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {line.equipments.map((equipment) => (
+                          <TableRow key={equipment.id}>
+                            <TableCell className="font-medium">
+                              <div className="flex items-center gap-2">
+                                <Package className="h-4 w-4 text-muted-foreground" />
+                                {equipment.name}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground max-w-xs truncate">
+                              {equipment.description || "-"}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Button variant="ghost" size="sm" asChild>
+                                <Link
+                                  href={`/admin/equipments/${equipment.id}/edit`}
+                                >
+                                  Ver
+                                </Link>
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    No hay equipos en esta línea
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </SectionCard>
 
       {/* Recent Incidents */}
       {client.incidents.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5" />
-              Incidentes Recientes (Últimos {client.incidents.length})
-            </CardTitle>
-            <CardDescription>
-              Incidentes más recientes reportados para este Cliente
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="border rounded-lg overflow-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>ID</TableHead>
-                    <TableHead>Título</TableHead>
-                    <TableHead>Tipo</TableHead>
-                    <TableHead>Estado</TableHead>
-                    <TableHead>Reportado</TableHead>
-                    <TableHead className="text-right">Acciones</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {client.incidents.map((incident) => (
-                    <TableRow key={incident.id}>
-                      <TableCell className="font-mono text-sm">
-                        INC-{incident.id}
-                      </TableCell>
-                      <TableCell className="font-medium max-w-xs truncate">
-                        {incident.title}
-                      </TableCell>
-                      <TableCell>
-                        {incident.type ? (
-                          <Badge variant="outline">{incident.type.name}</Badge>
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {incident.status ? (
-                          <Badge variant="secondary">
-                            {incident.status.name}
-                          </Badge>
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        {/* This page is scoped to one center, so show its own
-                            clock (plus CDMX when they differ). */}
-                        {formatIncidentDateTime(
-                          incident.reportedAt,
-                          client.state.code,
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button variant="ghost" size="sm" asChild>
-                          <Link href={`/admin/incidents/${incident.id}`}>
-                            Ver
-                          </Link>
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
+        <SectionCard
+          title={`Incidentes Recientes (Últimos ${client.incidents.length})`}
+          description="Incidentes más recientes reportados para este Cliente"
+        >
+          <ResponsiveTable
+            data={client.incidents}
+            rowKey={(incident) => incident.id}
+            columns={[
+              {
+                header: "ID",
+                cell: (incident) => (
+                  <span className="font-mono text-sm">INC-{incident.id}</span>
+                ),
+              },
+              {
+                header: "Título",
+                cell: (incident) => (
+                  <span className="font-medium max-w-xs truncate block">
+                    {incident.title}
+                  </span>
+                ),
+              },
+              {
+                header: "Tipo",
+                cell: (incident) =>
+                  incident.type ? (
+                    <StatusBadge tone="neutral">
+                      {incident.type.name}
+                    </StatusBadge>
+                  ) : (
+                    <span className="text-muted-foreground">-</span>
+                  ),
+              },
+              {
+                header: "Estado",
+                cell: (incident) =>
+                  incident.status ? (
+                    <StatusBadge tone="info">
+                      {incident.status.name}
+                    </StatusBadge>
+                  ) : (
+                    <span className="text-muted-foreground">-</span>
+                  ),
+              },
+              {
+                header: "Reportado",
+                cell: (incident) => (
+                  <span className="text-sm">
+                    {/* This page is scoped to one center, so show its own
+                        clock (plus CDMX when they differ). */}
+                    {formatIncidentDateTime(
+                      incident.reportedAt,
+                      client.state.code,
+                    )}
+                  </span>
+                ),
+              },
+              {
+                header: "Acciones",
+                headerClassName: "text-right",
+                className: "text-right",
+                cell: (incident) => (
+                  <Button variant="ghost" size="sm" asChild>
+                    <Link href={`/admin/incidents/${incident.id}`}>Ver</Link>
+                  </Button>
+                ),
+              },
+            ]}
+            mobileCard={(incident) => (
+              <div className="space-y-2 rounded-xl border bg-card p-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-mono text-xs text-muted-foreground">
+                    INC-{incident.id}
+                  </span>
+                  {incident.status && (
+                    <StatusBadge tone="info">
+                      {incident.status.name}
+                    </StatusBadge>
+                  )}
+                </div>
+                <p className="font-medium">{incident.title}</p>
+                <Button variant="outline" size="sm" asChild className="w-full">
+                  <Link href={`/admin/incidents/${incident.id}`}>Ver</Link>
+                </Button>
+              </div>
+            )}
+            emptyTitle="Sin incidentes"
+            emptyMessage="No hay incidentes recientes para este Cliente"
+          />
+        </SectionCard>
       )}
-    </div>
+    </PageContainer>
   );
 }

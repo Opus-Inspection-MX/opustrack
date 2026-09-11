@@ -1,5 +1,6 @@
-import { BellRing } from "lucide-react";
 import { BackButton } from "@/components/common/back-button";
+import { PageContainer } from "@/components/common/page-container";
+import { PageHeader } from "@/components/common/page-header";
 import { ChannelMatrixClient } from "@/components/notifications/channel-matrix-client";
 import {
   getChannelMatrix,
@@ -18,19 +19,17 @@ export default async function NotificationSettingsPage() {
   ]);
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-4">
+    <PageContainer>
+      <PageHeader
+        title="Canales de notificación"
+        description="Qué eventos llegan por notificación y por correo, y estado del envío de correos"
+        breadcrumbs={[
+          { label: "Configuración", href: "/admin/settings" },
+          { label: "Canales de notificación" },
+        ]}
+      />
+      <div>
         <BackButton fallback="/admin/settings" />
-        <div className="flex items-center gap-3">
-          <BellRing className="h-8 w-8" />
-          <div>
-            <h1 className="text-3xl font-bold">Canales de notificación</h1>
-            <p className="text-muted-foreground">
-              Qué eventos llegan por notificación y por correo, y estado del
-              envío de correos
-            </p>
-          </div>
-        </div>
       </div>
 
       <ChannelMatrixClient
@@ -38,6 +37,6 @@ export default async function NotificationSettingsPage() {
         initialSmtp={smtp}
         initialFailed={failed}
       />
-    </div>
+    </PageContainer>
   );
 }

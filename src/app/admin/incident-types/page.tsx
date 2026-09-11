@@ -1,6 +1,7 @@
 "use client";
 
 import { Eye, Pencil, Plus, Trash2 } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import type {
@@ -8,6 +9,9 @@ import type {
   CatalogColumn,
 } from "@/components/common/catalog-table";
 import { CatalogTable } from "@/components/common/catalog-table";
+import { PageContainer } from "@/components/common/page-container";
+import { PageHeader } from "@/components/common/page-header";
+import { StatusBadge } from "@/components/common/status-badge";
 import { PriorityBadge } from "@/components/incident-types/priority-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -52,9 +56,9 @@ const columns: CatalogColumn<IncidentType>[] = [
   {
     header: "Estado",
     cell: (row) => (
-      <Badge variant={row.active ? "default" : "secondary"}>
+      <StatusBadge tone={row.active ? "success" : "neutral"}>
         {row.active ? "Activo" : "Inactivo"}
-      </Badge>
+      </StatusBadge>
     ),
   },
   {
@@ -141,25 +145,47 @@ export default function IncidentTypesPage() {
   ];
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Tipos de Incidente</h1>
-          <p className="text-muted-foreground">
-            Gestionar categorías de incidentes y sus configuraciones
-          </p>
-        </div>
-        <Button onClick={() => router.push("/admin/incident-types/new")}>
-          <Plus className="mr-2 h-4 w-4" />
-          Nuevo Tipo de Incidente
-        </Button>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Tipos de Incidente"
+        description="Gestionar categorías de incidentes y sus configuraciones"
+        actions={
+          <Button
+            onClick={() => router.push("/admin/incident-types/new")}
+            className="w-full sm:w-auto"
+          >
+            <Plus className="mr-2 h-4 w-4" aria-hidden />
+            Nuevo Tipo de Incidente
+          </Button>
+        }
+      />
 
       <CatalogTable
         data={incidentTypes}
         columns={columns}
         actions={actions}
         rowKey={(row) => row.id}
+        mobileCard={(row) => (
+          <div className="space-y-2 rounded-xl border bg-card p-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="font-medium">{row.name}</p>
+              <PriorityBadge priority={row.priority} />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {row.incidentCount} incidentes
+            </p>
+            <div className="flex gap-2">
+              <Button asChild variant="outline" size="sm" className="flex-1">
+                <Link href={`/admin/incident-types/${row.id}`}>Ver</Link>
+              </Button>
+              <Button asChild variant="outline" size="sm" className="flex-1">
+                <Link href={`/admin/incident-types/${row.id}/edit`}>
+                  Editar
+                </Link>
+              </Button>
+            </div>
+          </div>
+        )}
         searchValue={searchQuery}
         onSearchChange={handleSearchChange}
         searchPlaceholder="Buscar por nombre..."
@@ -175,6 +201,6 @@ export default function IncidentTypesPage() {
         loading={isLoading}
         emptyMessage="Sin tipos de incidente."
       />
-    </div>
+    </PageContainer>
   );
 }

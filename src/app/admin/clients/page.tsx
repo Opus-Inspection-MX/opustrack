@@ -8,6 +8,8 @@ import type {
   CatalogColumn,
 } from "@/components/common/catalog-table";
 import { CatalogTable } from "@/components/common/catalog-table";
+import { PageContainer } from "@/components/common/page-container";
+import { PageHeader } from "@/components/common/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useDebounce } from "@/hooks/use-debounce";
@@ -147,27 +149,44 @@ export default function ClientsPage() {
   ];
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Centros de Verificación</h1>
-          <p className="text-muted-foreground">
-            Administre los centros de verificación vehicular
-          </p>
-        </div>
-        <Button asChild>
-          <Link href="/admin/clients/new">
-            <Plus className="mr-2 h-4 w-4" />
-            Agregar Cliente
-          </Link>
-        </Button>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Centros de Verificación"
+        description="Administre los centros de verificación vehicular"
+        actions={
+          <Button asChild className="w-full sm:w-auto">
+            <Link href="/admin/clients/new">
+              <Plus className="mr-2 h-4 w-4" aria-hidden />
+              Agregar Cliente
+            </Link>
+          </Button>
+        }
+      />
 
       <CatalogTable
         data={clients}
         columns={columns}
         actions={actions}
         rowKey={(row) => row.id}
+        mobileCard={(row) => (
+          <div className="space-y-2 rounded-xl border bg-card p-4">
+            <p className="font-medium">
+              {row.name} ({row.code})
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {row.state.name} · {row._count.lines} líneas ·{" "}
+              {row._count.incidents} incidentes
+            </p>
+            <div className="flex gap-2">
+              <Button asChild variant="outline" size="sm" className="flex-1">
+                <Link href={`/admin/clients/${row.id}`}>Ver detalles</Link>
+              </Button>
+              <Button asChild variant="outline" size="sm" className="flex-1">
+                <Link href={`/admin/clients/${row.id}/edit`}>Editar</Link>
+              </Button>
+            </div>
+          </div>
+        )}
         searchValue={searchQuery}
         onSearchChange={handleSearchChange}
         searchPlaceholder="Buscar por código, nombre o razón social..."
@@ -183,6 +202,6 @@ export default function ClientsPage() {
         loading={isLoading}
         emptyMessage="Sin centros de verificación registrados."
       />
-    </div>
+    </PageContainer>
   );
 }

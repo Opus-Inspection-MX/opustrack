@@ -1,6 +1,7 @@
 "use client";
 
 import { Eye, Pencil, Plus, Trash2 } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import type {
@@ -8,6 +9,8 @@ import type {
   CatalogColumn,
 } from "@/components/common/catalog-table";
 import { CatalogTable } from "@/components/common/catalog-table";
+import { PageContainer } from "@/components/common/page-container";
+import { PageHeader } from "@/components/common/page-header";
 import { StatusBadge } from "@/components/common/status-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -154,25 +157,54 @@ export default function IncidentStatusPage() {
   ];
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold">Estado de Incidente</h1>
-          <p className="text-muted-foreground">
-            Gestionar tipos de estado de incidente y sus configuraciones
-          </p>
-        </div>
-        <Button onClick={() => router.push("/admin/incident-status/new")}>
-          <Plus className="mr-2 h-4 w-4" />
-          Nuevo Estado
-        </Button>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Estado de Incidente"
+        description="Gestionar tipos de estado de incidente y sus configuraciones"
+        actions={
+          <Button
+            onClick={() => router.push("/admin/incident-status/new")}
+            className="w-full sm:w-auto"
+          >
+            <Plus className="mr-2 h-4 w-4" aria-hidden />
+            Nuevo Estado
+          </Button>
+        }
+      />
 
       <CatalogTable
         data={statuses}
         columns={columns}
         actions={actions}
         rowKey={(row) => row.id}
+        mobileCard={(row) => (
+          <div className="space-y-2 rounded-xl border bg-card p-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <span
+                className="inline-block h-3 w-3 rounded-full"
+                style={{ backgroundColor: row.color }}
+                aria-hidden
+              />
+              <p className="font-medium">{row.name}</p>
+              <StatusBadge tone={row.active ? "success" : "neutral"}>
+                {row.active ? "Activo" : "Inactivo"}
+              </StatusBadge>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {row.incidentCount} incidentes
+            </p>
+            <div className="flex gap-2">
+              <Button asChild variant="outline" size="sm" className="flex-1">
+                <Link href={`/admin/incident-status/${row.id}`}>Ver</Link>
+              </Button>
+              <Button asChild variant="outline" size="sm" className="flex-1">
+                <Link href={`/admin/incident-status/${row.id}/edit`}>
+                  Editar
+                </Link>
+              </Button>
+            </div>
+          </div>
+        )}
         searchValue={searchQuery}
         onSearchChange={handleSearchChange}
         searchPlaceholder="Buscar por nombre..."
@@ -188,6 +220,6 @@ export default function IncidentStatusPage() {
         loading={isLoading}
         emptyMessage="Sin estados de incidente."
       />
-    </div>
+    </PageContainer>
   );
 }

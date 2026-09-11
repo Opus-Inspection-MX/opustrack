@@ -3,6 +3,7 @@
 import { Eye, Pencil, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import { EmptyState } from "@/components/common/empty-state";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -51,16 +52,17 @@ export function VehicleTable({ vehicles, onDelete }: VehicleTableProps) {
 
   if (vehicles.length === 0) {
     return (
-      <div className="text-center py-8 text-muted-foreground">
-        No se encontraron vehículos. Crea el primero para comenzar.
-      </div>
+      <EmptyState
+        title="Sin vehículos"
+        description="No se encontraron vehículos. Crea el primero para comenzar."
+      />
     );
   }
 
   return (
     <>
       {/* Mobile Card Layout */}
-      <div className="lg:hidden space-y-4">
+      <div className="md:hidden space-y-4">
         {vehicles.map((vehicle) => (
           <Card key={vehicle.id}>
             <CardContent className="pt-6">
@@ -150,7 +152,7 @@ export function VehicleTable({ vehicles, onDelete }: VehicleTableProps) {
       </div>
 
       {/* Desktop Table Layout */}
-      <div className="hidden lg:block border rounded-lg">
+      <div className="hidden md:block border rounded-lg overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>

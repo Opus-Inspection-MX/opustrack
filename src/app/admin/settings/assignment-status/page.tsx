@@ -1,6 +1,7 @@
 "use client";
 
 import { Eye, Pencil, Plus, Trash2 } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import type {
@@ -8,6 +9,9 @@ import type {
   CatalogColumn,
 } from "@/components/common/catalog-table";
 import { CatalogTable } from "@/components/common/catalog-table";
+import { PageContainer } from "@/components/common/page-container";
+import { PageHeader } from "@/components/common/page-header";
+import { StatusBadge } from "@/components/common/status-badge";
 import { Button } from "@/components/ui/button";
 import { useDebounce } from "@/hooks/use-debounce";
 import { toast } from "@/hooks/use-toast";
@@ -38,15 +42,9 @@ const columns: CatalogColumn<AssignmentStatus>[] = [
   {
     header: "Estado",
     cell: (row) => (
-      <span
-        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-          row.active
-            ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-            : "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200"
-        }`}
-      >
+      <StatusBadge tone={row.active ? "success" : "neutral"}>
         {row.active ? "Activo" : "Inactivo"}
-      </span>
+      </StatusBadge>
     ),
   },
 ];
@@ -127,25 +125,24 @@ export default function AssignmentStatusPage() {
   ];
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold">Estado de Asignación</h1>
-          <p className="text-muted-foreground">
-            Gestionar tipos de estado de asignación
-          </p>
-        </div>
-        <Button
-          onClick={() => router.push("/admin/settings/assignment-status/new")}
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          Nuevo Estado
-        </Button>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Estado de Asignación"
+        description="Gestionar tipos de estado de asignación"
+        actions={
+          <Button
+            onClick={() => router.push("/admin/settings/assignment-status/new")}
+            className="w-full sm:w-auto"
+          >
+            <Plus className="mr-2 h-4 w-4" aria-hidden />
+            Nuevo Estado
+          </Button>
+        }
+      />
 
       {/* RF-656: State machine warning banner — must remain visible above the table */}
-      <div className="rounded-md border border-amber-500/40 bg-amber-500/5 px-4 py-3 text-sm">
-        <p className="font-medium text-amber-700 dark:text-amber-300">Aviso</p>
+      <div className="rounded-md border border-warning/40 bg-warning-muted/40 px-4 py-3 text-sm">
+        <p className="font-medium text-warning-muted-foreground">Aviso</p>
         <p className="text-muted-foreground mt-1">
           Estos estados están vinculados al state machine de asignaciones. Los
           estados <code className="text-xs">PENDIENTE_DE_ASIGNACION</code>,{" "}
@@ -157,7 +154,7 @@ export default function AssignmentStatusPage() {
           Renombrar o eliminar uno puede romper el flujo. Consulta el{" "}
           <a
             href="/admin/lifecycle"
-            className="underline text-amber-700 dark:text-amber-300"
+            className="underline text-warning-muted-foreground"
           >
             Ciclo de Vida
           </a>{" "}
@@ -170,6 +167,31 @@ export default function AssignmentStatusPage() {
         columns={columns}
         actions={actions}
         rowKey={(row) => row.id}
+        mobileCard={(row) => (
+          <div className="space-y-2 rounded-xl border bg-card p-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="font-medium">{row.name}</p>
+              <StatusBadge tone={row.active ? "success" : "neutral"}>
+                {row.active ? "Activo" : "Inactivo"}
+              </StatusBadge>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {row._count.assignments} órdenes
+            </p>
+            <div className="flex gap-2">
+              <Button asChild variant="outline" size="sm" className="flex-1">
+                <Link href={`/admin/settings/assignment-status/${row.id}`}>
+                  Ver
+                </Link>
+              </Button>
+              <Button asChild variant="outline" size="sm" className="flex-1">
+                <Link href={`/admin/settings/assignment-status/${row.id}/edit`}>
+                  Editar
+                </Link>
+              </Button>
+            </div>
+          </div>
+        )}
         searchValue={searchQuery}
         onSearchChange={handleSearchChange}
         searchPlaceholder="Buscar por nombre..."
@@ -185,6 +207,6 @@ export default function AssignmentStatusPage() {
         loading={isLoading}
         emptyMessage="Sin estados de asignación."
       />
-    </div>
+    </PageContainer>
   );
 }

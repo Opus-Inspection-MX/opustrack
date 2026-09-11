@@ -8,7 +8,9 @@ import type {
   CatalogColumn,
 } from "@/components/common/catalog-table";
 import { CatalogTable } from "@/components/common/catalog-table";
-import { Badge } from "@/components/ui/badge";
+import { PageContainer } from "@/components/common/page-container";
+import { PageHeader } from "@/components/common/page-header";
+import { StatusBadge } from "@/components/common/status-badge";
 import { Button } from "@/components/ui/button";
 import { RoleBadges } from "@/components/users/role-badges";
 import { useDebounce } from "@/hooks/use-debounce";
@@ -42,11 +44,11 @@ const columns: CatalogColumn<UserRow>[] = [
   {
     header: "Estado",
     cell: (row) => (
-      <Badge
-        variant={row.userStatus.name === "ACTIVO" ? "default" : "secondary"}
+      <StatusBadge
+        tone={row.userStatus.name === "ACTIVO" ? "success" : "neutral"}
       >
         {row.userStatus.name}
-      </Badge>
+      </StatusBadge>
     ),
   },
   {
@@ -63,9 +65,9 @@ const columns: CatalogColumn<UserRow>[] = [
   {
     header: "Activo",
     cell: (row) => (
-      <Badge variant={row.active ? "default" : "destructive"}>
+      <StatusBadge tone={row.active ? "success" : "neutral"}>
         {row.active ? "Activo" : "Inactivo"}
-      </Badge>
+      </StatusBadge>
     ),
   },
 ];
@@ -144,27 +146,45 @@ export default function UsersPage() {
   ];
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Usuarios</h1>
-          <p className="text-muted-foreground">
-            Administre los usuarios del sistema y sus permisos
-          </p>
-        </div>
-        <Button asChild>
-          <Link href="/admin/users/new">
-            <Plus className="mr-2 h-4 w-4" />
-            Agregar Usuario
-          </Link>
-        </Button>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Usuarios"
+        description="Administre los usuarios del sistema y sus permisos"
+        actions={
+          <Button asChild className="w-full sm:w-auto">
+            <Link href="/admin/users/new">
+              <Plus className="mr-2 h-4 w-4" aria-hidden />
+              Agregar Usuario
+            </Link>
+          </Button>
+        }
+      />
 
       <CatalogTable
         data={users}
         columns={columns}
         actions={actions}
         rowKey={(row) => row.id}
+        mobileCard={(row) => (
+          <div className="space-y-2 rounded-xl border bg-card p-4">
+            <p className="font-medium">{row.name}</p>
+            <p className="text-xs text-muted-foreground">{row.email}</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <RoleBadges userRoles={row.userRoles} />
+              <StatusBadge tone={row.active ? "success" : "neutral"}>
+                {row.active ? "Activo" : "Inactivo"}
+              </StatusBadge>
+            </div>
+            <div className="flex gap-2">
+              <Button asChild variant="outline" size="sm" className="flex-1">
+                <Link href={`/admin/users/${row.id}`}>Ver</Link>
+              </Button>
+              <Button asChild variant="outline" size="sm" className="flex-1">
+                <Link href={`/admin/users/${row.id}/edit`}>Editar</Link>
+              </Button>
+            </div>
+          </div>
+        )}
         searchValue={searchQuery}
         onSearchChange={handleSearchChange}
         searchPlaceholder="Buscar por nombre, email o ID..."
@@ -180,6 +200,6 @@ export default function UsersPage() {
         loading={isLoading}
         emptyMessage="Sin usuarios registrados."
       />
-    </div>
+    </PageContainer>
   );
 }

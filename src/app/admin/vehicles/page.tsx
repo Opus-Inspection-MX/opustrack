@@ -4,8 +4,11 @@ import { Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import { PageContainer } from "@/components/common/page-container";
+import { PageHeader } from "@/components/common/page-header";
+import { SectionCard } from "@/components/common/section-card";
+import { TableSkeleton } from "@/components/common/skeletons";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { VehicleTable } from "@/components/vehicles/vehicle-table";
 import { toast } from "@/hooks/use-toast";
 import { isFailure } from "@/lib/actions/result";
@@ -69,36 +72,27 @@ export default function VehiclesPage() {
   };
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold">Vehículos</h1>
-          <p className="text-sm sm:text-base text-muted-foreground">
-            Gestionar flota vehicular de la empresa
-          </p>
-        </div>
-        <Button asChild className="w-full sm:w-auto">
-          <Link href="/admin/vehicles/new">
-            <Plus className="h-4 w-4 mr-2" />
-            Agregar Vehículo
-          </Link>
-        </Button>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Vehículos"
+        description="Gestionar flota vehicular de la empresa"
+        actions={
+          <Button asChild className="w-full sm:w-auto">
+            <Link href="/admin/vehicles/new">
+              <Plus className="h-4 w-4 mr-2" aria-hidden />
+              Agregar Vehículo
+            </Link>
+          </Button>
+        }
+      />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Todos los Vehículos</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="text-center py-8 text-muted-foreground">
-              Cargando vehículos...
-            </div>
-          ) : (
-            <VehicleTable vehicles={vehicles} onDelete={handleDelete} />
-          )}
-        </CardContent>
-      </Card>
-    </div>
+      <SectionCard title="Todos los Vehículos">
+        {loading ? (
+          <TableSkeleton rows={4} />
+        ) : (
+          <VehicleTable vehicles={vehicles} onDelete={handleDelete} />
+        )}
+      </SectionCard>
+    </PageContainer>
   );
 }

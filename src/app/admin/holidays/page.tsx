@@ -1,16 +1,12 @@
 import { Calendar, Pencil, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
-import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/common/empty-state";
+import { PageContainer } from "@/components/common/page-container";
+import { PageHeader } from "@/components/common/page-header";
+import { ResponsiveTable } from "@/components/common/responsive-table";
+import { SectionCard } from "@/components/common/section-card";
+import { StatusBadge } from "@/components/common/status-badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { deleteHoliday, getHolidays } from "@/lib/actions/holidays";
 import { requireRouteAccess } from "@/lib/auth/auth";
 
@@ -63,96 +59,122 @@ export default async function AdminHolidaysPage() {
   const holidays = await getHolidays();
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Días Festivos</h1>
-          <p className="text-muted-foreground">
-            Administre el catálogo de días festivos oficiales (LFT Art. 74)
-          </p>
-        </div>
-        <Button asChild>
-          <Link href="/admin/holidays/new">
-            <Plus className="mr-2 h-4 w-4" />
-            Nuevo Festivo
-          </Link>
-        </Button>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Días Festivos"
+        description="Administre el catálogo de días festivos oficiales (LFT Art. 74)"
+        actions={
+          <Button asChild className="w-full sm:w-auto">
+            <Link href="/admin/holidays/new">
+              <Plus className="mr-2 h-4 w-4" aria-hidden />
+              Nuevo Festivo
+            </Link>
+          </Button>
+        }
+      />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>
-            <div className="flex items-center gap-2">
-              <Calendar className="h-5 w-5" />
-              Festivos Activos ({holidays.length})
-            </div>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {holidays.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              <Calendar className="mx-auto h-12 w-12 mb-4 opacity-50" />
-              <p>No hay festivos registrados.</p>
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nombre</TableHead>
-                  <TableHead>Regla</TableHead>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead className="text-right">Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {holidays.map((holiday) => (
-                  <TableRow key={holiday.id}>
-                    <TableCell className="font-medium">
-                      {holiday.name}
-                    </TableCell>
-                    <TableCell>{formatHolidayRule(holiday)}</TableCell>
-                    <TableCell>
-                      {holiday.isRecurring ? (
-                        <Badge variant="outline">Recurrente</Badge>
-                      ) : (
-                        <Badge variant="secondary">
-                          Único {holiday.year ? `(${holiday.year})` : ""}
-                        </Badge>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button variant="ghost" size="icon" asChild>
-                          <Link href={`/admin/holidays/${holiday.id}/edit`}>
-                            <Pencil className="h-4 w-4" />
-                            <span className="sr-only">Editar</span>
-                          </Link>
-                        </Button>
-                        <form
-                          action={async () => {
-                            "use server";
-                            await deleteHoliday(holiday.id);
-                          }}
-                        >
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            type="submit"
-                            className="text-destructive hover:text-destructive"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                            <span className="sr-only">Eliminar</span>
-                          </Button>
-                        </form>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+      <SectionCard title={`Festivos Activos (${holidays.length})`}>
+        {holidays.length === 0 ? (
+          <EmptyState
+            icon={Calendar}
+            title="Sin festivos"
+            description="No hay festivos registrados."
+            action={{ label: "Nuevo Festivo", href: "/admin/holidays/new" }}
+          />
+        ) : (
+          <ResponsiveTable
+            data={holidays}
+            rowKey={(holiday) => holiday.id}
+            columns={[
+              {
+                header: "Nombre",
+                cell: (holiday) => (
+                  <span className="font-medium">{holiday.name}</span>
+                ),
+              },
+              {
+                header: "Regla",
+                cell: (holiday) => <span>{formatHolidayRule(holiday)}</span>,
+              },
+              {
+                header: "Tipo",
+                cell: (holiday) =>
+                  holiday.isRecurring ? (
+                    <StatusBadge tone="info">Recurrente</StatusBadge>
+                  ) : (
+                    <StatusBadge tone="neutral">
+                      Único {holiday.year ? `(${holiday.year})` : ""}
+                    </StatusBadge>
+                  ),
+              },
+              {
+                header: "Acciones",
+                headerClassName: "text-right",
+                className: "text-right",
+                cell: (holiday) => (
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      asChild
+                      aria-label="Editar"
+                    >
+                      <Link href={`/admin/holidays/${holiday.id}/edit`}>
+                        <Pencil className="h-4 w-4" aria-hidden />
+                      </Link>
+                    </Button>
+                    <form
+                      action={async () => {
+                        "use server";
+                        await deleteHoliday(holiday.id);
+                      }}
+                    >
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        type="submit"
+                        aria-label="Eliminar"
+                        className="text-destructive hover:text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" aria-hidden />
+                      </Button>
+                    </form>
+                  </div>
+                ),
+              },
+            ]}
+            mobileCard={(holiday) => (
+              <div className="space-y-2 rounded-xl border bg-card p-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="font-medium">{holiday.name}</p>
+                  <StatusBadge tone={holiday.isRecurring ? "info" : "neutral"}>
+                    {holiday.isRecurring
+                      ? "Recurrente"
+                      : `Único ${holiday.year ? `(${holiday.year})` : ""}`}
+                  </StatusBadge>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {formatHolidayRule(holiday)}
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    asChild
+                    className="flex-1"
+                  >
+                    <Link href={`/admin/holidays/${holiday.id}/edit`}>
+                      Editar
+                    </Link>
+                  </Button>
+                </div>
+              </div>
+            )}
+            emptyTitle="Sin festivos"
+            emptyMessage="No hay festivos registrados."
+          />
+        )}
+      </SectionCard>
+    </PageContainer>
   );
 }

@@ -8,6 +8,8 @@ import type {
   CatalogColumn,
 } from "@/components/common/catalog-table";
 import { CatalogTable } from "@/components/common/catalog-table";
+import { PageContainer } from "@/components/common/page-container";
+import { PageHeader } from "@/components/common/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useDebounce } from "@/hooks/use-debounce";
@@ -141,27 +143,43 @@ export default function RolesPage() {
   ];
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Roles</h1>
-          <p className="text-muted-foreground">
-            Administre los roles del sistema y sus permisos
-          </p>
-        </div>
-        <Button asChild>
-          <Link href="/admin/roles/new">
-            <Plus className="mr-2 h-4 w-4" />
-            Agregar Rol
-          </Link>
-        </Button>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Roles"
+        description="Administre los roles del sistema y sus permisos"
+        actions={
+          <Button asChild className="w-full sm:w-auto">
+            <Link href="/admin/roles/new">
+              <Plus className="mr-2 h-4 w-4" aria-hidden />
+              Agregar Rol
+            </Link>
+          </Button>
+        }
+      />
 
       <CatalogTable
         data={roles}
         columns={columns}
         actions={actions}
         rowKey={(row) => row.id}
+        mobileCard={(row) => (
+          <div className="space-y-2 rounded-xl border bg-card p-4">
+            <p className="font-medium">{row.name}</p>
+            <p className="text-xs text-muted-foreground">
+              {row.description || "Sin descripción"} ·{" "}
+              {row.rolePermission.length} permisos · {row._count.userRoles}{" "}
+              usuarios
+            </p>
+            <div className="flex gap-2">
+              <Button asChild variant="outline" size="sm" className="flex-1">
+                <Link href={`/admin/roles/${row.id}`}>Ver</Link>
+              </Button>
+              <Button asChild variant="outline" size="sm" className="flex-1">
+                <Link href={`/admin/roles/${row.id}/edit`}>Editar</Link>
+              </Button>
+            </div>
+          </div>
+        )}
         searchValue={searchQuery}
         onSearchChange={handleSearchChange}
         searchPlaceholder="Buscar por nombre o descripción..."
@@ -177,6 +195,6 @@ export default function RolesPage() {
         loading={isLoading}
         emptyMessage="Sin roles registrados."
       />
-    </div>
+    </PageContainer>
   );
 }
