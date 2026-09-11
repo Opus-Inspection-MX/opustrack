@@ -591,14 +591,11 @@ export interface BroadcastListRow {
   recipientCount: number;
   createdByName: string | null;
   roles: Array<{ id: number; name: string }>;
-  /** Directly-addressed users: first 5 by name, with the total for "y N más". */
+  /** Directly-addressed users (name order). Display caps at 5 + "y N más". */
   users: BroadcastListUser[];
   usersTotal: number;
   createdAt: Date;
 }
-
-/** History display cap for directly-addressed users. */
-const LIST_USERS_PREVIEW = 5;
 
 /** Scheduled + history for the admin table (newest first, capped at 100). */
 export async function listBroadcasts(): Promise<BroadcastListRow[]> {
@@ -667,7 +664,7 @@ export async function listBroadcasts(): Promise<BroadcastListRow[]> {
         ? (names.get(row.createdById) ?? null)
         : null,
       roles: row.roles.map((r) => ({ id: r.role.id, name: r.role.name })),
-      users: direct.slice(0, LIST_USERS_PREVIEW),
+      users: direct,
       usersTotal: direct.length,
       createdAt: row.createdAt,
     };

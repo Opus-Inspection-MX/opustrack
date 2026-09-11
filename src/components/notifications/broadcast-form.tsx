@@ -1,5 +1,6 @@
 "use client";
 
+import { X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,9 +19,11 @@ import { toast } from "@/hooks/use-toast";
 import {
   type BroadcastKindInput,
   type BroadcastListRow,
+  type BroadcastRecipientOption,
   type BroadcastTargetRole,
   createBroadcast,
   previewBroadcastRecipients,
+  searchBroadcastRecipients,
   updateBroadcast,
 } from "@/lib/actions/broadcasts";
 import { isFailure } from "@/lib/actions/result";
@@ -37,12 +40,33 @@ interface BroadcastFormProps {
 
 const EMPTY_PREVIEW = "—";
 
+type AudienceMode = "all" | "roles" | "users";
+
+/** Keep already-picked options visible when a new search resolves. */
+function mergeOptions(
+  previous: BroadcastRecipientOption[],
+  results: BroadcastRecipientOption[],
+  selectedIds: string[],
+): BroadcastRecipientOption[] {
+  const byId = new Map(results.map((o) => [o.id, o] as const));
+  for (const option of previous) {
+    if (selectedIds.includes(option.id) && !byId.has(option.id)) {
+      byId.set(option.id, option);
+    }
+  }
+  return [...byId.values()];
+}
+
 /**
  * Broadcast composer: copy + kind + channels + scope + timing in one card.
  *
- * Role checkboxes render ONLY the sender's allowed roles (fail closed comes
- * from the server too — `createBroadcast` re-validates the scope). The
- * recipient preview counts the live audience, clamped to that scope.
+ * The audience is one of three exclusive modes — Todos (if the sender may
+ * target all), Por rol (the checkboxes, limited to the sender's allowed
+ * roles) or Usuarios específicos (type-ahead search, clamped server-side to
+ * the sender's reach). Role checkboxes and search results render ONLY what
+ * the sender may address (fail closed comes from the server too —
+ * `createBroadcast` re-validates the scope). The recipient preview counts
+ * the live audience, clamped to that scope.
  */
 export function BroadcastForm({
   allowedRoles,
@@ -56,8 +80,14 @@ export function BroadcastForm({
   const [kind, setKind] = useState<BroadcastKindInput>("ANNOUNCEMENT");
   const [sendInApp, setSendInApp] = useState(true);
   const [sendEmail, setSendEmail] = useState(false);
-  const [allRoles, setAllRoles] = useState(false);
+  const [mode, setMode] = useState<AudienceMode>("roles");
   const [selectedRoleIds, setSelectedRoleIds] = useState<number[]>([]);
+  const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
+  const [userOptions, setUserOptions] = useState<BroadcastRecipientOption[]>(
+    [],
+  );
+  const [userSearch, setUserSearch] = useState("");
+  const [searching, setSearching] = useState(false);
   const [includeSender, setIncludeSender] = useState(false);
   const [sendNow, setSendNow] = useState(true);
   const [scheduledAtLocal, setScheduledAtLocal] = useState("");
@@ -74,8 +104,11 @@ export function BroadcastForm({
       setKind("ANNOUNCEMENT");
       setSendInApp(true);
       setSendEmail(false);
-      setAllRoles(false);
+      setMode("roles");
       setSelectedRoleIds([]);
+      setSelectedUserIds([]);
+      setUserOptions([]);
+      setUserSearch("");
       setIncludeSender(false);
       setSendNow(true);
       setScheduledAtLocal("");
@@ -86,12 +119,50 @@ export function BroadcastForm({
     setKind(editing.kind);
     setSendInApp(editing.sendInApp);
     setSendEmail(editing.sendEmail);
-    setAllRoles(editing.allRoles);
     setSelectedRoleIds(editing.roles.map((r) => r.id));
+    const editingUsers = editing.users.map((u) => ({
+      id: u.id,
+      name: u.name,
+      email: u.email,
+      roleNames: [],
+    }));
+    setSelectedUserIds(editingUsers.map((u) => u.id));
+    setUserOptions(editingUsers);
+    setUserSearch("");
+    setMode(
+      editing.allRoles ? "all" : editing.usersTotal > 0 ? "users" : "roles",
+    );
     setIncludeSender(editing.includeSender);
     setSendNow(false);
     setScheduledAtLocal(toDatetimeLocalMX(editing.scheduledAt));
   }, [editing]);
+
+  // Type-ahead against the in-reach user search (server clamps the scope).
+  useEffect(() => {
+    if (mode !== "users") return;
+    const query = userSearch.trim();
+    if (query.length < 2) {
+      setSearching(false);
+      setUserOptions((previous) =>
+        previous.filter((o) => selectedUserIds.includes(o.id)),
+      );
+      return;
+    }
+    setSearching(true);
+    const timer = setTimeout(() => {
+      searchBroadcastRecipients(query)
+        .then((results) => {
+          setUserOptions((previous) =>
+            mergeOptions(previous, results, selectedUserIds),
+          );
+          setSearching(false);
+        })
+        .catch(() => {
+          setSearching(false);
+        });
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [userSearch, mode, selectedUserIds]);
 
   // Live recipient preview, clamped to the sender's scope server-side.
   useEffect(() => {
@@ -101,10 +172,10 @@ export function BroadcastForm({
     }
     let cancelled = false;
     previewBroadcastRecipients({
-      roleIds: selectedRoleIds,
-      allRoles,
+      roleIds: mode === "roles" ? selectedRoleIds : [],
+      allRoles: mode === "all",
       includeSender,
-      userIds: [],
+      userIds: mode === "users" ? selectedUserIds : [],
     })
       .then((result) => {
         if (!cancelled) setPreview(String(result.count));
@@ -115,7 +186,7 @@ export function BroadcastForm({
     return () => {
       cancelled = true;
     };
-  }, [selectedRoleIds, allRoles, includeSender, hasTargets]);
+  }, [mode, selectedRoleIds, selectedUserIds, includeSender, hasTargets]);
 
   const toggleRole = (roleId: number) => {
     setSelectedRoleIds((ids) =>
@@ -124,6 +195,34 @@ export function BroadcastForm({
         : [...ids, roleId],
     );
   };
+
+  const addUser = (option: BroadcastRecipientOption) => {
+    setUserOptions((previous) =>
+      previous.some((o) => o.id === option.id)
+        ? previous
+        : [...previous, option],
+    );
+    setSelectedUserIds((ids) =>
+      ids.includes(option.id) ? ids : [...ids, option.id],
+    );
+  };
+
+  const removeUser = (userId: string) => {
+    setSelectedUserIds((ids) => ids.filter((id) => id !== userId));
+  };
+
+  const selectedOptions = selectedUserIds.map(
+    (id) =>
+      userOptions.find((o) => o.id === id) ?? {
+        id,
+        name: id,
+        email: "",
+        roleNames: [],
+      },
+  );
+  const searchResults = userOptions.filter(
+    (o) => !selectedUserIds.includes(o.id),
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -135,9 +234,9 @@ export function BroadcastForm({
         kind,
         sendInApp,
         sendEmail,
-        allRoles,
-        roleIds: selectedRoleIds,
-        userIds: [],
+        allRoles: mode === "all",
+        roleIds: mode === "roles" ? selectedRoleIds : [],
+        userIds: mode === "users" ? selectedUserIds : [],
         includeSender,
         scheduledAtLocal: sendNow ? null : scheduledAtLocal,
       };
@@ -266,18 +365,64 @@ export function BroadcastForm({
 
           <div className="space-y-2">
             <Label>Destinatarios</Label>
-            {canTargetAll && (
-              <div className="flex items-center gap-2 text-sm">
-                <Checkbox
-                  id="audience-all"
-                  checked={allRoles}
-                  onCheckedChange={(v) => setAllRoles(v === true)}
+            <div
+              role="radiogroup"
+              aria-label="Modo de destinatarios"
+              className="flex flex-col gap-1"
+            >
+              {canTargetAll && (
+                <label
+                  htmlFor="audience-mode-all"
+                  className="flex min-h-[44px] items-center gap-2 text-sm"
+                >
+                  <input
+                    type="radio"
+                    id="audience-mode-all"
+                    name="audience-mode"
+                    checked={mode === "all"}
+                    onChange={() => setMode("all")}
+                    disabled={loading}
+                  />
+                  Todos los roles
+                </label>
+              )}
+              <label
+                htmlFor="audience-mode-roles"
+                className="flex min-h-[44px] items-center gap-2 text-sm"
+              >
+                <input
+                  type="radio"
+                  id="audience-mode-roles"
+                  name="audience-mode"
+                  checked={mode === "roles"}
+                  onChange={() => setMode("roles")}
                   disabled={loading}
                 />
-                <label htmlFor="audience-all">Todos los roles</label>
-              </div>
+                Por rol
+              </label>
+              <label
+                htmlFor="audience-mode-users"
+                className="flex min-h-[44px] items-center gap-2 text-sm"
+              >
+                <input
+                  type="radio"
+                  id="audience-mode-users"
+                  name="audience-mode"
+                  checked={mode === "users"}
+                  onChange={() => setMode("users")}
+                  disabled={loading}
+                />
+                Usuarios específicos
+              </label>
+            </div>
+
+            {mode === "all" && (
+              <p className="text-sm text-muted-foreground">
+                Llegará a todos los usuarios activos.
+              </p>
             )}
-            {!allRoles && (
+
+            {mode === "roles" && (
               <div className="grid grid-cols-2 md:grid-cols-3 gap-2 pt-1">
                 {allowedRoles.map((role) => (
                   <div
@@ -298,6 +443,92 @@ export function BroadcastForm({
                 ))}
               </div>
             )}
+
+            {mode === "users" && (
+              <div className="space-y-2 pt-1">
+                <Label htmlFor="broadcast-user-search">Buscar usuarios</Label>
+                <Input
+                  id="broadcast-user-search"
+                  value={userSearch}
+                  onChange={(e) => setUserSearch(e.target.value)}
+                  placeholder="Escribe al menos 2 letras del nombre o correo"
+                  autoComplete="off"
+                  disabled={loading}
+                />
+                {searching && (
+                  <p className="text-sm text-muted-foreground">Buscando…</p>
+                )}
+                {!searching &&
+                  userSearch.trim().length >= 2 &&
+                  searchResults.length === 0 && (
+                    <p className="text-sm text-muted-foreground">
+                      Sin resultados para esa búsqueda.
+                    </p>
+                  )}
+                {searchResults.length > 0 && (
+                  <ul className="divide-y rounded-md border">
+                    {searchResults.map((option) => (
+                      <li key={option.id}>
+                        <button
+                          type="button"
+                          onClick={() => addUser(option)}
+                          aria-label={`Agregar a ${option.name}`}
+                          disabled={loading}
+                          className="flex min-h-[44px] w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-muted"
+                        >
+                          <span>
+                            <span className="font-medium">{option.name}</span>{" "}
+                            <span className="text-muted-foreground">
+                              {option.email}
+                            </span>
+                          </span>
+                          {option.roleNames.length > 0 && (
+                            <span className="text-xs text-muted-foreground">
+                              {option.roleNames.join(", ")}
+                            </span>
+                          )}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {selectedOptions.length > 0 && (
+                  <div className="space-y-1">
+                    <p className="text-sm text-muted-foreground">
+                      Seleccionados ({selectedOptions.length})
+                    </p>
+                    <ul className="flex flex-wrap gap-2">
+                      {selectedOptions.map((option) => (
+                        <li
+                          key={option.id}
+                          className="flex min-h-[44px] items-center gap-1 rounded-md border bg-muted px-2 py-1 text-sm"
+                        >
+                          <span>
+                            <span className="font-medium">{option.name}</span>
+                            {option.email && (
+                              <span className="text-muted-foreground">
+                                {" "}
+                                {option.email}
+                              </span>
+                            )}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => removeUser(option.id)}
+                            aria-label={`Quitar a ${option.name}`}
+                            disabled={loading}
+                            className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded hover:bg-background"
+                          >
+                            <X className="h-4 w-4" aria-hidden="true" />
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+
             <p className="text-sm text-muted-foreground">
               Destinatarios estimados:{" "}
               <span className="font-medium text-foreground">{preview}</span>

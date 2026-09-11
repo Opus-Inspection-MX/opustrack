@@ -65,10 +65,20 @@ function AudienceCell({ row }: { row: BroadcastListRow }) {
     );
   }
   if (row.allRoles) return <span className="text-sm">Todos los roles</span>;
-  if (row.roles.length === 0) return <span className="text-sm">—</span>;
-  return (
-    <span className="text-sm">{row.roles.map((r) => r.name).join(", ")}</span>
-  );
+  const parts: string[] = [];
+  if (row.roles.length > 0) {
+    parts.push(row.roles.map((r) => r.name).join(", "));
+  }
+  if (row.usersTotal > 0) {
+    const shown = row.users.map((u) => `${u.name} (${u.email})`).join(", ");
+    parts.push(
+      row.usersTotal > row.users.length
+        ? `${shown} y ${row.usersTotal - row.users.length} más`
+        : shown,
+    );
+  }
+  if (parts.length === 0) return <span className="text-sm">—</span>;
+  return <span className="text-sm">{parts.join(" + ")}</span>;
 }
 
 /**
