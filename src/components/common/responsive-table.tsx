@@ -1,5 +1,3 @@
-"use client";
-
 import type React from "react";
 import { EmptyState } from "@/components/common/empty-state";
 import {
@@ -32,6 +30,14 @@ interface ResponsiveTableProps<T> {
 
 /**
  * Table on desktop, cards on mobile — from a single column definition.
+ *
+ * Deliberately a Server Component even though it renders client UI
+ * (`Table`, `VacationApprovalButtons` en las celdas): `rowKey`/`columns`/
+ * `mobileCard` son funciones, y pasar funciones de una página servidor a un
+ * Client Component rompe la serialización RSC ("Functions cannot be passed
+ * directly to Client Components") y tira la página al error boundary — era
+ * lo que rompía `/admin/vacations` y `/vacations`. Mismo patrón que
+ * `StatCard`, que envuelve al cliente `AnimatedNumber` desde el servidor.
  *
  * The desktop table keeps native `<table>` semantics so e2e
  * `getByRole("row")` lookups keep passing; the mobile list renders below
