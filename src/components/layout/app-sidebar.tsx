@@ -139,7 +139,7 @@ export function AppSidebar() {
           <button
             type="button"
             onClick={toggleSidebar}
-            className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg bg-muted transition-colors group-data-[collapsible=icon]:hidden hover:bg-muted/80"
+            className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg bg-sidebar-accent text-sidebar-accent-foreground transition-colors group-data-[collapsible=icon]:hidden hover:bg-sidebar-accent/80"
             aria-label="Contraer menú"
           >
             <PanelLeftClose className="h-5 w-5" />
@@ -217,7 +217,7 @@ export function AppSidebar() {
             aria-label="Ver mi perfil"
           >
             <Avatar className="h-8 w-8 shrink-0">
-              <AvatarFallback className="text-xs">
+              <AvatarFallback className="bg-sidebar-accent text-xs text-sidebar-accent-foreground">
                 {userInitials(session?.user?.name, session?.user?.email)}
               </AvatarFallback>
             </Avatar>
@@ -225,7 +225,7 @@ export function AppSidebar() {
               <span className="block truncate text-sm font-medium">
                 {session?.user?.name ?? "Usuario"}
               </span>
-              <span className="block truncate text-xs text-muted-foreground">
+              <span className="block truncate text-xs text-sidebar-muted-foreground">
                 {session?.user?.email ?? ""}
               </span>
             </span>
