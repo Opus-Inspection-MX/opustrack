@@ -323,6 +323,7 @@ model ScheduleClient {
   @@index([scheduleId])
 }
 
+/// Decision #4: closed set owned by code — no admin screen on purpose.
 model ScheduleStatus {
   id          Int        @id @default(autoincrement())
   name        String     @unique
@@ -1075,6 +1076,7 @@ model Holiday {
 
 /// Status catalog for vacation requests — follows ScheduleStatus pattern.
 /// Seed values: PENDIENTE, APROBADA, RECHAZADA.
+/// Decision #4: closed set owned by code — no admin screen on purpose.
 model VacationStatus {
   id          Int       @id @default(autoincrement())
   name        String    @unique
