@@ -7,7 +7,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MultiSelect } from "@/components/ui/multi-select";
-import { SearchableSelect } from "@/components/ui/searchable-select";
 import {
   Select,
   SelectContent,
@@ -27,7 +26,11 @@ type UserFormProps = {
     email: string;
     userRoles: Array<{ role: { id: number; name: string } }>;
     userStatusId: number;
-    clientId: string | null;
+    clientAssignments: Array<{
+      clientId: string;
+      isPrimary: boolean;
+      client: { id: string; name: string; code: string };
+    }>;
     hireDate: Date | string | null;
     userProfile: {
       telephone: string | null;
@@ -51,7 +54,13 @@ export function UserForm({ user, roles, statuses, clients }: UserFormProps) {
     password: "",
     roleIds: user?.userRoles?.map((ur) => ur.role.id) ?? [],
     userStatusId: user?.userStatusId || statuses[0]?.id || 0,
-    clientId: user?.clientId || null,
+    clientIds:
+      user?.clientAssignments?.filter((a) => a.client).map((a) => a.clientId) ??
+      [],
+    primaryClientId:
+      user?.clientAssignments?.find((a) => a.isPrimary)?.clientId ??
+      user?.clientAssignments?.[0]?.clientId ??
+      null,
     // The date input wants "YYYY-MM-DD"; the server sends an instant.
     hireDate: user?.hireDate ? toDateInputMX(user.hireDate) : "",
     telephone: user?.userProfile?.telephone || "",
@@ -198,27 +207,65 @@ export function UserForm({ user, roles, statuses, clients }: UserFormProps) {
               </Select>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="clientId">Centro de Verificación</Label>
-              <SearchableSelect
-                options={[
-                  { value: "none", label: "Sin asignar" },
-                  ...clients.map((client) => ({
-                    value: client.id,
-                    label: `${client.name} (${client.code})`,
-                  })),
-                ]}
-                value={formData.clientId || "none"}
-                onValueChange={(value) =>
+            <div className="space-y-2 md:col-span-2">
+              <Label htmlFor="clientIds">Cliente de Verificación</Label>
+              {/* Many: the scope helpers read every active assignment, and
+                  the primary is the default Client (session, fallbacks). */}
+              <MultiSelect
+                id="clientIds"
+                options={clients.map((client) => ({
+                  value: client.id,
+                  label: `${client.name} (${client.code})`,
+                }))}
+                value={formData.clientIds}
+                onValueChange={(ids) =>
                   setFormData({
                     ...formData,
-                    clientId: value === "none" ? null : value,
+                    clientIds: ids,
+                    primaryClientId: ids.includes(
+                      formData.primaryClientId ?? "",
+                    )
+                      ? formData.primaryClientId
+                      : (ids[0] ?? null),
                   })
                 }
                 placeholder="Seleccionar Cliente"
                 searchPlaceholder="Buscar Cliente..."
-                emptyMessage="No se encontraron Cliente."
               />
+              <p className="text-xs text-muted-foreground">
+                El usuario ve datos de todos los Cliente asignados.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="primaryClientId">Cliente primario</Label>
+              <Select
+                value={formData.primaryClientId ?? "none"}
+                onValueChange={(value) =>
+                  setFormData({
+                    ...formData,
+                    primaryClientId: value === "none" ? null : value,
+                  })
+                }
+                disabled={formData.clientIds.length === 0}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccionar primario" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Sin primario</SelectItem>
+                  {clients
+                    .filter((client) => formData.clientIds.includes(client.id))
+                    .map((client) => (
+                      <SelectItem key={client.id} value={client.id}>
+                        {client.name} ({client.code})
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Marca el Cliente predeterminado del usuario.
+              </p>
             </div>
 
             <div className="space-y-2">

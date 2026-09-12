@@ -106,7 +106,8 @@ describe("ROOT sigue por el formulario de usuario", () => {
       email: world.fsrA.email,
       roleIds: [fsrRole.id],
       userStatusId: activo.id,
-      clientId: world.clientA.id,
+      clientIds: [world.clientA.id],
+      primaryClientId: world.clientA.id,
       hireDate: "2021-06-01",
     });
     expect(result.success).toBe(true);

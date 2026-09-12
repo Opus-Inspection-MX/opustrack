@@ -10,11 +10,6 @@ import { assertCanManageRoles } from "@/lib/authz/role-assignment";
 import { includeRoles } from "@/lib/authz/user-queries";
 import { prisma } from "@/lib/database/prisma.singleton";
 import { hashPassword } from "@/lib/security/hash";
-import {
-  assignUserToClient,
-  getPrimaryClientId,
-  removeUserFromClient,
-} from "@/lib/utils/client-assignments";
 import { mxDayRange } from "@/lib/utils/datetime";
 import { type ActionResult, businessRule, guarded, ok } from "./result";
 
@@ -25,7 +20,13 @@ export type UserFormData = {
   /** A user holds many roles; the list replaces whatever they have today. */
   roleIds: number[];
   userStatusId: number;
-  clientId?: string | null;
+  /**
+   * Every Client the user may see (the full desired set: the action
+   * synchronizes the junction table to it). Empty = no Client scope.
+   */
+  clientIds: string[];
+  /** Must be one of `clientIds`, or null when the set is empty. */
+  primaryClientId: string | null;
   telephone?: string;
   secondaryTelephone?: string;
   emergencyContact?: string;
@@ -195,9 +196,11 @@ export async function createUser(data: UserFormData) {
       },
     });
 
-    // Assign Client via UserClientAssignment if provided
-    if (data.clientId) {
-      await assignUserToClient(user.id, data.clientId, true);
+    // Assign Clients via UserClientAssignment (many, with a primary).
+    const clientIds = Array.from(new Set(data.clientIds ?? []));
+    const primaryClientId = data.primaryClientId ?? clientIds[0] ?? null;
+    if (clientIds.length > 0) {
+      await syncUserClients(user.id, clientIds, primaryClientId);
     }
 
     // Backfill vacation periods so the balance panel is populated immediately
@@ -300,6 +303,74 @@ async function applyHireDateChange(
 }
 
 /**
+ * Synchronize a user's Client membership to the full desired set.
+ *
+ * Adds missing assignments, deactivates removed ones (soft delete, never
+ * hard delete), and moves the primary mark — all in one transaction so a
+ * crash cannot leave the user with two primaries or none. Returns whether
+ * anything changed. Unknown or inactive Clients are refused in Spanish.
+ */
+async function syncUserClients(
+  userId: string,
+  clientIds: string[],
+  primaryClientId: string | null,
+): Promise<boolean> {
+  const want = Array.from(new Set(clientIds));
+  const primary = want.length === 0 ? null : (primaryClientId ?? want[0]);
+  if (primary !== null && !want.includes(primary)) {
+    businessRule("El Cliente primario debe estar entre los asignados.");
+  }
+
+  if (want.length > 0) {
+    const existing = await prisma.client.count({
+      where: { id: { in: want }, active: true },
+    });
+    if (existing !== want.length) {
+      businessRule("Uno o más Cliente seleccionados no existen.");
+    }
+  }
+
+  const current = await prisma.userClientAssignment.findMany({
+    where: { userId, active: true },
+    select: { clientId: true, isPrimary: true },
+  });
+  const currentIds = current.map((a) => a.clientId);
+  const currentPrimary = current.find((a) => a.isPrimary)?.clientId ?? null;
+  const sameSet =
+    currentIds.length === want.length &&
+    want.every((id) => currentIds.includes(id));
+  if (sameSet && currentPrimary === primary) return false;
+
+  const wantSet = new Set(want);
+  await prisma.$transaction(async (tx) => {
+    const removed = currentIds.filter((id) => !wantSet.has(id));
+    if (removed.length > 0) {
+      await tx.userClientAssignment.updateMany({
+        where: { userId, clientId: { in: removed }, active: true },
+        data: { active: false, isPrimary: false },
+      });
+    }
+    await tx.userClientAssignment.updateMany({
+      where: { userId, active: true },
+      data: { isPrimary: false },
+    });
+    for (const clientId of want) {
+      await tx.userClientAssignment.upsert({
+        where: { userId_clientId: { userId, clientId } },
+        update: { active: true, isPrimary: clientId === primary },
+        create: {
+          userId,
+          clientId,
+          active: true,
+          isPrimary: clientId === primary,
+        },
+      });
+    }
+  });
+  return true;
+}
+
+/**
  * Update existing user
  */
 export async function updateUser(id: string, data: UserFormData) {
@@ -374,18 +445,13 @@ async function updateUserInner(
     },
   });
 
-  // Manage Client assignment via UserClientAssignment
-  const currentClientId = await getPrimaryClientId(id);
-  if (data.clientId && data.clientId !== currentClientId) {
-    // Client changed: remove old, assign new
-    if (currentClientId) {
-      await removeUserFromClient(id, currentClientId);
-    }
-    await assignUserToClient(id, data.clientId, true);
-  } else if (!data.clientId && currentClientId) {
-    // Client cleared: remove old
-    await removeUserFromClient(id, currentClientId);
-  }
+  // Membership in every Client is synchronized to the form's full set:
+  // additions, removals and primary moves in one transaction (G-2).
+  const clientsChanged = await syncUserClients(
+    id,
+    data.clientIds ?? [],
+    data.primaryClientId ?? null,
+  );
 
   // Update or create user profile
   await prisma.userProfile.upsert({
@@ -425,9 +491,13 @@ async function updateUserInner(
     clearPermissionsCache();
   }
 
-  // Invalidate session if roles or status changed
+  // Invalidate session if roles, status or Client scope changed. Route
+  // grants and the primary Client travel in the JWT, and listings resolve
+  // scope per request — without the bump the person keeps the old menu and
+  // the old primary until the token expires.
   if (
     rolesChanged ||
+    clientsChanged ||
     (currentUser && currentUser.userStatusId !== data.userStatusId)
   ) {
     const { invalidateUserSessions } = await import(

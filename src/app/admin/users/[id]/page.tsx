@@ -83,9 +83,19 @@ export default async function UserDetailPage({
                 {user.userStatus?.name ?? (user.active ? "Activo" : "Inactivo")}
               </Badge>
             </Row>
-            {user.client && (
+            {user.clientAssignments.length > 0 && (
               <Row label="Cliente">
-                {user.client.name} ({user.client.code})
+                <span className="flex flex-wrap gap-1">
+                  {user.clientAssignments.map((assignment) => (
+                    <Badge
+                      key={assignment.clientId}
+                      variant={assignment.isPrimary ? "default" : "secondary"}
+                    >
+                      {assignment.client.name} ({assignment.client.code})
+                      {assignment.isPrimary ? " · primario" : ""}
+                    </Badge>
+                  ))}
+                </span>
               </Row>
             )}
             {user.hireDate && (
