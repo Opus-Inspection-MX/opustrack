@@ -367,7 +367,6 @@ async function main() {
           description: "View incidents",
           resource: "incidents",
           action: "read",
-          routePath: "/incidents",
         },
         {
           name: "incidents:create",

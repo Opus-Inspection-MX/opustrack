@@ -276,4 +276,21 @@ describe("cobertura del menú: cada ruta tiene su route:*", () => {
     const check: PermissionName = "route:admin-tracking";
     expect(routeNames).toContain(check);
   });
+
+  it("todo routePath declarado tiene una página (G-8/G-9)", () => {
+    // Dead route grants fail here instead of 404ing for operators:
+    // `route:admin-permissions` once pointed at a page that did not exist,
+    // and `incidents:read` carried a prefix with no page behind it.
+    const missing = PERMISSION_LIST.filter((p) => {
+      if (!p.routePath) return false;
+      const dir = join(process.cwd(), "src", "app", p.routePath);
+      const dirStat = statSync(dir, { throwIfNoEntry: false });
+      if (!dirStat?.isDirectory()) return true;
+      for (const entry of readdirSync(dir)) {
+        if (entry === "page.tsx" || entry === "route.ts") return false;
+      }
+      return true;
+    }).map((p) => `${p.name} → ${p.routePath}`);
+    expect(missing).toEqual([]);
+  });
 });

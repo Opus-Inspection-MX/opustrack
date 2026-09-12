@@ -201,7 +201,6 @@ export const PERMISSIONS = [
     description: "View incidents",
     resource: "incidents",
     action: "read",
-    routePath: "/incidents",
   },
   {
     name: "incidents:create",
@@ -1226,6 +1225,7 @@ export const ROUTE_REQUIRES: Record<string, readonly PermissionName[]> = {
     "roles:delete",
     "permissions:read",
   ],
+  "route:admin-permissions": ["permissions:read"],
   "route:admin-vacations": [
     "vacations:read",
     "vacations:approve",

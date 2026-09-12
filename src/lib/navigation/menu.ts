@@ -12,6 +12,7 @@ import {
   Eye,
   FileText,
   Home,
+  Key,
   LayoutDashboard,
   List,
   type LucideIcon,
@@ -414,6 +415,13 @@ export const MENU: MenuGroup[] = [
             icon: Shield,
             keywords: ["rol", "permiso", "acceso"],
             description: "Roles y sus permisos",
+          },
+          {
+            title: "Permisos",
+            url: "/admin/permissions",
+            icon: Key,
+            keywords: ["permiso", "catalogo", "acceso"],
+            description: "Catálogo de permisos (solo lectura)",
           },
           // Reachable only by typing the URL until now: no sidebar ever listed it.
           {
