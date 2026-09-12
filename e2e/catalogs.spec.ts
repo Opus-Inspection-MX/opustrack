@@ -99,11 +99,15 @@ for (const catalog of CATALOGS) {
     // Fase 1 (H-07): each catalog runs as the role that owns it — the
     // operational ones as ADMIN_OPERACION, the ROOT-only ones as admin.
     test.use({ storageState: authFile(catalog.role ?? "admin") });
-    // H-06, fails before Fase 0d: ADMIN_OPERACION holds route:admin-states
-    // but no `states:read`, so getStatesAdmin rejects and every step here
-    // dies. Pinned as fixme until 0d grants it.
+    // H-06, read-only remainder: ADMIN_OPERACION holds route:admin-states
+    // and `states:read` (granted in Fase 0d, verified by "lista estados"
+    // below), but creating/editing/deleting states stays ROOT-only
+    // (`states:create/update/delete` in ROOT_ONLY, G-5 read-only).
     if (catalog.key === "states") {
-      test.fixme(true, "H-06: ADMIN_OPERACION sin states:read (Fase 0d)");
+      test.fixme(
+        true,
+        "G-5 es solo lectura: escribir estados sigue siendo ROOT",
+      );
     }
     // Each step consumes what the previous one created.
     test.describe.configure({ mode: "serial" });
@@ -211,3 +215,32 @@ for (const catalog of CATALOGS) {
     });
   });
 }
+
+/**
+ * Parte D, read-only screens (G-5, G-8).
+ *
+ * The states CRUD above stays fixme'd because writes are ROOT-only; what
+ * ships here is that ADMIN_OPERACION opens /admin/states and lists, and
+ * that ROOT opens the new /admin/permissions catalog page. Chromium-only
+ * like the rest of this file (not browser-sensitive).
+ */
+test.describe("Parte D · operación lista estados (G-5: states:read)", () => {
+  test.use({ storageState: authFile("admin-operacion") });
+
+  test("abre /admin/states y lista", async ({ page }) => {
+    await page.goto("/admin/states");
+    await expect(page.getByRole("heading", { name: "Estados" })).toBeVisible();
+    // Header row plus at least one seeded state.
+    expect(await page.getByRole("row").count()).toBeGreaterThan(1);
+  });
+});
+
+test.describe("Parte D · ROOT abre el catálogo de permisos (G-8)", () => {
+  test.use({ storageState: authFile("admin") });
+
+  test("muestra el catálogo de solo lectura", async ({ page }) => {
+    await page.goto("/admin/permissions");
+    await expect(page.getByRole("heading", { name: "Permisos" })).toBeVisible();
+    await expect(page.getByText("states:read").first()).toBeVisible();
+  });
+});
