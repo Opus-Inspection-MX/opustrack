@@ -69,6 +69,12 @@ fila, nada la borra. Índice `(status, nextAttemptAt)`.
 **Tabla:** `BroadcastRole` — pivote `Broadcast ↔ Role` (audiencia por roles,
 selección múltiple).
 
+**Tabla:** `BroadcastUser` — pivote `Broadcast ↔ User` (difusiones a usuarios
+específicos, Parte C). Espejo de `BroadcastRole` con la misma auditoría
+(`active`, `createdById/updatedById`, `deactivatedAt/deactivatedById`);
+`@@unique([broadcastId, userId])` + índices en ambas columnas. Al editar, las
+filas que se quitan se **desactivan** (`active: false`), nunca se borran.
+
 **Tabla:** `RoleBroadcastTarget` — pivote `Role (emisor) ↔ Role (destino)`: a
 qué roles puede difundir cada rol. Sin filas, el emisor no llega a nadie (fail
 closed); ROOT (`isSuperuser`) omite la tabla y llega a todos. Se edita desde
@@ -540,37 +546,57 @@ preferencias por usuario. En la misma página vive el bloque SMTP.
 
 ### RF-473 · Difusiones (`/admin/notifications`)
 
-**Descripción:** Comunicados persistidos a roles destinatarios, de envío
-inmediato o programado, con alcance limitado por el rol emisor. Reemplaza al
-`sendBroadcast` anterior (un solo rol, sin canal, sin programación, sin
-historial; exigía apenas `notifications:read`, así que cualquier autenticado
-podía difundir — hueco cerrado exigiendo `notifications:broadcast`).
+**Descripción:** Comunicados persistidos a roles destinatarios **o a usuarios
+específicos**, de envío inmediato o programado, con alcance limitado por el
+rol emisor. Reemplaza al `sendBroadcast` anterior (un solo rol, sin canal,
+sin programación, sin historial; exigía apenas `notifications:read`, así que
+cualquier autenticado podía difundir — hueco cerrado exigiendo
+`notifications:broadcast`).
 
 **Reglas de negocio:**
 - Acciones `createBroadcast`, `updateBroadcast` (solo `PROGRAMADA`),
-  `cancelBroadcast`, `listBroadcasts`, `getMyBroadcastTargets` en
-  `src/lib/actions/broadcasts.ts`; todas exigen
+  `cancelBroadcast`, `listBroadcasts`, `getMyBroadcastTargets`,
+  `searchBroadcastRecipients` en `src/lib/actions/broadcasts.ts`; todas exigen
   `notifications:broadcast` (ruta `/admin/notifications`; ROOT,
   ADMIN_OPERACION, ADMIN_VACACIONES) y devuelven `rejected("…")` en español,
   nunca lanzan:
   - al menos un canal (Notificación / Correo);
-  - al menos un rol (o "todos", solo si el emisor alcanza todos los roles);
+  - al menos un destinatario: "todos" (solo si el emisor alcanza todos los
+    roles), o uno o más roles, o uno o más usuarios específicos;
   - roles ⊆ destinos permitidos del emisor = unión de `RoleBroadcastTarget`
     de sus roles (sin configuración no llega a nadie; ROOT omite la tabla);
+  - cada usuario específico debe tener un rol activo dentro de los destinos
+    permitidos del emisor **y**, si el emisor no tiene `scope:all-clients`,
+    compartir al menos un Cliente activo con él (`UserClientAssignment`);
+    ROOT (`isSuperuser`) alcanza a cualquiera. Sin roles alcanzables tampoco
+    hay usuarios alcanzables (fail closed). Fuera de alcance →
+    `"No puedes difundir a uno o más de los usuarios seleccionados"`;
   - `scheduledAt` futuro (reloj CDMX, se guarda UTC).
+- El alcance se valida **al crear y al editar, no en el despacho**
+  (decisión #3): si un usuario pierde el rol antes del envío programado, la
+  difusión igual le llega. Lo que sí se filtra al enviar es
+  `user.active`: un usuario dado de baja entre la programación y el envío no
+  recibe nada.
+- `searchBroadcastRecipients(query)` respalda el selector: mínimo 2
+  caracteres, tope 20, devuelve `{ id, name, email, roleNames }` **solo** de
+  usuarios dentro del alcance — nunca revela a nadie fuera de él.
 - Los destinatarios se calculan **al enviar**, no al crear. Enviar ahora =
   crear + despachar en la misma request; programar = queda `PROGRAMADA` para
   el cron. El despacho reclama la fila atómicamente (`updateMany where
   status=PROGRAMADA → ENVIANDO`): dos corridas la envían una sola vez; el
-  perdedor ve `count: 0` y no envía nada. `ANNOUNCEMENT` respeta la misma
-  audiencia (el tipo solo define prioridad y etiqueta, a diferencia del path
-  anterior que forzaba todo anuncio a todos). Opción **"Enviarme una copia"**
-  (`includeSender`).
-- UI: compositor (título, mensaje, tipo, canales, roles limitados a los
-  permitidos, "Enviar ahora"/"Programar", vista previa de destinatarios) +
-  tabla Programadas/Historial (estado, canales, destinatarios,
-  editar/cancelar). `/admin/roles/[id]`: sección **"Puede difundir a"** (solo
-  ROOT, `assertCanManageRoles`).
+  perdedor ve `count: 0` y no envía nada. La audiencia es la **unión sin
+  duplicados** de los roles (`BroadcastRole` activos) y los usuarios
+  (`BroadcastUser` activos, solo `user.active`); `ANNOUNCEMENT` respeta la
+  misma audiencia (el tipo solo define prioridad y etiqueta, a diferencia del
+  path anterior que forzaba todo anuncio a todos). Opción **"Enviarme una
+  copia"** (`includeSender`).
+- UI: compositor (título, mensaje, tipo, canales, tres modos excluyentes —
+  **Todos** / **Por rol** / **Usuarios específicos** con buscador y chips
+  removibles —, "Enviar ahora"/"Programar", vista previa de destinatarios) +
+  tabla Programadas/Historial (estado, canales, destinatarios con usuarios
+  como nombre + correo, tope 5 más "y N más", editar/cancelar).
+  `/admin/roles/[id]`: sección **"Puede difundir a"** (solo ROOT,
+  `assertCanManageRoles`).
 - Alcance sembrado: ADMIN_OPERACION → FSR, REPORTER, GUEST, ADMIN_OPERACION;
   ADMIN_VACACIONES → EMPLEADO, FSR, ADMIN_OPERACION, ADMIN_VACACIONES.
 
@@ -649,7 +675,10 @@ bandeja era `/fsr/notifications`).
 - `src/lib/notifications/audiences.test.ts` — operación por Cliente, FSR fuera de `incident_created`.
 - `src/lib/notifications/after-commit.test.ts` — rollback ⇒ nada se notifica.
 - `src/lib/notifications/notify-events.test.ts`, `notify-transitions.test.ts` — fachada y mapeo de transiciones.
-- `src/lib/notifications/broadcast-dispatch.test.ts` — validación de alcance (fail closed), reclamo atómico (dos corridas, un envío).
+- `src/lib/notifications/broadcast-dispatch.test.ts` — validación de alcance (fail closed), reclamo atómico (dos corridas, un envío), usuarios directos en la audiencia.
+- `src/lib/actions/broadcasts.test.ts` — validación de `userIds` (solo directos, ninguno, fuera de alcance, sin Cliente compartido, ROOT), búsqueda acotada, vista previa en unión, desactivación al editar.
+- `src/test/integration/broadcasts-users.int.test.ts` — alcance por roles+Cliente con rol dedicado (sin `scope:all-clients`), búsqueda sin revelar fuera, unión sin duplicados, inactivo fuera, idempotencia por reclamo, desactivación al editar.
+- `e2e/broadcast-users.spec.ts` — difusión a un usuario específico: la ve en `/notifications`, otro usuario no la recibe.
 - `src/lib/mail/outbox.test.ts` — backoff y máximo de intentos.
 - `src/lib/notifications/vacation-reminders.test.ts` — idempotencia del recordatorio.
 - `src/lib/notifications/go-links.test.ts` — resolución de destinos neutrales.
