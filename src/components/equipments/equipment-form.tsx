@@ -24,7 +24,11 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { getClientsForSelect } from "@/lib/actions/clients";
-import { createEquipment, updateEquipment } from "@/lib/actions/equipments";
+import {
+  createEquipment,
+  getEquipmentStatusOptions,
+  updateEquipment,
+} from "@/lib/actions/equipments";
 import { getLinesByClientId } from "@/lib/actions/lines";
 import { logger } from "@/lib/observability/logger";
 
@@ -33,6 +37,9 @@ interface EquipmentFormProps {
     id: number;
     name: string;
     description?: string | null;
+    model?: string | null;
+    serialNumber?: string | null;
+    statusId?: number;
     lineId: number;
     line?: {
       clientId: string;
@@ -58,20 +65,30 @@ export function EquipmentForm({ equipment, mode }: EquipmentFormProps) {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [clients, setClients] = useState<Client[]>([]);
   const [lines, setLines] = useState<Line[]>([]);
+  const [statuses, setStatuses] = useState<Array<{ id: number; name: string }>>(
+    [],
+  );
   const [loading, setLoading] = useState(true);
   const [loadingLines, setLoadingLines] = useState(false);
 
   const [formData, setFormData] = useState({
     name: equipment?.name || "",
     description: equipment?.description || "",
+    model: equipment?.model || "",
+    serialNumber: equipment?.serialNumber || "",
+    statusId: equipment?.statusId?.toString() || "",
     clientId: equipment?.line?.clientId || "",
     lineId: equipment?.lineId?.toString() || "",
   });
 
   const loadClients = useCallback(async () => {
     try {
-      const data = await getClientsForSelect();
-      setClients(data);
+      const [clientRows, statusRows] = await Promise.all([
+        getClientsForSelect(),
+        getEquipmentStatusOptions(),
+      ]);
+      setClients(clientRows);
+      setStatuses(statusRows);
     } catch (error) {
       logger.error("Error loading Clientes:", error);
       setErrors({ general: "Error al cargar los Cliente" });
@@ -153,12 +170,22 @@ export function EquipmentForm({ equipment, mode }: EquipmentFormProps) {
           name: formData.name,
           description: formData.description || undefined,
           lineId: parseInt(formData.lineId, 10),
+          model: formData.model || null,
+          serialNumber: formData.serialNumber || null,
+          ...(formData.statusId
+            ? { statusId: parseInt(formData.statusId, 10) }
+            : {}),
         });
       } else {
         await createEquipment({
           name: formData.name,
           description: formData.description || undefined,
           lineId: parseInt(formData.lineId, 10),
+          model: formData.model || undefined,
+          serialNumber: formData.serialNumber || undefined,
+          ...(formData.statusId
+            ? { statusId: parseInt(formData.statusId, 10) }
+            : {}),
         });
       }
 
@@ -222,6 +249,47 @@ export function EquipmentForm({ equipment, mode }: EquipmentFormProps) {
               placeholder="Descripción del equipo..."
               rows={4}
             />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="model">Modelo</Label>
+              <Input
+                id="model"
+                value={formData.model}
+                onChange={(e) => handleChange("model", e.target.value)}
+                placeholder="Modelo del fabricante"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="serialNumber">Número de serie</Label>
+              <Input
+                id="serialNumber"
+                value={formData.serialNumber}
+                onChange={(e) => handleChange("serialNumber", e.target.value)}
+                placeholder="N/S del equipo"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="statusId">Estado del equipo</Label>
+            <Select
+              value={formData.statusId}
+              onValueChange={(value) => handleChange("statusId", value)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Seleccionar estado" />
+              </SelectTrigger>
+              <SelectContent>
+                {statuses.map((status) => (
+                  <SelectItem key={status.id} value={status.id.toString()}>
+                    {status.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2">

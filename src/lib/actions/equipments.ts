@@ -10,7 +10,7 @@ import {
 import { requirePermission } from "@/lib/auth/auth";
 import { getReportScope } from "@/lib/auth/report-scope";
 import { prisma } from "@/lib/database/prisma.singleton";
-import { guarded, ok, rejected } from "./result";
+import { businessRule, guarded, ok, rejected } from "./result";
 
 export async function getEquipments(params?: {
   page?: number;
@@ -36,6 +36,8 @@ export async function getEquipments(params?: {
     where.OR = [
       { name: { contains: params.search, mode: "insensitive" } },
       { description: { contains: params.search, mode: "insensitive" } },
+      { model: { contains: params.search, mode: "insensitive" } },
+      { serialNumber: { contains: params.search, mode: "insensitive" } },
     ];
   }
 
@@ -44,6 +46,7 @@ export async function getEquipments(params?: {
     prisma.equipment.findMany({
       where,
       include: {
+        status: { select: { id: true, name: true } },
         line: {
           include: {
             client: {
@@ -87,6 +90,7 @@ export async function getEquipmentById(id: number) {
   const equipment = await prisma.equipment.findUnique({
     where: { id },
     include: {
+      status: { select: { id: true, name: true } },
       line: {
         include: {
           client: {
@@ -123,20 +127,64 @@ export async function getEquipmentsByLineId(lineId: number) {
   return equipments;
 }
 
+/**
+ * Status options for the equipment form.
+ *
+ * The full `getEquipmentStatuses` catalog requires `settings:read`, which the
+ * operations admin does not hold — yet they create equipment every day. This
+ * read-only list gates on `equipments:read` instead, so the form works for
+ * everyone who may file equipment. No id in, no allowlist entry needed.
+ */
+export async function getEquipmentStatusOptions() {
+  await requirePermission("equipments:read");
+  return prisma.equipmentStatus.findMany({
+    where: { active: true },
+    select: { id: true, name: true },
+    orderBy: { name: "asc" },
+  });
+}
+
+/**
+ * Reject an unknown or inactive equipment status, in Spanish.
+ *
+ * `undefined` means "not set": create falls back to the schema default and
+ * update leaves the row untouched.
+ */
+async function resolveEquipmentStatusId(
+  statusId: number | undefined,
+): Promise<number | undefined> {
+  if (statusId === undefined) return undefined;
+  const status = await prisma.equipmentStatus.findFirst({
+    where: { id: statusId, active: true },
+    select: { id: true },
+  });
+  if (!status) {
+    businessRule("El estado de equipo seleccionado no existe.");
+  }
+  return status.id;
+}
+
 export async function createEquipment(data: {
   name: string;
   description?: string;
   lineId: number;
+  model?: string;
+  serialNumber?: string;
+  statusId?: number;
 }) {
   const user = await requirePermission("equipments:create");
   return guarded(async () => {
     // Equipment is born inside a line: the line must be visible (H-04).
     await loadLineFor(user, data.lineId);
+    const statusId = await resolveEquipmentStatusId(data.statusId);
     const equipment = await prisma.equipment.create({
       data: {
         name: data.name,
         description: data.description,
         lineId: data.lineId,
+        model: data.model?.trim() || null,
+        serialNumber: data.serialNumber?.trim() || null,
+        ...(statusId !== undefined && { statusId }),
       },
       include: {
         line: {
@@ -165,6 +213,9 @@ export async function updateEquipment(
     name?: string;
     description?: string;
     lineId?: number;
+    model?: string | null;
+    serialNumber?: string | null;
+    statusId?: number;
   },
 ) {
   const user = await requirePermission("equipments:update");
@@ -175,6 +226,7 @@ export async function updateEquipment(
     if (data.lineId) {
       await loadLineFor(user, data.lineId);
     }
+    const statusId = await resolveEquipmentStatusId(data.statusId);
     const equipment = await prisma.equipment.update({
       where: { id },
       data: {
@@ -183,6 +235,13 @@ export async function updateEquipment(
           description: data.description,
         }),
         ...(data.lineId && { lineId: data.lineId }),
+        ...(data.model !== undefined && {
+          model: data.model?.trim() || null,
+        }),
+        ...(data.serialNumber !== undefined && {
+          serialNumber: data.serialNumber?.trim() || null,
+        }),
+        ...(statusId !== undefined && { statusId }),
       },
       include: {
         line: {

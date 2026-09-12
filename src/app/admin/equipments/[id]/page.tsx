@@ -62,6 +62,38 @@ export default async function EquipmentDetailPage({
               </div>
             )}
 
+            {equipment.model && (
+              <div className="flex items-start gap-3">
+                <Wrench className="h-5 w-5 text-muted-foreground mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-sm text-muted-foreground">Modelo</p>
+                  <p className="font-medium">{equipment.model}</p>
+                </div>
+              </div>
+            )}
+
+            {equipment.serialNumber && (
+              <div className="flex items-start gap-3">
+                <Wrench className="h-5 w-5 text-muted-foreground mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-sm text-muted-foreground">
+                    Número de serie
+                  </p>
+                  <p className="font-medium">{equipment.serialNumber}</p>
+                </div>
+              </div>
+            )}
+
+            <div className="flex items-start gap-3">
+              <Wrench className="h-5 w-5 text-muted-foreground mt-0.5" />
+              <div className="flex-1">
+                <p className="text-sm text-muted-foreground">
+                  Estado del equipo
+                </p>
+                <p className="font-medium">{equipment.status.name}</p>
+              </div>
+            </div>
+
             <div className="flex items-start gap-3">
               <List className="h-5 w-5 text-muted-foreground mt-0.5" />
               <div className="flex-1">
