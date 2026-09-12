@@ -11,6 +11,12 @@ export type RoleFormData = {
   name: string;
   description?: string;
   defaultPath: string;
+  /**
+   * Higher wins when a multi-role user needs one landing page, and orders
+   * the menu. `isSuperuser` is deliberately NOT here: it stays out of the
+   * UI on purpose (only seed/migration rows hold it).
+   */
+  priority: number;
   permissionIds?: number[];
 };
 
@@ -37,6 +43,7 @@ export async function getRoles(params?: RoleListParams): Promise<{
     name: string;
     description: string | null;
     defaultPath: string;
+    priority: number;
     rolePermission: Array<{ permission: { id: number; name: string } }>;
     _count: { userRoles: number };
   }>;
@@ -106,6 +113,7 @@ export async function getRolesForSelect() {
       name: true,
       description: true,
       defaultPath: true,
+      priority: true,
     },
     orderBy: { name: "asc" },
   });
@@ -144,12 +152,14 @@ export async function createRole(data: RoleFormData) {
   // message of anything a Server Action throws, and this one has to be read.
   return guarded(async () => {
     assertCanManageRoles(caller);
+    const priority = parseRolePriority(data.priority);
 
     const role = await prisma.role.create({
       data: {
         name: data.name,
         description: data.description || null,
         defaultPath: data.defaultPath,
+        priority,
       },
     });
 
@@ -188,6 +198,7 @@ export async function updateRole(id: number, data: RoleFormData) {
       where: { id, active: true },
       select: {
         defaultPath: true,
+        priority: true,
         rolePermission: {
           where: { active: true },
           select: { permissionId: true },
@@ -197,6 +208,7 @@ export async function updateRole(id: number, data: RoleFormData) {
     if (!previous) {
       businessRule("Rol no encontrado.");
     }
+    const priority = parseRolePriority(data.priority);
 
     const role = await prisma.$transaction(async (tx) => {
       const updated = await tx.role.update({
@@ -205,6 +217,7 @@ export async function updateRole(id: number, data: RoleFormData) {
           name: data.name,
           description: data.description || null,
           defaultPath: data.defaultPath,
+          priority,
         },
       });
 
@@ -220,7 +233,11 @@ export async function updateRole(id: number, data: RoleFormData) {
         previous?.rolePermission.map((r) => r.permissionId) ?? null,
         data.permissionIds,
       );
-    if (grantsChanged || previous?.defaultPath !== data.defaultPath) {
+    if (
+      grantsChanged ||
+      previous?.defaultPath !== data.defaultPath ||
+      previous?.priority !== priority
+    ) {
       const { invalidateRoleSessions } = await import(
         "@/lib/auth/session-management"
       );
@@ -314,6 +331,14 @@ export async function assignPermissionsToRole(
     revalidatePath(`/admin/roles/${roleId}/permissions`);
     return { data: null };
   });
+}
+
+/** Priority arrives from a numeric input: it must be a finite integer. */
+function parseRolePriority(value: number): number {
+  if (typeof value !== "number" || !Number.isInteger(value)) {
+    businessRule("La prioridad debe ser un número entero.");
+  }
+  return value;
 }
 
 type RoleTx = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];

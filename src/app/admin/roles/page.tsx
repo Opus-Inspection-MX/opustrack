@@ -50,6 +50,10 @@ const columns: CatalogColumn<RoleRow>[] = [
     ),
   },
   {
+    header: "Prioridad",
+    cell: (row) => <span className="font-mono text-sm">{row.priority}</span>,
+  },
+  {
     header: "Permisos",
     cell: (row) => (
       <Badge variant="secondary">{row.rolePermission.length} permisos</Badge>

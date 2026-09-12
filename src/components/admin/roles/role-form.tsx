@@ -16,6 +16,7 @@ type RoleFormProps = {
     name: string;
     description: string | null;
     defaultPath: string;
+    priority: number;
   };
 };
 
@@ -27,6 +28,7 @@ export function RoleForm({ role }: RoleFormProps) {
     name: role?.name || "",
     description: role?.description || "",
     defaultPath: role?.defaultPath || "/",
+    priority: role?.priority ?? 0,
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -84,6 +86,27 @@ export function RoleForm({ role }: RoleFormProps) {
               />
               <p className="text-xs text-muted-foreground">
                 Ruta donde el usuario inicia después de login
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="priority">Prioridad *</Label>
+              <Input
+                id="priority"
+                type="number"
+                step={1}
+                value={formData.priority}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    priority: Number.parseInt(e.target.value, 10) || 0,
+                  })
+                }
+                required
+              />
+              <p className="text-xs text-muted-foreground">
+                Decide la página inicial cuando el usuario tiene varios roles
+                (gana el más alto) y el orden del menú.
               </p>
             </div>
           </div>

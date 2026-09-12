@@ -55,6 +55,7 @@ const CALLER_DATA = {
   name: "Operaciones",
   description: "",
   defaultPath: "/admin",
+  priority: 10,
   permissionIds: [1, 2],
 };
 
@@ -66,6 +67,7 @@ beforeEach(() => {
   prismaMock.role.findUnique.mockResolvedValue({
     id: 5,
     defaultPath: "/admin",
+    priority: 10,
     rolePermission: [{ permissionId: 1 }],
   });
   txMock.role.update.mockResolvedValue({ id: 5 });
@@ -155,12 +157,34 @@ describe("updateRole atomicity", () => {
       name: "Operaciones",
       description: "",
       defaultPath: "/admin",
+      priority: 10,
       permissionIds: [1],
     });
 
     expect(txMock.rolePermission.createMany).not.toHaveBeenCalled();
     expect(txMock.rolePermission.updateMany).not.toHaveBeenCalled();
     expect(invalidateRoleSessions).not.toHaveBeenCalled();
+  });
+
+  it("invalida sesiones cuando cambia la prioridad", async () => {
+    await updateRole(5, { ...CALLER_DATA, priority: 20 });
+
+    expect(txMock.role.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ priority: 20 }),
+      }),
+    );
+    expect(invalidateRoleSessions).toHaveBeenCalledWith(5);
+  });
+
+  it("rechaza una prioridad no entera en español", async () => {
+    const result = await updateRole(5, { ...CALLER_DATA, priority: 1.5 });
+
+    expect(result).toEqual({
+      success: false,
+      error: "La prioridad debe ser un número entero.",
+    });
+    expect(txMock.role.update).not.toHaveBeenCalled();
   });
 });
 

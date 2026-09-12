@@ -89,6 +89,7 @@ export default async function RoleDetailPage({
                 {role.defaultPath}
               </code>
             </Row>
+            <Row label="Prioridad">{role.priority}</Row>
             <Row label="Estado">
               <Badge variant={role.active ? "default" : "destructive"}>
                 {role.active ? "Activo" : "Inactivo"}

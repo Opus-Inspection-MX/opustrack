@@ -88,6 +88,7 @@ describe("renaming the FSR role", () => {
     prismaMock.role.findUnique.mockResolvedValue({
       id: 4,
       defaultPath: "/fsr",
+      priority: 50,
       rolePermission: [],
     });
     prismaMock.$transaction.mockImplementation(async (cb: unknown) =>
@@ -99,6 +100,7 @@ describe("renaming the FSR role", () => {
       name: "Field-renamed",
       description: "techs",
       defaultPath: "/fsr",
+      priority: 50,
     });
 
     expect(isFailure(result)).toBe(false);
@@ -109,6 +111,7 @@ describe("renaming the FSR role", () => {
         name: "Field-renamed",
         description: "techs",
         defaultPath: "/fsr",
+        priority: 50,
       },
     });
   });
