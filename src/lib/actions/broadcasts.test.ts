@@ -9,7 +9,7 @@ const {
 } = vi.hoisted(() => ({
   prismaMock: {
     role: { findMany: vi.fn() },
-    userRole: { findMany: vi.fn() },
+    userRole: { findMany: vi.fn(), count: vi.fn() },
     roleBroadcastTarget: { findMany: vi.fn() },
     broadcast: {
       create: vi.fn(),
@@ -18,7 +18,9 @@ const {
       update: vi.fn(),
     },
     broadcastRole: { deleteMany: vi.fn(), createMany: vi.fn() },
-    user: { findMany: vi.fn() },
+    broadcastUser: { findMany: vi.fn() },
+    user: { findMany: vi.fn(), count: vi.fn() },
+    userClientAssignment: { findMany: vi.fn() },
     $transaction: vi.fn(),
   },
   txMock: {
@@ -45,7 +47,9 @@ import {
   type BroadcastFormInput,
   cancelBroadcast,
   createBroadcast,
+  listBroadcasts,
   previewBroadcastRecipients,
+  searchBroadcastRecipients,
   setRoleBroadcastTargets,
   updateBroadcast,
 } from "./broadcasts";
@@ -100,6 +104,12 @@ beforeEach(() => {
   mockRoleFindMany();
   requirePermission.mockResolvedValue({ id: "op1", isSuperuser: false });
   prismaMock.userRole.findMany.mockResolvedValue([{ roleId: 2 }]);
+  prismaMock.userRole.count.mockResolvedValue(0);
+  prismaMock.user.count.mockResolvedValue(0);
+  prismaMock.userClientAssignment.findMany.mockResolvedValue([
+    { clientId: "c1" },
+  ]);
+  prismaMock.user.findMany.mockResolvedValue([]);
   prismaMock.roleBroadcastTarget.findMany.mockResolvedValue(OP_GRANTS);
   prismaMock.broadcast.create.mockResolvedValue({ id: "b1" });
   prismaMock.broadcast.findUnique.mockResolvedValue({ status: "ENVIADA" });
@@ -344,6 +354,221 @@ describe("vista previa", () => {
       roleIds: [4],
     });
     expect(preview).toEqual({ count: 2 });
+  });
+});
+
+describe("destinatarios específicos (Parte C)", () => {
+  const OUT_OF_SCOPE =
+    "No puedes difundir a uno o más de los usuarios seleccionados";
+
+  it("acepta solo userIds: persiste filas y despacha", async () => {
+    prismaMock.user.findMany.mockResolvedValue([{ id: "u9" }]);
+
+    const result = await createBroadcast({
+      ...SEND_NOW,
+      roleIds: [],
+      userIds: ["u9"],
+    });
+
+    expect(result.success).toBe(true);
+    expect(prismaMock.broadcast.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          users: { create: [{ userId: "u9", createdById: "op1" }] },
+        }),
+      }),
+    );
+    expect(dispatchBroadcast).toHaveBeenCalledWith("b1");
+  });
+
+  it("rechaza un userId fuera de alcance sin escribir", async () => {
+    prismaMock.user.findMany.mockResolvedValue([]);
+
+    const result = await createBroadcast({
+      ...SEND_NOW,
+      roleIds: [],
+      userIds: ["u-evil"],
+    });
+
+    expect(result).toEqual({ success: false, error: OUT_OF_SCOPE });
+    expect(prismaMock.broadcast.create).not.toHaveBeenCalled();
+  });
+
+  it("sin roles alcanzables tampoco hay usuarios alcanzables", async () => {
+    prismaMock.roleBroadcastTarget.findMany.mockResolvedValue([]);
+
+    const result = await createBroadcast({
+      ...SEND_NOW,
+      roleIds: [],
+      userIds: ["u9"],
+    });
+
+    expect(result).toEqual({ success: false, error: OUT_OF_SCOPE });
+    expect(prismaMock.broadcast.create).not.toHaveBeenCalled();
+  });
+
+  it("sin Cliente compartido no alcanza a nadie (mismo rol, otro Cliente)", async () => {
+    prismaMock.userClientAssignment.findMany.mockResolvedValue([]);
+
+    const result = await createBroadcast({
+      ...SEND_NOW,
+      roleIds: [],
+      userIds: ["u9"],
+    });
+
+    expect(result).toEqual({ success: false, error: OUT_OF_SCOPE });
+    expect(prismaMock.broadcast.create).not.toHaveBeenCalled();
+  });
+
+  it("ROOT alcanza a cualquiera sin filtro de Cliente", async () => {
+    requirePermission.mockResolvedValue({ id: "root1", isSuperuser: true });
+    prismaMock.userRole.count.mockResolvedValue(1);
+    prismaMock.user.findMany.mockResolvedValue([{ id: "u-any" }]);
+
+    const result = await createBroadcast({
+      ...SEND_NOW,
+      roleIds: [],
+      userIds: ["u-any"],
+    });
+
+    expect(result.success).toBe(true);
+    expect(prismaMock.userClientAssignment.findMany).not.toHaveBeenCalled();
+  });
+
+  it("editar desactiva (nunca borra) los usuarios quitados", async () => {
+    prismaMock.broadcast.findUnique.mockResolvedValue({
+      status: "PROGRAMADA",
+      active: true,
+    });
+    prismaMock.user.findMany.mockResolvedValue([{ id: "u9" }]);
+
+    const result = await updateBroadcast("b1", {
+      ...SCHEDULED,
+      roleIds: [],
+      userIds: ["u9"],
+    });
+
+    expect(result).toEqual({ success: true, id: "b1" });
+    expect(txMock.broadcastUser.updateMany).toHaveBeenCalledWith({
+      where: { broadcastId: "b1", active: true, userId: { notIn: ["u9"] } },
+      data: expect.objectContaining({ active: false }),
+    });
+    expect(txMock.broadcastUser.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { broadcastId_userId: { broadcastId: "b1", userId: "u9" } },
+      }),
+    );
+  });
+});
+
+describe("searchBroadcastRecipients", () => {
+  it("menos de 2 caracteres devuelve vacío sin consultar", async () => {
+    await expect(searchBroadcastRecipients("a")).resolves.toEqual([]);
+    await expect(searchBroadcastRecipients("  ")).resolves.toEqual([]);
+    expect(prismaMock.user.findMany).not.toHaveBeenCalled();
+  });
+
+  it("devuelve id, nombre, correo y roles dentro del alcance", async () => {
+    prismaMock.user.findMany.mockResolvedValue([
+      {
+        id: "u1",
+        name: "Ana FSR",
+        email: "ana@test.local",
+        userRoles: [{ role: { name: "FSR" } }],
+      },
+    ]);
+
+    const results = await searchBroadcastRecipients("an");
+
+    expect(results).toEqual([
+      {
+        id: "u1",
+        name: "Ana FSR",
+        email: "ana@test.local",
+        roleNames: ["FSR"],
+      },
+    ]);
+    const where = JSON.stringify(
+      prismaMock.user.findMany.mock.calls[0][0].where,
+    );
+    expect(where).toContain("c1");
+    expect(where).toContain("an");
+  });
+
+  it("sin alcance no revela a nadie", async () => {
+    prismaMock.roleBroadcastTarget.findMany.mockResolvedValue([]);
+
+    await expect(searchBroadcastRecipients("ana")).resolves.toEqual([]);
+    expect(prismaMock.user.findMany).not.toHaveBeenCalled();
+  });
+});
+
+describe("vista previa con usuarios", () => {
+  it("une audiencia por rol y userIds sin duplicados", async () => {
+    prismaMock.user.findMany.mockResolvedValue([{ id: "u2" }, { id: "u3" }]);
+
+    const preview = await previewBroadcastRecipients({
+      roleIds: [4],
+      allRoles: false,
+      includeSender: true,
+      userIds: ["u2", "u3"],
+    });
+
+    // Role audience ["u1","u2"] + direct ["u2","u3"] → 3 unique.
+    expect(preview).toEqual({ count: 3 });
+  });
+
+  it("los userIds fuera de alcance no suman (recorte silencioso)", async () => {
+    prismaMock.user.findMany.mockResolvedValue([]);
+
+    const preview = await previewBroadcastRecipients({
+      roleIds: [],
+      allRoles: false,
+      includeSender: true,
+      userIds: ["u-evil"],
+    });
+
+    expect(broadcastAudience).not.toHaveBeenCalled();
+    expect(preview).toEqual({ count: 0 });
+  });
+});
+
+describe("listBroadcasts con usuarios", () => {
+  it("incluye nombre y correo de los destinatarios directos", async () => {
+    prismaMock.broadcast.findMany.mockResolvedValue([
+      {
+        id: "b1",
+        title: "Aviso",
+        message: "Hola",
+        kind: "SYSTEM",
+        sendInApp: true,
+        sendEmail: false,
+        allRoles: false,
+        includeSender: false,
+        scheduledAt: new Date("2030-05-01T10:00:00Z"),
+        status: "PROGRAMADA",
+        sentAt: null,
+        recipientCount: 0,
+        createdById: "op1",
+        roles: [],
+        createdAt: new Date("2030-04-01T10:00:00Z"),
+      },
+    ]);
+    prismaMock.user.findMany.mockResolvedValue([{ id: "op1", name: "Op" }]);
+    prismaMock.broadcastUser.findMany.mockResolvedValue([
+      {
+        broadcastId: "b1",
+        user: { id: "u9", name: "Ana", email: "ana@test.local" },
+      },
+    ]);
+
+    const rows = await listBroadcasts();
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.users).toEqual([
+      { id: "u9", name: "Ana", email: "ana@test.local" },
+    ]);
+    expect(rows[0]?.usersTotal).toBe(1);
   });
 });
 

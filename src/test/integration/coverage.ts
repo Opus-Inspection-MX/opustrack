@@ -149,6 +149,8 @@ export const ALLOWLIST: Record<string, string> = {
     "role broadcast config: targets are roles, no Client dimension",
   "broadcasts.ts :: setRoleBroadcastTargets":
     "role broadcast config: targets are roles, no Client dimension",
+  "broadcasts.ts :: searchBroadcastRecipients":
+    "scoped: recipient search returns only in-reach users (reachable role + shared Client), covered in broadcasts-users.int.test.ts",
   "notification-settings.ts :: retryFailedEmail":
     "global ops: email outbox retry, no Client dimension",
   "vacations.ts :: updatePeriodOverride":

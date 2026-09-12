@@ -119,6 +119,21 @@ describe("audiencia al enviar", () => {
     expect(broadcastAudience).toHaveBeenCalledWith({ all: true, roleIds: [] });
   });
 
+  it("pasa los usuarios directos activos a la audiencia", async () => {
+    prismaMock.broadcast.findUnique.mockResolvedValue({
+      ...ROW,
+      users: [{ userId: "u9" }],
+    });
+
+    await dispatchBroadcast("b1");
+
+    expect(broadcastAudience).toHaveBeenCalledWith({
+      all: false,
+      roleIds: [3],
+      userIds: ["u9"],
+    });
+  });
+
   it("excluye al remitente salvo includeSender", async () => {
     await dispatchBroadcast("b1");
 

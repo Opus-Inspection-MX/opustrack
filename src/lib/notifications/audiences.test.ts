@@ -151,4 +151,34 @@ describe("broadcastAudience", () => {
     ).resolves.toEqual([]);
     expect(prismaMock.user.findMany).not.toHaveBeenCalled();
   });
+
+  it("une audiencia por rol y userIds directos", async () => {
+    prismaMock.user.findMany
+      .mockResolvedValueOnce([{ id: "r1" }, { id: "dup" }])
+      .mockResolvedValueOnce([{ id: "dup" }, { id: "d1" }]);
+
+    const ids = await broadcastAudience({
+      roleIds: [3],
+      all: false,
+      userIds: ["dup", "d1"],
+    });
+
+    expect(ids).toEqual(expect.arrayContaining(["r1", "dup", "d1"]));
+    expect(ids).toHaveLength(3);
+  });
+
+  it("los userIds directos filtran user.active siempre", async () => {
+    prismaMock.user.findMany.mockResolvedValue([{ id: "d1" }]);
+
+    await broadcastAudience({ roleIds: [], all: false, userIds: ["d1"] });
+
+    expect(prismaMock.user.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          id: { in: ["d1"] },
+          active: true,
+        }),
+      }),
+    );
+  });
 });
