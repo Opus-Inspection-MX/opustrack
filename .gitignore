@@ -56,6 +56,21 @@ next-env.d.ts
 /initial_load/seed.ts
 /initial_load/users.csv
 /initial_load/clientes.csv
+# Private Excel workbooks and CSV extracts in either data or documentation trees.
+/initial_load/**/*.xls
+/initial_load/**/*.xlsb
+/initial_load/**/*.xlsm
+/initial_load/**/*.xlsx
+/initial_load/**/*.xltx
+/initial_load/**/*.xltm
+/initial_load/**/*.csv
+/docs/**/*.xls
+/docs/**/*.xlsb
+/docs/**/*.xlsm
+/docs/**/*.xlsx
+/docs/**/*.xltx
+/docs/**/*.xltm
+/docs/**/*.csv
 # Pre-CSV intermediates, kept ignored so old checkouts stay clean.
 /initial_load/users.txt
 /initial_load/vics.txt
