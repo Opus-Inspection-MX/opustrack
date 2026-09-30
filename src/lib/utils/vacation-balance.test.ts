@@ -3,8 +3,8 @@ import { countBusinessDaysSync } from "./vacation-balance";
 
 /**
  * The pure counter is the one that decides what a vacation request costs, so
- * these cases pin down the rules a user would argue about: weekends are free,
- * holidays are free, and the range is inclusive on both ends.
+ * these cases pin down the rules: Saturdays count, Sundays and active holidays
+ * do not, and the range is inclusive on both ends.
  *
  * Dates are built through `mxDay` so the assertions read as CDMX calendar days
  * rather than UTC instants — a request "for June 10th" must cost the same
@@ -31,7 +31,7 @@ describe("countBusinessDaysSync", () => {
     ).toBe(1);
   });
 
-  it("counts a single weekend day as zero", () => {
+  it("charges a single Saturday but not a single Sunday", () => {
     // 2026-06-13 is a Saturday, 2026-06-14 a Sunday.
     expect(
       countBusinessDaysSync(
@@ -39,7 +39,7 @@ describe("countBusinessDaysSync", () => {
         mxDay("2026-06-13"),
         NO_HOLIDAYS,
       ),
-    ).toBe(0);
+    ).toBe(1);
     expect(
       countBusinessDaysSync(
         mxDay("2026-06-14"),
@@ -59,37 +59,37 @@ describe("countBusinessDaysSync", () => {
     ).toBe(5);
   });
 
-  it("excludes the weekend inside a two-week range", () => {
-    // Mon 8th → Fri 19th spans 12 calendar days, 2 of them a weekend.
+  it("excludes only Sundays inside a two-week range", () => {
+    // Mon 8th → Fri 19th spans 12 calendar days, including one Sunday.
     expect(
       countBusinessDaysSync(
         mxDay("2026-06-08"),
         mxDay("2026-06-19"),
         NO_HOLIDAYS,
       ),
-    ).toBe(10);
+    ).toBe(11);
   });
 
-  it("ignores a range that starts on a Saturday until the weekday arrives", () => {
-    // Sat 13th → Tue 16th: only Mon 15th and Tue 16th are chargeable.
+  it("charges a range starting on Saturday but skips Sunday", () => {
+    // Sat 13th → Tue 16th: Sat, Mon and Tue are chargeable.
     expect(
       countBusinessDaysSync(
         mxDay("2026-06-13"),
         mxDay("2026-06-16"),
         NO_HOLIDAYS,
       ),
-    ).toBe(2);
+    ).toBe(3);
   });
 
   it("ignores a range that ends on a Sunday", () => {
-    // Thu 11th → Sun 14th: Thu and Fri only.
+    // Thu 11th → Sun 14th: Thu, Fri and Sat only.
     expect(
       countBusinessDaysSync(
         mxDay("2026-06-11"),
         mxDay("2026-06-14"),
         NO_HOLIDAYS,
       ),
-    ).toBe(2);
+    ).toBe(3);
   });
 
   it("does not charge a holiday that falls on a weekday", () => {
@@ -106,20 +106,22 @@ describe("countBusinessDaysSync", () => {
     ).toBe(0);
   });
 
-  it("does not double-discount a holiday that lands on a weekend", () => {
-    // Sat 13th is already free; marking it a holiday changes nothing.
+  it("excludes a holiday Saturday exactly once", () => {
     const holidays = new Set(["2026-06-13"]);
+    expect(
+      countBusinessDaysSync(mxDay("2026-06-13"), mxDay("2026-06-13"), holidays),
+    ).toBe(0);
     expect(
       countBusinessDaysSync(mxDay("2026-06-08"), mxDay("2026-06-19"), holidays),
     ).toBe(10);
   });
 
-  it("combines weekend and holiday exclusions over a long range", () => {
-    // Mon 1st → Fri 19th: 15 weekdays, minus two holidays on weekdays.
+  it("combines Sunday and holiday exclusions over a long range", () => {
+    // Mon 1st → Fri 19th: 17 Monday–Saturday days, minus two holidays.
     const holidays = new Set(["2026-06-01", "2026-06-17"]);
     expect(
       countBusinessDaysSync(mxDay("2026-06-01"), mxDay("2026-06-19"), holidays),
-    ).toBe(13);
+    ).toBe(15);
   });
 
   it("returns zero for an inverted range", () => {
@@ -139,5 +141,24 @@ describe("countBusinessDaysSync", () => {
     expect(
       countBusinessDaysSync(mxDay("2026-12-30"), mxDay("2027-01-01"), holidays),
     ).toBe(2);
+  });
+
+  it("counts a Saturday across New Year without charging Sunday or holidays in either year", () => {
+    // Thu 2026-12-31 → Mon 2027-01-04: only Sat counts.
+    const holidays = new Set(["2026-12-31", "2027-01-01", "2027-01-04"]);
+    expect(
+      countBusinessDaysSync(mxDay("2026-12-31"), mxDay("2027-01-04"), holidays),
+    ).toBe(1);
+  });
+
+  it("uses CDMX calendar dates for UTC instants near midnight", () => {
+    // UTC Sunday is still Saturday in CDMX; UTC Monday is still Sunday.
+    expect(
+      countBusinessDaysSync(
+        new Date("2026-06-14T01:00:00.000Z"),
+        new Date("2026-06-15T01:00:00.000Z"),
+        NO_HOLIDAYS,
+      ),
+    ).toBe(1);
   });
 });

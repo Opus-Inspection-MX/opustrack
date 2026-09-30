@@ -5,7 +5,7 @@ import { APP_TZ, mxDateString } from "@/lib/utils/datetime";
 /**
  * How many days a vacation request costs against a period's balance.
  *
- * Only business days are charged: weekends and official holidays are free.
+ * Monday through Saturday are charged; Sundays and active holidays are free.
  * This is a DIFFERENT question from `isFsrUnavailable`, which asks whether a
  * single day is blocked for scheduling and therefore covers every day inside
  * an approved range, weekends included. Keep the two apart — conflating them
@@ -35,8 +35,10 @@ export function countBusinessDaysSync(
   const cursor = start.clone();
 
   while (cursor.isSameOrBefore(end, "day")) {
-    const isWeekend = cursor.isoWeekday() >= 6; // 6 = Saturday, 7 = Sunday
-    if (!isWeekend && !holidayDates.has(cursor.format("YYYY-MM-DD"))) {
+    if (
+      cursor.isoWeekday() !== 7 &&
+      !holidayDates.has(cursor.format("YYYY-MM-DD"))
+    ) {
       count += 1;
     }
     cursor.add(1, "day");

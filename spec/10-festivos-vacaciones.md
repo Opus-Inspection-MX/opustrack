@@ -156,6 +156,14 @@ Una vacación se define como un rango de fechas inclusivo (`startDate`–`endDat
 de día (sin componente horario). `endDate` debe ser igual o posterior a `startDate` (validado por
 `VacationCreateSchema` y `validateVacationDates`).
 
+For new requests, each Monday through Saturday in the inclusive CDMX date range consumes
+one vacation day unless it is an active catalog holiday. Sundays and holiday Saturdays do
+not consume days. A range with no chargeable days (for example, a single Sunday or holiday
+Saturday) is rejected; an otherwise valid single non-holiday Saturday consumes one day.
+Ranges crossing a calendar year use active holidays from both years. This rule does not
+recalculate historical requests or balances, change FSR scheduling availability, or alter
+other domains' business-day policies.
+
 Al crear, el sistema rechaza una vacación nueva si el mismo FSR ya tiene una vacación PENDIENTE o
 APROBADA cuyo rango se solapa con el nuevo (`startDate <= existente.endDate AND endDate >=
 existente.startDate`). Rangos adyacentes (que no se solapan) sí se permiten.

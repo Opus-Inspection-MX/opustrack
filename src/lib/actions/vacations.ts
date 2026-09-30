@@ -280,14 +280,13 @@ export async function createVacation(data: VacationFormData) {
     });
     const blockingStatusIds = blockingStatuses.map((s) => s.id);
 
-    // Weekends and holidays are free, so this is usually fewer days than the
-    // calendar span. Computed outside the transaction: it only reads the
-    // holiday catalog and is the slowest part of the request.
+    // Sundays and active holidays are free; Saturdays count. Compute outside
+    // the transaction: the holiday catalog read is the slowest part.
     const businessDaysUsed = await countBusinessDays(startDate, endDate);
 
     if (businessDaysUsed === 0) {
       businessRule(
-        "El rango solicitado no incluye ningún día hábil (solo fines de semana o días festivos).",
+        "El rango solicitado no incluye días de vacaciones computables (solo domingos o días festivos).",
       );
     }
 
