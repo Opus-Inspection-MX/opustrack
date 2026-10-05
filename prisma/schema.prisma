@@ -1169,7 +1169,8 @@ model VacationSetting {
   @@map("vacation_settings")
 }
 
-/// One anniversary year of service per user.
+/// Legacy anniversary rows have null cycleYear/availableFrom. Calendar rows
+/// identify a CDMX Jan–Dec cycle separately from their service-year tier.
 ///
 /// `accrualStart`/`accrualEnd`/`graceEnd`/`ruleDays` are SNAPSHOTS taken when
 /// the row is created: editing the accrual table or the grace-window setting
@@ -1184,8 +1185,10 @@ model VacationPeriod {
   userId       String
   user         User       @relation("VacationPeriodUser", fields: [userId], references: [id], onDelete: Cascade)
   periodNumber Int // 1-based; equals the year of service used for rule lookup
-  accrualStart DateTime // hireDate + (periodNumber - 1) years, CDMX start of day
-  accrualEnd   DateTime // accrualStart + 1 year - 1 day, CDMX end of day
+  cycleYear    Int? // null on legacy anniversary rows; calendar identity otherwise
+  availableFrom DateTime? // calendar grant activates on the hire anniversary
+  accrualStart DateTime // legacy: anniversary start; calendar: Jan 1 CDMX
+  accrualEnd   DateTime // legacy: anniversary end; calendar: Dec 31 CDMX
   graceEnd     DateTime // accrualEnd + graceWindowMonths as it stood at creation
   ruleDays     Int // snapshot of the matching VacationAccrualRule.days
   overrideDays Int? // admin correction; replaces ruleDays when present
@@ -1194,6 +1197,7 @@ model VacationPeriod {
   updatedAt    DateTime   @updatedAt
 
   @@unique([userId, periodNumber])
+  @@unique([userId, cycleYear])
   @@index([userId])
   @@index([accrualStart, graceEnd])
   @@map("vacation_periods")
