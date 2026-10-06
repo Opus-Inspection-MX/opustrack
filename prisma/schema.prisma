@@ -47,6 +47,7 @@ model User {
   // Balance features stay blocked (with a clear message) until an admin sets it.
   hireDate            DateTime?
   vacationPeriods     VacationPeriod[]         @relation("VacationPeriodUser")
+  historicalVacationConsumption HistoricalVacationConsumption[]
   active              Boolean                  @default(true)
   // RF-550 attribution: null = system row (seed/migration), never backfilled.
   createdById     String?
@@ -1193,14 +1194,51 @@ model VacationPeriod {
   ruleDays     Int // snapshot of the matching VacationAccrualRule.days
   overrideDays Int? // admin correction; replaces ruleDays when present
   vacations    Vacation[]
+  historicalConsumption HistoricalVacationConsumption[]
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 
   @@unique([userId, periodNumber])
   @@unique([userId, cycleYear])
+  @@unique([id, userId, cycleYear]) // Compound target for reviewed historical funding
   @@index([userId])
   @@index([accrualStart, graceEnd])
   @@map("vacation_periods")
+}
+
+/// Reviewed aggregate consumption, never a dated absence. Source values are
+/// preserved even when their reported remaining balance needs reconciliation.
+/// Only an approved row linked to its reviewed calendar funding period may
+/// participate in a future balance cutover; this table has no live reader yet.
+model HistoricalVacationConsumption {
+  id                   String   @id @default(cuid())
+  userId               String
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+  cycleYear            Int
+  fundingPeriodId      String?
+  fundingPeriod        VacationPeriod? @relation(fields: [fundingPeriodId, userId, cycleYear], references: [id, userId, cycleYear], onDelete: Restrict, onUpdate: Restrict)
+  sourceDigest         String
+  sourceSheet          String
+  sourceRow            Int
+  sourceEntitledDays   Int
+  sourceTakenDays      Int
+  sourceRemainingDays  Int
+  allocatedToDatedDays Int      @default(0) // Must remain zero until a dated allocation link is modeled
+  identityVerified     Boolean  @default(false)
+  reviewStatus         HistoricalVacationReviewStatus @default(PENDING)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@unique([sourceDigest, sourceSheet, sourceRow])
+  @@unique([userId, cycleYear])
+  @@index([fundingPeriodId])
+  @@map("historical_vacation_consumption")
+}
+
+enum HistoricalVacationReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 /// Dedupe record for offline draft-and-retry (RF-260, RF-261).
