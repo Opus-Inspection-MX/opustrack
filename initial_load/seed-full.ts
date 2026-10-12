@@ -27,6 +27,9 @@
  *   validation, failing closed on schema drift. Two-phase: validate everything
  *   first; execute only with zero blocking exceptions.
  * - Vacation: calendar periods only for users WITH a verified hire date;
+ *   hire dates resolve in two tiers (exact person-key ISO date wins, else a
+ *   normalized-name fallback on ISO hire_date values only, single distinct
+ *   date per user — conflict/ambiguous/text stays null and counts as skipped);
  *   historical rows only for APPROVED + linked review rows (currently zero —
  *   imports zero and logs the count, never auto-approves PENDING).
  * - Per-user random passwords are written ONCE to ignored
@@ -408,6 +411,129 @@ export function resolveHireDate(
   return index.get(personKey) ?? null;
 }
 
+/**
+ * Tier-2 fallback token rules — intentionally the same normalization as
+ * `scripts/derive-vacation-review.ts` (`tokens()` there is not exported, so
+ * the minimal logic is duplicated here and pinned by synthetic tests).
+ * NFKD + strip marks + lowercase + non-alphanumeric to space.
+ */
+export function tokenizeHireName(raw: string): string[] {
+  return raw
+    .normalize("NFKD")
+    .replace(/\p{M}/gu, "")
+    .toLocaleLowerCase("en-US")
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+}
+
+export function hireNameKey(tokens: readonly string[]): string {
+  return tokens.join(" ");
+}
+
+/**
+ * Reversible whole-block rotations only (move a leading block to the end).
+ * Never rearranges individual tokens — same rule as derive-vacation-review.
+ */
+export function hireReorderedNameKeys(tokens: readonly string[]): Set<string> {
+  return new Set(
+    tokens
+      .slice(1)
+      .map((_, index) =>
+        [...tokens.slice(index + 1), ...tokens.slice(0, index + 1)].join(" "),
+      ),
+  );
+}
+
+export interface HireNameUser {
+  candidateKey: string;
+  name: string;
+}
+
+export interface HireNameEvidenceRow {
+  name: string;
+  hireDate: string;
+}
+
+/**
+ * Tier-2 index: normalized-name matching against `hire_date` ISO values ONLY.
+ * A hire row contributes to a user only when it matches EXACTLY ONE user
+ * (exact token join or whole-block rotation) and carries a strict ISO date.
+ * Text/blank dates never contribute. Per user, exactly ONE distinct ISO date
+ * across all attributed rows resolves; zero rows or conflicting dates yield
+ * null (fail closed, counted as skipped — never a guess).
+ */
+export function buildNameMatchHireIndex(
+  users: readonly HireNameUser[],
+  rows: readonly HireNameEvidenceRow[],
+): Map<string, Date | null> {
+  const userTokens = new Map<string, { key: string; rotated: Set<string> }>();
+  for (const user of users) {
+    const tokens = tokenizeHireName(user.name);
+    if (tokens.length === 0 || !user.candidateKey) continue;
+    userTokens.set(user.candidateKey, {
+      key: hireNameKey(tokens),
+      rotated: hireReorderedNameKeys(tokens),
+    });
+  }
+  const buckets = new Map<string, Set<string>>();
+  for (const row of rows) {
+    const iso = parseIsoDateOnly(row.hireDate);
+    if (!iso) continue;
+    const day = iso.toISOString().slice(0, 10);
+    const tokens = tokenizeHireName(row.name);
+    if (tokens.length === 0) continue;
+    const key = hireNameKey(tokens);
+    const matched: string[] = [];
+    for (const [candidateKey, entry] of userTokens) {
+      if (entry.key === key || entry.rotated.has(key))
+        matched.push(candidateKey);
+    }
+    if (matched.length !== 1) continue;
+    const only = matched[0] as string;
+    const bucket = buckets.get(only) ?? new Set<string>();
+    bucket.add(day);
+    buckets.set(only, bucket);
+  }
+  const index = new Map<string, Date | null>();
+  for (const [candidateKey, days] of buckets) {
+    index.set(
+      candidateKey,
+      days.size === 1 ? new Date(`${[...days][0]}T00:00:00Z`) : null,
+    );
+  }
+  return index;
+}
+
+export type HireProvenance = "exact_key" | "name_match" | "skipped";
+
+/**
+ * Two-tier resolution WITHOUT changing exact-key semantics: a non-null exact
+ * person-key date always wins; otherwise the name-match tier applies.
+ */
+export function hireProvenanceFor(
+  exactIndex: Map<string, Date | null>,
+  fallbackIndex: Map<string, Date | null>,
+  personKey: string,
+): HireProvenance {
+  if (resolveHireDate(exactIndex, personKey)) return "exact_key";
+  if (fallbackIndex.get(personKey)) return "name_match";
+  return "skipped";
+}
+
+export function resolveSeedHireDate(
+  exactIndex: Map<string, Date | null>,
+  fallbackIndex: Map<string, Date | null>,
+  personKey: string,
+): Date | null {
+  return (
+    resolveHireDate(exactIndex, personKey) ??
+    fallbackIndex.get(personKey) ??
+    null
+  );
+}
+
 /** Accent/case/space-insensitive state matching; ambiguity fails closed. */
 export function normalizeStateName(raw: string): string {
   return raw
@@ -531,6 +657,8 @@ export function isImportableReview(row: VacationReviewRow): boolean {
 interface SeedPlan {
   users: UserRow[];
   hireSkipped: number;
+  hireExact: number;
+  hireNameMatch: number;
   grantSkipped: number;
   clients: ClientRow[];
   lines: LineRow[];
@@ -539,6 +667,7 @@ interface SeedPlan {
   pendingReviews: number;
   rejectedReviews: number;
   hireIndex: Map<string, Date | null>;
+  hireFallbackIndex: Map<string, Date | null>;
   counts: Record<string, number>;
 }
 
@@ -596,6 +725,11 @@ export async function buildSeedPlan(): Promise<SeedPlan> {
     hireFile.header,
     "hire_date",
   );
+  const hireNameIdx = columnIndex(
+    "vacation-balances.csv",
+    hireFile.header,
+    "name",
+  );
   const hireIndex = buildHireDateIndex(
     hireFile.rows.map((cells) => ({
       personKey: cells[hirePersonIdx] ?? "",
@@ -630,10 +764,29 @@ export async function buildSeedPlan(): Promise<SeedPlan> {
   if (userKeys.size !== users.length)
     throw new SeedInputError("users.csv", 0, "duplicate key");
 
-  // Hire dates resolve per user; unverified stays null (counted, not blocked).
+  // Hire dates resolve per user in two tiers (exact person-key first, then
+  // normalized-name fallback on ISO hire_date values only). Unverified stays
+  // null (counted, not blocked). The exact-key index semantics above are
+  // unchanged; the fallback only applies when it yields no date.
+  const hireFallbackIndex = buildNameMatchHireIndex(
+    users.map((row) => ({ candidateKey: row.candidateKey, name: row.name })),
+    hireFile.rows.map((cells) => ({
+      name: cells[hireNameIdx] ?? "",
+      hireDate: cells[hireDateIdx] ?? "",
+    })),
+  );
   let hireSkipped = 0;
+  let hireExact = 0;
+  let hireNameMatch = 0;
   for (const user of users) {
-    if (!resolveHireDate(hireIndex, user.candidateKey)) hireSkipped += 1;
+    const tier = hireProvenanceFor(
+      hireIndex,
+      hireFallbackIndex,
+      user.candidateKey,
+    );
+    if (tier === "exact_key") hireExact += 1;
+    else if (tier === "name_match") hireNameMatch += 1;
+    else hireSkipped += 1;
   }
 
   const clients = clientesFile.rows.map((cells, position) =>
@@ -694,6 +847,8 @@ export async function buildSeedPlan(): Promise<SeedPlan> {
   });
 
   counts["users.parsed"] = users.length;
+  counts["users.hireExact"] = hireExact;
+  counts["users.hireNameMatch"] = hireNameMatch;
   counts["users.hireSkipped"] = hireSkipped;
   counts["users.grantSkipped"] = grantSkipped;
   counts["clients.parsed"] = clients.length;
@@ -706,6 +861,8 @@ export async function buildSeedPlan(): Promise<SeedPlan> {
   return {
     users,
     hireSkipped,
+    hireExact,
+    hireNameMatch,
     grantSkipped,
     clients,
     lines,
@@ -714,6 +871,7 @@ export async function buildSeedPlan(): Promise<SeedPlan> {
     pendingReviews,
     rejectedReviews,
     hireIndex,
+    hireFallbackIndex,
     counts,
   };
 }
@@ -1360,7 +1518,11 @@ async function main(): Promise<void> {
   // the transaction via ensureCalendarPeriodsForUser.
   let plannedPeriods = 0;
   for (const user of plan.users) {
-    const hireDate = resolveHireDate(plan.hireIndex, user.candidateKey);
+    const hireDate = resolveSeedHireDate(
+      plan.hireIndex,
+      plan.hireFallbackIndex,
+      user.candidateKey,
+    );
     if (!hireDate) continue;
     const hireYear = hireDate.getUTCFullYear();
     if (hireDate.getUTCMonth() === 1 && hireDate.getUTCDate() === 29) continue;
@@ -1380,6 +1542,8 @@ async function main(): Promise<void> {
     },
     exceptions: {
       usersWithoutVerifiedHireDate: plan.hireSkipped,
+      usersWithExactHireDate: plan.hireExact,
+      usersWithNameMatchedHireDate: plan.hireNameMatch,
       usersWithoutGrants: plan.grantSkipped,
       reviewsPending: plan.pendingReviews,
       reviewsRejected: plan.rejectedReviews,
@@ -1480,7 +1644,11 @@ async function main(): Promise<void> {
       for (const row of plan.users) {
         const password = passwordByEmail.get(row.email);
         if (!password) throw new Error("Planned credential missing in run");
-        const hireDate = resolveHireDate(plan.hireIndex, row.candidateKey);
+        const hireDate = resolveSeedHireDate(
+          plan.hireIndex,
+          plan.hireFallbackIndex,
+          row.candidateKey,
+        );
         const user = await tx.user.upsert({
           where: { email: row.email },
           update: {},
@@ -1512,7 +1680,14 @@ async function main(): Promise<void> {
       for (const row of plan.users) {
         const userId = userIdByKey.get(row.candidateKey);
         if (!userId) continue;
-        if (!resolveHireDate(plan.hireIndex, row.candidateKey)) continue;
+        if (
+          !resolveSeedHireDate(
+            plan.hireIndex,
+            plan.hireFallbackIndex,
+            row.candidateKey,
+          )
+        )
+          continue;
         const periods = await ensureCalendarPeriodsForUser(
           userId,
           { upToCycleYear },

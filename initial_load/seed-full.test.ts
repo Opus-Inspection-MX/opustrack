@@ -10,10 +10,12 @@ import {
   assertHeader,
   assertKnownGrants,
   buildHireDateIndex,
+  buildNameMatchHireIndex,
   CLIENTES_HEADER,
   columnIndex,
   currentCdmxYear,
   EQUIPMENT_HEADER,
+  hireProvenanceFor,
   isImportableReview,
   LINES_HEADER,
   mapClientRow,
@@ -24,9 +26,11 @@ import {
   normalizeStateName,
   parseIsoDateOnly,
   resolveHireDate,
+  resolveSeedHireDate,
   resolveStateId,
   SeedInputError,
   splitGrants,
+  tokenizeHireName,
   USERS_HEADER,
   VACATION_REVIEW_HEADER,
 } from "./seed-full";
@@ -311,6 +315,98 @@ describe("buildHireDateIndex / resolveHireDate", () => {
 
   it("returns null for unknown keys", () => {
     expect(resolveHireDate(new Map(), "MISSING")).toBeNull();
+  });
+});
+
+describe("tokenizeHireName (fallback normalization)", () => {
+  it("matches the derive-vacation-review token rules", () => {
+    expect(tokenizeHireName("  José  Pérez-García ")).toEqual([
+      "jose",
+      "perez",
+      "garcia",
+    ]);
+  });
+});
+
+describe("buildNameMatchHireIndex / resolveSeedHireDate (tier-2 fallback)", () => {
+  const user = (candidateKey: string, name: string) => ({
+    candidateKey,
+    name,
+  });
+
+  it("resolves a name match with accent/case-insensitive tokens", () => {
+    const fallback = buildNameMatchHireIndex(
+      [user("U1", "Fake Person")],
+      [{ name: "FAKE  person", hireDate: "2020-03-15" }],
+    );
+    const exact = buildHireDateIndex([]);
+    expect(resolveSeedHireDate(exact, fallback, "U1")?.toISOString()).toBe(
+      "2020-03-15T00:00:00.000Z",
+    );
+    expect(hireProvenanceFor(exact, fallback, "U1")).toBe("name_match");
+  });
+
+  it("resolves a whole-block reordered name", () => {
+    const fallback = buildNameMatchHireIndex(
+      [user("U1", "Gamma Beta Alpha")],
+      [{ name: "Alpha Gamma Beta", hireDate: "2019-05-01" }],
+    );
+    const exact = buildHireDateIndex([]);
+    expect(resolveSeedHireDate(exact, fallback, "U1")?.toISOString()).toBe(
+      "2019-05-01T00:00:00.000Z",
+    );
+    expect(hireProvenanceFor(exact, fallback, "U1")).toBe("name_match");
+  });
+
+  it("skips conflicting distinct dates (never guesses)", () => {
+    const fallback = buildNameMatchHireIndex(
+      [user("U1", "Fake Person")],
+      [
+        { name: "Fake Person", hireDate: "2020-03-15" },
+        { name: "Fake Person", hireDate: "2021-06-01" },
+      ],
+    );
+    const exact = buildHireDateIndex([]);
+    expect(resolveSeedHireDate(exact, fallback, "U1")).toBeNull();
+    expect(hireProvenanceFor(exact, fallback, "U1")).toBe("skipped");
+  });
+
+  it("skips ambiguous text-only evidence", () => {
+    const fallback = buildNameMatchHireIndex(
+      [user("U1", "Fake Person")],
+      [
+        { name: "Fake Person", hireDate: "hired 2019" },
+        { name: "Fake Person", hireDate: "" },
+      ],
+    );
+    const exact = buildHireDateIndex([]);
+    expect(resolveSeedHireDate(exact, fallback, "U1")).toBeNull();
+    expect(hireProvenanceFor(exact, fallback, "U1")).toBe("skipped");
+  });
+
+  it("skips a hire row matching two users (ambiguous identity)", () => {
+    const fallback = buildNameMatchHireIndex(
+      [user("U1", "Fake Person"), user("U2", "Fake Person")],
+      [{ name: "Fake Person", hireDate: "2020-03-15" }],
+    );
+    const exact = buildHireDateIndex([]);
+    expect(resolveSeedHireDate(exact, fallback, "U1")).toBeNull();
+    expect(resolveSeedHireDate(exact, fallback, "U2")).toBeNull();
+    expect(hireProvenanceFor(exact, fallback, "U1")).toBe("skipped");
+  });
+
+  it("prefers the exact person-key date over the fallback", () => {
+    const exact = buildHireDateIndex([
+      { personKey: "U1", hireDate: "2018-01-10" },
+    ]);
+    const fallback = buildNameMatchHireIndex(
+      [user("U1", "Fake Person")],
+      [{ name: "Fake Person", hireDate: "2020-03-15" }],
+    );
+    expect(resolveSeedHireDate(exact, fallback, "U1")?.toISOString()).toBe(
+      "2018-01-10T00:00:00.000Z",
+    );
+    expect(hireProvenanceFor(exact, fallback, "U1")).toBe("exact_key");
   });
 });
 
