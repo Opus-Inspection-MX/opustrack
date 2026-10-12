@@ -71,6 +71,9 @@ next-env.d.ts
 /docs/**/*.xltx
 /docs/**/*.xltm
 /docs/**/*.csv
+# Private LibreOffice lock files in data and documentation trees.
+/initial_load/**/.~lock.*
+/docs/**/.~lock.*
 # Pre-CSV intermediates, kept ignored so old checkouts stay clean.
 /initial_load/users.txt
 /initial_load/vics.txt
