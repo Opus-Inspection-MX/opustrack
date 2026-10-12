@@ -9,12 +9,17 @@ import { describe, expect, it } from "vitest";
 import {
   assertHeader,
   assertKnownGrants,
+  assertNoDuplicateEquipmentKeys,
+  assertNoDuplicateReviewKeys,
   buildHireDateIndex,
   buildNameMatchHireIndex,
+  buildStagePlan,
   CLIENTES_HEADER,
   columnIndex,
+  compareCredentialEmailSets,
   currentCdmxYear,
   EQUIPMENT_HEADER,
+  equipmentStageKey,
   hireProvenanceFor,
   isImportableReview,
   LINES_HEADER,
@@ -25,10 +30,13 @@ import {
   mapVacationReviewRow,
   normalizeStateName,
   parseIsoDateOnly,
+  parseSeedArgs,
   resolveHireDate,
   resolveSeedHireDate,
   resolveStateId,
+  reviewStageKey,
   SeedInputError,
+  STAGE_TX_CONFIG,
   splitGrants,
   tokenizeHireName,
   USERS_HEADER,
@@ -504,5 +512,164 @@ describe("currentCdmxYear", () => {
     // 2026-01-01 05:30 UTC is still Dec 31 in CDMX (UTC-6).
     expect(currentCdmxYear(new Date("2026-01-01T05:30:00Z"))).toBe(2025);
     expect(currentCdmxYear(new Date("2026-06-15T12:00:00Z"))).toBe(2026);
+  });
+});
+
+describe("parseSeedArgs", () => {
+  it("defaults to a gated full run", () => {
+    expect(parseSeedArgs(["node", "seed-full.ts"])).toEqual({
+      dryRun: false,
+      resume: false,
+    });
+  });
+
+  it("parses dry-run and resume independently", () => {
+    expect(parseSeedArgs(["--dry-run"])).toMatchObject({ dryRun: true });
+    expect(parseSeedArgs(["--resume"])).toMatchObject({ resume: true });
+    expect(parseSeedArgs(["--dry-run", "--resume"])).toMatchObject({
+      dryRun: true,
+      resume: true,
+    });
+  });
+});
+
+describe("STAGE_TX_CONFIG", () => {
+  it("budgets six bounded stages instead of one giant transaction", () => {
+    const stages = Object.keys(STAGE_TX_CONFIG).sort();
+    expect(stages).toEqual(
+      ["calendar", "catalog", "clients", "equipment", "lines", "users"].sort(),
+    );
+    for (const config of Object.values(STAGE_TX_CONFIG)) {
+      expect(config.maxWait).toBeGreaterThan(0);
+      expect(config.timeout).toBeGreaterThan(0);
+      // Every stage stays well under the old 180s giant-transaction budget.
+      expect(config.timeout).toBeLessThanOrEqual(120_000);
+    }
+  });
+});
+
+describe("compareCredentialEmailSets", () => {
+  it("reuses on an identical set regardless of order", () => {
+    expect(
+      compareCredentialEmailSets(
+        ["b@example.test", "a@example.test"],
+        ["a@example.test", "b@example.test"],
+      ),
+    ).toBe("reuse");
+  });
+
+  it("mismatches on any added, removed, or replaced email", () => {
+    expect(
+      compareCredentialEmailSets(
+        ["a@example.test"],
+        ["a@example.test", "b@example.test"],
+      ),
+    ).toBe("mismatch");
+    expect(
+      compareCredentialEmailSets(
+        ["a@example.test", "b@example.test"],
+        ["a@example.test"],
+      ),
+    ).toBe("mismatch");
+    expect(
+      compareCredentialEmailSets(["a@example.test"], ["c@example.test"]),
+    ).toBe("mismatch");
+  });
+});
+
+describe("equipmentStageKey / assertNoDuplicateEquipmentKeys", () => {
+  const row = (clientCode: string, lineName: string, name: string) => ({
+    state: "State",
+    clientCode,
+    lineName,
+    name,
+  });
+
+  it("keys equipment on client + line + name", () => {
+    expect(equipmentStageKey(row("C1", "L1", "EQ"))).toBe("C1␟L1␟EQ");
+    expect(equipmentStageKey(row("C1", "L1", "EQ"))).not.toBe(
+      equipmentStageKey(row("C1", "L2", "EQ")),
+    );
+  });
+
+  it("accepts distinct equipment rows", () => {
+    expect(() =>
+      assertNoDuplicateEquipmentKeys([
+        row("C1", "L1", "EQ1"),
+        row("C1", "L1", "EQ2"),
+      ]),
+    ).not.toThrow();
+  });
+
+  it("fails closed on a duplicated equipment key", () => {
+    expect(() =>
+      assertNoDuplicateEquipmentKeys([
+        row("C1", "L1", "EQ"),
+        row("C1", "L1", "EQ"),
+      ]),
+    ).toThrow(SeedInputError);
+  });
+});
+
+describe("reviewStageKey / assertNoDuplicateReviewKeys", () => {
+  const row = (digest: string, sheet: string, sourceRow: number) => ({
+    cycleYear: 2024,
+    userKey: "FAKE-KEY-1",
+    fundingKey: "FAKE-FUND-1",
+    reviewStatus: "APPROVED",
+    importApproved: true,
+    sourceDigest: digest,
+    sourceSheet: sheet,
+    sourceRow,
+    entitled: 12,
+    taken: 4,
+    remaining: 8,
+  });
+
+  it("keys history on digest + sheet + row", () => {
+    expect(reviewStageKey(row("a".repeat(64), "s", 3))).toBe(
+      `${"a".repeat(64)}␟s␟3`,
+    );
+  });
+
+  it("fails closed on a duplicated historical key", () => {
+    const digest = "b".repeat(64);
+    expect(() =>
+      assertNoDuplicateReviewKeys([row(digest, "s", 3), row(digest, "s", 3)]),
+    ).toThrow(SeedInputError);
+    expect(() =>
+      assertNoDuplicateReviewKeys([row(digest, "s", 3), row(digest, "s", 4)]),
+    ).not.toThrow();
+  });
+});
+
+describe("buildStagePlan", () => {
+  it("lists one bounded entry per stage with planned counts", () => {
+    const plan = {
+      users: [{}, {}],
+      clients: [{}],
+      lines: [{}, {}, {}],
+      equipment: [{}],
+      approvedReviews: [],
+    };
+    const stages = buildStagePlan(
+      plan as unknown as Parameters<typeof buildStagePlan>[0],
+      7,
+    );
+    expect(stages.map((entry) => entry.stage)).toEqual([
+      "catalog",
+      "clients",
+      "lines",
+      "equipment",
+      "users",
+      "calendar",
+    ]);
+    expect(stages.find((entry) => entry.stage === "users")?.writes).toEqual({
+      users: 2,
+    });
+    expect(stages.find((entry) => entry.stage === "calendar")?.writes).toEqual({
+      calendarPeriodsPlanned: 7,
+      historicalRows: 0,
+    });
   });
 });

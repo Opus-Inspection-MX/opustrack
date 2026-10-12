@@ -1,8 +1,8 @@
 /**
- * Guarded private one-step full seed — T8d builder (NOT YET RUN, review pending).
+ * Guarded private one-step full seed — T8d builder + staged resume support.
  *
- * Target: a wiped database (`prisma migrate reset --skip-seed` style) that must
- * converge in ONE explicit step to catalog baseline + approved private data.
+ * Target: a wiped database (`prisma migrate reset --skip-seed` style) that
+ * converges in ONE explicit step to catalog baseline + approved private data.
  * Production target is neondb; the complete private seed is prepared BEFORE any
  * reset. This file holds NO private values — only code plus the private CSV
  * paths already documented in the workbooks plan.
@@ -12,9 +12,24 @@
  *                                                  # aggregate counts, touch
  *                                                  # nothing (no DB, no files)
  *   npx tsx initial_load/seed-full.ts              # full seed (empty DB only,
- *                                                  # review-gated, one step)
+ *                                                  # review-gated, staged)
+ *   npx tsx initial_load/seed-full.ts --resume     # skip the empty-target
+ *                                                  # gate and converge via
+ *                                                  # idempotent upserts
  *
  * Contract:
+ * - Six sequential bounded transactions: (a) catalog baseline, (b) clients,
+ *   (c) lines, (d) equipment, (e) users+roles+profiles, (f) calendar periods
+ *   + historical rows. Each stage owns its `$transaction` with an explicit
+ *   timeout/maxWait sized to its workload. No bcrypt hashing runs inside any
+ *   transaction: all passwords are hashed BEFORE stage (e) and the
+ *   pre-generated map is reused inside.
+ * - Every stage is safely re-runnable: all writes are idempotent upserts (or
+ *   find-first-then-create where the schema has no unique key, e.g.
+ *   equipment name+lineId) on stable unique keys. A retry after a mid-run
+ *   failure converges, never duplicates.
+ * - assertEmptyTarget stays a hard gate for full runs (fresh-wipe semantics);
+ *   `--resume` skips the gate and relies on idempotent upserts.
  * - Catalog baseline mirrors ignored `initial_load/seed.ts` by importing the
  *   SAME shared sources directly (PERMISSION_LIST / resolveSeedGrants,
  *   SYSTEM_* , defaultChannelPolicies). `seed.ts` self-executes its main, so
@@ -34,7 +49,11 @@
  *   imports zero and logs the count, never auto-approves PENDING).
  * - Per-user random passwords are written ONCE to ignored
  *   `initial_load/credentials.csv` (O_EXCL, mode 0600, fsync) BEFORE any user
- *   row is created; the run aborts if that file already exists.
+ *   row is created. On an existing file the stored email set is compared to
+ *   the plan: an identical set REUSES the stored passwords (reuse count is
+ *   logged, never values); a different set aborts with an explicit message
+ *   telling the operator to delete the file only after confirming the target
+ *   DB is empty/fresh.
  * - Output is aggregate counts per model + exception categories, never values.
  *   Error messages carry file:line:category only.
  */
@@ -822,6 +841,9 @@ export async function buildSeedPlan(): Promise<SeedPlan> {
         "unknown line",
       );
   });
+  // Equipment has no schema unique key: fail closed on in-plan duplicates so
+  // the find-first-then-create stage converges instead of doubling rows.
+  assertNoDuplicateEquipmentKeys(equipment);
 
   // Vacation review: only APPROVED + linked rows import (currently zero).
   let pendingReviews = 0;
@@ -845,6 +867,9 @@ export async function buildSeedPlan(): Promise<SeedPlan> {
     else if (row.reviewStatus === "REJECTED") rejectedReviews += 1;
     else throw new SeedInputError("vacation-review.csv", line, "bad status");
   });
+  // Historical ledger keys must be unique in-plan so the resume upsert on
+  // (sourceDigest, sourceSheet, sourceRow) converges.
+  assertNoDuplicateReviewKeys(approvedReviews);
 
   counts["users.parsed"] = users.length;
   counts["users.hireExact"] = hireExact;
@@ -906,8 +931,11 @@ async function writeCredentialsOnce(
     );
   } catch (error) {
     if (error instanceof Error && "code" in error && error.code === "EEXIST") {
-      throw new Error(
-        "initial_load/credentials.csv already exists: refusing to rotate passwords. Remove it deliberately to retry.",
+      throw Object.assign(
+        new Error(
+          "initial_load/credentials.csv already exists: refusing to rotate passwords. Remove it deliberately to retry.",
+        ),
+        { code: "EEXIST" },
       );
     }
     throw error;
@@ -918,6 +946,185 @@ async function writeCredentialsOnce(
   } finally {
     await handle.close();
   }
+}
+
+/** CLI flags: `--dry-run` validates only; `--resume` skips the empty gate. */
+export function parseSeedArgs(argv: readonly string[]): {
+  dryRun: boolean;
+  resume: boolean;
+} {
+  return {
+    dryRun: argv.includes("--dry-run"),
+    resume: argv.includes("--resume"),
+  };
+}
+
+/**
+ * Per-stage interactive-transaction budgets, sized to each workload. The old
+ * single giant transaction (maxWait 30s / timeout 180s over catalogs + 106
+ * clients + 327 lines + 160 equipment + 24 users + ~179 periods) could lose
+ * its slot on a pooled endpoint (P2028 Transaction-not-found); six bounded
+ * stages keep every transaction short-lived instead.
+ */
+export const STAGE_TX_CONFIG = {
+  catalog: { maxWait: 10_000, timeout: 60_000 },
+  clients: { maxWait: 10_000, timeout: 60_000 },
+  lines: { maxWait: 10_000, timeout: 60_000 },
+  equipment: { maxWait: 10_000, timeout: 60_000 },
+  users: { maxWait: 10_000, timeout: 120_000 },
+  calendar: { maxWait: 10_000, timeout: 120_000 },
+} as const;
+
+/** Equipment identity for the resume-safe find-first-then-create stage. */
+export function equipmentStageKey(row: EquipmentRow): string {
+  return `${row.clientCode}␟${row.lineName}␟${row.name}`;
+}
+
+/** Fail closed on in-plan equipment duplicates (no schema unique to rely on). */
+export function assertNoDuplicateEquipmentKeys(
+  rows: readonly EquipmentRow[],
+): void {
+  const seen = new Set(rows.map(equipmentStageKey));
+  if (seen.size !== rows.length)
+    throw new SeedInputError(
+      "equipment-candidates-cdmx-v3.csv",
+      0,
+      "duplicate key",
+    );
+}
+
+/** Historical ledger identity: (sourceDigest, sourceSheet, sourceRow). */
+export function reviewStageKey(row: VacationReviewRow): string {
+  return `${row.sourceDigest}␟${row.sourceSheet}␟${row.sourceRow}`;
+}
+
+/** Fail closed on in-plan historical duplicates so resume upserts converge. */
+export function assertNoDuplicateReviewKeys(
+  rows: readonly VacationReviewRow[],
+): void {
+  const seen = new Set(rows.map(reviewStageKey));
+  if (seen.size !== rows.length)
+    throw new SeedInputError("vacation-review.csv", 0, "duplicate key");
+}
+
+/** Compare the planned email set to the stored credentials file set. */
+export function compareCredentialEmailSets(
+  plannedEmails: readonly string[],
+  storedEmails: readonly string[],
+): "reuse" | "mismatch" {
+  const planned = [...new Set(plannedEmails)].sort();
+  const stored = [...new Set(storedEmails)].sort();
+  return planned.length === stored.length &&
+    planned.every((email, index) => email === stored[index])
+    ? "reuse"
+    : "mismatch";
+}
+
+const CREDENTIALS_HEADER = ["email", "password"] as const;
+
+/** Read the existing credentials file: emails + password-by-email map. */
+export async function readExistingCredentials(): Promise<{
+  emails: string[];
+  passwordByEmail: Map<string, string>;
+}> {
+  const text = await readFile(CREDENTIALS_CSV, "utf8");
+  const parsed = parseCsv(text);
+  if (parsed.length === 0 || !parsed[0])
+    throw new Error(
+      "initial_load/credentials.csv exists but is empty: delete it only after confirming the target DB is empty/fresh, then retry.",
+    );
+  assertHeader("credentials.csv", parsed[0], [...CREDENTIALS_HEADER]);
+  const passwordByEmail = new Map<string, string>();
+  for (const cells of parsed.slice(1)) {
+    const email = cells[0]?.trim() ?? "";
+    const password = cells[1] ?? "";
+    if (!email || !password)
+      throw new Error(
+        "initial_load/credentials.csv exists with a malformed row: delete it only after confirming the target DB is empty/fresh, then retry.",
+      );
+    if (passwordByEmail.has(email))
+      throw new Error(
+        "initial_load/credentials.csv exists with duplicate emails: delete it only after confirming the target DB is empty/fresh, then retry.",
+      );
+    passwordByEmail.set(email, password);
+  }
+  return { emails: [...passwordByEmail.keys()], passwordByEmail };
+}
+
+export interface ResolvedCredentials {
+  passwordByEmail: Map<string, string>;
+  reused: boolean;
+  reuseCount: number;
+}
+
+/**
+ * O_EXCL creation before any user row. On an existing file, an identical
+ * email set reuses stored passwords (reuse count logged, never values); a
+ * different set aborts and tells the operator to delete the file only after
+ * confirming the target DB is empty/fresh. Never logs passwords.
+ */
+export async function resolveCredentials(
+  plannedEmails: readonly string[],
+): Promise<ResolvedCredentials> {
+  const fresh = plannedEmails.map((email) => ({
+    email,
+    password: randomBytes(15).toString("base64url"),
+  }));
+  try {
+    await writeCredentialsOnce(fresh);
+    return {
+      passwordByEmail: new Map(
+        fresh.map((entry) => [entry.email, entry.password] as const),
+      ),
+      reused: false,
+      reuseCount: 0,
+    };
+  } catch (error) {
+    // writeCredentialsOnce preserves EEXIST on its already-exists error; the
+    // message prefix is a second guard so a wrapped error shape still reuses
+    // instead of crashing the resume path.
+    const exists =
+      (error instanceof Error &&
+        "code" in error &&
+        (error as NodeJS.ErrnoException).code === "EEXIST") ||
+      (error instanceof Error &&
+        error.message.startsWith(
+          "initial_load/credentials.csv already exists",
+        ));
+    if (!exists) throw error;
+    const stored = await readExistingCredentials();
+    if (compareCredentialEmailSets(plannedEmails, stored.emails) !== "reuse") {
+      throw new Error(
+        "initial_load/credentials.csv already exists with a different email set: refusing to mix password sets. Delete the file only after confirming the target DB is empty/fresh, then retry.",
+      );
+    }
+    return {
+      passwordByEmail: stored.passwordByEmail,
+      reused: true,
+      reuseCount: stored.emails.length,
+    };
+  }
+}
+
+/** Per-stage dry-run plan (counts only, never values). */
+export function buildStagePlan(
+  plan: SeedPlan,
+  plannedPeriods: number,
+): Array<{ stage: string; writes: Record<string, number> }> {
+  return [
+    { stage: "catalog", writes: { baseline: 1 } },
+    { stage: "clients", writes: { clients: plan.clients.length } },
+    { stage: "lines", writes: { lines: plan.lines.length } },
+    { stage: "equipment", writes: { equipment: plan.equipment.length } },
+    { stage: "users", writes: { users: plan.users.length } },
+    {
+      stage: "calendar",
+      writes: {
+        calendarPeriodsPlanned: plannedPeriods,
+        historicalRows: plan.approvedReviews.length,
+      },
+    },
+  ];
 }
 
 type TxClient = Prisma.TransactionClient;
@@ -1509,13 +1716,13 @@ async function assertEmptyTarget(): Promise<void> {
 }
 
 async function main(): Promise<void> {
-  const dryRun = process.argv.includes("--dry-run");
+  const { dryRun, resume } = parseSeedArgs(process.argv);
   const plan = await buildSeedPlan();
   const upToCycleYear = currentCdmxYear();
 
   // Planned calendar grants: one estimate per user WITH a verified hire date
   // (hireYear + 1 through the current CDMX year). Creation itself happens in
-  // the transaction via ensureCalendarPeriodsForUser.
+  // stage (f) via ensureCalendarPeriodsForUser.
   let plannedPeriods = 0;
   for (const user of plan.users) {
     const hireDate = resolveSeedHireDate(
@@ -1532,6 +1739,7 @@ async function main(): Promise<void> {
   const summary = {
     mode: dryRun ? "dry-run" : "full",
     upToCycleYear,
+    resume,
     wouldCreate: {
       users: plan.users.length,
       clients: plan.clients.length,
@@ -1540,6 +1748,7 @@ async function main(): Promise<void> {
       calendarPeriodsPlanned: plannedPeriods,
       historicalRows: plan.approvedReviews.length,
     },
+    stages: buildStagePlan(plan, plannedPeriods),
     exceptions: {
       usersWithoutVerifiedHireDate: plan.hireSkipped,
       usersWithExactHireDate: plan.hireExact,
@@ -1556,17 +1765,34 @@ async function main(): Promise<void> {
     return;
   }
 
-  await assertEmptyTarget();
+  // Hard gate for full runs (fresh-wipe semantics); --resume skips it and
+  // relies on idempotent upserts to converge.
+  if (!resume) {
+    await assertEmptyTarget();
+  } else {
+    console.log(
+      JSON.stringify({ mode: "full", resume: true, gate: "skipped" }),
+    );
+  }
 
-  // Passwords are generated and durably stored BEFORE any user row exists.
-  const credentials = plan.users.map((user) => ({
-    email: user.email,
-    password: randomBytes(15).toString("base64url"),
-  }));
-  await writeCredentialsOnce(credentials);
-  const passwordByEmail = new Map(
-    credentials.map((entry) => [entry.email, entry.password] as const),
+  // Credentials resolve BEFORE any user row exists (O_EXCL on first run;
+  // identical email set reuses stored passwords on retry).
+  const { passwordByEmail, reused, reuseCount } = await resolveCredentials(
+    plan.users.map((user) => user.email),
   );
+  if (reused) {
+    console.log(JSON.stringify({ credentials: "reused", count: reuseCount }));
+  }
+
+  // NO bcrypt inside any transaction: hash every password up front and reuse
+  // the map inside stage (e). Hashing 24 passwords sequentially keeps memory
+  // flat; this runs before any $transaction below.
+  const passwordHashByEmail = new Map<string, string>();
+  for (const user of plan.users) {
+    const password = passwordByEmail.get(user.email);
+    if (!password) throw new Error("Planned credential missing in run");
+    passwordHashByEmail.set(user.email, await hashPassword(password));
+  }
 
   const created = {
     users: 0,
@@ -1577,163 +1803,245 @@ async function main(): Promise<void> {
     historicalRows: 0,
   };
 
-  await prisma.$transaction(
-    async (tx) => {
-      const baseline = await seedCatalogBaseline(tx);
-      await seedDomainCatalogs(tx);
+  // Stage (a): catalog baseline. All writes are upserts (holidays guarded by
+  // an empty-table createMany), so a retry converges.
+  await prisma.$transaction(async (tx) => {
+    await seedCatalogBaseline(tx);
+    await seedDomainCatalogs(tx);
+  }, STAGE_TX_CONFIG.catalog);
 
-      const states = [...baseline.stateByName.entries()].map(([name, id]) => ({
-        id,
-        name,
-      }));
-      const clientIdByCode = new Map<string, string>();
-      for (const row of plan.clients) {
-        const stateId = resolveStateId(row.state, states);
-        const rec = await tx.client.upsert({
-          where: { code: row.code },
-          update: {},
-          // name = code by reviewed mapping; no address/rfc invented.
-          create: {
-            code: row.code,
-            name: row.code,
-            companyName: row.companyName || null,
-            contact: row.contact || null,
-            phone: row.phone || null,
-            email: row.email || null,
-            stateId,
-          },
-        });
-        clientIdByCode.set(row.code, rec.id);
-        created.clients += 1;
-      }
+  // Stage (b): clients, upserted on stable code. Update converges the
+  // reviewed fields on retry instead of leaving first-write wins.
+  await prisma.$transaction(async (tx) => {
+    const states = await tx.state.findMany({
+      select: { id: true, name: true },
+    });
+    for (const row of plan.clients) {
+      const stateId = resolveStateId(row.state, states);
+      // name = code by reviewed mapping; no address/rfc invented.
+      await tx.client.upsert({
+        where: { code: row.code },
+        update: {
+          name: row.code,
+          companyName: row.companyName || null,
+          contact: row.contact || null,
+          phone: row.phone || null,
+          email: row.email || null,
+          stateId,
+        },
+        create: {
+          code: row.code,
+          name: row.code,
+          companyName: row.companyName || null,
+          contact: row.contact || null,
+          phone: row.phone || null,
+          email: row.email || null,
+          stateId,
+        },
+      });
+      created.clients += 1;
+    }
+  }, STAGE_TX_CONFIG.clients);
 
-      const lineIdByKey = new Map<string, number>();
-      for (const row of plan.lines) {
-        const clientId = clientIdByCode.get(row.clientCode);
-        if (!clientId) throw new Error("Planned client missing in run");
-        const rec = await tx.line.upsert({
-          where: {
-            name_clientId: { name: row.name, clientId },
-          },
-          update: {},
-          create: {
-            name: row.name,
-            description: row.description || null,
-            clientId,
-          },
-        });
-        lineIdByKey.set(`${row.clientCode}␟${row.name}`, rec.id);
-        created.lines += 1;
-      }
+  // Stage (c): lines, upserted on (name, clientId).
+  await prisma.$transaction(async (tx) => {
+    const clients = await tx.client.findMany({
+      select: { id: true, code: true },
+    });
+    const clientIdByCode = new Map(clients.map((c) => [c.code, c.id]));
+    for (const row of plan.lines) {
+      const clientId = clientIdByCode.get(row.clientCode);
+      if (!clientId) throw new Error("Planned client missing in run");
+      await tx.line.upsert({
+        where: {
+          name_clientId: { name: row.name, clientId },
+        },
+        update: { description: row.description || null },
+        create: {
+          name: row.name,
+          description: row.description || null,
+          clientId,
+        },
+      });
+      created.lines += 1;
+    }
+  }, STAGE_TX_CONFIG.lines);
 
-      for (const row of plan.equipment) {
-        const lineId = lineIdByKey.get(`${row.clientCode}␟${row.lineName}`);
-        if (!lineId) throw new Error("Planned line missing in run");
-        // Name only; status resolves the OPERATIVO row by name, never id 1.
+  // Stage (d): equipment. No schema unique key exists, so resume safety is
+  // find-first-then-create on (name, lineId); in-plan duplicates fail closed
+  // in buildSeedPlan, so a retry converges without doubling rows.
+  await prisma.$transaction(async (tx) => {
+    const operativo = await tx.equipmentStatus.findUnique({
+      where: { name: "OPERATIVO" },
+      select: { id: true },
+    });
+    if (!operativo) throw new Error("EquipmentStatus OPERATIVO not found");
+    const clients = await tx.client.findMany({
+      select: { id: true, code: true },
+    });
+    const lines = await tx.line.findMany({
+      select: { id: true, name: true, clientId: true },
+    });
+    const lineIdByKey = new Map<string, number>();
+    const clientCodeById = new Map(clients.map((c) => [c.id, c.code] as const));
+    for (const line of lines) {
+      const code = clientCodeById.get(line.clientId);
+      if (code) lineIdByKey.set(`${code}␟${line.name}`, line.id);
+    }
+    for (const row of plan.equipment) {
+      const lineId = lineIdByKey.get(`${row.clientCode}␟${row.lineName}`);
+      if (!lineId) throw new Error("Planned line missing in run");
+      // Name only; status resolves the OPERATIVO row by name, never id 1.
+      const existing = await tx.equipment.findFirst({
+        where: { name: row.name, lineId },
+        select: { id: true },
+      });
+      if (!existing) {
         await tx.equipment.create({
           data: {
             name: row.name,
             lineId,
-            statusId: baseline.operativoStatusId,
+            statusId: operativo.id,
           },
         });
-        created.equipment += 1;
       }
+      created.equipment += 1;
+    }
+  }, STAGE_TX_CONFIG.equipment);
 
-      const userIdByKey = new Map<string, string>();
-      for (const row of plan.users) {
-        const password = passwordByEmail.get(row.email);
-        if (!password) throw new Error("Planned credential missing in run");
-        const hireDate = resolveSeedHireDate(
+  // Stage (e): users + roles + profiles + hire dates. Password hashes come
+  // from the pre-generated map above — no bcrypt runs inside this
+  // transaction. User upsert never touches the password on update (stored
+  // credentials stay the authority); profile converges via its own upsert.
+  await prisma.$transaction(async (tx) => {
+    const activo = await tx.userStatus.findUnique({
+      where: { name: "ACTIVO" },
+      select: { id: true },
+    });
+    if (!activo) throw new Error("UserStatus ACTIVO not found");
+    const roles = await tx.role.findMany({
+      select: { id: true, name: true },
+    });
+    const roleIdByName = new Map(roles.map((r) => [r.name, r.id]));
+    for (const row of plan.users) {
+      const passwordHash = passwordHashByEmail.get(row.email);
+      if (!passwordHash) throw new Error("Planned credential missing in run");
+      const hireDate = resolveSeedHireDate(
+        plan.hireIndex,
+        plan.hireFallbackIndex,
+        row.candidateKey,
+      );
+      const user = await tx.user.upsert({
+        where: { email: row.email },
+        update: {
+          name: row.name,
+          userStatusId: activo.id,
+          hireDate: hireDate ?? null,
+        },
+        create: {
+          name: row.name,
+          email: row.email,
+          password: passwordHash,
+          userStatusId: activo.id,
+          hireDate: hireDate ?? null,
+        },
+      });
+      await tx.userProfile.upsert({
+        where: { userId: user.id },
+        update: { jobPosition: row.jobPosition || null },
+        create: { userId: user.id, jobPosition: row.jobPosition || null },
+      });
+      for (const grant of row.grants) {
+        const roleId = roleIdByName.get(grant);
+        if (!roleId) throw new Error(`Planned role missing in run`);
+        await tx.userRole.upsert({
+          where: { userId_roleId: { userId: user.id, roleId } },
+          update: {},
+          create: { userId: user.id, roleId },
+        });
+      }
+      created.users += 1;
+    }
+  }, STAGE_TX_CONFIG.users);
+
+  // Stage (f): calendar periods + historical ledger. Period creation is
+  // idempotent (upsert on userId+cycleYear with empty update); historical
+  // rows upsert on (sourceDigest, sourceSheet, sourceRow) and never overwrite
+  // reviewed values.
+  await prisma.$transaction(async (tx) => {
+    const users = await tx.user.findMany({
+      select: { id: true, email: true },
+    });
+    const userIdByEmail = new Map(users.map((u) => [u.email, u.id]));
+    const keyByEmail = new Map(
+      plan.users.map((u) => [u.email, u.candidateKey]),
+    );
+    // Calendar grants only for users WITH a verified hire date.
+    for (const row of plan.users) {
+      const userId = userIdByEmail.get(row.email);
+      if (!userId) throw new Error("Planned user missing in run");
+      if (
+        !resolveSeedHireDate(
           plan.hireIndex,
           plan.hireFallbackIndex,
           row.candidateKey,
-        );
-        const user = await tx.user.upsert({
-          where: { email: row.email },
-          update: {},
-          create: {
-            name: row.name,
-            email: row.email,
-            password: await hashPassword(password),
-            userStatusId: baseline.userStatusActivoId,
-            hireDate: hireDate ?? null,
-            userProfile: {
-              create: { jobPosition: row.jobPosition || null },
-            },
-          },
-        });
-        for (const grant of row.grants) {
-          const roleId = baseline.roleIdByName.get(grant);
-          if (!roleId) throw new Error(`Planned role missing in run`);
-          await tx.userRole.upsert({
-            where: { userId_roleId: { userId: user.id, roleId } },
-            update: {},
-            create: { userId: user.id, roleId },
-          });
-        }
-        userIdByKey.set(row.candidateKey, user.id);
-        created.users += 1;
-      }
-
-      // Calendar grants only for users WITH a verified hire date.
-      for (const row of plan.users) {
-        const userId = userIdByKey.get(row.candidateKey);
-        if (!userId) continue;
-        if (
-          !resolveSeedHireDate(
-            plan.hireIndex,
-            plan.hireFallbackIndex,
-            row.candidateKey,
-          )
         )
-          continue;
-        const periods = await ensureCalendarPeriodsForUser(
-          userId,
-          { upToCycleYear },
-          tx,
-        );
-        created.calendarPeriods += periods.length;
-      }
+      )
+        continue;
+      const periods = await ensureCalendarPeriodsForUser(
+        userId,
+        { upToCycleYear },
+        tx,
+      );
+      created.calendarPeriods += periods.length;
+    }
 
-      // Historical ledger: APPROVED + linked rows only (currently zero).
-      for (const review of plan.approvedReviews) {
-        const userId = userIdByKey.get(review.userKey);
-        if (!userId) throw new Error("Planned review user missing in run");
-        const funding = await tx.vacationPeriod.findUnique({
-          where: { userId_cycleYear: { userId, cycleYear: review.cycleYear } },
-        });
-        if (!funding) throw new Error("Planned funding period missing");
-        if (review.entitled < review.taken)
-          throw new Error("Review arithmetic mismatch");
-        if (review.entitled - review.taken !== review.remaining)
-          throw new Error("Review arithmetic mismatch");
-        await tx.historicalVacationConsumption.create({
-          data: {
-            userId,
-            cycleYear: review.cycleYear,
-            fundingPeriodId: funding.id,
+    // Historical ledger: APPROVED + linked rows only (currently zero).
+    const userIdByKey = new Map<string, string>();
+    for (const [email, id] of userIdByEmail) {
+      const key = keyByEmail.get(email);
+      if (key) userIdByKey.set(key, id);
+    }
+    for (const review of plan.approvedReviews) {
+      const userId = userIdByKey.get(review.userKey);
+      if (!userId) throw new Error("Planned review user missing in run");
+      const funding = await tx.vacationPeriod.findUnique({
+        where: { userId_cycleYear: { userId, cycleYear: review.cycleYear } },
+      });
+      if (!funding) throw new Error("Planned funding period missing");
+      if (review.entitled < review.taken)
+        throw new Error("Review arithmetic mismatch");
+      if (review.entitled - review.taken !== review.remaining)
+        throw new Error("Review arithmetic mismatch");
+      await tx.historicalVacationConsumption.upsert({
+        where: {
+          sourceDigest_sourceSheet_sourceRow: {
             sourceDigest: review.sourceDigest,
             sourceSheet: review.sourceSheet,
             sourceRow: review.sourceRow,
-            sourceEntitledDays: review.entitled,
-            sourceTakenDays: review.taken,
-            sourceRemainingDays: review.remaining,
-            allocatedToDatedDays: 0,
-            // Approval by the reviewer IS the identity verification: only
-            // APPROVED rows reach this branch (isImportableReview gate).
-            identityVerified: true,
-            reviewStatus: "APPROVED",
           },
-        });
-        created.historicalRows += 1;
-      }
-    },
-    {
-      maxWait: 30000,
-      timeout: 180000,
-    },
-  );
+        },
+        update: {},
+        create: {
+          userId,
+          cycleYear: review.cycleYear,
+          fundingPeriodId: funding.id,
+          sourceDigest: review.sourceDigest,
+          sourceSheet: review.sourceSheet,
+          sourceRow: review.sourceRow,
+          sourceEntitledDays: review.entitled,
+          sourceTakenDays: review.taken,
+          sourceRemainingDays: review.remaining,
+          allocatedToDatedDays: 0,
+          // Approval by the reviewer IS the identity verification: only
+          // APPROVED rows reach this branch (isImportableReview gate).
+          identityVerified: true,
+          reviewStatus: "APPROVED",
+        },
+      });
+      created.historicalRows += 1;
+    }
+  }, STAGE_TX_CONFIG.calendar);
 
   // Aggregate counts only — never values.
   console.log(
@@ -1741,6 +2049,8 @@ async function main(): Promise<void> {
       {
         mode: "full",
         upToCycleYear,
+        resume,
+        credentialsReused: reused,
         created,
         exceptions: summary.exceptions,
         counts: plan.counts,
