@@ -49,6 +49,13 @@ vi.mock("@/lib/auth/filters", () => ({
   canAccessClientAsync: (user: unknown, clientId: unknown) =>
     canAccessClientAsync(user, clientId),
 }));
+vi.mock("@/lib/auth/access", () => ({
+  getClientAccessScope: (user: unknown) => getReportScope(user),
+  requireClientAccess: async (user: unknown, clientId: unknown) => {
+    if (!canAccessClientAsync(user, clientId))
+      throw new BusinessRuleError(`Sin acceso al Cliente ${clientId}`);
+  },
+}));
 // Real scope fragments, controllable scope resolution: the regression tests
 // below prove getSchedules applies scheduleScopeWhere, not a lookalike.
 vi.mock("@/lib/auth/report-scope", async (importOriginal) => {
@@ -69,16 +76,44 @@ vi.mock("next/navigation", () => ({
 }));
 
 import { scheduleScopeWhere } from "@/lib/auth/report-scope";
+import { BusinessRuleError } from "./result";
 import {
   createSchedule,
   deleteSchedule,
   getClientsForSchedules,
+  getScheduleById,
   getSchedules,
   quickUpdateSchedule,
+  updateSchedule,
 } from "./schedules";
 
 const lastWhere = () =>
   prismaMock.schedule.findMany.mock.calls.at(-1)?.[0]?.where;
+
+describe("getScheduleById scope", () => {
+  it("gates active schedules and independently scopes their incidents", async () => {
+    getReportScope.mockResolvedValue({ clientIds: ["c1"] });
+    await getScheduleById("s1");
+    expect(prismaMock.schedule.findUnique).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          id: "s1",
+          active: true,
+          AND: [scheduleScopeWhere({ clientIds: ["c1"] })],
+        },
+        include: expect.objectContaining({
+          incidents: expect.objectContaining({
+            where: { active: true, clientId: { in: ["c1"] } },
+          }),
+        }),
+      }),
+    );
+  });
+  it("returns null for a missing, inactive, or out-of-scope schedule", async () => {
+    prismaMock.schedule.findUnique.mockResolvedValue(null);
+    expect(await getScheduleById("s1")).toBeNull();
+  });
+});
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -86,10 +121,17 @@ beforeEach(() => {
   prismaMock.schedule.findMany.mockResolvedValue([]);
   prismaMock.schedule.count.mockResolvedValue(0);
   prismaMock.schedule.create.mockResolvedValue({ id: "s1" });
-  prismaMock.schedule.findUnique.mockResolvedValue({ id: "s1" });
+  prismaMock.schedule.findUnique.mockResolvedValue({
+    id: "s1",
+    clients: [],
+    incidents: [],
+  });
   prismaMock.schedule.update.mockResolvedValue({ id: "s1" });
   prismaMock.scheduleClient.findMany.mockResolvedValue([]);
   prismaMock.incident.count.mockResolvedValue(0);
+  prismaMock.client.findMany.mockImplementation(async (args) =>
+    (args.where?.id?.in ?? []).map((id: string) => ({ id })),
+  );
   prismaMock.$transaction.mockImplementation(
     async (fn: (tx: unknown) => unknown) => fn(prismaMock),
   );
@@ -310,7 +352,7 @@ describe("deleteSchedule (RF-405)", () => {
     await expect(deleteSchedule("s1")).rejects.toThrow(REDIRECT);
 
     expect(prismaMock.schedule.update).toHaveBeenCalledWith({
-      where: { id: "s1" },
+      where: { id: "s1", active: true },
       data: { active: false },
     });
   });
@@ -321,6 +363,75 @@ describe("deleteSchedule (RF-405)", () => {
     expect(prismaMock.incident.count).toHaveBeenCalledWith({
       where: { scheduleId: "s1", active: true },
     });
+  });
+});
+
+describe("schedule mutation scope and references", () => {
+  const data = {
+    title: "Visit",
+    scheduledAt: new Date("2026-10-13T15:00:00Z"),
+    clientIds: ["c100000001"],
+  };
+  it.each(["full", "quick", "delete"])(
+    "%s rejects inactive or out-of-scope schedules before writing",
+    async (flow) => {
+      prismaMock.schedule.findUnique.mockResolvedValue(null);
+      const result =
+        flow === "full"
+          ? await updateSchedule("s1", data)
+          : flow === "quick"
+            ? await quickUpdateSchedule("s1", data)
+            : await deleteSchedule("s1");
+      expect(result).toMatchObject({ success: false, error: "No encontrado." });
+      expect(prismaMock.schedule.update).not.toHaveBeenCalled();
+    },
+  );
+  it("cannot remove an inaccessible existing Client by submitting only accessible Clients", async () => {
+    prismaMock.schedule.findUnique.mockResolvedValue({
+      clients: [{ clientId: "c200000002" }],
+      incidents: [],
+    });
+    canAccessClientAsync.mockImplementation((_u, id) => id !== "c200000002");
+    expect((await quickUpdateSchedule("s1", data)).success).toBe(false);
+    expect(prismaMock.scheduleClient.updateMany).not.toHaveBeenCalled();
+    expect(prismaMock.schedule.update).not.toHaveBeenCalled();
+  });
+  it("rejects foreign Clients reached through child incidents even on a global schedule", async () => {
+    prismaMock.schedule.findUnique.mockResolvedValue({
+      clients: [],
+      incidents: [{ clientId: "c200000002" }],
+    });
+    canAccessClientAsync.mockImplementation((_u, id) => id !== "c200000002");
+    expect((await updateSchedule("s1", data)).success).toBe(false);
+    expect(prismaMock.schedule.update).not.toHaveBeenCalled();
+  });
+  it("rejects inactive requested Clients", async () => {
+    prismaMock.client.findMany.mockResolvedValue([]);
+    expect((await createSchedule(data)).success).toBe(false);
+    expect(prismaMock.schedule.create).not.toHaveBeenCalled();
+  });
+  it("preserves the belonging invariant of active incident references", async () => {
+    prismaMock.schedule.findUnique.mockResolvedValue({
+      clients: [],
+      incidents: [{ clientId: "c200000002" }],
+    });
+    expect((await updateSchedule("s1", data)).success).toBe(false);
+    expect(prismaMock.schedule.update).not.toHaveBeenCalled();
+  });
+  it("gates deletion and counts children inside its transaction", async () => {
+    await deleteSchedule("s1").catch(() => {});
+    expect(prismaMock.$transaction).toHaveBeenCalled();
+    expect(prismaMock.schedule.findUnique).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ id: "s1", active: true }),
+      }),
+    );
+    expect(
+      prismaMock.schedule.findUnique.mock.invocationCallOrder[0],
+    ).toBeLessThan(prismaMock.incident.count.mock.invocationCallOrder[0]);
+    expect(prismaMock.incident.count.mock.invocationCallOrder[0]).toBeLessThan(
+      prismaMock.schedule.update.mock.invocationCallOrder[0],
+    );
   });
 });
 

@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
+import { isFailure } from "@/lib/actions/result";
 import { createVehicle, updateVehicle } from "@/lib/actions/vehicles";
 
 interface Vehicle {
@@ -27,6 +28,7 @@ interface Vehicle {
   vin?: string | null;
   color?: string | null;
   status: { id: number; name: string; code?: string | null };
+  operationalStatusCode?: string;
   assignedFsrId?: string | null;
   assignedFsr?: { id: string; name: string; email: string } | null;
   notes?: string | null;
@@ -67,7 +69,11 @@ export function VehicleForm({
     licensePlate: vehicle?.licensePlate || "",
     vin: vehicle?.vin || "",
     color: vehicle?.color || "",
-    status: vehicle?.status?.code ?? vehicle?.status?.name ?? "AVAILABLE",
+    status:
+      vehicle?.operationalStatusCode ??
+      vehicle?.status?.code ??
+      vehicle?.status?.name ??
+      "AVAILABLE",
     assignedFsrId: vehicle?.assignedFsrId || "",
     notes: vehicle?.notes || "",
   });
@@ -95,10 +101,18 @@ export function VehicleForm({
       };
 
       if (mode === "create") {
-        await createVehicle(submitData);
+        const result = await createVehicle(submitData);
+        if (isFailure(result)) {
+          toast.error(result.error);
+          return;
+        }
         router.push("/admin/vehicles");
       } else if (vehicle) {
-        await updateVehicle(vehicle.id, submitData);
+        const result = await updateVehicle(vehicle.id, submitData);
+        if (isFailure(result)) {
+          toast.error(result.error);
+          return;
+        }
         router.push(`/admin/vehicles/${vehicle.id}`);
       }
     } catch (err) {

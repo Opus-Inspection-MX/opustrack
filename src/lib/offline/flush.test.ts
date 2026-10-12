@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { startAssignmentWork, closeAssignment } = vi.hoisted(() => ({
   startAssignmentWork: vi.fn(),
@@ -27,6 +27,7 @@ import {
   withEntryLock,
 } from "./flush";
 import type { OutboxEntry } from "./outbox";
+import { loadEntries, removeEntry, takeStagedPhoto } from "./outbox";
 
 /**
  * RF-260/RF-261 flush: frozen evidence re-sent verbatim through the
@@ -46,6 +47,18 @@ function draft(overrides: Partial<OutboxEntry> = {}): OutboxEntry {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  const store = new Map<string, string>();
+  vi.stubGlobal("localStorage", {
+    getItem: (key: string) => store.get(key) ?? null,
+    setItem: (key: string, value: string) => store.set(key, value),
+    removeItem: (key: string) => store.delete(key),
+  });
+});
+
+afterEach(() => {
+  for (const entry of loadEntries()) removeEntry(entry.key);
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
 });
 
 describe("offline flush", () => {
@@ -130,6 +143,47 @@ describe("offline flush", () => {
       const [entry] = queued.entries.slice(-1);
       expect(entry.userId).toBe("fsr-a");
     }
+  });
+
+  it("saveDraft preserves caller identity across a later date and replays the original evidence", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-13T00:01:00.000Z"));
+    const identity = {
+      key: "first-online-attempt",
+      capturedAt: "2026-10-12T23:59:59.000Z",
+    };
+    const photo = new File(["original evidence"], "odometer.jpg", {
+      type: "image/jpeg",
+    });
+    const fields = {
+      tripId: "trip-1",
+      endOdometer: "1250",
+      endLatitude: "19.43",
+    };
+    const queued = saveDraft({
+      kind: "endVehicleTrip",
+      fields,
+      photo,
+      userId: "fsr-1",
+      identity,
+    });
+    expect(queued.queued).toBe(true);
+    const [entry] = loadEntries();
+    expect(entry).toMatchObject({
+      ...identity,
+      fields,
+      userId: "fsr-1",
+      attempts: 0,
+      photoName: "odometer.jpg",
+    });
+    expect(takeStagedPhoto(identity.key)).toBe(photo);
+    endVehicleTrip.mockResolvedValue({ success: true, data: { id: "trip-1" } });
+    await flushEntry(entry, photo);
+    const sent = endVehicleTrip.mock.calls[0][0] as FormData;
+    expect(sent.get("idempotencyKey")).toBe(identity.key);
+    expect(sent.get("capturedAt")).toBe(identity.capturedAt);
+    expect(sent.get("endLatitude")).toBe("19.43");
+    expect(sent.get("photo")).toBe(photo);
   });
 });
 

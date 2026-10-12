@@ -1,7 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { BusinessRuleError } from "@/lib/actions/result";
 import {
   assertOfflineFreshness,
+  claimIdempotencyKey,
+  findReplayTargetId,
   OFFLINE_FRESHNESS_MS,
   readOfflineFields,
 } from "./idempotency";
@@ -63,4 +65,100 @@ describe("offline server contract", () => {
     fd.append("assignmentId", "a1");
     expect(readOfflineFields(fd)).toEqual({});
   });
+});
+
+describe("idempotency replay binding", () => {
+  const binding = {
+    actorId: "fsr-1",
+    action: "startVehicleTrip",
+    requestTargetId: "v1",
+  };
+
+  it("returns only the matching committed target", async () => {
+    const findUnique = vi
+      .fn()
+      .mockResolvedValue({ ...binding, targetId: "t1" });
+    const db = { actionIdempotency: { findUnique } };
+    expect(await findReplayTargetId(db, "key-1", binding)).toBe("t1");
+    expect(findUnique).toHaveBeenCalledWith({ where: { key: "key-1" } });
+  });
+
+  it.each([null, { ...binding, targetId: null }])(
+    "returns null when no committed target exists (%j)",
+    async (row) => {
+      const db = {
+        actionIdempotency: { findUnique: vi.fn().mockResolvedValue(row) },
+      };
+      expect(await findReplayTargetId(db, "key-1", binding)).toBeNull();
+    },
+  );
+
+  it.each([
+    { actorId: "fsr-2" },
+    { action: "endVehicleTrip" },
+    { requestTargetId: "v2" },
+    { actorId: null },
+    { requestTargetId: null },
+  ])("rejects mismatched or legacy bindings (%j)", async (override) => {
+    const db = {
+      actionIdempotency: {
+        findUnique: vi
+          .fn()
+          .mockResolvedValue({ ...binding, targetId: "t1", ...override }),
+      },
+    };
+    await expect(
+      findReplayTargetId(db, "key-1", binding),
+    ).rejects.toBeInstanceOf(BusinessRuleError);
+  });
+
+  it("validates binding even when the stored target is null", async () => {
+    const db = {
+      actionIdempotency: {
+        findUnique: vi
+          .fn()
+          .mockResolvedValue({ ...binding, actorId: "fsr-2", targetId: null }),
+      },
+    };
+    await expect(
+      findReplayTargetId(db, "key-1", binding),
+    ).rejects.toBeInstanceOf(BusinessRuleError);
+  });
+
+  it("claims the full binding atomically with the resulting target", async () => {
+    const create = vi.fn().mockResolvedValue({});
+    await claimIdempotencyKey(
+      { actionIdempotency: { create } },
+      "key-1",
+      binding.action,
+      "t1",
+      {
+        actorId: binding.actorId,
+        requestTargetId: binding.requestTargetId,
+      },
+    );
+    expect(create).toHaveBeenCalledWith({
+      data: { key: "key-1", targetId: "t1", ...binding },
+    });
+  });
+
+  it.each([
+    { code: "P2002" },
+    { code: "P2034" },
+    new Error("database unavailable"),
+  ])(
+    "propagates claim failure to roll back the caller's transaction (%j)",
+    async (error) => {
+      const create = vi.fn().mockRejectedValue(error);
+      await expect(
+        claimIdempotencyKey(
+          { actionIdempotency: { create } },
+          "key-1",
+          binding.action,
+          "t1",
+          binding,
+        ),
+      ).rejects.toBe(error);
+    },
+  );
 });

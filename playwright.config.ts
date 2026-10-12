@@ -162,7 +162,7 @@ export default defineConfig({
     {
       name: "flows",
       testMatch:
-        /(programacion|tracking|errors|vacations|rbac-roles|notifications-mail|incident-operations|inicio)\.spec\.ts$/,
+        /(programacion|tracking|errors|vacations|business-invariants|rbac-roles|notifications-mail|incident-operations|inicio)\.spec\.ts$/,
       fullyParallel: false,
       use: { ...devices["Desktop Chrome"], ...SYSTEM_CHROMIUM_USE },
       dependencies: ["setup"],
@@ -173,21 +173,21 @@ export default defineConfig({
       // docs/plans/tema-opus.md): el FSR captura desde el celular, así que
       // Mobile Chrome lo cubre y la suite baja ~1 min.
       testIgnore:
-        /(catalogs|programacion|tracking|errors|vacations|rbac-roles|notifications-mail|incident-operations|inicio|offline-field-capture)\.spec\.ts$/,
+        /(catalogs|programacion|tracking|errors|vacations|business-invariants|rbac-roles|notifications-mail|incident-operations|inicio|offline-field-capture)\.spec\.ts$/,
       use: { ...devices["Desktop Chrome"], ...SYSTEM_CHROMIUM_USE },
       dependencies: ["setup"],
     },
     {
       name: "firefox",
       testIgnore:
-        /(catalogs|programacion|tracking|errors|vacations|rbac-roles|notifications-mail|incident-operations|inicio)\.spec\.ts$/,
+        /(catalogs|programacion|tracking|errors|vacations|business-invariants|rbac-roles|notifications-mail|incident-operations|inicio)\.spec\.ts$/,
       use: { ...devices["Desktop Firefox"] },
       dependencies: ["setup"],
     },
     {
       name: "webkit",
       testIgnore:
-        /(catalogs|programacion|tracking|errors|vacations|rbac-roles|notifications-mail|incident-operations|inicio)\.spec\.ts$/,
+        /(catalogs|programacion|tracking|errors|vacations|business-invariants|rbac-roles|notifications-mail|incident-operations|inicio)\.spec\.ts$/,
       use: { ...devices["Desktop Safari"] },
       dependencies: ["setup"],
     },
@@ -199,7 +199,7 @@ export default defineConfig({
       // remaining flows specs stay desktop-only: they drive dense
       // operational grids over shared rows.
       testIgnore:
-        /(catalogs|programacion|tracking|errors|vacations|notifications-mail|incident-operations)\.spec\.ts$/,
+        /(catalogs|programacion|tracking|errors|vacations|business-invariants|notifications-mail|incident-operations)\.spec\.ts$/,
       use: { ...devices["Pixel 5"], ...SYSTEM_CHROMIUM_USE },
       dependencies: ["setup"],
     },
@@ -209,14 +209,14 @@ export default defineConfig({
       // viewport with touch. WebKit-based, so it joins the
       // E2E_EXTRA_BROWSERS=1 opt-in set like Mobile Safari.
       testIgnore:
-        /(catalogs|programacion|tracking|errors|vacations|notifications-mail|incident-operations)\.spec\.ts$/,
+        /(catalogs|programacion|tracking|errors|vacations|business-invariants|notifications-mail|incident-operations)\.spec\.ts$/,
       use: { ...devices["iPad (gen 7)"] },
       dependencies: ["setup"],
     },
     {
       name: "Mobile Safari",
       testIgnore:
-        /(catalogs|programacion|tracking|errors|vacations|rbac-roles|notifications-mail|incident-operations|inicio)\.spec\.ts$/,
+        /(catalogs|programacion|tracking|errors|vacations|business-invariants|rbac-roles|notifications-mail|incident-operations|inicio)\.spec\.ts$/,
       use: { ...devices["iPhone 12"] },
       dependencies: ["setup"],
     },

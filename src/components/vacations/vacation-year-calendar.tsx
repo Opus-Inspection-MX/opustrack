@@ -1,11 +1,12 @@
 "use client";
 
 import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { VacationPeriodSummary } from "@/lib/actions/vacations";
 import { APP_TZ } from "@/lib/utils/datetime";
+import { isVacationPeriodUsable } from "@/lib/utils/vacation-cycle-window";
 
 const MONTH_NAMES = [
   "Enero",
@@ -29,7 +30,7 @@ export interface CalendarVacation {
   id: string;
   startDate: Date | string;
   endDate: Date | string;
-  status: { name: string; color: string };
+  status: { name: string; color: string; code?: string };
 }
 
 interface VacationYearCalendarProps {
@@ -38,9 +39,10 @@ interface VacationYearCalendarProps {
   /** "YYYY-MM-DD" holidays; shown as non-chargeable and not selectable. */
   holidayDates: string[];
   selectedPeriod: VacationPeriodSummary | null;
-  onRequestRange: (startDate: string, endDate: string) => Promise<void>;
+  onRequestRange: (startDate: string, endDate: string) => Promise<boolean>;
   onYearChange: (year: number) => void;
   readOnly?: boolean;
+  allowRetroactive?: boolean;
 }
 
 /** "YYYY-MM-DD" for a calendar day, built without UTC conversion. */
@@ -50,6 +52,8 @@ function dayKey(year: number, month: number, day: number): string {
 
 /** Same-day key for an instant, read in CDMX terms. */
 function instantKey(value: Date | string): string {
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value))
+    return value;
   const date = new Date(value);
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: APP_TZ,
@@ -60,12 +64,12 @@ function instantKey(value: Date | string): string {
 }
 
 function daysInMonth(year: number, month: number): number {
-  return new Date(year, month + 1, 0).getDate();
+  return new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
 }
 
 /** Leading blanks so the 1st lands under its weekday, Monday-first. */
 function leadingBlanks(year: number, month: number): number {
-  const firstDay = new Date(year, month, 1).getDay(); // 0 = Sunday
+  const firstDay = new Date(Date.UTC(year, month, 1)).getUTCDay(); // 0 = Sunday
   return firstDay === 0 ? 6 : firstDay - 1;
 }
 
@@ -88,10 +92,18 @@ export function VacationYearCalendar({
   onRequestRange,
   onYearChange,
   readOnly = false,
+  allowRetroactive = false,
 }: VacationYearCalendarProps) {
   const [rangeStart, setRangeStart] = useState<string | null>(null);
   const [rangeEnd, setRangeEnd] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // A draft must never survive a user/period/year switch.
+  useEffect(() => {
+    void year;
+    void selectedPeriod?.id;
+    setRangeStart(null);
+    setRangeEnd(null);
+  }, [year, selectedPeriod?.id]);
 
   const holidays = useMemo(() => new Set(holidayDates), [holidayDates]);
 
@@ -102,18 +114,21 @@ export function VacationYearCalendar({
       const cursor = new Date(instantKey(vacation.startDate));
       const last = new Date(instantKey(vacation.endDate));
       while (cursor <= last) {
-        const key = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}-${String(cursor.getDate()).padStart(2, "0")}`;
-        map.set(key, vacation);
-        cursor.setDate(cursor.getDate() + 1);
+        const key = cursor.toISOString().slice(0, 10);
+        if ((vacation.status.code ?? vacation.status.name) !== "RECHAZADA")
+          map.set(key, vacation);
+        cursor.setUTCDate(cursor.getUTCDate() + 1);
       }
     }
     return map;
   }, [vacations]);
 
   const periodWindow = useMemo(() => {
-    if (!selectedPeriod) return null;
+    if (!selectedPeriod || !isVacationPeriodUsable(selectedPeriod)) return null;
     return {
-      start: instantKey(selectedPeriod.accrualStart),
+      start: instantKey(
+        selectedPeriod.availableFrom ?? selectedPeriod.accrualStart,
+      ),
       end: instantKey(selectedPeriod.graceEnd),
     };
   }, [selectedPeriod]);
@@ -121,6 +136,7 @@ export function VacationYearCalendar({
   const isSelectable = (key: string): boolean => {
     if (readOnly || !periodWindow) return false;
     if (selectedPeriod?.isExpired) return false;
+    if (!allowRetroactive && key < instantKey(new Date())) return false;
     if (vacationByDay.has(key)) return false;
     if (holidays.has(key)) return false;
     return key >= periodWindow.start && key <= periodWindow.end;
@@ -158,8 +174,8 @@ export function VacationYearCalendar({
     if (!rangeStart) return;
     setSubmitting(true);
     try {
-      await onRequestRange(rangeStart, rangeEnd ?? rangeStart);
-      clearRange();
+      const saved = await onRequestRange(rangeStart, rangeEnd ?? rangeStart);
+      if (saved !== false) clearRange();
     } finally {
       setSubmitting(false);
     }
@@ -207,6 +223,9 @@ export function VacationYearCalendar({
                   <button
                     type="button"
                     key={key}
+                    aria-label={
+                      vacation ? `${key}: ${vacation.status.name}` : key
+                    }
                     onClick={() => handleDayClick(key)}
                     disabled={!selectable && !vacation}
                     title={

@@ -29,6 +29,13 @@ import { APP_TZ } from "@/lib/utils/datetime";
 
 moment.locale("es");
 
+const NON_APPLICABLE_LABELS = {
+  future: "Fecha futura",
+  sunday: "Domingo",
+  holiday: "Día festivo",
+  vacation: "Vacaciones aprobadas",
+};
+
 interface Props {
   initialDays: string[];
   initialRows: DailyTripComplianceRow[];
@@ -67,13 +74,14 @@ export function DailyTripComplianceReportClient({
   };
 
   const today = moment().tz(APP_TZ).format("YYYY-MM-DD");
-  const missedToday = rows.filter((r) => !r.reportedToday);
+  const applicableToday = rows.filter((r) => r.byDay[today]?.applicable);
+  const missedToday = applicableToday.filter((r) => !r.reportedToday);
 
   return (
     <PageContainer>
       <PageHeader
         title="Cumplimiento Diario de Viajes"
-        description="Qué FSRs han reportado su viaje diario y cuáles no."
+        description="Cumplimiento de lunes a sábado, excluyendo festivos, vacaciones aprobadas y fechas futuras."
         actions={
           <PDFExportButton
             reportTitle="Cumplimiento Diario de Viajes"
@@ -106,19 +114,23 @@ export function DailyTripComplianceReportClient({
         <StatCard
           title="Cumplimiento 100%"
           value={summary.fullyCompliant}
-          description="FSRs con todos los días"
+          description="FSRs con todos los días aplicables"
           icon={CheckCircle2}
         />
         <StatCard
           title="Sin reporte hoy"
           value={summary.missedToday}
-          description="No han registrado viaje hoy"
+          description="Día aplicable sin viaje registrado"
           icon={AlertTriangle}
         />
         <StatCard
           title="Promedio cumplimiento"
-          value={`${summary.averageComplianceRate}%`}
-          description="Porcentaje general"
+          value={
+            summary.averageComplianceRate === null
+              ? "N/A"
+              : `${summary.averageComplianceRate}%`
+          }
+          description="Solo FSRs con días aplicables"
           icon={Car}
         />
       </div>
@@ -134,7 +146,9 @@ export function DailyTripComplianceReportClient({
           </div>
           {missedToday.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              Todos los FSRs reportaron su viaje hoy.
+              {applicableToday.length === 0
+                ? "Hoy no aplica la obligación de reportar viajes."
+                : "Todos los FSRs con obligación de reportar registraron su viaje hoy."}
             </p>
           ) : (
             <ul className="text-sm space-y-1">
@@ -171,13 +185,14 @@ export function DailyTripComplianceReportClient({
                 </TableHead>
               ))}
               <TableHead className="text-right">Cumplimiento</TableHead>
+              <TableHead className="text-right">Días no aplicables</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {rows.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={days.length + 2}
+                  colSpan={days.length + 3}
                   className="text-center py-8 text-muted-foreground"
                 >
                   No hay FSRs activos
@@ -198,7 +213,14 @@ export function DailyTripComplianceReportClient({
                     const cell = r.byDay[d];
                     return (
                       <TableCell key={d} className="text-center">
-                        {cell?.reported ? (
+                        {cell && !cell.applicable ? (
+                          <Badge
+                            variant="secondary"
+                            title={`${cell.reason ? NON_APPLICABLE_LABELS[cell.reason] : "No aplicable"}${cell.reported ? ` · ${cell.tripCount} viaje(s) registrado(s) · ${cell.kmDriven} km` : ""}`}
+                          >
+                            N/A{cell.reported ? ` · ${cell.tripCount}` : ""}
+                          </Badge>
+                        ) : cell?.reported ? (
                           <Badge
                             variant="outline"
                             className="bg-success-muted text-success-muted-foreground border-success/40"
@@ -218,17 +240,24 @@ export function DailyTripComplianceReportClient({
                   })}
                   <TableCell
                     className={`text-right font-semibold ${
-                      r.complianceRatePct === 100
-                        ? "text-success-muted-foreground"
-                        : r.complianceRatePct < 50
-                          ? "text-danger-muted-foreground"
-                          : "text-warning-muted-foreground"
+                      r.complianceRatePct === null
+                        ? "text-muted-foreground"
+                        : r.complianceRatePct === 100
+                          ? "text-success-muted-foreground"
+                          : r.complianceRatePct < 50
+                            ? "text-danger-muted-foreground"
+                            : "text-warning-muted-foreground"
                     }`}
                   >
-                    {r.complianceRatePct}%
+                    {r.complianceRatePct === null
+                      ? "N/A"
+                      : `${r.complianceRatePct}%`}
                     <div className="text-xs text-muted-foreground font-normal">
-                      {r.daysReported}/{r.totalDays}
+                      {r.daysReported}/{r.totalDays} días aplicables
                     </div>
+                  </TableCell>
+                  <TableCell className="text-right text-muted-foreground">
+                    {r.daysNotApplicable}
                   </TableCell>
                 </TableRow>
               ))

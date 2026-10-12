@@ -1,5 +1,9 @@
+import type { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
+import { businessRule } from "@/lib/actions/result";
 import { requireAuth } from "@/lib/auth/auth";
+import { ROLE } from "@/lib/authz/roles";
+import { whereHasRole } from "@/lib/authz/user-queries";
 import { codeOf } from "@/lib/constants/status-codes";
 import { prisma } from "@/lib/database/prisma.singleton";
 import {
@@ -7,11 +11,14 @@ import {
   notifyIncidentAssigned,
   transactionWithNotifications,
 } from "@/lib/notifications";
+import { deferAfterCommit } from "@/lib/notifications/after-commit";
 import {
   ASSIGNMENT_STATE,
   type AssignmentState,
 } from "@/lib/state-machine/assignment-machine";
 import { syncIncidentState } from "@/lib/state-machine/sync";
+import { isFsrUnavailable } from "@/lib/utils/availability";
+import { assertIncidentEditable } from "./incident-mutable";
 
 /**
  * Shared assignment helpers. Plain module — deliberately NOT `"use server"`.
@@ -64,17 +71,34 @@ export async function resolveAssignmentStatusId(
 export async function ensureFsrsAssignedToIncident(
   incidentId: number,
   fsrIds: string[],
+  client?: Prisma.TransactionClient,
 ): Promise<void> {
+  fsrIds = [...new Set(fsrIds)];
   if (fsrIds.length === 0) return;
 
   // The actor is who is signed in, not who the caller claims. Accepting it as
   // a parameter would let any caller forge attribution on the notification.
   const actor = await requireAuth();
 
-  const result = await transactionWithNotifications(async (tx) => {
+  const mutate = async (tx: Prisma.TransactionClient) => {
+    await assertIncidentEditable(tx, incidentId);
+    const fsrs = await tx.user.findMany({
+      where: { id: { in: fsrIds }, active: true, ...whereHasRole(ROLE.FSR) },
+      select: { id: true },
+    });
+    if (fsrs.length !== new Set(fsrIds).size)
+      businessRule("Uno o más FSR no existen o no tienen rol FSR");
     const existingAssignment = await tx.assignment.findFirst({
-      where: { incidentId, active: true },
-      select: { id: true, status: { select: { code: true, name: true } } },
+      where: {
+        incidentId,
+        active: true,
+        NOT: { status: { code: ASSIGNMENT_STATE.CERRADO } },
+      },
+      select: {
+        id: true,
+        scheduledDate: true,
+        status: { select: { code: true, name: true } },
+      },
       orderBy: { createdAt: "desc" },
     });
 
@@ -88,7 +112,19 @@ export async function ensureFsrsAssignedToIncident(
         select: { userId: true },
       });
       const existingIds = new Set(existingAssignees.map((a) => a.userId));
-      toAdd = fsrIds.filter((u) => !existingIds.has(u));
+      toAdd = [...new Set(fsrIds)].filter((u) => !existingIds.has(u));
+
+      if (existingAssignment.scheduledDate) {
+        for (const userId of toAdd) {
+          if (
+            await isFsrUnavailable(userId, existingAssignment.scheduledDate, tx)
+          ) {
+            businessRule(
+              "Uno o más técnicos no están disponibles en la fecha programada (día festivo o vacaciones aprobadas).",
+            );
+          }
+        }
+      }
 
       for (const userId of toAdd) {
         await tx.assignmentAssignee.upsert({
@@ -98,18 +134,20 @@ export async function ensureFsrsAssignedToIncident(
         });
       }
 
-      if (
-        toAdd.length > 0 &&
-        codeOf(existingAssignment.status) ===
+      if (toAdd.length > 0) {
+        const statusId =
+          codeOf(existingAssignment.status) ===
           ASSIGNMENT_STATE.PENDIENTE_DE_ASIGNACION
-      ) {
-        const statusId = await resolveAssignmentStatusId(
-          tx,
-          ASSIGNMENT_STATE.ASIGNADO,
-        );
+            ? await resolveAssignmentStatusId(tx, ASSIGNMENT_STATE.ASIGNADO)
+            : undefined;
         await tx.assignment.update({
           where: { id: assignmentId },
-          data: { statusId, assignedAt: new Date() },
+          data: {
+            statusId,
+            assignedAt: new Date(),
+            seenAt: null,
+            seenById: null,
+          },
         });
       }
     } else {
@@ -122,7 +160,9 @@ export async function ensureFsrsAssignedToIncident(
           incidentId,
           statusId,
           assignedAt: new Date(),
-          assignees: { create: fsrIds.map((userId) => ({ userId })) },
+          assignees: {
+            create: [...new Set(fsrIds)].map((userId) => ({ userId })),
+          },
         },
         select: { id: true },
       });
@@ -133,27 +173,34 @@ export async function ensureFsrsAssignedToIncident(
     await syncIncidentState(incidentId, tx);
 
     return { assignmentId, toAdd };
-  });
+  };
+  const result = client
+    ? await mutate(client)
+    : await transactionWithNotifications(mutate);
 
   if (result.toAdd.length === 0) return;
 
-  const incident = await prisma.incident.findUnique({
-    where: { id: incidentId },
-    select: { title: true },
-  });
+  const notify = async () => {
+    const incident = await prisma.incident.findUnique({
+      where: { id: incidentId },
+      select: { title: true },
+    });
 
-  await notifyAssignmentAssigned(
-    result.assignmentId,
-    incident?.title,
-    result.toAdd,
-    actor.id,
-  );
-  await notifyIncidentAssigned(
-    incidentId,
-    incident?.title,
-    result.toAdd,
-    actor.id,
-  );
+    await notifyAssignmentAssigned(
+      result.assignmentId,
+      incident?.title,
+      result.toAdd,
+      actor.id,
+    );
+    await notifyIncidentAssigned(
+      incidentId,
+      incident?.title,
+      result.toAdd,
+      actor.id,
+    );
+  };
+  if (client) deferAfterCommit(notify);
+  else await notify();
 
   revalidatePath("/admin/assignments");
   revalidatePath(`/admin/assignments/${result.assignmentId}`);

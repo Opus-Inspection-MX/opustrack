@@ -48,6 +48,7 @@ vi.mock("@/lib/storage/file-storage", async (importOriginal) => {
       mimetype: "image/jpeg",
       provider: "test",
     }),
+    deleteFile: async () => {},
   };
 });
 
@@ -124,6 +125,10 @@ describe("vehicle trips", () => {
       new File([new Uint8Array(100)], "odo.jpg", { type: "image/jpeg" }),
     );
     form.set("idempotencyKey", key);
+    form.set(
+      "startExceptionReason",
+      "Controlled concurrency test on any calendar day",
+    );
     return form;
   }
 
@@ -144,7 +149,9 @@ describe("vehicle trips", () => {
       },
       select: { id: true },
     });
-    actAs(world.fsrA.id);
+    // Fixture FSR-A already has open trips; isolate this claim and avoid
+    // holiday-dependent failures with an explicitly authorized exception.
+    actAs(world.opsAll.id);
     const key = "int-conc-key-1";
     const [first, second] = await Promise.all([
       startVehicleTrip(tripForm(vehicle.id, key)),

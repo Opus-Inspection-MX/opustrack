@@ -49,8 +49,7 @@ import { actAs } from "./session-state";
  * - No response carries a `password` key (H-01).
  *
  * Cases assert the fixed behavior directly (0a/0c merged): any regression
- * fails the suite like any other test. Three markers stay `it.fails` for
- * genuinely unmerged work: getScheduleById has no scope check, and
+ * fails the suite like any other test. Two markers stay `it.fails` while
  * users:read scoping is pending product decision #1.
  */
 
@@ -349,13 +348,74 @@ describe("schedules", () => {
     }
   });
 
-  // getScheduleById has no scope check yet (reads answer the full row to
-  // anyone with schedules:read) — genuinely unmerged 0c remainder.
-  it.fails("getScheduleById: fsrA cannot open schedule B", async () => {
+  it("getScheduleById: fsrA cannot open schedule B", async () => {
     actAs(world.fsrA.id);
-    expect(
-      isDenial(await capture(() => getScheduleById(world.scheduleB.id))),
-    ).toBe(true);
+    expect(await getScheduleById(world.scheduleB.id)).toBeNull();
+  });
+  it("getScheduleById scopes children of a shared schedule independently", async () => {
+    const source = await prisma.incident.findUniqueOrThrow({
+      where: { id: world.incidentA.id },
+      select: { typeId: true, statusId: true },
+    });
+    const shared = await prisma.schedule.create({
+      data: {
+        title: "int-scope-shared-detail",
+        scheduledAt: new Date(),
+        clients: {
+          create: [
+            { clientId: world.clientA.id },
+            { clientId: world.clientB.id },
+          ],
+        },
+        incidents: {
+          create: [
+            {
+              title: "int-scope-child-a",
+              description: "A",
+              ...source,
+              clientId: world.clientA.id,
+            },
+            {
+              title: "int-scope-child-b",
+              description: "B",
+              ...source,
+              clientId: world.clientB.id,
+            },
+            {
+              title: "int-scope-child-inactive",
+              description: "Inactive",
+              ...source,
+              clientId: world.clientA.id,
+              active: false,
+            },
+          ],
+        },
+      },
+    });
+    try {
+      actAs(world.fsrA.id);
+      const detail = await getScheduleById(shared.id);
+      expect(detail?.incidents.map((incident) => incident.title)).toEqual([
+        "int-scope-child-a",
+      ]);
+      assertNoPasswordKey(detail);
+      actAs(world.opsAll.id);
+      expect((await getScheduleById(shared.id))?.incidents).toHaveLength(2);
+      await prisma.schedule.update({
+        where: { id: shared.id },
+        data: { active: false },
+      });
+      expect(await getScheduleById(shared.id)).toBeNull();
+    } finally {
+      await prisma.incident.updateMany({
+        where: { scheduleId: shared.id },
+        data: { active: false },
+      });
+      await prisma.schedule.update({
+        where: { id: shared.id },
+        data: { active: false },
+      });
+    }
   });
 });
 

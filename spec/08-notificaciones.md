@@ -117,6 +117,7 @@ todo lo no listado es solo in-app):
 | `vacation_approved` | Vacaciones | ✓ | ✓ | Solicitante |
 | `vacation_rejected` | Vacaciones | ✓ | ✓ | Solicitante |
 | `vacation_cancelled` | Vacaciones | ✓ | — | Según quién cancela (RF-470) |
+| `vacation_corrected` | Vacaciones | ✓ | — | Solicitante, excluyendo al actor (RF-470) |
 | `vacation_starting_soon` | Vacaciones | ✓ | — | Solicitante (cron, idempotente) |
 | `system` | Sistema | ✓ | — | Audiencia de la difusión |
 | `announcement` | Sistema | ✓ | — | Audiencia de la difusión |
@@ -474,7 +475,7 @@ Los links de incidente y vacación son neutrales al rol.
 
 ### RF-470 · Notificaciones de vacaciones
 
-**Descripción:** Solicitud, decisión, cancelación y recordatorio de inicio,
+**Descripción:** Solicitud, decisión, cancelación, corrección y recordatorio de inicio,
 con audiencia fija en código y canal según la matriz.
 
 **Reglas de negocio:**
@@ -484,16 +485,26 @@ con audiencia fija en código y canal según la matriz.
 | `vacation_requested` | `createVacation` | Aprobadores (`vacations:approve`); el actor se excluye |
 | `vacation_approved` / `vacation_rejected` | decisión (`resolveVacation`) | Solicitante (auto-aprobación queda en silencio por exclusión del actor) |
 | `vacation_cancelled` | `deleteVacation` (soft-delete) | Si cancela el propio solicitante → aprobadores (con su nombre en el texto); si cancela un admin la de otro → el solicitante |
+| `vacation_corrected` | `correctStartedVacation`, después del commit de la corrección auditada | Solicitante, excluyendo al actor; la solicitud sigue APROBADA y su ausencia fue acortada |
 | `vacation_starting_soon` | Cron (RF-474): vacación APROBADA que empieza mañana (día calendario CDMX) | Solicitante. Idempotente: si ya existe una `Notification` de ese tipo para esa vacación se omite (los corridos solapados nunca duplican) |
 
-- Correo por defecto: solicitada/aprobada/rechazada; cancelada y
+- Correo por defecto: solicitada/aprobada/rechazada; cancelada, corregida y
   `starting_soon` solo in-app. Detalle de cancelación y recordatorio en
   `spec/10-festivos-vacaciones.md`.
 - Nunca lanzan.
+- `VACATION_CORRECTED` usa el string `vacation_corrected`, prioridad MEDIUM y
+  defaults `{ inApp: true, email: false }`. La matriz puede cambiar los canales;
+  sin fila de política se aplican los defaults del catálogo, sin requerir una
+  migración ni ejecutar un seed en producción.
+- El aviso de corrección indica que la solicitud **sigue aprobada** y que el
+  período fue acortado, con un enlace para revisar la nueva fecha de fin. Nunca
+  emite `vacation_cancelled` ni presenta la ausencia como cancelada. Rechazos y
+  rollbacks no notifican; una corrección válida notifica una vez post-commit.
 
 **Implementación:** `notifyVacationRequested()` /
 `notifyVacationApproved()` / `notifyVacationRejected()` /
-`notifyVacationCancelled()` en `src/lib/notifications/notify-events.ts`;
+`notifyVacationCancelled()` / `notifyVacationCorrected()` en
+`src/lib/notifications/notify-events.ts`;
 `sendVacationStartingSoonReminders()` en
 `src/lib/notifications/vacation-reminders.ts`
 

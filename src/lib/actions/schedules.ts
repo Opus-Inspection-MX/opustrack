@@ -3,10 +3,15 @@
 import type { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { getClientAccessScope, requireClientAccess } from "@/lib/auth/access";
 import { requirePermission } from "@/lib/auth/auth";
-import { canAccessClientAsync } from "@/lib/auth/filters";
-import { getReportScope, scheduleScopeWhere } from "@/lib/auth/report-scope";
+import {
+  getReportScope,
+  incidentScopeWhere,
+  scheduleScopeWhere,
+} from "@/lib/auth/report-scope";
 import { prisma } from "@/lib/database/prisma.singleton";
+import { transactionWithNotifications } from "@/lib/notifications";
 import {
   ScheduleCreateSchema,
   ScheduleQuickUpdateSchema,
@@ -138,10 +143,11 @@ export async function getSchedules(params?: {
  * Get single schedule by ID
  */
 export async function getScheduleById(id: string) {
-  await requirePermission("schedules:read");
+  const user = await requirePermission("schedules:read");
+  const scope = await getReportScope(user);
 
   const schedule = await prisma.schedule.findUnique({
-    where: { id },
+    where: { id, active: true, AND: [scheduleScopeWhere(scope)] },
     include: {
       clients: {
         where: { active: true },
@@ -150,7 +156,7 @@ export async function getScheduleById(id: string) {
         },
       },
       incidents: {
-        where: { active: true },
+        where: { active: true, ...incidentScopeWhere(scope) },
         include: {
           type: true,
           status: true,
@@ -173,12 +179,58 @@ export async function getScheduleById(id: string) {
 async function assertAllClienteAccess(
   user: Awaited<ReturnType<typeof requirePermission>>,
   clientIds: string[],
+  tx: Prisma.TransactionClient,
 ) {
   for (const v of clientIds) {
-    if (!(await canAccessClientAsync(user, v))) {
-      businessRule(`Sin acceso al Cliente ${v}`);
-    }
+    await requireClientAccess(user, v, tx);
   }
+}
+
+async function assertActiveClients(
+  tx: Prisma.TransactionClient,
+  clientIds: string[],
+) {
+  if (!clientIds.length) return;
+  const clients = await tx.client.findMany({
+    where: { id: { in: clientIds }, active: true },
+    select: { id: true },
+  });
+  if (clients.length !== clientIds.length)
+    businessRule("Uno o más Clientes no existen o están inactivos.");
+}
+
+async function loadScheduleForMutation(
+  tx: Prisma.TransactionClient,
+  user: Awaited<ReturnType<typeof requirePermission>>,
+  id: string,
+  desiredClientIds?: string[],
+) {
+  const scope = await getClientAccessScope(user, tx);
+  const schedule = await tx.schedule.findUnique({
+    where: { id, active: true, AND: [scheduleScopeWhere(scope)] },
+    select: {
+      clients: { where: { active: true }, select: { clientId: true } },
+      incidents: { where: { active: true }, select: { clientId: true } },
+    },
+  });
+  if (!schedule) businessRule("No encontrado.");
+  for (const clientId of new Set([
+    ...schedule.clients.map((c) => c.clientId),
+    ...schedule.incidents.map((i) => i.clientId),
+  ])) {
+    await requireClientAccess(user, clientId, tx);
+  }
+  if (
+    desiredClientIds?.length &&
+    schedule.incidents.some(
+      (i) => i.clientId === null || !desiredClientIds.includes(i.clientId),
+    )
+  ) {
+    businessRule(
+      "La programación debe incluir a los Clientes de sus incidentes activos.",
+    );
+  }
+  return schedule;
 }
 
 /**
@@ -190,9 +242,9 @@ export async function createSchedule(data: ScheduleFormData) {
   return guarded(async () => {
     ScheduleCreateSchema.parse(data);
     const clientIds = [...new Set(data.clientIds)];
-    await assertAllClienteAccess(user, clientIds);
-
-    const schedule = await prisma.$transaction(async (tx) => {
+    const schedule = await transactionWithNotifications(async (tx) => {
+      await assertAllClienteAccess(user, clientIds, tx);
+      await assertActiveClients(tx, clientIds);
       const created = await tx.schedule.create({
         data: {
           title: data.title,
@@ -274,9 +326,10 @@ export async function updateSchedule(id: string, data: ScheduleFormData) {
     // The action takes `id` separately, so the schema's `id` is omitted.
     ScheduleUpdateSchema.omit({ id: true }).parse(data);
     const clientIds = [...new Set(data.clientIds)];
-    await assertAllClienteAccess(user, clientIds);
-
-    const schedule = await prisma.$transaction(async (tx) => {
+    const schedule = await transactionWithNotifications(async (tx) => {
+      await loadScheduleForMutation(tx, user, id, clientIds);
+      await assertAllClienteAccess(user, clientIds, tx);
+      await assertActiveClients(tx, clientIds);
       await tx.schedule.update({
         where: { id },
         data: {
@@ -319,9 +372,10 @@ export async function quickUpdateSchedule(
         "La fecha de fin no puede ser anterior a la fecha de inicio",
       );
     }
-    await assertAllClienteAccess(user, clientIds);
-
-    await prisma.$transaction(async (tx) => {
+    await transactionWithNotifications(async (tx) => {
+      await loadScheduleForMutation(tx, user, id, clientIds);
+      await assertAllClienteAccess(user, clientIds, tx);
+      await assertActiveClients(tx, clientIds);
       await tx.schedule.update({
         where: { id },
         data: {
@@ -343,25 +397,26 @@ export async function quickUpdateSchedule(
  * Delete schedule (soft delete)
  */
 export async function deleteSchedule(id: string) {
-  await requirePermission("schedules:delete");
-
-  const incidentCount = await prisma.incident.count({
-    where: { scheduleId: id, active: true },
+  const user = await requirePermission("schedules:delete");
+  return guarded(async () => {
+    await transactionWithNotifications(async (tx) => {
+      await loadScheduleForMutation(tx, user, id);
+      const incidentCount = await tx.incident.count({
+        where: { scheduleId: id, active: true },
+      });
+      if (incidentCount > 0)
+        businessRule(
+          `No se puede eliminar: ${incidentCount} incidente(s) están vinculados a esta programación.`,
+        );
+      await tx.schedule.update({
+        where: { id, active: true },
+        data: { active: false },
+      });
+    });
+    revalidatePath("/admin/schedules");
+    revalidatePath("/admin/programacion");
+    redirect("/admin/schedules");
   });
-
-  if (incidentCount > 0) {
-    return rejected(
-      `No se puede eliminar: ${incidentCount} incidente(s) están vinculados a esta programación.`,
-    );
-  }
-
-  await prisma.schedule.update({
-    where: { id },
-    data: { active: false },
-  });
-
-  revalidatePath("/admin/schedules");
-  redirect("/admin/schedules");
 }
 
 /**

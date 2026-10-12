@@ -1,5 +1,6 @@
 "use server";
 
+import type { Prisma } from "@prisma/client";
 import moment from "moment-timezone";
 import { requirePermission } from "@/lib/auth/auth";
 import {
@@ -17,11 +18,13 @@ import {
   isAssignmentClosed,
   isIncidentCancelled,
   isIncidentClosed,
+  VACATION_STATUS,
 } from "@/lib/constants/status-codes";
 import { prisma } from "@/lib/database/prisma.singleton";
 import { getSlaHolidaySet } from "@/lib/sla/sla-holidays";
 import { getIncidentClosureMap } from "@/lib/state-machine/incident-events";
 import { INCIDENT_STATE } from "@/lib/state-machine/incident-machine";
+import { holidayRuleMatchesDate } from "@/lib/utils/availability";
 import {
   APP_TZ,
   mxDateString,
@@ -34,6 +37,29 @@ export type DateRange = {
   startDate: string;
   endDate: string;
 };
+
+/** Capture-time range, with received-time fallback only for legacy rows. */
+function tripStartRange(start: Date, end: Date): Prisma.VehicleTripWhereInput {
+  const range = { gte: start, lte: end };
+  return {
+    OR: [
+      { startCapturedAt: range },
+      { startCapturedAt: null, startedAt: range },
+    ],
+  };
+}
+
+function tripDurationHours(trip: {
+  startCapturedAt: Date | null;
+  startedAt: Date;
+  endCapturedAt: Date | null;
+  endedAt: Date | null;
+}): number | null {
+  const start = trip.startCapturedAt ?? trip.startedAt;
+  const end = trip.endCapturedAt ?? trip.endedAt;
+  if (!end || end < start) return null;
+  return (end.getTime() - start.getTime()) / 3600000;
+}
 
 export type FSRPerformanceData = {
   fsrId: string;
@@ -69,6 +95,7 @@ export type VehicleTripData = {
   date: string;
   trips: number;
   totalKm: number;
+  totalDurationHours: number | null;
 };
 
 export type FSRTripData = {
@@ -77,6 +104,7 @@ export type FSRTripData = {
   trips: number;
   totalKm: number;
   averageKm: number;
+  averageDurationHours: number | null;
 };
 
 /**
@@ -156,10 +184,7 @@ export async function getFSRPerformanceData(
         where: {
           fsrId: fsr.id,
           active: true,
-          startedAt: {
-            gte: startDate,
-            lte: endDate,
-          },
+          ...tripStartRange(startDate, endDate),
         },
         select: {
           kmDriven: true,
@@ -531,28 +556,34 @@ export async function getVehicleTripTrendData(
   const trips = await prisma.vehicleTrip.findMany({
     where: {
       active: true,
-      startedAt: {
-        gte: startDate,
-        lte: endDate,
-      },
-      ...vehicleTripScopeWhere(scope),
+      AND: [tripStartRange(startDate, endDate), vehicleTripScopeWhere(scope)],
     },
     select: {
       startedAt: true,
+      startCapturedAt: true,
+      endedAt: true,
+      endCapturedAt: true,
       kmDriven: true,
     },
   });
 
   // Group by date
-  const tripsByDate: Record<string, { trips: number; totalKm: number }> = {};
+  const tripsByDate: Record<
+    string,
+    { trips: number; totalKm: number; totalDurationHours: number | null }
+  > = {};
 
   trips.forEach((trip) => {
-    const dateStr = mxDateString(trip.startedAt);
+    const dateStr = mxDateString(trip.startCapturedAt ?? trip.startedAt);
     if (!tripsByDate[dateStr]) {
-      tripsByDate[dateStr] = { trips: 0, totalKm: 0 };
+      tripsByDate[dateStr] = { trips: 0, totalKm: 0, totalDurationHours: null };
     }
     tripsByDate[dateStr].trips++;
     tripsByDate[dateStr].totalKm += trip.kmDriven || 0;
+    const duration = tripDurationHours(trip);
+    if (duration !== null)
+      tripsByDate[dateStr].totalDurationHours =
+        (tripsByDate[dateStr].totalDurationHours ?? 0) + duration;
   });
 
   return Object.entries(tripsByDate)
@@ -560,6 +591,7 @@ export async function getVehicleTripTrendData(
       date,
       trips: data.trips,
       totalKm: data.totalKm,
+      totalDurationHours: data.totalDurationHours,
     }))
     .sort((a, b) => a.date.localeCompare(b.date));
 }
@@ -584,11 +616,7 @@ export async function getVehicleTripsByFSRData(
   const trips = await prisma.vehicleTrip.findMany({
     where: {
       active: true,
-      startedAt: {
-        gte: startDate,
-        lte: endDate,
-      },
-      ...vehicleTripScopeWhere(scope),
+      AND: [tripStartRange(startDate, endDate), vehicleTripScopeWhere(scope)],
     },
     include: {
       fsr: {
@@ -600,16 +628,33 @@ export async function getVehicleTripsByFSRData(
   // Group by FSR
   const tripsByFSR: Record<
     string,
-    { name: string; trips: number; totalKm: number }
+    {
+      name: string;
+      trips: number;
+      totalKm: number;
+      durationHours: number;
+      tripsWithDuration: number;
+    }
   > = {};
 
   trips.forEach((trip) => {
     const fsrId = trip.fsrId;
     if (!tripsByFSR[fsrId]) {
-      tripsByFSR[fsrId] = { name: trip.fsr.name, trips: 0, totalKm: 0 };
+      tripsByFSR[fsrId] = {
+        name: trip.fsr.name,
+        trips: 0,
+        totalKm: 0,
+        durationHours: 0,
+        tripsWithDuration: 0,
+      };
     }
     tripsByFSR[fsrId].trips++;
     tripsByFSR[fsrId].totalKm += trip.kmDriven || 0;
+    const duration = tripDurationHours(trip);
+    if (duration !== null) {
+      tripsByFSR[fsrId].durationHours += duration;
+      tripsByFSR[fsrId].tripsWithDuration++;
+    }
   });
 
   return Object.entries(tripsByFSR)
@@ -619,6 +664,10 @@ export async function getVehicleTripsByFSRData(
       trips: data.trips,
       totalKm: data.totalKm,
       averageKm: data.trips > 0 ? Math.round(data.totalKm / data.trips) : 0,
+      averageDurationHours:
+        data.tripsWithDuration > 0
+          ? data.durationHours / data.tripsWithDuration
+          : null,
     }))
     .sort((a, b) => b.totalKm - a.totalKm);
 }
@@ -682,16 +731,14 @@ export async function getReportSummary(dateRange?: DateRange) {
     prisma.vehicleTrip.count({
       where: {
         active: true,
-        startedAt: { gte: startDate, lte: endDate },
-        ...vehicleTripScopeWhere(scope),
+        AND: [tripStartRange(startDate, endDate), vehicleTripScopeWhere(scope)],
       },
     }),
     prisma.vehicleTrip.aggregate({
       _sum: { kmDriven: true },
       where: {
         active: true,
-        startedAt: { gte: startDate, lte: endDate },
-        ...vehicleTripScopeWhere(scope),
+        AND: [tripStartRange(startDate, endDate), vehicleTripScopeWhere(scope)],
       },
     }),
   ]);
@@ -1152,6 +1199,8 @@ export async function getNotificationEngagementReport(
 // ============================================
 
 export type DailyTripComplianceCell = {
+  applicable: boolean;
+  reason?: "future" | "sunday" | "holiday" | "vacation";
   reported: boolean;
   tripCount: number;
   kmDriven: number;
@@ -1164,7 +1213,8 @@ export type DailyTripComplianceRow = {
   daysReported: number;
   daysMissed: number;
   totalDays: number;
-  complianceRatePct: number;
+  daysNotApplicable: number;
+  complianceRatePct: number | null;
   byDay: Record<string, DailyTripComplianceCell>;
   lastTripAt: string | null;
   reportedToday: boolean;
@@ -1174,7 +1224,7 @@ export type DailyTripComplianceSummary = {
   totalFsrs: number;
   fullyCompliant: number;
   missedToday: number;
-  averageComplianceRate: number;
+  averageComplianceRate: number | null;
 };
 
 export async function getDailyTripComplianceReport(
@@ -1211,7 +1261,7 @@ export async function getDailyTripComplianceReport(
         totalFsrs: 0,
         fullyCompliant: 0,
         missedToday: 0,
-        averageComplianceRate: 0,
+        averageComplianceRate: null,
       },
     };
   }
@@ -1231,40 +1281,89 @@ export async function getDailyTripComplianceReport(
           where: {
             active: true,
             fsrId: { in: fsrIds },
-            startedAt: { gte: start.toDate(), lte: end.toDate() },
+            ...tripStartRange(start.toDate(), end.toDate()),
           },
           select: {
             fsrId: true,
             startedAt: true,
+            startCapturedAt: true,
             kmDriven: true,
           },
         });
 
-  const today = moment().tz(APP_TZ).format("YYYY-MM-DD");
+  const [holidays, vacations] =
+    fsrIds.length === 0
+      ? [[], []]
+      : await Promise.all([
+          prisma.holiday.findMany({ where: { active: true } }),
+          prisma.vacation.findMany({
+            where: {
+              userId: { in: fsrIds },
+              active: true,
+              status: { code: VACATION_STATUS.APROBADA },
+              startDate: { lte: end.toDate() },
+              endDate: { gte: start.toDate() },
+            },
+            select: { userId: true, startDate: true, endDate: true },
+          }),
+        ]);
+  const today = mxTodayString();
+  const holidayDays = new Set(
+    days.filter((day) =>
+      holidays.some((holiday) => holidayRuleMatchesDate(holiday, day)),
+    ),
+  );
 
   const rows: DailyTripComplianceRow[] = fsrUsers.map((user) => {
     const byDay: Record<string, DailyTripComplianceCell> = {};
+    const userVacations = vacations.filter(
+      (vacation) => vacation.userId === user.id,
+    );
     for (const day of days) {
-      byDay[day] = { reported: false, tripCount: 0, kmDriven: 0 };
+      const reason: DailyTripComplianceCell["reason"] =
+        day > today
+          ? "future"
+          : moment.tz(day, APP_TZ).isoWeekday() === 7
+            ? "sunday"
+            : holidayDays.has(day)
+              ? "holiday"
+              : userVacations.some(
+                    (vacation) =>
+                      day >= mxDateString(vacation.startDate) &&
+                      day <= mxDateString(vacation.endDate),
+                  )
+                ? "vacation"
+                : undefined;
+      byDay[day] = {
+        applicable: reason === undefined,
+        ...(reason ? { reason } : {}),
+        reported: false,
+        tripCount: 0,
+        kmDriven: 0,
+      };
     }
 
     const userTrips = trips.filter((t) => t.fsrId === user.id);
     let lastTripAt: Date | null = null;
 
     for (const trip of userTrips) {
-      const day = moment(trip.startedAt).tz(APP_TZ).format("YYYY-MM-DD");
+      const effectiveStart = trip.startCapturedAt ?? trip.startedAt;
+      const day = mxDateString(effectiveStart);
       if (byDay[day]) {
         byDay[day].reported = true;
         byDay[day].tripCount += 1;
         byDay[day].kmDriven += trip.kmDriven || 0;
       }
-      if (!lastTripAt || trip.startedAt > lastTripAt) {
-        lastTripAt = trip.startedAt;
+      if (!lastTripAt || effectiveStart > lastTripAt) {
+        lastTripAt = effectiveStart;
       }
     }
 
-    const daysReported = Object.values(byDay).filter((c) => c.reported).length;
-    const totalDays = days.length;
+    const applicableDays = Object.values(byDay).filter(
+      (cell) => cell.applicable,
+    );
+    const daysReported = applicableDays.filter((cell) => cell.reported).length;
+    const totalDays = applicableDays.length;
     const reportedToday =
       days.includes(today) && byDay[today]?.reported === true;
 
@@ -1275,26 +1374,31 @@ export async function getDailyTripComplianceReport(
       daysReported,
       daysMissed: totalDays - daysReported,
       totalDays,
+      daysNotApplicable: days.length - totalDays,
       complianceRatePct:
-        totalDays > 0 ? Math.round((daysReported / totalDays) * 100) : 0,
+        totalDays > 0 ? Math.round((daysReported / totalDays) * 100) : null,
       byDay,
       lastTripAt: lastTripAt ? lastTripAt.toISOString() : null,
       reportedToday,
     };
   });
 
+  const eligibleRows = rows.filter((row) => row.totalDays > 0);
   const summary: DailyTripComplianceSummary = {
     totalFsrs: rows.length,
-    fullyCompliant: rows.filter((r) => r.complianceRatePct === 100).length,
+    fullyCompliant: eligibleRows.filter((r) => r.daysReported === r.totalDays)
+      .length,
     missedToday: days.includes(today)
-      ? rows.filter((r) => !r.reportedToday).length
+      ? rows.filter((r) => r.byDay[today]?.applicable && !r.reportedToday)
+          .length
       : 0,
     averageComplianceRate:
-      rows.length > 0
+      eligibleRows.length > 0
         ? Math.round(
-            rows.reduce((s, r) => s + r.complianceRatePct, 0) / rows.length,
+            eligibleRows.reduce((s, r) => s + (r.complianceRatePct ?? 0), 0) /
+              eligibleRows.length,
           )
-        : 0,
+        : null,
   };
 
   return { days, rows, summary };

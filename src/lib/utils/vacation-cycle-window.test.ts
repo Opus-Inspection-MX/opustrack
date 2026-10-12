@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   calendarVacationWindow,
   isCalendarGrantAvailable,
+  isVacationPeriodUsable,
 } from "./vacation-cycle-window";
 
 describe("calendarVacationWindow", () => {
@@ -75,17 +76,66 @@ describe("calendarVacationWindow", () => {
     ).toBe(true);
   });
 
-  it("fails closed for missing or invalid dates and unresolved leap-day policy", () => {
+  it("uses Feb 28 in common years and Feb 29 in leap years", () => {
+    const hire = new Date("2020-02-29T06:00:00Z");
+    expect(calendarVacationWindow(hire, 2024, 12)?.availableFrom).toEqual(
+      new Date("2024-02-29T06:00:00Z"),
+    );
+    expect(calendarVacationWindow(hire, 2025, 12)?.availableFrom).toEqual(
+      new Date("2025-02-28T06:00:00Z"),
+    );
+  });
+
+  it("fails closed for missing or invalid dates", () => {
     expect(calendarVacationWindow(null, 2026, 12)).toBeNull();
     expect(calendarVacationWindow(new Date("invalid"), 2026, 12)).toBeNull();
     expect(
-      calendarVacationWindow(new Date("2020-02-29T06:00:00Z"), 2024, 12),
-    ).toBeNull();
-    expect(
-      calendarVacationWindow(new Date("2020-02-29T06:00:00Z"), 2025, 12),
-    ).toBeNull();
-    expect(
       calendarVacationWindow(new Date("2020-01-01T06:00:00Z"), 2026, -1),
     ).toBeNull();
+  });
+});
+
+describe("isVacationPeriodUsable", () => {
+  const now = new Date("2026-06-15T06:00:00Z");
+  const period = {
+    cycleYear: 2026,
+    availableFrom: now,
+    graceEnd: new Date("2027-01-01T05:59:59.999Z"),
+    remainingDays: 12,
+    isExpired: false,
+  };
+
+  it("opens exactly at the CDMX anniversary and fails closed without activation", () => {
+    expect(isVacationPeriodUsable(period, new Date(now.getTime() - 1))).toBe(
+      false,
+    );
+    expect(isVacationPeriodUsable(period, now)).toBe(true);
+    expect(
+      isVacationPeriodUsable({ ...period, availableFrom: null }, now),
+    ).toBe(false);
+    expect(
+      isVacationPeriodUsable(
+        { ...period, availableFrom: new Date("invalid") },
+        now,
+      ),
+    ).toBe(false);
+  });
+
+  it("preserves usable legacy grants but excludes expired or fully reserved periods", () => {
+    expect(
+      isVacationPeriodUsable(
+        { ...period, cycleYear: null, availableFrom: null },
+        now,
+      ),
+    ).toBe(true);
+    expect(isVacationPeriodUsable({ ...period, remainingDays: 0 }, now)).toBe(
+      false,
+    );
+    expect(
+      isVacationPeriodUsable(
+        { ...period, graceEnd: new Date(now.getTime() - 1) },
+        now,
+      ),
+    ).toBe(false);
   });
 });

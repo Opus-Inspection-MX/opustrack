@@ -4,6 +4,8 @@ import type { Prisma } from "@prisma/client";
 import { IncidentEventType } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { ensureFsrsAssignedToIncident } from "@/lib/assignments/ensure-fsrs";
+import { assertIncidentEditable } from "@/lib/assignments/incident-mutable";
 import { assertBelongsToClient, requireClientAccess } from "@/lib/auth/access";
 import { requirePermission } from "@/lib/auth/auth";
 import { assertClientAccessAsync } from "@/lib/auth/filters";
@@ -20,20 +22,19 @@ import {
   roleNamesOf,
   whereHasRole,
 } from "@/lib/authz/user-queries";
+import { FALLBACK_INCIDENT_TYPE_NAME } from "@/lib/constants/incident-type";
 import { codeOf } from "@/lib/constants/status-codes";
 import { prisma } from "@/lib/database/prisma.singleton";
-import {
-  resolveTypeIdOrFallback,
-  syncIncidentAssignees,
-} from "@/lib/incidents/shared";
 import {
   notifyIncidentCancelled,
   notifyIncidentCreated,
   notifyIncidentUpdated,
+  transactionWithNotifications,
 } from "@/lib/notifications";
 import { INCIDENT_STATE } from "@/lib/state-machine";
 import { logIncidentEvent } from "@/lib/state-machine/incident-events";
 import { getPrimaryClientId } from "@/lib/utils/client-assignments";
+import { intIdSchema } from "@/lib/validations/common";
 import {
   type IncidentCreateInput,
   IncidentCreateSchema,
@@ -44,6 +45,118 @@ import { type ActionResult, businessRule, guarded } from "./result";
 
 // Keep legacy type for backward compatibility with existing forms
 export type IncidentFormData = IncidentCreateInput;
+
+async function resolveIncidentType(
+  tx: Prisma.TransactionClient,
+  typeId?: number | null,
+) {
+  const type = await tx.incidentType.findUnique({
+    where: typeId
+      ? { id: typeId, active: true }
+      : { name: FALLBACK_INCIDENT_TYPE_NAME, active: true },
+    select: { id: true },
+  });
+  if (!type) businessRule("Tipo de incidente no válido.");
+  return type.id;
+}
+
+async function createIncidentRecord(
+  tx: Prisma.TransactionClient,
+  data: Prisma.IncidentUncheckedCreateInput,
+  actorId: string,
+  source: "single" | "client",
+  assigneeIds: string[] = [],
+) {
+  const incident = await tx.incident.create({
+    data,
+    include: {
+      type: true,
+      status: true,
+      client: { include: { state: true } },
+      reportedBy: { select: { id: true, name: true, email: true } },
+    },
+  });
+  await logIncidentEvent(tx, {
+    incidentId: incident.id,
+    eventType: IncidentEventType.CREATED,
+    actorId,
+    toStatus: INCIDENT_STATE.ABIERTO,
+    payload:
+      source === "client"
+        ? { source }
+        : { source, assigneeIds: [...new Set(assigneeIds)] },
+  });
+  if (assigneeIds.length) {
+    await tx.incidentAssignee.createMany({
+      data: [...new Set(assigneeIds)].map((userId) => ({
+        incidentId: incident.id,
+        userId,
+      })),
+      skipDuplicates: true,
+    });
+    await ensureFsrsAssignedToIncident(incident.id, assigneeIds, tx);
+  }
+  return incident;
+}
+
+async function reconcileIncidentFsrs(
+  tx: Prisma.TransactionClient,
+  incidentId: number,
+  ids: string[],
+  actorId: string,
+) {
+  const desired = [...new Set(ids)];
+  const fsrs = await tx.user.findMany({
+    where: { id: { in: desired }, active: true, ...whereHasRole(ROLE.FSR) },
+    select: { id: true },
+  });
+  if (fsrs.length !== desired.length)
+    businessRule("Uno o más FSR no existen o no tienen rol FSR");
+  const current = await tx.incidentAssignee.findMany({
+    where: { incidentId, active: true },
+    select: { userId: true },
+  });
+  const active = new Set(current.map((r) => r.userId));
+  const toAdd = desired.filter((id) => !active.has(id));
+  const toRemove = [...active].filter((id) => !desired.includes(id));
+  if (toRemove.length) {
+    const inUse = await tx.assignmentAssignee.findMany({
+      where: {
+        userId: { in: toRemove },
+        active: true,
+        assignment: { incidentId, active: true },
+      },
+      select: { userId: true },
+    });
+    if (inUse.length)
+      businessRule(
+        "No se puede retirar a FSR(s) asignado(s) a una asignación activa.",
+      );
+    await tx.incidentAssignee.updateMany({
+      where: { incidentId, userId: { in: toRemove }, active: true },
+      data: { active: false },
+    });
+  }
+  for (const userId of toAdd) {
+    await tx.incidentAssignee.upsert({
+      where: { incidentId_userId: { incidentId, userId } },
+      create: { incidentId, userId },
+      update: { active: true },
+    });
+  }
+  for (const userId of [...toAdd, ...toRemove]) {
+    await logIncidentEvent(tx, {
+      incidentId,
+      actorId,
+      eventType: toAdd.includes(userId)
+        ? IncidentEventType.ASSIGNEE_ADDED
+        : IncidentEventType.ASSIGNEE_REMOVED,
+      payload: { userId },
+    });
+  }
+  if (toAdd.length) await ensureFsrsAssignedToIncident(incidentId, toAdd, tx);
+  return { toAdd };
+}
 
 // Row reconciliation lives in `lib/incidents/shared.ts` (shared with the
 // bulk subsystem in `incidents-bulk.ts`).
@@ -311,91 +424,69 @@ export async function createIncident(data: unknown) {
 
   return guarded(async () => {
     // Validate input
-    const validated = IncidentCreateSchema.parse(data);
+    const validated = IncidentCreateSchema.extend({
+      lineId: intIdSchema.nullable().optional(),
+      equipmentId: intIdSchema.nullable().optional(),
+    }).parse(data);
 
     // Tenant gate (H-04): the Client must be in scope — filing under another
     // Client is the write-side of the same leak the reads close. A null
     // Client is admin-only (fail closed, H-05).
-    const targetClientId = validated.clientId || null;
-    await requireClientAccess(user, targetClientId);
-    await assertBelongsToClient(
-      { scheduleId: validated.scheduleId ?? null },
-      targetClientId,
-    );
-
-    // State machine: every new incident starts at ABIERTO. Any caller-provided
-    // statusId is ignored so the flow can't be skipped.
-    const initialStatus = await prisma.incidentStatus.findUnique({
-      where: { code: INCIDENT_STATE.ABIERTO },
-      select: { id: true },
-    });
-    if (!initialStatus) {
-      throw new Error(
-        `IncidentStatus '${INCIDENT_STATE.ABIERTO}' no existe en el catálogo`,
+    const incident = await transactionWithNotifications(async (tx) => {
+      const targetClientId = validated.clientId || null;
+      await requireClientAccess(user, targetClientId, tx);
+      await assertBelongsToClient(
+        {
+          scheduleId: validated.scheduleId ?? null,
+          lineId: validated.lineId ?? null,
+          equipmentId: validated.equipmentId ?? null,
+        },
+        targetClientId,
+        tx,
       );
-    }
 
-    const typeId = await resolveTypeIdOrFallback(validated.typeId);
-
-    // The reporter is whoever files it, unless the caller can see every
-    // Client (H-04): a scoped caller passing someone else's id would file
-    // incidents under another person's name.
-    const reportedById =
-      validated.reportedById && userHasPermission(user, SCOPE_ALL_CLIENTS)
-        ? validated.reportedById
-        : user.id;
-
-    const incident = await prisma.incident.create({
-      data: {
-        title: validated.title,
-        description: validated.description,
-        typeId,
-        statusId: initialStatus.id,
-        clientId: targetClientId,
-        scheduleId: validated.scheduleId || null,
-        reportedById,
-        reporterName: validated.reporterName?.trim() || null,
-        startedAt: validated.startedAt ?? null,
-        resolvedAt: null,
-      },
-      include: {
-        type: true,
-        status: true,
-        client: { include: { state: true } },
-        // H-01: `reportedBy: true` shipped the password hash in the create
-        // response. Screens only render the reporter's name.
-        reportedBy: { select: { id: true, name: true, email: true } },
-      },
-    });
-
-    if (validated.assigneeIds?.length) {
-      await prisma.incidentAssignee.createMany({
-        data: validated.assigneeIds.map((userId) => ({
-          incidentId: incident.id,
-          userId,
-        })),
-        skipDuplicates: true,
+      // State machine: every new incident starts at ABIERTO. Any caller-provided
+      // statusId is ignored so the flow can't be skipped.
+      const initialStatus = await tx.incidentStatus.findUnique({
+        where: { code: INCIDENT_STATE.ABIERTO },
+        select: { id: true },
       });
+      if (!initialStatus) {
+        throw new Error(
+          `IncidentStatus '${INCIDENT_STATE.ABIERTO}' no existe en el catálogo`,
+        );
+      }
 
-      // Give the pre-selected FSRs a real Assignment they can see, and
-      // notify them — otherwise they're only "enabled" with no visible work.
-      const { ensureFsrsAssignedToIncident } = await import(
-        "@/lib/assignments/ensure-fsrs"
+      const typeId = await resolveIncidentType(tx, validated.typeId);
+
+      // The reporter is whoever files it, unless the caller can see every
+      // Client (H-04): a scoped caller passing someone else's id would file
+      // incidents under another person's name.
+      const reportedById =
+        validated.reportedById && userHasPermission(user, SCOPE_ALL_CLIENTS)
+          ? validated.reportedById
+          : user.id;
+
+      return createIncidentRecord(
+        tx,
+        {
+          title: validated.title,
+          description: validated.description,
+          typeId,
+          statusId: initialStatus.id,
+          clientId: targetClientId,
+          scheduleId: validated.scheduleId || null,
+          lineId: validated.lineId ?? null,
+          equipmentId: validated.equipmentId ?? null,
+          reportedById,
+          reporterName: validated.reporterName?.trim() || null,
+          startedAt: validated.startedAt ?? null,
+          resolvedAt: null,
+        },
+        user.id,
+        "single",
+        validated.assigneeIds,
       );
-      await ensureFsrsAssignedToIncident(incident.id, validated.assigneeIds);
-    }
-
-    // RF-219: creation opens the audit trail. Assignee grants at creation
-    // ride along in the payload instead of fanning out into ADDED events.
-    await logIncidentEvent(prisma, {
-      incidentId: incident.id,
-      eventType: IncidentEventType.CREATED,
-      actorId: user.id,
-      toStatus: INCIDENT_STATE.ABIERTO,
-      payload: {
-        source: "single",
-        assigneeIds: validated.assigneeIds ?? [],
-      },
     });
 
     // POST-tx: notify admins of new incident (RF-465). Never throws.
@@ -422,59 +513,56 @@ export async function createIncidentAsReporter(data: unknown) {
   return guarded(async () => {
     // Validate input
     const validated = IncidentReporterCreateSchema.parse(data);
+    const incident = await transactionWithNotifications(async (tx) => {
+      // Get initial status: new incidents start at ABIERTO (stable code).
+      const initialStatus = await tx.incidentStatus.findFirst({
+        where: { code: INCIDENT_STATE.ABIERTO },
+      });
 
-    // Get initial status: new incidents start at ABIERTO (stable code).
-    const initialStatus = await prisma.incidentStatus.findFirst({
-      where: { code: INCIDENT_STATE.ABIERTO },
-    });
+      if (!initialStatus) {
+        throw new Error(`Estado ${INCIDENT_STATE.ABIERTO} no encontrado`);
+      }
 
-    if (!initialStatus) {
-      throw new Error(`Estado ${INCIDENT_STATE.ABIERTO} no encontrado`);
-    }
+      // Reporter must have a Client assigned
+      const primary = await tx.userClientAssignment.findFirst({
+        where: { userId: user.id, isPrimary: true, active: true },
+        select: { clientId: true },
+      });
+      const userClientId = primary?.clientId;
+      if (!userClientId) {
+        businessRule("El usuario no tiene un Cliente asignado");
+      }
 
-    // Reporter must have a Client assigned
-    const userClientId = await getPrimaryClientId(user.id);
-    if (!userClientId) {
-      businessRule("El usuario no tiene un Cliente asignado");
-    }
-
-    // Cross-references arrive from the client: the line and equipment must
-    // belong to the reporter's own Client (H-04).
-    await assertBelongsToClient(
-      {
-        lineId: validated.lineId ?? null,
-        equipmentId: validated.equipmentId ?? null,
-      },
-      userClientId,
-    );
-
-    const typeId = await resolveTypeIdOrFallback(validated.typeId);
-
-    const incident = await prisma.incident.create({
-      data: {
-        title: validated.title,
-        description: validated.description,
-        typeId,
-        statusId: initialStatus.id,
-        clientId: userClientId,
-        reportedById: user.id,
-        // Who actually raised it: the account belongs to the whole center.
-        reporterName: validated.reporterName?.trim() || null,
-        lineId: validated.lineId || null,
-        equipmentId: validated.equipmentId || null,
-      },
-      include: {
-        type: true,
-        status: true,
-        client: { include: { state: true } },
-        reportedBy: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
+      // Cross-references arrive from the client: the line and equipment must
+      // belong to the reporter's own Client (H-04).
+      await assertBelongsToClient(
+        {
+          lineId: validated.lineId ?? null,
+          equipmentId: validated.equipmentId ?? null,
         },
-      },
+        userClientId,
+        tx,
+      );
+
+      const typeId = await resolveIncidentType(tx, validated.typeId);
+
+      return createIncidentRecord(
+        tx,
+        {
+          title: validated.title,
+          description: validated.description,
+          typeId,
+          statusId: initialStatus.id,
+          clientId: userClientId,
+          reportedById: user.id,
+          // Who actually raised it: the account belongs to the whole center.
+          reporterName: validated.reporterName?.trim() || null,
+          lineId: validated.lineId || null,
+          equipmentId: validated.equipmentId || null,
+        },
+        user.id,
+        "client",
+      );
     });
 
     // POST-tx: notify admins of new incident (RF-465). Never throws.
@@ -484,14 +572,6 @@ export async function createIncidentAsReporter(data: unknown) {
       user.id,
       incident.clientId,
     );
-
-    await logIncidentEvent(prisma, {
-      incidentId: incident.id,
-      eventType: IncidentEventType.CREATED,
-      actorId: user.id,
-      toStatus: INCIDENT_STATE.ABIERTO,
-      payload: { source: "client" },
-    });
 
     revalidatePath("/reporter/incidents");
     revalidatePath("/admin/incidents");
@@ -549,80 +629,92 @@ export async function updateIncident(id: number, data: IncidentFormData) {
     // The action takes `id` separately, so the schema's `id` is omitted.
     IncidentUpdateSchema.omit({ id: true }).parse(data);
     // Verify access before update
-    const existing = await prisma.incident.findUnique({
-      where: { id },
-      select: { clientId: true },
+    const incident = await transactionWithNotifications(async (tx) => {
+      const existing = await tx.incident.findUnique({
+        where: { id, active: true },
+        select: { clientId: true },
+      });
+
+      if (!existing) {
+        throw new Error("Incident not found");
+      }
+
+      await requireClientAccess(user, existing.clientId, tx);
+      await assertIncidentEditable(tx, id);
+
+      // The new Client needs the same proof (H-04): checking only the current
+      // one lets anyone move an incident to another Client.
+      await requireClientAccess(user, data.clientId || null, tx);
+      await assertBelongsToClient(
+        { scheduleId: data.scheduleId || null },
+        data.clientId || null,
+        tx,
+      );
+
+      // typeId NOT NULL en BD. Si el caller intenta poner null/undefined, fallback.
+      const typeId = await resolveIncidentType(tx, data.typeId);
+
+      // State machine owns statusId/resolvedAt — ignore any caller-provided values.
+      const incident = await tx.incident.update({
+        where: { id },
+        data: {
+          title: data.title,
+          description: data.description,
+          typeId,
+          clientId: data.clientId || null,
+          scheduleId: data.scheduleId || null,
+          startedAt: data.startedAt ?? null,
+          // `undefined` leaves it alone, so an update that omits the field does
+          // not wipe a name someone already typed.
+          reporterName:
+            data.reporterName === undefined
+              ? undefined
+              : data.reporterName?.trim() || null,
+        },
+        include: {
+          type: true,
+          status: true,
+          client: { include: { state: true } },
+          // H-01: same as createIncident — the reporter card, not the hash.
+          reportedBy: { select: { id: true, name: true, email: true } },
+        },
+      });
+      let toAdd: string[] = [];
+      if (data.assigneeIds !== undefined) {
+        ({ toAdd } = await reconcileIncidentFsrs(
+          tx,
+          id,
+          data.assigneeIds,
+          user.id,
+        ));
+      }
+      return { incident, toAdd };
     });
-
-    if (!existing) {
-      throw new Error("Incident not found");
-    }
-
-    await assertClientAccessAsync(user, existing.clientId);
-
-    // The new Client needs the same proof (H-04): checking only the current
-    // one lets anyone move an incident to another Client.
-    await requireClientAccess(user, data.clientId || null);
-
-    // typeId NOT NULL en BD. Si el caller intenta poner null/undefined, fallback.
-    const typeId = data.typeId
-      ? data.typeId
-      : await resolveTypeIdOrFallback(null);
-
-    // State machine owns statusId/resolvedAt — ignore any caller-provided values.
-    const incident = await prisma.incident.update({
-      where: { id },
-      data: {
-        title: data.title,
-        description: data.description,
-        typeId,
-        clientId: data.clientId || null,
-        scheduleId: data.scheduleId || null,
-        startedAt: data.startedAt ?? null,
-        // `undefined` leaves it alone, so an update that omits the field does
-        // not wipe a name someone already typed.
-        reporterName:
-          data.reporterName === undefined
-            ? undefined
-            : data.reporterName?.trim() || null,
-      },
-      include: {
-        type: true,
-        status: true,
-        client: { include: { state: true } },
-        // H-01: same as createIncident — the reporter card, not the hash.
-        reportedBy: { select: { id: true, name: true, email: true } },
-      },
-    });
-
-    let toAdd: string[] = [];
-    if (data.assigneeIds !== undefined) {
-      ({ toAdd } = await syncIncidentAssignees(id, data.assigneeIds, {
-        actorId: user.id,
-      }));
-    }
 
     // POST-tx: notify incident FSR events (RF-466, RF-468). Both never-throw.
     // Fetch existing active IncidentAssignees (excluding newly added) for INCIDENT_UPDATED.
     const existingFsrRows = await prisma.incidentAssignee.findMany({
-      where: { incidentId: id, active: true, userId: { notIn: toAdd } },
+      where: {
+        incidentId: id,
+        active: true,
+        userId: { notIn: incident.toAdd },
+      },
       select: { userId: true },
     });
     const existingFsrIds = existingFsrRows.map((r) => r.userId);
     if (existingFsrIds.length > 0) {
-      await notifyIncidentUpdated(id, incident.title, existingFsrIds, user.id);
-    }
-    if (toAdd.length > 0) {
-      const { ensureFsrsAssignedToIncident } = await import(
-        "@/lib/assignments/ensure-fsrs"
+      await notifyIncidentUpdated(
+        id,
+        incident.incident.title,
+        existingFsrIds,
+        user.id,
       );
-      await ensureFsrsAssignedToIncident(id, toAdd);
     }
 
     revalidatePath("/admin/incidents");
     revalidatePath(`/admin/incidents/${id}`);
     revalidatePath("/admin/programacion");
-    return { data: incident };
+    return { data: incident.incident };
   });
 }
 
@@ -637,43 +729,34 @@ export async function updateIncidentFsrs(
   const user = await requirePermission("incidents:update");
 
   return guarded(async () => {
-    const incident = await prisma.incident.findUnique({
-      where: { id: incidentId },
-      select: { clientId: true, title: true },
-    });
-    if (!incident) {
-      throw new Error("Incidente no encontrado");
-    }
-    await assertClientAccessAsync(user, incident.clientId);
-
-    // Validate every FSR exists, is an FSR, and is accessible.
-    if (fsrIds.length) {
-      const fsrs = await prisma.user.findMany({
-        where: {
-          id: { in: fsrIds },
-          active: true,
-          ...whereHasRole(ROLE.FSR),
-        },
-        select: { id: true },
+    await transactionWithNotifications(async (tx) => {
+      const incident = await tx.incident.findUnique({
+        where: { id: incidentId, active: true },
+        select: { clientId: true, title: true },
       });
-      if (fsrs.length !== new Set(fsrIds).size) {
-        businessRule("Uno o más FSR no existen o no tienen rol FSR");
+      if (!incident) {
+        throw new Error("Incidente no encontrado");
       }
-    }
+      await requireClientAccess(user, incident.clientId, tx);
+      await assertIncidentEditable(tx, incidentId);
 
-    const { toAdd } = await syncIncidentAssignees(incidentId, fsrIds, {
-      actorId: user.id,
+      // Validate every FSR exists, is an FSR, and is accessible.
+      if (fsrIds.length) {
+        const fsrs = await tx.user.findMany({
+          where: {
+            id: { in: fsrIds },
+            active: true,
+            ...whereHasRole(ROLE.FSR),
+          },
+          select: { id: true },
+        });
+        if (fsrs.length !== new Set(fsrIds).size) {
+          businessRule("Uno o más FSR no existen o no tienen rol FSR");
+        }
+      }
+
+      await reconcileIncidentFsrs(tx, incidentId, fsrIds, user.id);
     });
-
-    // POST-tx: give newly-enabled FSRs a real Assignment they can see, and
-    // notify them (RF-468). Eligibility alone used to leave them with a
-    // notification but no visible work.
-    if (toAdd.length > 0) {
-      const { ensureFsrsAssignedToIncident } = await import(
-        "@/lib/assignments/ensure-fsrs"
-      );
-      await ensureFsrsAssignedToIncident(incidentId, toAdd);
-    }
 
     revalidatePath("/admin/incidents");
     revalidatePath(`/admin/incidents/${incidentId}`);
@@ -703,38 +786,60 @@ export async function updateIncidentScheduledDate(
       businessRule("Fecha inválida");
     }
 
-    const incident = await prisma.incident.findUnique({
-      where: { id: incidentId },
-      select: {
-        clientId: true,
-        scheduleId: true,
-        title: true,
-        description: true,
-      },
-    });
-    if (!incident) {
-      throw new Error("Incidente no encontrado");
-    }
-    await assertClientAccessAsync(user, incident.clientId);
-
-    if (incident.scheduleId) {
-      await prisma.schedule.update({
-        where: { id: incident.scheduleId },
-        data: { scheduledAt },
-      });
-    } else {
-      const schedule = await prisma.schedule.create({
-        data: {
-          title: incident.title,
-          description: incident.description,
-          scheduledAt,
+    await transactionWithNotifications(async (tx) => {
+      const incident = await tx.incident.findUnique({
+        where: { id: incidentId, active: true },
+        select: {
+          clientId: true,
+          scheduleId: true,
+          title: true,
+          description: true,
         },
       });
-      await prisma.incident.update({
-        where: { id: incidentId },
-        data: { scheduleId: schedule.id },
-      });
-    }
+      if (!incident) {
+        throw new Error("Incidente no encontrado");
+      }
+      await requireClientAccess(user, incident.clientId, tx);
+      await assertIncidentEditable(tx, incidentId);
+
+      if (incident.scheduleId) {
+        await requirePermission("schedules:update");
+        const schedule = await tx.schedule.findUnique({
+          where: { id: incident.scheduleId, active: true },
+          select: {
+            clients: { where: { active: true }, select: { clientId: true } },
+            incidents: { where: { active: true }, select: { clientId: true } },
+          },
+        });
+        if (!schedule) businessRule("No encontrado.");
+        for (const clientId of new Set([
+          ...schedule.clients.map((c) => c.clientId),
+          ...schedule.incidents.map((i) => i.clientId),
+        ])) {
+          await requireClientAccess(user, clientId, tx);
+        }
+        await tx.schedule.update({
+          where: { id: incident.scheduleId },
+          data: { scheduledAt },
+        });
+      } else {
+        await requirePermission("schedules:create");
+        const schedule = await tx.schedule.create({
+          data: {
+            title: incident.title,
+            description: incident.description,
+            scheduledAt,
+            ...(incident.clientId && {
+              clients: { create: { clientId: incident.clientId } },
+            }),
+          },
+        });
+        await tx.incident.update({
+          where: { id: incidentId },
+          data: { scheduleId: schedule.id },
+        });
+      }
+    });
 
     revalidatePath("/admin/programacion");
     revalidatePath("/admin/incidents");
@@ -753,26 +858,29 @@ export async function updateIncidentType(
   const user = await requirePermission("incidents:update");
 
   return guarded(async () => {
-    const incident = await prisma.incident.findUnique({
-      where: { id: incidentId },
-      select: { clientId: true },
-    });
-    if (!incident) {
-      throw new Error("Incidente no encontrado");
-    }
-    await assertClientAccessAsync(user, incident.clientId);
+    await transactionWithNotifications(async (tx) => {
+      const incident = await tx.incident.findUnique({
+        where: { id: incidentId, active: true },
+        select: { clientId: true },
+      });
+      if (!incident) {
+        throw new Error("Incidente no encontrado");
+      }
+      await requireClientAccess(user, incident.clientId, tx);
+      await assertIncidentEditable(tx, incidentId);
 
-    const type = await prisma.incidentType.findFirst({
-      where: { id: typeId, active: true },
-      select: { id: true },
-    });
-    if (!type) {
-      businessRule("Tipo de incidente no válido");
-    }
+      const type = await tx.incidentType.findFirst({
+        where: { id: typeId, active: true },
+        select: { id: true },
+      });
+      if (!type) {
+        businessRule("Tipo de incidente no válido");
+      }
 
-    await prisma.incident.update({
-      where: { id: incidentId },
-      data: { typeId },
+      await tx.incident.update({
+        where: { id: incidentId },
+        data: { typeId },
+      });
     });
 
     revalidatePath("/admin/programacion");
@@ -791,20 +899,17 @@ export async function deleteIncident(id: number) {
   const user = await requirePermission("incidents:delete");
 
   return guarded(async () => {
-    // Verify access before delete
-    const incident = await prisma.incident.findUnique({
-      where: { id },
-      select: { clientId: true },
-    });
+    await transactionWithNotifications(async (tx) => {
+      const incident = await tx.incident.findUnique({
+        where: { id, active: true },
+        select: { clientId: true },
+      });
 
-    if (!incident) {
-      throw new Error("Incident not found");
-    }
+      if (!incident) {
+        throw new Error("Incident not found");
+      }
 
-    await assertClientAccessAsync(user, incident.clientId);
-
-    // Use transaction to prevent race conditions when checking for children
-    await prisma.$transaction(async (tx) => {
+      await requireClientAccess(user, incident.clientId, tx);
       // Check for active assignments
       const activeAssignments = await tx.assignment.count({
         where: { incidentId: id, active: true },
@@ -935,16 +1040,18 @@ export async function cancelIncident(incidentId: number, reason?: string) {
   const user = await requirePermission("incidents:cancel");
 
   return guarded(async () => {
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await transactionWithNotifications(async (tx) => {
       const incident = await tx.incident.findUnique({
-        where: { id: incidentId },
+        where: { id: incidentId, active: true },
         select: {
           id: true,
+          clientId: true,
           status: { select: { code: true, name: true } },
           resolvedAt: true,
         },
       });
       if (!incident) throw new Error("Incidencia no encontrada");
+      await requireClientAccess(user, incident.clientId, tx);
 
       // Stable code (H-08): a renamed label must not bypass the guards.
       const currentStatus = codeOf(incident.status);

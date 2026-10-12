@@ -22,6 +22,7 @@ const { prismaMock, getUserClientIds, userBox } = vi.hoisted(() => ({
     line: { findFirst: vi.fn() },
     equipment: { findFirst: vi.fn() },
     schedule: { findFirst: vi.fn() },
+    incidentEvent: { create: vi.fn() },
   },
   getUserClientIds: vi.fn(async (_userId: string) => [] as string[]),
   // Swappable user: superuser by default; scope tests replace it.
@@ -30,10 +31,20 @@ const { prismaMock, getUserClientIds, userBox } = vi.hoisted(() => ({
 
 vi.mock("@/lib/database/prisma.singleton", () => ({ prisma: prismaMock }));
 vi.mock("@/lib/auth/auth", () => ({
+  requirePermission: vi.fn(async () => userBox.user),
   withPermission:
     (_permission: string, handler: (req: Request, user: unknown) => unknown) =>
     (req: Request) =>
       handler(req, userBox.user),
+}));
+vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
+const { notifyIncidentCreated } = vi.hoisted(() => ({
+  notifyIncidentCreated: vi.fn(),
+}));
+vi.mock("@/lib/notifications", () => ({
+  notifyIncidentCreated,
+  transactionWithNotifications: async (fn: (tx: unknown) => unknown) =>
+    fn(prismaMock),
 }));
 vi.mock("@/lib/utils/client-assignments", () => ({ getUserClientIds }));
 
@@ -125,10 +136,45 @@ describe("GET /api/incidents · alcance por Cliente", () => {
 });
 
 describe("POST /api/incidents · alcance por Cliente", () => {
+  it("uses canonical creation with CREATED audit event and admin notification", async () => {
+    expect(
+      (await postJson(validBody({ statusId: 99, lineId: undefined }))).status,
+    ).toBe(200);
+    expect(prismaMock.incidentEvent.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          eventType: "CREATED",
+          actorId: "admin",
+          toStatus: "ABIERTO",
+        }),
+      }),
+    );
+    expect(notifyIncidentCreated).toHaveBeenCalledWith(
+      1,
+      "Falla",
+      "admin",
+      SCOPED,
+    );
+    expect(prismaMock.incident.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ statusId: 1 }),
+      }),
+    );
+  });
+  it("rejects malformed numeric references instead of truncating them", async () => {
+    expect((await postJson(validBody({ lineId: "3junk" }))).status).toBe(400);
+    expect(prismaMock.incident.create).not.toHaveBeenCalled();
+    expect(notifyIncidentCreated).not.toHaveBeenCalled();
+  });
+  it("denies Client-less creation for scoped callers", async () => {
+    asScopedUser();
+    expect((await postJson(validBody({ clientId: null }))).status).toBe(400);
+    expect(prismaMock.incident.create).not.toHaveBeenCalled();
+  });
   it("rechaza un Cliente fuera del alcance con 403 y no escribe", async () => {
     asScopedUser();
 
-    const response = await postJson(validBody({ clientId: "c9" }));
+    const response = await postJson(validBody({ clientId: "c900000009" }));
 
     expect(response.status).toBe(403);
     await expect(response.json()).resolves.toMatchObject({
@@ -151,7 +197,7 @@ describe("POST /api/incidents · alcance por Cliente", () => {
   });
 
   it("un superusuario conserva acceso total", async () => {
-    const response = await postJson(validBody({ clientId: "c9" }));
+    const response = await postJson(validBody({ clientId: "c900000009" }));
 
     expect(response.status).toBe(200);
     expect(prismaMock.incident.create).toHaveBeenCalled();

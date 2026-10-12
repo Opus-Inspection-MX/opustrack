@@ -3,12 +3,13 @@ import moment from "moment-timezone";
 import { businessRule } from "@/lib/actions/result";
 import { VACATION_STATUS } from "@/lib/constants/status-codes";
 import { prisma } from "@/lib/database/prisma.singleton";
+import { serializableTransaction } from "@/lib/database/serializable-transaction";
 import { APP_TZ } from "@/lib/utils/datetime";
 import { calculateHistoricalVacationBalance } from "@/lib/utils/historical-vacation-balance";
 import { calendarVacationWindow } from "@/lib/utils/vacation-cycle-window";
 
 /**
- * Vacation periods: one anniversary year of service per user.
+ * Vacation periods: earned calendar grants, with preserved legacy accounts.
  *
  * A period is the unit days are earned and spent in. It carries a snapshot of
  * the accrual rule and the grace window as they stood the day it was created,
@@ -136,6 +137,9 @@ async function resolveRuleDays(
 
 /**
  * Create any periods the user has reached but does not have rows for yet.
+ * Accounts without legacy rows use calendar grants earned on anniversaries.
+ * Legacy-only accounts remain in their original mode. Mixed accounts require
+ * explicit reconciliation and cannot generate or fund requests.
  *
  * Idempotent by design: the upsert's empty `update` means re-running this on
  * every page load can never clobber an admin's `overrideDays` or re-snapshot a
@@ -150,12 +154,29 @@ export async function ensurePeriodsUpToNow(
   userId: string,
   client: TxClient = prisma,
 ): Promise<VacationPeriod[]> {
+  if (client === prisma)
+    return serializableTransaction((tx) => ensurePeriodsUpToNow(userId, tx));
   const user = await client.user.findUnique({
     where: { id: userId },
     select: { hireDate: true },
   });
 
   if (!user?.hireDate) return [];
+
+  const existing = await client.vacationPeriod.findMany({
+    where: { userId },
+    orderBy: { periodNumber: "asc" },
+  });
+  const hasCalendar = existing.some((period) => period.cycleYear != null);
+  const hasLegacy = existing.some((period) => period.cycleYear == null);
+  if (hasCalendar && hasLegacy) {
+    businessRule(
+      "El usuario tiene períodos calendario y heredados mezclados. Concilia su historial antes de generar o solicitar vacaciones.",
+    );
+  }
+  if (!hasLegacy) {
+    return ensureCalendarPeriodsForUser(userId, {}, client);
+  }
 
   const total = periodsElapsed(user.hireDate);
   const graceWindowMonths = await getGraceWindowMonths(client);
@@ -191,12 +212,11 @@ export async function ensurePeriodsUpToNow(
  * Each grant covers one shared CDMX cycle (Jan 1–Dec 31) and becomes
  * spendable only on that cycle's hire anniversary (`availableFrom`). Tier and
  * `periodNumber` equal completed service years (`cycleYear - hireYear`); the
- * hire year itself never grants. Creation is explicit — funding resolution
- * never calls this implicitly, so a lazy read can never collide with a
- * legacy anniversary row.
+ * hire year itself never grants. Only anniversaries already reached produce
+ * rows. Legacy accounts require explicit reconciliation before calendar use.
  *
  * Fail-closed skips (no substitute rows): missing hire date, a cycle at or
- * before the hire year, a Feb 29 anniversary (no reviewed substitute date),
+ * before the hire year, an anniversary not yet reached,
  * and a service tier no accrual rule covers. A legacy row holding the same
  * `(userId, periodNumber)` with a different calendar identity is a
  * reconciliation conflict, reported loudly instead of converted: the upsert
@@ -211,6 +231,10 @@ export async function ensureCalendarPeriodsForUser(
   options: { upToCycleYear?: number } = {},
   client: TxClient = prisma,
 ): Promise<VacationPeriod[]> {
+  if (client === prisma)
+    return serializableTransaction((tx) =>
+      ensureCalendarPeriodsForUser(userId, options, tx),
+    );
   const user = await client.user.findUnique({
     where: { id: userId },
     select: { hireDate: true },
@@ -220,6 +244,12 @@ export async function ensureCalendarPeriodsForUser(
 
   const hireYear = moment(user.hireDate).tz(APP_TZ).year();
   const upToCycleYear = options.upToCycleYear ?? moment().tz(APP_TZ).year();
+  const existing = await client.vacationPeriod.findMany({ where: { userId } });
+  if (existing.some((period) => period.cycleYear == null)) {
+    businessRule(
+      "El usuario tiene períodos heredados. Concilia su historial antes de crear ciclos calendario.",
+    );
+  }
   const graceWindowMonths = await getGraceWindowMonths(client);
 
   const grants: {
@@ -241,8 +271,8 @@ export async function ensureCalendarPeriodsForUser(
       cycleYear,
       graceWindowMonths,
     );
-    // Hire-year cycles, Feb 29 anniversaries and invalid dates stay blocked.
     if (!window) continue;
+    if (window.availableFrom > new Date()) continue;
     const ruleDays = await resolveRuleDays(client, window.periodNumber);
     // No tier covers this year of service — leave the gap visible.
     if (ruleDays === null) continue;
@@ -388,14 +418,13 @@ export async function getPeriodBalance(
  *
  * Accrual and grace windows overlap, so a range often fits more than one
  * period. `preferredPeriodId` is the period the user picked in the balance
- * panel and wins when it fits — otherwise the oldest fitting period is used, so
- * the days closest to expiring are spent first.
+ * panel and wins when it fits and can pay. Otherwise the earliest-expiring
+ * fitting grant with enough remaining balance funds the whole range.
  *
  * Calendar rows participate through the same rule: a range before a cycle's
  * anniversary cannot be funded by that cycle (it is not requestable there),
- * so it falls back to a still-valid prior grant. Calendar grants are never
- * created here — creation stays explicit in `ensureCalendarPeriodsForUser`,
- * so resolution can never collide with a legacy anniversary tier.
+ * so it falls back to a still-valid prior grant. Lazy generation respects the
+ * account's existing mode and never converts legacy identities.
  */
 export async function resolveVacationPeriod(
   userId: string,
@@ -403,16 +432,19 @@ export async function resolveVacationPeriod(
   endDate: Date,
   client: TxClient = prisma,
   preferredPeriodId?: string,
+  requiredDays = 0,
 ): Promise<VacationPeriod> {
   const periods = await ensurePeriodsUpToNow(userId, client);
 
   if (periods.length === 0) {
     businessRule(
-      "El usuario no tiene fecha de contratación registrada. Un administrador debe configurarla antes de solicitar vacaciones.",
+      "El usuario no tiene períodos disponibles. Revisa la fecha de contratación, el primer aniversario y las reglas de acumulación.",
     );
   }
 
   const fits = (period: VacationPeriod) =>
+    (period.cycleYear == null ||
+      (period.availableFrom != null && period.availableFrom <= new Date())) &&
     isPeriodRequestable(period, startDate) &&
     isPeriodRequestable(period, endDate);
 
@@ -426,11 +458,39 @@ export async function resolveVacationPeriod(
         `Las fechas solicitadas están fuera de la vigencia del período ${preferred.periodNumber}. Selecciona otro período o ajusta las fechas.`,
       );
     }
+    if (
+      requiredDays > 0 &&
+      (await getPeriodBalance(preferred.id, client)).remainingDays <
+        requiredDays
+    ) {
+      businessRule(
+        "El período seleccionado no tiene saldo suficiente para el rango completo.",
+      );
+    }
     return preferred;
   }
 
-  const match = periods.find(fits);
-  if (match) return match;
+  const candidates = periods
+    .filter(fits)
+    .sort(
+      (a, b) =>
+        a.graceEnd.getTime() - b.graceEnd.getTime() ||
+        a.periodNumber - b.periodNumber ||
+        a.id.localeCompare(b.id),
+    );
+  for (const candidate of candidates) {
+    if (
+      requiredDays === 0 ||
+      (await getPeriodBalance(candidate.id, client)).remainingDays >=
+        requiredDays
+    )
+      return candidate;
+  }
+  if (candidates.length > 0) {
+    businessRule(
+      "Ningún período vigente tiene saldo suficiente para financiar el rango completo. Selecciona otras fechas o solicita un ajuste de saldo.",
+    );
+  }
 
   // Distinguish "crosses a boundary" from "outside every window": the first is
   // a fixable mistake, the second usually means the dates are simply wrong.
@@ -483,7 +543,6 @@ export async function recomputePeriodsForNewHireDate(
     where: { userId },
     include: {
       vacations: {
-        where: { active: true },
         select: { id: true, startDate: true, endDate: true, reason: true },
       },
       historicalConsumption: { select: { id: true } },
@@ -492,7 +551,6 @@ export async function recomputePeriodsForNewHireDate(
 
   if (existing.length === 0) return;
 
-  const graceWindowMonths = await getGraceWindowMonths(client);
   const total = periodsElapsed(newHireDate);
 
   // Validate every period before writing any window.
@@ -512,6 +570,10 @@ export async function recomputePeriodsForNewHireDate(
     } | null;
   }[] = [];
   for (const period of existing) {
+    // A hire-date correction must not adopt a later global grace policy.
+    const graceWindowMonths = moment(period.graceEnd)
+      .tz(APP_TZ)
+      .diff(moment(period.accrualEnd).tz(APP_TZ), "months");
     const historicalCount = period.historicalConsumption?.length ?? 0;
     // The corrected date no longer reaches this period at all.
     if (period.periodNumber > total) {
@@ -565,11 +627,15 @@ export async function recomputePeriodsForNewHireDate(
       period.cycleYear,
       graceWindowMonths,
     );
-    // Feb 29 hires and cycles at/before the new hire year have no reviewed
-    // window: refuse rather than guessing a substitute activation.
+    // Cycles at/before the new hire year cannot have an earned grant.
     if (!calendar) {
       businessRule(
         `La nueva fecha de contratación no permite recalcular el período del ciclo ${period.cycleYear}. Revisa la fecha antes de corregirla.`,
+      );
+    }
+    if (calendar.periodNumber !== period.periodNumber) {
+      businessRule(
+        "La nueva fecha de contratación cambia la identidad de un ciclo calendario. Concilia los períodos antes de corregir la fecha.",
       );
     }
     // A funded request must stay on/after the activation its grant was

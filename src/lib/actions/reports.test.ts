@@ -37,6 +37,8 @@ const { prismaMock, requirePermission, getUserClientIds, userBox } = vi.hoisted(
         vehicleTrip: queryable(),
         notification: queryable(),
         role: queryable(),
+        holiday: queryable(),
+        vacation: queryable(),
       },
       requirePermission: vi.fn(async (_name: string) => userBox.user),
       getUserClientIds: vi.fn(async (_userId: string) => [] as string[]),
@@ -106,7 +108,7 @@ function allWheres(): unknown[] {
   for (const [modelName, model] of Object.entries(prismaMock)) {
     // Roles are global seed rows with no Client concept — not a tenant
     // boundary. Everything else must carry the caller's scope.
-    if (modelName === "role") continue;
+    if (modelName === "role" || modelName === "holiday") continue;
     for (const op of ["findMany", "findFirst", "count", "aggregate"] as const) {
       const mockFn = (
         model as Record<string, { mock: { calls: unknown[][] } }>

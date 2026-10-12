@@ -6,6 +6,7 @@ import { getVehicleTripById } from "@/lib/actions/vehicle-trips";
 
 interface VehicleTrip {
   id: string;
+  status: { code: string | null; name: string };
   startOdometer: number;
   endOdometer?: number | null;
   startedAt: string;
@@ -40,7 +41,7 @@ export default async function EndTripPage({
     notFound();
   }
 
-  if (trip.endedAt) {
+  if (trip.status.code !== "EN_CURSO") {
     return (
       <PageContainer size="narrow">
         <PageHeader

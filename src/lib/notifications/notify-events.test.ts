@@ -21,6 +21,7 @@ import {
   notifyIncidentClosed,
   notifyIncidentCreated,
   notifyVacationCancelled,
+  notifyVacationCorrected,
   notifyVacationRequested,
 } from "./notify-events";
 
@@ -39,6 +40,21 @@ beforeEach(() => {
 });
 
 describe("fachada de eventos", () => {
+  it("routes a correction to the requester with actor exclusion delegated to dispatch", async () => {
+    await notifyVacationCorrected("v1", "employee", "actor");
+    expect(dispatch).toHaveBeenCalledTimes(1);
+    expect(dispatch).toHaveBeenCalledWith(
+      NOTIFICATION_TYPES.VACATION_CORRECTED,
+      {
+        recipients: ["employee"],
+        actorId: "actor",
+        ctx: { vacationId: "v1" },
+        entity: { type: "vacation", id: "v1" },
+      },
+    );
+    expect(getVacationApprovers).not.toHaveBeenCalled();
+    expect(operationsAudience).not.toHaveBeenCalled();
+  });
   it("un incidente nuevo va a la audiencia de operación con su entidad", async () => {
     await notifyIncidentCreated(7, "Bomba fuera de servicio", "actor", "c1");
 

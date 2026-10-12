@@ -76,6 +76,17 @@ Restricción única: `(assignmentId, userId)`.
 
 ## Estados y transiciones
 
+### Paridad entre edición completa, Seguimiento y habilitación de FSR
+
+- Toda composición de asignación requiere una fila activa, acceso al Cliente del incidente y capacidad `assignments:manage-all`. Las comprobaciones de estado y la escritura se realizan dentro de la misma transacción.
+- La disponibilidad se valida contra `scheduledDate` efectiva. Al mover la fecha, se comprueba el conjunto **final** de FSR: una persona retirada no puede impedir la reasignación por sus vacaciones.
+- Agregar o retirar FSR actualiza `assignedAt` y limpia `seenAt`/`seenById`. Eliminar el último FSR antes de avanzar restaura `PENDIENTE_DE_ASIGNACION`; agregar el primero pasa a `ASIGNADO`. La habilitación automática también limpia el acuse al agregar personas a una asignación ya vista.
+- Los cambios de composición y la eliminación lógica sincronizan el incidente padre en la misma transacción. Una orden cerrada no se reutiliza para habilitaciones automáticas nuevas.
+- `CERRADO → EN_PROGRESO` exige `assignments:reopen`, incluso en editores genéricos. La acción dedicada puede reabrir una incidencia cerrada mediante su asignación; nunca una cancelada.
+- Cambiar `AssignmentActivity.performedAt` aplica la misma disponibilidad de todos los FSR activos que la creación de actividad. Corregir solo la descripción no cambia ni revalida la fecha original.
+
+**Escenarios críticos:** retirar un FSR indisponible y mover la fecha con un sustituto disponible se permite; conservar un FSR indisponible se rechaza sin escribir; borrar una asignación sin hijos activos recalcula el estado del incidente.
+
 ### Máquina de estados de la asignación
 
 | Estado | Significado semántico | Color badge |
@@ -286,9 +297,10 @@ Restricción única: `(assignmentId, userId)`.
 
 **Reglas de negocio:**
 - El borrador congela la evidencia del momento: payload escalar, fix GPS y `capturedAt` se capturan en campo y NO se recapturan al enviar (re-capturar falsificaría la evidencia).
-- Cada borrador lleva llave de idempotencia (`idempotencyKey`). El servidor deduplica por llave en `ActionIdempotency`: reenviar el mismo borrador NO reaplica la transición (el cierre reintentado nunca se aplica doble).
+- Cada borrador lleva llave de idempotencia (`idempotencyKey`). `ActionIdempotency` vincula la llave al actor autenticado, nombre de acción y asignación solicitada (`requestTargetId`). La transición y el recibo se confirman atómicamente; reenviar una llave coincidente devuelve el registro vivo sin repetir la transición ni sus notificaciones.
+- Un replay verifica los permisos vigentes y el acceso actual al destino antes de devolverlo; el recibo no otorga autorización. Reutilizar la llave con otro actor, acción o destino es un conflicto. Los recibos históricos sin vínculo de actor/destino fallan cerrado y requieren revisión manual, sin inferir ni completar esos vínculos.
 - El servidor rechaza borradores de hace más de **24 horas** con mensaje en español ("El registro es de hace más de 24 horas y ya no puede enviarse. Capture la acción de nuevo."). Ventana confirmada con operaciones al aplicar.
-- Pasadas las validaciones de frescura, la acción reintentada corre las guardas y la máquina de estados SIN CAMBIOS (permisos, bloqueos terminales, precondiciones). Offline no otorga privilegios, solo entrega tarde.
+- Pasadas las validaciones de frescura (24 horas y hasta cinco minutos de tolerancia futura), una operación no confirmada ejecuta las guardas vigentes y la máquina de estados dentro de la transacción. Una operación ya confirmada y autorizada devuelve el destino vivo sin exigir que siga en el estado previo a la transición ni volver a ejecutarla. Offline no otorga privilegios, solo entrega tarde.
 - Si el estado del servidor avanzó (reasignada, cerrada, incidencia cancelada), el envío devuelve el error estándar de regla de negocio; el borrador SE CONSERVA para resolución manual. Sin UI de fusión.
 - Almacenamiento con tope (20 borradores); la expulsión requiere confirmación explícita del operador, nunca es silenciosa. Cuota llena del dispositivo se reporta, no se pierde en silencio.
 - Disparadores de envío: botón "Reintentar" + envío automático al reconectar, con backoff acotado (inmediato → 30s → 5min → solo manual).

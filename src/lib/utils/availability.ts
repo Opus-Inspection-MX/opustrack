@@ -1,8 +1,10 @@
-import type { Holiday } from "@prisma/client";
+import type { Holiday, Prisma } from "@prisma/client";
 import moment from "moment-timezone";
 import { VACATION_STATUS } from "@/lib/constants/status-codes";
 import { prisma } from "@/lib/database/prisma.singleton";
 import { APP_TZ, mxDateString, mxDayRange } from "@/lib/utils/datetime";
+
+type AvailabilityClient = typeof prisma | Prisma.TransactionClient;
 
 /**
  * Determine whether a single active Holiday rule matches a given calendar date
@@ -53,11 +55,14 @@ export function holidayRuleMatchesDate(
  * Implementation: narrow DB query to rows with matching month, then evaluate
  * each rule in memory (~8 rows total). Avoids full-table scans.
  */
-export async function isHoliday(dateStr: string): Promise<boolean> {
+export async function isHoliday(
+  dateStr: string,
+  tx: AvailabilityClient = prisma,
+): Promise<boolean> {
   const m = moment.tz(dateStr, "YYYY-MM-DD", APP_TZ);
   const month = m.month() + 1;
 
-  const rules = await prisma.holiday.findMany({
+  const rules = await tx.holiday.findMany({
     where: { active: true, month },
   });
 
@@ -109,17 +114,18 @@ export async function getHolidayDatesForYear(
 export async function isFsrUnavailable(
   userId: string,
   date: Date,
+  tx: AvailabilityClient = prisma,
 ): Promise<boolean> {
   const dateStr = mxDateString(date);
 
   // Check holidays first (cheaper: narrow by month, ~8 rows).
-  const holiday = await isHoliday(dateStr);
+  const holiday = await isHoliday(dateStr, tx);
   if (holiday) return true;
 
   // Check approved vacation covering this CDMX day.
   const { gte, lte } = mxDayRange(dateStr);
 
-  const vacation = await prisma.vacation.findFirst({
+  const vacation = await tx.vacation.findFirst({
     where: {
       userId,
       active: true,
@@ -145,13 +151,14 @@ export async function isFsrUnavailable(
 export async function unavailableFsrsForDate(
   userIds: string[],
   date: Date,
+  tx: AvailabilityClient = prisma,
 ): Promise<Set<string>> {
   if (userIds.length === 0) return new Set();
 
   const results = await Promise.all(
     userIds.map(async (id) => ({
       id,
-      unavailable: await isFsrUnavailable(id, date),
+      unavailable: await isFsrUnavailable(id, date, tx),
     })),
   );
 

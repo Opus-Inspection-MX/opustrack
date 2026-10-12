@@ -21,6 +21,8 @@ Proveer visibilidad operativa y analítica al administrador sobre el desempeño 
 
 **Zona horaria:** Todos los reportes usan `America/Mexico_City` de forma consistente. Los límites de rango (`gte`/`lte`) se calculan con `mxDayRange()` de `src/lib/utils/datetime.ts`, que produce instantes UTC correctos para inicio/fin de día CDMX. La agrupación por fecha en series temporales usa `mxDateString()` (CDMX), nunca `toISOString().split("T")[0]` (UTC). Las fechas por defecto en la UI se inicializan con `mxTodayString()` / `mxDaysAgoString()` en servidor y con el one-liner `Intl.DateTimeFormat("sv-SE", { timeZone: "America/Mexico_City" })` en componentes cliente.
 
+**Captura efectiva de viajes:** el inicio es `startCapturedAt ?? startedAt`; el fin es `endCapturedAt ?? endedAt`. Los filtros usan captura dentro del rango **o** recepción dentro del rango únicamente cuando la captura es `null`, conservando el alcance de Cliente mediante `AND`. La recepción tardía de un borrador no cambia el día de su viaje. Los registros sin fin efectivo o con fin anterior al inicio no aportan duración, pero conservan sus conteos y kilómetros.
+
 **Permiso requerido:** `reports:view` para todos los reportes. `dashboard:view` para el dashboard. `tracking:read` y `tracking:update` para el módulo de tracking.
 
 **Rango por defecto:** Cuando no se proporcionan fechas, todos los reportes calculan los últimos 30 días (o 7 días en el caso de cumplimiento diario de viajes).
@@ -59,7 +61,7 @@ Proveer visibilidad operativa y analítica al administrador sobre el desempeño 
   - `completedAssignments`: asignaciones donde `status.name = "CERRADO"` **o** `finishedAt != null`.
   - `averageCompletionTime`: promedio en horas de `(finishedAt - startedAt)` entre asignaciones completadas; requiere que **ambas** fechas existan. Si no hay completadas, retorna 0.
   - `totalActivities`: suma de `assignmentActivities` activas en todas las asignaciones del período.
-  - `totalTrips` y `totalKmDriven`: viajes del FSR en el período filtrados por `startedAt`.
+  - `totalTrips` y `totalKmDriven`: viajes del FSR en el período filtrados por inicio efectivo (`startCapturedAt ?? startedAt`).
 - Resultado ordenado por `completedAssignments DESC`.
 - Si no existe el rol FSR en la base de datos, retorna arreglo vacío.
 
@@ -130,8 +132,10 @@ Proveer visibilidad operativa y analítica al administrador sobre el desempeño 
 **Descripción:** Serie temporal diaria de viajes registrados y kilómetros acumulados.
 
 **Reglas de negocio:**
-- Agrupa por fecha de `startedAt` (formato `YYYY-MM-DD` en zona `America/Mexico_City`).
+- Filtra y agrupa por inicio efectivo (`startCapturedAt ?? startedAt`, formato `YYYY-MM-DD` en zona `America/Mexico_City`).
 - Suma `kmDriven` por día; registros con `kmDriven = null` contribuyen 0.
+- `totalDurationHours` suma las duraciones válidas entre extremos efectivos. Devuelve `null` si el día no tiene ningún viaje con ambos extremos válidos; una duración real de cero se conserva como 0.
+- Los viajes excepcionales en domingos, festivos o vacaciones mantienen sus conteos y kilómetros: las exclusiones de cumplimiento no eliminan actividad física de estos reportes.
 - Resultado ordenado por fecha ASC.
 
 **Filtros disponibles:** `startDate`, `endDate`
@@ -148,6 +152,8 @@ Proveer visibilidad operativa y analítica al administrador sobre el desempeño 
 **Reglas de negocio:**
 - Agrupa todos los viajes activos del período por FSR.
 - Calcula `averageKm` como `round(totalKm / trips)`; si `trips = 0`, retorna 0.
+- El rango usa el inicio efectivo, igual que RF-505 y el resumen RF-508.
+- `averageDurationHours` divide la duración acumulada entre los viajes con extremos efectivos válidos, no entre todos los viajes. Sin extremos válidos devuelve `null`; un viaje abierto no se interpreta como duración cero.
 - Resultado ordenado por `totalKm DESC`.
 
 **Filtros disponibles:** `startDate`, `endDate`
@@ -178,7 +184,7 @@ reporte agregado, se construye sobre esa entidad.
   2. `resolvedIncidents` — incidentes activos con estado `CERRADO` (nunca por `resolvedAt != null`: una cancelación no es una resolución)
   3. `totalAssignments` — asignaciones activas creadas en el período
   4. `completedAssignments` — asignaciones activas con `finishedAt != null`
-  5. `totalTrips` — viajes activos iniciados en el período
+   5. `totalTrips` — viajes activos cuyo inicio efectivo está en el período
   6. `totalKmDriven` — suma de `kmDriven` (aggregate)
 - Calcula tasas porcentuales: `incidentResolutionRate` y `assignmentCompletionRate` (ambas con protección anti-división-por-cero).
 
@@ -272,17 +278,31 @@ reporte agregado, se construye sobre esa entidad.
 **Reglas de negocio:**
 - Rango por defecto: últimos 7 días (a diferencia de los 30 días del resto de reportes).
 - El eje de días se construye iterando desde `start` hasta `end` inclusive, con formato `YYYY-MM-DD` en zona `America/Mexico_City`.
-- Por cada FSR se genera un mapa `byDay: Record<YYYY-MM-DD, { reported, tripCount, kmDriven }>`.
-  - `reported = true` si existe al menos un viaje en ese día (usando `startedAt` en zona `America/Mexico_City`).
-- `complianceRatePct = round((daysReported / totalDays) * 100)`.
+- Por cada FSR se genera un mapa `byDay: Record<YYYY-MM-DD, { applicable, reason?, reported, tripCount, kmDriven }>`.
+  - Un día es aplicable de lunes a sábado, hasta el día actual inclusive, siempre que no sea festivo activo ni esté dentro de una vacación activa `APROBADA` de ese FSR. Vacaciones pendientes, rechazadas o eliminadas no eximen.
+  - `reason`, si el día no aplica, identifica `future`, `sunday`, `holiday` o `vacation`. Si coinciden motivos se usa esa precedencia; se expone la categoría, nunca el motivo privado de la vacación.
+  - `reported = true` si existe al menos un viaje activo en ese día por inicio efectivo en CDMX, incluso si se registró excepcionalmente en un día no aplicable. `tripCount` y `kmDriven` conservan esa actividad.
+- `totalDays` es la cantidad de días aplicables del FSR; `daysNotApplicable` es la cantidad restante del rango.
+- `daysReported` cuenta días aplicables con al menos un viaje. `daysMissed = totalDays - daysReported`; viajes excepcionales no elevan el numerador ni eliminan faltas de otros días.
+- `complianceRatePct = round((daysReported / totalDays) * 100)`; si `totalDays = 0`, devuelve `null` y la UI muestra **N/A**, nunca 0% o 100%.
 - `reportedToday = true` solo si el día actual está dentro del rango Y el FSR tiene al menos un viaje registrado hoy.
-- El resumen global incluye: `totalFsrs`, `fullyCompliant` (100%), `missedToday` (FSRs sin registro hoy), `averageComplianceRate`.
+- El resumen global incluye: `totalFsrs`, `fullyCompliant`, `missedToday`, `averageComplianceRate`.
+  - `fullyCompliant` cuenta únicamente FSRs con días aplicables y todos esos días reportados.
+  - `averageComplianceRate` promedia únicamente filas con días aplicables; devuelve `null` si no hay ninguna.
+  - `missedToday` cuenta solamente FSRs para quienes hoy es aplicable y no reportaron. Vacaciones, festivos y domingos no generan alertas de falta.
   - `missedToday` es 0 si el día actual no está dentro del rango analizado.
+- La UI distingue celdas N/A de faltas, muestra la categoría de exclusión y el conteo de viajes excepcionales, y expone una columna de días no aplicables.
+- Festivos y vacaciones se cargan en consultas por lote; las vacaciones se limitan al conjunto de FSRs autorizado por el alcance del llamante.
 
 **Escenario crítico:**
-- DADO un FSR que registró viajes en 5 de 7 días
+- DADO un rango de 7 días con un domingo, un festivo y un día de vacaciones aprobadas, y un FSR que reportó 3 de los 4 días aplicables
 - CUANDO se consulta el reporte semanal
-- ENTONCES `complianceRatePct = 71` (round(5/7*100)), `daysMissed = 2`
+- ENTONCES `complianceRatePct = 75`, `totalDays = 4`, `daysMissed = 1`, `daysNotApplicable = 3`; un viaje excepcional del domingo permanece visible pero no cambia el 75%.
+
+**Escenario crítico — rango futuro:**
+- DADO un rango completamente posterior al día actual en CDMX
+- CUANDO se consulta el cumplimiento
+- ENTONCES todas las celdas son N/A por `future`, las tasas individuales y el promedio son `null`, y no se cuentan faltas ni FSRs plenamente cumplidos.
 
 **Implementación:** `getDailyTripComplianceReport()` en `src/lib/actions/reports.ts`
 **Ruta:** `/admin/reports/daily-trip-compliance`

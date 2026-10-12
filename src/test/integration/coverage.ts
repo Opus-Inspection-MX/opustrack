@@ -73,11 +73,28 @@ export const MATRIX_CONCURRENCY = new Set([
   "vehicle-trips.ts :: startVehicleTrip",
 ]);
 
+// Real-action races and persisted evidence; these cases do not prove SQL IDOR.
+export const MATRIX_BUSINESS_INVARIANTS = new Set([
+  "vehicle-trips.ts :: startVehicleTrip",
+  "vehicle-trips.ts :: endVehicleTrip",
+  "vehicle-trips.ts :: cancelVehicleTrip",
+  "vehicles.ts :: deleteVehicle",
+  "vehicles.ts :: correctVehicleOdometer",
+  "vacations.ts :: createVacation",
+  "vacations.ts :: approveVacation",
+  "vacations.ts :: rejectVacation",
+  "vacations.ts :: updatePeriodOverride",
+  "vacations.ts :: correctStartedVacation",
+  "assignments.ts :: closeAssignment",
+  "vacation-accrual-rules.ts :: createAccrualRule",
+]);
+
 export const MATRIX_ALL = new Set([
   ...MATRIX_SCOPE,
   ...MATRIX_IDOR,
   ...MATRIX_COMPOSE,
   ...MATRIX_CONCURRENCY,
+  ...MATRIX_BUSINESS_INVARIANTS,
 ]);
 
 /**
@@ -254,11 +271,12 @@ export const ALLOWLIST: Record<string, string> = {
     "vacation approval queue (vacations:approve); TODO: promote to scope matrix",
   "home-personal.ts :: getUpcomingAbsences":
     "absence reader; TODO: promote to scope matrix",
-  // Writes with an id that the IDOR matrix does not cover yet: each needs
-  // its Fase 0c guard first, then a matrix case.
+  // Writes whose real-SQL IDOR cases are still pending. Guard implementation
+  // and integration coverage are separate: an implemented guard is not a case.
   "assignments.ts :: createAssignment":
     "TODO(0c): guard incident scope, then IDOR case",
-  "assignments.ts :: deleteAssignment": "TODO(0c): guard scope, then IDOR case",
+  "assignments.ts :: deleteAssignment":
+    "scope/manager guard present; SQL IDOR case pending",
   "assignments.ts :: markAssignmentSeen":
     "TODO(0c): worker guard, then IDOR case",
   "assignments.ts :: startAssignmentWork":
@@ -267,7 +285,8 @@ export const ALLOWLIST: Record<string, string> = {
   "assignments.ts :: resumeAssignment":
     "TODO(0c): worker guard, then IDOR case",
   "assignments.ts :: closeAssignment": "TODO(0c): worker guard, then IDOR case",
-  "assignments.ts :: reopenAssignment": "TODO(0c): guard scope, then IDOR case",
+  "assignments.ts :: reopenAssignment":
+    "scope/manager guard present; SQL IDOR case pending",
   "assignments.ts :: uploadAssignmentAttachment":
     "TODO(0c): guard scope, then IDOR case",
   "assignments.ts :: deleteAssignmentAttachment":
@@ -279,13 +298,17 @@ export const ALLOWLIST: Record<string, string> = {
   "incidents.ts :: getIncidentEvents":
     "TODO(0c): guard incident scope, then matrix case",
   "incidents.ts :: createIncidentAsReporter":
-    "TODO(0c): cross-reference guards, then IDOR case",
-  "incidents.ts :: updateIncidentFsrs": "TODO(0c): guard scope, then IDOR case",
+    "transactional primary Client and cross-reference guards present; SQL IDOR case pending",
+  "incidents.ts :: updateIncidentFsrs":
+    "scope guard present; SQL IDOR case pending",
   "incidents.ts :: updateIncidentScheduledDate":
-    "TODO(0c): guard scope, then IDOR case",
-  "incidents.ts :: updateIncidentType": "TODO(0c): guard scope, then IDOR case",
-  "incidents.ts :: deleteIncident": "TODO(0c): guard scope, then IDOR case",
-  "incidents.ts :: cancelIncident": "TODO(0c): guard scope, then IDOR case",
+    "incident and all linked Client guards present; SQL IDOR case pending",
+  "incidents.ts :: updateIncidentType":
+    "scope guard present; SQL IDOR case pending",
+  "incidents.ts :: deleteIncident":
+    "scope guard present; SQL IDOR case pending",
+  "incidents.ts :: cancelIncident":
+    "scope guard present; SQL IDOR case pending",
   "incidents.ts :: getIncidentFormOptions":
     "TODO(0c): form options; scope with client options",
   "assignments.ts :: getAssignmentFormOptions":
@@ -293,24 +316,26 @@ export const ALLOWLIST: Record<string, string> = {
   "users.ts :: getUserFormOptions":
     "TODO(0c): form options; scope with users:read decision",
   "schedules.ts :: createSchedule":
-    "TODO(0c): guard client links, then IDOR case",
+    "Client link guards present; SQL IDOR case pending",
   "schedules.ts :: updateSchedule":
-    "TODO(0c): guard client links, then IDOR case",
+    "schedule and current/final Client guards present; SQL IDOR case pending",
   "schedules.ts :: quickUpdateSchedule":
-    "TODO(0c): guard scope, then IDOR case",
-  "schedules.ts :: deleteSchedule": "TODO(0c): guard scope, then IDOR case",
+    "schedule and current/final Client guards present; SQL IDOR case pending",
+  "schedules.ts :: deleteSchedule":
+    "schedule/Client guards present; SQL IDOR case pending",
   "schedules.ts :: getClientsForSchedules": "TODO(0c): scope client options",
   "tracking.ts :: getTrackingSignature":
     "same where-builder as getIncidentsForTracking, covered through it",
-  "tracking.ts :: assignFSRToIncident": "TODO(0c): guard scope, then IDOR case",
+  "tracking.ts :: assignFSRToIncident":
+    "scope guard present; SQL IDOR case pending",
   "tracking.ts :: updateAssignmentAssignees":
-    "TODO(0c): guard scope, then IDOR case",
+    "scope/manager guard present; SQL IDOR case pending",
   "tracking.ts :: updateIncidentDetails":
-    "TODO(0c): guard scope, then IDOR case",
+    "scope and cross-reference guards present; SQL IDOR case pending",
   "tracking.ts :: overrideIncidentStatus":
-    "TODO(0c): guard scope, then IDOR case",
+    "scope guard present; SQL IDOR case pending",
   "tracking.ts :: updateAssignmentDetails":
-    "TODO(0c): guard scope, then IDOR case",
+    "scope/manager guard present; SQL IDOR case pending",
   "tracking.ts :: getTrackingBootstrap":
     "TODO(0c): bootstrap reader; scope then matrix case",
   "lines.ts :: toggleLineStatus": "TODO(0c): guard scope, then IDOR case",
@@ -343,14 +368,12 @@ export const ALLOWLIST: Record<string, string> = {
 
 /** Matrix entries whose test is `it.fails` until the noted fix lands.
  *
- * Three markers for genuinely unmerged work (everything else flipped to a
+ * Two markers for genuinely unmerged work (everything else flipped to a
  * plain `it` when 0a/0b/0c/5a merged). Keep the export (and the
  * dangling-key test) so the next known gap registers here instead of
  * silently shipping without a case.
  */
 export const EXPECTED_FAIL: Record<string, string> = {
-  // Reads with no Client scope yet (0c remainder).
-  "schedules.ts :: getScheduleById": "TODO(0c): no scope check",
   // users:read scoping is pending product decision #1.
   "users.ts :: getUsers": "TODO(users-scope): no scope filter",
   "users.ts :: getUserById": "TODO(users-scope): no scope check",

@@ -417,3 +417,17 @@ export async function notifyVacationCancelled(
     entity: { type: ENTITY_TYPES.VACATION, id: vacationId },
   });
 }
+
+/** Shortening preserves approval; notify the requester after commit, excluding the actor. */
+export async function notifyVacationCorrected(
+  vacationId: string,
+  requesterId: string,
+  actorId: string,
+): Promise<void> {
+  await dispatch(NOTIFICATION_TYPES.VACATION_CORRECTED, {
+    recipients: [requesterId],
+    actorId,
+    ctx: { vacationId },
+    entity: { type: ENTITY_TYPES.VACATION, id: vacationId },
+  });
+}

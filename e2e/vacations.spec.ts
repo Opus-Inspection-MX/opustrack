@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import bcrypt from "bcrypt";
-import { authFile, E2E_PASSWORD } from "./fixtures/auth";
+import { account, authFile, E2E_PASSWORD } from "./fixtures/auth";
 import { db, uniqueSuffix } from "./fixtures/db";
 import { submitLogin } from "./fixtures/login";
 import { gotoReady } from "./fixtures/navigation";
@@ -283,120 +283,179 @@ test("un período vencido deja de aceptar solicitudes pero conserva su historial
   expect(stored.ruleDays).toBe(12);
 });
 
-// PRE-EXISTING: /admin/vacations crashes for every role (same RSC-boundary
-// violation as /admin/incidents/[id] — a Server Component passes functions
-// into a client table, Fase 8 territory). Pinned as fixme until Fase 8;
-// then these prove ADMIN_VACACIONES administers vacations end to end.
-test.fixme(
-  "avisa al aprobar cuando hay trabajo programado en esas fechas",
-  async ({ page }) => {
-    const suffix = uniqueSuffix();
-    const user = await createFsrHiredYearsAgo(suffix, 2);
-    const [, , period] = await seedPeriods(user.id, user.hireDate as Date, 3);
+// Approval warns about existing work without cancelling or reassigning it.
+test("avisa al aprobar cuando hay trabajo programado en esas fechas", async ({
+  page,
+}) => {
+  const suffix = uniqueSuffix();
+  const user = await createFsrHiredYearsAgo(suffix, 2);
+  const [, , period] = await seedPeriods(user.id, user.hireDate as Date, 3);
 
-    const range = weekdayRange(6);
-    const vacation = await db().vacation.create({
-      data: {
-        userId: user.id,
-        startDate: range.start,
-        endDate: range.end,
-        statusId: await statusId("PENDIENTE"),
-        periodId: period.id,
-        businessDaysUsed: 5,
-      },
-      select: { id: true },
-    });
+  const range = weekdayRange(6);
+  const vacation = await db().vacation.create({
+    data: {
+      userId: user.id,
+      startDate: range.start,
+      endDate: range.end,
+      statusId: await statusId("PENDIENTE"),
+      periodId: period.id,
+      businessDaysUsed: 5,
+    },
+  });
 
-    // Work already scheduled on the Wednesday of that week.
-    const scheduled = new Date(range.start);
-    scheduled.setDate(scheduled.getDate() + 2);
+  // Work already scheduled on the Wednesday of that week.
+  const scheduled = new Date(range.start);
+  scheduled.setDate(scheduled.getDate() + 2);
 
-    const [incidentType, incidentStatus, client] = await Promise.all([
-      db().incidentType.findFirstOrThrow({ where: { active: true } }),
-      db().incidentStatus.findFirstOrThrow({ where: { name: "ABIERTO" } }),
-      db().client.findFirstOrThrow({ where: { active: true } }),
-    ]);
+  const [incidentType, incidentStatus, client] = await Promise.all([
+    db().incidentType.findFirstOrThrow({ where: { active: true } }),
+    db().incidentStatus.findFirstOrThrow({ where: { name: "ABIERTO" } }),
+    db().client.findFirstOrThrow({ where: { active: true } }),
+  ]);
 
-    const incident = await db().incident.create({
-      data: {
-        title: `E2E Choque vacaciones ${suffix}`,
-        description: "Trabajo agendado dentro del período solicitado.",
-        typeId: incidentType.id,
-        statusId: incidentStatus.id,
-        clientId: client.id,
-      },
-      select: { id: true },
-    });
+  const incident = await db().incident.create({
+    data: {
+      title: `E2E Choque vacaciones ${suffix}`,
+      description: "Trabajo agendado dentro del período solicitado.",
+      typeId: incidentType.id,
+      statusId: incidentStatus.id,
+      clientId: client.id,
+    },
+    select: { id: true, title: true },
+  });
 
-    const assignmentStatus = await db().assignmentStatus.findFirstOrThrow({
-      where: { name: "ASIGNADO" },
-    });
+  const assignmentStatus = await db().assignmentStatus.findFirstOrThrow({
+    where: { name: "ASIGNADO" },
+  });
 
-    await db().assignment.create({
-      data: {
-        incidentId: incident.id,
-        statusId: assignmentStatus.id,
-        scheduledDate: scheduled,
-        assignees: { create: [{ userId: user.id }] },
-      },
-    });
+  const assignment = await db().assignment.create({
+    data: {
+      incidentId: incident.id,
+      statusId: assignmentStatus.id,
+      scheduledDate: scheduled,
+      assignees: { create: [{ userId: user.id }] },
+    },
+    include: { assignees: true },
+  });
 
-    await gotoReady(page, "/admin/vacations");
-    const row = page.locator("tr").filter({ hasText: user.name });
-    await row.getByRole("button", { name: "Aprobar" }).click();
+  await gotoReady(page, "/admin/vacations");
+  const row = page.locator("tr").filter({ hasText: user.name });
+  await row.getByRole("button", { name: "Aprobar" }).click();
 
-    // The admin is told what would be stranded before the decision, not after —
-    // approving does not reassign the work.
-    await expect(
-      page.getByText("Hay trabajo programado en esas fechas"),
-    ).toBeVisible();
-    await expect(page.getByText(/no reasigna ese trabajo/)).toBeVisible();
+  // The admin is told what would be stranded before the decision, not after —
+  // approving does not reassign the work.
+  const warning = page.getByRole("dialog", {
+    name: "Hay trabajo programado en esas fechas",
+  });
+  await expect(warning).toBeVisible();
+  await expect(warning.getByText(/no reasigna ese trabajo/)).toBeVisible();
+  await expect(warning).toContainText(`Folio ${assignment.folio}`);
+  await expect(warning).toContainText(incident.title);
 
-    // Cancelling leaves the request pending.
-    await page.getByRole("button", { name: "Cancelar" }).click();
-    const stillPending = await db().vacation.findUniqueOrThrow({
-      where: { id: vacation.id },
-      include: { status: true },
-    });
-    expect(stillPending.status.name).toBe("PENDIENTE");
+  // Cancelling the decision dialog leaves the request and scheduled work intact.
+  await warning.getByRole("button", { name: "Cancelar" }).click();
+  await expect(warning).not.toBeVisible();
+  const stillPending = await db().vacation.findUniqueOrThrow({
+    where: { id: vacation.id },
+    include: { status: true },
+  });
+  expect(stillPending.status.name).toBe("PENDIENTE");
+  expect(stillPending.approvedAt).toBeNull();
+  expect(stillPending.approvedById).toBeNull();
+  expect(stillPending.active).toBe(true);
+  expect(
+    await db().assignment.findUniqueOrThrow({
+      where: { id: assignment.id },
+      include: { assignees: true },
+    }),
+  ).toEqual(assignment);
 
-    // Confirming goes through: the warning informs, it does not block.
-    await row.getByRole("button", { name: "Aprobar" }).click();
-    await page.getByRole("button", { name: "Aprobar de todos modos" }).click();
-    // Assert the toast's own text. Matching any `alert`/`status` role also
-    // catches Next's route announcer, which is always present — so that version
-    // of this assertion could pass without the toast ever appearing.
-    await expect(
-      page.getByText("Solicitud de vacaciones aprobada"),
-    ).toBeVisible();
+  // Confirming goes through: the warning informs, it does not block.
+  await row.getByRole("button", { name: "Aprobar" }).click();
+  await warning.getByRole("button", { name: "Aprobar de todos modos" }).click();
+  // Assert the toast's own text. Matching any `alert`/`status` role also
+  // catches Next's route announcer, which is always present — so that version
+  // of this assertion could pass without the toast ever appearing.
+  await expect(
+    page.getByText("Solicitud de vacaciones aprobada"),
+  ).toBeVisible();
 
-    await expect
-      .poll(async () => {
-        const settled = await db().vacation.findUniqueOrThrow({
-          where: { id: vacation.id },
-          include: { status: true },
-        });
-        return settled.status.name;
-      })
-      .toBe("APROBADA");
-  },
-);
+  await expect
+    .poll(async () => {
+      const settled = await db().vacation.findUniqueOrThrow({
+        where: { id: vacation.id },
+        include: { status: true },
+      });
+      return settled.status.name;
+    })
+    .toBe("APROBADA");
+  const approved = await db().vacation.findUniqueOrThrow({
+    where: { id: vacation.id },
+  });
+  const approver = await db().user.findUniqueOrThrow({
+    where: { email: account("admin-vacaciones").email },
+    select: { id: true },
+  });
+  expect(approved.approvedById).toBe(approver.id);
+  expect(approved.approvedAt).not.toBeNull();
+  expect(approved.userId).toBe(user.id);
+  expect(approved.periodId).toBe(period.id);
+  expect(approved.businessDaysUsed).toBe(vacation.businessDaysUsed);
+  expect(approved.startDate).toEqual(vacation.startDate);
+  expect(approved.endDate).toEqual(vacation.endDate);
+  expect(
+    await db().assignment.findUniqueOrThrow({
+      where: { id: assignment.id },
+      include: { assignees: true },
+    }),
+  ).toEqual(assignment);
+});
 
-test.fixme(
-  "la página de vacaciones del admin muestra saldo y calendario anual",
-  async ({ page }) => {
-    await gotoReady(page, "/admin/vacations");
+test("la página de vacaciones del admin muestra saldo y calendario anual", async ({
+  page,
+}) => {
+  const user = await createFsrHiredYearsAgo(uniqueSuffix(), 2);
+  const periods = await seedPeriods(user.id, user.hireDate as Date, 3);
+  // A distinctive fixture balance also proves the asynchronous picker refresh
+  // has replaced the default employee's panel before the assertions proceed.
+  periods[2] = await db().vacationPeriod.update({
+    where: { id: periods[2].id },
+    data: { overrideDays: 37 },
+  });
+  await gotoReady(page, "/admin/vacations");
 
-    await expect(
-      page.getByRole("heading", { name: "Solicitudes de Vacaciones" }),
-    ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Solicitudes de Vacaciones" }),
+  ).toBeVisible();
 
-    // The two halves of the planner: balance on the left, the year on the right.
-    await expect(page.getByText("Días de vacaciones").first()).toBeVisible();
-    await expect(page.getByText("Enero", { exact: true })).toBeVisible();
-    await expect(page.getByText("Diciembre", { exact: true })).toBeVisible();
-  },
-);
+  // Select an eligible fixture explicitly instead of relying on the first user.
+  const picker = page.locator('main button[aria-haspopup="dialog"]');
+  await picker.click();
+  await page.getByPlaceholder("Buscar por nombre...").fill(user.name);
+  await page.getByRole("option", { name: user.name, exact: true }).click();
+  await expect(picker).toContainText(user.name);
+
+  // The two halves of the planner: balance on the left, the year on the right.
+  await expect(page.getByText("Días de vacaciones").first()).toBeVisible();
+  const currentPeriod = page.getByRole("button").filter({
+    has: page.getByText("Año 3", { exact: true }),
+  });
+  await expect(currentPeriod).toBeEnabled();
+  await expect(currentPeriod).toContainText(
+    `/ ${periods[2].overrideDays} días disponibles`,
+  );
+  await expect(currentPeriod).toContainText("0 día(s) solicitados o aprobados");
+  await currentPeriod.click();
+  await expect(currentPeriod).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByText("Enero", { exact: true })).toBeVisible();
+  await expect(page.getByText("Diciembre", { exact: true })).toBeVisible();
+  const stored = await db().vacationPeriod.findMany({
+    where: { userId: user.id },
+    orderBy: { periodNumber: "asc" },
+  });
+  expect(stored).toEqual(periods);
+  expect(await db().vacation.count({ where: { userId: user.id } })).toBe(0);
+});
 
 test("el FSR ve su propio saldo sin selector de usuario", async ({
   browser,
@@ -501,26 +560,77 @@ test("el admin de vacaciones captura la fecha y el empleado ya puede solicitar",
   await employeeContext.close();
 });
 
-// H-06, fails before Fase 0d: the accrual page requires
-// `requireRouteAccess("/admin/settings")` plus `settings:read`, neither of
-// which ADMIN_VACACIONES holds (it owns `route:admin-vacation-accrual` and
-// `vacations:manage`). Pinned as fixme until 0d rewires the page and the
-// action to the vacation grant — then this proves the grant works.
-test.fixme(
-  "el admin puede consultar la tabla de días por antigüedad",
-  async ({ page }) => {
-    await gotoReady(page, "/admin/settings/vacation-accrual");
+// Accrual actions require vacations:manage, with a dedicated route grant for
+// ADMIN_VACACIONES. ROOT also has access; ordinary FSRs cannot open the catalog.
+test("ADMIN_VACACIONES y ROOT consultan el catálogo de antigüedad; FSR no accede", async ({
+  page,
+  browser,
+}) => {
+  const rules = await db().vacationAccrualRule.findMany({
+    where: { active: true },
+    orderBy: { minYears: "asc" },
+  });
+  const setting = await db().vacationSetting.findUniqueOrThrow({
+    where: { id: 1 },
+  });
+  await gotoReady(page, "/admin/settings/vacation-accrual");
+  await expect(page).toHaveURL(/\/admin\/settings\/vacation-accrual$/);
+  await expect(
+    page.getByRole("heading", { name: "Días de Vacaciones" }),
+  ).toBeVisible();
+  await expect(page.getByText("Año 1", { exact: true })).toBeVisible();
+  await expect(page.getByText("26 años o más")).toBeVisible();
+  await expect(page.getByLabel("Meses de vigencia")).toHaveValue(
+    String(setting.graceWindowMonths),
+  );
+  await expect(page.locator("tbody tr")).toHaveCount(rules.length);
 
+  const rootContext = await browser.newContext({
+    storageState: authFile("admin"),
+  });
+  try {
+    const rootPage = await rootContext.newPage();
+    await gotoReady(rootPage, "/admin/settings/vacation-accrual");
+    await expect(rootPage).toHaveURL(/\/admin\/settings\/vacation-accrual$/);
     await expect(
-      page.getByRole("heading", { name: "Días de Vacaciones" }),
+      rootPage.getByRole("heading", { name: "Días de Vacaciones" }),
     ).toBeVisible();
-
-    // Seeded tiers are listed and the grace window is editable.
-    await expect(page.getByText("Año 1", { exact: true })).toBeVisible();
-    await expect(page.getByText("26 años o más")).toBeVisible();
-    await expect(page.getByLabel("Meses de vigencia")).toHaveValue("12");
-  },
-);
+    await expect(rootPage.getByText("Año 1", { exact: true })).toBeVisible();
+    await expect(rootPage.getByText("26 años o más")).toBeVisible();
+    await expect(rootPage.getByLabel("Meses de vigencia")).toHaveValue(
+      String(setting.graceWindowMonths),
+    );
+    await expect(rootPage.locator("tbody tr")).toHaveCount(rules.length);
+  } finally {
+    await rootContext.close();
+  }
+  const fsrContext = await browser.newContext({
+    storageState: authFile("fsr"),
+  });
+  try {
+    const fsrPage = await fsrContext.newPage();
+    await gotoReady(fsrPage, "/admin/settings/vacation-accrual");
+    await expect(fsrPage).toHaveURL(/\/unauthorized\/?$/);
+    await expect(
+      fsrPage.getByText("Acceso Denegado", { exact: true }),
+    ).toBeVisible();
+    await expect(
+      fsrPage.getByRole("heading", { name: "Días de Vacaciones", exact: true }),
+    ).toHaveCount(0);
+    await expect(fsrPage.getByLabel("Meses de vigencia")).toHaveCount(0);
+  } finally {
+    await fsrContext.close();
+  }
+  expect(
+    await db().vacationAccrualRule.findMany({
+      where: { active: true },
+      orderBy: { minYears: "asc" },
+    }),
+  ).toEqual(rules);
+  expect(
+    await db().vacationSetting.findUniqueOrThrow({ where: { id: 1 } }),
+  ).toEqual(setting);
+});
 
 test.afterAll(async () => {
   // Remove only what this spec created; the rest of the suite shares the db.

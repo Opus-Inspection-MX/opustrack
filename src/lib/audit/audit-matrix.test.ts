@@ -12,12 +12,16 @@ vi.mock("@/lib/database/prisma.singleton", () => ({
   },
 }));
 vi.mock("@/lib/auth/auth", () => ({
-  requirePermission: vi.fn(async (_name: string) => ({ id: "admin-1" })),
+  requirePermission: vi.fn(async (_name: string) => ({
+    id: "admin-1",
+    isSuperuser: true,
+  })),
 }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 // Notifications stay out of the audit boundary: the collector and the
 // transition router are pinned in their own suites.
-vi.mock("@/lib/notifications", () => ({
+vi.mock("@/lib/notifications", async (importOriginal) => ({
+  ...((await importOriginal()) as Record<string, unknown>),
   deferAfterCommit: (task: () => Promise<void>) => {
     void task();
   },
@@ -109,6 +113,7 @@ describe("RF-219 / RF-553 boundary: one log per occurrence kind", () => {
   it("cancelIncident emits CANCELLED and zero AuditLog rows", async () => {
     vi.mocked(prisma.incident.findUnique).mockResolvedValue({
       id: 1,
+      clientId: "c1",
       status: { name: "ABIERTO" },
       resolvedAt: null,
     } as never);
@@ -126,6 +131,15 @@ describe("RF-219 / RF-553 boundary: one log per occurrence kind", () => {
 
     expect(result.success).toBe(true);
     expect(eventCreate).toHaveBeenCalledTimes(1);
+    expect(eventCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          eventType: "CANCELLED",
+          actorId: "admin-1",
+        }),
+      }),
+    );
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
     expect(auditCreate).not.toHaveBeenCalled();
   });
 
@@ -154,6 +168,11 @@ describe("RF-219 / RF-553 boundary: one log per occurrence kind", () => {
 
     expect(result).toEqual({ before: "ABIERTO", after: "CERRADO" });
     expect(txEventCreate).toHaveBeenCalledTimes(1);
+    expect(txEventCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ eventType: "STATUS_CHANGED" }),
+      }),
+    );
     expect(txAuditCreate).not.toHaveBeenCalled();
   });
 });

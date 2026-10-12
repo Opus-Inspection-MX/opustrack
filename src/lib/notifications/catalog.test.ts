@@ -26,6 +26,28 @@ const EMAIL_BY_DEFAULT = new Set<NotificationType>([
 ]);
 
 describe("catálogo de eventos", () => {
+  it("announces shortening while preserving approval, with configurable in-app-only defaults", () => {
+    const type = NOTIFICATION_TYPES.VACATION_CORRECTED;
+    expect(type).toBe("vacation_corrected");
+    const event = NOTIFICATION_EVENTS[type];
+    expect(event).toMatchObject({
+      group: "Vacaciones",
+      priority: NOTIFICATION_PRIORITY.MEDIUM,
+      defaultChannels: { inApp: true, email: false },
+    });
+    const copy = event.render({ vacationId: "v1" });
+    expect(copy.actionUrl).toBe("/notifications/go/vacation/v1");
+    for (const text of [copy.message, copy.email.intro]) {
+      expect(text).toContain("sigue aprobada");
+      expect(text).toContain("acortado");
+    }
+    expect(JSON.stringify(copy)).not.toMatch(/cancelad/i);
+    expect(defaultChannelPolicies()).toContainEqual({
+      type,
+      inApp: true,
+      email: false,
+    });
+  });
   it("cubre cada tipo de notificación conocido", () => {
     const types = Object.values(NOTIFICATION_TYPES);
     for (const type of types) {

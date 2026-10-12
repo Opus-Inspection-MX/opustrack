@@ -6,6 +6,17 @@
 
 Modela el ciclo de vida completo de un incidente en un Centro de Verificación Vehicular: desde su reporte inicial hasta su cierre o cancelación. El incidente es la entidad central del sistema: origina asignaciones de trabajo para FSRs, se vincula a líneas y equipos, y su estado es calculado automáticamente desde el estado de sus asignaciones hijas.
 
+### Invariantes de escritura y rutas alternativas
+
+- Las ediciones completas, rápidas y de Seguimiento requieren un incidente activo y acceso a su Cliente. `CANCELADA` impide editar, crear asignaciones y reabrir; `CERRADO` requiere la acción dedicada de reapertura antes de editar.
+- Al crear o editar, la programación referenciada debe estar activa y ser global (sin vínculos activos a Clientes) o incluir al Cliente final del incidente. Cambiar de Cliente obliga a validar nuevamente la referencia.
+- `POST /api/incidents` utiliza la creación canónica: validación de referencias, estado inicial `ABIERTO`, evento `CREATED` y notificación `INCIDENT_CREATED`. La identidad del reportante proviene de la sesión; el estado enviado no sustituye el estado inicial.
+- La habilitación de FSR y su asignación real se confirman juntas; una indisponibilidad o un estado terminal rechaza la operación completa. Las notificaciones se despachan después del commit.
+- La creación canónica y la creación de reportante comparten la persistencia del incidente y del evento `CREATED` en una transacción. La creación de reportante resuelve su Cliente primario dentro de esa transacción; un fallo de bitácora impide la notificación.
+- Los guards de referencias, acceso al Cliente y disponibilidad reciben el cliente transaccional en las mutaciones críticas. Las lecturas sin transacción conservan el cliente global por defecto.
+
+**Escenarios de rechazo:** una programación inactiva o ajena no modifica el incidente; una ruta alternativa que asigna FSR a una incidencia cancelada no crea habilitaciones ni órdenes de trabajo.
+
 ---
 
 ## Modelo de datos

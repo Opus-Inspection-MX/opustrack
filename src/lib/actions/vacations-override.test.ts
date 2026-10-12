@@ -11,6 +11,9 @@ const { prismaMock, requirePermission, getPeriodBalance, revalidatePath } =
   }));
 
 vi.mock("@/lib/database/prisma.singleton", () => ({ prisma: prismaMock }));
+vi.mock("@/lib/database/serializable-transaction", () => ({
+  serializableTransaction: (run: (tx: unknown) => unknown) => run(prismaMock),
+}));
 vi.mock("@/lib/auth/auth", () => ({ requirePermission }));
 vi.mock("@/lib/services/vacation-periods", () => ({
   allottedDaysFor: (period: {

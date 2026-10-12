@@ -48,6 +48,9 @@ const { prismaMock, requirePermission } = vi.hoisted(() => {
 });
 
 vi.mock("@/lib/database/prisma.singleton", () => ({ prisma: prismaMock }));
+vi.mock("@/lib/database/serializable-transaction", () => ({
+  serializableTransaction: (run: (tx: unknown) => unknown) => run(prismaMock),
+}));
 vi.mock("@/lib/auth/auth", () => ({
   requirePermission: (name: string) => requirePermission(name),
 }));

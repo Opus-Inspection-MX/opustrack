@@ -31,6 +31,8 @@ const {
     incidentType: { findUnique: vi.fn() },
     incidentAssignee: { createMany: vi.fn(), findMany: vi.fn() },
     incidentEvent: { create: vi.fn() },
+    schedule: { findUnique: vi.fn(), update: vi.fn(), create: vi.fn() },
+    userClientAssignment: { findFirst: vi.fn() },
   },
   requirePermission: vi.fn(async (_name: string) => ({
     id: "u1",
@@ -59,16 +61,20 @@ vi.mock("@/lib/utils/client-assignments", () => ({
   getPrimaryClientId: (id: string) => getPrimaryClientId(id),
 }));
 vi.mock("@/lib/notifications", () => ({
+  transactionWithNotifications: async (fn: (tx: unknown) => unknown) =>
+    fn(prismaMock),
   notifyIncidentCreated: vi.fn(async () => undefined),
   notifyIncidentUpdated: vi.fn(async () => undefined),
 }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
 import { BusinessRuleError } from "@/lib/actions/result";
+import { notifyIncidentCreated } from "@/lib/notifications";
 import {
   createIncident,
   createIncidentAsReporter,
   updateIncident,
+  updateIncidentScheduledDate,
 } from "./incidents";
 
 const base = {
@@ -84,7 +90,9 @@ const S1 = "cksched111aaa222bbb333ccc";
 
 beforeEach(() => {
   vi.clearAllMocks();
+  requireClientAccess.mockResolvedValue(undefined);
   getPrimaryClientId.mockResolvedValue(C1);
+  prismaMock.userClientAssignment.findFirst.mockResolvedValue({ clientId: C1 });
   prismaMock.incidentStatus.findUnique.mockResolvedValue({ id: 10 });
   prismaMock.incidentStatus.findFirst.mockResolvedValue({ id: 10 });
   prismaMock.incidentType.findUnique.mockResolvedValue({ id: 1 });
@@ -99,6 +107,11 @@ beforeEach(() => {
   }));
   prismaMock.incidentAssignee.findMany.mockResolvedValue([]);
   prismaMock.incidentEvent.create.mockResolvedValue({});
+  prismaMock.schedule.findUnique.mockResolvedValue({
+    clients: [{ clientId: C1 }],
+    incidents: [{ clientId: C1 }],
+  });
+  prismaMock.schedule.create.mockResolvedValue({ id: S1 });
 });
 
 describe("createIncident scope (H-04)", () => {
@@ -107,6 +120,7 @@ describe("createIncident scope (H-04)", () => {
     expect(requireClientAccess).toHaveBeenCalledWith(
       expect.objectContaining({ id: "u1" }),
       C1,
+      prismaMock,
     );
     expect(prismaMock.incident.create).toHaveBeenCalled();
   });
@@ -125,7 +139,11 @@ describe("createIncident scope (H-04)", () => {
 
   it("proves the schedule belongs to the incident Client", async () => {
     await createIncident({ ...base, clientId: C1, scheduleId: S1 });
-    expect(assertBelongsToClient).toHaveBeenCalledWith({ scheduleId: S1 }, C1);
+    expect(assertBelongsToClient).toHaveBeenCalledWith(
+      expect.objectContaining({ scheduleId: S1 }),
+      C1,
+      prismaMock,
+    );
   });
 
   it("files under the caller unless they hold the cross-Client scope", async () => {
@@ -168,8 +186,87 @@ describe("updateIncident scope (H-04)", () => {
     expect(requireClientAccess).toHaveBeenCalledWith(
       expect.objectContaining({ id: "u1" }),
       C2,
+      prismaMock,
     );
     expect(prismaMock.incident.update).toHaveBeenCalled();
+  });
+  it("rejects an inactive or foreign schedule before updating", async () => {
+    assertBelongsToClient.mockRejectedValueOnce(
+      new BusinessRuleError("No encontrado."),
+    );
+    expect(
+      await updateIncident(7, { ...base, clientId: C1, scheduleId: S1 }),
+    ).toMatchObject({ success: false });
+    expect(assertBelongsToClient).toHaveBeenCalledWith(
+      { scheduleId: S1 },
+      C1,
+      prismaMock,
+    );
+    expect(prismaMock.incident.update).not.toHaveBeenCalled();
+  });
+  it("rejects scalar edits on cancelled incidents", async () => {
+    prismaMock.incident.findUnique.mockResolvedValue({
+      clientId: C1,
+      status: { code: "CANCELADA" },
+    });
+    expect((await updateIncident(7, { ...base, clientId: C1 })).success).toBe(
+      false,
+    );
+    expect(prismaMock.incident.update).not.toHaveBeenCalled();
+  });
+});
+
+describe("incident scheduled date", () => {
+  it("requires schedule update permission on an existing schedule", async () => {
+    prismaMock.incident.findUnique.mockResolvedValue({
+      clientId: C1,
+      scheduleId: S1,
+    });
+    await updateIncidentScheduledDate(7, "2026-10-13T15:00:00Z");
+    expect(requirePermission).toHaveBeenCalledWith("schedules:update");
+    expect(prismaMock.schedule.update).toHaveBeenCalled();
+  });
+  it("rejects a shared schedule when a linked incident Client is inaccessible", async () => {
+    prismaMock.incident.findUnique.mockResolvedValue({
+      clientId: C1,
+      scheduleId: S1,
+    });
+    prismaMock.schedule.findUnique.mockResolvedValue({
+      clients: [{ clientId: C1 }],
+      incidents: [{ clientId: C1 }, { clientId: C2 }],
+    });
+    requireClientAccess.mockImplementation(
+      async (_user?: unknown, clientId?: unknown) => {
+        if (clientId === C2) throw new BusinessRuleError("Sin acceso.");
+      },
+    );
+    expect(
+      (await updateIncidentScheduledDate(7, "2026-10-13T15:00:00Z")).success,
+    ).toBe(false);
+    expect(requireClientAccess).toHaveBeenCalledWith(
+      expect.anything(),
+      C2,
+      prismaMock,
+    );
+    expect(prismaMock.schedule.update).not.toHaveBeenCalled();
+  });
+  it("creates a dedicated linked schedule for a permitted single incident", async () => {
+    prismaMock.incident.findUnique.mockResolvedValue({
+      clientId: C1,
+      scheduleId: null,
+      title: "Visit",
+    });
+    expect(
+      (await updateIncidentScheduledDate(7, "2026-10-13T15:00:00Z")).success,
+    ).toBe(true);
+    expect(requirePermission).toHaveBeenCalledWith("schedules:create");
+    expect(prismaMock.schedule.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          clients: { create: { clientId: C1 } },
+        }),
+      }),
+    );
   });
 });
 
@@ -179,7 +276,51 @@ describe("createIncidentAsReporter scope (H-04)", () => {
     expect(assertBelongsToClient).toHaveBeenCalledWith(
       { lineId: 3, equipmentId: 5 },
       C1,
+      prismaMock,
     );
     expect(prismaMock.incident.create).toHaveBeenCalled();
   });
+  it("reads the primary Client through the transaction", async () => {
+    await createIncidentAsReporter(base);
+    expect(prismaMock.userClientAssignment.findFirst).toHaveBeenCalledWith({
+      where: { userId: "u1", isPrimary: true, active: true },
+      select: { clientId: true },
+    });
+    expect(getPrimaryClientId).not.toHaveBeenCalled();
+    expect(prismaMock.incidentEvent.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          eventType: "CREATED",
+          actorId: "u1",
+          payload: { source: "client" },
+        }),
+      }),
+    );
+    expect(
+      prismaMock.incidentEvent.create.mock.invocationCallOrder[0],
+    ).toBeLessThan(
+      vi.mocked(notifyIncidentCreated).mock.invocationCallOrder[0],
+    );
+  });
+  it("rejects a reporter whose primary Client is no longer active", async () => {
+    prismaMock.userClientAssignment.findFirst.mockResolvedValue(null);
+    expect((await createIncidentAsReporter(base)).success).toBe(false);
+    expect(prismaMock.incident.create).not.toHaveBeenCalled();
+    expect(notifyIncidentCreated).not.toHaveBeenCalled();
+  });
 });
+
+it.each(["canonical", "reporter"])(
+  "%s creation cannot notify when its audit write fails",
+  async (flow) => {
+    prismaMock.incidentEvent.create.mockRejectedValueOnce(
+      new BusinessRuleError("No se pudo registrar el evento."),
+    );
+    const result =
+      flow === "canonical"
+        ? await createIncident({ ...base, clientId: C1 })
+        : await createIncidentAsReporter(base);
+    expect(result.success).toBe(false);
+    expect(notifyIncidentCreated).not.toHaveBeenCalled();
+  },
+);

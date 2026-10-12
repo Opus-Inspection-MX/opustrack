@@ -3,8 +3,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { OdometerCorrectionForm } from "@/components/vehicles/odometer-correction-form";
 import { VehicleStatusBadge } from "@/components/vehicles/vehicle-status-badge";
 import { getVehicleById } from "@/lib/actions/vehicles";
+import { canPerform } from "@/lib/auth/auth";
 
 interface Vehicle {
   id: string;
@@ -15,6 +17,7 @@ interface Vehicle {
   vin?: string | null;
   color?: string | null;
   status: { id: number; name: string };
+  operationalStatusCode: string;
   assignedFsrId?: string | null;
   assignedFsr?: { id: string; name: string; email: string } | null;
   notes?: string | null;
@@ -40,6 +43,9 @@ export default async function VehicleDetailPage({
   if (!vehicle) {
     notFound();
   }
+  const canCorrectOdometer =
+    (await canPerform("vehicles:update")) &&
+    (await canPerform("vehicle-trips:manage-all"));
 
   return (
     <div className="container mx-auto py-6 space-y-6">
@@ -97,6 +103,9 @@ export default async function VehicleDetailPage({
             <div>
               <div className="text-sm text-muted-foreground">Estado</div>
               <VehicleStatusBadge status={vehicle.status} />
+              <p className="text-sm text-muted-foreground">
+                Estado operacional: {vehicle.operationalStatusCode}
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -145,6 +154,7 @@ export default async function VehicleDetailPage({
           </CardContent>
         </Card>
       </div>
+      {canCorrectOdometer && <OdometerCorrectionForm vehicleId={id} />}
     </div>
   );
 }

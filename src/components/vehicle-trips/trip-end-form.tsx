@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useEffect, useRef, useState } from "react";
 import { PendingDrafts } from "@/components/offline/pending-drafts";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,11 @@ import { toast } from "@/hooks/use-toast";
 import { isFailure } from "@/lib/actions/result";
 import { endVehicleTrip } from "@/lib/actions/vehicle-trips";
 import { describeEnqueueFailure, saveDraft } from "@/lib/offline/flush";
+import {
+  loadEntries,
+  newOutboxKey,
+  OUTBOX_CHANGED_EVENT,
+} from "@/lib/offline/outbox";
 import { normalizeMimeType } from "@/lib/upload";
 import { formatMX } from "@/lib/utils/datetime";
 import { GPSLocationCapture } from "./gps-location-capture";
@@ -57,6 +62,26 @@ export function TripEndForm({ trip }: TripEndFormProps) {
   });
 
   const [photo, setPhoto] = useState<File | null>(null);
+  const operation = useRef<{ key: string; capturedAt: string } | null>(null);
+  const [queued, setQueued] = useState(false);
+  useEffect(() => {
+    const refresh = () => {
+      if (
+        queued &&
+        operation.current &&
+        !loadEntries().some((entry) => entry.key === operation.current?.key)
+      ) {
+        operation.current = null;
+        setQueued(false);
+      }
+    };
+    window.addEventListener(OUTBOX_CHANGED_EVENT, refresh);
+    window.addEventListener("storage", refresh);
+    return () => {
+      window.removeEventListener(OUTBOX_CHANGED_EVENT, refresh);
+      window.removeEventListener("storage", refresh);
+    };
+  }, [queued]);
 
   const kmDriven =
     formData.endOdometer &&
@@ -80,10 +105,16 @@ export function TripEndForm({ trip }: TripEndFormProps) {
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError("");
+    if (queued) {
+      toast.error(
+        "Reintenta el borrador pendiente antes de capturar otro cierre.",
+      );
+      return;
+    }
 
     // Validation
     const endOdometer = Number.parseInt(formData.endOdometer, 10);
-    if (!formData.endOdometer || endOdometer <= 0) {
+    if (!formData.endOdometer || endOdometer < 0) {
       setError("Por favor ingresa una lectura de odómetro válida");
       return;
     }
@@ -99,6 +130,10 @@ export function TripEndForm({ trip }: TripEndFormProps) {
     }
 
     setIsSubmitting(true);
+    operation.current ??= {
+      key: newOutboxKey(),
+      capturedAt: new Date().toISOString(),
+    };
 
     // Fully offline: freeze the field evidence as a draft without calling.
     if (typeof navigator !== "undefined" && !navigator.onLine) {
@@ -109,6 +144,8 @@ export function TripEndForm({ trip }: TripEndFormProps) {
 
     try {
       const fd = new FormData();
+      fd.append("idempotencyKey", operation.current.key);
+      fd.append("capturedAt", operation.current.capturedAt);
       fd.append("tripId", trip.id);
       fd.append("endOdometer", String(endOdometer));
       fd.append("photo", photo);
@@ -123,6 +160,7 @@ export function TripEndForm({ trip }: TripEndFormProps) {
       const result = await endVehicleTrip(fd);
 
       if (isFailure(result)) {
+        operation.current = null;
         toast.error(result.error);
         return;
       }
@@ -159,11 +197,13 @@ export function TripEndForm({ trip }: TripEndFormProps) {
       fields,
       photo,
       userId: currentUserId,
+      identity: operation.current ?? undefined,
     });
     if (!queued.queued) {
       toast.error(describeEnqueueFailure(queued.reason));
       return;
     }
+    setQueued(true);
     toast.success(
       `Sin conexión. Fin de viaje guardado como borrador.${cause ? ` (${cause})` : ""}`,
     );
@@ -291,7 +331,7 @@ export function TripEndForm({ trip }: TripEndFormProps) {
               </Button>
               <Button
                 type="submit"
-                disabled={isSubmitting}
+                disabled={isSubmitting || queued}
                 className="w-full sm:w-auto order-1 sm:order-2"
               >
                 {isSubmitting ? "Finalizando Viaje..." : "Finalizar Viaje"}

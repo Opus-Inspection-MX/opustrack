@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
 import { isFailure } from "@/lib/actions/result";
 import { createVacation } from "@/lib/actions/vacations";
+import { mxDateString } from "@/lib/utils/datetime";
 import type { VacationFormData } from "@/lib/validations/vacations";
 
 type FsrOption = {
@@ -116,6 +117,7 @@ export function VacationForm({
                 id="startDate"
                 type="date"
                 value={startDate}
+                min={showFsrSelect ? undefined : mxDateString(new Date())}
                 onChange={(e) => setStartDate(e.target.value)}
                 required
               />
@@ -135,13 +137,18 @@ export function VacationForm({
 
           {/* Reason */}
           <div className="space-y-2">
-            <Label htmlFor="reason">Motivo (opcional)</Label>
+            <Label htmlFor="reason">
+              {showFsrSelect
+                ? "Motivo (obligatorio para fechas retroactivas)"
+                : "Motivo (opcional)"}
+            </Label>
             <Textarea
               id="reason"
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               placeholder="Describa el motivo de la solicitud"
               rows={3}
+              maxLength={1000}
             />
           </div>
         </CardContent>

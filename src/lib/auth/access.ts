@@ -18,6 +18,7 @@
  * Client-less records" backdoor is gone (H-05).
  */
 
+import type { Prisma } from "@prisma/client";
 import { businessRule } from "@/lib/actions/result";
 import {
   SCOPE_ALL_CLIENTS,
@@ -28,6 +29,8 @@ import { whereHasPermission } from "@/lib/authz/user-queries";
 import { prisma } from "@/lib/database/prisma.singleton";
 import { getUserClientIds } from "@/lib/utils/client-assignments";
 import type { ReportScope } from "./report-scope";
+
+type AccessClient = typeof prisma | Prisma.TransactionClient;
 
 /**
  * The one rule for "may this scope see this Client's data".
@@ -56,8 +59,18 @@ export function clientInScope(
  * modules delegate their checks HERE. Parity with `getReportScope` is pinned
  * by `access.test.ts`.
  */
-async function scopeOf(user: UserWithPermissions): Promise<ReportScope> {
+export async function getClientAccessScope(
+  user: UserWithPermissions,
+  tx?: AccessClient,
+): Promise<ReportScope> {
   if (userHasPermission(user, SCOPE_ALL_CLIENTS)) return { clientIds: null };
+  if (tx && tx !== prisma) {
+    const rows = await tx.userClientAssignment.findMany({
+      where: { userId: user.id, active: true },
+      select: { clientId: true },
+    });
+    return { clientIds: rows.map((row) => row.clientId) };
+  }
   return { clientIds: await getUserClientIds(user.id) };
 }
 
@@ -67,8 +80,9 @@ async function scopeOf(user: UserWithPermissions): Promise<ReportScope> {
 export async function requireClientAccess(
   user: UserWithPermissions,
   clientId: string | null,
+  tx?: AccessClient,
 ): Promise<void> {
-  if (!clientInScope(await scopeOf(user), clientId)) {
+  if (!clientInScope(await getClientAccessScope(user, tx), clientId)) {
     businessRule("Sin acceso a los datos de este Cliente.");
   }
 }
@@ -82,15 +96,16 @@ export async function requireClientAccess(
 export async function loadIncidentFor(
   user: UserWithPermissions,
   incidentId: number,
+  tx: AccessClient = prisma,
 ) {
-  const incident = await prisma.incident.findFirst({
+  const incident = await tx.incident.findFirst({
     where: { id: incidentId, active: true },
     select: { id: true, clientId: true },
   });
   if (!incident) {
     businessRule("No encontrado.");
   }
-  await requireClientAccess(user, incident.clientId);
+  await requireClientAccess(user, incident.clientId, tx);
   return incident;
 }
 
@@ -113,9 +128,10 @@ export async function loadAssignmentFor(
   user: UserWithPermissions,
   assignmentId: string,
   mode: AssignmentAccessMode,
+  tx: AccessClient = prisma,
 ) {
-  const assignment = await prisma.assignment.findFirst({
-    where: { id: assignmentId, active: true },
+  const assignment = await tx.assignment.findFirst({
+    where: { id: assignmentId, active: true, incident: { active: true } },
     select: {
       id: true,
       incidentId: true,
@@ -127,11 +143,11 @@ export async function loadAssignmentFor(
   if (!assignment) {
     businessRule("No encontrado.");
   }
-  await requireClientAccess(user, assignment.incident.clientId);
+  await requireClientAccess(user, assignment.incident.clientId, tx);
   if (mode === "worker") {
-    await ensureCallerIsAssigneeOrAdmin(user.id, assignment.assignees);
+    await ensureCallerIsAssigneeOrAdmin(user.id, assignment.assignees, tx);
   } else if (mode === "manager") {
-    await ensureCallerManagesAll(user.id);
+    await ensureCallerManagesAll(user.id, tx);
   }
   return assignment;
 }
@@ -146,10 +162,11 @@ export async function loadAssignmentFor(
 export async function ensureCallerIsAssigneeOrAdmin(
   callerId: string,
   assignees: { userId: string }[],
+  tx: AccessClient = prisma,
 ): Promise<boolean> {
   const isAssignee = assignees.some((a) => a.userId === callerId);
   if (isAssignee) return true;
-  const override = await prisma.user.count({
+  const override = await tx.user.count({
     where: { id: callerId, ...whereHasPermission("assignments:manage-all") },
   });
   if (override > 0) return true;
@@ -163,8 +180,11 @@ export async function ensureCallerIsAssigneeOrAdmin(
  * assigned to. Checked against the database (like the worker override above)
  * rather than the JWT, so a just-granted permission applies immediately.
  */
-async function ensureCallerManagesAll(callerId: string): Promise<void> {
-  const override = await prisma.user.count({
+async function ensureCallerManagesAll(
+  callerId: string,
+  tx: AccessClient,
+): Promise<void> {
+  const override = await tx.user.count({
     where: { id: callerId, ...whereHasPermission("assignments:manage-all") },
   });
   if (override === 0) {
@@ -176,15 +196,19 @@ async function ensureCallerManagesAll(callerId: string): Promise<void> {
  * Load an active line the caller may see, or raise. Lines reach their Client
  * directly via `line.clientId`.
  */
-export async function loadLineFor(user: UserWithPermissions, lineId: number) {
-  const line = await prisma.line.findFirst({
+export async function loadLineFor(
+  user: UserWithPermissions,
+  lineId: number,
+  tx: AccessClient = prisma,
+) {
+  const line = await tx.line.findFirst({
     where: { id: lineId, active: true },
     select: { id: true, clientId: true },
   });
   if (!line) {
     businessRule("No encontrado.");
   }
-  await requireClientAccess(user, line.clientId);
+  await requireClientAccess(user, line.clientId, tx);
   return line;
 }
 
@@ -195,15 +219,16 @@ export async function loadLineFor(user: UserWithPermissions, lineId: number) {
 export async function loadEquipmentFor(
   user: UserWithPermissions,
   equipmentId: number,
+  tx: AccessClient = prisma,
 ) {
-  const equipment = await prisma.equipment.findFirst({
+  const equipment = await tx.equipment.findFirst({
     where: { id: equipmentId, active: true },
     select: { id: true, lineId: true, line: { select: { clientId: true } } },
   });
   if (!equipment) {
     businessRule("No encontrado.");
   }
-  await requireClientAccess(user, equipment.line.clientId);
+  await requireClientAccess(user, equipment.line.clientId, tx);
   return equipment;
 }
 
@@ -226,9 +251,10 @@ export type ClientRefs = {
 export async function assertBelongsToClient(
   refs: ClientRefs,
   clientId: string | null,
+  tx: AccessClient = prisma,
 ): Promise<void> {
   if (refs.lineId != null) {
-    const line = await prisma.line.findFirst({
+    const line = await tx.line.findFirst({
       where: { id: refs.lineId, active: true },
       select: { clientId: true },
     });
@@ -237,7 +263,7 @@ export async function assertBelongsToClient(
     }
   }
   if (refs.equipmentId != null) {
-    const equipment = await prisma.equipment.findFirst({
+    const equipment = await tx.equipment.findFirst({
       where: { id: refs.equipmentId, active: true },
       select: { line: { select: { clientId: true } } },
     });
@@ -246,7 +272,7 @@ export async function assertBelongsToClient(
     }
   }
   if (refs.scheduleId != null) {
-    const schedule = await prisma.schedule.findFirst({
+    const schedule = await tx.schedule.findFirst({
       where: { id: refs.scheduleId, active: true },
       select: {
         clients: { where: { active: true }, select: { clientId: true } },

@@ -113,6 +113,8 @@ export interface SaveDraftInput {
   photo?: File;
   /** Capturing user — entry flushes only under this session (H-14). */
   userId?: string;
+  /** Reuse the first online attempt's identity after an ambiguous response. */
+  identity?: { key: string; capturedAt: string };
 }
 
 /**
@@ -121,10 +123,10 @@ export interface SaveDraftInput {
  */
 export function saveDraft(input: SaveDraftInput): EnqueueResult {
   const entry: OutboxEntry = {
-    key: newOutboxKey(),
+    key: input.identity?.key ?? newOutboxKey(),
     kind: input.kind,
     fields: input.fields,
-    capturedAt: new Date().toISOString(),
+    capturedAt: input.identity?.capturedAt ?? new Date().toISOString(),
     attempts: 0,
     photoName: input.photo?.name,
     ...(input.userId ? { userId: input.userId } : {}),

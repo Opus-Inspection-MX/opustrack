@@ -65,11 +65,20 @@ export function assertOfflineFreshness(
 
 type DedupeReader = {
   actionIdempotency: {
-    findUnique: (args: {
-      where: { key: string };
-    }) => Promise<{ targetId: string | null } | null>;
+    findUnique: (args: { where: { key: string } }) => Promise<{
+      targetId: string | null;
+      actorId: string | null;
+      action: string;
+      requestTargetId: string | null;
+    } | null>;
   };
 };
+
+export interface ReplayBinding {
+  actorId: string;
+  action: string;
+  requestTargetId: string;
+}
 
 /**
  * Known key → live target id. The caller reloads the live row and returns
@@ -78,8 +87,19 @@ type DedupeReader = {
 export async function findReplayTargetId(
   db: DedupeReader,
   key: string,
+  binding: ReplayBinding,
 ): Promise<string | null> {
   const hit = await db.actionIdempotency.findUnique({ where: { key } });
+  if (
+    hit &&
+    (hit.actorId !== binding.actorId ||
+      hit.action !== binding.action ||
+      hit.requestTargetId !== binding.requestTargetId)
+  ) {
+    businessRule(
+      "La llave de reintento no corresponde a este usuario, acción o registro. Revise el borrador antes de volver a enviarlo.",
+    );
+  }
   return hit?.targetId ?? null;
 }
 
@@ -99,15 +119,21 @@ export function isP2002(error: unknown): boolean {
 type DedupeWriter = {
   actionIdempotency: {
     create: (args: {
-      data: { key: string; action: string; targetId: string };
+      data: {
+        key: string;
+        action: string;
+        targetId: string;
+        actorId: string;
+        requestTargetId: string;
+      };
     }) => Promise<unknown>;
   };
 };
 
 /**
- * Claim a key for a freshly applied target. Only P2002 (a concurrent flush
- * won the race) is swallowed — any other fault propagates. Sequential
- * retries never reach here twice: the pre-transaction lookup converges first.
+ * Claim a key for a freshly applied target. Duplicate claims propagate and
+ * roll back the complete mutation. Sequential retries converge before writing;
+ * concurrent losers converge outside the transaction using the bound receipt.
  *
  * Accepts any client carrying the delegate (transaction or root): the
  * assignment actions claim atomically inside their `$transaction`. Trip
@@ -119,16 +145,11 @@ export async function claimIdempotencyKey(
   key: string,
   action: string,
   targetId: string,
+  binding: Pick<ReplayBinding, "actorId" | "requestTargetId">,
 ): Promise<void> {
-  await tx.actionIdempotency
-    .create({ data: { key, action, targetId } })
-    .catch((error: unknown) => {
-      if (
-        typeof error === "object" &&
-        error !== null &&
-        (error as { code?: string }).code === "P2002"
-      )
-        return;
-      throw error;
-    });
+  // A duplicate claim aborts the complete transaction. Convergence happens
+  // outside the transaction after validating the committed binding again.
+  await tx.actionIdempotency.create({
+    data: { key, action, targetId, ...binding },
+  });
 }

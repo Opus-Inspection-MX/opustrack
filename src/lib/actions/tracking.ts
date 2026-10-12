@@ -3,7 +3,13 @@
 import type { Prisma } from "@prisma/client";
 import { AuditAction, AuditEntity, IncidentEventType } from "@prisma/client";
 import { revalidatePath } from "next/cache";
+import { resolveAssignmentStatusId } from "@/lib/assignments/ensure-fsrs";
 import { logAudit } from "@/lib/audit/log-audit";
+import {
+  assertBelongsToClient,
+  loadAssignmentFor,
+  loadIncidentFor,
+} from "@/lib/auth/access";
 import { requirePermission } from "@/lib/auth/auth";
 import {
   getReportScope,
@@ -45,6 +51,7 @@ import {
   normalizePagination,
   type TrackingPagination,
 } from "@/lib/tracking/pagination";
+import { isFsrUnavailable } from "@/lib/utils/availability";
 import { localWallTimeToUTC, mxDayRange } from "@/lib/utils/datetime";
 import {
   BusinessRuleError,
@@ -219,9 +226,12 @@ async function notifyNewlyEnabledFsrs(
 }
 
 /** Same check `createAssignment` runs, so both paths accept the same people. */
-async function assertAreFsrs(userIds: string[]): Promise<boolean> {
+async function assertAreFsrs(
+  userIds: string[],
+  client: Prisma.TransactionClient | typeof prisma = prisma,
+): Promise<boolean> {
   if (userIds.length === 0) return true;
-  const fsrs = await prisma.user.findMany({
+  const fsrs = await client.user.findMany({
     where: { id: { in: userIds }, active: true, ...whereHasRole(ROLE.FSR) },
     select: { id: true },
   });
@@ -621,186 +631,286 @@ export async function getTrackingFsrs() {
 }
 
 export async function assignFSRToIncident(incidentId: number, fsrId: string) {
-  try {
-    const actor = await requirePermission("tracking:update");
+  return guarded(async () => {
+    try {
+      const actor = await requirePermission("tracking:update");
 
-    if (!(await assertAreFsrs([fsrId]))) {
-      return rejected(NOT_AN_FSR);
-    }
+      if (!(await assertAreFsrs([fsrId]))) {
+        return rejected(NOT_AN_FSR);
+      }
 
-    const { assignmentId, added } = await transactionWithNotifications(
-      async (tx) => {
-        await enableFsrsOnIncident(tx, incidentId, [fsrId], actor.id);
-
-        const existingAssignment = await tx.assignment.findFirst({
-          where: { incidentId, active: true },
-          select: { id: true },
-          orderBy: { createdAt: "desc" },
-        });
-
-        if (existingAssignment) {
-          const previous = await tx.assignmentAssignee.findUnique({
-            where: {
-              assignmentId_userId: {
-                assignmentId: existingAssignment.id,
-                userId: fsrId,
-              },
-            },
-            select: { active: true },
+      const { assignmentId, added } = await transactionWithNotifications(
+        async (tx) => {
+          await loadIncidentFor(actor, incidentId, tx);
+          const incident = await tx.incident.findUnique({
+            where: { id: incidentId, active: true },
+            select: { status: { select: { code: true, name: true } } },
           });
-          await tx.assignmentAssignee.upsert({
+          if (!incident) businessRule("No encontrado.");
+          assertIncidentMutable(codeOf(incident.status));
+          if (!(await assertAreFsrs([fsrId], tx))) businessRule(NOT_AN_FSR);
+          await enableFsrsOnIncident(tx, incidentId, [fsrId], actor.id);
+
+          const existingAssignment = await tx.assignment.findFirst({
             where: {
-              assignmentId_userId: {
+              incidentId,
+              active: true,
+              NOT: { status: { code: ASSIGNMENT_STATE.CERRADO } },
+            },
+            select: {
+              id: true,
+              scheduledDate: true,
+              status: { select: { code: true, name: true } },
+            },
+            orderBy: { createdAt: "desc" },
+          });
+
+          if (existingAssignment) {
+            await loadAssignmentFor(
+              actor,
+              existingAssignment.id,
+              "manager",
+              tx,
+            );
+            if (
+              existingAssignment.scheduledDate &&
+              (await isFsrUnavailable(
+                fsrId,
+                existingAssignment.scheduledDate,
+                tx,
+              ))
+            )
+              businessRule(
+                "El técnico no está disponible en la fecha programada.",
+              );
+            const previous = await tx.assignmentAssignee.findUnique({
+              where: {
+                assignmentId_userId: {
+                  assignmentId: existingAssignment.id,
+                  userId: fsrId,
+                },
+              },
+              select: { active: true },
+            });
+            await tx.assignmentAssignee.upsert({
+              where: {
+                assignmentId_userId: {
+                  assignmentId: existingAssignment.id,
+                  userId: fsrId,
+                },
+              },
+              update: { active: true, assignedAt: new Date() },
+              create: {
                 assignmentId: existingAssignment.id,
                 userId: fsrId,
+                active: true,
               },
-            },
-            update: { active: true },
-            create: {
+            });
+            if (!previous?.active) {
+              const statusId =
+                codeOf(existingAssignment.status) ===
+                ASSIGNMENT_STATE.PENDIENTE_DE_ASIGNACION
+                  ? await resolveAssignmentStatusId(
+                      tx,
+                      ASSIGNMENT_STATE.ASIGNADO,
+                    )
+                  : undefined;
+              await tx.assignment.update({
+                where: { id: existingAssignment.id },
+                data: {
+                  statusId,
+                  assignedAt: new Date(),
+                  seenAt: null,
+                  seenById: null,
+                },
+              });
+            }
+            await syncIncidentState(incidentId, tx);
+            return {
               assignmentId: existingAssignment.id,
-              userId: fsrId,
-              active: true,
+              added: !previous?.active,
+            };
+          }
+
+          const initialStatus = await tx.assignmentStatus.findFirst({
+            where: { code: ASSIGNMENT_STATE.ASIGNADO },
+          });
+
+          const created = await tx.assignment.create({
+            data: {
+              incidentId,
+              statusId: initialStatus?.id,
+              assignedAt: new Date(),
+              assignees: { create: [{ userId: fsrId }] },
             },
+            select: { id: true },
           });
           await syncIncidentState(incidentId, tx);
-          return {
-            assignmentId: existingAssignment.id,
-            added: !previous?.active,
-          };
-        }
+          return { assignmentId: created.id, added: true };
+        },
+      );
 
-        const initialStatus = await tx.assignmentStatus.findFirst({
-          where: { code: ASSIGNMENT_STATE.ASIGNADO },
-        });
+      if (added) {
+        await notifyNewAssignees(assignmentId, incidentId, [fsrId], actor.id);
+        await notifyNewlyEnabledFsrs(incidentId, [fsrId], actor.id);
+      }
 
-        const created = await tx.assignment.create({
-          data: {
-            incidentId,
-            statusId: initialStatus?.id,
-            assignedAt: new Date(),
-            assignees: { create: [{ userId: fsrId }] },
-          },
-          select: { id: true },
-        });
-        await syncIncidentState(incidentId, tx);
-        return { assignmentId: created.id, added: true };
-      },
-    );
-
-    if (added) {
-      await notifyNewAssignees(assignmentId, incidentId, [fsrId], actor.id);
-      await notifyNewlyEnabledFsrs(incidentId, [fsrId], actor.id);
+      revalidatePath("/admin/tracking");
+      return ok();
+    } catch (error) {
+      rethrowBusinessError(error);
+      logger.error("Error assigning FSR to incident:", error);
+      throw new Error("Failed to assign FSR");
     }
-
-    revalidatePath("/admin/tracking");
-    return ok();
-  } catch (error) {
-    rethrowBusinessError(error);
-    logger.error("Error assigning FSR to incident:", error);
-    throw new Error("Failed to assign FSR");
-  }
+  });
 }
 
 export async function updateAssignmentAssignees(
   assignmentId: string,
   userIds: string[],
 ) {
-  try {
-    const actor = await requirePermission("tracking:update");
+  return guarded(async () => {
+    try {
+      const actor = await requirePermission("tracking:update");
 
-    const uniqueIds = Array.from(new Set(userIds.filter(Boolean)));
+      const uniqueIds = Array.from(new Set(userIds.filter(Boolean)));
 
-    const assignment = await prisma.assignment.findUnique({
-      where: { id: assignmentId },
-      select: {
-        incidentId: true,
-        incident: {
-          select: { status: { select: { code: true, name: true } } },
+      const { added, assignment } = await transactionWithNotifications(
+        async (tx) => {
+          await loadAssignmentFor(actor, assignmentId, "manager", tx);
+          const assignment = await tx.assignment.findUnique({
+            where: { id: assignmentId, active: true },
+            select: {
+              incidentId: true,
+              scheduledDate: true,
+              status: { select: { code: true, name: true } },
+              incident: {
+                select: { status: { select: { code: true, name: true } } },
+              },
+            },
+          });
+          if (!assignment) {
+            businessRule("La asignación ya no existe.");
+          }
+          const terminalBlock = terminalIncidentMessage(
+            codeOf(assignment.incident?.status),
+          );
+          if (terminalBlock) businessRule(terminalBlock);
+          if (!(await assertAreFsrs(uniqueIds, tx))) {
+            businessRule(NOT_AN_FSR);
+          }
+
+          if (assignment.scheduledDate) {
+            for (const userId of uniqueIds) {
+              if (await isFsrUnavailable(userId, assignment.scheduledDate, tx))
+                businessRule(
+                  "El técnico no está disponible en la fecha programada.",
+                );
+            }
+          }
+
+          const existing = await tx.assignmentAssignee.findMany({
+            where: { assignmentId },
+            select: { userId: true, active: true },
+          });
+
+          const existingActive = new Set(
+            existing.filter((e) => e.active).map((e) => e.userId),
+          );
+          const requested = new Set(uniqueIds);
+
+          const toRemove = [...existingActive].filter((u) => !requested.has(u));
+          const toAdd = uniqueIds.filter((u) => !existingActive.has(u));
+
+          if (toRemove.length > 0) {
+            await tx.assignmentAssignee.updateMany({
+              where: { assignmentId, userId: { in: toRemove } },
+              data: { active: false },
+            });
+          }
+
+          for (const userId of toAdd) {
+            await tx.assignmentAssignee.upsert({
+              where: { assignmentId_userId: { assignmentId, userId } },
+              update: { active: true, assignedAt: new Date() },
+              create: { assignmentId, userId, active: true },
+            });
+          }
+
+          await enableFsrsOnIncident(
+            tx,
+            assignment.incidentId,
+            toAdd,
+            actor.id,
+          );
+          if (toAdd.length || toRemove.length) {
+            const current = codeOf(assignment.status);
+            const next =
+              uniqueIds.length === 0 &&
+              (current === ASSIGNMENT_STATE.ASIGNADO ||
+                current === ASSIGNMENT_STATE.PENDIENTE_DE_ASIGNACION)
+                ? ASSIGNMENT_STATE.PENDIENTE_DE_ASIGNACION
+                : uniqueIds.length > 0 &&
+                    current === ASSIGNMENT_STATE.PENDIENTE_DE_ASIGNACION
+                  ? ASSIGNMENT_STATE.ASIGNADO
+                  : null;
+            const statusId = next
+              ? await resolveAssignmentStatusId(tx, next)
+              : undefined;
+            await tx.assignment.update({
+              where: { id: assignmentId },
+              data: {
+                statusId,
+                assignedAt: new Date(),
+                seenAt: null,
+                seenById: null,
+              },
+            });
+          }
+          await syncIncidentState(assignment.incidentId, tx);
+
+          return { added: toAdd, assignment };
         },
-      },
-    });
-    if (!assignment) {
-      return rejected("La asignación ya no existe.");
-    }
-    const terminalBlock = terminalIncidentMessage(
-      codeOf(assignment.incident?.status),
-    );
-    if (terminalBlock) return rejected(terminalBlock);
-    if (!(await assertAreFsrs(uniqueIds))) {
-      return rejected(NOT_AN_FSR);
-    }
-
-    const added = await prisma.$transaction(async (tx) => {
-      const existing = await tx.assignmentAssignee.findMany({
-        where: { assignmentId },
-        select: { userId: true, active: true },
-      });
-
-      const existingActive = new Set(
-        existing.filter((e) => e.active).map((e) => e.userId),
       );
-      const requested = new Set(uniqueIds);
 
-      const toRemove = [...existingActive].filter((u) => !requested.has(u));
-      const toAdd = uniqueIds.filter((u) => !existingActive.has(u));
-
-      if (toRemove.length > 0) {
-        await tx.assignmentAssignee.updateMany({
-          where: { assignmentId, userId: { in: toRemove } },
-          data: { active: false },
-        });
+      // Only the newcomers. Re-saving an unchanged assignment must not spam
+      // everyone who was already on it.
+      if (added.length > 0) {
+        await notifyNewAssignees(
+          assignmentId,
+          assignment.incidentId,
+          added,
+          actor.id,
+        );
+        await notifyNewlyEnabledFsrs(assignment.incidentId, added, actor.id);
       }
 
-      for (const userId of toAdd) {
-        await tx.assignmentAssignee.upsert({
-          where: { assignmentId_userId: { assignmentId, userId } },
-          update: { active: true },
-          create: { assignmentId, userId, active: true },
-        });
-      }
-
-      await enableFsrsOnIncident(tx, assignment.incidentId, toAdd, actor.id);
-
-      return toAdd;
-    });
-
-    // Only the newcomers. Re-saving an unchanged assignment must not spam
-    // everyone who was already on it.
-    if (added.length > 0) {
-      await notifyNewAssignees(
-        assignmentId,
-        assignment.incidentId,
-        added,
-        actor.id,
-      );
-      await notifyNewlyEnabledFsrs(assignment.incidentId, added, actor.id);
-    }
-
-    const updatedAssignment = await prisma.assignment.findUnique({
-      where: { id: assignmentId },
-      include: {
-        assignees: {
-          where: { active: true },
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
+      const updatedAssignment = await prisma.assignment.findUnique({
+        where: { id: assignmentId, active: true },
+        include: {
+          assignees: {
+            where: { active: true },
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                },
               },
             },
           },
         },
-      },
-    });
+      });
 
-    revalidatePath("/admin/tracking");
-    return ok({ assignment: updatedAssignment });
-  } catch (error) {
-    rethrowBusinessError(error);
-    logger.error("Error updating assignment assignees:", error);
-    throw new Error("Failed to update assignment assignees");
-  }
+      revalidatePath("/admin/tracking");
+      return ok({ assignment: updatedAssignment });
+    } catch (error) {
+      rethrowBusinessError(error);
+      logger.error("Error updating assignment assignees:", error);
+      throw new Error("Failed to update assignment assignees");
+    }
+  });
 }
 
 export async function updateIncidentDetails(
@@ -817,94 +927,106 @@ export async function updateIncidentDetails(
 ) {
   // RF-550: the actor is explicit — no AsyncLocalStorage across the
   // Server-Action boundary.
-  const { id: actorId } = await requirePermission("tracking:update");
+  const actor = await requirePermission("tracking:update");
+  const actorId = actor.id;
 
   return guarded(async () => {
     try {
-      const incident = await prisma.incident.findUnique({
-        where: { id: incidentId },
-        select: {
-          statusId: true,
-          status: { select: { code: true, name: true } },
-          assignments: {
-            where: { active: true },
-            select: { id: true },
-            take: 1,
+      await transactionWithNotifications(async (tx) => {
+        await loadIncidentFor(actor, incidentId, tx);
+        const incident = await tx.incident.findUnique({
+          where: { id: incidentId, active: true },
+          select: {
+            statusId: true,
+            clientId: true,
+            status: { select: { code: true, name: true } },
+            assignments: {
+              where: { active: true },
+              select: { id: true },
+              take: 1,
+            },
           },
-        },
-      });
-      if (!incident) businessRule("La incidencia ya no existe.");
-      assertIncidentMutable(codeOf(incident.status));
+        });
+        if (!incident) businessRule("La incidencia ya no existe.");
+        assertIncidentMutable(codeOf(incident.status));
 
-      // The status field is machine-owned: the edit may only walk a legal
-      // edge, never jump. Cancellation has its own action (it records
-      // cancelledAt + reason), so it is refused here.
-      // Resolved by stable code (H-08): a renamed label must not bypass the
-      // machine or its cancel guard.
-      const from = codeOf(incident.status);
-      const target = data.statusId
-        ? await prisma.incidentStatus.findUnique({
-            where: { id: data.statusId },
-            select: { code: true, name: true },
-          })
-        : null;
-      // `isIncidentState` validates at runtime; the cast below only satisfies
-      // the compiler, which cannot narrow through the optional chain.
-      const toName = codeOf(target);
-      if (data.statusId && !isIncidentState(toName)) {
-        businessRule("Estado de incidencia no válido.");
-      }
-      if (toName && from && toName !== from) {
-        if (toName === INCIDENT_STATE.CANCELADA) {
-          businessRule(
-            "Para cancelar una incidencia usa la acción de cancelación.",
+        // The status field is machine-owned: the edit may only walk a legal
+        // edge, never jump. Cancellation has its own action (it records
+        // cancelledAt + reason), so it is refused here.
+        // Resolved by stable code (H-08): a renamed label must not bypass the
+        // machine or its cancel guard.
+        const from = codeOf(incident.status);
+        const target = data.statusId
+          ? await tx.incidentStatus.findUnique({
+              where: { id: data.statusId },
+              select: { code: true, name: true },
+            })
+          : null;
+        // `isIncidentState` validates at runtime; the cast below only satisfies
+        // the compiler, which cannot narrow through the optional chain.
+        const toName = codeOf(target);
+        if (data.statusId && !isIncidentState(toName)) {
+          businessRule("Estado de incidencia no válido.");
+        }
+        if (toName && from && toName !== from) {
+          if (toName === INCIDENT_STATE.CANCELADA) {
+            businessRule(
+              "Para cancelar una incidencia usa la acción de cancelación.",
+            );
+          }
+          assertIncidentTransition(
+            from as IncidentState,
+            toName as IncidentState,
           );
         }
-        assertIncidentTransition(
-          from as IncidentState,
-          toName as IncidentState,
+
+        await assertBelongsToClient(
+          { lineId: data.lineId, equipmentId: data.equipmentId },
+          incident.clientId,
+          tx,
         );
-      }
+        await tx.incident.update({
+          where: { id: incidentId },
+          data: {
+            title: data.title,
+            description: data.description,
+            // The form sends a CDMX wall clock ("YYYY-MM-DDTHH:mm"). `new Date()`
+            // would read it in the server's zone — UTC in production — and shift
+            // every edited timestamp by the offset.
+            reportedAt: wallClockToUTC(data.reportedAt),
+            resolvedAt: data.resolvedAt
+              ? wallClockToUTC(data.resolvedAt)
+              : null,
+            statusId: target ? data.statusId : incident.statusId,
+            lineId: data.lineId || null,
+            equipmentId: data.equipmentId || null,
+            updatedById: actorId,
+          },
+        });
 
-      await prisma.incident.update({
-        where: { id: incidentId },
-        data: {
-          title: data.title,
-          description: data.description,
-          // The form sends a CDMX wall clock ("YYYY-MM-DDTHH:mm"). `new Date()`
-          // would read it in the server's zone — UTC in production — and shift
-          // every edited timestamp by the offset.
-          reportedAt: wallClockToUTC(data.reportedAt),
-          resolvedAt: data.resolvedAt ? wallClockToUTC(data.resolvedAt) : null,
-          statusId: target ? data.statusId : incident.statusId,
-          lineId: data.lineId || null,
-          equipmentId: data.equipmentId || null,
-          updatedById: actorId,
-        },
+        // RF-553: scalar edits ARE auditable management — the sync below (if
+        // any) owns the status transition in IncidentEvent, this row owns the
+        // attributable edit. Free text stays out (allowlist holds IDs only).
+        await logAudit(tx, {
+          actorId,
+          entity: AuditEntity.INCIDENT,
+          entityId: String(incidentId),
+          action: AuditAction.UPDATE,
+          payload: {
+            statusId: target ? data.statusId : incident.statusId,
+            lineId: data.lineId || null,
+            equipmentId: data.equipmentId || null,
+          },
+        });
+
+        // Incident state is derived from its assignments: when any exist, sync
+        // reconciles the manual edit (a forced CERRADO with open assignments
+        // snaps back instead of lying). With no assignments there is nothing to
+        // derive from, so the validated manual state stands.
+        if (incident.assignments.length > 0) {
+          await syncIncidentState(incidentId, tx, { actorId });
+        }
       });
-
-      // RF-553: scalar edits ARE auditable management — the sync below (if
-      // any) owns the status transition in IncidentEvent, this row owns the
-      // attributable edit. Free text stays out (allowlist holds IDs only).
-      await logAudit(prisma, {
-        actorId,
-        entity: AuditEntity.INCIDENT,
-        entityId: String(incidentId),
-        action: AuditAction.UPDATE,
-        payload: {
-          statusId: target ? data.statusId : incident.statusId,
-          lineId: data.lineId || null,
-          equipmentId: data.equipmentId || null,
-        },
-      });
-
-      // Incident state is derived from its assignments: when any exist, sync
-      // reconciles the manual edit (a forced CERRADO with open assignments
-      // snaps back instead of lying). With no assignments there is nothing to
-      // derive from, so the validated manual state stands.
-      if (incident.assignments.length > 0) {
-        await syncIncidentState(incidentId);
-      }
 
       revalidatePath("/admin/tracking");
       return ok();
@@ -959,35 +1081,38 @@ export async function overrideIncidentStatus(
       );
     }
 
-    const incident = await prisma.incident.findUnique({
-      where: { id: incidentId },
-      select: {
-        status: { select: { code: true, name: true } },
-        resolvedAt: true,
-      },
-    });
-    if (!incident) businessRule("La incidencia ya no existe.");
-    const from = codeOf(incident.status);
-    if (from === INCIDENT_STATE.CANCELADA) {
-      businessRule("La incidencia está cancelada. No se pueden hacer cambios.");
-    }
-    if (from === toStatusCode) {
-      businessRule(`La incidencia ya está en ${toStatusCode}.`);
-    }
+    const from = await transactionWithNotifications(async (tx) => {
+      await loadIncidentFor(actor, incidentId, tx);
+      const incident = await tx.incident.findUnique({
+        where: { id: incidentId, active: true },
+        select: {
+          status: { select: { code: true, name: true } },
+          resolvedAt: true,
+        },
+      });
+      if (!incident) businessRule("La incidencia ya no existe.");
+      const from = codeOf(incident.status);
+      if (from === INCIDENT_STATE.CANCELADA) {
+        businessRule(
+          "La incidencia está cancelada. No se pueden hacer cambios.",
+        );
+      }
+      if (from === toStatusCode) {
+        businessRule(`La incidencia ya está en ${toStatusCode}.`);
+      }
 
-    const target = await prisma.incidentStatus.findUnique({
-      where: { code: toStatusCode },
-      select: { id: true },
-    });
-    if (!target) {
-      throw new Error(
-        `IncidentStatus '${toStatusCode}' no existe en el catálogo`,
-      );
-    }
+      const target = await tx.incidentStatus.findUnique({
+        where: { code: toStatusCode },
+        select: { id: true },
+      });
+      if (!target) {
+        throw new Error(
+          `IncidentStatus '${toStatusCode}' no existe en el catálogo`,
+        );
+      }
 
-    const resolvedAt =
-      toStatusCode === INCIDENT_STATE.CERRADO ? new Date() : null;
-    await prisma.$transaction(async (tx) => {
+      const resolvedAt =
+        toStatusCode === INCIDENT_STATE.CERRADO ? new Date() : null;
       await tx.incident.update({
         where: { id: incidentId },
         data: { statusId: target.id, resolvedAt },
@@ -1005,6 +1130,7 @@ export async function overrideIncidentStatus(
           priorResolvedAt: toIso(incident.resolvedAt),
         },
       });
+      return from;
     });
 
     revalidatePath("/admin/tracking");
@@ -1022,125 +1148,144 @@ export async function updateAssignmentDetails(
     finishedAt?: string | null;
   },
 ) {
-  await requirePermission("tracking:update");
+  const actor = await requirePermission("tracking:update");
 
   return guarded(async () => {
     try {
-      const row = await prisma.assignment.findUnique({
-        where: { id: assignmentId },
-        select: {
-          incidentId: true,
-          status: { select: { code: true, name: true } },
-          startedAt: true,
-          finishedAt: true,
-          startLatitude: true,
-          startLongitude: true,
-          endLatitude: true,
-          endLongitude: true,
-          odtFolio: true,
-          incident: {
-            select: { status: { select: { code: true, name: true } } },
+      const result = await transactionWithNotifications(async (tx) => {
+        await loadAssignmentFor(actor, assignmentId, "manager", tx);
+        const row = await tx.assignment.findUnique({
+          where: { id: assignmentId, active: true },
+          select: {
+            incidentId: true,
+            status: { select: { code: true, name: true } },
+            startedAt: true,
+            finishedAt: true,
+            startLatitude: true,
+            startLongitude: true,
+            endLatitude: true,
+            endLongitude: true,
+            odtFolio: true,
+            incident: {
+              select: { status: { select: { code: true, name: true } } },
+            },
           },
-        },
-      });
-      if (!row) businessRule("La asignación ya no existe.");
-
-      // Assignments of a terminal incident are read-only: every other
-      // assignment mutation enforces this, and the tracking editor must not
-      // be the back door.
-      assertIncidentMutable(codeOf(row.incident?.status));
-
-      // CDMX wall clock, like `updateIncidentDetails` above. A plain `new Date()`
-      // reads "YYYY-MM-DDTHH:mm" in the SERVER's zone — UTC on Vercel — so the
-      // hour the operator typed was stored six hours off.
-      const startedAt = data.startedAt ? wallClockToUTC(data.startedAt) : null;
-      const finishedAt = data.finishedAt
-        ? wallClockToUTC(data.finishedAt)
-        : null;
-
-      const target = data.statusId
-        ? await prisma.assignmentStatus.findUnique({
-            where: { id: data.statusId },
-            select: { code: true, name: true },
-          })
-        : null;
-      if (data.statusId && !isAssignmentState(codeOf(target))) {
-        businessRule("Estado de asignación no válido.");
-      }
-
-      // The dates are what the state means, so they are checked together with it.
-      // Closing an assignment with no end date leaves a finished job that never
-      // finished, and every report that measures duration silently skips it.
-      // Resolved by stable code (H-08).
-      const targetCode = codeOf(target);
-      if (targetCode) {
-        const name = targetCode;
-
-        if (name === ASSIGNMENT_STATE.CERRADO && !finishedAt) {
-          return rejected(
-            "No se puede cerrar la asignación sin fecha de fin. Captúrala primero.",
-          );
-        }
-        if (
-          (name === ASSIGNMENT_STATE.INICIADO ||
-            name === ASSIGNMENT_STATE.EN_PROGRESO ||
-            name === ASSIGNMENT_STATE.CERRADO) &&
-          !startedAt
-        ) {
-          return rejected(
-            `No se puede marcar como ${name} sin fecha de inicio. Captúrala primero.`,
-          );
-        }
-        if (startedAt && finishedAt && finishedAt < startedAt) {
-          return rejected(
-            "La fecha de fin no puede ser anterior a la de inicio.",
-          );
-        }
-      }
-
-      // The status field is machine-owned: the edit may only walk a legal
-      // edge, and the GPS/evidence/ODT preconditions of the target state are
-      // evaluated against the resulting row — this form writes no GPS columns
-      // and no evidence, so closing or starting work from here fails unless
-      // the dedicated actions already recorded them.
-      const from = codeOf(row.status);
-      const to = (codeOf(target) ?? from) as AssignmentState | null;
-      if (from && to && from !== to) {
-        assertAssignmentTransition(from as AssignmentState, to);
-      }
-      if (to) {
-        const attachmentCount =
-          to === ASSIGNMENT_STATE.CERRADO
-            ? await prisma.assignmentAttachment.count({
-                where: { assignmentId, active: true },
-              })
-            : 0;
-        assertAssignmentPreconditions(to, {
-          startedAt,
-          finishedAt,
-          startLatitude: row.startLatitude,
-          startLongitude: row.startLongitude,
-          endLatitude: row.endLatitude,
-          endLongitude: row.endLongitude,
-          attachmentCount,
-          odtFolio: row.odtFolio,
         });
-      }
+        if (!row) businessRule("La asignación ya no existe.");
 
-      await prisma.assignment.update({
-        where: { id: assignmentId },
-        data: {
-          statusId: data.statusId || null,
-          startedAt,
-          finishedAt,
-        },
+        // Assignments of a terminal incident are read-only: every other
+        // assignment mutation enforces this, and the tracking editor must not
+        // be the back door.
+        assertIncidentMutable(codeOf(row.incident?.status));
+
+        // CDMX wall clock, like `updateIncidentDetails` above. A plain `new Date()`
+        // reads "YYYY-MM-DDTHH:mm" in the SERVER's zone — UTC on Vercel — so the
+        // hour the operator typed was stored six hours off.
+        const startedAt =
+          data.startedAt === undefined
+            ? row.startedAt
+            : data.startedAt
+              ? wallClockToUTC(data.startedAt)
+              : null;
+        let finishedAt =
+          data.finishedAt === undefined
+            ? row.finishedAt
+            : data.finishedAt
+              ? wallClockToUTC(data.finishedAt)
+              : null;
+
+        const target = data.statusId
+          ? await tx.assignmentStatus.findUnique({
+              where: { id: data.statusId },
+              select: { code: true, name: true },
+            })
+          : null;
+        if (data.statusId && !isAssignmentState(codeOf(target))) {
+          businessRule("Estado de asignación no válido.");
+        }
+
+        // The dates are what the state means, so they are checked together with it.
+        // Closing an assignment with no end date leaves a finished job that never
+        // finished, and every report that measures duration silently skips it.
+        // Resolved by stable code (H-08).
+        const targetCode = codeOf(target);
+        if (targetCode) {
+          const name = targetCode;
+
+          if (name === ASSIGNMENT_STATE.CERRADO && !finishedAt) {
+            return rejected(
+              "No se puede cerrar la asignación sin fecha de fin. Captúrala primero.",
+            );
+          }
+          if (
+            (name === ASSIGNMENT_STATE.INICIADO ||
+              name === ASSIGNMENT_STATE.EN_PROGRESO ||
+              name === ASSIGNMENT_STATE.CERRADO) &&
+            !startedAt
+          ) {
+            return rejected(
+              `No se puede marcar como ${name} sin fecha de inicio. Captúrala primero.`,
+            );
+          }
+          if (startedAt && finishedAt && finishedAt < startedAt) {
+            return rejected(
+              "La fecha de fin no puede ser anterior a la de inicio.",
+            );
+          }
+        }
+
+        // The status field is machine-owned: the edit may only walk a legal
+        // edge, and the GPS/evidence/ODT preconditions of the target state are
+        // evaluated against the resulting row — this form writes no GPS columns
+        // and no evidence, so closing or starting work from here fails unless
+        // the dedicated actions already recorded them.
+        const from = codeOf(row.status);
+        const to = (codeOf(target) ?? from) as AssignmentState | null;
+        if (from && to && from !== to) {
+          if (
+            from === ASSIGNMENT_STATE.CERRADO &&
+            to === ASSIGNMENT_STATE.EN_PROGRESO
+          ) {
+            await requirePermission("assignments:reopen");
+            finishedAt = null;
+          }
+          assertAssignmentTransition(from as AssignmentState, to);
+        }
+        if (to) {
+          const attachmentCount =
+            to === ASSIGNMENT_STATE.CERRADO
+              ? await tx.assignmentAttachment.count({
+                  where: { assignmentId, active: true },
+                })
+              : 0;
+          assertAssignmentPreconditions(to, {
+            startedAt,
+            finishedAt,
+            startLatitude: row.startLatitude,
+            startLongitude: row.startLongitude,
+            endLatitude: row.endLatitude,
+            endLongitude: row.endLongitude,
+            attachmentCount,
+            odtFolio: row.odtFolio,
+          });
+        }
+
+        await tx.assignment.update({
+          where: { id: assignmentId },
+          data: {
+            statusId: data.statusId || undefined,
+            startedAt,
+            finishedAt,
+          },
+        });
+
+        // Incident state derives from its assignments — reconcile it.
+        await syncIncidentState(row.incidentId, tx, { actorId: actor.id });
+        return ok();
       });
-
-      // Incident state derives from its assignments — reconcile it.
-      await syncIncidentState(row.incidentId);
 
       revalidatePath("/admin/tracking");
-      return ok();
+      return result;
     } catch (error) {
       rethrowBusinessError(error);
       // Business rules must reach `guarded` as exceptions so they are

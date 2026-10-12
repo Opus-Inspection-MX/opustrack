@@ -58,6 +58,7 @@ import {
 } from "@/lib/constants/status-codes";
 import { logger } from "@/lib/observability/logger";
 import { describeEnqueueFailure, saveDraft } from "@/lib/offline/flush";
+import { newOutboxKey } from "@/lib/offline/outbox";
 import { ASSIGNMENT_STATE } from "@/lib/state-machine/assignment-machine";
 
 interface AssignmentStatus {
@@ -282,13 +283,19 @@ export default function FSRAssignmentDetailPage({
       return;
     }
     // Fully offline: skip the call and freeze the draft directly.
+    const identity = {
+      key: newOutboxKey(),
+      capturedAt: new Date().toISOString(),
+    };
     if (typeof navigator !== "undefined" && !navigator.onLine) {
-      queueStartDraft(coords.latitude, coords.longitude);
+      queueStartDraft(coords.latitude, coords.longitude, identity);
       return;
     }
     try {
       setActionLoading(true);
       const fd = new FormData();
+      fd.append("idempotencyKey", identity.key);
+      fd.append("capturedAt", identity.capturedAt);
       fd.append("assignmentId", assignmentId);
       fd.append("latitude", String(coords.latitude));
       fd.append("longitude", String(coords.longitude));
@@ -304,16 +311,21 @@ export default function FSRAssignmentDetailPage({
       // action-time evidence as a draft for retry. Business-rule failures
       // arrive as values above, never here.
       logger.error("Error starting asignación:", error);
-      queueStartDraft(coords.latitude, coords.longitude);
+      queueStartDraft(coords.latitude, coords.longitude, identity);
     } finally {
       setActionLoading(false);
     }
   };
 
-  const queueStartDraft = (latitude: number, longitude: number) => {
+  const queueStartDraft = (
+    latitude: number,
+    longitude: number,
+    identity: { key: string; capturedAt: string },
+  ) => {
     if (!assignmentId) return;
     const queued = saveDraft({
       kind: "startAssignmentWork",
+      identity,
       fields: {
         assignmentId,
         latitude: String(latitude),
@@ -384,13 +396,19 @@ export default function FSRAssignmentDetailPage({
       );
       return;
     }
+    const identity = {
+      key: newOutboxKey(),
+      capturedAt: new Date().toISOString(),
+    };
     if (typeof navigator !== "undefined" && !navigator.onLine) {
-      queueCloseDraft(coords.latitude, coords.longitude);
+      queueCloseDraft(coords.latitude, coords.longitude, identity);
       return;
     }
     try {
       setActionLoading(true);
       const fd = new FormData();
+      fd.append("idempotencyKey", identity.key);
+      fd.append("capturedAt", identity.capturedAt);
       fd.append("assignmentId", assignmentId);
       fd.append("latitude", String(coords.latitude));
       fd.append("longitude", String(coords.longitude));
@@ -406,16 +424,21 @@ export default function FSRAssignmentDetailPage({
       // Transport failure: freeze the close evidence as a draft. The server
       // re-validates preconditions (evidencia, ODT, estado) at flush time.
       logger.error("Error closing asignación:", error);
-      queueCloseDraft(coords.latitude, coords.longitude);
+      queueCloseDraft(coords.latitude, coords.longitude, identity);
     } finally {
       setActionLoading(false);
     }
   };
 
-  const queueCloseDraft = (latitude: number, longitude: number) => {
+  const queueCloseDraft = (
+    latitude: number,
+    longitude: number,
+    identity: { key: string; capturedAt: string },
+  ) => {
     if (!assignmentId) return;
     const queued = saveDraft({
       kind: "closeAssignment",
+      identity,
       fields: {
         assignmentId,
         latitude: String(latitude),

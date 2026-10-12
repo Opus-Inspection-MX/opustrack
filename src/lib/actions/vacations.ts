@@ -11,9 +11,11 @@ import {
   VACATION_STATUS,
 } from "@/lib/constants/status-codes";
 import { prisma } from "@/lib/database/prisma.singleton";
+import { serializableTransaction } from "@/lib/database/serializable-transaction";
 import {
   notifyVacationApproved,
   notifyVacationCancelled,
+  notifyVacationCorrected,
   notifyVacationRejected,
   notifyVacationRequested,
 } from "@/lib/notifications";
@@ -24,10 +26,10 @@ import {
   getPeriodBalance,
   resolveVacationPeriod,
 } from "@/lib/services/vacation-periods";
+import { vacationChargedDates } from "@/lib/services/vacation-periods-policy";
 import { ASSIGNMENT_STATE } from "@/lib/state-machine/assignment-machine";
 import { getHolidayDatesForYear } from "@/lib/utils/availability";
-import { mxDayRange } from "@/lib/utils/datetime";
-import { countBusinessDays } from "@/lib/utils/vacation-balance";
+import { mxDateString, mxDayRange } from "@/lib/utils/datetime";
 import {
   VacationCreateSchema,
   type VacationFormData,
@@ -183,7 +185,11 @@ export async function getVacationById(id: string) {
     },
   });
 
-  return vacation;
+  if (!vacation) return null;
+  return {
+    ...vacation,
+    chargeSnapshotAvailable: vacation.chargedDates.length > 0,
+  };
 }
 
 /**
@@ -258,45 +264,50 @@ export async function createVacation(data: VacationFormData) {
 
   const result = await guarded(async () => {
     validateVacationDates(data);
-
-    // Resolve PENDIENTE status id — by stable code (H-08).
-    const pendienteStatus = await prisma.vacationStatus.findFirst({
-      where: { code: VACATION_STATUS.PENDIENTE, active: true },
-      select: { id: true },
-    });
-
-    if (!pendienteStatus) {
-      throw new Error(
-        "Estado 'PENDIENTE' no encontrado. Verifique la configuración del sistema.",
-      );
+    if (startDate < mxDayRange(mxDateString(new Date())).gte) {
+      if (!managesAllVacations(caller))
+        businessRule("No puede solicitar vacaciones con fechas retroactivas.");
+      if (!data.reason?.trim())
+        businessRule(
+          "Debe indicar un motivo para registrar vacaciones retroactivas.",
+        );
     }
+    const vacation = await serializableTransaction(async (tx) => {
+      const employee = await tx.user.findUnique({
+        where: { id: targetUserId },
+        select: { active: true },
+      });
+      if (!employee?.active)
+        businessRule("El usuario seleccionado no está activo.");
 
-    const blockingStatuses = await prisma.vacationStatus.findMany({
-      where: {
-        code: { in: [VACATION_STATUS.PENDIENTE, VACATION_STATUS.APROBADA] },
-        active: true,
-      },
-      select: { id: true },
-    });
-    const blockingStatusIds = blockingStatuses.map((s) => s.id);
+      // Resolve PENDIENTE status id — by stable code (H-08).
+      const pendienteStatus = await tx.vacationStatus.findFirst({
+        where: { code: VACATION_STATUS.PENDIENTE, active: true },
+        select: { id: true },
+      });
 
-    // Sundays and active holidays are free; Saturdays count. Compute outside
-    // the transaction: the holiday catalog read is the slowest part.
-    const businessDaysUsed = await countBusinessDays(startDate, endDate);
+      if (!pendienteStatus) {
+        throw new Error(
+          "Estado 'PENDIENTE' no encontrado. Verifique la configuración del sistema.",
+        );
+      }
 
-    if (businessDaysUsed === 0) {
-      businessRule(
-        "El rango solicitado no incluye días de vacaciones computables (solo domingos o días festivos).",
-      );
-    }
+      const chargedDates = await vacationChargedDates(startDate, endDate, tx);
+      const businessDaysUsed = chargedDates.length;
 
-    const vacation = await prisma.$transaction(async (tx) => {
+      if (businessDaysUsed === 0) {
+        businessRule(
+          "El rango solicitado no incluye días de vacaciones computables (solo domingos o días festivos).",
+        );
+      }
+
       const period = await resolveVacationPeriod(
         targetUserId,
         startDate,
         endDate,
         tx,
         data.periodId,
+        businessDaysUsed,
       );
 
       const { remainingDays } = await getPeriodBalance(period.id, tx);
@@ -310,7 +321,9 @@ export async function createVacation(data: VacationFormData) {
         where: {
           userId: targetUserId,
           active: true,
-          statusId: { in: blockingStatusIds },
+          status: {
+            code: { in: [VACATION_STATUS.PENDIENTE, VACATION_STATUS.APROBADA] },
+          },
           // Inclusive overlap: existing.startDate <= newEnd AND existing.endDate >= newStart
           startDate: { lte: endDate },
           endDate: { gte: startDate },
@@ -330,9 +343,12 @@ export async function createVacation(data: VacationFormData) {
           startDate,
           endDate,
           reason: data.reason ?? null,
+          chargedDates,
           statusId: pendienteStatus.id,
           periodId: period.id,
           businessDaysUsed,
+          createdById: caller.id,
+          updatedById: caller.id,
         },
       });
     });
@@ -368,56 +384,80 @@ async function resolveVacation(
   target: "APROBADA" | "RECHAZADA",
   approverId: string,
 ) {
-  const status = await prisma.vacationStatus.findFirst({
-    where: { code: target, active: true },
-    select: { id: true },
-  });
+  const result = await guarded(async () =>
+    serializableTransaction(async (tx) => {
+      const status = await tx.vacationStatus.findFirst({
+        where: { code: target, active: true },
+        select: { id: true },
+      });
 
-  if (!status) {
-    throw new Error(`Estado '${target}' no encontrado.`);
-  }
+      if (!status) {
+        throw new Error(`Estado '${target}' no encontrado.`);
+      }
 
-  const existing = await prisma.vacation.findUnique({
-    where: { id },
-    select: {
-      active: true,
-      userId: true,
-      status: { select: { code: true, name: true } },
-    },
-  });
+      const existing = await tx.vacation.findUnique({
+        where: { id },
+        select: {
+          active: true,
+          userId: true,
+          status: { select: { code: true, name: true } },
+        },
+      });
 
-  if (!existing || !existing.active) {
-    throw new Error("Solicitud de vacaciones no encontrada.");
-  }
+      if (!existing || !existing.active) {
+        businessRule("Solicitud de vacaciones no encontrada o cancelada.");
+      }
 
-  if (!isVacationPending(existing.status)) {
-    return rejected(
-      `La solicitud ya fue resuelta (${codeOf(existing.status)}). Solo se puede decidir sobre solicitudes pendientes.`,
-    );
-  }
+      if (!isVacationPending(existing.status)) {
+        businessRule(
+          `La solicitud ya fue resuelta (${codeOf(existing.status)}). Solo se puede decidir sobre solicitudes pendientes.`,
+        );
+      }
 
-  // No balance re-check is needed here. A PENDIENTE request already reserves
-  // its days (getPeriodBalance counts PENDIENTE and APROBADA alike), so
-  // approving consumes nothing new and rejecting frees them by dropping the
-  // request out of that sum.
-  const vacation = await prisma.vacation.update({
-    where: { id },
-    data: {
-      statusId: status.id,
-      approvedById: approverId,
-      approvedAt: new Date(),
-    },
-  });
+      // No balance re-check is needed here. A PENDIENTE request already reserves
+      // its days (getPeriodBalance counts PENDIENTE and APROBADA alike), so
+      // approving consumes nothing new and rejecting frees them by dropping the
+      // request out of that sum.
+      const changed = await tx.vacation.updateMany({
+        where: {
+          id,
+          active: true,
+          status: { code: VACATION_STATUS.PENDIENTE },
+        },
+        data: {
+          statusId: status.id,
+          approvedById: approverId,
+          approvedAt: new Date(),
+          updatedById: approverId,
+        },
+      });
+      if (changed.count !== 1)
+        businessRule(
+          "La solicitud ya fue resuelta o cancelada por otro usuario.",
+        );
+      const vacation = await tx.vacation.findUniqueOrThrow({ where: { id } });
+      return { data: vacation };
+    }),
+  );
+  if (!result.success) return result;
 
   if (target === "APROBADA") {
-    await notifyVacationApproved(vacation.id, existing.userId, approverId);
+    await notifyVacationApproved(
+      result.data.id,
+      result.data.userId,
+      approverId,
+    );
   } else {
-    await notifyVacationRejected(vacation.id, existing.userId, approverId);
+    await notifyVacationRejected(
+      result.data.id,
+      result.data.userId,
+      approverId,
+    );
   }
 
   revalidatePath("/admin/vacations");
   revalidatePath("/vacations");
-  return ok({ data: vacation });
+  return result;
 }
 
 export interface VacationAssignmentConflict {
@@ -508,26 +548,46 @@ export async function rejectVacation(id: string) {
  */
 export async function deleteVacation(id: string) {
   const caller = await requirePermission("vacations:delete");
+  const result = await guarded(async () =>
+    serializableTransaction(async (tx) => {
+      const vacation = await tx.vacation.findUnique({
+        where: { id, active: true },
+        include: { status: true, user: { select: { name: true } } },
+      });
 
-  const vacation = await prisma.vacation.findUnique({
-    where: { id, active: true },
-    select: { userId: true, user: { select: { name: true } } },
-  });
+      if (!vacation) {
+        businessRule("Solicitud de vacaciones no encontrada o cancelada.");
+      }
 
-  if (!vacation) {
-    throw new Error("Solicitud de vacaciones no encontrada.");
-  }
-
-  if (!managesAllVacations(caller) && vacation.userId !== caller.id) {
-    return rejected(
-      "Solo puede eliminar sus propias solicitudes de vacaciones.",
-    );
-  }
-
-  await prisma.vacation.update({
-    where: { id },
-    data: { active: false },
-  });
+      if (!managesAllVacations(caller) && vacation.userId !== caller.id) {
+        businessRule(
+          "Solo puede eliminar sus propias solicitudes de vacaciones.",
+        );
+      }
+      if (
+        codeOf(vacation.status) === VACATION_STATUS.APROBADA &&
+        vacation.startDate <= mxDayRange(mxDateString(new Date())).lte
+      ) {
+        businessRule(
+          "No puede cancelar una vacación aprobada que ya comenzó. Un administrador debe registrar una corrección con motivo para conservar los días consumidos.",
+        );
+      }
+      const changed = await tx.vacation.updateMany({
+        where: { id, active: true, statusId: vacation.statusId },
+        data: {
+          active: false,
+          updatedById: caller.id,
+          deactivatedById: caller.id,
+          deactivatedAt: new Date(),
+        },
+      });
+      if (changed.count !== 1)
+        businessRule("La solicitud cambió o fue cancelada por otro usuario.");
+      return { data: vacation };
+    }),
+  );
+  if (!result.success) return result;
+  const vacation = result.data;
 
   const selfCancel = vacation.userId === caller.id;
   const recipients = selfCancel ? await vacationApprovers() : [vacation.userId];
@@ -543,6 +603,153 @@ export async function deleteVacation(id: string) {
   return ok();
 }
 
+/** Shorten an approved absence, retaining today and all past consumed days. */
+export async function correctStartedVacation(
+  id: string,
+  endDate: Date,
+  reason: string,
+  reviewedConsumedDays?: number,
+) {
+  const caller = await requirePermission("vacations:manage");
+  const result = await guarded(async () =>
+    serializableTransaction(async (tx) => {
+      if (!reason.trim() || reason.length > 1000)
+        businessRule(
+          "La corrección requiere un motivo de hasta 1000 caracteres.",
+        );
+      if (!Number.isFinite(endDate.getTime()))
+        businessRule("La fecha de fin no es válida.");
+      const endKey = endDate.toISOString().slice(0, 10);
+      const nextEnd = mxDayRange(endKey).lte;
+      const today = mxDateString(new Date());
+      const vacation = await tx.vacation.findUnique({
+        where: { id, active: true },
+        include: { status: true },
+      });
+      if (
+        !vacation?.active ||
+        codeOf(vacation.status) !== VACATION_STATUS.APROBADA
+      )
+        businessRule("Solo puede corregir vacaciones aprobadas activas.");
+      if (
+        mxDateString(vacation.startDate) > today ||
+        endKey < today ||
+        nextEnd < vacation.startDate ||
+        nextEnd >= vacation.endDate
+      ) {
+        businessRule(
+          "La corrección debe acortar una vacación iniciada y conservar hoy y todos los días anteriores.",
+        );
+      }
+      if (vacation.businessDaysUsed == null)
+        businessRule(
+          "La solicitud no tiene consumo conciliado. Concilia el historial antes de corregirla.",
+        );
+      let retainedDays: number;
+      if (vacation.chargedDates.length > 0) {
+        const unique = new Set(vacation.chargedDates);
+        if (
+          unique.size !== vacation.chargedDates.length ||
+          vacation.chargedDates.some(
+            (date) =>
+              !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
+              date < mxDateString(vacation.startDate),
+          ) ||
+          vacation.chargedDates.filter(
+            (date) => date <= mxDateString(vacation.endDate),
+          ).length !== vacation.businessDaysUsed
+        )
+          throw new Error("Vacation charge snapshot differs from consumption");
+        retainedDays = vacation.chargedDates.filter(
+          (date) => date <= endKey,
+        ).length;
+      } else {
+        // No per-day snapshot exists on legacy requests. An explicit reviewed
+        // count is necessary; today's holiday catalog cannot reconstruct history.
+        if (
+          reviewedConsumedDays == null ||
+          !Number.isInteger(reviewedConsumedDays) ||
+          reviewedConsumedDays < 0 ||
+          reviewedConsumedDays > vacation.businessDaysUsed
+        ) {
+          businessRule(
+            "La solicitud histórica requiere indicar los días consumidos revisados entre cero y el consumo original.",
+          );
+        }
+        retainedDays = reviewedConsumedDays;
+      }
+      const changed = await tx.vacation.updateMany({
+        where: {
+          id,
+          active: true,
+          statusId: vacation.statusId,
+          endDate: vacation.endDate,
+          businessDaysUsed: vacation.businessDaysUsed,
+        },
+        data: {
+          endDate: nextEnd,
+          businessDaysUsed: retainedDays,
+          updatedById: caller.id,
+        },
+      });
+      if (changed.count !== 1)
+        businessRule(
+          "La solicitud cambió por otro usuario. Actualiza y vuelve a intentar.",
+        );
+      // The original charged dates, request reason, approval and prior audit are
+      // immutable. Each correction gets its own append-only receipt.
+      await tx.businessCorrection.create({
+        data: {
+          entityType: "Vacation",
+          entityId: id,
+          actorId: caller.id,
+          reason: reason.trim(),
+          before: {
+            startDate: vacation.startDate.toISOString(),
+            endDate: vacation.endDate.toISOString(),
+            businessDaysUsed: vacation.businessDaysUsed,
+            chargedDates: vacation.chargedDates,
+            periodId: vacation.periodId,
+            reason: vacation.reason,
+            statusId: vacation.statusId,
+            approvedById: vacation.approvedById,
+            approvedAt: vacation.approvedAt?.toISOString() ?? null,
+            correctionHistory: vacation.correctionHistory,
+          },
+          after: {
+            startDate: vacation.startDate.toISOString(),
+            endDate: nextEnd.toISOString(),
+            businessDaysUsed: retainedDays,
+            chargedDates: vacation.chargedDates,
+            periodId: vacation.periodId,
+            reason: vacation.reason,
+            statusId: vacation.statusId,
+            approvedById: vacation.approvedById,
+            approvedAt: vacation.approvedAt?.toISOString() ?? null,
+            correctionHistory: vacation.correctionHistory,
+            reviewedConsumedDays:
+              vacation.chargedDates.length === 0 ? retainedDays : null,
+          },
+        },
+      });
+      return {
+        data: {
+          id,
+          retainedDays,
+          releasedDays: vacation.businessDaysUsed - retainedDays,
+          userId: vacation.userId,
+        },
+      };
+    }),
+  );
+  if (result.success) {
+    await notifyVacationCorrected(id, result.data.userId, caller.id);
+    revalidatePath("/admin/vacations");
+    revalidatePath("/vacations");
+  }
+  return result;
+}
+
 // ---------------------------------------------------------------------------
 // Balance
 // ---------------------------------------------------------------------------
@@ -550,9 +757,11 @@ export async function deleteVacation(id: string) {
 export interface VacationPeriodSummary {
   id: string;
   periodNumber: number;
+  cycleYear: number | null;
   accrualStart: Date;
   accrualEnd: Date;
   graceEnd: Date;
+  availableFrom: Date | null;
   allottedDays: number;
   usedDays: number;
   remainingDays: number;
@@ -587,7 +796,7 @@ export async function getVacationBalanceData(userId?: string, year?: number) {
     throw new Error("Usuario no encontrado.");
   }
 
-  const targetYear = year ?? new Date().getFullYear();
+  const targetYear = year ?? Number(mxDateString(new Date()).slice(0, 4));
 
   if (!user.hireDate) {
     return {
@@ -610,9 +819,11 @@ export async function getVacationBalanceData(userId?: string, year?: number) {
       return {
         id: period.id,
         periodNumber: period.periodNumber,
+        cycleYear: period.cycleYear,
         accrualStart: period.accrualStart,
         accrualEnd: period.accrualEnd,
         graceEnd: period.graceEnd,
+        availableFrom: period.availableFrom,
         ...balance,
         isOverridden: period.overrideDays !== null,
         // A lapsed period is plain history: it simply stops accepting requests.
@@ -632,7 +843,7 @@ export async function getVacationBalanceData(userId?: string, year?: number) {
       startDate: { lte },
       endDate: { gte },
     },
-    include: { status: { select: { name: true, color: true } } },
+    include: { status: { select: { code: true, name: true, color: true } } },
     orderBy: { startDate: "asc" },
   });
 
@@ -665,42 +876,51 @@ export async function updatePeriodOverride(
 ) {
   await requirePermission("vacations:manage");
 
-  return guarded(async () => {
-    if (overrideDays !== null) {
-      if (!Number.isInteger(overrideDays) || overrideDays < 0) {
-        businessRule("Los días asignados deben ser un número entero positivo.");
+  const result = await guarded(async () =>
+    serializableTransaction(async (tx) => {
+      if (overrideDays !== null) {
+        if (!Number.isInteger(overrideDays) || overrideDays < 0) {
+          businessRule(
+            "Los días asignados deben ser un número entero positivo.",
+          );
+        }
+        if (overrideDays > 365) {
+          businessRule("Los días asignados no pueden exceder 365.");
+        }
       }
-      if (overrideDays > 365) {
-        businessRule("Los días asignados no pueden exceder 365.");
+
+      const period = await tx.vacationPeriod.findUnique({
+        where: { id: periodId },
+      });
+      if (!period) {
+        throw new Error("Período vacacional no encontrado.");
       }
-    }
 
-    const period = await prisma.vacationPeriod.findUnique({
-      where: { id: periodId },
-    });
-    if (!period) {
-      throw new Error("Período vacacional no encontrado.");
-    }
+      // Lowering the allotment below what is already booked would leave the
+      // period overdrawn. Refuse rather than silently showing a negative balance.
+      // `usedDays` counts dated requests plus APPROVED historical aggregate
+      // consumption linked to this period, so the floor covers both ledgers.
+      const { usedDays } = await getPeriodBalance(periodId, tx);
+      const nextAllotted = overrideDays ?? period.ruleDays;
+      if (nextAllotted < usedDays) {
+        businessRule(
+          `No se puede asignar ${nextAllotted} día(s): el período ya tiene ${usedDays} día(s) consumidos o reservados.`,
+        );
+      }
 
-    // Lowering the allotment below what is already booked would leave the
-    // period overdrawn. Refuse rather than silently showing a negative balance.
-    // `usedDays` counts dated requests plus APPROVED historical aggregate
-    // consumption linked to this period, so the floor covers both ledgers.
-    const { usedDays } = await getPeriodBalance(periodId);
-    const nextAllotted = overrideDays ?? period.ruleDays;
-    if (nextAllotted < usedDays) {
-      businessRule(
-        `No se puede asignar ${nextAllotted} día(s): el período ya tiene ${usedDays} día(s) consumidos o reservados.`,
-      );
-    }
+      const updated = await tx.vacationPeriod.update({
+        where: { id: periodId },
+        data: { overrideDays },
+      });
 
-    const updated = await prisma.vacationPeriod.update({
-      where: { id: periodId },
-      data: { overrideDays },
-    });
-
+      return {
+        data: { id: updated.id, allottedDays: allottedDaysFor(updated) },
+      };
+    }),
+  );
+  if (result.success) {
     revalidatePath("/admin/vacations");
     revalidatePath("/vacations");
-    return { data: { id: updated.id, allottedDays: allottedDaysFor(updated) } };
-  });
+  }
+  return result;
 }

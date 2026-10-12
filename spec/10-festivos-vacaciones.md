@@ -66,7 +66,23 @@ Sigue el patrón de `ScheduleStatus`. Gestionado por el rol ADMIN_VACACIONES (pe
 | `statusId` | `Int` | FK → VacationStatus |
 | `approvedById` | `String?` | Admin que aprobó o rechazó |
 | `approvedAt` | `DateTime?` | Momento de la aprobación/rechazo |
+| `periodId` | `String?` | Período que financia todo el rango; obligatorio en solicitudes nuevas |
+| `businessDaysUsed` | `Int?` | Consumo reservado, calculado al crear y conservado como snapshot |
+| `chargedDates` | `String[]` | Fechas civiles cobradas originalmente; default `[]` para solicitudes legacy |
+| `correctionHistory` | `Json?` | Historial de correcciones importado, conservado sin reescritura |
+| `createdById` / `updatedById` | `String?` | Actor que creó o modificó la solicitud |
+| `deactivatedAt` / `deactivatedById` | `DateTime?` / `String?` | Fecha y actor de la cancelación |
 | `active` | `Boolean` | Soft delete |
+
+Las solicitudes nuevas conservan las fechas civiles cobradas en `chargedDates`
+(`String[]`, default `[]`), un snapshot diario original que nunca se reescribe al
+corregir. `reason` es exclusivamente el texto libre del usuario, limitado a 1000
+caracteres; no contiene metadata interna. `correctionHistory` (`Json?`) conserva
+el historial previo importado sin modificaciones. Las correcciones nuevas se
+registran en `BusinessCorrection`, append-only, con `entityType: "Vacation"`,
+`entityId`, `actorId`, motivo obligatorio, snapshots `before`/`after` y `createdAt`.
+La modificación y su registro de auditoría comparten transacción. No se
+reconstruye el consumo histórico usando el catálogo actual de festivos.
 
 ### Assignment (delta)
 
@@ -156,6 +172,16 @@ Una vacación se define como un rango de fechas inclusivo (`startDate`–`endDat
 de día (sin componente horario). `endDate` debe ser igual o posterior a `startDate` (validado por
 `VacationCreateSchema` y `validateVacationDates`).
 
+Los formularios transmiten fechas civiles como `Date` a medianoche UTC; la acción
+las normaliza a límites de día CDMX. El calendario utiliza aritmética de campos
+UTC sobre claves civiles `YYYY-MM-DD`, independientemente de la zona del navegador.
+El planificador siempre transmite el usuario que muestra, incluso al abrir por
+primera vez el planificador de administración.
+
+Un usuario sin `vacations:manage` no puede crear solicitudes cuyo inicio sea
+anterior al día actual CDMX. Un administrador puede registrar fechas retroactivas
+solo con un motivo explícito no vacío. Toda solicitud nueva queda PENDIENTE.
+
 For new requests, each Monday through Saturday in the inclusive CDMX date range consumes
 one vacation day unless it is an active catalog holiday. Sundays and holiday Saturdays do
 not consume days. A range with no chargeable days (for example, a single Sunday or holiday
@@ -167,6 +193,18 @@ other domains' business-day policies.
 Al crear, el sistema rechaza una vacación nueva si el mismo FSR ya tiene una vacación PENDIENTE o
 APROBADA cuyo rango se solapa con el nuevo (`startDate <= existente.endDate AND endDate >=
 existente.startDate`). Rangos adyacentes (que no se solapan) sí se permiten.
+
+Cada rango debe financiarse completo con un solo período vigente. Cuando no se
+envía `periodId`, se selecciona el período con vencimiento más próximo que cubra
+todo el rango y tenga saldo suficiente; un período agotado no impide usar otro.
+Un `periodId` explícito se respeta o se rechaza, sin sustitución silenciosa.
+Las solicitudes PENDIENTE reservan días igual que las APROBADA; RECHAZADA y las
+canceladas liberan su reserva.
+
+La generación de períodos, lectura de reglas/festivos, cálculo del cargo,
+consulta de saldo, solape e inserción comparten una transacción serializable con
+reintentos P2034. Lo mismo aplica al ajuste de saldo, decisiones, cancelaciones y
+correcciones. Las notificaciones y revalidaciones ocurren después del commit.
 
 #### Escenario: El FSR crea su propia vacación
 
@@ -198,6 +236,10 @@ existente.startDate`). Rangos adyacentes (que no se solapan) sí se permiten.
 
 Un ADMIN_VACACIONES (permiso `vacations:approve`) puede transicionar una vacación de PENDIENTE a APROBADA o RECHAZADA. El sistema
 registra `approvedById` y `approvedAt`.
+
+La decisión usa `updateMany` condicionado a `active: true` y código PENDIENTE.
+Si otra decisión o cancelación gana, devuelve un rechazo de negocio sin
+notificación ni sobrescritura de la decisión previa. Se registra `updatedById`.
 
 Aprobar una vacación que se solapa con asignaciones existentes del FSR **debe tener éxito sin
 modificar ni reasignar** esas asignaciones (no hay reasignación automática).
@@ -409,25 +451,60 @@ Soft delete: `active: false`. Gestionado por el rol ADMIN_VACACIONES (permisos `
 
 **Descripción:** Los días por años de servicio y la ventana de gracia viven en
 tablas editables desde `/admin/settings/vacation-accrual`
-(`vacationAccrualRules.ts`, permiso `settings:*`), no hardcodeados: si la LFT
-cambia, se editan reglas en vez de desplegar.
+(`src/lib/actions/vacation-accrual-rules.ts`, permiso `vacations:manage`), no
+hardcodeados: si la LFT cambia, se editan reglas en vez de desplegar. La ruta
+requiere `route:admin-vacation-accrual`, otorgado a `ADMIN_VACACIONES` junto con
+`vacations:manage`; ROOT también tiene acceso y FSR no puede acceder al catálogo.
 
 **Reglas de negocio:**
 - `VacationAccrualRule { minYears, maxYears?, days }`: tramos por antigüedad,
   CRUD admin con soft delete.
+- Los rangos activos son inclusivos y no pueden solaparse, incluido el tramo
+  abierto (`maxYears: null`): el chequeo y la creación/edición comparten una
+  transacción serializable con reintentos P2034. Solo se editan o dan de baja
+  reglas activas, con atribución del actor; los enteros deben caber en PostgreSQL
+  `Int`. La ventana de gracia se guarda también en transacción serializable,
+  sin recalcular snapshots existentes.
 - `getVacationSetting()`: ventana de gracia y knobs globales del cómputo.
-- El cómputo de derecho usa `hireDate + (periodNumber − 1)` años con inicio de
-  día CDMX (`accrualStart`).
+- Las cuentas nuevas, sin períodos heredados, usan ciclos calendario y no
+  reciben días antes de completar el primer aniversario. Se generan únicamente
+  los ciclos cuyo aniversario ya ocurrió, incluso en consultas diferidas.
+- Las cuentas con períodos exclusivamente heredados conservan su modo de
+  aniversario (`hireDate + (periodNumber − 1)` para `accrualStart`) y su historial.
+  No se convierten ni se borran filas automáticamente. La generación explícita
+  de ciclos calendario en una cuenta heredada requiere conciliación previa.
+- Si existen filas calendario, nunca se generan filas heredadas. Una cuenta
+  mezclada (calendario + heredada), o un conflicto de identidad de período,
+  bloquea generación y financiación hasta una conciliación explícita.
+- Un ciclo calendario existente con activación futura o faltante tampoco puede
+  financiar solicitudes, aunque sus fechas sean posteriores al aniversario.
+  El panel recibe `cycleYear` y `availableFrom`, muestra la activación y bloquea
+  su selección hasta que el grant esté ganado.
 - Las filas de ciclo calendario (`cycleYear` no nulo) cubren del 1 de enero al
   31 de diciembre en CDMX y se habilitan en el aniversario de contratación
   (`availableFrom`); el saldo suma el consumo histórico aprobado vinculado más
   las solicitudes fechadas activas, sin doble cargo.
+- Para contratación el 29 de febrero, el aniversario es el 28 de febrero en
+  años comunes y el 29 de febrero en años bisiestos.
+- `ruleDays`, ventanas y `availableFrom` son snapshots: las lecturas, la
+  generación repetida, decisiones y cancelaciones no los recalculan por cambios
+  posteriores de configuración. El upsert mantiene `update: {}`.
+- Una corrección de fecha de contratación conserva la duración de gracia
+  original de cada período y no puede cambiar la identidad de antigüedad de un
+  ciclo calendario. No elimina períodos con solicitudes vinculadas, incluso
+  canceladas, ni con consumo histórico; requiere conciliación si hay conflicto.
+- Reducir `overrideDays` (incluido quitarlo) por debajo del consumo histórico
+  aprobado más las reservas activas se rechaza dentro de la misma transacción
+  que escribe el ajuste.
 
 ---
 
 ### RF-709 · Cancelación de vacación con aviso (`vacation_cancelled`)
 
-`deleteVacation` es soft-delete y avisa a quien todavía necesita saberlo. La
+`deleteVacation` permite cancelar PENDIENTE en cualquier fecha y APROBADA solo
+antes de su día de inicio CDMX. Al llegar el día de inicio, una APROBADA ya no
+puede eliminarse. La cancelación válida libera la reserva y registra el actor
+y momento de baja. La
 audiencia depende de quién cancela:
 
 - Si el **solicitante** cancela su propia solicitud → se avisa a los
@@ -441,16 +518,38 @@ dispara post-commit y nunca lanza (contrato de `dispatch`, ver RF-471 en
 
 #### Escenario: El solicitante cancela la propia
 
-- DADO una vacación PENDIENTE o APROBADA del FSR "Alicia"
+- DADO una vacación PENDIENTE, o APROBADA que todavía no inicia, del FSR "Alicia"
 - CUANDO Alicia la elimina
 - ENTONCES los aprobadores reciben `vacation_cancelled` con su nombre y Alicia
   no se auto-notifica (exclusión del actor)
 
 #### Escenario: El admin cancela la de otro
 
-- DADO una vacación de "Alicia"
+- DADO una vacación cancelable de "Alicia"
 - CUANDO un ADMIN_VACACIONES la elimina
 - ENTONCES Alicia recibe `vacation_cancelled` y los aprobadores no
+
+#### Corrección administrativa de una vacación iniciada
+
+`correctStartedVacation` requiere `vacations:manage` y un motivo explícito.
+Mantiene la solicitud activa y APROBADA, su inicio, período y decisión original;
+solo acorta el fin a una fecha igual o posterior a hoy CDMX. No permite borrar
+ausencias pasadas ni corregir una solicitud que todavía no inicia.
+
+Con snapshot diario, conserva exactamente el cargo de los días hasta el nuevo
+fin y libera únicamente el cargo posterior, sin consultar festivos actuales.
+Sin snapshot diario, exige un conteo explícito revisado de los días consumidos
+que se conservan (entero entre cero y el consumo anterior), además del motivo;
+si `businessDaysUsed` es null, requiere conciliación previa. El conteo revisado
+es una declaración administrativa auditada, nunca una estimación automática.
+La corrección se muestra en los controles de solicitudes aprobadas, registra
+`updatedById`, agrega una fila de `BusinessCorrection` sin modificar el motivo,
+snapshot diario ni historial importado, y avisa al empleado
+mediante `VACATION_CORRECTED` (`vacation_corrected`) una vez después del commit,
+excluyendo al actor. El mensaje indica que la solicitud sigue aprobada y que el
+período fue acortado; no emite cancelación. Por defecto es in-app sin correo,
+con canales configurables en la matriz y fallback al catálogo cuando no hay
+fila de política (ver RF-470 en [08](./08-notificaciones.md)).
 
 ---
 
@@ -490,6 +589,18 @@ La lógica pura de este dominio está cubierta por pruebas unitarias (Vitest):
   `isFsrUnavailable`, `unavailableFsrsForDate`.
 - `src/lib/validations/holidays.test.ts` — `HolidayCreateSchema`, `validateHolidayXOR`.
 - `src/lib/validations/vacations.test.ts` — `VacationCreateSchema`, `validateVacationDates`.
+- `src/lib/services/vacation-periods.test.ts` — modo heredado/calendario,
+  aniversarios, snapshots, financiación por vencimiento y saldo histórico.
+- `src/lib/utils/vacation-cycle-window.test.ts` — ventanas civiles y 29 de febrero.
+- `src/lib/actions/vacations-create.test.ts` — cargo, fechas retroactivas,
+  reserva/solape, actor y frontera de transacción.
+- `src/lib/actions/vacations-decisions.test.ts` — decisiones condicionales y
+  rechazo del perdedor sin notificación.
+- `src/lib/actions/vacations-cancel.test.ts` y `vacations-correction.test.ts` —
+  cancelación antes del inicio, corrección auditada y conservación del consumo.
+- `src/components/vacations/vacation-{planner,year-calendar,approval-buttons}.test.tsx` —
+  target inicial y cambio de usuario, activación de grants, fechas civiles,
+  corrección con motivo/revisión legacy y conservación del borrador tras rechazo.
 - `src/lib/notifications/vacation-reminders.test.ts` — idempotencia de
   `vacation_starting_soon` (detalle en [08](./08-notificaciones.md)).
 

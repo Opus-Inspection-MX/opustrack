@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { resolveAssignmentStatusId } from "@/lib/assignments/ensure-fsrs";
+import { assertIncidentEditable } from "@/lib/assignments/incident-mutable";
 import { loadAssignmentFor, loadIncidentFor } from "@/lib/auth/access";
 import { requirePermission } from "@/lib/auth/auth";
 import { getReportScope, incidentScopeWhere } from "@/lib/auth/report-scope";
@@ -23,7 +24,7 @@ import {
   assertOfflineFreshness,
   claimIdempotencyKey,
   findReplayTargetId,
-  isP2002,
+  type ReplayBinding,
   readOfflineFields,
 } from "@/lib/offline/idempotency";
 import {
@@ -71,9 +72,14 @@ const assigneesInclude = {
  * Validate that the given users are active FSRs. FSR assignment is independent
  * of the incident's Client and no longer requires per-incident enablement.
  */
-async function assertAssigneesAreFsrs(userIds: string[]) {
+async function assertAssigneesAreFsrs(
+  userIds: string[],
+  client:
+    | typeof prisma
+    | import("@prisma/client").Prisma.TransactionClient = prisma,
+) {
   if (userIds.length === 0) return;
-  const fsrs = await prisma.user.findMany({
+  const fsrs = await client.user.findMany({
     where: { id: { in: userIds }, active: true, ...whereHasRole(ROLE.FSR) },
     select: { id: true },
   });
@@ -183,34 +189,39 @@ export async function createAssignment(data: AssignmentFormData) {
     // The incident must be active and inside the caller's scope (H-04): filing
     // an assignment under another Client's incident is the same leak as
     // reading it.
-    await loadIncidentFor(user, data.incidentId);
     const uniqueAssignees = Array.from(new Set(data.assigneeIds));
 
-    await assertAssigneesAreFsrs(uniqueAssignees);
+    const assignment = await transactionWithNotifications(async (tx) => {
+      await loadIncidentFor(user, data.incidentId, tx);
+      await assertIncidentEditable(tx, data.incidentId);
+      await assertAssigneesAreFsrs(uniqueAssignees, tx);
 
-    // Availability check: only when scheduledDate is provided and there are assignees.
-    if (data.scheduledDate != null && uniqueAssignees.length > 0) {
-      for (const userId of uniqueAssignees) {
-        const unavailable = await isFsrUnavailable(userId, data.scheduledDate);
-        if (unavailable) {
-          const fsrRecord = await prisma.user.findUnique({
-            where: { id: userId },
-            select: { name: true },
-          });
-          const label = fsrRecord?.name ?? userId;
-          businessRule(
-            `El técnico ${label} no está disponible en la fecha programada (día festivo o vacaciones aprobadas).`,
+      // Availability check: only when scheduledDate is provided and there are assignees.
+      if (data.scheduledDate != null && uniqueAssignees.length > 0) {
+        for (const userId of uniqueAssignees) {
+          const unavailable = await isFsrUnavailable(
+            userId,
+            data.scheduledDate,
+            tx,
           );
+          if (unavailable) {
+            const fsrRecord = await prisma.user.findUnique({
+              where: { id: userId },
+              select: { name: true },
+            });
+            const label = fsrRecord?.name ?? userId;
+            businessRule(
+              `El técnico ${label} no está disponible en la fecha programada (día festivo o vacaciones aprobadas).`,
+            );
+          }
         }
       }
-    }
 
-    const initialState =
-      uniqueAssignees.length === 0
-        ? ASSIGNMENT_STATE.PENDIENTE_DE_ASIGNACION
-        : ASSIGNMENT_STATE.ASIGNADO;
+      const initialState =
+        uniqueAssignees.length === 0
+          ? ASSIGNMENT_STATE.PENDIENTE_DE_ASIGNACION
+          : ASSIGNMENT_STATE.ASIGNADO;
 
-    const assignment = await transactionWithNotifications(async (tx) => {
       const statusId = await resolveAssignmentStatusId(tx, initialState);
       const created = await tx.assignment.create({
         data: {
@@ -262,26 +273,27 @@ export async function updateAssignment(id: string, data: AssignmentFormData) {
   const user = await requirePermission("assignments:update");
 
   return guarded(async () => {
-    await loadAssignmentFor(user, id, "manager");
     // The action takes `id` separately, so the schema's `id` is omitted —
     // the payload itself is still validated.
     AssignmentUpdateSchema.omit({ id: true }).parse(data);
     const uniqueAssignees = Array.from(new Set(data.assigneeIds));
 
-    const existingAssignment = await prisma.assignment.findUnique({
-      where: { id, active: true },
-      select: { incidentId: true, scheduledDate: true },
-    });
-    if (!existingAssignment) throw new Error("Assignment not found");
-    await assertAssigneesAreFsrs(uniqueAssignees);
-
-    // Resolve effective scheduledDate (new value ?? existing value) for the block check.
-    const effectiveScheduledDate =
-      data.scheduledDate !== undefined
-        ? data.scheduledDate
-        : existingAssignment.scheduledDate;
-
     const result = await transactionWithNotifications(async (tx) => {
+      await loadAssignmentFor(user, id, "manager", tx);
+      const existingAssignment = await tx.assignment.findUnique({
+        where: { id, active: true },
+        select: { incidentId: true, scheduledDate: true },
+      });
+      if (!existingAssignment) throw new Error("Assignment not found");
+      await assertIncidentEditable(tx, existingAssignment.incidentId);
+      await assertAssigneesAreFsrs(uniqueAssignees, tx);
+
+      // Resolve effective scheduledDate (new value ?? existing value) for the block check.
+      const effectiveScheduledDate =
+        data.scheduledDate !== undefined
+          ? data.scheduledDate
+          : existingAssignment.scheduledDate;
+
       const existing = await tx.assignmentAssignee.findMany({
         where: { assignmentId: id, active: true },
         select: { userId: true },
@@ -292,25 +304,15 @@ export async function updateAssignment(id: string, data: AssignmentFormData) {
       const toAdd = uniqueAssignees.filter((u) => !existingIds.has(u));
       const toRemove = [...existingIds].filter((u) => !newIds.has(u));
 
-      // Availability check (RF-704). Two cases must be covered:
-      //   - newly added FSRs, against the effective scheduled date;
-      //   - ALL assignees when the scheduled date itself moves, otherwise moving
-      //     an assignment onto a holiday or an approved vacation would slip
-      //     through because `toAdd` is empty.
-      const scheduledDateChanged =
-        data.scheduledDate !== undefined &&
-        effectiveScheduledDate?.getTime() !==
-          existingAssignment.scheduledDate?.getTime();
-
-      const toCheck = scheduledDateChanged
-        ? Array.from(new Set([...uniqueAssignees, ...existingIds]))
-        : toAdd;
+      // Validate the final composition, never people removed by this edit.
+      const toCheck = uniqueAssignees;
 
       if (effectiveScheduledDate != null && toCheck.length > 0) {
         for (const userId of toCheck) {
           const unavailable = await isFsrUnavailable(
             userId,
             effectiveScheduledDate,
+            tx,
           );
           if (unavailable) {
             const fsrRecord = await tx.user.findUnique({
@@ -448,12 +450,13 @@ export async function updateAssignment(id: string, data: AssignmentFormData) {
  * Delete assignment (soft delete)
  */
 export async function deleteAssignment(id: string) {
-  await requirePermission("assignments:delete");
+  const user = await requirePermission("assignments:delete");
 
   return guarded(async () => {
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await transactionWithNotifications(async (tx) => {
+      await loadAssignmentFor(user, id, "manager", tx);
       const assignment = await tx.assignment.findUnique({
-        where: { id },
+        where: { id, active: true },
         select: {
           incidentId: true,
           _count: {
@@ -494,6 +497,7 @@ export async function deleteAssignment(id: string) {
         where: { id },
         data: { active: false },
       });
+      await syncIncidentState(assignment.incidentId, tx);
 
       return { incidentId: assignment.incidentId };
     });
@@ -530,11 +534,15 @@ function revalidateAssignmentPaths(assignmentId: string, incidentId: number) {
  */
 async function convergeLiveAssignment(
   idempotencyKey: string | undefined,
-  error: unknown,
+  user: Awaited<ReturnType<typeof requirePermission>>,
+  binding: ReplayBinding,
 ) {
-  if (!idempotencyKey || !isP2002(error)) return null;
-  const targetId = await findReplayTargetId(prisma, idempotencyKey);
+  // A serializable retry may observe the winner's terminal state before
+  // reaching the duplicate insert. Its bound receipt still proves convergence.
+  if (!idempotencyKey) return null;
+  const targetId = await findReplayTargetId(prisma, idempotencyKey, binding);
   if (!targetId) return null;
+  await loadAssignmentFor(user, targetId, "worker");
   return prisma.assignment.findUnique({
     where: { id: targetId, active: true },
     include: { incident: true, ...assigneesInclude, status: true },
@@ -569,31 +577,6 @@ async function loadAssignmentForTransition(
 }
 
 /**
- * Throws if the parent incident is in a terminal state (CERRADO/CANCELADA).
- * Use to block FSR mutations on assignments whose incident is no longer editable.
- */
-async function assertIncidentEditable(
-  client:
-    | typeof prisma
-    | Parameters<Parameters<typeof prisma.$transaction>[0]>[0],
-  incidentId: number,
-): Promise<void> {
-  const incident = await client.incident.findUnique({
-    where: { id: incidentId },
-    select: { status: { select: { code: true, name: true } } },
-  });
-  // Stable code (H-08): a renamed "CERRADO" label must still block edits.
-  const name = codeOf(incident?.status);
-  if (name === "CERRADO" || name === "CANCELADA") {
-    businessRule(
-      name === "CANCELADA"
-        ? "La incidencia está cancelada. No se pueden hacer cambios."
-        : "La incidencia está cerrada. No se pueden hacer cambios.",
-    );
-  }
-}
-
-/**
  * Mark assignment as "seen" (replaces the legacy unlock flow).
  * Sets seenAt + seenById and transitions status to VISTO.
  */
@@ -604,7 +587,7 @@ export async function markAssignmentSeen(id: string) {
     const result = await transactionWithNotifications(async (tx) => {
       // Worker gate: scope + active + assignee-or-manage-all (H-04, H-17).
       // The transition loader below re-reads inside the transaction.
-      await loadAssignmentFor(user, id, "worker");
+      await loadAssignmentFor(user, id, "worker", tx);
       const current = await loadAssignmentForTransition(tx, id);
       await assertIncidentEditable(tx, current.incidentId);
       const from = codeOf(current.status) as AssignmentState;
@@ -681,12 +664,22 @@ export async function startAssignmentWork(formData: FormData) {
     // freshness first, known keys converge on the live row, then the
     // UNCHANGED guards and transition run.
     const offline = readOfflineFields(formData);
+    const binding = {
+      actorId: user.id,
+      action: "startAssignmentWork",
+      requestTargetId: id,
+    };
     if (offline.capturedAt !== undefined) {
       assertOfflineFreshness(offline.capturedAt);
     }
     if (offline.idempotencyKey) {
-      const targetId = await findReplayTargetId(prisma, offline.idempotencyKey);
+      const targetId = await findReplayTargetId(
+        prisma,
+        offline.idempotencyKey,
+        binding,
+      );
       if (targetId) {
+        await loadAssignmentFor(user, targetId, "worker");
         const live = await prisma.assignment.findUnique({
           where: { id: targetId, active: true },
           include: { incident: true, ...assigneesInclude, status: true },
@@ -701,7 +694,7 @@ export async function startAssignmentWork(formData: FormData) {
     const result = await transactionWithNotifications(async (tx) => {
       // Worker gate: scope + active + assignee-or-manage-all (H-04, H-17).
       // The transition loader below re-reads inside the transaction.
-      await loadAssignmentFor(user, id, "worker");
+      await loadAssignmentFor(user, id, "worker", tx);
       const current = await loadAssignmentForTransition(tx, id);
       await assertIncidentEditable(tx, current.incidentId);
       const from = codeOf(current.status) as AssignmentState;
@@ -744,13 +737,18 @@ export async function startAssignmentWork(formData: FormData) {
           offline.idempotencyKey,
           "startAssignmentWork",
           updated.id,
+          binding,
         );
       }
       return { assignment: updated, incidentId: current.incidentId };
     }).catch(async (error) => {
       // Fase 5b: the claim lost the race INSIDE the transaction — answer
       // with the winner's live row instead of a generic error.
-      const live = await convergeLiveAssignment(offline.idempotencyKey, error);
+      const live = await convergeLiveAssignment(
+        offline.idempotencyKey,
+        user,
+        binding,
+      );
       if (live) {
         revalidateAssignmentPaths(live.id, live.incidentId);
         return {
@@ -785,7 +783,7 @@ export async function startAssignmentWork(formData: FormData) {
     const result = await transactionWithNotifications(async (tx) => {
       // Worker gate: scope + active + assignee-or-manage-all (H-04, H-17).
       // The transition loader below re-reads inside the transaction.
-      await loadAssignmentFor(user, id, "worker");
+      await loadAssignmentFor(user, id, "worker", tx);
       const current = await loadAssignmentForTransition(tx, id);
       await assertIncidentEditable(tx, current.incidentId);
       const from = codeOf(current.status) as AssignmentState;
@@ -826,7 +824,7 @@ export async function resumeAssignment(id: string) {
     const result = await transactionWithNotifications(async (tx) => {
       // Worker gate: scope + active + assignee-or-manage-all (H-04, H-17).
       // The transition loader below re-reads inside the transaction.
-      await loadAssignmentFor(user, id, "worker");
+      await loadAssignmentFor(user, id, "worker", tx);
       const current = await loadAssignmentForTransition(tx, id);
       await assertIncidentEditable(tx, current.incidentId);
       const from = codeOf(current.status) as AssignmentState;
@@ -893,12 +891,22 @@ export async function closeAssignment(formData: FormData) {
     // write; a known idempotency key converges on the live row instead of
     // re-executing the transition (a retried close never double-applies).
     const offline = readOfflineFields(formData);
+    const binding = {
+      actorId: user.id,
+      action: "closeAssignment",
+      requestTargetId: id,
+    };
     if (offline.capturedAt !== undefined) {
       assertOfflineFreshness(offline.capturedAt);
     }
     if (offline.idempotencyKey) {
-      const targetId = await findReplayTargetId(prisma, offline.idempotencyKey);
+      const targetId = await findReplayTargetId(
+        prisma,
+        offline.idempotencyKey,
+        binding,
+      );
       if (targetId) {
+        await loadAssignmentFor(user, targetId, "worker");
         const live = await prisma.assignment.findUnique({
           where: { id: targetId, active: true },
           include: { incident: true, ...assigneesInclude, status: true },
@@ -914,7 +922,7 @@ export async function closeAssignment(formData: FormData) {
     const result = await transactionWithNotifications(async (tx) => {
       // Worker gate: scope + active + assignee-or-manage-all (H-04, H-17).
       // The transition loader below re-reads inside the transaction.
-      await loadAssignmentFor(user, id, "worker");
+      await loadAssignmentFor(user, id, "worker", tx);
       const current = await loadAssignmentForTransition(tx, id);
       await assertIncidentEditable(tx, current.incidentId);
       const from = codeOf(current.status) as AssignmentState;
@@ -968,6 +976,7 @@ export async function closeAssignment(formData: FormData) {
           offline.idempotencyKey,
           "closeAssignment",
           updated.id,
+          binding,
         );
       }
       return {
@@ -976,7 +985,11 @@ export async function closeAssignment(formData: FormData) {
       };
     }).catch(async (error) => {
       // Fase 5b: same in-transaction race as the start path — converge.
-      const live = await convergeLiveAssignment(offline.idempotencyKey, error);
+      const live = await convergeLiveAssignment(
+        offline.idempotencyKey,
+        user,
+        binding,
+      );
       if (live) {
         revalidateAssignmentPaths(live.id, live.incidentId);
         return {
@@ -1018,7 +1031,9 @@ export async function reopenAssignment(id: string) {
 
   return guarded(async () => {
     const result = await transactionWithNotifications(async (tx) => {
+      await loadAssignmentFor(user, id, "manager", tx);
       const current = await loadAssignmentForTransition(tx, id);
+      await assertIncidentEditable(tx, current.incidentId, true);
       const from = codeOf(current.status) as AssignmentState;
       assertAssignmentTransition(from, ASSIGNMENT_STATE.EN_PROGRESO);
       const statusId = await resolveAssignmentStatusId(
@@ -1207,16 +1222,20 @@ export async function uploadAssignmentAttachment(formData: FormData) {
         ? descriptionField.trim()
         : null;
 
-    const attachment = await prisma.assignmentAttachment.create({
-      data: {
-        assignmentId,
-        filename: uploadResult.filename,
-        filepath: uploadResult.url,
-        mimetype: uploadResult.mimetype,
-        size: uploadResult.size,
-        description,
-        provider: uploadResult.provider,
-      },
+    const attachment = await transactionWithNotifications(async (tx) => {
+      const current = await loadAssignmentFor(user, assignmentId, "worker", tx);
+      await assertIncidentEditable(tx, current.incidentId);
+      return tx.assignmentAttachment.create({
+        data: {
+          assignmentId,
+          filename: uploadResult.filename,
+          filepath: uploadResult.url,
+          mimetype: uploadResult.mimetype,
+          size: uploadResult.size,
+          description,
+          provider: uploadResult.provider,
+        },
+      });
     });
 
     revalidatePath(`/admin/assignments/${assignmentId}`);
@@ -1233,23 +1252,26 @@ export async function deleteAssignmentAttachment(id: string) {
   const user = await requirePermission("assignments:update");
 
   return guarded(async () => {
-    const attachment = await prisma.assignmentAttachment.findUnique({
-      where: { id },
-      include: { assignment: { select: { incidentId: true } } },
-    });
+    const attachment = await transactionWithNotifications(async (tx) => {
+      const attachment = await tx.assignmentAttachment.findUnique({
+        where: { id, active: true },
+        include: { assignment: { select: { incidentId: true } } },
+      });
 
-    if (!attachment) {
-      throw new Error("Attachment not found");
-    }
+      if (!attachment) {
+        throw new Error("Attachment not found");
+      }
 
-    // Worker gate: deleting someone else's evidence is the same leak as
-    // uploading to it (H-04).
-    await loadAssignmentFor(user, attachment.assignmentId, "worker");
-    await assertIncidentEditable(prisma, attachment.assignment.incidentId);
+      // Worker gate: deleting someone else's evidence is the same leak as
+      // uploading to it (H-04).
+      await loadAssignmentFor(user, attachment.assignmentId, "worker", tx);
+      await assertIncidentEditable(tx, attachment.assignment.incidentId);
 
-    await prisma.assignmentAttachment.update({
-      where: { id },
-      data: { active: false },
+      await tx.assignmentAttachment.update({
+        where: { id },
+        data: { active: false },
+      });
+      return attachment;
     });
 
     try {
@@ -1284,19 +1306,21 @@ export async function updateAssignmentOdtFolio(
 
     // Worker gate: the folio rides on the assignment, so editing it needs
     // the same scope + membership as any other field write (H-04).
-    const gate = await loadAssignmentFor(user, id, "worker");
-    await assertIncidentEditable(prisma, gate.incidentId);
+    const assignment = await transactionWithNotifications(async (tx) => {
+      const gate = await loadAssignmentFor(user, id, "worker", tx);
+      await assertIncidentEditable(tx, gate.incidentId);
 
-    const assignment = await prisma.assignment.update({
-      where: { id },
-      data: { odtFolio: trimmed },
-      select: {
-        id: true,
-        odtFolio: true,
-        incidentId: true,
-        incident: { select: { title: true } },
-        assignees: { where: { active: true }, select: { userId: true } },
-      },
+      return tx.assignment.update({
+        where: { id },
+        data: { odtFolio: trimmed },
+        select: {
+          id: true,
+          odtFolio: true,
+          incidentId: true,
+          incident: { select: { title: true } },
+          assignees: { where: { active: true }, select: { userId: true } },
+        },
+      });
     });
 
     const assigneeIds = assignment.assignees.map((a) => a.userId);
@@ -1327,10 +1351,10 @@ export async function updateAssignmentStatus(id: string, statusId: number) {
   return guarded(async () => {
     // Manager gate, like updateAssignment: overriding the state machine of
     // any assignment is administration, not field work.
-    await loadAssignmentFor(user, id, "manager");
     const result = await transactionWithNotifications(async (tx) => {
+      await loadAssignmentFor(user, id, "manager", tx);
       const target = await tx.assignmentStatus.findUnique({
-        where: { id: statusId },
+        where: { id: statusId, active: true },
         select: { code: true, name: true },
       });
       if (!codeOf(target) || !isAssignmentState(codeOf(target))) {
@@ -1339,8 +1363,15 @@ export async function updateAssignmentStatus(id: string, statusId: number) {
         );
       }
       const current = await loadAssignmentForTransition(tx, id);
+      await assertIncidentEditable(tx, current.incidentId);
       const from = codeOf(current.status) as AssignmentState;
       const to = codeOf(target) as AssignmentState;
+      if (
+        from === ASSIGNMENT_STATE.CERRADO &&
+        to === ASSIGNMENT_STATE.EN_PROGRESO
+      ) {
+        await requirePermission("assignments:reopen");
+      }
       assertAssignmentTransition(from, to);
 
       // For state-machine-managed transitions that require GPS/timestamps,
@@ -1353,10 +1384,14 @@ export async function updateAssignmentStatus(id: string, statusId: number) {
 
       const updated = await tx.assignment.update({
         where: { id },
-        data: { statusId },
+        data: {
+          statusId,
+          ...(from === ASSIGNMENT_STATE.CERRADO &&
+            to === ASSIGNMENT_STATE.EN_PROGRESO && { finishedAt: null }),
+        },
         include: { incident: true, ...assigneesInclude, status: true },
       });
-      await syncIncidentState(current.incidentId, tx);
+      await syncIncidentState(current.incidentId, tx, { actorId: user.id });
       return { assignment: updated, incidentId: current.incidentId };
     });
 

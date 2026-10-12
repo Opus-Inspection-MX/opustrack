@@ -128,6 +128,53 @@ No reutilices números ni renumeres requisitos existentes (se referencian de for
 
 ---
 
+## Invariantes de negocio y concurrencia
+
+Las validaciones que determinan una escritura y la escritura correspondiente
+deben usar el mismo cliente transaccional: padres activos, pertenencia y alcance
+por Cliente, composición de referencias, disponibilidad, saldo y estado terminal.
+Una validación previa al formulario no sustituye esta garantía.
+
+- **Concurrencia acotada.** Las mutaciones críticas usan transacciones
+  serializables. Solo se reintenta `P2034`, con un máximo de cuatro intentos
+  totales y esperas de 25/50/100 ms; cada intento tiene un timeout de 15 segundos.
+  Los callbacks reintentables contienen únicamente operaciones de base de datos.
+  Las notificaciones se emiten después del commit y solo desde el colector del
+  intento ganador; rollback y replay no repiten efectos externos.
+- **Replay no concede acceso.** La llave está vinculada al actor, la acción y
+  el destino solicitado. Se verifican la autorización vigente y el acceso al
+  registro vivo antes de devolverlo sin repetir la transición. Las llaves
+  históricas sin vínculo fallan cerrado y requieren revisión manual.
+- **Consumo y evidencia inmutables.** Las vacaciones conservan los días
+  originalmente cargados y los snapshots del período. Los períodos calendario
+  activan el derecho en el aniversario de contratación; no permiten consumir
+  derechos futuros. Las cuentas heredadas mantienen su modo y las cuentas con
+  modos mezclados requieren conciliación explícita. Una corrección autorizada
+  de vacaciones iniciadas solo acorta el final y conserva hoy y todo el pasado.
+- **Correcciones atribuibles.** `BusinessCorrection` agrega actor, motivo
+  separado y snapshots JSON `before`/`after` de forma atómica con la corrección.
+  No se incrusta el motivo en el texto original ni se reescribe evidencia previa.
+  Un cambio de baseline del odómetro inicia una época física nueva sin alterar
+  fotos o lecturas históricas. Los viajes cancelados conservan su evidencia.
+- **Estado operacional y ocupación separados.** Un vehículo y un conductor
+  tienen como máximo un viaje activo `EN_CURSO`, incluso para administradores.
+  La liberación restaura el estado operacional vigente, no fuerza disponibilidad.
+  El estado de una incidencia se deriva de sus asignaciones activas, respetando
+  cancelación y la excepción de históricos importados cerrados sin asignaciones.
+- **Denominadores explícitos.** El cumplimiento diario usa lunes a sábado en
+  CDMX, excluye fechas futuras, festivos y vacaciones aprobadas fechadas. Cero
+  días elegibles produce `N/A`, no 0% ni 100%.
+- **Historia desconocida no se inventa.** La migración aditiva conserva
+  capturas desconocidas como null y snapshots de días ausentes como arreglos
+  vacíos. No convierte períodos, fabrica observaciones ni corrige anomalías
+  silenciosamente; la conciliación operativa es de solo lectura hasta su revisión.
+
+La matriz requisito → rutas/mutaciones → pruebas y el procedimiento de despliegue
+expandir → migrar → aplicación → conciliación de solo lectura están en
+[`docs/business-invariants.md`](../docs/business-invariants.md).
+
+---
+
 ## Mapa de dominios
 
 | # | Dominio | Entidades principales |

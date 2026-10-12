@@ -5,11 +5,18 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { OdometerPhotoPreview } from "@/components/vehicle-trips/odometer-photo-preview";
+import { TripCancelForm } from "@/components/vehicle-trips/trip-cancel-form";
 import { getVehicleTripById } from "@/lib/actions/vehicle-trips";
+import { canPerform } from "@/lib/auth/auth";
 import { formatMX } from "@/lib/utils/datetime";
 
 interface VehicleTrip {
   id: string;
+  status: { code: string | null; name: string };
+  cancellationReason: string | null;
+  cancelledAt: Date | string | null;
+  startCapturedAt: Date | string | null;
+  endCapturedAt: Date | string | null;
   // Odometer
   startOdometer: number;
   endOdometer?: number | null;
@@ -70,7 +77,8 @@ export default async function TripDetailPage({
     notFound();
   }
 
-  const isInProgress = !trip.endedAt;
+  const isInProgress = trip.status.code === "EN_CURSO";
+  const canCancel = isInProgress && (await canPerform("vehicle-trips:update"));
 
   return (
     <div className="container mx-auto py-6 space-y-6">
@@ -111,7 +119,7 @@ export default async function TripDetailPage({
                 variant="default"
                 className="text-base px-4 py-2 w-full sm:w-auto justify-center"
               >
-                Completado
+                {trip.status.name}
               </Badge>
             </>
           )}
@@ -131,7 +139,7 @@ export default async function TripDetailPage({
             <div>
               <div className="text-sm text-muted-foreground">Estado</div>
               <Badge variant={isInProgress ? "secondary" : "default"}>
-                {isInProgress ? "En Progreso" : "Completado"}
+                {trip.status.name}
               </Badge>
             </div>
 
@@ -162,6 +170,14 @@ export default async function TripDetailPage({
               <div className="text-sm">{trip.notes}</div>
             </div>
           )}
+          {trip.cancellationReason && (
+            <div>
+              <div className="text-sm text-muted-foreground">
+                Motivo de cancelación
+              </div>
+              <p>{trip.cancellationReason}</p>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -178,7 +194,7 @@ export default async function TripDetailPage({
             <div>
               <div className="text-sm text-muted-foreground">Inicio</div>
               <div className="font-medium text-sm sm:text-base">
-                {formatMX(trip.startedAt, {
+                {formatMX(trip.startCapturedAt ?? trip.startedAt, {
                   dateStyle: "full",
                   timeStyle: "short",
                 })}
@@ -228,7 +244,7 @@ export default async function TripDetailPage({
                 <div className="text-sm text-muted-foreground">Fin</div>
                 <div className="font-medium text-sm sm:text-base">
                   {trip.endedAt &&
-                    formatMX(trip.endedAt, {
+                    formatMX(trip.endCapturedAt ?? trip.endedAt, {
                       dateStyle: "full",
                       timeStyle: "short",
                     })}
@@ -268,6 +284,7 @@ export default async function TripDetailPage({
       )}
 
       {/* FSR Information */}
+      {canCancel && <TripCancelForm tripId={id} />}
       <Card>
         <CardHeader>
           <CardTitle>Información del Conductor</CardTitle>

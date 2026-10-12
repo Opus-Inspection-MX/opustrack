@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
+import { Label } from "@/components/ui/label";
 import { SearchableSelect } from "@/components/ui/searchable-select";
+import { Textarea } from "@/components/ui/textarea";
 import { VacationBalancePanel } from "@/components/vacations/vacation-balance-panel";
 import {
   type CalendarVacation,
@@ -14,6 +16,7 @@ import {
   createVacation,
   getVacationBalanceData,
 } from "@/lib/actions/vacations";
+import { isVacationPeriodUsable } from "@/lib/utils/vacation-cycle-window";
 
 interface FsrOption {
   id: string;
@@ -56,21 +59,34 @@ export function VacationPlanner({
   const [selectedPeriodId, setSelectedPeriodId] = useState<string | null>(null);
   const [, startTransition] = useTransition();
   const [loading, setLoading] = useState(false);
+  const [reason, setReason] = useState("");
+  const refreshSequence = useRef(0);
 
-  // Default to the newest period that can still be requested against, since
-  // that is what someone planning time off almost always wants.
+  // Explicit selection defaults to the grant closest to expiry.
   useEffect(() => {
-    if (selectedPeriodId) return;
+    if (loading || data.user.id !== targetUserId) return;
+    if (
+      data.periods.some(
+        (period) =>
+          period.id === selectedPeriodId && isVacationPeriodUsable(period),
+      )
+    )
+      return;
     const usable = [...data.periods]
-      .reverse()
-      .find((period) => !period.isExpired && period.remainingDays > 0);
-    if (usable) setSelectedPeriodId(usable.id);
-  }, [data.periods, selectedPeriodId]);
+      .sort(
+        (a, b) =>
+          new Date(a.graceEnd).getTime() - new Date(b.graceEnd).getTime(),
+      )
+      .find((period) => isVacationPeriodUsable(period));
+    setSelectedPeriodId(usable?.id ?? null);
+  }, [data.periods, data.user.id, targetUserId, loading, selectedPeriodId]);
 
   const refresh = async (nextUserId = targetUserId, nextYear = year) => {
     setLoading(true);
+    const sequence = ++refreshSequence.current;
     try {
       const result = await getVacationBalanceData(nextUserId, nextYear);
+      if (sequence !== refreshSequence.current) return;
       if (isFailure(result)) {
         toast.error(result.error);
         return;
@@ -85,12 +101,17 @@ export function VacationPlanner({
       });
       // The chosen period may not exist for the new user.
       if (nextUserId !== targetUserId) setSelectedPeriodId(null);
+    } catch (error) {
+      if (sequence === refreshSequence.current)
+        toast.error((error as Error).message);
     } finally {
-      setLoading(false);
+      if (sequence === refreshSequence.current) setLoading(false);
     }
   };
 
   const handleUserChange = (userId: string) => {
+    setSelectedPeriodId(null);
+    setReason("");
     setTargetUserId(userId);
     startTransition(() => {
       void refresh(userId, year);
@@ -108,22 +129,31 @@ export function VacationPlanner({
     data.periods.find((period) => period.id === selectedPeriodId) ?? null;
 
   const handleRequestRange = async (startDate: string, endDate: string) => {
+    if (
+      loading ||
+      data.user.id !== targetUserId ||
+      data.year !== year ||
+      !selectedPeriod ||
+      !isVacationPeriodUsable(selectedPeriod)
+    )
+      return false;
     const result = await createVacation({
       startDate: new Date(`${startDate}T00:00:00.000Z`),
       endDate: new Date(`${endDate}T00:00:00.000Z`),
-      // Only send a userId when acting on someone else's behalf.
-      userId: targetUserId !== initialData.user.id ? targetUserId : undefined,
+      userId: targetUserId,
+      reason: reason.trim() || null,
       // Charge the period the user picked, so the panel and the result agree.
       periodId: selectedPeriodId ?? undefined,
     });
 
     if (isFailure(result)) {
       toast.error(result.error);
-      return;
+      return false;
     }
 
     toast.success("Solicitud de vacaciones enviada a autorización");
     await refresh();
+    return true;
   };
 
   return (
@@ -161,6 +191,19 @@ export function VacationPlanner({
         </div>
 
         <div className="lg:col-span-2">
+          {canManage && (
+            <div className="mb-4 space-y-2">
+              <Label htmlFor="planner-reason">
+                Motivo (obligatorio para fechas retroactivas)
+              </Label>
+              <Textarea
+                id="planner-reason"
+                value={reason}
+                onChange={(event) => setReason(event.target.value)}
+                maxLength={1000}
+              />
+            </div>
+          )}
           <VacationYearCalendar
             year={data.year}
             vacations={data.vacations}
@@ -168,7 +211,13 @@ export function VacationPlanner({
             selectedPeriod={selectedPeriod}
             onRequestRange={handleRequestRange}
             onYearChange={handleYearChange}
-            readOnly={!data.hasHireDate}
+            readOnly={
+              !data.hasHireDate ||
+              loading ||
+              data.user.id !== targetUserId ||
+              data.year !== year
+            }
+            allowRetroactive={canManage}
           />
         </div>
       </div>

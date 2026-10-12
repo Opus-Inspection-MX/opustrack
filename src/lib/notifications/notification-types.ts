@@ -27,6 +27,7 @@ export const NOTIFICATION_TYPES = {
   VACATION_APPROVED: "vacation_approved",
   VACATION_REJECTED: "vacation_rejected",
   VACATION_CANCELLED: "vacation_cancelled",
+  VACATION_CORRECTED: "vacation_corrected",
   VACATION_STARTING_SOON: "vacation_starting_soon",
 
   // System notifications

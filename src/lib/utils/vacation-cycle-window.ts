@@ -31,9 +31,9 @@ export function calendarVacationWindow(
   const hire = moment(hireDate).tz(APP_TZ);
   const hireYear = hire.year();
   const month = hire.month();
-  const day = hire.date();
-  // No substitute date for Feb 29 has been approved, even in leap cycles.
-  if (cycleYear <= hireYear || (month === 1 && day === 29)) return null;
+  let day = hire.date();
+  if (cycleYear <= hireYear) return null;
+  if (month === 1 && day === 29 && !moment([cycleYear]).isLeapYear()) day = 28;
 
   const anniversary = moment.tz({ year: cycleYear, month, day }, APP_TZ);
   if (!anniversary.isValid()) return null;
@@ -66,4 +66,29 @@ export function isCalendarGrantAvailable(
     date >= window.availableFrom &&
     date <= window.graceEnd
   );
+}
+
+/** Missing calendar activation is blocked, including imported future grants. */
+export function isVacationPeriodUsable(
+  period: {
+    cycleYear: number | null;
+    availableFrom: Date | string | null;
+    graceEnd: Date | string;
+    remainingDays: number;
+    isExpired: boolean;
+  },
+  now = new Date(),
+): boolean {
+  if (
+    period.isExpired ||
+    period.remainingDays <= 0 ||
+    new Date(period.graceEnd) < now
+  )
+    return false;
+  if (period.cycleYear != null) {
+    return (
+      period.availableFrom != null && new Date(period.availableFrom) <= now
+    );
+  }
+  return true;
 }

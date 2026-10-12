@@ -210,6 +210,8 @@ Las migraciones **no** se aplican solas en el despliegue: córrelas con
   asignaciones, RBAC, inventario, vehículos, programación, notificaciones,
   reportes, festivos y vacaciones). Es la fuente de verdad del negocio.
 - [`CLAUDE.md`](./CLAUDE.md) — arquitectura y patrones del proyecto.
+- [`docs/business-invariants.md`](./docs/business-invariants.md) — invariantes,
+  trazabilidad de pruebas, orden de despliegue y conciliación de solo lectura.
 - [`e2e/README.md`](./e2e/README.md) — cómo funciona la suite end-to-end.
 - [`docs/base-de-datos-produccion.md`](./docs/base-de-datos-produccion.md) —
   operaciones sobre la base real.

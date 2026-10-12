@@ -11,7 +11,8 @@ import { isFailure } from "@/lib/actions/result";
 import { updateUserEmployment } from "@/lib/actions/users";
 import type { VacationPeriodSummary } from "@/lib/actions/vacations";
 import { updatePeriodOverride } from "@/lib/actions/vacations";
-import { formatMX } from "@/lib/utils/datetime";
+import { formatMX, mxDateString } from "@/lib/utils/datetime";
+import { isVacationPeriodUsable } from "@/lib/utils/vacation-cycle-window";
 
 interface VacationBalancePanelProps {
   periods: VacationPeriodSummary[];
@@ -71,9 +72,11 @@ function PeriodCard({
     }
   };
 
-  const yearLabel = `${new Date(period.accrualStart).getFullYear()}–${new Date(
-    period.accrualEnd,
-  ).getFullYear()}`;
+  const yearLabel =
+    period.cycleYear != null
+      ? String(period.cycleYear)
+      : `${mxDateString(new Date(period.accrualStart)).slice(0, 4)}–${mxDateString(new Date(period.accrualEnd)).slice(0, 4)}`;
+  const usable = isVacationPeriodUsable(period);
 
   return (
     // The selectable area is its own button rather than wrapping the whole
@@ -90,6 +93,7 @@ function PeriodCard({
         type="button"
         onClick={onSelect}
         aria-pressed={isSelected}
+        disabled={!usable}
         className="w-full p-4 text-left"
       >
         <div className="flex items-start justify-between gap-2">
@@ -103,6 +107,14 @@ function PeriodCard({
                 Vencido
               </Badge>
             )}
+            {period.cycleYear != null &&
+              !period.isExpired &&
+              !usable &&
+              period.remainingDays > 0 && (
+                <Badge variant="outline" className="text-xs">
+                  Pendiente de aniversario
+                </Badge>
+              )}
             {period.isOverridden && (
               <Badge variant="secondary" className="text-xs">
                 Ajustado
@@ -125,6 +137,12 @@ function PeriodCard({
         </p>
 
         <p className="mt-2 text-xs text-muted-foreground">
+          {period.availableFrom && (
+            <>
+              Disponible desde{" "}
+              {formatMX(period.availableFrom, { dateStyle: "medium" })}.{" "}
+            </>
+          )}
           Vigencia hasta {formatMX(period.graceEnd, { dateStyle: "medium" })}
         </p>
       </button>
@@ -227,7 +245,7 @@ function HireDateCapture({
         type="date"
         value={hireDate}
         onChange={(e) => setHireDate(e.target.value)}
-        max={new Date().toISOString().slice(0, 10)}
+        max={mxDateString(new Date())}
       />
       <Button onClick={save} disabled={saving} className="w-full sm:w-auto">
         {saving ? "Guardando…" : "Guardar fecha de ingreso"}
@@ -281,8 +299,9 @@ export function VacationBalancePanel({
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground">
-            No hay períodos vacacionales generados. Revisa que exista una regla
-            de días configurada para los años de servicio de este usuario.
+            No hay períodos vacacionales generados. Revisa que haya transcurrido
+            el primer aniversario y que exista una regla de días configurada
+            para los años de servicio de este usuario.
           </p>
         </CardContent>
       </Card>

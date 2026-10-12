@@ -44,6 +44,7 @@ const SCOPE_EVIDENCE = [
   "loadEquipmentFor(",
   "requireClientAccess(",
   "assertBelongsToClient(",
+  "loadScheduleForMutation(",
   "clientInScope(",
   // Scope resolution and fragments (report-scope.ts).
   "getReportScope(",
@@ -122,8 +123,8 @@ const ALLOWLIST: Record<string, string> = {
     "global config: accrual rules apply to everyone",
   "vacation-accrual-rules.ts :: deleteAccrualRule":
     "global config: accrual rules apply to everyone",
-  "vehicles.ts :: getVehicleById":
-    "global catalog: the fleet has no Client dimension",
+  "vehicles.ts :: correctVehicleOdometer":
+    "global fleet correction: vehicles:update and vehicle-trips:manage-all, with audit",
   "vehicles.ts :: updateVehicle":
     "global catalog: the fleet has no Client dimension",
   "vehicles.ts :: deleteVehicle":
@@ -142,6 +143,8 @@ const ALLOWLIST: Record<string, string> = {
     "global ops: email outbox retry, no Client dimension",
   "vacations.ts :: updatePeriodOverride":
     "global payroll config: accrual periods, no Client dimension",
+  "vacations.ts :: correctStartedVacation":
+    "vacation administration with vacations:manage, immutable consumption audit; no Client dimension",
   // Own data: ownership enforced with the caller's id.
   "notifications.ts :: markNotificationAsRead":
     "own data: ownership enforced with user.id in the notification service",
@@ -173,29 +176,6 @@ const ALLOWLIST: Record<string, string> = {
     "tenant admin: clients:update held only by scope-unrestricted roles",
   "clients.ts :: deleteClient":
     "tenant admin: clients:delete held only by scope-unrestricted roles",
-  // Id guards explicitly deferred: permission held only by scope-unrestricted
-  // roles (or nobody) today, so no live hole — but roles are UI-editable
-  // (H-09), so each lands in the Fase 2 real-SQL IDOR matrix, not here.
-  "assignments.ts :: deleteAssignment":
-    "deferred: assignments:delete held only by scope-unrestricted roles; id guard lands with the Fase 2 IDOR matrix",
-  "assignments.ts :: reopenAssignment":
-    "deferred: assignments:reopen held by no seeded role (H-06/0d); id guard lands with the Fase 2 IDOR matrix",
-  "incidents.ts :: cancelIncident":
-    "deferred: incidents:cancel held by no seeded role (H-06/0d); id guard lands with the Fase 2 IDOR matrix",
-  "schedules.ts :: getScheduleById":
-    "deferred: schedule row guard pending (writes already check the client list); full guard with the Fase 2 IDOR matrix",
-  "schedules.ts :: deleteSchedule":
-    "deferred: schedule row guard pending; full guard with the Fase 2 IDOR matrix",
-  "tracking.ts :: assignFSRToIncident":
-    "deferred: tracking:update held only by scope-unrestricted roles; id guard lands with the Fase 2 IDOR matrix",
-  "tracking.ts :: updateAssignmentAssignees":
-    "deferred: tracking:update held only by scope-unrestricted roles; id guard lands with the Fase 2 IDOR matrix",
-  "tracking.ts :: updateIncidentDetails":
-    "deferred: tracking:update held only by scope-unrestricted roles; id guard lands with the Fase 2 IDOR matrix",
-  "tracking.ts :: overrideIncidentStatus":
-    "deferred: tracking:update held only by scope-unrestricted roles; id guard lands with the Fase 2 IDOR matrix",
-  "tracking.ts :: updateAssignmentDetails":
-    "deferred: tracking:update held only by scope-unrestricted roles; id guard lands with the Fase 2 IDOR matrix",
 };
 
 type Candidate = { file: string; action: string; region: string };

@@ -393,6 +393,23 @@ export const NOTIFICATION_EVENTS: Record<NotificationType, EventDef> = {
       },
     }),
   },
+  [NOTIFICATION_TYPES.VACATION_CORRECTED]: {
+    label: "Vacación corregida",
+    group: "Vacaciones",
+    priority: NOTIFICATION_PRIORITY.MEDIUM,
+    defaultChannels: { inApp: true, email: false },
+    render: (ctx) => ({
+      title: "Período de vacaciones acortado",
+      message:
+        "Tu solicitud de vacaciones sigue aprobada y su período de ausencia fue acortado. Revisa la nueva fecha de fin.",
+      actionUrl: ctx.vacationId ? vacationGoLink(ctx.vacationId) : null,
+      email: {
+        subject: "Período de vacaciones acortado",
+        intro:
+          "Tu solicitud de vacaciones sigue aprobada y su período de ausencia fue acortado. Revisa la nueva fecha de fin.",
+      },
+    }),
+  },
   [NOTIFICATION_TYPES.VACATION_STARTING_SOON]: {
     label: "Vacación próxima a iniciar",
     group: "Vacaciones",

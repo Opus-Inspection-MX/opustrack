@@ -1,5 +1,6 @@
 import { AsyncLocalStorage } from "node:async_hooks";
-import { prisma } from "@/lib/database/prisma.singleton";
+import type { prisma } from "@/lib/database/prisma.singleton";
+import { serializableTransaction } from "@/lib/database/serializable-transaction";
 import { logger } from "@/lib/observability/logger";
 
 /**
@@ -79,5 +80,13 @@ type InteractiveTx = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
 export function transactionWithNotifications<T>(
   fn: (tx: InteractiveTx) => Promise<T>,
 ): Promise<T> {
-  return withDeferredNotifications(() => prisma.$transaction(fn));
+  return withDeferredNotifications(async () => {
+    const committed = await serializableTransaction(async (tx) => {
+      const tasks: DeferredTask[] = [];
+      const result = await storage.run(tasks, () => fn(tx));
+      return { result, tasks };
+    });
+    storage.getStore()?.push(...committed.tasks);
+    return committed.result;
+  });
 }

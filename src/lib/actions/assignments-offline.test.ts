@@ -3,10 +3,16 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const { prismaMock, requirePermission } = vi.hoisted(() => ({
   prismaMock: {
     actionIdempotency: { findUnique: vi.fn() },
-    assignment: { findUnique: vi.fn() },
+    assignment: { findUnique: vi.fn(), findFirst: vi.fn() },
+    userClientAssignment: { findMany: vi.fn() },
+    user: { count: vi.fn() },
     $transaction: vi.fn(),
   },
-  requirePermission: vi.fn(async (_name: string) => ({ id: "fsr-1" })),
+  requirePermission: vi.fn(async (_name: string) => ({
+    id: "fsr-1",
+    isSuperuser: false,
+    permissions: new Set(),
+  })),
 }));
 
 vi.mock("@/lib/database/prisma.singleton", () => ({ prisma: prismaMock }));
@@ -55,8 +61,8 @@ function closeForm(overrides: Record<string, string> = {}): FormData {
 const LIVE = {
   id: "a1",
   incidentId: 7,
-  incident: { title: "Fuga" },
-  assignees: [],
+  incident: { title: "Fuga", clientId: "c1" },
+  assignees: [{ userId: "fsr-1" }],
   status: { name: "CERRADO" },
 };
 
@@ -64,6 +70,11 @@ beforeEach(() => {
   vi.clearAllMocks();
   prismaMock.actionIdempotency.findUnique.mockResolvedValue(null);
   prismaMock.assignment.findUnique.mockResolvedValue(LIVE);
+  prismaMock.assignment.findFirst.mockResolvedValue(LIVE);
+  prismaMock.userClientAssignment.findMany.mockResolvedValue([
+    { clientId: "c1" },
+  ]);
+  prismaMock.user.count.mockResolvedValue(0);
 });
 
 describe("closeAssignment offline retry", () => {
@@ -71,6 +82,8 @@ describe("closeAssignment offline retry", () => {
     prismaMock.actionIdempotency.findUnique.mockResolvedValue({
       key: "key-1",
       action: "closeAssignment",
+      actorId: "fsr-1",
+      requestTargetId: "a1",
       targetId: "a1",
     });
     const result = await closeAssignment(
@@ -114,6 +127,8 @@ describe("startAssignmentWork offline retry", () => {
     prismaMock.actionIdempotency.findUnique.mockResolvedValue({
       key: "key-start-1",
       action: "startAssignmentWork",
+      actorId: "fsr-1",
+      requestTargetId: "a1",
       targetId: "a1",
     });
     const result = await startAssignmentWork(
@@ -133,4 +148,66 @@ describe("startAssignmentWork offline retry", () => {
     if (isFailure(result)) expect(result.error).toMatch(/24 horas/);
     expect(prismaMock.$transaction).not.toHaveBeenCalled();
   });
+});
+
+describe.each([
+  ["startAssignmentWork", startAssignmentWork],
+  ["closeAssignment", closeAssignment],
+] as const)("%s replay authorization", (action, run) => {
+  const replay = () => ({
+    actorId: "fsr-1",
+    action,
+    requestTargetId: "a1",
+    targetId: "a1",
+  });
+
+  it.each([
+    { actorId: "fsr-2" },
+    { action: "otherAction" },
+    { requestTargetId: "a2" },
+    { actorId: null },
+  ])(
+    "rejects a key with a different binding (%j) before loading a row",
+    async (override) => {
+      prismaMock.actionIdempotency.findUnique.mockResolvedValue({
+        ...replay(),
+        ...override,
+      });
+      expect(
+        await run(closeForm({ idempotencyKey: "key-bound" })),
+      ).toMatchObject({
+        success: false,
+        error: expect.stringMatching(/llave de reintento/),
+      });
+      expect(prismaMock.assignment.findFirst).not.toHaveBeenCalled();
+      expect(prismaMock.assignment.findUnique).not.toHaveBeenCalled();
+      expect(prismaMock.$transaction).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(["assignee", "Cliente", "deleted"])(
+    "rejects replay after %s access is revoked",
+    async (revocation) => {
+      prismaMock.actionIdempotency.findUnique.mockResolvedValue(replay());
+      if (revocation === "assignee")
+        prismaMock.assignment.findFirst.mockResolvedValue({
+          ...LIVE,
+          assignees: [{ userId: "fsr-2" }],
+        });
+      if (revocation === "Cliente")
+        prismaMock.userClientAssignment.findMany.mockResolvedValue([]);
+      if (revocation === "deleted")
+        prismaMock.assignment.findFirst.mockResolvedValue(null);
+      expect(
+        await run(closeForm({ idempotencyKey: "key-bound" })),
+      ).toMatchObject({ success: false });
+      expect(prismaMock.assignment.findUnique).not.toHaveBeenCalled();
+      expect(prismaMock.$transaction).not.toHaveBeenCalled();
+      expect(prismaMock.assignment.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: "a1", active: true, incident: { active: true } },
+        }),
+      );
+    },
+  );
 });

@@ -1,5 +1,20 @@
-import { describe, expect, it, vi } from "vitest";
-import { deferAfterCommit, withDeferredNotifications } from "./after-commit";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+const { transaction } = vi.hoisted(() => ({ transaction: vi.fn() }));
+vi.mock("@/lib/database/prisma.singleton", () => ({
+  prisma: { $transaction: transaction },
+}));
+
+import {
+  deferAfterCommit,
+  transactionWithNotifications,
+  withDeferredNotifications,
+} from "./after-commit";
+
+beforeEach(() => {
+  transaction.mockReset();
+});
+afterEach(() => vi.useRealTimers());
 
 /**
  * The commit gate: notifications recorded inside a wrapped flow go out only
@@ -86,5 +101,138 @@ describe("withDeferredNotifications", () => {
 
     expect(bad).toHaveBeenCalledTimes(1);
     expect(good).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("transactionWithNotifications commit gate", () => {
+  it("does not dispatch between callback completion and successful commit", async () => {
+    const task = vi.fn(async () => {});
+    transaction.mockImplementation(async (run) => {
+      const result = await run({});
+      expect(task).not.toHaveBeenCalled();
+      return result;
+    });
+    expect(
+      await transactionWithNotifications(async () => {
+        deferAfterCommit(task);
+        return "committed";
+      }),
+    ).toBe("committed");
+    expect(task).toHaveBeenCalledTimes(1);
+  });
+
+  it("discards notifications when commit fails after the callback succeeds", async () => {
+    const task = vi.fn(async () => {});
+    const failure = { code: "P2002" };
+    transaction.mockImplementation(async (run) => {
+      await run({});
+      throw failure;
+    });
+    await expect(
+      transactionWithNotifications(async () => {
+        deferAfterCommit(task);
+        return "uncommitted";
+      }),
+    ).rejects.toBe(failure);
+    expect(task).not.toHaveBeenCalled();
+    expect(transaction).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([false, true])(
+    "only flushes winning attempt events once (outer collector=%s)",
+    async (nested) => {
+      vi.useFakeTimers();
+      const events: number[] = [];
+      const notify = vi.fn(async (attempt: number) => {
+        events.push(attempt);
+      });
+      const outerTask = vi.fn(async () => {});
+      let attempt = 0;
+      transaction.mockImplementation(async (run) => {
+        attempt += 1;
+        const result = await run({});
+        expect(notify).not.toHaveBeenCalled();
+        if (attempt < 3) throw { code: "P2034" };
+        return result;
+      });
+      const runTransaction = () =>
+        transactionWithNotifications(async () => {
+          const current = attempt;
+          deferAfterCommit(() => notify(current));
+          await withDeferredNotifications(async () => {
+            deferAfterCommit(() => notify(current * 10));
+          });
+          return current;
+        });
+      const pending = nested
+        ? withDeferredNotifications(async () => {
+            deferAfterCommit(outerTask);
+            const result = await runTransaction();
+            expect(notify).not.toHaveBeenCalled();
+            expect(outerTask).not.toHaveBeenCalled();
+            return result;
+          })
+        : runTransaction();
+      await vi.runAllTimersAsync();
+      expect(await pending).toBe(3);
+      expect(transaction).toHaveBeenCalledTimes(3);
+      expect(events).toEqual([3, 30]);
+      expect(notify).toHaveBeenCalledTimes(2);
+      expect(outerTask).toHaveBeenCalledTimes(nested ? 1 : 0);
+    },
+  );
+
+  it("discards all four attempts when serialization never commits", async () => {
+    vi.useFakeTimers();
+    const task = vi.fn(async () => {});
+    const conflict = { code: "P2034" };
+    transaction.mockImplementation(async (run) => {
+      await run({});
+      throw conflict;
+    });
+    const rejected = expect(
+      transactionWithNotifications(async () => {
+        deferAfterCommit(task);
+      }),
+    ).rejects.toBe(conflict);
+    await vi.runAllTimersAsync();
+    await rejected;
+    expect(transaction).toHaveBeenCalledTimes(4);
+    expect(task).not.toHaveBeenCalled();
+  });
+
+  it("a caught inner transaction failure does not contaminate the outer collector", async () => {
+    const failedTask = vi.fn(async () => {});
+    const outerTask = vi.fn(async () => {});
+    const failure = { code: "P2002" };
+    transaction.mockImplementation(async (run) => {
+      await run({});
+      throw failure;
+    });
+    await withDeferredNotifications(async () => {
+      deferAfterCommit(outerTask);
+      await expect(
+        transactionWithNotifications(async () => {
+          deferAfterCommit(failedTask);
+        }),
+      ).rejects.toBe(failure);
+      expect(outerTask).not.toHaveBeenCalled();
+    });
+    expect(outerTask).toHaveBeenCalledTimes(1);
+    expect(failedTask).not.toHaveBeenCalled();
+  });
+
+  it("an outer rollback discards the nested transaction's committed events", async () => {
+    const task = vi.fn(async () => {});
+    transaction.mockImplementation(async (run) => run({}));
+    await expect(
+      withDeferredNotifications(async () => {
+        await transactionWithNotifications(async () => {
+          deferAfterCommit(task);
+        });
+        throw new Error("outer rollback");
+      }),
+    ).rejects.toThrow("outer rollback");
+    expect(task).not.toHaveBeenCalled();
   });
 });

@@ -7,6 +7,12 @@ const { prismaMock, requirePermission } = vi.hoisted(() => ({
   },
   requirePermission: vi.fn(async (_name: string) => ({ id: "u1" })),
 }));
+const { loadAssignmentFor, syncIncidentState } = vi.hoisted(() => ({
+  loadAssignmentFor: vi.fn(),
+  syncIncidentState: vi.fn(),
+}));
+vi.mock("@/lib/auth/access", () => ({ loadAssignmentFor }));
+vi.mock("@/lib/state-machine/sync", () => ({ syncIncidentState }));
 
 vi.mock("@/lib/database/prisma.singleton", () => ({ prisma: prismaMock }));
 vi.mock("@/lib/auth/auth", () => ({
@@ -69,5 +75,12 @@ describe("deleteAssignment · guardas (RF-250)", () => {
       where: { id: "a1" },
       data: { active: false },
     });
+    expect(loadAssignmentFor).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "u1" }),
+      "a1",
+      "manager",
+      prismaMock,
+    );
+    expect(syncIncidentState).toHaveBeenCalledWith(1, prismaMock);
   });
 });

@@ -1,8 +1,10 @@
 "use server";
 
+import type { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { requirePermission } from "@/lib/auth/auth";
 import { prisma } from "@/lib/database/prisma.singleton";
+import { serializableTransaction } from "@/lib/database/serializable-transaction";
 import { businessRule, guarded } from "./result";
 
 /**
@@ -23,6 +25,20 @@ export interface AccrualRuleFormData {
   days: number;
 }
 
+const DATABASE_INT_MAX = 2_147_483_647;
+
+function isDatabaseInt(value: number): boolean {
+  return Number.isSafeInteger(value) && value >= 0 && value <= DATABASE_INT_MAX;
+}
+
+function validateRuleId(id: number): void {
+  if (!isDatabaseInt(id) || id < 1) {
+    businessRule(
+      "El identificador de la regla debe ser un entero válido mayor que cero.",
+    );
+  }
+}
+
 export async function getAccrualRules() {
   await requirePermission("vacations:manage");
 
@@ -35,7 +51,8 @@ export async function getAccrualRules() {
 export async function getAccrualRuleById(id: number) {
   await requirePermission("vacations:manage");
 
-  return prisma.vacationAccrualRule.findUnique({ where: { id } });
+  if (!isDatabaseInt(id) || id < 1) return null;
+  return prisma.vacationAccrualRule.findFirst({ where: { id, active: true } });
 }
 
 /**
@@ -43,19 +60,19 @@ export async function getAccrualRuleById(id: number) {
  * `maxYears` is what covers everyone past the last defined tier.
  */
 function validateRule(data: AccrualRuleFormData): void {
-  if (!Number.isInteger(data.minYears) || data.minYears < 1) {
-    businessRule("El año inicial debe ser un número entero mayor o igual a 1.");
+  if (!isDatabaseInt(data.minYears) || data.minYears < 1) {
+    businessRule("El año inicial debe ser un entero entre 1 y 2147483647.");
   }
   if (data.maxYears !== null) {
-    if (!Number.isInteger(data.maxYears)) {
-      businessRule("El año final debe ser un número entero.");
+    if (!isDatabaseInt(data.maxYears) || data.maxYears < 1) {
+      businessRule("El año final debe ser un entero entre 1 y 2147483647.");
     }
     if (data.maxYears < data.minYears) {
       businessRule("El año final no puede ser menor que el año inicial.");
     }
   }
-  if (!Number.isInteger(data.days) || data.days < 0) {
-    businessRule("Los días deben ser un número entero positivo.");
+  if (!isDatabaseInt(data.days)) {
+    businessRule("Los días deben ser un número entero mayor o igual a cero.");
   }
   if (data.days > 365) {
     businessRule("Los días no pueden exceder 365.");
@@ -67,11 +84,15 @@ function validateRule(data: AccrualRuleFormData): void {
  * of service would make the entitlement depend on query order.
  */
 async function assertNoOverlap(
+  tx: Prisma.TransactionClient,
   data: AccrualRuleFormData,
   excludeId?: number,
 ): Promise<void> {
-  const others = await prisma.vacationAccrualRule.findMany({
-    where: { active: true, ...(excludeId ? { id: { not: excludeId } } : {}) },
+  const others = await tx.vacationAccrualRule.findMany({
+    where: {
+      active: true,
+      ...(excludeId !== undefined ? { id: { not: excludeId } } : {}),
+    },
   });
 
   const newMax = data.maxYears ?? Number.MAX_SAFE_INTEGER;
@@ -92,35 +113,81 @@ async function assertNoOverlap(
   }
 }
 
+/** minYears remains unique even after soft deletion; return a usable rule error. */
+function rejectDuplicateStart(error: unknown): never {
+  const target = (error as { meta?: { target?: unknown } } | null)?.meta
+    ?.target;
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    error.code === "P2002" &&
+    Array.isArray(target) &&
+    target.includes("minYears")
+  ) {
+    businessRule(
+      "Ya existe una regla con ese año inicial, incluso si fue dada de baja. Selecciona un año inicial distinto.",
+    );
+  }
+  throw error;
+}
+
+function ruleValues(data: AccrualRuleFormData): AccrualRuleFormData {
+  return { minYears: data.minYears, maxYears: data.maxYears, days: data.days };
+}
+
 export async function createAccrualRule(data: AccrualRuleFormData) {
-  await requirePermission("vacations:manage");
+  const caller = await requirePermission("vacations:manage");
 
-  return guarded(async () => {
+  const result = await guarded(async () => {
     validateRule(data);
-    await assertNoOverlap(data);
-
-    const rule = await prisma.vacationAccrualRule.create({ data });
-
-    revalidatePath("/admin/settings/vacation-accrual");
-    return { data: rule };
+    try {
+      const rule = await serializableTransaction(async (tx) => {
+        await assertNoOverlap(tx, data);
+        return tx.vacationAccrualRule.create({
+          data: {
+            ...ruleValues(data),
+            active: true,
+            createdById: caller.id,
+            updatedById: caller.id,
+          },
+        });
+      });
+      return { data: rule };
+    } catch (error) {
+      rejectDuplicateStart(error);
+    }
   });
+  if (result.success) revalidatePath("/admin/settings/vacation-accrual");
+  return result;
 }
 
 export async function updateAccrualRule(id: number, data: AccrualRuleFormData) {
-  await requirePermission("vacations:manage");
+  const caller = await requirePermission("vacations:manage");
 
-  return guarded(async () => {
+  const result = await guarded(async () => {
+    validateRuleId(id);
     validateRule(data);
-    await assertNoOverlap(data, id);
-
-    const rule = await prisma.vacationAccrualRule.update({
-      where: { id },
-      data,
-    });
-
-    revalidatePath("/admin/settings/vacation-accrual");
-    return { data: rule };
+    try {
+      const rule = await serializableTransaction(async (tx) => {
+        const existing = await tx.vacationAccrualRule.findFirst({
+          where: { id, active: true },
+        });
+        if (!existing)
+          businessRule("La regla de acumulación no existe o está inactiva.");
+        await assertNoOverlap(tx, data, id);
+        return tx.vacationAccrualRule.update({
+          where: { id, active: true },
+          data: { ...ruleValues(data), updatedById: caller.id },
+        });
+      });
+      return { data: rule };
+    } catch (error) {
+      rejectDuplicateStart(error);
+    }
   });
+  if (result.success) revalidatePath("/admin/settings/vacation-accrual");
+  return result;
 }
 
 /**
@@ -130,17 +197,27 @@ export async function updateAccrualRule(id: number, data: AccrualRuleFormData) {
  * removing a tier only affects periods generated from now on.
  */
 export async function deleteAccrualRule(id: number) {
-  await requirePermission("vacations:manage");
+  const caller = await requirePermission("vacations:manage");
 
-  return guarded(async () => {
-    await prisma.vacationAccrualRule.update({
-      where: { id },
-      data: { active: false },
+  const result = await guarded(async () => {
+    validateRuleId(id);
+    await serializableTransaction(async (tx) => {
+      const changed = await tx.vacationAccrualRule.updateMany({
+        where: { id, active: true },
+        data: {
+          active: false,
+          updatedById: caller.id,
+          deactivatedById: caller.id,
+          deactivatedAt: new Date(),
+        },
+      });
+      if (changed.count !== 1)
+        businessRule("La regla de acumulación no existe o está inactiva.");
     });
-
-    revalidatePath("/admin/settings/vacation-accrual");
     return {};
   });
+  if (result.success) revalidatePath("/admin/settings/vacation-accrual");
+  return result;
 }
 
 // ---------------------------------------------------------------------------
@@ -164,8 +241,8 @@ export async function getVacationSetting() {
 export async function updateVacationSetting(graceWindowMonths: number) {
   await requirePermission("vacations:manage");
 
-  return guarded(async () => {
-    if (!Number.isInteger(graceWindowMonths) || graceWindowMonths < 0) {
+  const result = await guarded(async () => {
+    if (!isDatabaseInt(graceWindowMonths)) {
       businessRule(
         "La vigencia debe ser un número entero de meses mayor o igual a 0.",
       );
@@ -174,13 +251,15 @@ export async function updateVacationSetting(graceWindowMonths: number) {
       businessRule("La vigencia no puede exceder 120 meses.");
     }
 
-    const setting = await prisma.vacationSetting.upsert({
-      where: { id: 1 },
-      update: { graceWindowMonths },
-      create: { id: 1, graceWindowMonths },
-    });
-
-    revalidatePath("/admin/settings/vacation-accrual");
+    const setting = await serializableTransaction((tx) =>
+      tx.vacationSetting.upsert({
+        where: { id: 1 },
+        update: { graceWindowMonths },
+        create: { id: 1, graceWindowMonths },
+      }),
+    );
     return { data: setting };
   });
+  if (result.success) revalidatePath("/admin/settings/vacation-accrual");
+  return result;
 }

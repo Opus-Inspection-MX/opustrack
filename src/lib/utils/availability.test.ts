@@ -1,4 +1,4 @@
-import type { Holiday } from "@prisma/client";
+import type { Holiday, Prisma } from "@prisma/client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Mock the Prisma singleton BEFORE importing the module under test.
@@ -19,6 +19,52 @@ import {
 
 const findMany = vi.mocked(prisma.holiday.findMany);
 const findFirst = vi.mocked(prisma.vacation.findFirst);
+
+describe("transaction-bound availability", () => {
+  it("uses snapshot vacation approval instead of stale global availability", async () => {
+    const tx = {
+      holiday: { findMany: vi.fn(async () => []) },
+      vacation: { findFirst: vi.fn(async () => ({ id: "vac1" })) },
+    };
+    findMany.mockResolvedValue([]);
+    findFirst.mockResolvedValue(null);
+    expect(
+      await isFsrUnavailable(
+        "fsr1",
+        new Date("2026-10-13T15:00:00Z"),
+        tx as unknown as Prisma.TransactionClient,
+      ),
+    ).toBe(true);
+    expect(tx.vacation.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          userId: "fsr1",
+          active: true,
+          status: { code: "APROBADA" },
+        }),
+      }),
+    );
+    expect(findMany).not.toHaveBeenCalled();
+    expect(findFirst).not.toHaveBeenCalled();
+  });
+  it("reads holiday rules from the transaction and skips vacation on holidays", async () => {
+    const tx = {
+      holiday: {
+        findMany: vi.fn(async () => [makeHoliday({ month: 1, day: 1 })]),
+      },
+      vacation: { findFirst: vi.fn() },
+    };
+    expect(
+      await isFsrUnavailable(
+        "fsr1",
+        new Date("2026-01-01T15:00:00Z"),
+        tx as unknown as Prisma.TransactionClient,
+      ),
+    ).toBe(true);
+    expect(tx.vacation.findFirst).not.toHaveBeenCalled();
+    expect(findMany).not.toHaveBeenCalled();
+  });
+});
 
 /**
  * Build a Holiday row. Only the fields read by holidayRuleMatchesDate matter;

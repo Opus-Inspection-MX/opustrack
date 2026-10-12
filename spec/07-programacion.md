@@ -83,8 +83,15 @@ El campo `color` es hexadecimal y se usa para renderizar badges en UI.
 **Reglas de negocio:**
 - Se requiere permiso `schedules:read`.
 - Los incidentes incluidos tienen `active: true`, ordenados por `reportedAt` descendente.
+- El detalle requiere una programación activa dentro del alcance por Cliente del lector. Los incidentes hijos se filtran independientemente por ese alcance: compartir una programación no habilita acceso a incidentes de otros Clientes. Una programación global sigue la misma regla de lectura que el listado; un alcance vacío no accede ni a globales.
 - Los Clientes incluidos son aquellos con `active: true` en la tabla `ScheduleCliente`.
 - Cada incidente incluye tipo, estado, y datos del usuario que lo reportó.
+
+**Cambio rápido de fecha desde un incidente:** además de `incidents:update`, modificar una programación existente exige `schedules:update` y acceso a todos los Clientes vinculados, incluidos los de sus incidentes activos. Sin programación, un usuario con `schedules:create` puede crear una dedicada y vincular el Cliente del incidente. El incidente debe estar activo y no ser terminal; una programación existente inactiva se rechaza. Las comprobaciones y el cambio de fecha/vínculo forman una transacción.
+
+**Escenario crítico:** un usuario limitado al Cliente A puede leer su incidente en una programación compartida con B, pero no puede mover la fecha compartida sin acceso a B.
+
+**Mutaciones generales:** la edición completa, rápida y eliminación requieren una programación activa dentro del alcance, acceso a todos sus Clientes actuales y a los Clientes de sus incidentes activos. La edición valida también los Clientes solicitados como activos; no se puede retirar un Cliente requerido por un incidente vinculado, salvo convertir la programación en global. La eliminación comprueba el conteo de incidentes activos y escribe el soft delete dentro de la misma transacción serializable. Tanto la resolución del alcance como la comprobación de pertenencia de cada Cliente se leen dentro de la transacción.
 
 ---
 

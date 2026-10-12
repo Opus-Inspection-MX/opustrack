@@ -13,7 +13,10 @@ vi.mock("@/lib/database/prisma.singleton", () => ({
   },
 }));
 vi.mock("@/lib/auth/auth", () => ({
-  requirePermission: vi.fn(async (_name: string) => ({ id: "admin-1" })),
+  requirePermission: vi.fn(async (_name: string) => ({
+    id: "admin-1",
+    isSuperuser: true,
+  })),
 }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 // The cancel routing (reporter + FSRs + operations) is asserted here; the

@@ -20,6 +20,8 @@ import { APP_TZ, formatMX } from "@/lib/utils/datetime";
 
 interface VehicleTrip {
   id: string;
+  status: { code: string | null; name: string };
+  startCapturedAt: Date | null;
   vehicle: {
     id: string;
     make: string;
@@ -124,7 +126,7 @@ export default function VehicleTripsPage() {
               <Link
                 key={trip.id}
                 href={
-                  !trip.endedAt
+                  trip.status.code === "EN_CURSO"
                     ? `/fsr/vehicle-trips/${trip.id}/end`
                     : `/fsr/vehicle-trips/${trip.id}`
                 }
@@ -143,13 +145,15 @@ export default function VehicleTripsPage() {
                             {trip.vehicle.licensePlate}
                           </div>
                           <div className="text-sm text-muted-foreground">
-                            {formatMX(trip.startedAt)}
+                            {formatMX(trip.startCapturedAt ?? trip.startedAt)}
                           </div>
                         </div>
                       </div>
                       <div className="flex sm:flex-col items-center sm:items-end gap-2">
-                        {!trip.endedAt ? (
+                        {trip.status.code === "EN_CURSO" ? (
                           <StatusBadge tone="progress">En Progreso</StatusBadge>
+                        ) : trip.status.code === "CANCELADO" ? (
+                          <StatusBadge tone="danger">Cancelado</StatusBadge>
                         ) : (
                           <>
                             <div className="text-xl sm:text-2xl font-bold">

@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { prismaMock, getUserClientIds } = vi.hoisted(() => ({
@@ -113,6 +114,89 @@ describe("clientInScope (H-05, fail closed)", () => {
   });
 });
 
+describe("transaction-bound access guards", () => {
+  function transaction() {
+    return {
+      incident: { findFirst: vi.fn(async () => ({ id: 7, clientId: "c2" })) },
+      assignment: {
+        findFirst: vi.fn(async () => ({
+          id: "a1",
+          incidentId: 7,
+          incident: { clientId: "c2" },
+          assignees: [],
+        })),
+      },
+      userClientAssignment: {
+        findMany: vi.fn(async () => [{ clientId: "c2" }]),
+      },
+      user: { count: vi.fn(async () => 1) },
+      line: { findFirst: vi.fn(async () => ({ clientId: "c2" })) },
+      equipment: {
+        findFirst: vi.fn(async () => ({ line: { clientId: "c2" } })),
+      },
+      schedule: {
+        findFirst: vi.fn(async () => ({ clients: [{ clientId: "c2" }] })),
+      },
+    };
+  }
+  it("reads the incident and current membership from the provided snapshot", async () => {
+    const tx = transaction();
+    getUserClientIds.mockResolvedValue(["c1"]);
+    expect(
+      await loadIncidentFor(
+        user(),
+        7,
+        tx as unknown as Prisma.TransactionClient,
+      ),
+    ).toEqual({ id: 7, clientId: "c2" });
+    expect(tx.userClientAssignment.findMany).toHaveBeenCalledWith({
+      where: { userId: "u1", active: true },
+      select: { clientId: true },
+    });
+    expect(getUserClientIds).not.toHaveBeenCalled();
+    expect(prismaMock.incident.findFirst).not.toHaveBeenCalled();
+  });
+  it("rejects membership removed in the snapshot despite stale global membership", async () => {
+    const tx = transaction();
+    tx.userClientAssignment.findMany.mockResolvedValue([]);
+    getUserClientIds.mockResolvedValue(["c2"]);
+    await expect(
+      loadIncidentFor(user(), 7, tx as unknown as Prisma.TransactionClient),
+    ).rejects.toThrow(/Sin acceso/);
+    expect(getUserClientIds).not.toHaveBeenCalled();
+  });
+  it("checks manager capability in the same transaction as the assignment", async () => {
+    const tx = transaction();
+    tx.user.count.mockResolvedValue(0);
+    await expect(
+      loadAssignmentFor(
+        user(),
+        "a1",
+        "manager",
+        tx as unknown as Prisma.TransactionClient,
+      ),
+    ).rejects.toThrow(/administrador/);
+    expect(tx.user.count).toHaveBeenCalled();
+    expect(prismaMock.user.count).not.toHaveBeenCalled();
+  });
+  it("validates all cross-references exclusively through the transaction", async () => {
+    const tx = transaction();
+    await assertBelongsToClient(
+      { lineId: 1, equipmentId: 2, scheduleId: "s1" },
+      "c2",
+      tx as unknown as Prisma.TransactionClient,
+    );
+    expect(tx.line.findFirst).toHaveBeenCalled();
+    expect(tx.equipment.findFirst).toHaveBeenCalled();
+    expect(tx.schedule.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: "s1", active: true } }),
+    );
+    expect(prismaMock.schedule.findFirst).not.toHaveBeenCalled();
+    expect(prismaMock.line.findFirst).not.toHaveBeenCalled();
+    expect(prismaMock.equipment.findFirst).not.toHaveBeenCalled();
+  });
+});
+
 describe("requireClientAccess agrees with getReportScope", () => {
   it("allows exactly what the resolved scope includes", async () => {
     const u = scopedUser();
@@ -190,7 +274,9 @@ describe("loadAssignmentFor", () => {
       loadAssignmentFor(scopedUser(), "a1", "reader"),
     ).resolves.toEqual(row());
     expect(prismaMock.assignment.findFirst).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { id: "a1", active: true } }),
+      expect.objectContaining({
+        where: { id: "a1", active: true, incident: { active: true } },
+      }),
     );
   });
 

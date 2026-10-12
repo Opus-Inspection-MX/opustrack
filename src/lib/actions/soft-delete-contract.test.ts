@@ -23,12 +23,7 @@ import { describe, expect, it } from "vitest";
 const ALLOWLIST: Record<string, string> = {
   "assignment-activities.ts:updateAssignmentActivity":
     "pre-5d write path; needs 0c-style guard",
-  "assignment-activities.ts:deleteAssignmentActivity":
-    "pre-5d write path; needs 0c-style guard",
   "assignment-items.ts:deleteAssignmentItem":
-    "pre-5d write path; needs 0c-style guard",
-  "assignments.ts:deleteAssignment": "pre-5d write path; needs 0c-style guard",
-  "assignments.ts:deleteAssignmentAttachment":
     "pre-5d write path; needs 0c-style guard",
   "broadcasts.ts:updateBroadcast": "pre-5d write path; needs 0c-style guard",
   "broadcasts.ts:cancelBroadcast": "pre-5d write path; needs 0c-style guard",
@@ -36,22 +31,10 @@ const ALLOWLIST: Record<string, string> = {
     "pre-5d write path; needs 0c-style guard",
   "incident-attachments.ts:deleteIncidentAttachment":
     "pre-5d write path; needs 0c-style guard",
-  "incidents.ts:cancelIncident": "pre-5d write path; needs 0c-style guard",
-  "incidents.ts:deleteIncident": "pre-5d write path; needs 0c-style guard",
-  "incidents.ts:updateIncident": "pre-5d write path; needs 0c-style guard",
-  "incidents.ts:updateIncidentScheduledDate":
-    "pre-5d write path; needs 0c-style guard",
-  "incidents.ts:updateIncidentType": "pre-5d write path; needs 0c-style guard",
   "lines.ts:toggleLineStatus": "pre-5d write path; needs 0c-style guard",
   "notification-settings.ts:retryFailedEmail":
     "EmailOutbox has no active flag by design (log-shaped retry row)",
   "schedules.ts:updateSchedule": "pre-5d write path; needs 0c-style guard",
-  "tracking.ts:updateAssignmentDetails":
-    "pre-5d write path; needs 0c-style guard",
-  "tracking.ts:updateIncidentDetails":
-    "pre-5d write path; needs 0c-style guard",
-  "tracking.ts:overrideIncidentStatus":
-    "pre-5d write path; needs 0c-style guard",
   "users.ts:updateMyPassword": "pre-5d write path; needs 0c-style guard",
   "vacations.ts:updatePeriodOverride":
     "VacationPeriod has no active flag (derived balance ledger row)",

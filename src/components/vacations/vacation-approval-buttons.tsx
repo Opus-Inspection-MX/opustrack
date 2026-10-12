@@ -4,27 +4,32 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
 import { isFailure } from "@/lib/actions/result";
 import {
   approveVacation,
+  correctStartedVacation,
   getVacationApprovalConflicts,
+  getVacationById,
   rejectVacation,
   type VacationAssignmentConflict,
 } from "@/lib/actions/vacations";
 import { VACATION_STATUS } from "@/lib/constants/status-codes";
-import { formatMX } from "@/lib/utils/datetime";
+import { formatMX, mxDateString } from "@/lib/utils/datetime";
 
 type VacationApprovalButtonsProps = {
   vacationId: string;
-  /** Current status code; buttons are hidden for already-settled vacations. */
+  /** Current status code; approved requests expose the correction workflow. */
   statusName: string;
   onSuccess?: () => void;
 };
 
 /**
  * Renders Aprobar / Rechazar action buttons for a single vacation row.
- * Only shows for PENDIENTE vacations (resolved by stable code, H-08).
+ * Pending requests expose decisions; approved requests expose corrections.
  */
 export function VacationApprovalButtons({
   vacationId,
@@ -36,8 +41,18 @@ export function VacationApprovalButtons({
   const [conflicts, setConflicts] = useState<
     VacationAssignmentConflict[] | null
   >(null);
+  const [correction, setCorrection] = useState(false);
+  const [correctionEnd, setCorrectionEnd] = useState(mxDateString(new Date()));
+  const [correctionReason, setCorrectionReason] = useState("");
+  const [reviewedDays, setReviewedDays] = useState("");
+  const [needsReview, setNeedsReview] = useState(false);
+  const [maxCorrectionEnd, setMaxCorrectionEnd] = useState<string>();
+  const [maxReviewedDays, setMaxReviewedDays] = useState<number>();
 
-  if (statusName !== VACATION_STATUS.PENDIENTE) {
+  if (
+    statusName !== VACATION_STATUS.PENDIENTE &&
+    statusName !== VACATION_STATUS.APROBADA
+  ) {
     return null;
   }
 
@@ -56,16 +71,16 @@ export function VacationApprovalButtons({
 
       if (isFailure(result)) {
         toast.error(result.error);
-        toast.error(result.error);
-        return;
+        return false;
       }
       toast.success(successMessage);
       onSuccess?.();
       router.refresh();
+      return true;
     } catch (err) {
       const message = (err as Error).message;
       toast.error(message);
-      toast.error(message);
+      return false;
     } finally {
       setLoading(null);
     }
@@ -123,6 +138,139 @@ export function VacationApprovalButtons({
       "Aprobar las vacaciones no reasigna ese trabajo: tendrás que reprogramarlo o asignarlo a otro técnico."
     );
   };
+
+  if (statusName === VACATION_STATUS.APROBADA) {
+    return (
+      <div className="space-y-2">
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={loading !== null}
+          onClick={async () => {
+            setLoading("approve");
+            try {
+              const row = await getVacationById(vacationId);
+              if (
+                !row ||
+                mxDateString(row.startDate) > mxDateString(new Date())
+              ) {
+                toast.error("La corrección requiere una vacación iniciada.");
+                return;
+              }
+              if (!row.active || row.businessDaysUsed == null) {
+                toast.error(
+                  "La solicitud requiere conciliación de consumo antes de corregirla.",
+                );
+                return;
+              }
+              const lastAllowed = new Date(
+                `${mxDateString(row.endDate)}T00:00:00Z`,
+              );
+              lastAllowed.setUTCDate(lastAllowed.getUTCDate() - 1);
+              if (
+                lastAllowed.toISOString().slice(0, 10) <
+                mxDateString(new Date())
+              ) {
+                toast.error(
+                  "La vacación ya no tiene días futuros que puedan liberarse.",
+                );
+                return;
+              }
+              setMaxCorrectionEnd(lastAllowed.toISOString().slice(0, 10));
+              setMaxReviewedDays(row.businessDaysUsed);
+              setNeedsReview(!row.chargeSnapshotAvailable);
+              setCorrectionEnd(mxDateString(new Date()));
+              setCorrectionReason("");
+              setReviewedDays("");
+              setCorrection(true);
+            } catch (error) {
+              toast.error((error as Error).message);
+            } finally {
+              setLoading(null);
+            }
+          }}
+        >
+          Corregir período iniciado
+        </Button>
+        {correction && (
+          <div className="space-y-2 rounded border p-3">
+            <p className="text-sm">
+              Se conserva el consumo hasta la fecha elegida, incluido hoy. Solo
+              se liberan los días posteriores.
+            </p>
+            <Label htmlFor={`correction-end-${vacationId}`}>
+              Último día de ausencia
+            </Label>
+            <Input
+              id={`correction-end-${vacationId}`}
+              type="date"
+              min={mxDateString(new Date())}
+              max={maxCorrectionEnd}
+              value={correctionEnd}
+              onChange={(event) => setCorrectionEnd(event.target.value)}
+            />
+            <Label htmlFor={`correction-reason-${vacationId}`}>
+              Motivo de la corrección
+            </Label>
+            <Textarea
+              id={`correction-reason-${vacationId}`}
+              value={correctionReason}
+              onChange={(event) => setCorrectionReason(event.target.value)}
+              maxLength={1000}
+            />
+            {needsReview && (
+              <>
+                <Label htmlFor={`correction-days-${vacationId}`}>
+                  Días consumidos revisados (historial sin detalle diario)
+                </Label>
+                <Input
+                  id={`correction-days-${vacationId}`}
+                  type="number"
+                  min={0}
+                  max={maxReviewedDays}
+                  step={1}
+                  value={reviewedDays}
+                  onChange={(event) => setReviewedDays(event.target.value)}
+                />
+              </>
+            )}
+            <Button
+              size="sm"
+              disabled={
+                loading !== null ||
+                !correctionEnd ||
+                !correctionReason.trim() ||
+                (needsReview && reviewedDays === "")
+              }
+              onClick={async () => {
+                const saved = await decide(
+                  "approve",
+                  () =>
+                    correctStartedVacation(
+                      vacationId,
+                      new Date(`${correctionEnd}T00:00:00Z`),
+                      correctionReason,
+                      needsReview ? Number(reviewedDays) : undefined,
+                    ),
+                  "Corrección registrada",
+                );
+                if (saved) setCorrection(false);
+              }}
+            >
+              Guardar corrección
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setCorrection(false)}
+            >
+              Cerrar
+            </Button>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-1">

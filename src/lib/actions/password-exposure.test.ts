@@ -27,6 +27,7 @@ const mocks = vi.hoisted(() => ({
   incidentTypeFindUnique: vi.fn(),
   incidentEventCreate: vi.fn(),
   incidentAssigneeFindMany: vi.fn(),
+  transaction: vi.fn(),
   // Unrestricted actor: the 0c scope guards pass through to the query, which
   // is what these shape assertions inspect (scope behavior itself is pinned
   // in auth/access.test.ts and the integration matrices).
@@ -61,6 +62,7 @@ vi.mock("@/lib/database/prisma.singleton", () => ({
     incidentType: { findUnique: mocks.incidentTypeFindUnique },
     incidentEvent: { create: mocks.incidentEventCreate },
     incidentAssignee: { findMany: mocks.incidentAssigneeFindMany },
+    $transaction: mocks.transaction,
   },
 }));
 vi.mock("@/lib/auth/auth", () => ({
@@ -78,6 +80,7 @@ vi.mock("@/lib/notifications", async (importOriginal) => ({
   notifyIncidentUpdated: mocks.notifyIncidentUpdated,
 }));
 
+import { prisma } from "@/lib/database/prisma.singleton";
 import { getAssignmentActivityById } from "./assignment-activities";
 import { getAssignmentById } from "./assignments";
 import { getClientById } from "./clients";
@@ -149,6 +152,9 @@ function nestedUserSelects(
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mocks.transaction.mockImplementation(
+    async (fn: (tx: typeof prisma) => unknown) => fn(prisma),
+  );
   mocks.incidentStatusFindUnique.mockResolvedValue({ id: 7 });
   mocks.incidentTypeFindUnique.mockResolvedValue({ id: 3 });
   mocks.incidentEventCreate.mockResolvedValue({} as never);
@@ -274,6 +280,7 @@ describe("nested user reads", () => {
     });
 
     expect(result.success).toBe(true);
+    expect(mocks.transaction).toHaveBeenCalledTimes(1);
     const call = mocks.incidentCreate.mock.calls[0]?.[0];
     expectNoPasswordLeak(call);
     const selects = nestedUserSelects(call, "createIncident");
@@ -283,7 +290,10 @@ describe("nested user reads", () => {
   });
 
   it("updateIncident selects the reporter with the safe card", async () => {
-    mocks.incidentFindUnique.mockResolvedValue({ clientId: "c1" });
+    mocks.incidentFindUnique.mockResolvedValue({
+      clientId: "c1",
+      status: { code: "ABIERTO" },
+    });
     mocks.incidentUpdate.mockResolvedValue({ id: 1, title: "New title" });
 
     const result = await updateIncident(1, {
@@ -292,6 +302,7 @@ describe("nested user reads", () => {
     });
 
     expect(result.success).toBe(true);
+    expect(mocks.transaction).toHaveBeenCalledTimes(1);
     const call = mocks.incidentUpdate.mock.calls[0]?.[0];
     expectNoPasswordLeak(call);
     const selects = nestedUserSelects(call, "updateIncident");

@@ -2,7 +2,13 @@
 
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { type FormEvent, useCallback, useEffect, useState } from "react";
+import {
+  type FormEvent,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { PendingDrafts } from "@/components/offline/pending-drafts";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,6 +33,11 @@ import {
 } from "@/lib/actions/vehicle-trips";
 import { logger } from "@/lib/observability/logger";
 import { describeEnqueueFailure, saveDraft } from "@/lib/offline/flush";
+import {
+  loadEntries,
+  newOutboxKey,
+  OUTBOX_CHANGED_EVENT,
+} from "@/lib/offline/outbox";
 import { normalizeMimeType } from "@/lib/upload";
 import { GPSLocationCapture } from "./gps-location-capture";
 
@@ -50,7 +61,7 @@ interface Assignment {
   finishedAt: string | null;
 }
 
-export function TripStartForm() {
+export function TripStartForm({ canManage = false }: { canManage?: boolean }) {
   const router = useRouter();
   const { data: session } = useSession();
   const currentUserId = session?.user?.id;
@@ -68,15 +79,36 @@ export function TripStartForm() {
     longitude: undefined as number | undefined,
     address: "",
     notes: "",
+    startExceptionReason: "",
   });
 
   const [photo, setPhoto] = useState<File | null>(null);
+  const operation = useRef<{ key: string; capturedAt: string } | null>(null);
+  const [queued, setQueued] = useState(false);
+  useEffect(() => {
+    const refresh = () => {
+      if (
+        queued &&
+        operation.current &&
+        !loadEntries().some((entry) => entry.key === operation.current?.key)
+      ) {
+        operation.current = null;
+        setQueued(false);
+      }
+    };
+    window.addEventListener(OUTBOX_CHANGED_EVENT, refresh);
+    window.addEventListener("storage", refresh);
+    return () => {
+      window.removeEventListener(OUTBOX_CHANGED_EVENT, refresh);
+      window.removeEventListener("storage", refresh);
+    };
+  }, [queued]);
 
   const loadFormData = useCallback(async () => {
     setLoadingData(true);
     try {
       const [vehiclesData, assignmentsData] = await Promise.all([
-        getAvailableVehicles(),
+        getAvailableVehicles({ includeOperationalExceptions: canManage }),
         getMyAssignmentsForTrips(),
       ]);
       setVehicles(vehiclesData);
@@ -87,7 +119,7 @@ export function TripStartForm() {
     } finally {
       setLoadingData(false);
     }
-  }, []);
+  }, [canManage]);
 
   useEffect(() => {
     loadFormData();
@@ -109,6 +141,12 @@ export function TripStartForm() {
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError("");
+    if (queued) {
+      toast.error(
+        "Reintenta el borrador pendiente antes de capturar otro inicio.",
+      );
+      return;
+    }
 
     // Validation
     if (!formData.vehicleId) {
@@ -118,7 +156,7 @@ export function TripStartForm() {
 
     if (
       !formData.startOdometer ||
-      Number.parseInt(formData.startOdometer, 10) <= 0
+      Number.parseInt(formData.startOdometer, 10) < 0
     ) {
       setError("Por favor ingresa una lectura de odómetro válida");
       return;
@@ -130,6 +168,10 @@ export function TripStartForm() {
     }
 
     setIsSubmitting(true);
+    operation.current ??= {
+      key: newOutboxKey(),
+      capturedAt: new Date().toISOString(),
+    };
 
     // Fully offline: freeze the field evidence as a draft without calling.
     if (typeof navigator !== "undefined" && !navigator.onLine) {
@@ -140,6 +182,8 @@ export function TripStartForm() {
 
     try {
       const fd = new FormData();
+      fd.append("idempotencyKey", operation.current.key);
+      fd.append("capturedAt", operation.current.capturedAt);
       fd.append("vehicleId", formData.vehicleId);
       if (formData.assignmentId)
         fd.append("assignmentId", formData.assignmentId);
@@ -152,10 +196,13 @@ export function TripStartForm() {
         fd.append("startLongitude", String(formData.longitude));
       if (formData.address) fd.append("startAddress", formData.address);
       if (formData.notes) fd.append("notes", formData.notes);
+      if (formData.startExceptionReason)
+        fd.append("startExceptionReason", formData.startExceptionReason);
 
       const result = await startVehicleTrip(fd);
 
       if (isFailure(result)) {
+        operation.current = null;
         toast.error(result.error);
         return;
       }
@@ -184,16 +231,20 @@ export function TripStartForm() {
       fields.startLongitude = String(formData.longitude);
     if (formData.address) fields.startAddress = formData.address;
     if (formData.notes) fields.notes = formData.notes;
+    if (formData.startExceptionReason)
+      fields.startExceptionReason = formData.startExceptionReason;
     const queued = saveDraft({
       kind: "startVehicleTrip",
       fields,
       photo,
       userId: currentUserId,
+      identity: operation.current ?? undefined,
     });
     if (!queued.queued) {
       toast.error(describeEnqueueFailure(queued.reason));
       return;
     }
+    setQueued(true);
     toast.success(
       `Sin conexión. Inicio de viaje guardado como borrador.${cause ? ` (${cause})` : ""}`,
     );
@@ -333,6 +384,28 @@ export function TripStartForm() {
             </div>
 
             <div className="flex flex-col sm:flex-row gap-3 sm:justify-end">
+              {canManage && (
+                <div className="w-full">
+                  <Label htmlFor="trip-exception">
+                    Motivo de excepción operacional
+                  </Label>
+                  <Textarea
+                    id="trip-exception"
+                    value={formData.startExceptionReason}
+                    maxLength={1000}
+                    onChange={(event) =>
+                      setFormData({
+                        ...formData,
+                        startExceptionReason: event.target.value,
+                      })
+                    }
+                  />
+                  <p className="text-sm text-muted-foreground">
+                    Requerido para iniciar en un día de ausencia, festivo o con
+                    vehículo fuera de servicio.
+                  </p>
+                </div>
+              )}
               <Button
                 type="button"
                 variant="outline"
@@ -344,7 +417,7 @@ export function TripStartForm() {
               </Button>
               <Button
                 type="submit"
-                disabled={isSubmitting}
+                disabled={isSubmitting || queued}
                 className="w-full sm:w-auto order-1 sm:order-2"
               >
                 {isSubmitting ? "Iniciando Viaje..." : "Iniciar Viaje"}

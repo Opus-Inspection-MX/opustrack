@@ -4,15 +4,17 @@ import type { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireAuth, requirePermission } from "@/lib/auth/auth";
+import { assignmentScopeWhere, getReportScope } from "@/lib/auth/report-scope";
 import { userHasPermission } from "@/lib/authz/authz";
 import {
-  isVehicleAvailable,
+  ASSIGNMENT_STATE,
   isVehicleTripOpen,
+  VACATION_STATUS,
   VEHICLE_STATUS,
   VEHICLE_TRIP_STATUS,
 } from "@/lib/constants/status-codes";
 import { prisma } from "@/lib/database/prisma.singleton";
-import { logger } from "@/lib/observability/logger";
+import { serializableTransaction } from "@/lib/database/serializable-transaction";
 import {
   assertOfflineFreshness,
   findReplayTargetId,
@@ -23,7 +25,17 @@ import {
   deleteFile,
   uploadFileFromBuffer,
 } from "@/lib/storage/file-storage";
+import { holidayRuleMatchesDate } from "@/lib/utils/availability";
+import { mxDateString, mxDayRange } from "@/lib/utils/datetime";
 import { businessRule, guarded } from "./result";
+
+const OPEN_ASSIGNMENT_CODES = [
+  ASSIGNMENT_STATE.PENDIENTE_DE_ASIGNACION,
+  ASSIGNMENT_STATE.ASIGNADO,
+  ASSIGNMENT_STATE.VISTO,
+  ASSIGNMENT_STATE.INICIADO,
+  ASSIGNMENT_STATE.EN_PROGRESO,
+];
 
 function getString(formData: FormData, key: string): string | undefined {
   const v = formData.get(key);
@@ -41,8 +53,8 @@ function getNumber(formData: FormData, key: string): number | undefined {
 
 function requireInt(formData: FormData, key: string, label: string): number {
   const n = getNumber(formData, key);
-  if (n === undefined || !Number.isInteger(n)) {
-    businessRule(`${label} es requerido`);
+  if (n === undefined || !Number.isInteger(n) || n < 0 || n > 2147483647) {
+    businessRule(`${label} debe ser un entero entre 0 y 2147483647.`);
   }
   return n;
 }
@@ -55,8 +67,35 @@ function requireFile(formData: FormData, key: string, label: string): File {
   return f;
 }
 
+async function releaseVehicle(
+  tx: Prisma.TransactionClient,
+  vehicleId: string,
+  actorId: string,
+) {
+  const remaining = await tx.vehicleTrip.count({
+    where: {
+      vehicleId,
+      active: true,
+      status: { code: VEHICLE_TRIP_STATUS.EN_CURSO },
+    },
+  });
+  if (remaining !== 0) return;
+  const vehicle = await tx.vehicle.findUniqueOrThrow({
+    where: { id: vehicleId },
+  });
+  const status = await tx.vehicleStatus.findUnique({
+    where: { code: vehicle.operationalStatusCode, active: true },
+  });
+  if (!status || status.code === VEHICLE_STATUS.IN_USE)
+    throw new Error("Invalid vehicle operational status");
+  await tx.vehicle.update({
+    where: { id: vehicleId },
+    data: { statusId: status.id, updatedById: actorId },
+  });
+}
+
 /**
- * Get trips for current FSR. Optional date range filters by startedAt.
+ * Get trips for current FSR by effective capture day in CDMX.
  */
 export async function getMyVehicleTrips(range?: {
   startDate?: string;
@@ -66,10 +105,10 @@ export async function getMyVehicleTrips(range?: {
 
   const startedAtFilter: { gte?: Date; lte?: Date } = {};
   if (range?.startDate) {
-    startedAtFilter.gte = new Date(`${range.startDate}T00:00:00`);
+    startedAtFilter.gte = mxDayRange(range.startDate).gte;
   }
   if (range?.endDate) {
-    startedAtFilter.lte = new Date(`${range.endDate}T23:59:59.999`);
+    startedAtFilter.lte = mxDayRange(range.endDate).lte;
   }
 
   const trips = await prisma.vehicleTrip.findMany({
@@ -77,11 +116,17 @@ export async function getMyVehicleTrips(range?: {
       fsrId: user.id, // Only FSR's own trips
       active: true,
       ...(Object.keys(startedAtFilter).length > 0
-        ? { startedAt: startedAtFilter }
+        ? {
+            OR: [
+              { startCapturedAt: startedAtFilter },
+              { startCapturedAt: null, startedAt: startedAtFilter },
+            ],
+          }
         : {}),
     },
     include: {
       vehicle: true,
+      status: true,
       assignment: {
         select: {
           id: true,
@@ -153,9 +198,10 @@ export async function getVehicleTripById(id: string) {
   const user = await requirePermission("vehicle-trips:read");
 
   const trip = await prisma.vehicleTrip.findUnique({
-    where: { id },
+    where: { id, active: true },
     include: {
       vehicle: true,
+      status: true,
       fsr: {
         select: { id: true, name: true, email: true },
       },
@@ -235,17 +281,31 @@ export async function startVehicleTrip(formData: FormData) {
     // included). A known key converges on the live trip; guards below still
     // run unchanged for new keys.
     const offline = readOfflineFields(formData);
+    const binding = {
+      actorId: user.id,
+      action: "startVehicleTrip",
+      requestTargetId: vehicleId,
+    };
     if (offline.capturedAt !== undefined) {
       assertOfflineFreshness(offline.capturedAt);
     }
     if (offline.idempotencyKey) {
-      const targetId = await findReplayTargetId(prisma, offline.idempotencyKey);
+      const targetId = await findReplayTargetId(
+        prisma,
+        offline.idempotencyKey,
+        binding,
+      );
       if (targetId) {
         const live = await prisma.vehicleTrip.findUnique({
           where: { id: targetId, active: true },
           include: { vehicle: true, assignment: true },
         });
         if (live) {
+          if (
+            live.fsrId !== user.id &&
+            !userHasPermission(user, "vehicle-trips:manage-all")
+          )
+            businessRule("Solo puedes consultar tus propios viajes.");
           revalidatePath("/fsr/vehicle-trips");
           revalidatePath("/admin/vehicles");
           return { data: live };
@@ -255,33 +315,14 @@ export async function startVehicleTrip(formData: FormData) {
 
     assertAllowedUpload(photoMimetype, photo.size);
 
-    // Validate vehicle exists and is selectable. If the user is not admin, the
-    // vehicle must be currently AVAILABLE (the same constraint exposed by
-    // getAvailableVehicles). The early check below is a fast fail; the write
-    // itself re-enforces it atomically with a conditional updateMany inside
-    // the transaction (Fase 5b), so two concurrent starts cannot take the
-    // same vehicle.
-    const vehicle = await prisma.vehicle.findUnique({
-      where: { id: vehicleId, active: true },
-      select: { id: true, status: { select: { code: true, name: true } } },
-    });
-    if (!vehicle) throw new Error("Vehículo no encontrado");
     const needsAvailable = !userHasPermission(user, "vehicle-trips:manage-all");
-    if (needsAvailable && !isVehicleAvailable(vehicle.status)) {
-      businessRule("El vehículo no está disponible.");
-    }
-
-    // If linked to an assignment, ensure the caller is actually an assignee
-    // (an FSR shouldn't be able to start a trip against someone else's work).
-    if (assignmentId && !userHasPermission(user, "vehicle-trips:manage-all")) {
-      const isAssignee = await prisma.assignmentAssignee.findFirst({
-        where: { assignmentId, userId: user.id, active: true },
-        select: { id: true },
-      });
-      if (!isAssignee) {
-        businessRule("No estás asignado a esta asignación.");
-      }
-    }
+    const capturedAt = offline.capturedAt
+      ? new Date(offline.capturedAt)
+      : new Date();
+    const startExceptionReason =
+      getString(formData, "startExceptionReason") ?? null;
+    const capturedDay = mxDateString(capturedAt);
+    const receivedDay = mxDateString(new Date());
 
     const arrayBuffer = await photo.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
@@ -292,51 +333,161 @@ export async function startVehicleTrip(formData: FormData) {
       { subfolder: "vehicle-trips" },
     );
 
-    const inUseStatus = await prisma.vehicleStatus.findUnique({
-      where: { code: VEHICLE_STATUS.IN_USE },
-    });
-    if (!inUseStatus) throw new Error("Vehicle status IN_USE not found");
-
-    // Fase 5b: the id for the conditional claim below, by stable code.
-    const availableStatusId = needsAvailable
-      ? await prisma.vehicleStatus
-          .findUnique({ where: { code: VEHICLE_STATUS.AVAILABLE } })
-          .then((s) => {
-            if (!s) throw new Error("Vehicle status AVAILABLE not found");
-            return s.id;
-          })
-      : null;
-
-    const inProgressStatus = await prisma.vehicleTripStatus.findUnique({
-      where: { code: VEHICLE_TRIP_STATUS.EN_CURSO },
-    });
-    if (!inProgressStatus) throw new Error("Trip status EN_CURSO not found");
-
-    // Fase 5b: claim FIRST, inside the same transaction as the writes. The
-    // idempotency insert runs alongside `vehicle.update` + `trip.create`, so
-    // a concurrent flush with the same key aborts here with P2002 instead of
-    // creating a second trip. The upload above cannot run inside the
-    // transaction, so every failure path below deletes it (no orphaned
-    // photos) and a P2002 converges on the winner's live trip.
+    // Upload once outside the database-only retry loop; failed transactions
+    // clean it up, while idempotency conflicts converge on the committed trip.
     let trip: Prisma.VehicleTripGetPayload<{
       include: { vehicle: true; assignment: true };
     }>;
     try {
-      trip = await prisma.$transaction(async (tx) => {
-        if (availableStatusId !== null) {
-          const claimed = await tx.vehicle.updateMany({
-            where: { id: vehicleId, statusId: availableStatusId },
-            data: { statusId: inUseStatus.id },
+      trip = await serializableTransaction(async (tx) => {
+        const vehicle = await tx.vehicle.findUnique({
+          where: { id: vehicleId, active: true },
+        });
+        if (!vehicle) businessRule("Vehículo no encontrado o inactivo.");
+        if (
+          needsAvailable &&
+          vehicle.operationalStatusCode !== VEHICLE_STATUS.AVAILABLE
+        ) {
+          businessRule("El vehículo no está disponible.");
+        }
+        if (
+          !needsAvailable &&
+          vehicle.operationalStatusCode !== VEHICLE_STATUS.AVAILABLE &&
+          !startExceptionReason
+        )
+          businessRule(
+            "El inicio fuera de servicio requiere un motivo de excepción operacional.",
+          );
+        const openTrip = await tx.vehicleTrip.findFirst({
+          where: {
+            active: true,
+            status: { code: VEHICLE_TRIP_STATUS.EN_CURSO },
+            OR: [{ vehicleId }, { fsrId: user.id }],
+          },
+          select: { id: true },
+        });
+        if (openTrip)
+          businessRule("El vehículo o conductor ya tiene un viaje en curso.");
+        let lastReading = vehicle.odometerBaseline ?? 0;
+        if (vehicle.odometerBaselineAt) {
+          if (capturedAt < vehicle.odometerBaselineAt)
+            businessRule(
+              "La captura es anterior a la corrección del odómetro. Vuelve a capturar el inicio.",
+            );
+          const observations = await tx.vehicleTrip.findMany({
+            where: { vehicleId },
+            select: {
+              startOdometer: true,
+              endOdometer: true,
+              startCapturedAt: true,
+              endCapturedAt: true,
+              startedAt: true,
+              endedAt: true,
+            },
           });
-          if (claimed.count !== 1) {
-            businessRule("El vehículo no está disponible.");
+          for (const observation of observations) {
+            if (
+              (observation.startCapturedAt ?? observation.startedAt) >=
+              vehicle.odometerBaselineAt
+            )
+              lastReading = Math.max(lastReading, observation.startOdometer);
+            const endAt = observation.endCapturedAt ?? observation.endedAt;
+            if (
+              endAt &&
+              endAt >= vehicle.odometerBaselineAt &&
+              observation.endOdometer !== null
+            )
+              lastReading = Math.max(lastReading, observation.endOdometer);
           }
         } else {
-          await tx.vehicle.update({
-            where: { id: vehicleId },
-            data: { statusId: inUseStatus.id },
+          const readings = await tx.vehicleTrip.aggregate({
+            where: { vehicleId },
+            _max: { startOdometer: true, endOdometer: true },
           });
+          lastReading = Math.max(
+            lastReading,
+            readings._max.startOdometer ?? 0,
+            readings._max.endOdometer ?? 0,
+          );
         }
+        if (startOdometer < lastReading)
+          businessRule(
+            `El odómetro inicial no puede ser menor que la última lectura (${lastReading} km).`,
+          );
+        if (assignmentId) {
+          const clientIds = userHasPermission(user, "scope:all-clients")
+            ? null
+            : (
+                await tx.userClientAssignment.findMany({
+                  where: { userId: user.id, active: true },
+                  select: { clientId: true },
+                })
+              ).map((membership) => membership.clientId);
+          const assignment = await tx.assignment.findFirst({
+            where: {
+              id: assignmentId,
+              active: true,
+              status: { code: { in: OPEN_ASSIGNMENT_CODES } },
+              incident: {
+                active: true,
+                status: { code: { notIn: ["CERRADO", "CANCELADA"] } },
+                ...(clientIds === null ? {} : { clientId: { in: clientIds } }),
+              },
+              ...(needsAvailable
+                ? { assignees: { some: { userId: user.id, active: true } } }
+                : {}),
+            },
+            select: { id: true },
+          });
+          if (!assignment)
+            businessRule(
+              "La asignación debe estar activa, abierta y dentro de tu alcance; debes estar asignado a ella.",
+            );
+        }
+        // Check both the captured day and live day: late delivery grants no absence bypass.
+        for (const day of new Set([capturedDay, receivedDay])) {
+          const { gte, lte } = mxDayRange(day);
+          const rules = await tx.holiday.findMany({
+            where: { active: true, month: Number(day.slice(5, 7)) },
+          });
+          const vacation = await tx.vacation.findFirst({
+            where: {
+              userId: user.id,
+              active: true,
+              status: { code: VACATION_STATUS.APROBADA },
+              startDate: { lte },
+              endDate: { gte },
+            },
+            select: { id: true },
+          });
+          if (
+            vacation ||
+            rules.some((rule) => holidayRuleMatchesDate(rule, day))
+          ) {
+            if (needsAvailable || !startExceptionReason)
+              businessRule(
+                "No se puede iniciar un viaje en vacaciones o día festivo sin autorización y motivo explícito.",
+              );
+          }
+        }
+        const inUseStatus = await tx.vehicleStatus.findUnique({
+          where: { code: VEHICLE_STATUS.IN_USE, active: true },
+        });
+        const inProgressStatus = await tx.vehicleTripStatus.findUnique({
+          where: { code: VEHICLE_TRIP_STATUS.EN_CURSO, active: true },
+        });
+        if (!inUseStatus || !inProgressStatus)
+          throw new Error("Vehicle/trip status catalog incomplete");
+        const claimed = await tx.vehicle.updateMany({
+          where: {
+            id: vehicleId,
+            active: true,
+            operationalStatusCode: vehicle.operationalStatusCode,
+          },
+          data: { statusId: inUseStatus.id, updatedById: user.id },
+        });
+        if (claimed.count !== 1)
+          businessRule("El vehículo no está disponible.");
 
         const created = await tx.vehicleTrip.create({
           data: {
@@ -344,6 +495,9 @@ export async function startVehicleTrip(formData: FormData) {
             fsrId: user.id,
             assignmentId,
             startOdometer,
+            startCapturedAt: capturedAt,
+            startExceptionReason,
+            createdById: user.id,
             startPhotoUrl: startPhotoResult.url,
             startPhotoProvider: startPhotoResult.provider,
             startLatitude: getNumber(formData, "startLatitude") ?? null,
@@ -364,6 +518,8 @@ export async function startVehicleTrip(formData: FormData) {
               key: offline.idempotencyKey,
               action: "startVehicleTrip",
               targetId: created.id,
+              actorId: user.id,
+              requestTargetId: vehicleId,
             },
           });
         }
@@ -383,6 +539,7 @@ export async function startVehicleTrip(formData: FormData) {
         const targetId = await findReplayTargetId(
           prisma,
           offline.idempotencyKey,
+          binding,
         );
         if (targetId) {
           const live = await prisma.vehicleTrip.findUnique({
@@ -390,6 +547,11 @@ export async function startVehicleTrip(formData: FormData) {
             include: { vehicle: true, assignment: true },
           });
           if (live) {
+            if (
+              live.fsrId !== user.id &&
+              !userHasPermission(user, "vehicle-trips:manage-all")
+            )
+              businessRule("Solo puedes consultar tus propios viajes.");
             revalidatePath("/fsr/vehicle-trips");
             revalidatePath("/admin/vehicles");
             return { data: live };
@@ -432,17 +594,31 @@ export async function endVehicleTrip(formData: FormData) {
 
     // RF-261: offline draft-and-retry — before any write, same as trip start.
     const offline = readOfflineFields(formData);
+    const binding = {
+      actorId: user.id,
+      action: "endVehicleTrip",
+      requestTargetId: id,
+    };
     if (offline.capturedAt !== undefined) {
       assertOfflineFreshness(offline.capturedAt);
     }
     if (offline.idempotencyKey) {
-      const targetId = await findReplayTargetId(prisma, offline.idempotencyKey);
+      const targetId = await findReplayTargetId(
+        prisma,
+        offline.idempotencyKey,
+        binding,
+      );
       if (targetId) {
         const live = await prisma.vehicleTrip.findUnique({
           where: { id: targetId, active: true },
           include: { vehicle: true, assignment: true },
         });
         if (live) {
+          if (
+            live.fsrId !== user.id &&
+            !userHasPermission(user, "vehicle-trips:manage-all")
+          )
+            businessRule("Solo puedes consultar tus propios viajes.");
           revalidatePath("/fsr/vehicle-trips");
           revalidatePath(`/fsr/vehicle-trips/${targetId}`);
           revalidatePath("/admin/vehicles");
@@ -483,16 +659,6 @@ export async function endVehicleTrip(formData: FormData) {
       businessRule("El odómetro final no puede ser menor que el inicial.");
     }
 
-    const completedStatus = await prisma.vehicleTripStatus.findUnique({
-      where: { code: VEHICLE_TRIP_STATUS.COMPLETADO },
-    });
-    if (!completedStatus) throw new Error("Trip status COMPLETADO not found");
-
-    const availableStatus = await prisma.vehicleStatus.findUnique({
-      where: { code: VEHICLE_STATUS.AVAILABLE },
-    });
-    if (!availableStatus) throw new Error("Vehicle status AVAILABLE not found");
-
     const arrayBuffer = await photo.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
     const endPhotoResult = await uploadFileFromBuffer(
@@ -502,8 +668,6 @@ export async function endVehicleTrip(formData: FormData) {
       { subfolder: "vehicle-trips" },
     );
 
-    const kmDriven = endOdometer - trip.startOdometer;
-
     // Fase 5b: same claim-first contract as the start path — the upload
     // cannot run inside the transaction, so failures delete it and a P2002
     // converges on the winner's live trip.
@@ -511,9 +675,43 @@ export async function endVehicleTrip(formData: FormData) {
       include: { vehicle: true; assignment: true };
     }>;
     try {
-      updatedTrip = await prisma.$transaction(async (tx) => {
-        const updated = await tx.vehicleTrip.update({
-          where: { id },
+      updatedTrip = await serializableTransaction(async (tx) => {
+        const live = await tx.vehicleTrip.findUnique({
+          where: { id, active: true },
+          include: { status: true },
+        });
+        if (!live || !isVehicleTripOpen(live.status))
+          businessRule("El viaje ya está finalizado, cancelado o inactivo.");
+        if (
+          !userHasPermission(user, "vehicle-trips:manage-all") &&
+          live.fsrId !== user.id
+        )
+          businessRule("Solo puedes finalizar tus propios viajes.");
+        if (endOdometer < live.startOdometer)
+          businessRule("El odómetro final no puede ser menor que el inicial.");
+        const endedAt = new Date();
+        const endCapturedAt = offline.capturedAt
+          ? new Date(offline.capturedAt)
+          : endedAt;
+        if (endCapturedAt < (live.startCapturedAt ?? live.startedAt))
+          businessRule(
+            "La captura final no puede ser anterior al inicio del viaje.",
+          );
+        if (endedAt < live.startedAt)
+          businessRule(
+            "La fecha de recepción final no puede ser anterior al inicio del viaje.",
+          );
+        const completedStatus = await tx.vehicleTripStatus.findUnique({
+          where: { code: VEHICLE_TRIP_STATUS.COMPLETADO, active: true },
+        });
+        if (!completedStatus)
+          throw new Error("Trip status COMPLETADO not found");
+        const won = await tx.vehicleTrip.updateMany({
+          where: {
+            id,
+            active: true,
+            status: { code: VEHICLE_TRIP_STATUS.EN_CURSO },
+          },
           data: {
             endOdometer,
             endPhotoUrl: endPhotoResult.url,
@@ -521,20 +719,20 @@ export async function endVehicleTrip(formData: FormData) {
             endLatitude: getNumber(formData, "endLatitude") ?? null,
             endLongitude: getNumber(formData, "endLongitude") ?? null,
             endAddress: getString(formData, "endAddress") ?? null,
-            endedAt: new Date(),
-            kmDriven,
+            endedAt,
+            endCapturedAt,
+            kmDriven: endOdometer - live.startOdometer,
+            updatedById: user.id,
             statusId: completedStatus.id,
-            notes: getString(formData, "notes") ?? null,
-          },
-          include: {
-            vehicle: true,
-            assignment: true,
+            notes: getString(formData, "notes") ?? live.notes,
           },
         });
-
-        await tx.vehicle.update({
-          where: { id: trip.vehicleId },
-          data: { statusId: availableStatus.id },
+        if (won.count !== 1)
+          businessRule("El viaje ya está finalizado o cancelado.");
+        await releaseVehicle(tx, live.vehicleId, user.id);
+        const updated = await tx.vehicleTrip.findUniqueOrThrow({
+          where: { id },
+          include: { vehicle: true, assignment: true },
         });
 
         if (offline.idempotencyKey) {
@@ -543,6 +741,8 @@ export async function endVehicleTrip(formData: FormData) {
               key: offline.idempotencyKey,
               action: "endVehicleTrip",
               targetId: updated.id,
+              actorId: user.id,
+              requestTargetId: id,
             },
           });
         }
@@ -560,6 +760,7 @@ export async function endVehicleTrip(formData: FormData) {
         const targetId = await findReplayTargetId(
           prisma,
           offline.idempotencyKey,
+          binding,
         );
         if (targetId) {
           const live = await prisma.vehicleTrip.findUnique({
@@ -567,6 +768,11 @@ export async function endVehicleTrip(formData: FormData) {
             include: { vehicle: true, assignment: true },
           });
           if (live) {
+            if (
+              live.fsrId !== user.id &&
+              !userHasPermission(user, "vehicle-trips:manage-all")
+            )
+              businessRule("Solo puedes consultar tus propios viajes.");
             revalidatePath("/fsr/vehicle-trips");
             revalidatePath(`/fsr/vehicle-trips/${targetId}`);
             revalidatePath("/admin/vehicles");
@@ -587,13 +793,23 @@ export async function endVehicleTrip(formData: FormData) {
 /**
  * Get available vehicles (status = AVAILABLE)
  */
-export async function getAvailableVehicles() {
-  await requirePermission("vehicles:read");
+export async function getAvailableVehicles(options?: {
+  includeOperationalExceptions?: boolean;
+}) {
+  const user = await requirePermission("vehicles:read");
+  const includeExceptions =
+    options?.includeOperationalExceptions &&
+    userHasPermission(user, "vehicle-trips:manage-all");
 
   const vehicles = await prisma.vehicle.findMany({
     where: {
       active: true,
-      status: { code: VEHICLE_STATUS.AVAILABLE },
+      ...(includeExceptions
+        ? {}
+        : { operationalStatusCode: VEHICLE_STATUS.AVAILABLE }),
+      trips: {
+        none: { active: true, status: { code: VEHICLE_TRIP_STATUS.EN_CURSO } },
+      },
     },
     orderBy: { licensePlate: "asc" },
   });
@@ -606,6 +822,7 @@ export async function getAvailableVehicles() {
  */
 export async function getMyAssignmentsForTrips() {
   const user = await requireAuth();
+  const scope = await getReportScope(user);
 
   const assignments = await prisma.assignment.findMany({
     where: {
@@ -613,12 +830,10 @@ export async function getMyAssignmentsForTrips() {
         some: { userId: user.id, active: true },
       },
       active: true,
+      ...assignmentScopeWhere(scope),
       status: {
         code: {
-          notIn: [
-            VEHICLE_TRIP_STATUS.COMPLETADO,
-            VEHICLE_TRIP_STATUS.CANCELADO,
-          ],
+          in: OPEN_ASSIGNMENT_CODES,
         },
       },
     },
@@ -689,74 +904,90 @@ export async function updateVehicleTrip(
 }
 
 /**
- * Delete trip (soft delete)
+ * Cancel an open trip without discarding any captured evidence.
  */
-export async function deleteVehicleTrip(id: string) {
-  const user = await requirePermission("vehicle-trips:delete");
+async function cancelTripInTransaction(
+  tx: Prisma.TransactionClient,
+  id: string,
+  actorId: string,
+  reason: string,
+) {
+  const cancelled = await tx.vehicleTripStatus.findUnique({
+    where: { code: VEHICLE_TRIP_STATUS.CANCELADO, active: true },
+  });
+  if (!cancelled) throw new Error("Trip status CANCELADO not found");
+  const won = await tx.vehicleTrip.updateMany({
+    where: { id, active: true, status: { code: VEHICLE_TRIP_STATUS.EN_CURSO } },
+    data: {
+      statusId: cancelled.id,
+      cancellationReason: reason,
+      cancelledAt: new Date(),
+      updatedById: actorId,
+    },
+  });
+  if (won.count !== 1) businessRule("El viaje ya está finalizado o cancelado.");
+  const trip = await tx.vehicleTrip.findUniqueOrThrow({ where: { id } });
+  await releaseVehicle(tx, trip.vehicleId, actorId);
+  return trip;
+}
 
+export async function cancelVehicleTrip(id: string, reason: string) {
+  const user = await requirePermission("vehicle-trips:update");
   return guarded(async () => {
-    const trip = await prisma.vehicleTrip.findUnique({
-      where: { id, active: true },
-      select: {
-        fsrId: true,
-        status: { select: { code: true, name: true } },
-        startPhotoUrl: true,
-        startPhotoProvider: true,
-        endPhotoUrl: true,
-        endPhotoProvider: true,
-        vehicleId: true,
-      },
-    });
-
-    if (!trip) {
-      throw new Error("Trip not found");
-    }
-
-    // FSR can only delete their own trips
-    if (
-      !userHasPermission(user, "vehicle-trips:manage-all") &&
-      trip.fsrId !== user.id
-    ) {
-      businessRule("Solo puedes eliminar tus propios viajes.");
-    }
-
-    // Soft delete
-    await prisma.vehicleTrip.update({
-      where: { id },
-      data: { active: false },
-    });
-
-    // Delete photos from storage
-    try {
-      await deleteFile(
-        trip.startPhotoUrl,
-        trip.startPhotoProvider as "vercel-blob" | "filesystem",
-      );
-      if (trip.endPhotoUrl && trip.endPhotoProvider) {
-        await deleteFile(
-          trip.endPhotoUrl,
-          trip.endPhotoProvider as "vercel-blob" | "filesystem",
-        );
-      }
-    } catch (error) {
-      logger.error("Error deleting trip photos:", error);
-      // Continue even if photo deletion fails
-    }
-
-    // If trip was EN_CURSO, set vehicle back to AVAILABLE
-    if (isVehicleTripOpen(trip.status)) {
-      const availableStatus = await prisma.vehicleStatus.findUnique({
-        where: { code: VEHICLE_STATUS.AVAILABLE },
+    if (!reason?.trim()) businessRule("El motivo de cancelación es requerido.");
+    const trip = await serializableTransaction(async (tx) => {
+      const live = await tx.vehicleTrip.findUnique({
+        where: { id, active: true },
       });
-      if (availableStatus) {
-        await prisma.vehicle.update({
-          where: { id: trip.vehicleId },
-          data: { statusId: availableStatus.id },
-        });
-      }
-    }
-
+      if (!live) businessRule("Viaje no encontrado o inactivo.");
+      if (
+        !userHasPermission(user, "vehicle-trips:manage-all") &&
+        live.fsrId !== user.id
+      )
+        businessRule("Solo puedes cancelar tus propios viajes.");
+      return cancelTripInTransaction(tx, id, user.id, reason.trim());
+    });
     revalidatePath("/fsr/vehicle-trips");
+    revalidatePath(`/fsr/vehicle-trips/${id}`);
+    revalidatePath("/admin/vehicles");
+    return { data: trip };
+  });
+}
+
+/** Soft deletion retains evidence; deleting an open trip requires cancellation. */
+export async function deleteVehicleTrip(id: string, reason?: string) {
+  const user = await requirePermission("vehicle-trips:delete");
+  return guarded(async () => {
+    await serializableTransaction(async (tx) => {
+      const trip = await tx.vehicleTrip.findUnique({
+        where: { id, active: true },
+        include: { status: true },
+      });
+      if (!trip) businessRule("Viaje no encontrado o inactivo.");
+      if (
+        !userHasPermission(user, "vehicle-trips:manage-all") &&
+        trip.fsrId !== user.id
+      )
+        businessRule("Solo puedes eliminar tus propios viajes.");
+      if (isVehicleTripOpen(trip.status)) {
+        if (!reason?.trim())
+          businessRule(
+            "El motivo de cancelación es requerido para eliminar un viaje en curso.",
+          );
+        await cancelTripInTransaction(tx, id, user.id, reason.trim());
+      }
+      await tx.vehicleTrip.update({
+        where: { id },
+        data: {
+          active: false,
+          updatedById: user.id,
+          deactivatedAt: new Date(),
+          deactivatedById: user.id,
+        },
+      });
+    });
+    revalidatePath("/fsr/vehicle-trips");
+    revalidatePath("/admin/vehicles");
     redirect("/fsr/vehicle-trips");
   });
 }

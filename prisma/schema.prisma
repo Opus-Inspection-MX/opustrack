@@ -776,6 +776,9 @@ model Equipment {
 }
 
 model Vehicle {
+  operationalStatusCode String @default("AVAILABLE")
+  odometerBaseline Int?
+  odometerBaselineAt DateTime?
   id            String        @id @default(cuid())
   make          String // e.g., "Toyota"
   model         String // e.g., "Corolla"
@@ -805,6 +808,11 @@ model Vehicle {
 }
 
 model VehicleTrip {
+  startCapturedAt DateTime?
+  endCapturedAt DateTime?
+  startExceptionReason String?
+  cancellationReason String?
+  cancelledAt DateTime?
   id                 String            @id @default(cuid())
   vehicleId          String
   vehicle            Vehicle           @relation(fields: [vehicleId], references: [id])
@@ -1101,6 +1109,8 @@ model VacationStatus {
 /// FSR absence / vacation period request (RF-701, RF-702).
 /// Date range is inclusive; stored as UTC instants representing CDMX start/end of day.
 model Vacation {
+  chargedDates String[] @default([])
+  correctionHistory Json?
   id           String         @id @default(cuid())
   userId       String
   user         User           @relation("VacationUser", fields: [userId], references: [id])
@@ -1208,8 +1218,8 @@ model VacationPeriod {
 
 /// Reviewed aggregate consumption, never a dated absence. Source values are
 /// preserved even when their reported remaining balance needs reconciliation.
-/// Only an approved row linked to its reviewed calendar funding period may
-/// participate in a future balance cutover; this table has no live reader yet.
+/// Only an approved, verified row linked to its reviewed calendar funding
+/// period participates in the live derived balance; it is never a dated absence.
 model HistoricalVacationConsumption {
   id                   String   @id @default(cuid())
   userId               String
@@ -1249,9 +1259,26 @@ model ActionIdempotency {
   key       String   @id
   action    String
   targetId  String?
+  actorId   String?
+  requestTargetId String?
   createdAt DateTime @default(now())
 
   @@map("action_idempotency")
+}
+
+/// Append-only product corrections; actor IDs and snapshots survive deactivation.
+model BusinessCorrection {
+  id String @id @default(cuid())
+  entityType String
+  entityId String
+  actorId String
+  reason String
+  before Json
+  after Json
+  createdAt DateTime @default(now())
+
+  @@index([entityType, entityId, createdAt])
+  @@map("business_corrections")
 }
 
 /// Refacciones o equipo usados en una asignación, como lista abierta.

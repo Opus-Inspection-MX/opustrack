@@ -64,6 +64,20 @@ const { syncIncidentState, notifyAssignmentAssigned, notifyIncidentAssigned } =
     notifyIncidentAssigned: vi.fn(),
   }));
 
+const { loadAssignmentFor, loadIncidentFor, isFsrUnavailable } = vi.hoisted(
+  () => ({
+    loadAssignmentFor: vi.fn(async () => undefined),
+    loadIncidentFor: vi.fn(async () => undefined),
+    isFsrUnavailable: vi.fn(async () => false),
+  }),
+);
+vi.mock("@/lib/auth/access", () => ({
+  loadAssignmentFor,
+  loadIncidentFor,
+  assertBelongsToClient: vi.fn(),
+}));
+vi.mock("@/lib/utils/availability", () => ({ isFsrUnavailable }));
+
 vi.mock("@/lib/database/prisma.singleton", () => ({ prisma: prismaMock }));
 vi.mock("@/lib/auth/auth", () => ({
   requirePermission: (name: string) => requirePermission(name),
@@ -77,6 +91,7 @@ vi.mock("@/lib/notifications/notify-events", () => ({
 }));
 
 import { APP_TZ } from "@/lib/utils/datetime";
+import { BusinessRuleError } from "./result";
 import {
   assignFSRToIncident,
   getIncidentsForTracking,
@@ -97,8 +112,90 @@ function lastArgs() {
   return prismaMock.incident.findMany.mock.calls.at(-1)?.[0];
 }
 
+describe("tracking mutation invariant parity", () => {
+  it("rejects the alternative assignment route on a cancelled incident", async () => {
+    prismaMock.incident.findUnique.mockResolvedValue({
+      status: { code: "CANCELADA" },
+    });
+    expect((await assignFSRToIncident(1, "f1")).success).toBe(false);
+    expect(prismaMock.incidentAssignee.upsert).not.toHaveBeenCalled();
+    expect(prismaMock.assignment.create).not.toHaveBeenCalled();
+  });
+  it("fails closed at the scope/manager gate before changing composition", async () => {
+    loadAssignmentFor.mockRejectedValueOnce(
+      new BusinessRuleError("No encontrado."),
+    );
+    expect((await updateAssignmentAssignees("a1", ["f1"])).success).toBe(false);
+    expect(prismaMock.assignmentAssignee.upsert).not.toHaveBeenCalled();
+  });
+  it("checks retained FSR availability for the existing scheduled date", async () => {
+    const scheduledDate = new Date("2026-10-13T15:00:00Z");
+    prismaMock.assignment.findUnique.mockResolvedValue({
+      incidentId: 1,
+      scheduledDate,
+      status: { code: "ASIGNADO" },
+    });
+    isFsrUnavailable.mockResolvedValue(true);
+    expect((await updateAssignmentAssignees("a1", ["f1"])).success).toBe(false);
+    expect(isFsrUnavailable).toHaveBeenCalledWith(
+      "f1",
+      scheduledDate,
+      prismaMock,
+    );
+    expect(prismaMock.assignmentAssignee.upsert).not.toHaveBeenCalled();
+  });
+  it("removing the last unstarted FSR restores pending status and resets seen", async () => {
+    prismaMock.assignment.findUnique.mockResolvedValue({
+      incidentId: 1,
+      status: { code: "ASIGNADO" },
+    });
+    prismaMock.assignmentAssignee.findMany.mockResolvedValue([
+      { userId: "f1", active: true },
+    ]);
+    prismaMock.assignmentStatus.findUnique.mockResolvedValue({ id: 1 });
+    expect((await updateAssignmentAssignees("a1", [])).success).toBe(true);
+    expect(prismaMock.assignment.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: {
+          statusId: 1,
+          assignedAt: expect.any(Date),
+          seenAt: null,
+          seenById: null,
+        },
+      }),
+    );
+    expect(syncIncidentState).toHaveBeenCalledWith(1, prismaMock);
+  });
+  it("requires reopen permission through the tracking status editor", async () => {
+    prismaMock.assignment.findUnique.mockResolvedValue({
+      incidentId: 1,
+      status: { code: "CERRADO" },
+      startedAt: new Date(),
+      finishedAt: new Date(),
+    });
+    prismaMock.assignmentStatus.findUnique.mockResolvedValue({
+      code: "EN_PROGRESO",
+    });
+    requirePermission
+      .mockImplementationOnce(async () => ({ id: "admin", isSuperuser: true }))
+      .mockRejectedValueOnce(
+        new BusinessRuleError("Sin permiso para reabrir."),
+      );
+    expect(
+      (await updateAssignmentDetails("a1", { statusId: 5, finishedAt: null }))
+        .success,
+    ).toBe(false);
+    expect(requirePermission).toHaveBeenCalledWith("assignments:reopen");
+    expect(prismaMock.assignment.update).not.toHaveBeenCalled();
+  });
+});
+
 beforeEach(() => {
   vi.clearAllMocks();
+  requirePermission.mockResolvedValue({ id: "admin", isSuperuser: true });
+  loadAssignmentFor.mockResolvedValue(undefined);
+  loadIncidentFor.mockResolvedValue(undefined);
+  isFsrUnavailable.mockResolvedValue(false);
   prismaMock.incident.findMany.mockResolvedValue([]);
   prismaMock.incident.count.mockResolvedValue(0);
   prismaMock.assignment.findFirst.mockResolvedValue(null);
@@ -112,7 +209,10 @@ beforeEach(() => {
   prismaMock.assignmentAttachment.count.mockResolvedValue(0);
   prismaMock.incidentAssignee.findFirst.mockResolvedValue({ id: "ia1" });
   prismaMock.incidentAssignee.findMany.mockResolvedValue([]);
-  prismaMock.incident.findUnique.mockResolvedValue({ title: "Incidente" });
+  prismaMock.incident.findUnique.mockResolvedValue({
+    title: "Incidente",
+    status: { code: "ABIERTO" },
+  });
   prismaMock.assignment.create.mockResolvedValue({ id: "a-new" });
   // Everyone asked about is an FSR unless a test says otherwise, which is what
   // `assertAreFsrs` checks: it compares the row count to the id count.
@@ -471,7 +571,7 @@ describe("assignFSRToIncident (RF-514)", () => {
     expect(prismaMock.assignmentAssignee.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { assignmentId_userId: { assignmentId: "a1", userId: "fsr1" } },
-        update: { active: true },
+        update: { active: true, assignedAt: expect.any(Date) },
       }),
     );
     expect(prismaMock.assignment.create).not.toHaveBeenCalled();
@@ -800,7 +900,9 @@ describe("updateIncidentDetails (RF-516)", () => {
     });
 
     expect(result).toEqual({ success: true });
-    expect(syncIncidentState).toHaveBeenCalledWith(1);
+    expect(syncIncidentState).toHaveBeenCalledWith(1, prismaMock, {
+      actorId: "admin",
+    });
   });
 });
 
@@ -864,7 +966,11 @@ describe("updateAssignmentDetails (RF-517)", () => {
   });
 
   it("acepta fechas nulas y no aplica la máquina de estados", async () => {
-    await updateAssignmentDetails("a1", { statusId: 5 });
+    await updateAssignmentDetails("a1", {
+      statusId: 5,
+      startedAt: null,
+      finishedAt: null,
+    });
 
     expect(prismaMock.assignment.update.mock.calls[0][0].data).toEqual({
       statusId: 5,
@@ -1071,7 +1177,9 @@ describe("updateAssignmentDetails · máquina de estados", () => {
     });
 
     expect(result).toEqual({ success: true });
-    expect(syncIncidentState).toHaveBeenCalledWith(1);
+    expect(syncIncidentState).toHaveBeenCalledWith(1, prismaMock, {
+      actorId: "admin",
+    });
   });
 });
 

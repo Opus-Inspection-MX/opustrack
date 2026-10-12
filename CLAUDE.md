@@ -116,6 +116,33 @@ Production Next strips the message of anything a Server Action throws. Use
 - Spanish message = operator-facing (returned). English = defect (throws).
   Enforced by `actions-contract.test.ts`.
 
+### Business invariants and retries
+
+See [`docs/business-invariants.md`](docs/business-invariants.md) for policy,
+requirement-to-test traceability, deployment order and read-only reconciliation.
+
+- Keep invariant reads and writes on the same transaction client. Use
+  `serializableTransaction` for competing balance, occupancy and composition
+  mutations: only P2034 retries, four total attempts, 25/50/100 ms delays,
+  15 s timeout per attempt. Retry callbacks must be database-only.
+- Use `transactionWithNotifications` when transitions defer notifications;
+  only the committed attempt's collector may flush. Replays must not dispatch
+  transition notifications again.
+- Replay receipts bind actor/action/requested target and still require current
+  authorization and live target access. Legacy unbound receipts fail closed.
+  Trip forms create key/capture identity before the first online send; preserve
+  separate start/end capture timestamps on retries.
+- Vacation charge-date arrays and grant snapshots are historical evidence.
+  Never infer legacy dates from today's holidays or mix calendar/legacy funding.
+  Started approved vacations may only be shortened through the authorized
+  correction action, retaining today/past days and original approval/reason.
+- `BusinessCorrection` is append-only, with a separate reason and JSON
+  before/after snapshots in the correction transaction. Vehicle baseline epochs
+  must not rewrite trip observations; cancellation retains photos and readings.
+- For this additive change, migrate before deploying the new app, then run
+  read-only reconciliation. Retain correction evidence on app rollback; do not
+  automatically seed/reset or manufacture historical capture/day snapshots.
+
 ### Conventions
 
 - **Soft delete everywhere**: `active: false`, validate no active children

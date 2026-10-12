@@ -4,8 +4,13 @@ const { prismaMock, requirePermission } = vi.hoisted(() => ({
   prismaMock: {
     actionIdempotency: { findUnique: vi.fn(), create: vi.fn() },
     vehicleTrip: { findUnique: vi.fn() },
+    $transaction: vi.fn(),
   },
-  requirePermission: vi.fn(async (_name: string) => ({ id: "fsr-1" })),
+  requirePermission: vi.fn(async (_name: string) => ({
+    id: "fsr-1",
+    isSuperuser: false,
+    permissions: new Set(),
+  })),
 }));
 
 vi.mock("@/lib/database/prisma.singleton", () => ({ prisma: prismaMock }));
@@ -26,7 +31,12 @@ import { endVehicleTrip, startVehicleTrip } from "./vehicle-trips";
  * rejected in Spanish before any write.
  */
 
-const LIVE_TRIP = { id: "t1", vehicleId: "v1", startOdometer: 1000 };
+const LIVE_TRIP = {
+  id: "t1",
+  vehicleId: "v1",
+  fsrId: "fsr-1",
+  startOdometer: 1000,
+};
 
 function photo(): File {
   return new File(["bytes"], "odometro.jpg", { type: "image/jpeg" });
@@ -61,6 +71,8 @@ describe("startVehicleTrip offline retry", () => {
     prismaMock.actionIdempotency.findUnique.mockResolvedValue({
       key: "key-trip-1",
       action: "startVehicleTrip",
+      actorId: "fsr-1",
+      requestTargetId: "v1",
       targetId: "t1",
     });
     const result = await startVehicleTrip(
@@ -89,6 +101,8 @@ describe("endVehicleTrip offline retry", () => {
     prismaMock.actionIdempotency.findUnique.mockResolvedValue({
       key: "key-trip-end-1",
       action: "endVehicleTrip",
+      actorId: "fsr-1",
+      requestTargetId: "t1",
       targetId: "t1",
     });
     const result = await endVehicleTrip(
@@ -107,5 +121,54 @@ describe("endVehicleTrip offline retry", () => {
     expect(isFailure(result)).toBe(true);
     if (isFailure(result)) expect(result.error).toMatch(/24 horas/);
     expect(prismaMock.actionIdempotency.findUnique).not.toHaveBeenCalled();
+  });
+});
+
+describe.each([
+  ["startVehicleTrip", startVehicleTrip, startForm, "v1"],
+  ["endVehicleTrip", endVehicleTrip, endForm, "t1"],
+] as const)("%s replay authorization", (action, run, form, requestTargetId) => {
+  const replay = () => ({
+    actorId: "fsr-1",
+    action,
+    requestTargetId,
+    targetId: "t1",
+  });
+
+  it.each([
+    { actorId: "fsr-2" },
+    { action: "otherAction" },
+    { requestTargetId: "other-target" },
+    { actorId: null },
+  ])(
+    "rejects mismatched binding before loading a trip (%j)",
+    async (override) => {
+      prismaMock.actionIdempotency.findUnique.mockResolvedValue({
+        ...replay(),
+        ...override,
+      });
+      expect(await run(form({ idempotencyKey: "bound-key" }))).toMatchObject({
+        success: false,
+        error: expect.stringMatching(/llave de reintento/),
+      });
+      expect(prismaMock.vehicleTrip.findUnique).not.toHaveBeenCalled();
+      expect(prismaMock.$transaction).not.toHaveBeenCalled();
+    },
+  );
+
+  it("rejects a matching key whose live trip belongs to another technician", async () => {
+    prismaMock.actionIdempotency.findUnique.mockResolvedValue(replay());
+    prismaMock.vehicleTrip.findUnique.mockResolvedValue({
+      ...LIVE_TRIP,
+      fsrId: "fsr-2",
+    });
+    expect(await run(form({ idempotencyKey: "bound-key" }))).toMatchObject({
+      success: false,
+      error: expect.stringMatching(/propios viajes/),
+    });
+    expect(prismaMock.vehicleTrip.findUnique).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: "t1", active: true } }),
+    );
+    expect(prismaMock.$transaction).not.toHaveBeenCalled();
   });
 });
