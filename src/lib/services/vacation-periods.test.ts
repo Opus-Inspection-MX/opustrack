@@ -10,17 +10,20 @@ vi.mock("@/lib/database/prisma.singleton", () => ({
     vacationPeriod: {
       upsert: vi.fn(),
       findMany: vi.fn(),
+      findFirst: vi.fn(),
       findUnique: vi.fn(),
       update: vi.fn(),
       delete: vi.fn(),
     },
-    vacation: { aggregate: vi.fn() },
+    vacation: { aggregate: vi.fn(), findMany: vi.fn() },
+    historicalVacationConsumption: { findMany: vi.fn() },
   },
 }));
 
 import { prisma } from "@/lib/database/prisma.singleton";
 import {
   allottedDaysFor,
+  ensureCalendarPeriodsForUser,
   ensurePeriodsUpToNow,
   getPeriodBalance,
   isPeriodRequestable,
@@ -33,10 +36,15 @@ const settingFindUnique = vi.mocked(prisma.vacationSetting.findUnique);
 const ruleFindFirst = vi.mocked(prisma.vacationAccrualRule.findFirst);
 const periodUpsert = vi.mocked(prisma.vacationPeriod.upsert);
 const periodFindMany = vi.mocked(prisma.vacationPeriod.findMany);
+const periodFindFirst = vi.mocked(prisma.vacationPeriod.findFirst);
 const periodFindUnique = vi.mocked(prisma.vacationPeriod.findUnique);
 const periodUpdate = vi.mocked(prisma.vacationPeriod.update);
 const periodDelete = vi.mocked(prisma.vacationPeriod.delete);
 const vacationAggregate = vi.mocked(prisma.vacation.aggregate);
+const vacationFindMany = vi.mocked(prisma.vacation.findMany);
+const historicalFindMany = vi.mocked(
+  prisma.historicalVacationConsumption.findMany,
+);
 
 /** A CDMX calendar day as the UTC instant of its 00:00 (CDMX is UTC-6). */
 function mxDay(dateStr: string): Date {
@@ -48,6 +56,8 @@ function makePeriod(overrides: Partial<VacationPeriod>): VacationPeriod {
     id: "period-1",
     userId: "user-1",
     periodNumber: 1,
+    cycleYear: null,
+    availableFrom: null,
     accrualStart: mxDay("2020-01-01"),
     accrualEnd: mxDay("2020-12-31"),
     graceEnd: mxDay("2021-12-31"),
@@ -59,9 +69,26 @@ function makePeriod(overrides: Partial<VacationPeriod>): VacationPeriod {
   } as unknown as VacationPeriod;
 }
 
+/** A calendar-cycle period: Jan–Dec accrual with anniversary activation. */
+function makeCalendarPeriod(overrides: Partial<VacationPeriod>) {
+  return makePeriod({
+    id: "cal-2026",
+    periodNumber: 6,
+    cycleYear: 2026,
+    availableFrom: mxDay("2026-06-15"),
+    accrualStart: mxDay("2026-01-01"),
+    accrualEnd: mxDay("2026-12-31"),
+    graceEnd: new Date("2027-01-01T05:59:59.999Z"),
+    ruleDays: 14,
+    ...overrides,
+  });
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   settingFindUnique.mockResolvedValue({ graceWindowMonths: 12 } as never);
+  historicalFindMany.mockResolvedValue([] as never);
+  periodFindFirst.mockResolvedValue(null as never);
 });
 
 describe("allottedDaysFor", () => {
@@ -418,5 +445,488 @@ describe("recomputePeriodsForNewHireDate", () => {
       recomputePeriodsForNewHireDate("user-1", new Date()),
     ).rejects.toThrow(/elimina el período 3/);
     expect(periodDelete).not.toHaveBeenCalled();
+  });
+});
+
+describe("ensureCalendarPeriodsForUser", () => {
+  function haveHire(hireDate: Date | null) {
+    userFindUnique.mockResolvedValue({ hireDate } as never);
+    ruleFindFirst.mockResolvedValue({ days: 12 } as never);
+    periodUpsert.mockResolvedValue({} as never);
+    periodFindMany.mockResolvedValue([] as never);
+  }
+
+  it("creates no grant in the hire year", async () => {
+    haveHire(mxDay("2021-06-15"));
+
+    const periods = await ensureCalendarPeriodsForUser("user-1", {
+      upToCycleYear: 2021,
+    });
+
+    expect(periodUpsert).not.toHaveBeenCalled();
+    expect(periods).toEqual([]);
+  });
+
+  it("activates tier one on the first completed anniversary", async () => {
+    haveHire(mxDay("2021-06-15"));
+
+    await ensureCalendarPeriodsForUser("user-1", { upToCycleYear: 2022 });
+
+    expect(periodUpsert).toHaveBeenCalledTimes(1);
+    const args = periodUpsert.mock.calls[0][0];
+    expect(args.where).toEqual({
+      userId_cycleYear: { userId: "user-1", cycleYear: 2022 },
+    });
+    // An empty `update` is what protects snapshots and overrides on re-run.
+    expect(args.update).toEqual({});
+    expect(args.create).toEqual(
+      expect.objectContaining({
+        userId: "user-1",
+        periodNumber: 1,
+        cycleYear: 2022,
+        ruleDays: 12,
+        accrualStart: mxDay("2022-01-01"),
+        // June 2022 still observed DST (UTC-5); the helper pins CDMX midnight,
+        // not a fixed UTC offset.
+        availableFrom: new Date("2022-06-15T05:00:00.000Z"),
+        graceEnd: new Date("2024-01-01T05:59:59.999Z"),
+      }),
+    );
+  });
+
+  it("resolves the tier by completed service years, not the calendar year", async () => {
+    haveHire(mxDay("2020-06-15"));
+    ruleFindFirst.mockImplementation((async (query?: unknown) => {
+      const tier = (query as { where: { minYears: { lte: number } } }).where
+        .minYears.lte;
+      return { days: 10 + tier };
+    }) as never);
+
+    await ensureCalendarPeriodsForUser("user-1", { upToCycleYear: 2026 });
+
+    expect(periodUpsert).toHaveBeenCalledTimes(6);
+    const creates = periodUpsert.mock.calls.map((call) => call[0].create);
+    expect(creates.map((create) => create.periodNumber)).toEqual([
+      1, 2, 3, 4, 5, 6,
+    ]);
+    expect(creates.map((create) => create.ruleDays)).toEqual([
+      11, 12, 13, 14, 15, 16,
+    ]);
+    expect(creates.map((create) => create.cycleYear)).toEqual([
+      2021, 2022, 2023, 2024, 2025, 2026,
+    ]);
+  });
+
+  it("keeps a Jan 1 anniversary at the accrual start and a Dec 31 one at year end", async () => {
+    userFindUnique.mockResolvedValue({
+      hireDate: mxDay("2021-01-01"),
+    } as never);
+    ruleFindFirst.mockResolvedValue({ days: 12 } as never);
+    periodUpsert.mockResolvedValue({} as never);
+    periodFindMany.mockResolvedValue([] as never);
+
+    await ensureCalendarPeriodsForUser("user-1", { upToCycleYear: 2022 });
+
+    const january = periodUpsert.mock.calls[0][0].create;
+    expect(january.availableFrom).toEqual(january.accrualStart);
+
+    vi.clearAllMocks();
+    userFindUnique.mockResolvedValue({
+      hireDate: mxDay("2020-12-31"),
+    } as never);
+    ruleFindFirst.mockResolvedValue({ days: 12 } as never);
+    periodUpsert.mockResolvedValue({} as never);
+    periodFindMany.mockResolvedValue([] as never);
+
+    await ensureCalendarPeriodsForUser("user-1", { upToCycleYear: 2021 });
+
+    const december = periodUpsert.mock.calls[0][0].create;
+    expect(december.availableFrom).toEqual(mxDay("2021-12-31"));
+    expect(december.accrualStart).toEqual(mxDay("2021-01-01"));
+  });
+
+  it("returns nothing when the hire date is missing", async () => {
+    haveHire(null);
+
+    expect(
+      await ensureCalendarPeriodsForUser("user-1", { upToCycleYear: 2026 }),
+    ).toEqual([]);
+    expect(periodUpsert).not.toHaveBeenCalled();
+  });
+
+  it("skips a service year that no accrual rule covers", async () => {
+    haveHire(mxDay("2021-06-15"));
+    ruleFindFirst.mockResolvedValue(null);
+
+    await ensureCalendarPeriodsForUser("user-1", { upToCycleYear: 2022 });
+
+    expect(periodUpsert).not.toHaveBeenCalled();
+  });
+
+  it("blocks Feb 29 anniversaries without inventing a substitute date", async () => {
+    haveHire(mxDay("2020-02-29"));
+
+    await ensureCalendarPeriodsForUser("user-1", { upToCycleYear: 2024 });
+
+    expect(periodUpsert).not.toHaveBeenCalled();
+  });
+
+  it("fails closed when a legacy row holds the same tier", async () => {
+    haveHire(mxDay("2020-06-15"));
+    periodFindFirst.mockResolvedValue({
+      id: "legacy-1",
+      cycleYear: null,
+    } as never);
+
+    await expect(
+      ensureCalendarPeriodsForUser("user-1", { upToCycleYear: 2021 }),
+    ).rejects.toThrow(/otra identidad de ciclo/);
+    // The conflict is validated before any row is written.
+    expect(periodUpsert).not.toHaveBeenCalled();
+  });
+
+  it("treats the same calendar identity as an idempotent no-op", async () => {
+    haveHire(mxDay("2020-06-15"));
+    periodFindFirst.mockResolvedValue({
+      id: "cal-2021",
+      cycleYear: 2021,
+    } as never);
+
+    await ensureCalendarPeriodsForUser("user-1", { upToCycleYear: 2021 });
+
+    expect(periodUpsert).toHaveBeenCalledTimes(1);
+    expect(periodUpsert.mock.calls[0][0].update).toEqual({});
+  });
+});
+
+describe("isPeriodRequestable with calendar rows", () => {
+  const calendar = makeCalendarPeriod({});
+
+  it("rejects the day before activation and accepts the anniversary", () => {
+    expect(isPeriodRequestable(calendar, mxDay("2026-06-14"))).toBe(false);
+    expect(isPeriodRequestable(calendar, mxDay("2026-06-15"))).toBe(true);
+  });
+
+  it("rejects accrual days before activation and accepts Dec 31", () => {
+    expect(isPeriodRequestable(calendar, mxDay("2026-01-01"))).toBe(false);
+    expect(isPeriodRequestable(calendar, mxDay("2026-12-31"))).toBe(true);
+  });
+
+  it("honours the snapshotted grace expiry", () => {
+    expect(
+      isPeriodRequestable(calendar, new Date("2027-01-01T05:59:59.999Z")),
+    ).toBe(true);
+    expect(isPeriodRequestable(calendar, mxDay("2027-01-01"))).toBe(false);
+  });
+
+  it("accepts Jan 1 when the anniversary falls on New Year", () => {
+    const january = makeCalendarPeriod({
+      availableFrom: mxDay("2026-01-01"),
+    });
+
+    expect(isPeriodRequestable(january, mxDay("2026-01-01"))).toBe(true);
+  });
+});
+
+describe("getPeriodBalance with the historical ledger", () => {
+  function approvedRow(overrides = {}) {
+    return {
+      id: "hist-1",
+      userId: "user-1",
+      cycleYear: 2026,
+      fundingPeriodId: "cal-2026",
+      identityVerified: true,
+      reviewStatus: "APPROVED",
+      sourceDigest: "a".repeat(64),
+      sourceSheet: "Synthetic",
+      sourceRow: 1,
+      sourceEntitledDays: 12,
+      sourceTakenDays: 5,
+      sourceRemainingDays: 7,
+      allocatedToDatedDays: 0,
+      ...overrides,
+    };
+  }
+
+  function haveLedger() {
+    periodFindUnique.mockResolvedValue(
+      makeCalendarPeriod({ id: "cal-2026" }) as never,
+    );
+    vacationAggregate.mockResolvedValue({
+      _sum: { businessDaysUsed: 2 },
+    } as never);
+    historicalFindMany.mockResolvedValue([approvedRow()] as never);
+    vacationFindMany.mockResolvedValue([
+      {
+        id: "r1",
+        userId: "user-1",
+        periodId: "cal-2026",
+        active: true,
+        status: { code: "PENDIENTE" },
+        businessDaysUsed: 2,
+      },
+    ] as never);
+  }
+
+  it("adds approved aggregate consumption to dated reservations", async () => {
+    haveLedger();
+
+    await expect(getPeriodBalance("cal-2026")).resolves.toEqual({
+      allottedDays: 14,
+      usedDays: 7,
+      remainingDays: 7,
+    });
+  });
+
+  it("uses the admin override as the allotment with history present", async () => {
+    haveLedger();
+    periodFindUnique.mockResolvedValue(
+      makeCalendarPeriod({ id: "cal-2026", overrideDays: 16 }) as never,
+    );
+
+    await expect(getPeriodBalance("cal-2026")).resolves.toEqual({
+      allottedDays: 16,
+      usedDays: 7,
+      remainingDays: 9,
+    });
+  });
+
+  it("rejects history plus reservations above the grant", async () => {
+    haveLedger();
+    historicalFindMany.mockResolvedValue([
+      approvedRow({
+        sourceTakenDays: 10,
+        sourceRemainingDays: 2,
+      }),
+    ] as never);
+    vacationFindMany.mockResolvedValue([
+      {
+        id: "r1",
+        userId: "user-1",
+        periodId: "cal-2026",
+        active: true,
+        status: { code: "APROBADA" },
+        businessDaysUsed: 5,
+      },
+    ] as never);
+
+    await expect(getPeriodBalance("cal-2026")).rejects.toThrow();
+  });
+
+  it("ignores pending ledger rows instead of debiting them", async () => {
+    haveLedger();
+    historicalFindMany.mockResolvedValue([
+      approvedRow({
+        reviewStatus: "PENDING",
+        fundingPeriodId: null,
+      }),
+    ] as never);
+    vacationAggregate.mockResolvedValue({
+      _sum: { businessDaysUsed: null },
+    } as never);
+    vacationFindMany.mockResolvedValue([] as never);
+
+    await expect(getPeriodBalance("cal-2026")).resolves.toEqual({
+      allottedDays: 14,
+      usedDays: 0,
+      remainingDays: 14,
+    });
+  });
+
+  it("leaves legacy arithmetic untouched when the ledger is empty", async () => {
+    periodFindUnique.mockResolvedValue(makePeriod({ ruleDays: 12 }) as never);
+    vacationAggregate.mockResolvedValue({
+      _sum: { businessDaysUsed: 5 },
+    } as never);
+
+    await expect(getPeriodBalance("period-1")).resolves.toEqual({
+      allottedDays: 12,
+      usedDays: 5,
+      remainingDays: 7,
+    });
+    // No reservation detail is read on the legacy path.
+    expect(vacationFindMany).not.toHaveBeenCalled();
+  });
+});
+
+describe("resolveVacationPeriod with calendar rows", () => {
+  const cal2025 = makeCalendarPeriod({
+    id: "cal-2025",
+    periodNumber: 5,
+    cycleYear: 2025,
+    availableFrom: mxDay("2025-06-15"),
+    accrualStart: mxDay("2025-01-01"),
+    accrualEnd: mxDay("2025-12-31"),
+    graceEnd: new Date("2027-01-01T05:59:59.999Z"),
+    ruleDays: 12,
+  });
+  const cal2026 = makeCalendarPeriod({
+    id: "cal-2026",
+    periodNumber: 6,
+    cycleYear: 2026,
+    availableFrom: mxDay("2026-06-15"),
+    accrualStart: mxDay("2026-01-01"),
+    accrualEnd: mxDay("2026-12-31"),
+    graceEnd: new Date("2028-01-01T05:59:59.999Z"),
+    ruleDays: 14,
+  });
+
+  function haveCalendarPeriods() {
+    userFindUnique.mockResolvedValue({
+      hireDate: mxDay("2020-06-15"),
+    } as never);
+    ruleFindFirst.mockResolvedValue({ days: 12 } as never);
+    periodUpsert.mockResolvedValue({} as never);
+    periodFindMany.mockResolvedValue([cal2025, cal2026] as never);
+  }
+
+  it("funds from the still-valid prior grant before the anniversary", async () => {
+    haveCalendarPeriods();
+
+    const resolved = await resolveVacationPeriod(
+      "user-1",
+      mxDay("2026-05-10"),
+      mxDay("2026-05-12"),
+    );
+
+    // The 2026 grant is unearned until Jun 15; the 2025 grant is still valid.
+    expect(resolved.id).toBe("cal-2025");
+  });
+
+  it("lets the explicitly picked activated cycle win", async () => {
+    haveCalendarPeriods();
+
+    const resolved = await resolveVacationPeriod(
+      "user-1",
+      mxDay("2026-07-01"),
+      mxDay("2026-07-03"),
+      undefined,
+      "cal-2026",
+    );
+
+    expect(resolved.id).toBe("cal-2026");
+  });
+
+  it("prefers the oldest grant when nothing was picked", async () => {
+    haveCalendarPeriods();
+
+    const resolved = await resolveVacationPeriod(
+      "user-1",
+      mxDay("2026-07-01"),
+      mxDay("2026-07-03"),
+    );
+
+    expect(resolved.id).toBe("cal-2025");
+  });
+
+  it("rejects the picked cycle before its anniversary", async () => {
+    haveCalendarPeriods();
+
+    await expect(
+      resolveVacationPeriod(
+        "user-1",
+        mxDay("2026-05-10"),
+        mxDay("2026-05-12"),
+        undefined,
+        "cal-2026",
+      ),
+    ).rejects.toThrow(/fuera de la vigencia del período 6/);
+  });
+
+  it("rejects a range no single cycle can fund instead of splitting", async () => {
+    haveCalendarPeriods();
+
+    await expect(
+      resolveVacationPeriod("user-1", mxDay("2026-01-10"), mxDay("2027-06-01")),
+    ).rejects.toThrow(/abarca dos períodos/);
+  });
+});
+
+describe("recomputePeriodsForNewHireDate with calendar rows", () => {
+  it("recomputes Jan 1 and anniversary windows while keeping the override", async () => {
+    periodFindMany.mockResolvedValue([
+      {
+        ...makeCalendarPeriod({ id: "cal-2026", overrideDays: 20 }),
+        vacations: [],
+        historicalConsumption: [],
+      },
+    ] as never);
+    periodUpdate.mockResolvedValue({} as never);
+
+    await recomputePeriodsForNewHireDate("user-1", mxDay("2020-03-10"));
+
+    expect(periodUpdate).toHaveBeenCalledTimes(1);
+    // Exact match: identity, snapshots and overrides are never rewritten.
+    expect(periodUpdate.mock.calls[0][0].data).toEqual({
+      accrualStart: mxDay("2026-01-01"),
+      accrualEnd: new Date("2027-01-01T05:59:59.999Z"),
+      availableFrom: mxDay("2026-03-10"),
+      graceEnd: new Date("2028-01-01T05:59:59.999Z"),
+    });
+  });
+
+  it("refuses to delete a period with historical consumption", async () => {
+    periodFindMany.mockResolvedValue([
+      {
+        ...makePeriod({ id: "p9", periodNumber: 9 }),
+        vacations: [],
+        historicalConsumption: [{ id: "hist-1" }],
+      },
+    ] as never);
+
+    // A hire date of today leaves only period 1, so period 9 would vanish.
+    await expect(
+      recomputePeriodsForNewHireDate("user-1", new Date()),
+    ).rejects.toThrow(/consumo histórico/);
+    expect(periodDelete).not.toHaveBeenCalled();
+    expect(periodUpdate).not.toHaveBeenCalled();
+  });
+
+  it("refuses calendar recompute for a Feb 29 hire without a substitute", async () => {
+    periodFindMany.mockResolvedValue([
+      {
+        ...makeCalendarPeriod({
+          id: "cal-2024",
+          periodNumber: 4,
+          cycleYear: 2024,
+        }),
+        vacations: [],
+        historicalConsumption: [],
+      },
+    ] as never);
+
+    await expect(
+      recomputePeriodsForNewHireDate("user-1", mxDay("2020-02-29")),
+    ).rejects.toThrow(/no permite recalcular el período del ciclo 2024/);
+    expect(periodUpdate).not.toHaveBeenCalled();
+  });
+
+  it("refuses a hire date that moves activation past a funded vacation", async () => {
+    periodFindMany.mockResolvedValue([
+      {
+        ...makeCalendarPeriod({}),
+        vacations: [
+          {
+            id: "v1",
+            startDate: mxDay("2026-06-20"),
+            endDate: mxDay("2026-06-22"),
+            reason: null,
+          },
+        ],
+        historicalConsumption: [],
+      },
+    ] as never);
+
+    await expect(
+      recomputePeriodsForNewHireDate("user-1", mxDay("2020-09-10")),
+    ).rejects.toThrow(/fuera del período del ciclo 2026/);
+    expect(periodUpdate).not.toHaveBeenCalled();
+  });
+
+  it("rejects an invalid hire date before reading anything", async () => {
+    await expect(
+      recomputePeriodsForNewHireDate("user-1", new Date("invalid")),
+    ).rejects.toThrow(/no es válida/);
+    expect(periodFindMany).not.toHaveBeenCalled();
   });
 });
