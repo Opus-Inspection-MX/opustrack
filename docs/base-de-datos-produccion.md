@@ -71,6 +71,20 @@ perder, o después de un respaldo verificado. No hay deshacer.
 **`studio`** — un GUI con permisos de escritura sobre producción. Cómodo y
 peligroso; ciérralo cuando termines.
 
+### Carga inicial privada después de un reset
+
+Tras la carga, la comprobación de solo lectura del 12 de octubre de 2026
+encontró en `neondb` 24 usuarios, 107 Clientes y las 66 migraciones aplicadas.
+Este conteo no verifica cada relación ni permiso. **No ejecute otra carga sobre
+esa base poblada.** Para un destino nuevo y vacío, consulte
+`docs/initial-load-seed.md`.
+
+El seed completo carga también usuarios y roles. El flujo documentado en
+`docs/initial-load-seed.md` es únicamente para una base nueva y vacía. Conserve
+`initial_load/credentials.csv` como archivo privado: no lo elimine ni lo suba
+al repositorio. Si alguna etapa falla, inspeccione el estado de la base antes
+de decidir cómo recuperarla.
+
 ---
 
 ## Cambiar el seed
