@@ -36,7 +36,6 @@ import {
   resolveStateId,
   reviewStageKey,
   SeedInputError,
-  STAGE_TX_CONFIG,
   splitGrants,
   tokenizeHireName,
   USERS_HEADER,
@@ -530,21 +529,6 @@ describe("parseSeedArgs", () => {
       dryRun: true,
       resume: true,
     });
-  });
-});
-
-describe("STAGE_TX_CONFIG", () => {
-  it("budgets six bounded stages instead of one giant transaction", () => {
-    const stages = Object.keys(STAGE_TX_CONFIG).sort();
-    expect(stages).toEqual(
-      ["calendar", "catalog", "clients", "equipment", "lines", "users"].sort(),
-    );
-    for (const config of Object.values(STAGE_TX_CONFIG)) {
-      expect(config.maxWait).toBeGreaterThan(0);
-      expect(config.timeout).toBeGreaterThan(0);
-      // Every stage stays well under the old 180s giant-transaction budget.
-      expect(config.timeout).toBeLessThanOrEqual(120_000);
-    }
   });
 });
 

@@ -18,13 +18,13 @@
  *                                                  # idempotent upserts
  *
  * Contract:
- * - Six sequential bounded transactions: (a) catalog baseline, (b) clients,
+ * - Six sequential idempotent stages: (a) catalog baseline, (b) clients,
  *   (c) lines, (d) equipment, (e) users+roles+profiles, (f) calendar periods
- *   + historical rows. Each stage owns its `$transaction` with an explicit
- *   timeout/maxWait sized to its workload. No bcrypt hashing runs inside any
- *   transaction: all passwords are hashed BEFORE stage (e) and the
- *   pre-generated map is reused inside.
- * - Every stage is safely re-runnable: all writes are idempotent upserts (or
+ *   + historical rows. Each statement runs independently; no interactive
+ *   transaction holds a pooled connection through hundreds of upserts.
+ *   Hash passwords BEFORE stage (e) and reuse the pre-generated map.
+ * - Every stage is safely re-runnable after a partial failure: writes are
+ *   idempotent upserts (or
  *   find-first-then-create where the schema has no unique key, e.g.
  *   equipment name+lineId) on stable unique keys. A retry after a mid-run
  *   failure converges, never duplicates.
@@ -959,22 +959,6 @@ export function parseSeedArgs(argv: readonly string[]): {
   };
 }
 
-/**
- * Per-stage interactive-transaction budgets, sized to each workload. The old
- * single giant transaction (maxWait 30s / timeout 180s over catalogs + 106
- * clients + 327 lines + 160 equipment + 24 users + ~179 periods) could lose
- * its slot on a pooled endpoint (P2028 Transaction-not-found); six bounded
- * stages keep every transaction short-lived instead.
- */
-export const STAGE_TX_CONFIG = {
-  catalog: { maxWait: 10_000, timeout: 60_000 },
-  clients: { maxWait: 10_000, timeout: 60_000 },
-  lines: { maxWait: 10_000, timeout: 60_000 },
-  equipment: { maxWait: 10_000, timeout: 60_000 },
-  users: { maxWait: 10_000, timeout: 120_000 },
-  calendar: { maxWait: 10_000, timeout: 120_000 },
-} as const;
-
 /** Equipment identity for the resume-safe find-first-then-create stage. */
 export function equipmentStageKey(row: EquipmentRow): string {
   return `${row.clientCode}␟${row.lineName}␟${row.name}`;
@@ -1127,7 +1111,7 @@ export function buildStagePlan(
   ];
 }
 
-type TxClient = Prisma.TransactionClient;
+type TxClient = Prisma.TransactionClient | typeof prisma;
 
 /**
  * Catalog baseline — the SAME rows as ignored seed.ts, sourced from the SAME
@@ -1803,16 +1787,16 @@ async function main(): Promise<void> {
     historicalRows: 0,
   };
 
-  // Stage (a): catalog baseline. All writes are upserts (holidays guarded by
-  // an empty-table createMany), so a retry converges.
-  await prisma.$transaction(async (tx) => {
-    await seedCatalogBaseline(tx);
-    await seedDomainCatalogs(tx);
-  }, STAGE_TX_CONFIG.catalog);
+  // Stage (a): catalog baseline. A transaction around hundreds of upserts
+  // expires on pooled connections; each upsert commits independently. A
+  // stopped run is incomplete, but its idempotent operations can converge.
+  await seedCatalogBaseline(prisma);
+  await seedDomainCatalogs(prisma);
 
   // Stage (b): clients, upserted on stable code. Update converges the
   // reviewed fields on retry instead of leaving first-write wins.
-  await prisma.$transaction(async (tx) => {
+  {
+    const tx = prisma;
     const states = await tx.state.findMany({
       select: { id: true, name: true },
     });
@@ -1841,10 +1825,11 @@ async function main(): Promise<void> {
       });
       created.clients += 1;
     }
-  }, STAGE_TX_CONFIG.clients);
+  }
 
   // Stage (c): lines, upserted on (name, clientId).
-  await prisma.$transaction(async (tx) => {
+  {
+    const tx = prisma;
     const clients = await tx.client.findMany({
       select: { id: true, code: true },
     });
@@ -1865,12 +1850,13 @@ async function main(): Promise<void> {
       });
       created.lines += 1;
     }
-  }, STAGE_TX_CONFIG.lines);
+  }
 
   // Stage (d): equipment. No schema unique key exists, so resume safety is
   // find-first-then-create on (name, lineId); in-plan duplicates fail closed
   // in buildSeedPlan, so a retry converges without doubling rows.
-  await prisma.$transaction(async (tx) => {
+  {
+    const tx = prisma;
     const operativo = await tx.equipmentStatus.findUnique({
       where: { name: "OPERATIVO" },
       select: { id: true },
@@ -1907,13 +1893,13 @@ async function main(): Promise<void> {
       }
       created.equipment += 1;
     }
-  }, STAGE_TX_CONFIG.equipment);
+  }
 
   // Stage (e): users + roles + profiles + hire dates. Password hashes come
-  // from the pre-generated map above — no bcrypt runs inside this
-  // transaction. User upsert never touches the password on update (stored
-  // credentials stay the authority); profile converges via its own upsert.
-  await prisma.$transaction(async (tx) => {
+  // from the pre-generated map above. User upsert never touches the password
+  // on update (stored credentials stay the authority); profile converges.
+  {
+    const tx = prisma;
     const activo = await tx.userStatus.findUnique({
       where: { name: "ACTIVO" },
       select: { id: true },
@@ -1962,13 +1948,14 @@ async function main(): Promise<void> {
       }
       created.users += 1;
     }
-  }, STAGE_TX_CONFIG.users);
+  }
 
   // Stage (f): calendar periods + historical ledger. Period creation is
   // idempotent (upsert on userId+cycleYear with empty update); historical
   // rows upsert on (sourceDigest, sourceSheet, sourceRow) and never overwrite
   // reviewed values.
-  await prisma.$transaction(async (tx) => {
+  {
+    const tx = prisma;
     const users = await tx.user.findMany({
       select: { id: true, email: true },
     });
@@ -2041,7 +2028,7 @@ async function main(): Promise<void> {
       });
       created.historicalRows += 1;
     }
-  }, STAGE_TX_CONFIG.calendar);
+  }
 
   // Aggregate counts only — never values.
   console.log(
