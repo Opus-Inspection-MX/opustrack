@@ -280,6 +280,15 @@ async function applyHireDateChange(
         "No se puede quitar la fecha de contratación: el usuario tiene solicitudes de vacaciones registradas.",
       );
     }
+    const consumptionsWithHistory =
+      await prisma.historicalVacationConsumption.count({
+        where: { userId },
+      });
+    if (consumptionsWithHistory > 0) {
+      businessRule(
+        "No se puede quitar la fecha de contratación: el usuario tiene consumo histórico de vacaciones registrado.",
+      );
+    }
     await prisma.vacationPeriod.deleteMany({ where: { userId } });
   } else if (currentHireDate) {
     const { recomputePeriodsForNewHireDate } = await import(

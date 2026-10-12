@@ -684,11 +684,13 @@ export async function updatePeriodOverride(
 
     // Lowering the allotment below what is already booked would leave the
     // period overdrawn. Refuse rather than silently showing a negative balance.
+    // `usedDays` counts dated requests plus APPROVED historical aggregate
+    // consumption linked to this period, so the floor covers both ledgers.
     const { usedDays } = await getPeriodBalance(periodId);
     const nextAllotted = overrideDays ?? period.ruleDays;
     if (nextAllotted < usedDays) {
       businessRule(
-        `No se puede asignar ${nextAllotted} día(s): el período ya tiene ${usedDays} día(s) solicitados o aprobados.`,
+        `No se puede asignar ${nextAllotted} día(s): el período ya tiene ${usedDays} día(s) consumidos o reservados.`,
       );
     }
 

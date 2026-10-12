@@ -418,6 +418,10 @@ cambia, se editan reglas en vez de desplegar.
 - `getVacationSetting()`: ventana de gracia y knobs globales del cómputo.
 - El cómputo de derecho usa `hireDate + (periodNumber − 1)` años con inicio de
   día CDMX (`accrualStart`).
+- Las filas de ciclo calendario (`cycleYear` no nulo) cubren del 1 de enero al
+  31 de diciembre en CDMX y se habilitan en el aniversario de contratación
+  (`availableFrom`); el saldo suma el consumo histórico aprobado vinculado más
+  las solicitudes fechadas activas, sin doble cargo.
 
 ---
 
