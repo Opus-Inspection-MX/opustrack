@@ -206,6 +206,8 @@ export const ALLOWLIST: Record<string, string> = {
     "vacation admin flow (vacations:approve); vacations have no Client dimension",
   "vacations.ts :: rejectVacation":
     "vacation admin flow (vacations:approve); vacations have no Client dimension",
+  "vacations.ts :: updateVacation":
+    "own data: caller must own the request or hold vacations:approve-family admin (updateVacation integration covers both); vacations have no Client dimension",
   "vacations.ts :: getVacationApprovalConflicts":
     "vacation approval helper (vacations:approve); conflict check over assignee userIds",
   // User and role administration: global rows (users:read scoping is

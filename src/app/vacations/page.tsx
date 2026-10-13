@@ -9,20 +9,21 @@ import { StatCard } from "@/components/common/stat-card";
 import { StatusBadge, type StatusTone } from "@/components/common/status-badge";
 import { Button } from "@/components/ui/button";
 import { VacationPlanner } from "@/components/vacations/vacation-planner";
+import { VacationRequestActions } from "@/components/vacations/vacation-request-actions";
 import type { CalendarVacation } from "@/components/vacations/vacation-year-calendar";
 import { isFailure } from "@/lib/actions/result";
 import {
   getMyVacations,
   getVacationBalanceData,
 } from "@/lib/actions/vacations";
-import { requireRouteAccess } from "@/lib/auth/auth";
+import { canPerform, requireRouteAccess } from "@/lib/auth/auth";
 import {
   codeOf,
   isVacationApproved,
   isVacationPending,
   VACATION_STATUS,
 } from "@/lib/constants/status-codes";
-import { formatMX } from "@/lib/utils/datetime";
+import { formatMX, mxDateString } from "@/lib/utils/datetime";
 
 const STATUS_TONE: Record<string, StatusTone> = {
   PENDIENTE: "warning",
@@ -38,10 +39,29 @@ const STATUS_LABEL: Record<string, string> = {
 
 export default async function MyVacationsPage() {
   await requireRouteAccess("/vacations");
-  const [vacations, balance] = await Promise.all([
-    getMyVacations(),
-    getVacationBalanceData(),
-  ]);
+  const [vacations, balance, canUpdate, canDelete, canManage] =
+    await Promise.all([
+      getMyVacations(),
+      getVacationBalanceData(),
+      canPerform("vacations:update"),
+      canPerform("vacations:delete"),
+      canPerform("vacations:manage"),
+    ]);
+  const today = mxDateString(new Date());
+  const requestActions = (vacation: (typeof vacations)[number]) => (
+    <VacationRequestActions
+      vacationId={vacation.id}
+      active={vacation.active}
+      statusCode={codeOf(vacation.status) ?? ""}
+      canUpdate={canUpdate}
+      canDelete={canDelete}
+      canManage={canManage}
+      startedApproved={
+        isVacationApproved(vacation.status) &&
+        mxDateString(vacation.startDate) <= today
+      }
+    />
+  );
 
   const pending = vacations.filter((v) => isVacationPending(v.status)).length;
   const approved = vacations.filter((v) => isVacationApproved(v.status)).length;
@@ -102,6 +122,7 @@ export default async function MyVacationsPage() {
             data={vacations}
             rowKey={(vacation) => vacation.id}
             columns={[
+              { header: "Acciones", cell: requestActions },
               {
                 header: "Inicio",
                 cell: (vacation) =>
@@ -163,6 +184,7 @@ export default async function MyVacationsPage() {
                     {vacation.reason}
                   </p>
                 )}
+                {requestActions(vacation)}
               </div>
             )}
             emptyTitle="Sin solicitudes"

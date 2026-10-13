@@ -38,6 +38,9 @@ export interface PeriodBalance {
   remainingDays: number;
 }
 
+/** Trusted mutation context, never supplied directly by a client. */
+export type ReservationReadOptions = { excludeVacationId?: string };
+
 /** Days a period grants: the admin override when set, otherwise the rule. */
 export function allottedDaysFor(period: VacationPeriod): number {
   return period.overrideDays ?? period.ruleDays;
@@ -335,6 +338,7 @@ export async function ensureCalendarPeriodsForUser(
 export async function getPeriodBalance(
   periodId: string,
   client: TxClient = prisma,
+  options: ReservationReadOptions = {},
 ): Promise<PeriodBalance> {
   const period = await client.vacationPeriod.findUnique({
     where: { id: periodId },
@@ -347,6 +351,9 @@ export async function getPeriodBalance(
     where: {
       periodId,
       active: true,
+      ...(options.excludeVacationId
+        ? { id: { not: options.excludeVacationId } }
+        : {}),
       status: { code: { in: CONSUMING_STATUSES } },
     },
     _sum: { businessDaysUsed: true },
@@ -374,7 +381,13 @@ export async function getPeriodBalance(
   }
 
   const reservations = await client.vacation.findMany({
-    where: { periodId, active: true },
+    where: {
+      periodId,
+      active: true,
+      ...(options.excludeVacationId
+        ? { id: { not: options.excludeVacationId } }
+        : {}),
+    },
     include: { status: { select: { code: true } } },
   });
 
@@ -433,6 +446,7 @@ export async function resolveVacationPeriod(
   client: TxClient = prisma,
   preferredPeriodId?: string,
   requiredDays = 0,
+  options: ReservationReadOptions = {},
 ): Promise<VacationPeriod> {
   const periods = await ensurePeriodsUpToNow(userId, client);
 
@@ -460,7 +474,7 @@ export async function resolveVacationPeriod(
     }
     if (
       requiredDays > 0 &&
-      (await getPeriodBalance(preferred.id, client)).remainingDays <
+      (await getPeriodBalance(preferred.id, client, options)).remainingDays <
         requiredDays
     ) {
       businessRule(
@@ -481,7 +495,7 @@ export async function resolveVacationPeriod(
   for (const candidate of candidates) {
     if (
       requiredDays === 0 ||
-      (await getPeriodBalance(candidate.id, client)).remainingDays >=
+      (await getPeriodBalance(candidate.id, client, options)).remainingDays >=
         requiredDays
     )
       return candidate;

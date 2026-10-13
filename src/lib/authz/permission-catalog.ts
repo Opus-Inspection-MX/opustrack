@@ -757,6 +757,12 @@ export const PERMISSIONS = [
     action: "approve",
   },
   {
+    name: "vacations:update",
+    description: "Edit pending vacation requests",
+    resource: "vacations",
+    action: "update",
+  },
+  {
     name: "vacations:delete",
     description: "Soft-delete vacation requests",
     resource: "vacations",
@@ -928,6 +934,7 @@ export const SEED_ROLES = {
       "notifications:broadcast",
       ...SELF_SERVICE_VACATIONS,
       "vacations:approve",
+      "vacations:update",
       "vacations:manage",
       "holidays:read",
       "holidays:create",
@@ -948,6 +955,7 @@ export const SEED_ROLES = {
   FSR: {
     grants: [
       "route:fsr",
+      "vacations:update",
       ...UNIVERSAL_ROUTES,
       ...SELF_SERVICE_VACATIONS,
       "incidents:read",
@@ -988,6 +996,7 @@ export const SEED_ROLES = {
   },
   EMPLEADO: {
     grants: [
+      "vacations:update",
       ...UNIVERSAL_ROUTES,
       ...SELF_SERVICE_VACATIONS,
       "notifications:read",

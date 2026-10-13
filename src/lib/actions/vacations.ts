@@ -1,6 +1,6 @@
 "use server";
 
-import type { Prisma } from "@prisma/client";
+import type { Prisma, Vacation } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { requirePermission } from "@/lib/auth/auth";
 import { userHasPermission } from "@/lib/authz/authz";
@@ -33,6 +33,8 @@ import { mxDateString, mxDayRange } from "@/lib/utils/datetime";
 import {
   VacationCreateSchema,
   type VacationFormData,
+  type VacationUpdateInput,
+  VacationUpdateSchema,
   validateVacationDates,
 } from "@/lib/validations/vacations";
 import { businessRule, guarded, ok, rejected } from "./result";
@@ -368,6 +370,166 @@ export async function createVacation(data: VacationFormData) {
     revalidatePath("/vacations");
   }
 
+  return result;
+}
+
+/** Replace a pending reservation and its evidence atomically. */
+export async function updateVacation(id: string, input: VacationUpdateInput) {
+  const caller = await requirePermission("vacations:update");
+  const parsed = VacationUpdateSchema.safeParse(input);
+  if (!parsed.success)
+    return rejected(
+      parsed.error.issues.some((issue) => issue.code === "unrecognized_keys")
+        ? "Solo puede editar fechas, motivo y período de la solicitud."
+        : (parsed.error.issues[0]?.message ??
+            "Los datos de la solicitud no son válidos."),
+    );
+  const data = parsed.data;
+  const today = mxDayRange(mxDateString(new Date())).gte;
+  const startDate = mxDayRange(data.startDate.toISOString().slice(0, 10)).gte;
+  const endDate = mxDayRange(data.endDate.toISOString().slice(0, 10)).lte;
+  const snapshot = (row: Vacation) => ({
+    operation: "PENDING_EDIT",
+    userId: row.userId,
+    startDate: row.startDate.toISOString(),
+    endDate: row.endDate.toISOString(),
+    reason: row.reason,
+    periodId: row.periodId,
+    chargedDates: row.chargedDates,
+    businessDaysUsed: row.businessDaysUsed,
+    statusId: row.statusId,
+    approvedById: row.approvedById,
+    approvedAt: row.approvedAt?.toISOString() ?? null,
+    correctionHistory: row.correctionHistory,
+  });
+  const result = await guarded(async () =>
+    serializableTransaction(async (tx) => {
+      const existing = await tx.vacation.findUnique({
+        where: { id, active: true },
+        include: { status: true },
+      });
+      if (!existing)
+        businessRule("Solicitud de vacaciones no encontrada o cancelada.");
+      if (existing.userId !== caller.id && !managesAllVacations(caller))
+        businessRule(
+          "Solo puede editar sus propias solicitudes de vacaciones.",
+        );
+      if (!isVacationPending(existing.status))
+        businessRule(
+          "Solo puede editar solicitudes pendientes. La solicitud ya fue resuelta.",
+        );
+      const reason = data.reason === undefined ? existing.reason : data.reason;
+      const replacement =
+        mxDateString(startDate) !== mxDateString(existing.startDate) ||
+        mxDateString(endDate) !== mxDateString(existing.endDate) ||
+        (data.periodId !== undefined && data.periodId !== existing.periodId);
+      const changes: Prisma.VacationUpdateManyMutationInput = {
+        reason,
+        updatedById: caller.id,
+      };
+      if (replacement) {
+        if (startDate < today) {
+          if (!managesAllVacations(caller))
+            businessRule(
+              "No puede solicitar vacaciones con fechas retroactivas.",
+            );
+          if (!reason?.trim())
+            businessRule(
+              "Debe indicar un motivo para registrar vacaciones retroactivas.",
+            );
+        }
+        const employee = await tx.user.findUnique({
+          where: { id: existing.userId },
+          select: { active: true },
+        });
+        if (!employee?.active)
+          businessRule("El usuario seleccionado no está activo.");
+        const chargedDates = await vacationChargedDates(startDate, endDate, tx);
+        if (!chargedDates.length)
+          businessRule(
+            "El rango solicitado no incluye días de vacaciones computables (solo domingos o días festivos).",
+          );
+        const overlap = await tx.vacation.findFirst({
+          where: {
+            id: { not: id },
+            userId: existing.userId,
+            active: true,
+            status: {
+              code: {
+                in: [VACATION_STATUS.PENDIENTE, VACATION_STATUS.APROBADA],
+              },
+            },
+            startDate: { lte: endDate },
+            endDate: { gte: startDate },
+          },
+          select: { id: true },
+        });
+        if (overlap)
+          businessRule(
+            "El período solicitado se superpone con una solicitud de vacaciones pendiente o aprobada existente.",
+          );
+        const options = { excludeVacationId: id };
+        const period = await resolveVacationPeriod(
+          existing.userId,
+          startDate,
+          endDate,
+          tx,
+          data.periodId,
+          chargedDates.length,
+          options,
+        );
+        const balance = await getPeriodBalance(period.id, tx, options);
+        if (chargedDates.length > balance.remainingDays)
+          businessRule(
+            "El período seleccionado no tiene saldo suficiente para el rango completo.",
+          );
+        Object.assign(changes, {
+          startDate,
+          endDate,
+          chargedDates,
+          businessDaysUsed: chargedDates.length,
+          periodId: period.id,
+        });
+      } else if (
+        startDate < today &&
+        managesAllVacations(caller) &&
+        !reason?.trim()
+      ) {
+        businessRule(
+          "Debe indicar un motivo para registrar vacaciones retroactivas.",
+        );
+      }
+      const changed = await tx.vacation.updateMany({
+        where: {
+          id,
+          active: true,
+          status: { code: VACATION_STATUS.PENDIENTE },
+          updatedAt: existing.updatedAt,
+        },
+        data: changes,
+      });
+      if (changed.count !== 1)
+        businessRule(
+          "La solicitud cambió o fue resuelta por otro usuario. Actualiza y vuelve a intentar.",
+        );
+      const updated = await tx.vacation.findUniqueOrThrow({ where: { id } });
+      await tx.businessCorrection.create({
+        data: {
+          entityType: "Vacation",
+          entityId: id,
+          actorId: caller.id,
+          reason: "Pending vacation request edited",
+          before: snapshot(existing),
+          after: snapshot(updated),
+        },
+      });
+      return { data: updated };
+    }),
+  );
+  if (result.success) {
+    revalidatePath("/vacations");
+    revalidatePath("/admin/vacations");
+  }
   return result;
 }
 

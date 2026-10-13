@@ -9,6 +9,7 @@ import { StatusBadge, type StatusTone } from "@/components/common/status-badge";
 import { Button } from "@/components/ui/button";
 import { VacationApprovalButtons } from "@/components/vacations/vacation-approval-buttons";
 import { VacationPlanner } from "@/components/vacations/vacation-planner";
+import { VacationRequestActions } from "@/components/vacations/vacation-request-actions";
 import type { CalendarVacation } from "@/components/vacations/vacation-year-calendar";
 import { isFailure } from "@/lib/actions/result";
 import {
@@ -17,8 +18,12 @@ import {
   getVacations,
 } from "@/lib/actions/vacations";
 import { canPerform, requireRouteAccess } from "@/lib/auth/auth";
-import { codeOf } from "@/lib/constants/status-codes";
-import { formatMX } from "@/lib/utils/datetime";
+import {
+  codeOf,
+  isVacationApproved,
+  isVacationPending,
+} from "@/lib/constants/status-codes";
+import { formatMX, mxDateString } from "@/lib/utils/datetime";
 
 const STATUS_TONE: Record<string, StatusTone> = {
   PENDIENTE: "warning",
@@ -34,15 +39,51 @@ const STATUS_LABEL: Record<string, string> = {
 
 export default async function AdminVacationsPage() {
   await requireRouteAccess("/admin/vacations");
-  const [vacationPage, employees, canManage, canCaptureHireDate] =
-    await Promise.all([
-      getVacations(),
-      getEmployeesForVacations(),
-      canPerform("vacations:manage"),
-      canPerform("users:manage-employment"),
-    ]);
+  const [
+    vacationPage,
+    employees,
+    canManage,
+    canCaptureHireDate,
+    canUpdate,
+    canDelete,
+    canApprove,
+  ] = await Promise.all([
+    getVacations(),
+    getEmployeesForVacations(),
+    canPerform("vacations:manage"),
+    canPerform("users:manage-employment"),
+    canPerform("vacations:update"),
+    canPerform("vacations:delete"),
+    canPerform("vacations:approve"),
+  ]);
   const vacations = vacationPage.data;
   const fsrs = employees;
+  const today = mxDateString(new Date());
+  const requestActions = (vacation: (typeof vacations)[number]) => {
+    const started =
+      isVacationApproved(vacation.status) &&
+      mxDateString(vacation.startDate) <= today;
+    return (
+      <div className="flex flex-wrap gap-2">
+        <VacationRequestActions
+          vacationId={vacation.id}
+          active={vacation.active}
+          statusCode={codeOf(vacation.status) ?? ""}
+          canUpdate={canUpdate}
+          canDelete={canDelete}
+          canManage={canManage}
+          startedApproved={started}
+        />
+        {((isVacationPending(vacation.status) && canApprove) ||
+          (started && canManage)) && (
+          <VacationApprovalButtons
+            vacationId={vacation.id}
+            statusName={codeOf(vacation.status) ?? ""}
+          />
+        )}
+      </div>
+    );
+  };
 
   // Default the balance panel to the first employee; the picker switches from there.
   const balance =
@@ -140,12 +181,7 @@ export default async function AdminVacationsPage() {
                 header: "Acciones",
                 headerClassName: "text-right",
                 className: "text-right",
-                cell: (vacation) => (
-                  <VacationApprovalButtons
-                    vacationId={vacation.id}
-                    statusName={codeOf(vacation.status) ?? ""}
-                  />
-                ),
+                cell: requestActions,
               },
             ]}
             mobileCard={(vacation) => (
@@ -165,10 +201,7 @@ export default async function AdminVacationsPage() {
                   {formatMX(vacation.startDate, { dateStyle: "short" })} →{" "}
                   {formatMX(vacation.endDate, { dateStyle: "short" })}
                 </p>
-                <VacationApprovalButtons
-                  vacationId={vacation.id}
-                  statusName={vacation.status.name}
-                />
+                {requestActions(vacation)}
               </div>
             )}
             emptyTitle="Sin solicitudes"

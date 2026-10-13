@@ -45,6 +45,12 @@ function grantsOf(role: SeedRoleCode): ReadonlySet<string> {
 }
 
 describe("catálogo de permisos: forma", () => {
+  it("grants pending editing only to the approved roles and ROOT", () => {
+    for (const role of ["EMPLEADO", "FSR", "ADMIN_VACACIONES", "ROOT"] as const)
+      expect(resolveSeedGrants(role)).toContain("vacations:update");
+    for (const role of ["ADMIN_OPERACION", "REPORTER", "GUEST"] as const)
+      expect(resolveSeedGrants(role)).not.toContain("vacations:update");
+  });
   it("no tiene nombres duplicados", () => {
     const names = PERMISSION_LIST.map((permission) => permission.name);
     expect(new Set(names).size).toBe(names.length);

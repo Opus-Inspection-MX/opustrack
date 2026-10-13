@@ -25,6 +25,24 @@ export const VacationCreateSchema = z
 // Type inference
 export type VacationCreateInput = z.infer<typeof VacationCreateSchema>;
 
+export const VacationUpdateSchema = z
+  .strictObject({
+    startDate: z.date({ message: "La fecha de inicio no es válida." }),
+    endDate: z.date({ message: "La fecha de fin no es válida." }),
+    reason: z
+      .string()
+      .max(1000, "El motivo no puede exceder 1000 caracteres.")
+      .nullable()
+      .optional(),
+    periodId: cuidSchema.optional(),
+  })
+  .refine((data) => data.endDate >= data.startDate, {
+    message: "La fecha de fin debe ser igual o posterior a la fecha de inicio.",
+    path: ["endDate"],
+  });
+
+export type VacationUpdateInput = z.infer<typeof VacationUpdateSchema>;
+
 /**
  * Plain FormData type used by server actions (pre-Zod validation layer).
  */

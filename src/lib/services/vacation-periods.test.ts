@@ -141,6 +141,25 @@ describe("isPeriodRequestable", () => {
 });
 
 describe("getPeriodBalance", () => {
+  it("excludes only the trusted request from aggregate reservations", async () => {
+    periodFindUnique.mockResolvedValue(makePeriod({ ruleDays: 3 }) as never);
+    vacationAggregate.mockResolvedValue({
+      _sum: { businessDaysUsed: 1 },
+    } as never);
+    expect(
+      await getPeriodBalance("period-1", undefined, {
+        excludeVacationId: "own",
+      }),
+    ).toEqual({ allottedDays: 3, usedDays: 1, remainingDays: 2 });
+    expect(vacationAggregate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          id: { not: "own" },
+          periodId: "period-1",
+        }),
+      }),
+    );
+  });
   it("derives remaining days from allotted minus consumed", () => {
     periodFindUnique.mockResolvedValue(makePeriod({ ruleDays: 12 }) as never);
     vacationAggregate.mockResolvedValue({
@@ -330,6 +349,61 @@ describe("resolveVacationPeriod", () => {
     periodUpsert.mockResolvedValue({} as never);
     periodFindMany.mockResolvedValue(periods as never);
   }
+
+  it.each([undefined, "p1"])(
+    "propagates own exclusion to candidate and explicit funding (%s)",
+    async (preferred) => {
+      havePeriods([period1, period2]);
+      periodFindUnique.mockResolvedValue({ ...period1, ruleDays: 3 } as never);
+      vacationAggregate.mockImplementation((async (query: {
+        where?: { id?: unknown };
+      }) => ({
+        _sum: { businessDaysUsed: query.where?.id ? 0 : 2 },
+      })) as never);
+      expect(
+        (
+          await resolveVacationPeriod(
+            "user-1",
+            mxDay("2026-06-10"),
+            mxDay("2026-06-12"),
+            undefined,
+            preferred,
+            3,
+            { excludeVacationId: "own" },
+          )
+        ).id,
+      ).toBe("p1");
+      expect(vacationAggregate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ id: { not: "own" } }),
+        }),
+      );
+    },
+  );
+
+  it("does not refund an old request into a different funding period", async () => {
+    const replacement = {
+      ...period2,
+      accrualStart: mxDay("2026-01-01"),
+      ruleDays: 2,
+    };
+    havePeriods([period1, replacement]);
+    periodFindUnique.mockResolvedValue(replacement as never);
+    vacationAggregate.mockResolvedValue({
+      _sum: { businessDaysUsed: 2 },
+    } as never);
+    await expect(
+      resolveVacationPeriod(
+        "user-1",
+        mxDay("2026-06-10"),
+        mxDay("2026-06-12"),
+        undefined,
+        "p2",
+        3,
+        { excludeVacationId: "own" },
+      ),
+    ).rejects.toThrow(/saldo suficiente/);
+  });
 
   it("resolves a range that sits inside the accrual window", async () => {
     havePeriods([period1, period2]);
@@ -780,6 +854,74 @@ describe("getPeriodBalance with the historical ledger", () => {
       },
     ] as never);
   }
+
+  it("uses own-excluded historical balance during candidate selection", async () => {
+    haveLedger();
+    userFindUnique.mockResolvedValue({
+      hireDate: mxDay("2020-06-15"),
+    } as never);
+    ruleFindFirst.mockResolvedValue({ days: 14 } as never);
+    periodFindMany.mockResolvedValue([makeCalendarPeriod({})] as never);
+    vacationFindMany.mockImplementation((async (query: {
+      where?: { id?: unknown };
+    }) =>
+      query.where?.id
+        ? []
+        : [
+            {
+              id: "r1",
+              userId: "user-1",
+              periodId: "cal-2026",
+              active: true,
+              status: { code: "PENDIENTE" },
+              businessDaysUsed: 2,
+            },
+          ]) as never);
+    expect(
+      (
+        await resolveVacationPeriod(
+          "user-1",
+          mxDay("2026-07-01"),
+          mxDay("2026-07-10"),
+          undefined,
+          undefined,
+          8,
+          { excludeVacationId: "r1" },
+        )
+      ).id,
+    ).toBe("cal-2026");
+    await expect(
+      resolveVacationPeriod(
+        "user-1",
+        mxDay("2026-07-01"),
+        mxDay("2026-07-10"),
+        undefined,
+        undefined,
+        8,
+      ),
+    ).rejects.toThrow(/saldo suficiente/);
+  });
+
+  it("excludes the dated reservation without excluding historical consumption", async () => {
+    haveLedger();
+    vacationAggregate.mockResolvedValue({
+      _sum: { businessDaysUsed: 0 },
+    } as never);
+    vacationFindMany.mockResolvedValue([] as never);
+    expect(
+      await getPeriodBalance("cal-2026", undefined, {
+        excludeVacationId: "r1",
+      }),
+    ).toEqual({ allottedDays: 14, usedDays: 5, remainingDays: 9 });
+    expect(vacationFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { periodId: "cal-2026", active: true, id: { not: "r1" } },
+      }),
+    );
+    expect(historicalFindMany).toHaveBeenCalledWith({
+      where: { fundingPeriodId: "cal-2026" },
+    });
+  });
 
   it("adds approved aggregate consumption to dated reservations", async () => {
     haveLedger();

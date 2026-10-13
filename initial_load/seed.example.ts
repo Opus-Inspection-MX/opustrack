@@ -951,7 +951,7 @@ async function main() {
           action: "delete",
         },
 
-        // Vacation management permissions (RF-701, RF-702, RF-706)
+        // Vacation management permissions (RF-701, RF-702, RF-706, RF-711)
         {
           name: "vacations:read",
           description: "View vacation requests",
@@ -963,6 +963,12 @@ async function main() {
           description: "Create vacation requests",
           resource: "vacations",
           action: "create",
+        },
+        {
+          name: "vacations:update",
+          description: "Edit pending vacation requests",
+          resource: "vacations",
+          action: "update",
         },
         {
           name: "vacations:approve",
@@ -1154,6 +1160,7 @@ async function main() {
             ...SELF_SERVICE_VACATIONS,
             // Approving and configuring other people's vacations.
             "vacations:approve",
+            "vacations:update",
             "vacations:manage",
             // Holidays and accrual rules ARE vacation administration: a day off
             // that lands on a holiday is not charged, and the rules decide how
@@ -1184,6 +1191,7 @@ async function main() {
           priority: 50,
           permissions: [
             "route:fsr",
+            "vacations:update",
             ...UNIVERSAL_ROUTES,
             ...SELF_SERVICE_VACATIONS,
             "incidents:read",
@@ -1229,6 +1237,7 @@ async function main() {
           defaultPath: "/inicio",
           priority: 30,
           permissions: [
+            "vacations:update",
             ...UNIVERSAL_ROUTES,
             ...SELF_SERVICE_VACATIONS,
             "notifications:read",

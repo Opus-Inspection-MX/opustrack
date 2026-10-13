@@ -570,6 +570,71 @@ CDMX y recuerda al solicitante.
 
 ---
 
+### RF-711 · Edición de solicitud pendiente con reemplazo atómico de reserva
+
+El sistema permite editar las fechas y el motivo opcional de una vacación activa
+en estado PENDIENTE (`updateVacation`). El titular es inmutable, incluso para
+administradores. EMPLEADO y FSR solo editan sus propias solicitudes; editar la
+de otro requiere además `vacations:manage`. Las solicitudes APROBADAS,
+RECHAZADAS o canceladas no se editan: una decisión o cancelación concurrente
+ganadora rechaza el borrador pendiente sin alterar su resultado, reserva ni
+auditoría.
+
+**Reglas de negocio:**
+- La validación de fechas, normalización civil CDMX, restricción de fechas
+  retroactivas para no-admin, motivo obligatorio en retroactivas de admin,
+  cálculo de días cargables, elegibilidad de período y saldo siguen RF-701.
+- La solicitud actual se excluye de sus propios chequeos de solape y
+  financiación (incluida la selección de período candidato y las reservas
+  fechadas del balance histórico); el consumo histórico y las demás
+  solicitudes siguen contando. El reemplazo debe financiarse completo en un
+  solo período válido o se rechaza atómicamente. La selección explícita de
+  período se respeta o se rechaza, nunca se sustituye en silencio.
+- Los cambios solo de motivo preservan fechas, período, `chargedDates` y
+  consumo. La escritura es condicional (`id + active + PENDIENTE`); los
+  reintentos serializables re-leen la fila viva.
+- La edición y su evidencia `BusinessCorrection` (actor, `PENDING_EDIT`,
+  snapshots antes/después con titular, fechas, motivo, período, cargos y
+  metadatos de aprobación) confirman juntas; un fallo de auditoría revierte
+  la edición. Los snapshots de grants y la evidencia previa se preservan.
+- El permiso `vacations:update` vive en el catálogo compartido y se otorga a
+  EMPLEADO, FSR y ADMIN_VACACIONES mediante migración aditiva idempotente
+  (rejugable). La cancelación y la corrección de iniciadas conservan su
+  semántica (RF-709) y no se enrutan por esta edición.
+
+#### Escenario: El empleado reemplaza su propia reserva pendiente
+
+- DADO una solicitud PENDIENTE del empleado con 2 días reservados y 1 día
+  adicional disponible en su período
+- CUANDO la edita a un rango válido de 3 días cargables
+- ENTONCES la misma solicitud conserva su titular con 3 días reservados (no 5
+  acumulados) y la evidencia registra actor, fechas y financiación antes/después
+
+#### Escenario: El ADMIN edita la solicitud pendiente de otro
+
+- DADO una solicitud PENDIENTE de un empleado y un ADMIN con `vacations:update`
+  + `vacations:manage`
+- CUANDO la edita desde la UI de administración
+- ENTONCES sigue PENDIENTE para su titular original y la nueva reserva válida
+  es visible para ambos roles
+
+#### Escenario: Un borrador obsoleto no altera la decisión ganadora
+
+- DADO un borrador de edición pendiente y otro actor que aprueba, rechaza o
+  cancela esa solicitud
+- CUANDO se envía la edición obsoleta
+- ENTONCES se rechaza y preserva estado ganador, aprobación, snapshots y saldo
+
+#### Escenario: Reemplazo inválido revierte sin writes
+
+- DADO una solicitud PENDIENTE con reserva vigente
+- CUANDO la edición se solapa con otra solicitud vigente, excede el saldo,
+  cruza períodos inválidos, no tiene días cargables o viola reglas de fecha
+- ENTONCES se rechaza, conserva la reserva completa y no deja evidencia de
+  edición exitosa
+
+---
+
 ## No-objetivos (confirmados, fuera de alcance)
 
 - Vacaciones con granularidad sub-día (medio día).
@@ -603,6 +668,18 @@ La lógica pura de este dominio está cubierta por pruebas unitarias (Vitest):
   corrección con motivo/revisión legacy y conservación del borrador tras rechazo.
 - `src/lib/notifications/vacation-reminders.test.ts` — idempotencia de
   `vacation_starting_soon` (detalle en [08](./08-notificaciones.md)).
+- `src/lib/actions/vacations-update.test.ts` — edición pendiente propia/de
+  admin, titular inmutable, exclusión de la propia reserva, rollback inválido,
+  preservación solo-motivo y rollback ante fallo de auditoría.
+- `src/components/vacations/vacation-{edit-dialog,request-actions}.test.tsx` —
+  diálogo de edición, borrador conservado tras rechazo y cancelación propia/de
+  admin.
+- `src/test/integration/vacations-update.int.test.ts` — edición vs.
+  aprobación/rechazo/cancelación concurrentes, reemplazo competitivo de
+  reserva y auditoría antes/después contra PostgreSQL real.
+- `e2e/workflows/vacation-role-workflow.spec.ts` — recorridos autenticados por
+  rol: crear/editar/aprobar/rechazar/cancelar/corregir con evidencia real
+  (proyecto dedicado `workflows`, un worker, base efímera).
 
 ---
 
