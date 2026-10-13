@@ -35,6 +35,9 @@ const GUARDED_PORTALS = [
 const PUBLIC_PAGES = new Set([
   "src/app/page.tsx",
   "src/app/(auth)/login/page.tsx",
+  // Password recovery must be usable after a session is lost.
+  "src/app/(auth)/forgot-password/page.tsx",
+  "src/app/(auth)/reset-password/page.tsx",
   "src/app/signup/page.tsx",
   "src/app/(auth)/logout/page.tsx",
   "src/app/(auth)/unauthorized/page.tsx",

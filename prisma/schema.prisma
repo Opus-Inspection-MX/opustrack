@@ -21,6 +21,7 @@ model User {
   password            String
   userStatusId        Int                      @default(1)
   sessionVersion      Int                      @default(1) // Increment to invalidate all user sessions
+  passwordResetToken  PasswordResetToken?
   // A user holds MANY roles: someone can administer vacations, administer
   // operations, and still be an FSR who gets dispatched. There is deliberately
   // no `roleId` scalar beside this. Client membership likewise lives ONLY in
@@ -54,6 +55,17 @@ model User {
   updatedById     String?
   deactivatedAt   DateTime?
   deactivatedById String?
+}
+
+// One bounded recovery record per user; plaintext bearer tokens are never persisted.
+model PasswordResetToken {
+  userId         String    @id
+  tokenHash      String    @unique
+  sessionVersion Int
+  requestedAt    DateTime
+  expiresAt      DateTime
+  consumedAt     DateTime?
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model UserClientAssignment {

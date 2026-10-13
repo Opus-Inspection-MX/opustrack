@@ -16,7 +16,14 @@
  */
 
 /** Paths served without authentication. */
-const PUBLIC_PATHS = new Set(["/login", "/signup", "/logout", "/unauthorized"]);
+const PUBLIC_PATHS = new Set([
+  "/login",
+  "/signup",
+  "/logout",
+  "/unauthorized",
+  "/forgot-password",
+  "/reset-password",
+]);
 
 /**
  * `/uploads` is public because the filesystem storage provider writes there

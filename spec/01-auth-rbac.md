@@ -262,6 +262,34 @@ en datos, no en código.
 
 ---
 
+### RF-113 · Recuperación de contraseña por correo
+
+**Descripción:** desde `/login`, el usuario abre `/forgot-password` y solicita
+un enlace para elegir una contraseña nueva en `/reset-password`, sin sesión previa.
+
+**Reglas de negocio:**
+- La solicitud devuelve la misma confirmación para cuentas existentes, inexistentes,
+  deshabilitadas o con solicitudes recientes. Consulta y envío ocurren después de
+  la respuesta; requiere cuenta activa, estado ACTIVO y al menos un rol activo.
+- El correo coincide exactamente con el registrado, como en el login existente.
+- Enlace aleatorio de 256 bits, válido por 30 minutos y de un solo uso. Solo se
+  persiste su digest SHA-256; el token viaja en el fragmento de la URL.
+- Un registro por usuario limita reenvíos a uno por minuto. Un enlace nuevo
+  reemplaza el anterior; los cambios de contraseña existentes invalidan enlaces
+  mediante `sessionVersion`.
+- La contraseña nueva requiere confirmación, al menos 8 caracteres y máximo
+  72 bytes UTF-8. Consumo, cambio de contraseña e incremento de `sessionVersion`
+  son atómicos. No se inicia sesión automáticamente ni se reactiva una cuenta.
+- El envío requiere SMTP y un `NEXTAUTH_URL` confiable con HTTPS (HTTP solo en
+  localhost), no depende de la matriz de notificaciones y no persiste el enlace
+  en `EmailOutbox`. Si falla, el usuario puede pedir otro tras el minuto de espera.
+
+**Pruebas:** `password-recovery.test.ts`, `password-recovery-form.test.tsx`,
+`route-access.test.ts` y `password-recovery.int.test.ts`.
+**Operación:** [Email password recovery](../docs/password-recovery.md).
+
+---
+
 ## Reglas transversales aplicables
 
 - **Soft delete global:** roles, permisos, pivotes y usuarios se desactivan;

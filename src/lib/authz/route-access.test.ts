@@ -98,6 +98,12 @@ describe("canAccessRoute", () => {
 });
 
 describe("isPublicRoute", () => {
+  it("opens only the exact password recovery pages", () => {
+    expect(isPublicRoute("/forgot-password")).toBe(true);
+    expect(isPublicRoute("/reset-password")).toBe(true);
+    expect(isPublicRoute("/reset-password/private")).toBe(false);
+    expect(isPublicRoute("/forgot-password-admin")).toBe(false);
+  });
   it("recognizes the auth pages", () => {
     for (const path of ["/login", "/signup", "/logout", "/unauthorized"]) {
       expect(isPublicRoute(path)).toBe(true);

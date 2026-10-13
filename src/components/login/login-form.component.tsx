@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { type FormEvent, useState } from "react";
@@ -100,6 +101,13 @@ export default function LoginForm() {
             <Button type="submit" disabled={loading} className="w-full">
               {loading ? "Iniciando Sesión..." : "Iniciar Sesión"}
             </Button>
+
+            <Link
+              href="/forgot-password"
+              className="block text-center text-sm text-primary underline underline-offset-4"
+            >
+              ¿Olvidaste tu contraseña?
+            </Link>
 
             {/* Development hint */}
             {process.env.NODE_ENV === "development" && (
