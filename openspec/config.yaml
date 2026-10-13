@@ -7,11 +7,11 @@ delivery_strategy: ask-on-risk
 context: |
   OpusTrack — incident management and work order tracking system for Vehicle Inspection Centers (VICs) in Mexico.
   Stack: Next.js 15 (App Router, Turbopack), React 19, TypeScript strict, Prisma 6 + PostgreSQL, NextAuth v4 (JWT).
-  Domain: Cliente (replaces VIC), Assignment (replaces WorkOrder), Incident, FSR, Schedule, Vehicle, Notification.
+  Domain: Client (inspection center), Assignment, Incident, FSR, Schedule, Vehicle, Notification, Holiday, Vacation.
   Architecture: database-driven RBAC, JWT+Edge Runtime middleware, Server Components + Server Actions (default pattern).
   Linter/formatter: Biome 2.2. No ESLint/Prettier.
-  Spec source of truth: spec/ (00-overview + 01-09), requirements RF-XXX.
-  CLAUDE.md partially outdated (uses VIC/WorkOrder). spec/ overrides for domain terminology.
+  Spec source of truth: spec/ (00-overview + 01-10), requirements RF-XXX; preserve existing requirement IDs and scenarios.
+  Code uses Client/REPORTER; spec/ retains some historical Spanish identifiers. Domain rules override stale terminology in guidance.
 
 stack:
   runtime: Node.js
@@ -31,14 +31,14 @@ stack:
 testing:
   strict_tdd: false
   caveat: >
-    Infrastructure exists (Vitest 4 + jsdom + MSW + Prisma test harness in src/test/)
-    but only one real test file: src/test/example.test.ts (smoke test, no domain logic).
-    DB-dependent tests require opustrack_test database running and TEST_DATABASE_URL set.
-    Strict TDD not viable until meaningful server-action/domain tests exist.
-    Coverage thresholds configured (75%) but currently trivially met by example.test.ts alone.
+    Meaningful domain, Server Action and component tests exist in the Vitest unit project.
+    Integration and Playwright runners create, migrate and seed an ephemeral PostgreSQL stack,
+    then tear it down on completion/failure. They share the fixed E2E compose stack and must not overlap.
+    Raw workflow fixtures are prerequisites/cleanup only; tested business transitions use authenticated UI.
+    Unit coverage thresholds are configured at 75%; passing coverage is established by execution, not this context.
   unit:
     available: true
-    command: npm test
+    command: npm run test:unit
     runner: vitest@4
     environment: jsdom
     setup: src/test/setup.ts
@@ -47,6 +47,7 @@ testing:
     command: npm run test:e2e
     runner: "@playwright/test@1.57"
     config: playwright.config.ts
+    note: "Role workflow isolation is specified in role-workflow-e2e; dedicated invocation/project is pending implementation."
   coverage:
     available: true
     command: npm run test:coverage
@@ -54,8 +55,10 @@ testing:
     thresholds: { lines: 75, functions: 75, branches: 75, statements: 75 }
   integration:
     available: true
-    tool: "@testing-library/react + MSW + Prisma test harness"
-    note: "Harness ready (src/test/db.ts, helpers.tsx, mocks/) but no integration tests written yet."
+    command: npm run test:int
+    tool: "Vitest integration project + real ephemeral PostgreSQL"
+    setup: src/test/integration/setup.ts
+    note: "Existing integration tests live in src/test/integration/**/*.int.test.ts; browser tests belong to Playwright."
 
 phases:
   proposal:
