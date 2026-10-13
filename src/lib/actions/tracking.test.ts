@@ -68,7 +68,9 @@ const { loadAssignmentFor, loadIncidentFor, isFsrUnavailable } = vi.hoisted(
   () => ({
     loadAssignmentFor: vi.fn(async () => undefined),
     loadIncidentFor: vi.fn(async () => undefined),
-    isFsrUnavailable: vi.fn(async () => false),
+    isFsrUnavailable: vi.fn(
+      async (_userId: string, _date: Date, _tx: unknown) => false,
+    ),
   }),
 );
 vi.mock("@/lib/auth/access", () => ({
@@ -113,6 +115,130 @@ function lastArgs() {
 }
 
 describe("tracking mutation invariant parity", () => {
+  it("projects the scheduled date for dated tracking editors", async () => {
+    await getIncidentsForTracking();
+    expect(lastArgs().select.assignments.select.scheduledDate).toBe(true);
+  });
+  it("moves date and replaces an unavailable FSR in one final-set transaction", async () => {
+    const scheduledDate = new Date("2026-10-13T15:00:00Z");
+    prismaMock.assignment.findUnique.mockResolvedValue({
+      incidentId: 1,
+      scheduledDate,
+      status: { code: "ASIGNADO" },
+    });
+    prismaMock.assignmentAssignee.findMany.mockResolvedValue([
+      { userId: "removed", active: true },
+    ]);
+    isFsrUnavailable.mockImplementation(async (id) => id === "removed");
+    expect(
+      await updateAssignmentDetails("a1", {
+        scheduledDate: "2026-10-14",
+        assigneeIds: ["replacement"],
+      }),
+    ).toEqual({ success: true });
+    expect(prismaMock.$transaction).toHaveBeenCalledTimes(1);
+    expect(isFsrUnavailable).toHaveBeenCalledWith(
+      "replacement",
+      new Date("2026-10-14T06:00:00Z"),
+      prismaMock,
+    );
+    expect(isFsrUnavailable).not.toHaveBeenCalledWith(
+      "removed",
+      expect.anything(),
+      expect.anything(),
+    );
+    expect(prismaMock.assignment.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          scheduledDate: new Date("2026-10-14T06:00:00Z"),
+          seenAt: null,
+        }),
+      }),
+    );
+  });
+  it("rejects a date-changing detail mutation retaining an unavailable FSR before any writes", async () => {
+    prismaMock.assignment.findUnique.mockResolvedValue({
+      incidentId: 1,
+      scheduledDate: null,
+      status: { code: "ASIGNADO" },
+    });
+    prismaMock.assignmentAssignee.findMany.mockResolvedValue([
+      { userId: "f1", active: true },
+    ]);
+    isFsrUnavailable.mockResolvedValue(true);
+    expect(
+      (
+        await updateAssignmentDetails("a1", {
+          scheduledDate: "2026-10-14",
+          startedAt: null,
+        })
+      ).success,
+    ).toBe(false);
+    expect(prismaMock.assignment.update).not.toHaveBeenCalled();
+    expect(prismaMock.assignmentAssignee.updateMany).not.toHaveBeenCalled();
+    expect(prismaMock.assignmentAssignee.upsert).not.toHaveBeenCalled();
+  });
+  it("keeps the persisted instant for a composition-only same-day save", async () => {
+    const scheduledDate = new Date("2026-10-13T15:00:00Z");
+    prismaMock.assignment.findUnique.mockResolvedValue({
+      incidentId: 1,
+      scheduledDate,
+      status: { code: "ASIGNADO" },
+    });
+    prismaMock.assignmentAssignee.findMany.mockResolvedValue([
+      { userId: "f1", active: true },
+    ]);
+    expect(
+      (
+        await updateAssignmentDetails("a1", {
+          scheduledDate: "2026-10-13",
+          assigneeIds: ["f1"],
+        })
+      ).success,
+    ).toBe(true);
+    expect(isFsrUnavailable).toHaveBeenCalledWith(
+      "f1",
+      scheduledDate,
+      prismaMock,
+    );
+    for (const [args] of prismaMock.assignment.update.mock.calls)
+      expect(args.data).not.toHaveProperty("scheduledDate");
+  });
+  it("an explicit null date defers availability while preserving final-set composition rules", async () => {
+    prismaMock.assignment.findUnique.mockResolvedValue({
+      incidentId: 1,
+      scheduledDate: new Date(),
+      status: { code: "ASIGNADO" },
+    });
+    expect(
+      (
+        await updateAssignmentDetails("a1", {
+          scheduledDate: null,
+          assigneeIds: ["f1"],
+        })
+      ).success,
+    ).toBe(true);
+    expect(isFsrUnavailable).not.toHaveBeenCalled();
+    expect(prismaMock.assignment.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ scheduledDate: null }),
+      }),
+    );
+  });
+  it.each(["2026-02-30", "2026-13-01", "bad-date"])(
+    "rejects invalid scheduled date %s without writes",
+    async (scheduledDate) => {
+      expect(
+        (
+          await updateAssignmentDetails("a1", {
+            scheduledDate,
+            assigneeIds: ["f1"],
+          })
+        ).success,
+      ).toBe(false);
+      expect(prismaMock.assignment.update).not.toHaveBeenCalled();
+    },
+  );
   it("rejects the alternative assignment route on a cancelled incident", async () => {
     prismaMock.incident.findUnique.mockResolvedValue({
       status: { code: "CANCELADA" },

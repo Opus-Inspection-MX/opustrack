@@ -269,7 +269,13 @@ export async function createAssignment(data: AssignmentFormData) {
  * ANY assignment is administration. Field work goes through the lifecycle
  * actions below, which only ask for worker mode.
  */
-export async function updateAssignment(id: string, data: AssignmentFormData) {
+export async function updateAssignment(
+  id: string,
+  // The incident is resolved from the assignment id; callers must not send a
+  // dummy incidentId to satisfy the shared create shape (0 fails intIdSchema
+  // and rejected every full-edit save before reaching the transaction).
+  data: Omit<AssignmentFormData, "incidentId"> & { incidentId?: number },
+) {
   const user = await requirePermission("assignments:update");
 
   return guarded(async () => {

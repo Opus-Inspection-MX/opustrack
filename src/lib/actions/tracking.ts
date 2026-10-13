@@ -17,6 +17,7 @@ import {
   type ReportScope,
   withScope,
 } from "@/lib/auth/report-scope";
+import type { UserWithPermissions } from "@/lib/authz/authz";
 import { ROLE } from "@/lib/authz/roles";
 import { whereHasRole } from "@/lib/authz/user-queries";
 import { getSlaState, type SlaState } from "@/lib/constants/sla-policy";
@@ -52,7 +53,11 @@ import {
   type TrackingPagination,
 } from "@/lib/tracking/pagination";
 import { isFsrUnavailable } from "@/lib/utils/availability";
-import { localWallTimeToUTC, mxDayRange } from "@/lib/utils/datetime";
+import {
+  localWallTimeToUTC,
+  mxDateString,
+  mxDayRange,
+} from "@/lib/utils/datetime";
 import {
   BusinessRuleError,
   businessRule,
@@ -492,6 +497,7 @@ export async function getIncidentsForTracking(
           id: true,
           folio: true,
           notes: true,
+          scheduledDate: true,
           startedAt: true,
           finishedAt: true,
           seenAt: true,
@@ -765,6 +771,106 @@ export async function assignFSRToIncident(incidentId: number, fsrId: string) {
   });
 }
 
+async function applyAssignmentComposition(
+  tx: Prisma.TransactionClient,
+  actor: UserWithPermissions,
+  assignmentId: string,
+  userIds: string[],
+  scheduledDate?: Date | null,
+) {
+  const uniqueIds = Array.from(new Set(userIds.filter(Boolean)));
+  const assignment = await tx.assignment.findUnique({
+    where: { id: assignmentId, active: true },
+    select: {
+      incidentId: true,
+      scheduledDate: true,
+      status: { select: { code: true, name: true } },
+      incident: {
+        select: { status: { select: { code: true, name: true } } },
+      },
+    },
+  });
+  if (!assignment) {
+    businessRule("La asignación ya no existe.");
+  }
+  const terminalBlock = terminalIncidentMessage(
+    codeOf(assignment.incident?.status),
+  );
+  if (terminalBlock) businessRule(terminalBlock);
+  if (!(await assertAreFsrs(uniqueIds, tx))) {
+    businessRule(NOT_AN_FSR);
+  }
+
+  const effectiveDate =
+    scheduledDate === undefined ? assignment.scheduledDate : scheduledDate;
+  if (effectiveDate) {
+    for (const userId of uniqueIds) {
+      if (await isFsrUnavailable(userId, effectiveDate, tx))
+        businessRule("El técnico no está disponible en la fecha programada.");
+    }
+  }
+
+  const existing = await tx.assignmentAssignee.findMany({
+    where: { assignmentId },
+    select: { userId: true, active: true },
+  });
+
+  const existingActive = new Set(
+    existing.filter((e) => e.active).map((e) => e.userId),
+  );
+  const requested = new Set(uniqueIds);
+
+  const toRemove = [...existingActive].filter((u) => !requested.has(u));
+  const toAdd = uniqueIds.filter((u) => !existingActive.has(u));
+
+  if (toRemove.length > 0) {
+    await tx.assignmentAssignee.updateMany({
+      where: { assignmentId, userId: { in: toRemove } },
+      data: { active: false },
+    });
+  }
+
+  for (const userId of toAdd) {
+    await tx.assignmentAssignee.upsert({
+      where: { assignmentId_userId: { assignmentId, userId } },
+      update: { active: true, assignedAt: new Date() },
+      create: { assignmentId, userId, active: true },
+    });
+  }
+
+  await enableFsrsOnIncident(tx, assignment.incidentId, toAdd, actor.id);
+  if (toAdd.length || toRemove.length || scheduledDate !== undefined) {
+    const current = codeOf(assignment.status);
+    const compositionChanged = toAdd.length > 0 || toRemove.length > 0;
+    const next = !compositionChanged
+      ? null
+      : uniqueIds.length === 0 &&
+          (current === ASSIGNMENT_STATE.ASIGNADO ||
+            current === ASSIGNMENT_STATE.PENDIENTE_DE_ASIGNACION)
+        ? ASSIGNMENT_STATE.PENDIENTE_DE_ASIGNACION
+        : uniqueIds.length > 0 &&
+            current === ASSIGNMENT_STATE.PENDIENTE_DE_ASIGNACION
+          ? ASSIGNMENT_STATE.ASIGNADO
+          : null;
+    const statusId = next
+      ? await resolveAssignmentStatusId(tx, next)
+      : undefined;
+    await tx.assignment.update({
+      where: { id: assignmentId },
+      data: {
+        statusId,
+        ...(scheduledDate !== undefined && { scheduledDate }),
+        ...(compositionChanged && {
+          assignedAt: new Date(),
+          seenAt: null,
+          seenById: null,
+        }),
+      },
+    });
+  }
+  return { added: toAdd, assignment };
+}
+
 export async function updateAssignmentAssignees(
   assignmentId: string,
   userIds: string[],
@@ -772,104 +878,17 @@ export async function updateAssignmentAssignees(
   return guarded(async () => {
     try {
       const actor = await requirePermission("tracking:update");
-
-      const uniqueIds = Array.from(new Set(userIds.filter(Boolean)));
-
       const { added, assignment } = await transactionWithNotifications(
         async (tx) => {
           await loadAssignmentFor(actor, assignmentId, "manager", tx);
-          const assignment = await tx.assignment.findUnique({
-            where: { id: assignmentId, active: true },
-            select: {
-              incidentId: true,
-              scheduledDate: true,
-              status: { select: { code: true, name: true } },
-              incident: {
-                select: { status: { select: { code: true, name: true } } },
-              },
-            },
-          });
-          if (!assignment) {
-            businessRule("La asignación ya no existe.");
-          }
-          const terminalBlock = terminalIncidentMessage(
-            codeOf(assignment.incident?.status),
-          );
-          if (terminalBlock) businessRule(terminalBlock);
-          if (!(await assertAreFsrs(uniqueIds, tx))) {
-            businessRule(NOT_AN_FSR);
-          }
-
-          if (assignment.scheduledDate) {
-            for (const userId of uniqueIds) {
-              if (await isFsrUnavailable(userId, assignment.scheduledDate, tx))
-                businessRule(
-                  "El técnico no está disponible en la fecha programada.",
-                );
-            }
-          }
-
-          const existing = await tx.assignmentAssignee.findMany({
-            where: { assignmentId },
-            select: { userId: true, active: true },
-          });
-
-          const existingActive = new Set(
-            existing.filter((e) => e.active).map((e) => e.userId),
-          );
-          const requested = new Set(uniqueIds);
-
-          const toRemove = [...existingActive].filter((u) => !requested.has(u));
-          const toAdd = uniqueIds.filter((u) => !existingActive.has(u));
-
-          if (toRemove.length > 0) {
-            await tx.assignmentAssignee.updateMany({
-              where: { assignmentId, userId: { in: toRemove } },
-              data: { active: false },
-            });
-          }
-
-          for (const userId of toAdd) {
-            await tx.assignmentAssignee.upsert({
-              where: { assignmentId_userId: { assignmentId, userId } },
-              update: { active: true, assignedAt: new Date() },
-              create: { assignmentId, userId, active: true },
-            });
-          }
-
-          await enableFsrsOnIncident(
+          const result = await applyAssignmentComposition(
             tx,
-            assignment.incidentId,
-            toAdd,
-            actor.id,
+            actor,
+            assignmentId,
+            userIds,
           );
-          if (toAdd.length || toRemove.length) {
-            const current = codeOf(assignment.status);
-            const next =
-              uniqueIds.length === 0 &&
-              (current === ASSIGNMENT_STATE.ASIGNADO ||
-                current === ASSIGNMENT_STATE.PENDIENTE_DE_ASIGNACION)
-                ? ASSIGNMENT_STATE.PENDIENTE_DE_ASIGNACION
-                : uniqueIds.length > 0 &&
-                    current === ASSIGNMENT_STATE.PENDIENTE_DE_ASIGNACION
-                  ? ASSIGNMENT_STATE.ASIGNADO
-                  : null;
-            const statusId = next
-              ? await resolveAssignmentStatusId(tx, next)
-              : undefined;
-            await tx.assignment.update({
-              where: { id: assignmentId },
-              data: {
-                statusId,
-                assignedAt: new Date(),
-                seenAt: null,
-                seenById: null,
-              },
-            });
-          }
-          await syncIncidentState(assignment.incidentId, tx);
-
-          return { added: toAdd, assignment };
+          await syncIncidentState(result.assignment.incidentId, tx);
+          return result;
         },
       );
 
@@ -1146,6 +1165,8 @@ export async function updateAssignmentDetails(
     statusId?: number | null;
     startedAt?: string | null;
     finishedAt?: string | null;
+    scheduledDate?: string | null;
+    assigneeIds?: string[];
   },
 ) {
   const actor = await requirePermission("tracking:update");
@@ -1158,6 +1179,7 @@ export async function updateAssignmentDetails(
           where: { id: assignmentId, active: true },
           select: {
             incidentId: true,
+            scheduledDate: true,
             status: { select: { code: true, name: true } },
             startedAt: true,
             finishedAt: true,
@@ -1270,10 +1292,60 @@ export async function updateAssignmentDetails(
           });
         }
 
+        let composition:
+          | Awaited<ReturnType<typeof applyAssignmentComposition>>
+          | undefined;
+        if (
+          data.assigneeIds !== undefined ||
+          data.scheduledDate !== undefined
+        ) {
+          if (
+            data.scheduledDate != null &&
+            !/^\d{4}-\d{2}-\d{2}$/.test(data.scheduledDate)
+          )
+            businessRule("Fecha programada no válida.");
+          if (data.scheduledDate != null) {
+            const civilDate = new Date(`${data.scheduledDate}T12:00:00Z`);
+            if (
+              !Number.isFinite(civilDate.getTime()) ||
+              civilDate.toISOString().slice(0, 10) !== data.scheduledDate
+            )
+              businessRule("Fecha programada no válida.");
+          }
+          // Composition-only saves preserve the original instant, not just its civil day.
+          const scheduledDate =
+            data.scheduledDate === undefined ||
+            (data.scheduledDate !== null &&
+              row.scheduledDate &&
+              mxDateString(row.scheduledDate) === data.scheduledDate)
+              ? undefined
+              : data.scheduledDate === null
+                ? null
+                : mxDayRange(data.scheduledDate).gte;
+          const retained =
+            data.assigneeIds ??
+            (
+              await tx.assignmentAssignee.findMany({
+                where: { assignmentId, active: true },
+                select: { userId: true },
+              })
+            ).map((assignee) => assignee.userId);
+          composition = await applyAssignmentComposition(
+            tx,
+            actor,
+            assignmentId,
+            retained,
+            scheduledDate,
+          );
+        }
+
         await tx.assignment.update({
           where: { id: assignmentId },
           data: {
-            statusId: data.statusId || undefined,
+            statusId:
+              targetCode && targetCode !== from
+                ? data.statusId || undefined
+                : undefined,
             startedAt,
             finishedAt,
           },
@@ -1281,11 +1353,23 @@ export async function updateAssignmentDetails(
 
         // Incident state derives from its assignments — reconcile it.
         await syncIncidentState(row.incidentId, tx, { actorId: actor.id });
-        return ok();
+        return ok({
+          added: composition?.added ?? [],
+          incidentId: row.incidentId,
+        });
       });
 
+      if (result.success && result.added.length > 0) {
+        await notifyNewAssignees(
+          assignmentId,
+          result.incidentId,
+          result.added,
+          actor.id,
+        );
+        await notifyNewlyEnabledFsrs(result.incidentId, result.added, actor.id);
+      }
       revalidatePath("/admin/tracking");
-      return result;
+      return result.success ? ok() : result;
     } catch (error) {
       rethrowBusinessError(error);
       // Business rules must reach `guarded` as exceptions so they are

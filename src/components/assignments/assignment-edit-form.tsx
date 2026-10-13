@@ -1,17 +1,12 @@
 "use client";
 
-import { Check, Edit as EditIcon, Save, X } from "lucide-react";
+import { Edit as EditIcon, Save, X } from "lucide-react";
 import { useState } from "react";
-import { Badge } from "@/components/ui/badge";
+import { FsrAvailabilitySelect } from "@/components/assignments/fsr-availability-select";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -20,6 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { useFsrAvailability } from "@/hooks/use-fsr-availability";
 import { toast } from "@/hooks/use-toast";
 import { updateAssignment } from "@/lib/actions/assignments";
 import { isFailure } from "@/lib/actions/result";
@@ -35,6 +31,8 @@ import {
 type AssignmentEditFormProps = {
   assignment: {
     id: string;
+    incidentId?: number;
+    incident?: { id: number } | null;
     statusId: number | null;
     status?: {
       id: number;
@@ -60,7 +58,6 @@ export function AssignmentEditForm({
 }: AssignmentEditFormProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [pickerOpen, setPickerOpen] = useState(false);
 
   const initialAssigneeIds = assignment.assignees.map((a) => a.user.id);
 
@@ -77,21 +74,22 @@ export function AssignmentEditForm({
       : "",
   });
 
-  const toggleAssignee = (userId: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      assigneeIds: prev.assigneeIds.includes(userId)
-        ? prev.assigneeIds.filter((id) => id !== userId)
-        : [...prev.assigneeIds, userId],
-    }));
-  };
+  const availability = useFsrAvailability(
+    {
+      incidentId: assignment.incidentId ?? assignment.incident?.id ?? 0,
+      assignmentId: assignment.id,
+      scheduledDate: formData.scheduledDate || null,
+    },
+    isEditing,
+  );
 
   const handleSave = async () => {
     setLoading(true);
 
     try {
       const result = await updateAssignment(assignment.id, {
-        incidentId: 0,
+        // The update action resolves the incident from the assignment id, so
+        // no incidentId is sent (a dummy 0 fails validation and rejects the save).
         assigneeIds: formData.assigneeIds,
         statusId: formData.statusId,
         notes: formData.notes,
@@ -99,13 +97,20 @@ export function AssignmentEditForm({
         finishedAt: formData.finishedAt
           ? fromDatetimeLocalMX(formData.finishedAt)
           : undefined,
-        scheduledDate: formData.scheduledDate
-          ? fromDateInputMX(formData.scheduledDate)
-          : null,
+        scheduledDate:
+          formData.scheduledDate ===
+          (assignment.scheduledDate
+            ? toDateInputMX(assignment.scheduledDate)
+            : "")
+            ? undefined
+            : formData.scheduledDate
+              ? fromDateInputMX(formData.scheduledDate)
+              : null,
       });
 
       if (isFailure(result)) {
         toast.error(result.error);
+        availability.retry();
         return;
       }
 
@@ -139,14 +144,6 @@ export function AssignmentEditForm({
     setIsEditing(false);
   };
 
-  const handleUnassignAll = () => {
-    setFormData((prev) => ({ ...prev, assigneeIds: [] }));
-  };
-
-  const selectedUsers = users.filter((u) =>
-    formData.assigneeIds.includes(u.id),
-  );
-
   return (
     <Card>
       <CardHeader>
@@ -168,81 +165,28 @@ export function AssignmentEditForm({
         {isEditing ? (
           <>
             <div className="space-y-2">
-              <Label>
+              <Label htmlFor="assignment-edit-fsrs">
                 Técnicos Asignados <span className="text-red-500">*</span>
               </Label>
-              <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full justify-start font-normal"
-                  >
-                    {selectedUsers.length === 0
-                      ? "Seleccionar técnicos"
-                      : `${selectedUsers.length} técnico(s) seleccionado(s)`}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                  <div className="max-h-72 overflow-y-auto">
-                    {users.map((user) => {
-                      const checked = formData.assigneeIds.includes(user.id);
-                      return (
-                        <button
-                          key={user.id}
-                          type="button"
-                          onClick={() => toggleAssignee(user.id)}
-                          className="flex w-full items-center justify-between px-3 py-2 text-sm hover:bg-muted text-left"
-                        >
-                          <div>
-                            <p className="font-medium">{user.name}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {user.email}
-                            </p>
-                          </div>
-                          {checked && <Check className="h-4 w-4" />}
-                        </button>
-                      );
-                    })}
-                    {users.length === 0 && (
-                      <p className="px-3 py-2 text-sm text-muted-foreground">
-                        No hay usuarios disponibles
-                      </p>
-                    )}
-                  </div>
-                </PopoverContent>
-              </Popover>
-              {selectedUsers.length > 0 && (
-                <div className="flex flex-wrap gap-1 pt-1">
-                  {selectedUsers.map((u) => (
-                    <Badge
-                      key={u.id}
-                      variant="secondary"
-                      className="cursor-pointer"
-                      onClick={() => toggleAssignee(u.id)}
-                    >
-                      {u.name} <X className="ml-1 h-3 w-3" />
-                    </Badge>
-                  ))}
-                </div>
-              )}
-              {selectedUsers.length > 0 && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleUnassignAll}
-                  className="text-destructive hover:text-destructive"
-                >
-                  <X className="mr-2 h-4 w-4" />
-                  Desasignar todos
-                </Button>
-              )}
-              {selectedUsers.length === 0 && (
-                <p className="text-xs text-muted-foreground italic">
-                  Sin técnicos asignados
-                </p>
-              )}
+              <FsrAvailabilitySelect
+                id="assignment-edit-fsrs"
+                options={users.map((user) => ({
+                  value: user.id,
+                  label: user.name,
+                  sublabel: user.email,
+                }))}
+                selectedOptions={assignment.assignees.map(({ user }) => ({
+                  value: user.id,
+                  label: user.name,
+                }))}
+                value={formData.assigneeIds}
+                onValueChange={(assigneeIds) =>
+                  setFormData((previous) => ({ ...previous, assigneeIds }))
+                }
+                availability={availability}
+                scheduledDate={formData.scheduledDate || null}
+                disabled={loading}
+              />
             </div>
 
             <div className="space-y-2">

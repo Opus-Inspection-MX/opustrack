@@ -24,6 +24,8 @@ export interface MultiSelectOption {
   label: string;
   sublabel?: string;
   badge?: string;
+  disabled?: boolean;
+  disabledReason?: string;
 }
 
 interface MultiSelectProps {
@@ -60,9 +62,10 @@ export function MultiSelect({
   );
 
   const toggle = (val: string) => {
+    if (disabled) return;
     if (value.includes(val)) {
       onValueChange(value.filter((v) => v !== val));
-    } else {
+    } else if (!optionByValue.get(val)?.disabled) {
       onValueChange([...value, val]);
     }
   };
@@ -70,12 +73,13 @@ export function MultiSelect({
   const removeChip = (val: string, e: React.SyntheticEvent) => {
     e.stopPropagation();
     e.preventDefault();
+    if (disabled) return;
     onValueChange(value.filter((v) => v !== val));
   };
 
-  const selected = value
-    .map((v) => optionByValue.get(v))
-    .filter((o): o is MultiSelectOption => o !== undefined);
+  const selected = value.map(
+    (v) => optionByValue.get(v) ?? { value: v, label: v },
+  );
 
   const visible = selected.slice(0, maxChips);
   const overflow = selected.length - visible.length;
@@ -110,7 +114,8 @@ export function MultiSelect({
                     {/* biome-ignore lint/a11y/useSemanticElements: cannot nest <button> inside the Popover trigger button */}
                     <span
                       role="button"
-                      tabIndex={0}
+                      tabIndex={disabled ? -1 : 0}
+                      aria-disabled={disabled}
                       onPointerDown={(e) => removeChip(o.value, e)}
                       onKeyDown={(e) => {
                         if (e.key === "Enter" || e.key === " ") {
@@ -120,12 +125,20 @@ export function MultiSelect({
                       className="hover:bg-muted-foreground/20 rounded-sm cursor-pointer inline-flex"
                       aria-label={`Quitar ${o.label}`}
                     >
-                      <X className="h-3 w-3" />
+                      <X className="h-3 w-3" aria-hidden />
                     </span>
                   </Badge>
                 ))}
                 {overflow > 0 && (
-                  <Badge variant="outline">+{overflow} más</Badge>
+                  <Badge
+                    variant="outline"
+                    aria-label={`Selecciones adicionales: ${selected
+                      .slice(maxChips)
+                      .map((o) => o.label)
+                      .join(", ")}`}
+                  >
+                    +{overflow} más
+                  </Badge>
                 )}
               </>
             )}
@@ -134,6 +147,27 @@ export function MultiSelect({
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+        {overflow > 0 && (
+          <fieldset
+            className="flex flex-wrap gap-1 p-2 border-b"
+            aria-label="Selecciones adicionales"
+          >
+            {selected.slice(maxChips).map((option) => (
+              <Button
+                key={option.value}
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={disabled}
+                onClick={() => toggle(option.value)}
+                aria-label={`Quitar ${option.label}`}
+              >
+                {option.label}
+                <X className="ml-1 h-3 w-3" aria-hidden />
+              </Button>
+            ))}
+          </fieldset>
+        )}
         <Command>
           <CommandInput placeholder={searchPlaceholder} />
           <CommandList>
@@ -146,6 +180,8 @@ export function MultiSelect({
                   <CommandItem
                     key={option.value}
                     value={searchText}
+                    disabled={disabled || (option.disabled && !isSelected)}
+                    aria-label={`${option.label}${option.disabledReason ? ` — ${option.disabledReason}` : ""}${isSelected ? " — seleccionado" : ""}`}
                     onSelect={() => toggle(option.value)}
                   >
                     <Check
@@ -166,6 +202,11 @@ export function MultiSelect({
                       {option.sublabel && (
                         <div className="text-xs text-muted-foreground truncate">
                           {option.sublabel}
+                        </div>
+                      )}
+                      {option.disabledReason && (
+                        <div className="text-xs text-muted-foreground">
+                          {option.disabledReason}
                         </div>
                       )}
                     </div>

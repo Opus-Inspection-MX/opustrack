@@ -1,7 +1,7 @@
 "use client";
 
 import { Plus, Save } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FileUpload } from "@/components/ui/file-upload";
@@ -21,18 +21,32 @@ type AssignmentActivityFormProps = {
   onCancel?: () => void;
 };
 
+type FileDraft = {
+  id: number;
+  file: File;
+  status: "pending" | "uploaded" | "failed";
+  error?: string;
+};
+
 export function AssignmentActivityForm({
   assignmentId,
   onSuccess,
   onCancel,
 }: AssignmentActivityFormProps) {
   const [description, setDescription] = useState("");
-  const [files, setFiles] = useState<File[]>([]);
+  const [files, setFiles] = useState<FileDraft[]>([]);
+  const [committedActivityId, setCommittedActivityId] = useState<string | null>(
+    null,
+  );
+  const [uploadKey, setUploadKey] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const submitting = useRef(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitting.current) return;
+    submitting.current = true;
     setLoading(true);
     setError(null);
 
@@ -40,30 +54,30 @@ export function AssignmentActivityForm({
       // Validate description
       if (!description.trim()) {
         setError("La descripción es requerida");
-        setLoading(false);
         return;
       }
 
-      // Create work activity
-      const result = await createAssignmentActivity({
-        assignmentId,
-        description: description.trim(),
-        performedAt: new Date(),
-      });
+      if (!committedActivityId) {
+        const result = await createAssignmentActivity({
+          assignmentId,
+          description: description.trim(),
+          performedAt: new Date(),
+        });
 
-      if (isFailure(result)) {
-        toast.error(result.error);
-        // Without this the submit button stays disabled after a rejected save
-        // and the form can never be retried.
-        setLoading(false);
-        return;
+        if (isFailure(result)) {
+          setError(result.error);
+          toast.error(result.error);
+          return;
+        }
+        setCommittedActivityId(result.data.id);
       }
 
-      // Upload files if any (multipart, per-file isolated failures)
-      if (files.length > 0) {
+      // Successful attachments remain recorded; retries only send unfinished files.
+      const pendingFiles = files.filter((draft) => draft.status !== "uploaded");
+      if (pendingFiles.length > 0) {
         const activityDescription = `Attached to activity: ${description.substring(0, 50)}`;
         const results = await Promise.allSettled(
-          files.map((file) => {
+          pendingFiles.map(async ({ file }) => {
             const fd = new FormData();
             fd.append("assignmentId", assignmentId);
             fd.append("file", file);
@@ -73,37 +87,63 @@ export function AssignmentActivityForm({
           }),
         );
 
-        const failures = results
-          .map((r, i) => ({ r, name: files[i].name }))
-          .filter(({ r }) => r.status === "rejected");
+        const attemptedFiles: FileDraft[] = results.map((result, index) => {
+          const draft = pendingFiles[index];
+          if (result.status === "fulfilled" && !isFailure(result.value)) {
+            return { ...draft, status: "uploaded", error: undefined };
+          }
+          const reason =
+            result.status === "rejected"
+              ? result.reason
+              : isFailure(result.value)
+                ? result.value.error
+                : "Error desconocido";
+          return {
+            ...draft,
+            status: "failed",
+            error:
+              reason instanceof Error
+                ? reason.message
+                : String(reason ?? "Error desconocido"),
+          };
+        });
+        const updatedFiles = files.map(
+          (draft) =>
+            attemptedFiles.find((attempt) => attempt.id === draft.id) ?? draft,
+        );
+        setFiles(updatedFiles);
+        const failures = attemptedFiles.filter(
+          (draft) => draft.status === "failed",
+        );
 
         if (failures.length > 0) {
           const detail = failures
-            .map(({ r, name }) => {
-              const reason = (r as PromiseRejectedResult).reason;
-              const msg =
-                reason instanceof Error
-                  ? reason.message
-                  : String(reason ?? "Error desconocido");
-              return `${name}: ${msg}`;
-            })
+            .map(({ file, error }) => `${file.name}: ${error}`)
             .join("; ");
-          throw new Error(
-            `Algunos archivos no se pudieron subir (${failures.length}/${files.length}): ${detail}`,
-          );
+          const message = `La actividad está guardada, pero faltan ${failures.length} archivos: ${detail}`;
+          setError(message);
+          toast.error(message);
+          return;
         }
       }
 
       // Reset form
       setDescription("");
       setFiles([]);
+      setCommittedActivityId(null);
+      setUploadKey((key) => key + 1);
 
       if (onSuccess) {
         onSuccess();
       }
     } catch (err) {
       logger.error("Error creating work activity:", err);
-      toast.error((err as Error).message || "Error al crear la actividad");
+      const message =
+        err instanceof Error ? err.message : "Error al guardar la actividad";
+      setError(message);
+      toast.error(message);
+    } finally {
+      submitting.current = false;
       setLoading(false);
     }
   };
@@ -117,8 +157,29 @@ export function AssignmentActivityForm({
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4" aria-busy={loading}>
           {error && <FormError message={error} />}
+          {committedActivityId && (
+            <div className="space-y-2 text-sm">
+              <output className="block">
+                Actividad guardada. Archivos subidos:{" "}
+                {files.filter((draft) => draft.status === "uploaded").length}/
+                {files.length}. Solo se reintentarán los archivos pendientes.
+              </output>
+              <ul className="space-y-1">
+                {files.map((draft) => (
+                  <li key={draft.id}>
+                    {draft.file.name}:{" "}
+                    {draft.status === "uploaded"
+                      ? "Subido"
+                      : draft.status === "failed"
+                        ? `No subido: ${draft.error}`
+                        : "Pendiente"}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="description">
@@ -131,19 +192,34 @@ export function AssignmentActivityForm({
               placeholder="Describe el trabajo realizado..."
               rows={4}
               required
+              readOnly={committedActivityId !== null}
+              disabled={loading}
             />
             <p className="text-xs text-muted-foreground">
               Proporciona una descripción detallada del trabajo realizado
             </p>
           </div>
 
-          <FileUpload
-            onFilesSelected={setFiles}
-            maxFiles={10}
-            maxSizeMB={10}
-            label="Archivos de Evidencia (Fotos, Videos, Documentos)"
-            showCamera={true}
-          />
+          {!committedActivityId && (
+            <fieldset disabled={loading}>
+              <FileUpload
+                key={uploadKey}
+                onFilesSelected={(selected) =>
+                  setFiles(
+                    selected.map((file, id) => ({
+                      id,
+                      file,
+                      status: "pending",
+                    })),
+                  )
+                }
+                maxFiles={10}
+                maxSizeMB={10}
+                label="Archivos de Evidencia (Fotos, Videos, Documentos)"
+                showCamera={true}
+              />
+            </fieldset>
+          )}
 
           <div className="flex justify-end gap-2 pt-4">
             {onCancel && (
@@ -153,7 +229,9 @@ export function AssignmentActivityForm({
                 onClick={onCancel}
                 disabled={loading}
               >
-                Cancelar
+                {committedActivityId
+                  ? "Salir sin completar adjuntos"
+                  : "Cancelar"}
               </Button>
             )}
             <Button type="submit" disabled={loading}>
@@ -162,7 +240,9 @@ export function AssignmentActivityForm({
               ) : (
                 <>
                   <Save className="mr-2 h-4 w-4" />
-                  Guardar Actividad
+                  {committedActivityId
+                    ? "Reintentar archivos pendientes"
+                    : "Guardar Actividad"}
                 </>
               )}
             </Button>

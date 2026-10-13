@@ -1,10 +1,11 @@
 "use client";
 
 import { Check, FileText, Pencil, X } from "lucide-react";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
 import { updateAssignmentOdtFolio } from "@/lib/actions/assignments";
 import { isFailure } from "@/lib/actions/result";
@@ -22,6 +23,7 @@ export function OdtFolioCapture({
   disabled,
   onChange,
 }: OdtFolioCaptureProps) {
+  const inputId = useId();
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(initialValue || "");
   const [saved, setSaved] = useState(initialValue || "");
@@ -61,31 +63,43 @@ export function OdtFolioCapture({
     <Card>
       <CardHeader className="pb-3">
         <CardTitle className="text-base flex items-center gap-2">
-          <FileText className="h-4 w-4" />
+          <FileText className="h-4 w-4" aria-hidden />
           Folio ODT
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-2">
         {editing ? (
-          <div className="flex gap-2">
-            <Input
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
-              placeholder="Capturar folio ODT del sistema externo"
-              maxLength={100}
-              disabled={loading}
-            />
-            <Button onClick={handleSave} disabled={loading} size="sm">
-              <Check className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="outline"
-              onClick={handleCancel}
-              disabled={loading}
-              size="sm"
-            >
-              <X className="h-4 w-4" />
-            </Button>
+          <div className="space-y-2">
+            <Label htmlFor={inputId}>Folio ODT del sistema externo</Label>
+            <div className="flex gap-2">
+              <Input
+                id={inputId}
+                value={value}
+                onChange={(e) => setValue(e.target.value)}
+                placeholder="Capturar folio ODT del sistema externo"
+                maxLength={100}
+                disabled={loading}
+              />
+              <Button
+                type="button"
+                onClick={handleSave}
+                disabled={loading}
+                size="sm"
+                aria-label="Guardar folio ODT"
+              >
+                <Check className="h-4 w-4" aria-hidden />
+              </Button>
+              <Button
+                type="button"
+                aria-label="Cancelar edición del folio ODT"
+                variant="outline"
+                onClick={handleCancel}
+                disabled={loading}
+                size="sm"
+              >
+                <X className="h-4 w-4" aria-hidden />
+              </Button>
+            </div>
           </div>
         ) : (
           <div className="flex items-center justify-between">
@@ -102,7 +116,7 @@ export function OdtFolioCapture({
                 size="sm"
                 onClick={() => setEditing(true)}
               >
-                <Pencil className="h-4 w-4 mr-1" />
+                <Pencil className="h-4 w-4 mr-1" aria-hidden />
                 {saved ? "Editar" : "Capturar"}
               </Button>
             )}

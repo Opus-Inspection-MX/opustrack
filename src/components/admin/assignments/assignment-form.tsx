@@ -2,13 +2,14 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { FsrAvailabilitySelect } from "@/components/assignments/fsr-availability-select";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { MultiSelect } from "@/components/ui/multi-select";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Textarea } from "@/components/ui/textarea";
+import { useFsrAvailability } from "@/hooks/use-fsr-availability";
 import { toast } from "@/hooks/use-toast";
 import {
   type AssignmentFormData,
@@ -58,6 +59,14 @@ export function AssignmentForm({
     notes: assignment?.notes || "",
     scheduledDate: assignment?.scheduledDate ?? null,
   });
+  const scheduledDate = formData.scheduledDate
+    ? toDateInputMX(formData.scheduledDate)
+    : null;
+  const availability = useFsrAvailability({
+    incidentId: formData.incidentId,
+    assignmentId: assignment?.id,
+    scheduledDate,
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,6 +78,7 @@ export function AssignmentForm({
 
         if (isFailure(result)) {
           toast.error(result.error);
+          availability.retry();
           // Without this the submit button stays disabled after a rejected save
           // and the form can never be retried.
           setLoading(false);
@@ -79,6 +89,7 @@ export function AssignmentForm({
 
         if (isFailure(result)) {
           toast.error(result.error);
+          availability.retry();
           // Without this the submit button stays disabled after a rejected save
           // and the form can never be retried.
           setLoading(false);
@@ -118,8 +129,12 @@ export function AssignmentForm({
           </div>
 
           <div className="space-y-2">
-            <Label>Asignados *</Label>
-            <MultiSelect
+            <Label htmlFor="assignment-fsrs">Asignados *</Label>
+            <FsrAvailabilitySelect
+              id="assignment-fsrs"
+              availability={availability}
+              scheduledDate={scheduledDate}
+              disabled={loading}
               options={users.map((user) => ({
                 value: user.id,
                 label: user.name,
@@ -128,9 +143,6 @@ export function AssignmentForm({
               onValueChange={(ids) =>
                 setFormData({ ...formData, assigneeIds: ids })
               }
-              placeholder="Seleccionar FSRs"
-              searchPlaceholder="Buscar FSR..."
-              emptyMessage="No se encontraron FSRs."
             />
           </div>
 

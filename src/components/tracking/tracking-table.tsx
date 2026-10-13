@@ -20,6 +20,7 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import React, { useMemo, useState } from "react";
+import { FsrAvailabilitySelect } from "@/components/assignments/fsr-availability-select";
 import { StatusBadge, type StatusTone } from "@/components/common/status-badge";
 import { PriorityBadge } from "@/components/incident-types/priority-badge";
 import { SlaBadge } from "@/components/tracking/sla-badge";
@@ -53,6 +54,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { useFsrAvailability } from "@/hooks/use-fsr-availability";
 import { toast } from "@/hooks/use-toast";
 import { createAssignment } from "@/lib/actions/assignments";
 import { getEquipmentsByLineId } from "@/lib/actions/equipments";
@@ -60,13 +62,17 @@ import { updateIncidentFsrs } from "@/lib/actions/incidents";
 import { getLinesByClientId } from "@/lib/actions/lines";
 import { isFailure } from "@/lib/actions/result";
 import {
-  updateAssignmentAssignees,
   updateAssignmentDetails,
   updateIncidentDetails,
 } from "@/lib/actions/tracking";
 import type { SlaState } from "@/lib/constants/sla-policy";
 import { logger } from "@/lib/observability/logger";
-import { APP_TZ, mxDateAndTime } from "@/lib/utils/datetime";
+import {
+  APP_TZ,
+  fromDateInputMX,
+  mxDateAndTime,
+  toDateInputMX,
+} from "@/lib/utils/datetime";
 
 /**
  * The real assignment states, from `assignment-machine.ts`.
@@ -120,6 +126,7 @@ interface TrackingAssignment {
   }>;
   folio?: number | null;
   notes?: string | null;
+  scheduledDate?: Date | string | null;
   lineId?: number | null;
   equipmentId?: number | null;
   startedAt?: Date | string | null;
@@ -162,6 +169,7 @@ interface IncidentEditForm {
 }
 
 interface AssignmentEditForm {
+  scheduledDate?: string;
   assigneeIds?: string[];
   notes?: string;
   statusId?: number | string;
@@ -227,6 +235,49 @@ export function TrackingTable({
   const [linesForEdit, setLinesForEdit] = useState<LineOption[]>([]);
   const [equipmentsForEdit, setEquipmentsForEdit] = useState<EquipmentOption[]>(
     [],
+  );
+  const editingParent = incidents.find((incident) =>
+    incident.assignments.some(
+      (assignment) => assignment.id === editingAssignment,
+    ),
+  );
+  const editAvailability = useFsrAvailability(
+    {
+      incidentId: editingParent?.id ?? 0,
+      assignmentId: editingAssignment ?? undefined,
+      scheduledDate: assignmentEditForm.scheduledDate || null,
+    },
+    Boolean(editingParent && expandedRows.has(editingParent.id)),
+  );
+  const createAvailability = useFsrAvailability(
+    {
+      incidentId: creatingAssignment ?? 0,
+      scheduledDate: newAssignmentForm.scheduledDate || null,
+    },
+    creatingAssignment !== null && expandedRows.has(creatingAssignment),
+  );
+
+  const scheduledDateField = (
+    id: string,
+    draft: AssignmentEditForm,
+    setDraft: React.Dispatch<React.SetStateAction<AssignmentEditForm>>,
+    disabled: boolean,
+  ) => (
+    <div className="space-y-2">
+      <Label htmlFor={id}>Fecha programada (opcional)</Label>
+      <Input
+        id={id}
+        type="date"
+        value={draft.scheduledDate || ""}
+        disabled={disabled}
+        onChange={(event) =>
+          setDraft((previous) => ({
+            ...previous,
+            scheduledDate: event.target.value,
+          }))
+        }
+      />
+    </div>
   );
 
   // Sort incidents based on sorting state
@@ -337,6 +388,9 @@ export function TrackingTable({
       // saving the result silently dropped the rest, because the server
       // deactivates whoever is missing from the list it receives.
       assigneeIds: assignment.assignees?.map((a) => a.user.id) ?? [],
+      scheduledDate: assignment.scheduledDate
+        ? toDateInputMX(new Date(assignment.scheduledDate))
+        : "",
       statusId: assignment.status?.id,
       startedAt: assignment.startedAt
         ? toInput(assignment.startedAt)
@@ -354,11 +408,6 @@ export function TrackingTable({
 
   const handleSaveAssignment = async (assignmentId: string) => {
     const assigneeIds = assignmentEditForm.assigneeIds ?? [];
-    if (assigneeIds.length === 0) {
-      toast.error("Selecciona al menos un FSR");
-      return;
-    }
-
     setSavingAssignment(assignmentId);
     try {
       const statusIdValue = assignmentEditForm.statusId
@@ -374,18 +423,12 @@ export function TrackingTable({
         statusId: statusIdValue,
         startedAt: assignmentEditForm.startedAt || null,
         finishedAt: assignmentEditForm.finishedAt || null,
+        scheduledDate: assignmentEditForm.scheduledDate || null,
+        assigneeIds,
       });
       if (isFailure(details)) {
         toast.error(details.error);
-        return;
-      }
-
-      const result = await updateAssignmentAssignees(assignmentId, assigneeIds);
-      // A rejected business rule comes back as a value, not an exception:
-      // Next strips the message of anything a Server Action throws in a
-      // production build. Keeping the editor open lets the user fix it.
-      if (!result.success) {
-        toast.error(result.error);
+        editAvailability.retry();
         return;
       }
       setEditingAssignment(null);
@@ -502,6 +545,7 @@ export function TrackingTable({
     setNewAssignmentForm({
       assigneeIds: [],
       notes: "",
+      scheduledDate: "",
     });
   };
 
@@ -523,10 +567,14 @@ export function TrackingTable({
         statusId: null,
         startedAt: null,
         finishedAt: null,
+        scheduledDate: newAssignmentForm.scheduledDate
+          ? fromDateInputMX(newAssignmentForm.scheduledDate)
+          : null,
       });
 
       if (isFailure(result)) {
         toast.error(result.error);
+        createAvailability.retry();
         return;
       }
       setCreatingAssignment(null);
@@ -1256,7 +1304,14 @@ export function TrackingTable({
                                           >
                                             FSRs Asignados
                                           </Label>
-                                          <MultiSelect
+                                          <FsrAvailabilitySelect
+                                            id={`edit-mode-fsr-${incident.id}`}
+                                            availability={createAvailability}
+                                            scheduledDate={
+                                              newAssignmentForm.scheduledDate ||
+                                              null
+                                            }
+                                            disabled={savingNewAssignment}
                                             options={fsrOptions}
                                             value={
                                               newAssignmentForm.assigneeIds ??
@@ -1268,8 +1323,6 @@ export function TrackingTable({
                                                 assigneeIds: ids,
                                               })
                                             }
-                                            placeholder="Seleccionar FSRs"
-                                            className="w-full"
                                           />
                                           {fsrOptions.length === 0 && (
                                             <p className="text-xs text-muted-foreground">
@@ -1277,6 +1330,12 @@ export function TrackingTable({
                                             </p>
                                           )}
                                         </div>
+                                        {scheduledDateField(
+                                          `edit-mode-date-${incident.id}`,
+                                          newAssignmentForm,
+                                          setNewAssignmentForm,
+                                          savingNewAssignment,
+                                        )}
                                       </div>
                                       <div className="space-y-2">
                                         <Label
@@ -1415,80 +1474,95 @@ export function TrackingTable({
                               </div>
 
                               {/* Create Assignment Form */}
-                              {creatingAssignment === incident.id && (
-                                <div className="p-4 bg-background rounded-lg border space-y-4 mb-3">
-                                  <h5 className="font-medium">
-                                    Nueva Asignación
-                                  </h5>
-                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                      <Label htmlFor={`new-fsr-${incident.id}`}>
-                                        FSRs Asignados
-                                      </Label>
-                                      <MultiSelect
-                                        id={`new-fsr-${incident.id}`}
-                                        options={fsrOptions}
-                                        value={
-                                          newAssignmentForm.assigneeIds ?? []
-                                        }
-                                        onValueChange={(ids) =>
-                                          setNewAssignmentForm({
-                                            ...newAssignmentForm,
-                                            assigneeIds: ids,
-                                          })
-                                        }
-                                        placeholder="Seleccionar FSRs"
-                                        searchPlaceholder="Buscar FSR..."
-                                      />
-                                      {fsrOptions.length === 0 && (
-                                        <p className="text-xs text-muted-foreground">
-                                          No hay FSRs registrados
-                                        </p>
+                              {creatingAssignment === incident.id &&
+                                editingIncident !== incident.id && (
+                                  <div className="p-4 bg-background rounded-lg border space-y-4 mb-3">
+                                    <h5 className="font-medium">
+                                      Nueva Asignación
+                                    </h5>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                      <div className="space-y-2">
+                                        <Label
+                                          htmlFor={`new-fsr-${incident.id}`}
+                                        >
+                                          FSRs Asignados
+                                        </Label>
+                                        <FsrAvailabilitySelect
+                                          id={`new-fsr-${incident.id}`}
+                                          availability={createAvailability}
+                                          scheduledDate={
+                                            newAssignmentForm.scheduledDate ||
+                                            null
+                                          }
+                                          disabled={savingNewAssignment}
+                                          options={fsrOptions}
+                                          value={
+                                            newAssignmentForm.assigneeIds ?? []
+                                          }
+                                          onValueChange={(ids) =>
+                                            setNewAssignmentForm({
+                                              ...newAssignmentForm,
+                                              assigneeIds: ids,
+                                            })
+                                          }
+                                        />
+                                        {fsrOptions.length === 0 && (
+                                          <p className="text-xs text-muted-foreground">
+                                            No hay FSRs registrados
+                                          </p>
+                                        )}
+                                      </div>
+                                      {scheduledDateField(
+                                        `new-date-${incident.id}`,
+                                        newAssignmentForm,
+                                        setNewAssignmentForm,
+                                        savingNewAssignment,
                                       )}
                                     </div>
+                                    <div className="space-y-2">
+                                      <Label
+                                        htmlFor={`new-notes-${incident.id}`}
+                                      >
+                                        Notas
+                                      </Label>
+                                      <Textarea
+                                        id={`new-notes-${incident.id}`}
+                                        value={newAssignmentForm.notes}
+                                        onChange={(e) =>
+                                          setNewAssignmentForm({
+                                            ...newAssignmentForm,
+                                            notes: e.target.value,
+                                          })
+                                        }
+                                        placeholder="Notas opcionales..."
+                                        rows={3}
+                                      />
+                                    </div>
+                                    <div className="flex justify-end gap-2">
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={handleCancelCreateAssignment}
+                                        disabled={savingNewAssignment}
+                                      >
+                                        <XIcon className="h-4 w-4 mr-2" />
+                                        Cancelar
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        onClick={() =>
+                                          handleCreateAssignment(incident.id)
+                                        }
+                                        disabled={savingNewAssignment}
+                                      >
+                                        <Save className="h-4 w-4 mr-2" />
+                                        {savingNewAssignment
+                                          ? "Guardando..."
+                                          : "Crear Asignación"}
+                                      </Button>
+                                    </div>
                                   </div>
-                                  <div className="space-y-2">
-                                    <Label htmlFor={`new-notes-${incident.id}`}>
-                                      Notas
-                                    </Label>
-                                    <Textarea
-                                      id={`new-notes-${incident.id}`}
-                                      value={newAssignmentForm.notes}
-                                      onChange={(e) =>
-                                        setNewAssignmentForm({
-                                          ...newAssignmentForm,
-                                          notes: e.target.value,
-                                        })
-                                      }
-                                      placeholder="Notas opcionales..."
-                                      rows={3}
-                                    />
-                                  </div>
-                                  <div className="flex justify-end gap-2">
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={handleCancelCreateAssignment}
-                                      disabled={savingNewAssignment}
-                                    >
-                                      <XIcon className="h-4 w-4 mr-2" />
-                                      Cancelar
-                                    </Button>
-                                    <Button
-                                      size="sm"
-                                      onClick={() =>
-                                        handleCreateAssignment(incident.id)
-                                      }
-                                      disabled={savingNewAssignment}
-                                    >
-                                      <Save className="h-4 w-4 mr-2" />
-                                      {savingNewAssignment
-                                        ? "Guardando..."
-                                        : "Crear Asignación"}
-                                    </Button>
-                                  </div>
-                                </div>
-                              )}
+                                )}
 
                               {/* Existing Assignments */}
                               {incident.assignments &&
@@ -1624,8 +1698,25 @@ export function TrackingTable({
                                                       >
                                                         FSRs Asignados
                                                       </Label>
-                                                      <MultiSelect
+                                                      <FsrAvailabilitySelect
                                                         id={`wo-fsr-${assignment.id}`}
+                                                        availability={
+                                                          editAvailability
+                                                        }
+                                                        scheduledDate={
+                                                          assignmentEditForm.scheduledDate ||
+                                                          null
+                                                        }
+                                                        disabled={
+                                                          savingAssignment ===
+                                                          assignment.id
+                                                        }
+                                                        selectedOptions={assignment.assignees?.map(
+                                                          ({ user }) => ({
+                                                            value: user.id,
+                                                            label: user.name,
+                                                          }),
+                                                        )}
                                                         options={fsrOptions}
                                                         value={
                                                           assignmentEditForm.assigneeIds ??
@@ -1639,10 +1730,15 @@ export function TrackingTable({
                                                             },
                                                           )
                                                         }
-                                                        placeholder="Seleccionar FSRs"
-                                                        searchPlaceholder="Buscar FSR..."
                                                       />
                                                     </div>
+                                                    {scheduledDateField(
+                                                      `wo-date-${assignment.id}`,
+                                                      assignmentEditForm,
+                                                      setAssignmentEditForm,
+                                                      savingAssignment ===
+                                                        assignment.id,
+                                                    )}
                                                     <div className="space-y-2">
                                                       <Label
                                                         htmlFor={`wo-status-${assignment.id}`}

@@ -280,6 +280,56 @@ export default async function AssignmentDetailPage({
         </SectionCard>
       </div>
 
+      <SectionCard title="Evidencia de campo">
+        <dl className="grid gap-4 sm:grid-cols-2">
+          <div className="sm:col-span-2">
+            <dt className="text-sm text-muted-foreground">Folio ODT</dt>
+            <dd className="font-medium">
+              {assignment.odtFolio || "No registrado"}
+            </dd>
+          </div>
+          {[
+            {
+              label: "Inicio",
+              latitude: assignment.startLatitude,
+              longitude: assignment.startLongitude,
+              timestamp: assignment.startedAt,
+              address: assignment.startAddress,
+            },
+            {
+              label: "Finalización",
+              latitude: assignment.endLatitude,
+              longitude: assignment.endLongitude,
+              timestamp: assignment.finishedAt,
+              address: assignment.endAddress,
+            },
+          ].map((capture) => (
+            <div key={capture.label} className="space-y-2">
+              <dt className="text-sm text-muted-foreground">
+                GPS de {capture.label.toLowerCase()}
+              </dt>
+              <dd className="font-medium">
+                {capture.latitude != null && capture.longitude != null
+                  ? `${capture.latitude}, ${capture.longitude}`
+                  : "No registrado"}
+              </dd>
+              <dt className="text-sm text-muted-foreground">
+                Fecha de {capture.label.toLowerCase()}
+              </dt>
+              <dd>
+                {capture.timestamp != null
+                  ? formatMX(capture.timestamp)
+                  : "No registrada"}
+              </dd>
+              <dt className="text-sm text-muted-foreground">
+                Dirección de {capture.label.toLowerCase()}
+              </dt>
+              <dd>{capture.address || "No registrada"}</dd>
+            </div>
+          ))}
+        </dl>
+      </SectionCard>
+
       <SectionCard title="Actividades Realizadas">
         {activities.length === 0 ? (
           <EmptyState

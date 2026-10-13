@@ -308,6 +308,112 @@ Restricción única: `(assignmentId, userId)`.
 
 ---
 
+### RF-262 · Selección de FSR con disponibilidad visible por fecha
+
+Los controles de creación, edición completa y composición de seguimiento evalúan
+la disponibilidad de los candidatos contra el `scheduledDate` efectivo en CDMX
+(`getAssignmentFsrAvailability`). Los candidatos inhábiles (festivo activo o
+vacación APROBADA vigente) siguen visibles con una explicación operativa
+("Vacación aprobada" / "Día festivo"), sin exponer el motivo personal de la
+ausencia, y quedan deshabilitados para agregarse. Un FSR ya seleccionado que
+resulte inhábil sigue visible y removible (incluido fuera del límite de chips);
+quitarlo no arrastra a los demás. Sin fecha se conserva la semántica diferida
+(sin chequeo previo). Las respuestas tardías de una fecha/incidente/editor
+anterior no sobrescriben el estado vigente; una consulta fallida o pendiente se
+muestra como tal, nunca como "disponible" confirmado.
+
+Las mutaciones del servidor siguen siendo autoritarias (RF-704 y reglas de
+composición): validan la fecha efectiva y el conjunto final retenido/nuevo en
+transacción, así que quitar a un inhábil y conservar solo reemplazos válidos
+prospera, mientras que retener o agregar un FSR prohibido rechaza atómicamente.
+Los hints del cliente nunca reasignan automáticamente.
+
+#### Escenario: La ausencia aprobada deshabilita al candidato en todas las superficies
+
+- DADO tres FSR habilitados y una vacación aprobada de uno en la fecha efectiva
+- CUANDO operaciones abre la selección en crear, editar o composición de
+  seguimiento
+- ENTONCES ese FSR se ve pero no puede agregarse, los dos reemplazos siguen
+  seleccionables y solo se expone la explicación operativa
+
+#### Escenario: Reemplazar un FSR seleccionado que quedó inhábil
+
+- DADO un FSR seleccionado que quedó inhábil, incluso más allá del límite de
+  chips visibles
+- CUANDO operaciones quita esa selección y elige un reemplazo disponible
+- ENTONCES el FSR removido no bloquea la composición final válida y las demás
+  selecciones quedan intactas
+
+#### Escenario: Respuestas obsoletas y rechazo autoritario
+
+- DADO un cambio de fecha con respuestas de disponibilidad desordenadas, o una
+  aprobación posterior a una consulta exitosa
+- CUANDO llega la respuesta vieja u operaciones guarda una selección hoy inválida
+- ENTONCES la respuesta vieja se ignora y el servidor rechaza la composición
+  prohibida sin escrituras parciales
+
+### RF-263 · ODT accesible y reintentos veraces de adjuntos de actividad
+
+La captura ODT expone input etiquetado y controles de guardado/cancelado
+accesibles por teclado y con nombres distintos. Cancelar restaura el folio
+guardado sin mutar; un rechazo de regla de negocio preserva el borrador.
+RF-010 y las precondiciones de cierre no cambian.
+
+El envío de actividad trata como fallos tanto promesas rechazadas como
+`ActionResult` fallidos cumplidos de subida. Tras confirmar la creación de la
+actividad, un fallo parcial de adjuntos conserva esa identidad de actividad y
+los borradores fallidos, reporta por archivo y ofrece reintento solo de
+adjuntos. Reintentar no crea una segunda actividad ni re-sube adjuntos
+exitosos. El envío se desbloquea en todo resultado; completar/resetear ocurre
+solo cuando las subidas solicitadas prosperan o el usuario abandona
+explícitamente el parcial. Esto no promete idempotencia offline total ni
+cross-reload para la creación de actividad.
+
+#### Escenario: Guardado y cancelado ODT por teclado
+
+- DADO un campo ODT editable de asignación
+- CUANDO el FSR usa su campo etiquetado y sus controles nombrados
+- ENTONCES guardar persiste el folio, cancelar restaura el guardado y un
+  guardado rechazado preserva el borrador editable
+
+#### Escenario: Un fallo de negocio cumplido no es éxito de subida
+
+- DADO una actividad confirmada y dos subidas (una exitosa, una cumplida con
+  `ActionResult` fallido)
+- CUANDO completa el lote
+- ENTONCES el formulario reporta el archivo fallido, conserva la identidad de
+  la actividad y su borrador, y no reporta éxito completo
+
+#### Escenario: Reintento solo de adjuntos
+
+- DADO el parcial anterior, incluido un archivo con fallo de transporte
+- CUANDO el FSR reintenta los adjuntos fallidos y prosperan
+- ENTONCES existe exactamente una actividad, los exitosos no se re-suben, los
+  fallidos quedan como evidencia y el formulario puede completarse
+
+### RF-264 · Revisión administrativa de evidencia de campo
+
+El detalle de asignación autorizado para admin muestra el folio ODT externo
+persistido y las coordenadas GPS de inicio/cierre con sus timestamps cuando
+existen, distingue observaciones ausentes de coordenadas cero, y expone las
+actividades/adjuntos existentes. Sigue el scoping de acceso vigente. No crea
+puerta de revisión ni muta el estado de cierre.
+
+#### Escenario: Revisar dos asignaciones hermanas completadas independientemente
+
+- DADO dos asignaciones hermanas completadas con FSR, ODT y observaciones GPS
+  distintos
+- CUANDO operaciones revisa cada detalle tras el cierre automático del incidente
+- ENTONCES cada una muestra su propia evidencia persistida y el incidente sigue
+  cerrado sin mutación de revisión
+
+#### Escenario: Coordenadas ausentes y cero
+
+- DADO un par de coordenadas ausente y otro par válido que contiene cero
+- CUANDO se renderiza el detalle autorizado
+- ENTONCES lo ausente se identifica como ausente y el cero se muestra como
+  valor registrado
+
 ## Reglas transversales aplicables
 
 - **Soft delete universal**: ningún registro se borra físicamente. `active: false` en Assignment, AssignmentAssignee, AssignmentActivity, AssignmentAttachment.
