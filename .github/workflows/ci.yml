@@ -81,7 +81,9 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Suite e2e
-        run: npm run test:e2e
+        run: |
+          set -o pipefail
+          npm run test:e2e 2>&1 | tee e2e-standard.log
 
       - name: Subir reporte Playwright
         # Siempre, no solo al fallar: una corrida verde con flaky tampoco
@@ -94,6 +96,27 @@ jobs:
           path: |
             playwright-report/
             test-results/
+            e2e-standard.log
+          retention-days: 7
+
+      # Sequential invocations: each destroys/rebuilds the same ephemeral stack.
+      # Upload the first report before the second invocation; workflow output
+      # directories and logs are separate as well.
+      - name: Role-owned workflow acceptance
+        if: ${{ !cancelled() }}
+        run: |
+          set -o pipefail
+          npm run test:e2e:workflows 2>&1 | tee e2e-workflows.log
+
+      - name: Upload workflow report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-workflows
+          path: |
+            playwright-report/workflows/
+            test-results/workflows/
+            e2e-workflows.log
           retention-days: 7
 
   integration:

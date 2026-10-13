@@ -102,6 +102,79 @@ npm run e2e:down
 
 Arguments are forwarded, so `npm run test:e2e -- --project=chromium` works.
 
+## Role-owned workflow acceptance
+
+Run the vacation and incident handoffs against a **fresh production build**:
+
+```bash
+npm run test:e2e:workflows
+npm run test:e2e:workflows -- --grep vacation
+npm run test:e2e:workflows -- --grep incident
+```
+
+The runner consumes `--workflows`, opts in to the dedicated Chromium project,
+and enforces `--project=workflows --workers=1`. Conflicting project/worker
+arguments, development-server mode and sharding reject before stack startup.
+Workflow specs are excluded from every standard project and use independent
+synthetic UI logins rather than shared ROOT storage state.
+
+**Serialize invocations on one machine.** Standard E2E, workflow E2E and
+integration runners share the same fixed Compose project and ports. Let one
+finish teardown before starting the next. CI executes standard and workflow
+runs sequentially, uploads the standard report first, and preserves separate
+`playwright-report/workflows/`, `test-results/workflows/` and log artifacts.
+
+### Evidence and fixture boundaries
+
+| File | Contract |
+|---|---|
+| `fixtures/workflows.ts` | Per-test/retry synthetic users, exact seeded roles, center hierarchy, two vehicles and calendar/hire/grace prerequisites; ephemeral guard before writes |
+| `fixtures/workflow-ui.ts` | UI logins, immutable href/folio IDs, row/dialog scoping, genuine PNG captures, real displayed-image decoding and per-role trace attachments |
+| `workflows/vacation-role-workflow.spec.ts` | Own/admin request, pending replacement, decisions, eligible cancellation, started correction, stale draft and authorization/validation negatives |
+| `workflows/incident-role-workflow.spec.ts` | Reporter report → same-incident programming → unavailable candidate → independent sibling work/trips → last-sibling automatic closure → review; full-edit/tracking replacement |
+
+Raw writes provision **prerequisites and test-owned cleanup only**. Requests,
+decisions, incidents, schedules, assignments, activities, evidence and vehicle
+trips are created and transitioned through authenticated UI. Database queries
+inside test bodies only corroborate the visible result. No direct Server Action,
+API request or browser evaluation bypass performs a tested mutation.
+
+Calendar setup captures the actual CDMX day. Only active seed holiday rules
+matching that field day are temporarily disabled in this isolated project and
+their flags are restored in `finally`. Future ranges skip holidays and Sundays
+when counting charges; a Sunday-start absence includes the next chargeable day.
+Hire dates ensure already-earned grants; the grace-window prerequisite is set
+before UI-triggered grant generation and restored afterward. Generated grant
+snapshots and server time are never rewritten. Crossing CDMX midnight fails with
+a clear rerun message rather than changing dates mid-flow.
+
+Reporter, activity and odometer photos contain valid compressed PNG pixels.
+Every persisted preview under assertion must pass `HTMLImageElement.decode()`
+and have nonzero natural dimensions on the corresponding detail page.
+Screenshots at role handoffs and separately attached role traces document the
+outcomes; they do not replace uploaded-photo assertions. Identities, free text
+and attachment names are synthetic, and trace filenames use sanitized role
+indices rather than real identities.
+
+### Discovery without a database/browser run
+
+```bash
+npm run test:unit -- scripts/e2e.test.mjs e2e/fixtures/workflows.test.ts e2e/fixtures/ephemeral-db.test.ts
+E2E_WORKFLOWS=1 npm run test:e2e:only -- --project=workflows --workers=1 --list
+npm run test:e2e:only -- --list
+```
+
+The `--list` commands validate matching only; they do not create a stack, start
+the web server or prove that the workflows pass. The lifecycle-backed
+`test:e2e:workflows` command is the runtime acceptance check.
+
+Current operations UI exposes assignment ODT/GPS/activity images and aggregate
+completed-trip reports. Odometer photo detail exists on the FSR trip route;
+ADMIN_OPERACION has no route grant or admin trip-photo detail. The workflow
+asserts decoded completed-trip photos in each owning FSR context and the
+operations trip report separately. Operations-owned trip-photo review remains
+an application interface gap, not evidence proved by an aggregate row.
+
 ## Browsers
 
 Default runs are Chromium-only: `chromium`, `Mobile Chrome`, `catalogs`,

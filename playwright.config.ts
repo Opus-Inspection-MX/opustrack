@@ -65,6 +65,8 @@ const WEBKIT_AVAILABLE = Boolean(process.env.CI) || hasWebkit();
 // Chromium-based catalogs/flows projects always run. (Firefox entries that
 // finish in 1-3ms are skips from a missing binary, not passes.)
 const EXTRA_BROWSERS = process.env.E2E_EXTRA_BROWSERS === "1";
+const WORKFLOWS = process.env.E2E_WORKFLOWS === "1";
+const WORKFLOW_PATH = /workflows[\\/].*\.spec\.ts$/;
 const EXTRA_BROWSER_PROJECTS = new Set([
   "firefox",
   "webkit",
@@ -114,15 +116,33 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  workers: WORKFLOWS || process.env.CI ? 1 : undefined,
+  outputDir: WORKFLOWS ? "test-results/workflows" : "test-results",
   // "list" prints each test's pass/fail live to the terminal — without it,
   // "html" alone only writes the report file and stays silent until the run
   // ends, making the run look stuck / indistinguishable from server logs.
-  reporter: [["list"], ["html"]],
+  reporter: [
+    ["list"],
+    [
+      "html",
+      {
+        outputFolder: WORKFLOWS
+          ? "playwright-report/workflows"
+          : "playwright-report",
+        open: "never",
+      },
+    ],
+  ],
   use: {
     baseURL: BASE_URL,
     trace: "on-first-retry",
     screenshot: "only-on-failure",
+    // Locator actions and navigation waits default to NO timeout upstream: a
+    // click that never navigates (or a waitForURL that misses its navigation)
+    // hangs until the test timeout instead of failing at the culprit step.
+    // Bound them so a missed handoff fails fast and names its own action.
+    actionTimeout: 60_000,
+    navigationTimeout: 60_000,
   },
 
   projects: [
@@ -220,7 +240,30 @@ export default defineConfig({
       use: { ...devices["iPhone 12"] },
       dependencies: ["setup"],
     },
-  ].filter(onlyAvailableBrowsers),
+    ...(WORKFLOWS
+      ? [
+          {
+            name: "workflows",
+            testMatch: WORKFLOW_PATH,
+            fullyParallel: false,
+            use: { ...devices["Desktop Chrome"], ...SYSTEM_CHROMIUM_USE },
+          },
+        ]
+      : []),
+  ]
+    .filter(onlyAvailableBrowsers)
+    .map((project) =>
+      project.name === "workflows"
+        ? project
+        : {
+            ...project,
+            testIgnore: [
+              /zz-.*\.spec\.ts$/,
+              WORKFLOW_PATH,
+              ...(project.testIgnore ? [project.testIgnore] : []),
+            ],
+          },
+    ),
 
   webServer: {
     // Production server by default. `next dev` logs every request Playwright

@@ -89,7 +89,11 @@ export function comboboxByLabel(page: Page, label: string): Locator {
   // hydrates: the production server streams the SSR markup before the client
   // tree takes over, and Playwright can sample the DOM inside that window.
   // The field is unique in the form, so the first match is always the real one.
-  return page.locator(`label:text-is("${label}") + button`).first();
+  //
+  // Substring `:text()` instead of `:text-is()`: labels render the required
+  // marker in a nested `<span>` (e.g. `Tipo de Incidente <span>*</span>`),
+  // which `:text-is()` never matches even though the visible text is exact.
+  return page.locator(`label:text("${label}") + button`).first();
 }
 
 /**

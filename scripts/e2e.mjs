@@ -30,13 +30,20 @@ import {
   prepareDatabase,
   run,
 } from "./lib/ephemeral-stack.mjs";
+import { workflowOptions } from "./lib/workflow-options.mjs";
 
-const args = process.argv.slice(2);
-const devMode = args.includes("--dev");
-const playwrightArgs = args.filter((a) => a !== "--dev");
+const { devMode, workflows, playwrightArgs } = workflowOptions(
+  process.argv.slice(2),
+);
 
 loadProfile("e2e");
 if (devMode) process.env.E2E_SERVER = "dev";
+if (workflows) {
+  process.env.E2E_WORKFLOWS = "1";
+  delete process.env.E2E_SERVER;
+} else {
+  delete process.env.E2E_WORKFLOWS;
+}
 
 const cleanup = installCleanup();
 
