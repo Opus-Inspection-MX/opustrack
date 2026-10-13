@@ -414,6 +414,50 @@ puerta de revisión ni muta el estado de cierre.
 - ENTONCES lo ausente se identifica como ausente y el cero se muestra como
   valor registrado
 
+---
+
+### RF-265 · Servido dinámico de adjuntos del proveedor filesystem
+
+El servidor de producción no incorpora los archivos agregados a `public/`
+después del arranque, así que la evidencia recién subida devolvía 404 hasta
+reiniciar y el optimizador de `next/image` reportaba "not a valid image". La
+ruta `GET /uploads/<subcarpeta>/<archivo>` lee del disco en cada request, así
+que lo subido se sirve de inmediato sin reiniciar. Las URLs `/uploads/...`
+almacenadas, los proveedores y la ruta de Vercel Blob no cambian; no hay
+migración de datos. La ruta sigue pública, como el prefijo `/uploads` y el
+comportamiento público de Blob.
+
+**Reglas de negocio:**
+- Solo archivos regulares dentro de la raíz de uploads; traversal (`..`),
+  segmentos vacíos, rutas absolutas, backslashes y separadores codificados
+  responden 404 sin leer fuera de la raíz. Faltantes responden 404.
+- `Content-Type` según extensión (imágenes, PDF, video, office, texto;
+  resto `application/octet-stream`) y caché inmutable de larga duración (los
+  nombres almacenados son únicos por subida).
+
+#### Escenario: La evidencia recién subida se renderiza sin reiniciar
+
+- DADO un servidor de producción arrancado antes de una subida
+- CUANDO un operador sube una imagen y abre su URL `/uploads/...` almacenada
+- ENTONCES los bytes servidos igualan los subidos con content-type de imagen,
+  sin reiniciar en el medio
+
+#### Escenario: Traversal y faltantes fallan cerrado
+
+- DADO rutas con traversal, absolutas, backslash, separadores codificados o
+  un archivo inexistente
+- CUANDO se piden por la ruta
+- ENTONCES la respuesta es 404 y ningún archivo fuera de la raíz se lee
+
+#### Escenario: El optimizador recibe una imagen válida
+
+- DADO un PNG recién subido por el proveedor filesystem
+- CUANDO `next/image` optimiza su URL almacenada
+- ENTONCES el optimizador devuelve una imagen decodificable en vez de
+  "not a valid image"
+
+---
+
 ## Reglas transversales aplicables
 
 - **Soft delete universal**: ningún registro se borra físicamente. `active: false` en Assignment, AssignmentAssignee, AssignmentActivity, AssignmentAttachment.
