@@ -239,25 +239,24 @@ test.describe("El admin lo sigue desde Seguimiento de Atención", () => {
   // Pinned as fixme until Fase 8 extracts the table; then this proves the
   // role can use the buttons.
   // -------------------------------------------------------------------------
-  test.fixme(
-    "la incidencia muestra Editar y Crear Asignación usables",
-    async ({ page }) => {
-      await gotoReady(page, `/admin/incidents/${incidentId}`);
+  test.fixme("la incidencia muestra Editar y Crear Asignación usables", async ({
+    page,
+  }) => {
+    await gotoReady(page, `/admin/incidents/${incidentId}`);
 
-      // The detail page proves it loaded for this role: folio plus sections.
-      await expect(page.getByText(`Folio: INC-${incidentId}`)).toBeVisible();
-      await expect(
-        page.getByText("Detalles del Incidente").first(),
-      ).toBeVisible();
+    // The detail page proves it loaded for this role: folio plus sections.
+    await expect(page.getByText(`Folio: INC-${incidentId}`)).toBeVisible();
+    await expect(
+      page.getByText("Detalles del Incidente").first(),
+    ).toBeVisible();
 
-      // "Editar incidencia" navigates to a form this role may submit.
-      await page.getByRole("link", { name: "Editar incidencia" }).click();
-      await page.waitForURL(`**/admin/incidents/${incidentId}/edit`);
-      await expect(
-        page.getByRole("button", { name: "Actualizar Incidente" }),
-      ).toBeVisible();
-    },
-  );
+    // "Editar incidencia" navigates to a form this role may submit.
+    await page.getByRole("link", { name: "Editar incidencia" }).click();
+    await page.waitForURL(`**/admin/incidents/${incidentId}/edit`);
+    await expect(
+      page.getByRole("button", { name: "Actualizar Incidente" }),
+    ).toBeVisible();
+  });
 
   test("la asignación muestra Editar usable", async ({ page }) => {
     await gotoReady(page, `/admin/assignments/${assignmentId}`);
@@ -275,16 +274,15 @@ test.describe("El admin lo sigue desde Seguimiento de Atención", () => {
   // H-06, fails before Fase 0d: ADMIN_OPERACION sees the Cancel button but
   // holds no `incidents:cancel` grant, so the action rejects. Pinned as fixme
   // until 0d grants it — then this proves the grant works.
-  test.fixme(
-    "cancela la incidencia desde su página de detalle",
-    async ({ page }) => {
-      await gotoReady(page, `/admin/incidents/${incidentId}`);
+  test.fixme("cancela la incidencia desde su página de detalle", async ({
+    page,
+  }) => {
+    await gotoReady(page, `/admin/incidents/${incidentId}`);
 
-      await page.getByRole("button", { name: "Cancelar incidencia" }).click();
-      await page.getByLabel(/Razón/).fill(`E2E cancelación ${SUFFIX}`);
-      await page.getByRole("button", { name: "Confirmar cancelación" }).click();
+    await page.getByRole("button", { name: "Cancelar incidencia" }).click();
+    await page.getByLabel(/Razón/).fill(`E2E cancelación ${SUFFIX}`);
+    await page.getByRole("button", { name: "Confirmar cancelación" }).click();
 
-      await expect(page.getByText("CANCELADA")).toBeVisible();
-    },
-  );
+    await expect(page.getByText("CANCELADA")).toBeVisible();
+  });
 });

@@ -29,7 +29,8 @@ Tailwind 4 + shadcn/ui · Biome · TypeScript strict · Vitest + Playwright
 Todo corre en Docker: la base de datos y el servidor Next. No necesitas
 PostgreSQL instalado.
 
-**Requisitos**: Node.js 22+ y Docker.
+**Requisitos**: Node.js 24 LTS y Docker. La versión de Node para desarrollo
+está indicada en `.nvmrc`; CI y la imagen Docker usan la misma versión mayor.
 
 ### 1. Instalar dependencias
 

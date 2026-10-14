@@ -131,13 +131,14 @@ function WeekBlock({ week }: { week: ProgramWeek }) {
           ))}
         </tr>
         {week.rows.map((row, rowIndex) => (
+          // biome-ignore lint/suspicious/noArrayIndexKey: Stateless report rows have no stable IDs; preserve positional reconciliation.
           <tr key={`${row.kind}-${rowIndex}-${week.days[0].date}`}>
             <th className="border border-black bg-white px-2 py-1 text-left align-middle font-bold text-black">
               {row.label.trim()}
             </th>
             {row.cells.map((value, i) => (
               <td
-                key={`${row.kind}-${rowIndex}-${week.days[i].date}`}
+                key={week.days[i].date}
                 className={`border border-black px-2 py-1 text-center align-middle ${cellClass(row, value)}`}
               >
                 {value ?? ""}

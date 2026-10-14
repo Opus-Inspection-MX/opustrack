@@ -93,9 +93,9 @@ export function isIncidentClosed(
   return codeOf(status) === INCIDENT_STATE.CERRADO;
 }
 
+export type { AssignmentState, IncidentState };
 /** Re-export for call sites that already import from here. */
 export { ASSIGNMENT_STATE, INCIDENT_STATE, INCIDENT_TERMINAL_STATES };
-export type { AssignmentState, IncidentState };
 
 // --- assignment -------------------------------------------------------------
 

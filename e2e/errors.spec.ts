@@ -220,23 +220,20 @@ test.describe("regla XOR de festivos", () => {
   // RETURNED, so the production build replaces the Spanish message with a
   // generic error. Pinned as fixme until the 0e pattern (businessRule)
   // reaches holidays.ts; then this proves the operator reads the reason.
-  test.fixme(
-    "sin día ni lunes N, el operador lee el motivo en español",
-    async ({ page }) => {
-      const suffix = uniqueSuffix();
-      await gotoReady(page, "/admin/holidays/new");
+  test.fixme("sin día ni lunes N, el operador lee el motivo en español", async ({
+    page,
+  }) => {
+    const suffix = uniqueSuffix();
+    await gotoReady(page, "/admin/holidays/new");
 
-      await fillStable(page.locator("#name"), `E2E Festivo ${suffix}`);
-      await fillStable(page.locator("#month"), "5");
+    await fillStable(page.locator("#name"), `E2E Festivo ${suffix}`);
+    await fillStable(page.locator("#month"), "5");
 
-      // Neither day nor nthMonday: bypass the browser `required` on #day so
-      // the request reaches the server rule instead of dying in the form.
-      await page
-        .locator("#day")
-        .evaluate((el) => el.removeAttribute("required"));
-      await page.getByRole("button", { name: "Crear Festivo" }).click();
+    // Neither day nor nthMonday: bypass the browser `required` on #day so
+    // the request reaches the server rule instead of dying in the form.
+    await page.locator("#day").evaluate((el) => el.removeAttribute("required"));
+    await page.getByRole("button", { name: "Crear Festivo" }).click();
 
-      await expect(errorToast(page, /día fijo o un lunes N/)).toBeVisible();
-    },
-  );
+    await expect(errorToast(page, /día fijo o un lunes N/)).toBeVisible();
+  });
 });

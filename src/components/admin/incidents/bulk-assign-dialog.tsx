@@ -237,6 +237,7 @@ export function BulkAssignDialog({
               <p className="font-medium text-destructive">Errores:</p>
               <ul className="list-disc pl-5">
                 {errors.map((e, i) => (
+                  // biome-ignore lint/suspicious/noArrayIndexKey: Each submission replaces this stateless result list; incident IDs and messages may repeat.
                   <li key={`${e.incidentId}-${i}`}>
                     {e.incidentId > 0 ? `Incidente ${e.incidentId}: ` : ""}
                     {e.message}

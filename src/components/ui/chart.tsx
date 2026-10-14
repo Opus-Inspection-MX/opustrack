@@ -107,5 +107,5 @@ const ChartTooltip = RechartsPrimitive.Tooltip;
 
 const ChartLegend = RechartsPrimitive.Legend;
 
-export { ChartContainer, ChartTooltip, ChartLegend, ChartStyle, useChart };
 export type { ChartContextProps };
+export { ChartContainer, ChartLegend, ChartStyle, ChartTooltip, useChart };

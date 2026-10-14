@@ -218,40 +218,37 @@ test.describe("2 · El admin lee la bitácora y cancela", () => {
   // but holds no `incidents:cancel` grant, so cancelIncident rejects and the
   // status never moves. Pinned as fixme until 0d grants it — then this proves
   // the grant and the audit trail work for the real role.
-  test.fixme(
-    "cancela con motivo y queda en la bitácora",
-    async ({ page }, testInfo) => {
-      await page.goto(`/admin/incidents/${cancelIncidentId}`);
+  test.fixme("cancela con motivo y queda en la bitácora", async ({
+    page,
+  }, testInfo) => {
+    await page.goto(`/admin/incidents/${cancelIncidentId}`);
 
-      await page.getByRole("button", { name: "Cancelar incidencia" }).click();
-      await page.getByLabel(/Razón/).fill(CANCEL_REASON);
-      await page.getByRole("button", { name: "Confirmar cancelación" }).click();
+    await page.getByRole("button", { name: "Cancelar incidencia" }).click();
+    await page.getByLabel(/Razón/).fill(CANCEL_REASON);
+    await page.getByRole("button", { name: "Confirmar cancelación" }).click();
 
-      await expectIncidentStatus(cancelIncidentId, "CANCELADA");
-      const cancelledRow = await db().incident.findUniqueOrThrow({
-        where: { id: cancelIncidentId },
-        select: { cancellationReason: true },
-      });
+    await expectIncidentStatus(cancelIncidentId, "CANCELADA");
+    const cancelledRow = await db().incident.findUniqueOrThrow({
+      where: { id: cancelIncidentId },
+      select: { cancellationReason: true },
+    });
 
-      const cancelled = await db().incidentEvent.findFirst({
-        where: { incidentId: cancelIncidentId, eventType: "CANCELLED" },
-      });
-      expect(cancelled, "la cancelación emite CANCELLED").not.toBeNull();
-      expect(cancelled?.actorId).not.toBeNull();
-      expect(
-        (cancelled?.payload as { reason?: string } | null)?.reason,
-        "el motivo queda registrado",
-      ).toBe(CANCEL_REASON);
-      expect(cancelledRow.cancellationReason).toBe(CANCEL_REASON);
+    const cancelled = await db().incidentEvent.findFirst({
+      where: { incidentId: cancelIncidentId, eventType: "CANCELLED" },
+    });
+    expect(cancelled, "la cancelación emite CANCELLED").not.toBeNull();
+    expect(cancelled?.actorId).not.toBeNull();
+    expect(
+      (cancelled?.payload as { reason?: string } | null)?.reason,
+      "el motivo queda registrado",
+    ).toBe(CANCEL_REASON);
+    expect(cancelledRow.cancellationReason).toBe(CANCEL_REASON);
 
-      await page.goto(`/admin/incidents/${cancelIncidentId}`);
-      await expect(page.getByText("Historial").first()).toBeVisible();
-      await expect(
-        page.getByText("Incidencia cancelada").first(),
-      ).toBeVisible();
-      await expect(page.getByText(CANCEL_REASON).first()).toBeVisible();
+    await page.goto(`/admin/incidents/${cancelIncidentId}`);
+    await expect(page.getByText("Historial").first()).toBeVisible();
+    await expect(page.getByText("Incidencia cancelada").first()).toBeVisible();
+    await expect(page.getByText(CANCEL_REASON).first()).toBeVisible();
 
-      await evidence(page, testInfo, "historial con el evento de cancelación");
-    },
-  );
+    await evidence(page, testInfo, "historial con el evento de cancelación");
+  });
 });
