@@ -14,7 +14,7 @@ export default function AuthLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="grid min-h-screen lg:grid-cols-2">
+    <div className="grid min-h-dvh lg:grid-cols-2">
       <aside className="relative hidden flex-col justify-between overflow-hidden bg-opus-hero p-10 text-hero-foreground lg:flex">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15">
@@ -36,8 +36,8 @@ export default function AuthLayout({
           OpusInspection · México
         </p>
       </aside>
-      <main className="flex flex-col items-center justify-center gap-6 p-6">
-        <div className="flex items-center gap-2 lg:hidden">
+      <main className="flex min-w-0 flex-col items-center justify-center gap-4 p-4 sm:gap-6 sm:p-6 [@media(max-height:700px)]:gap-2 [@media(max-height:700px)]:p-2">
+        <div className="flex shrink-0 items-center gap-2 lg:hidden [@media(max-height:600px)]:hidden">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
             <Building2
               className="h-5 w-5 text-primary-foreground"

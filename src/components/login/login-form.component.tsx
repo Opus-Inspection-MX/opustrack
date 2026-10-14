@@ -57,71 +57,85 @@ export default function LoginForm() {
   }
 
   return (
-    <main className="min-h-screen flex items-center justify-center p-6 bg-muted/50">
-      <Card className="w-full max-w-sm">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl text-center">Iniciar Sesión</CardTitle>
-          <CardDescription className="text-center">
-            Ingresa tu correo electrónico y contraseña para acceder
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={onSubmit} className="space-y-4">
-            {error && (
-              <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md">
-                {error}
-              </div>
-            )}
-            <div className="space-y-2">
-              <Label htmlFor="email">Correo electrónico</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="admin@opusinspection.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                autoComplete="email"
-                disabled={loading}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Contraseña</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                autoComplete="current-password"
-                disabled={loading}
-              />
-            </div>
-            <Button type="submit" disabled={loading} className="w-full">
-              {loading ? "Iniciando Sesión..." : "Iniciar Sesión"}
-            </Button>
-
-            <Link
-              href="/forgot-password"
-              className="block text-center text-sm text-primary underline underline-offset-4"
+    <Card className="w-full min-w-0 gap-4 py-4 sm:gap-6 sm:py-6 [@media(max-height:700px)]:gap-2 [@media(max-height:700px)]:py-2">
+      <CardHeader className="space-y-1 [@media(max-height:700px)]:px-4">
+        <CardTitle className="text-2xl text-center">Iniciar Sesión</CardTitle>
+        <CardDescription className="text-center [@media(max-height:700px)]:hidden">
+          Ingresa tu correo electrónico y contraseña para acceder
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="[@media(max-height:700px)]:px-4">
+        <form
+          onSubmit={onSubmit}
+          className="grid gap-4 [@media(max-height:500px)]:grid-cols-2 [@media(max-height:700px)]:gap-2"
+        >
+          {error && (
+            <div
+              role="alert"
+              className="col-span-full rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-600 [@media(max-height:500px)]:p-1"
             >
-              ¿Olvidaste tu contraseña?
-            </Link>
+              {error}
+            </div>
+          )}
+          <div className="min-w-0 space-y-2">
+            <Label htmlFor="email">Correo electrónico</Label>
+            <Input
+              id="email"
+              className="h-11 text-base"
+              type="email"
+              placeholder="admin@opusinspection.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              autoComplete="email"
+              disabled={loading}
+            />
+          </div>
+          <div className="min-w-0 space-y-2">
+            <Label htmlFor="password">Contraseña</Label>
+            <Input
+              id="password"
+              className="h-11 text-base"
+              type="password"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              autoComplete="current-password"
+              disabled={loading}
+            />
+          </div>
+          <Button
+            type="submit"
+            disabled={loading}
+            className="col-span-full h-11 w-full [@media(max-height:500px)]:col-span-1"
+          >
+            {loading ? "Iniciando Sesión..." : "Iniciar Sesión"}
+          </Button>
 
-            {/* Development hint */}
-            {process.env.NODE_ENV === "development" && (
-              <div className="mt-4 p-3 text-xs bg-blue-50 border border-blue-200 rounded-md text-blue-800">
-                <p className="font-semibold mb-1">Credenciales de prueba:</p>
+          <Link
+            href="/forgot-password"
+            className="col-span-full flex min-h-11 items-center justify-center text-center text-sm text-primary underline underline-offset-4 [@media(max-height:500px)]:col-span-1"
+          >
+            ¿Olvidaste tu contraseña?
+          </Link>
+
+          {/* Development hint */}
+          {process.env.NODE_ENV === "development" && (
+            <details className="col-span-full rounded-md border border-blue-200 bg-blue-50 px-3 text-xs text-blue-800">
+              <summary className="min-h-11 cursor-pointer content-center font-semibold">
+                Credenciales de prueba:
+              </summary>
+              <div className="pb-3">
                 <p>Admin: admin@opusinspection.com</p>
                 <p>FSR: fsr@opusinspection.com</p>
                 <p>Reportero: reporter@opusinspection.com</p>
                 <p>Guest: guest@opusinspection.com</p>
               </div>
-            )}
-          </form>
-        </CardContent>
-      </Card>
-    </main>
+            </details>
+          )}
+        </form>
+      </CardContent>
+    </Card>
   );
 }
