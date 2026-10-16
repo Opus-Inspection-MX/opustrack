@@ -10,6 +10,7 @@ import {
   symlink,
   writeFile,
 } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { expect, it } from "vitest";
 import { openPrivateWorkspace } from "./write-vacation-review";
@@ -20,7 +21,7 @@ const aggregate = '{"rows":2,"pending":2}\n';
 async function withFixture(
   test: (fixture: { base: string; root: string; dir: string }) => Promise<void>,
 ) {
-  const base = await mkdtemp("/tmp/opencode/vacation-writer-");
+  const base = await mkdtemp(path.join(tmpdir(), "vacation-writer-"));
   try {
     const root = path.join(base, "repo");
     const dir = path.join(root, "initial_load");
