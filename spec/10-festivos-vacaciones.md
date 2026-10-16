@@ -686,3 +686,40 @@ La lógica pura de este dominio está cubierta por pruebas unitarias (Vitest):
 ## RF rango registrado
 
 RF-700 – RF-749: Festivos y vacaciones (este dominio).
+
+### RF-710 · Conciliación de libros de vacaciones
+
+`User.vacationCycleBasis` elige `CALENDAR` (compatibilidad existente) o
+`ANNIVERSARY` para generación futura. `VacationPeriod.cycleBasis` conserva la
+base aplicada como snapshot; `cycleYear` identifica el año de otorgamiento en
+ambos casos. En el modo por aniversario, el período inicia al cumplir el año de
+servicio y termina el día anterior al siguiente aniversario, en CDMX. El campo
+administrable `VacationSetting.graceWindowMonths` agrega meses desde ese cierre;
+0 significa sin prórroga. Cambiarlo solo afecta períodos nuevos. Los aniversarios
+del 29 de febrero se resuelven por separado para cada año.
+
+La conciliación autorizada conserva los IDs de períodos existentes y registra
+antes/después en `BusinessCorrection`. Las fechas de ingreso guardadas por el
+seed antiguo a medianoche UTC solo se normalizan cuando su fecha civil original
+coincide exactamente con la fuente. El seed nuevo captura medianoche CDMX.
+
+`VacationWorkbook` conserva las celdas originales de todas las hojas, incluidas
+reglas, fórmulas y observaciones, sin ejecutar macros. `VacationWorkbookRow`
+conserva la procedencia, valores normalizados, identidad opcional y estado de
+revisión. Las identidades sin cuenta permanecen pendientes; no se crean accesos.
+Los agregados conciliados se vinculan a su período por aniversario mediante
+`HistoricalVacationConsumption`; no generan solicitudes ni ausencias fechadas.
+Las filas incompletas, inconsistentes o sin fecha/identidad verificable no
+participan del consumo. Un período afectado con saldo pendiente se marca
+`importBlocked` y no puede financiar solicitudes hasta conciliación explícita.
+
+El importador requiere simulación y huella vigente del destino para aplicar,
+rechaza reservas activas y conflictos de identidad/ajustes, y escribe archivo,
+períodos, consumo y auditoría en una transacción serializable. Repetir el mismo
+libro no duplica sus filas ni consumos. El catálogo inicial comparte los tramos
+superiores entre seeds para evitar volver al límite anterior de 30 días.
+
+La consulta de origen y la descarga completa requieren `vacations:manage` en
+servidor. La descarga usa `private, no-store`. Ningún libro, extracto, respaldo o
+dato identificable puede versionarse; las pruebas usan identidades ficticias.
+La ejecución se sigue en `odd/tasks/vacation-workbook-production.md`.

@@ -64,6 +64,7 @@ next-env.d.ts
 /initial_load/**/*.xltx
 /initial_load/**/*.xltm
 /initial_load/**/*.csv
+/initial_load/**/*.dump
 /docs/**/*.xls
 /docs/**/*.xlsb
 /docs/**/*.xlsm

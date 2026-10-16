@@ -174,9 +174,10 @@ export function VacationAccrualClient({
         <CardHeader>
           <CardTitle>Vigencia de los períodos</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Meses adicionales, después de que cierra el año de acumulación,
-            durante los que el usuario aún puede tomar esos días. Solo aplica a
-            períodos creados a partir de ahora.
+            Meses adicionales desde el cierre del período. En los cortes por
+            aniversario, se cuentan desde el día anterior al siguiente
+            aniversario. Cero significa sin prórroga. Solo aplica a períodos
+            nuevos; los ya creados conservan su vencimiento.
           </p>
         </CardHeader>
         <CardContent>
@@ -187,6 +188,7 @@ export function VacationAccrualClient({
                 id="grace"
                 type="number"
                 min={0}
+                max={120}
                 value={grace}
                 onChange={(e) => setGrace(e.target.value)}
                 className="w-32"

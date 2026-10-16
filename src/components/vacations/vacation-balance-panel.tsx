@@ -73,7 +73,7 @@ function PeriodCard({
   };
 
   const yearLabel =
-    period.cycleYear != null
+    period.cycleYear != null && period.cycleBasis !== "ANNIVERSARY"
       ? String(period.cycleYear)
       : `${mxDateString(new Date(period.accrualStart)).slice(0, 4)}–${mxDateString(new Date(period.accrualEnd)).slice(0, 4)}`;
   const usable = isVacationPeriodUsable(period);
@@ -102,6 +102,9 @@ function PeriodCard({
             <p className="text-xs text-muted-foreground">{yearLabel}</p>
           </div>
           <div className="flex flex-col items-end gap-1">
+            {period.importBlocked && (
+              <Badge variant="outline">Pendiente de conciliación</Badge>
+            )}
             {period.isExpired && (
               <Badge variant="outline" className="text-xs">
                 Vencido
@@ -109,6 +112,7 @@ function PeriodCard({
             )}
             {period.cycleYear != null &&
               !period.isExpired &&
+              !period.importBlocked &&
               !usable &&
               period.remainingDays > 0 && (
                 <Badge variant="outline" className="text-xs">
@@ -133,7 +137,7 @@ function PeriodCard({
         </div>
 
         <p className="mt-1 text-xs text-muted-foreground">
-          {period.usedDays} día(s) solicitados o aprobados
+          {period.usedDays} día(s) de consumo histórico o solicitudes
         </p>
 
         <p className="mt-2 text-xs text-muted-foreground">

@@ -76,10 +76,12 @@ export function isVacationPeriodUsable(
     graceEnd: Date | string;
     remainingDays: number;
     isExpired: boolean;
+    importBlocked?: boolean;
   },
   now = new Date(),
 ): boolean {
   if (
+    period.importBlocked ||
     period.isExpired ||
     period.remainingDays <= 0 ||
     new Date(period.graceEnd) < now
@@ -91,4 +93,33 @@ export function isVacationPeriodUsable(
     );
   }
   return true;
+}
+
+/** Earned service-year grant; leap anniversaries are resolved independently. */
+export function anniversaryVacationWindow(
+  hireDate: Date | null,
+  cycleYear: number,
+  graceWindowMonths: number,
+): CalendarVacationWindow | null {
+  const current = calendarVacationWindow(
+    hireDate,
+    cycleYear,
+    graceWindowMonths,
+  );
+  const next = calendarVacationWindow(hireDate, cycleYear + 1, 0);
+  if (!current || !next) return null;
+  const end = moment(next.availableFrom)
+    .tz(APP_TZ)
+    .subtract(1, "day")
+    .endOf("day");
+  return {
+    ...current,
+    accrualStart: current.availableFrom,
+    accrualEnd: end.toDate(),
+    graceEnd: end
+      .clone()
+      .add(graceWindowMonths, "months")
+      .endOf("day")
+      .toDate(),
+  };
 }

@@ -110,3 +110,22 @@ npm run db:prod:migrate     # 5. aplicar en producción
 ```
 
 El paso 4 no es opcional: es donde ves si la base está donde crees que está.
+
+### Conciliación incremental de vacaciones
+
+Este flujo no ejecuta el seed completo. Prepare respaldo privado, aplique la
+migración aditiva y despliegue el código que entiende cortes por aniversario.
+
+```bash
+node scripts/db-prod.mjs vacation-import <archivo-local> --dry-run
+node scripts/db-prod.mjs vacation-import <archivo-local> --apply --expected-state=<huella>
+```
+
+La simulación es de solo lectura. La aplicación pide el nombre del destino,
+comprueba que su estado no haya cambiado y confirma el lote en una transacción.
+Solo reporta conteos; los datos privados permanecen en la base y en evidencia
+local ignorada. Repita la simulación después para comprobar que el libro ya está
+cargado. Compare independientemente cada consumo conciliado con su período y
+compruebe que las filas pendientes no generaron consumos. Consulte
+[el plan](plans/vacaciones-excel-produccion.md) y
+[el tracker](../odd/tasks/vacation-workbook-production.md).

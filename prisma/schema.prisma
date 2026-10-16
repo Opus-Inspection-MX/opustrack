@@ -47,6 +47,8 @@ model User {
   // Nullable: users created before vacation balances existed have no hire date.
   // Balance features stay blocked (with a clear message) until an admin sets it.
   hireDate            DateTime?
+  vacationCycleBasis  VacationCycleBasis @default(CALENDAR)
+  vacationWorkbookRows VacationWorkbookRow[]
   vacationPeriods     VacationPeriod[]         @relation("VacationPeriodUser")
   historicalVacationConsumption HistoricalVacationConsumption[]
   active              Boolean                  @default(true)
@@ -1204,6 +1206,8 @@ model VacationSetting {
 /// derived (see getPeriodBalance), so raising `overrideDays` can only ever
 /// increase what is available and can never orphan an existing request.
 model VacationPeriod {
+  cycleBasis VacationCycleBasis @default(CALENDAR)
+  importBlocked Boolean @default(false)
   id           String     @id @default(cuid())
   userId       String
   user         User       @relation("VacationPeriodUser", fields: [userId], references: [id], onDelete: Cascade)
@@ -1226,6 +1230,47 @@ model VacationPeriod {
   @@index([userId])
   @@index([accrualStart, graceEnd])
   @@map("vacation_periods")
+}
+
+enum VacationCycleBasis {
+  CALENDAR
+  ANNIVERSARY
+}
+
+/// Immutable source evidence, including formula definitions and non-person rule rows.
+model VacationWorkbook {
+  digest String @id
+  filename String
+  source Json
+  importedAt DateTime @default(now())
+  rows VacationWorkbookRow[]
+
+  @@map("vacation_workbooks")
+}
+
+/// Source exceptions are retained without granting access or inventing absences.
+model VacationWorkbookRow {
+  id String @id @default(cuid())
+  workbookDigest String
+  workbook VacationWorkbook @relation(fields: [workbookDigest], references: [digest], onDelete: Restrict)
+  sourceSheet String
+  sourceRow Int
+  cycleYear Int
+  sourceName String
+  hireDate DateTime?
+  yearsOfService Int
+  entitledDays Int?
+  takenDays Int?
+  remainingDays Int?
+  userId String?
+  user User? @relation(fields: [userId], references: [id], onDelete: Restrict)
+  issues String[]
+  reviewStatus HistoricalVacationReviewStatus @default(PENDING)
+  sourceValues Json
+
+  @@unique([workbookDigest, sourceSheet, sourceRow])
+  @@index([userId, cycleYear])
+  @@map("vacation_workbook_rows")
 }
 
 /// Reviewed aggregate consumption, never a dated absence. Source values are

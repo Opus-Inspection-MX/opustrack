@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { VacationApprovalButtons } from "@/components/vacations/vacation-approval-buttons";
 import { VacationPlanner } from "@/components/vacations/vacation-planner";
 import { VacationRequestActions } from "@/components/vacations/vacation-request-actions";
+import { VacationWorkbookArchive } from "@/components/vacations/vacation-workbook-archive";
 import type { CalendarVacation } from "@/components/vacations/vacation-year-calendar";
 import { isFailure } from "@/lib/actions/result";
 import {
@@ -119,6 +120,8 @@ export default async function AdminVacationsPage() {
           canCaptureHireDate={canCaptureHireDate}
         />
       )}
+
+      {canManage && <VacationWorkbookArchive />}
 
       <SectionCard title={`Todas las Solicitudes (${vacations.length})`}>
         {vacations.length === 0 ? (

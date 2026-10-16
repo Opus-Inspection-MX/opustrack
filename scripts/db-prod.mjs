@@ -25,6 +25,8 @@ const ACTIONS = {
     "Muestra el estado de migraciones y el conteo de filas. Solo lectura.",
   permissions:
     "Compara el catálogo de permisos con la base (solo lectura). Acepta --sql.",
+  "vacation-import":
+    "Concilia un Excel de vacaciones; --dry-run no escribe y --apply exige el estado revisado.",
   migrate: "Aplica las migraciones pendientes (prisma migrate deploy).",
   seed: "Ejecuta el seed. NO borra, pero puede duplicar o sobrescribir datos.",
   reset: "BORRA TODA LA BASE, reaplica migraciones y siembra desde cero.",
@@ -123,11 +125,22 @@ async function main() {
   const info = target();
   await showState(info);
 
-  if (DESTRUCTIVE.has(action)) {
+  if (
+    DESTRUCTIVE.has(action) ||
+    (action === "vacation-import" && process.argv.includes("--apply"))
+  ) {
     await confirm(info);
   }
 
   switch (action) {
+    case "vacation-import":
+      run("node", [
+        "--import",
+        "tsx",
+        "scripts/import-vacation-workbook.ts",
+        ...process.argv.slice(3),
+      ]);
+      break;
     case "status":
       run("npx", ["prisma", "migrate", "status"], { check: false });
       break;

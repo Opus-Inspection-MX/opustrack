@@ -282,7 +282,7 @@ describe("mapClientRow / mapLineRow / mapEquipmentRow", () => {
 describe("parseIsoDateOnly", () => {
   it("accepts a calendar date", () => {
     expect(parseIsoDateOnly("2020-03-15")?.toISOString()).toBe(
-      "2020-03-15T00:00:00.000Z",
+      "2020-03-15T06:00:00.000Z",
     );
   });
 
@@ -301,7 +301,7 @@ describe("buildHireDateIndex / resolveHireDate", () => {
       { personKey: "K1", hireDate: "2020-03-15" },
     ]);
     expect(resolveHireDate(index, "K1")?.toISOString()).toBe(
-      "2020-03-15T00:00:00.000Z",
+      "2020-03-15T06:00:00.000Z",
     );
   });
 
@@ -348,7 +348,7 @@ describe("buildNameMatchHireIndex / resolveSeedHireDate (tier-2 fallback)", () =
     );
     const exact = buildHireDateIndex([]);
     expect(resolveSeedHireDate(exact, fallback, "U1")?.toISOString()).toBe(
-      "2020-03-15T00:00:00.000Z",
+      "2020-03-15T06:00:00.000Z",
     );
     expect(hireProvenanceFor(exact, fallback, "U1")).toBe("name_match");
   });
@@ -360,7 +360,7 @@ describe("buildNameMatchHireIndex / resolveSeedHireDate (tier-2 fallback)", () =
     );
     const exact = buildHireDateIndex([]);
     expect(resolveSeedHireDate(exact, fallback, "U1")?.toISOString()).toBe(
-      "2019-05-01T00:00:00.000Z",
+      "2019-05-01T05:00:00.000Z",
     );
     expect(hireProvenanceFor(exact, fallback, "U1")).toBe("name_match");
   });
@@ -411,7 +411,7 @@ describe("buildNameMatchHireIndex / resolveSeedHireDate (tier-2 fallback)", () =
       [{ name: "Fake Person", hireDate: "2020-03-15" }],
     );
     expect(resolveSeedHireDate(exact, fallback, "U1")?.toISOString()).toBe(
-      "2018-01-10T00:00:00.000Z",
+      "2018-01-10T06:00:00.000Z",
     );
     expect(hireProvenanceFor(exact, fallback, "U1")).toBe("exact_key");
   });

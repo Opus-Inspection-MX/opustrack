@@ -920,6 +920,8 @@ export interface VacationPeriodSummary {
   id: string;
   periodNumber: number;
   cycleYear: number | null;
+  cycleBasis?: "CALENDAR" | "ANNIVERSARY";
+  importBlocked?: boolean;
   accrualStart: Date;
   accrualEnd: Date;
   graceEnd: Date;
@@ -982,6 +984,8 @@ export async function getVacationBalanceData(userId?: string, year?: number) {
         id: period.id,
         periodNumber: period.periodNumber,
         cycleYear: period.cycleYear,
+        cycleBasis: period.cycleBasis,
+        importBlocked: period.importBlocked,
         accrualStart: period.accrualStart,
         accrualEnd: period.accrualEnd,
         graceEnd: period.graceEnd,

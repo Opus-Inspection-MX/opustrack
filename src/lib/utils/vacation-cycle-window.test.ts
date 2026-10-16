@@ -1,9 +1,36 @@
 import { describe, expect, it } from "vitest";
 import {
+  anniversaryVacationWindow,
   calendarVacationWindow,
   isCalendarGrantAvailable,
   isVacationPeriodUsable,
 } from "./vacation-cycle-window";
+
+describe("anniversaryVacationWindow", () => {
+  it("grants only on the anniversary and closes before the next, with configurable grace", () => {
+    const hire = new Date("2020-06-15T06:00:00Z");
+    const window = anniversaryVacationWindow(hire, 2026, 0);
+    expect(window).toMatchObject({
+      periodNumber: 6,
+      accrualStart: new Date("2026-06-15T06:00:00Z"),
+      accrualEnd: new Date("2027-06-15T05:59:59.999Z"),
+      graceEnd: new Date("2027-06-15T05:59:59.999Z"),
+    });
+    expect(anniversaryVacationWindow(hire, 2026, 3)?.graceEnd).toEqual(
+      new Date("2027-09-15T05:59:59.999Z"),
+    );
+    expect(anniversaryVacationWindow(hire, 2020, 0)).toBeNull();
+  });
+  it("resolves the next leap anniversary independently without losing February 28", () => {
+    const hire = new Date("2020-02-29T06:00:00Z");
+    expect(anniversaryVacationWindow(hire, 2023, 0)?.accrualEnd).toEqual(
+      new Date("2024-02-29T05:59:59.999Z"),
+    );
+    expect(anniversaryVacationWindow(hire, 2024, 0)?.accrualStart).toEqual(
+      new Date("2024-02-29T06:00:00Z"),
+    );
+  });
+});
 
 describe("calendarVacationWindow", () => {
   it("separates Jan 1 accrual from anniversary activation and Dec 31 closure", () => {

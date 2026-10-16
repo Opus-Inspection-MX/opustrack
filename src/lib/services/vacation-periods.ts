@@ -6,7 +6,10 @@ import { prisma } from "@/lib/database/prisma.singleton";
 import { serializableTransaction } from "@/lib/database/serializable-transaction";
 import { APP_TZ } from "@/lib/utils/datetime";
 import { calculateHistoricalVacationBalance } from "@/lib/utils/historical-vacation-balance";
-import { calendarVacationWindow } from "@/lib/utils/vacation-cycle-window";
+import {
+  anniversaryVacationWindow,
+  calendarVacationWindow,
+} from "@/lib/utils/vacation-cycle-window";
 
 /**
  * Vacation periods: earned calendar grants, with preserved legacy accounts.
@@ -60,6 +63,7 @@ export function isPeriodRequestable(
   period: VacationPeriod,
   date: Date,
 ): boolean {
+  if (period.importBlocked) return false;
   if (period.cycleYear !== null && period.cycleYear !== undefined) {
     if (!period.availableFrom) return false;
     return (
@@ -161,7 +165,7 @@ export async function ensurePeriodsUpToNow(
     return serializableTransaction((tx) => ensurePeriodsUpToNow(userId, tx));
   const user = await client.user.findUnique({
     where: { id: userId },
-    select: { hireDate: true },
+    select: { hireDate: true, vacationCycleBasis: true },
   });
 
   if (!user?.hireDate) return [];
@@ -240,7 +244,7 @@ export async function ensureCalendarPeriodsForUser(
     );
   const user = await client.user.findUnique({
     where: { id: userId },
-    select: { hireDate: true },
+    select: { hireDate: true, vacationCycleBasis: true },
   });
 
   if (!user?.hireDate) return [];
@@ -269,11 +273,11 @@ export async function ensureCalendarPeriodsForUser(
     cycleYear <= upToCycleYear;
     cycleYear += 1
   ) {
-    const window = calendarVacationWindow(
-      user.hireDate,
-      cycleYear,
-      graceWindowMonths,
-    );
+    const window = (
+      user.vacationCycleBasis === "ANNIVERSARY"
+        ? anniversaryVacationWindow
+        : calendarVacationWindow
+    )(user.hireDate, cycleYear, graceWindowMonths);
     if (!window) continue;
     if (window.availableFrom > new Date()) continue;
     const ruleDays = await resolveRuleDays(client, window.periodNumber);
@@ -305,6 +309,7 @@ export async function ensureCalendarPeriodsForUser(
         userId,
         periodNumber: grant.periodNumber,
         cycleYear: grant.cycleYear,
+        cycleBasis: user.vacationCycleBasis ?? "CALENDAR",
         ruleDays: grant.ruleDays,
         accrualStart: grant.accrualStart,
         accrualEnd: grant.accrualEnd,
@@ -636,11 +641,11 @@ export async function recomputePeriodsForNewHireDate(
       continue;
     }
 
-    const calendar = calendarVacationWindow(
-      newHireDate,
-      period.cycleYear,
-      graceWindowMonths,
-    );
+    const calendar = (
+      period.cycleBasis === "ANNIVERSARY"
+        ? anniversaryVacationWindow
+        : calendarVacationWindow
+    )(newHireDate, period.cycleYear, graceWindowMonths);
     // Cycles at/before the new hire year cannot have an earned grant.
     if (!calendar) {
       businessRule(

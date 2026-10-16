@@ -9,6 +9,7 @@ import {
   SYSTEM_VEHICLE_STATUSES,
   SYSTEM_VEHICLE_TRIP_STATUSES,
 } from "../src/lib/catalog/system-states";
+import { DEFAULT_VACATION_ACCRUAL_RULES } from "../src/lib/constants/vacation-accrual";
 import { prisma } from "../src/lib/database/prisma.singleton";
 import { defaultChannelPolicies } from "../src/lib/notifications/catalog";
 import { hashPassword } from "../src/lib/security/hash";
@@ -1790,22 +1791,7 @@ async function main() {
       // than hardcoded so the table can be corrected from the admin UI if the
       // law changes again. The final tier is open-ended so long-tenured staff
       // always match a rule.
-      const accrualRules: Array<{
-        minYears: number;
-        maxYears: number | null;
-        days: number;
-      }> = [
-        { minYears: 1, maxYears: 1, days: 12 },
-        { minYears: 2, maxYears: 2, days: 14 },
-        { minYears: 3, maxYears: 3, days: 16 },
-        { minYears: 4, maxYears: 4, days: 18 },
-        { minYears: 5, maxYears: 5, days: 20 },
-        { minYears: 6, maxYears: 10, days: 22 },
-        { minYears: 11, maxYears: 15, days: 24 },
-        { minYears: 16, maxYears: 20, days: 26 },
-        { minYears: 21, maxYears: 25, days: 28 },
-        { minYears: 26, maxYears: null, days: 30 },
-      ];
+      const accrualRules = DEFAULT_VACATION_ACCRUAL_RULES;
       for (const rule of accrualRules) {
         await tx.vacationAccrualRule.upsert({
           where: { minYears: rule.minYears },

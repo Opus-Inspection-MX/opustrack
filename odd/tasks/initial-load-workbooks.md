@@ -180,3 +180,11 @@ T1: completed · T2: partial (local output incident remains) · T3: roles review
 - **T4 rollback:** No production mutations; discard only preflight artifacts if needed.
 - **T5 rollback:** The unexecuted command, plan preparation, writer and tests were removed; keep ignored private ledgers as historical evidence. Do not roll back accounts created by the separate full seed as part of T5 cleanup.
 - **T6 rollback:** Revert only revised T6 documentation (and any future scoped T6 writer/tests); remove future versioned T6 ignored outputs only with operator approval. Preserve the four existing v1 T6 outputs, `users.csv`, T1–T5 progress, and unrelated changes.
+
+**Continuación de vacaciones (2026-10-15):** El usuario autorizó ejecutar la
+conciliación y carga incremental, conservar cortes por aniversario, configurar
+meses de prórroga y archivar pendientes las identidades sin cuenta y saldos
+inconsistentes. El seguimiento actual está en
+[vacation-workbook-production.md](vacation-workbook-production.md). Las
+restricciones de tareas históricas no describen esta nueva autorización;
+continúa la prohibición de versionar datos sensibles.
