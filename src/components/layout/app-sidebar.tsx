@@ -60,14 +60,14 @@ function readCollapsedGroups(): string[] {
  * open anyway.
  *
  * The five groups collapse independently with the state remembered in a
- * cookie. Groups start expanded and collapsed content stays mounted
- * (forceMount): the e2e suite addresses links inside them and must keep
- * finding them. The footer is a compact account row — the bell and the theme
+ * cookie. Groups start expanded; closed groups hide their links. Icon mode
+ * exposes every group's links without changing the saved preferences.
+ * The footer is a compact account row — the bell and the theme
  * selector moved to the global header, where they stay reachable on mobile.
  */
 export function AppSidebar() {
   const pathname = usePathname();
-  const { toggleSidebar } = useSidebar();
+  const { toggleSidebar, state, isMobile } = useSidebar();
   const { data: session } = useSession();
   const [collapsed, setCollapsed] = useState<string[]>([]);
 
@@ -149,7 +149,9 @@ export function AppSidebar() {
 
       <SidebarContent className="px-4 py-4 group-data-[collapsible=icon]:px-2">
         {groups.map((group, index) => {
-          const open = !collapsed.includes(group.title);
+          const open =
+            (!isMobile && state === "collapsed") ||
+            !collapsed.includes(group.title);
           return (
             <div key={group.title}>
               <Collapsible
@@ -173,9 +175,7 @@ export function AppSidebar() {
                     />
                   </button>
                 </CollapsibleTrigger>
-                {/* forceMount keeps the links in the DOM while collapsed, so
-                    role queries keep resolving them. */}
-                <CollapsibleContent forceMount>
+                <CollapsibleContent>
                   {group.sections.map((section) => (
                     <div key={section.title}>
                       {group.sections.length > 1 && (
