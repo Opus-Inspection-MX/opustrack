@@ -5,6 +5,10 @@ const nextConfig: NextConfig = {
   // it never defines the variable and this stays undefined. Setting
   // `standalone` unconditionally would alter what Vercel produces.
   output: process.env.NEXT_OUTPUT === "standalone" ? "standalone" : undefined,
+  outputFileTracingIncludes: {
+    "/inicio/ayuda": ["./docs/user-guide/*.md"],
+    "/inicio/ayuda/*": ["./docs/user-guide/*.md"],
+  },
   experimental: {
     serverActions: {
       // 10MB per-file cap is enforced in actions; allow headroom for multipart

@@ -15,6 +15,19 @@ function grants(prefixes: string[], exact: string[] = []): RouteGrants {
 }
 
 describe("visibleMenu", () => {
+  it("offers Help through Inicio without granting operational routes", () => {
+    const urls = flattenMenu(visibleMenu(grants(["/inicio"]), false)).map(
+      (item) => item.url,
+    );
+    expect(urls).toEqual(["/inicio", "/inicio/ayuda"]);
+    expect(flattenMenu(visibleMenu(grants([]), false))).toEqual([]);
+    expect(breadcrumbsFor("/inicio/ayuda/reportar-incidente")).toEqual([
+      { title: "Inicio" },
+      { title: "Inicio", url: "/inicio" },
+      { title: "Ayuda", url: "/inicio/ayuda" },
+    ]);
+  });
+
   it("shows only routes the grants can open", () => {
     const menu = visibleMenu(grants(["/admin/vacations", "/vacations"]), false);
     const urls = flattenMenu(menu).map((item) => item.url);

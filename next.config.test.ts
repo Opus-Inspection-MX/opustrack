@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import nextConfig from "./next.config";
 
+it("ships Markdown guides with both Help routes", () => {
+  expect(nextConfig.outputFileTracingIncludes).toMatchObject({
+    "/inicio/ayuda": ["./docs/user-guide/*.md"],
+    "/inicio/ayuda/*": ["./docs/user-guide/*.md"],
+  });
+});
+
 /**
  * PR2 rename bridges (Cliente → Client / CLIENT → REPORTER), plus the
  * universal inbox (Phase 1 notifications).
