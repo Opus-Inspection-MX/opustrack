@@ -1,17 +1,10 @@
-# Verification on every push: format, types, unit tests and the e2e suite.
-#
-# The `e2e` job runs the full Playwright suite in Chromium on every PR and on
-# `main` (not on branch pushes, where only `verify` runs). First-run duration
-# is not measured yet — adjust `timeout-minutes` once it is (placeholder: ~25
-# min budget; split into two jobs per project if it exceeds it).
-#
-# No secrets required. The e2e database is an ephemeral container defined in
-# `docker-compose.e2e.yml`, credentials come from the tracked `config/e2e.env`,
-# and Mailpit captures every email locally.
+# Verification on every push and PR: format, types, unused files and unit tests.
+# Integration and e2e suites remain available locally through npm scripts;
+# GitHub Actions does not run them or provision databases and browsers.
 #
 # Deployment does not live here: the Vercel integration deploys directly on
-# push. Branch protection requiring `verify` + `e2e` before merge is a manual
-# setup step (see the Fase 1 PR description).
+# push. Branch protection should require only `verify`, not the removed `e2e`
+# or `integration` jobs; required checks are configured in repository settings.
 name: CI
 
 on:
@@ -48,97 +41,3 @@ jobs:
 
       - name: Pruebas unitarias
         run: npm run test:unit
-
-  e2e:
-    name: E2E (Chromium)
-    needs: verify
-    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: npm
-
-      - name: Instalar dependencias
-        run: npm ci
-
-      - name: Cache de navegadores Playwright
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          # Keyed by the @playwright/test version: a bump invalidates the
-          # browser binaries. package-lock.json pins the exact resolved one.
-          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
-          restore-keys: |
-            playwright-${{ runner.os }}-
-
-      - name: Instalar Chromium
-        run: npx playwright install --with-deps chromium
-
-      - name: Suite e2e
-        run: |
-          set -o pipefail
-          npm run test:e2e 2>&1 | tee e2e-standard.log
-
-      - name: Subir reporte Playwright
-        # Siempre, no solo al fallar: una corrida verde con flaky tampoco
-        # deja traza, y con `trace: "on-first-retry"` cada flaky deja la
-        # suya para clasificarlo.
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: playwright-report
-          path: |
-            playwright-report/
-            test-results/
-            e2e-standard.log
-          retention-days: 7
-
-      # Sequential invocations: each destroys/rebuilds the same ephemeral stack.
-      # Upload the first report before the second invocation; workflow output
-      # directories and logs are separate as well.
-      - name: Role-owned workflow acceptance
-        if: ${{ !cancelled() }}
-        run: |
-          set -o pipefail
-          npm run test:e2e:workflows 2>&1 | tee e2e-workflows.log
-
-      - name: Upload workflow report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: playwright-report-workflows
-          path: |
-            playwright-report/workflows/
-            test-results/workflows/
-            e2e-workflows.log
-          retention-days: 7
-
-  integration:
-    name: Integración (Postgres real)
-    needs: verify
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: npm
-
-      - name: Instalar dependencias
-        run: npm ci
-
-      # Levanta solo el contenedor e2e-db, migra + siembra y corre el
-      # proyecto integration de Vitest. Corre en paralelo con e2e (Fase 1):
-      # ambos declaran solo `needs: verify` y cada uno destruye su base al
-      # terminar — en CI cada job tiene su propio runner, así que no chocan.
-      - name: Pruebas de integración
-        run: npm run test:int

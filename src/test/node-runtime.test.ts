@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -20,19 +20,32 @@ describe("Node runtime contract", () => {
       /^FROM node:24-slim AS base$/m,
     );
 
-    for (const workflow of [
-      ".github/workflows/ci.yml",
-      ".github/workflows/e2e-nightly.yml",
-    ]) {
-      const targets = Array.from(
-        readProjectFile(workflow).matchAll(/node-version:\s*["']?(\d+)/g),
-        (match) => match[1],
+    const targets = Array.from(
+      readProjectFile(".github/workflows/ci.yml").matchAll(
+        /node-version:\s*["']?(\d+)/g,
+      ),
+      (match) => match[1],
+    );
+    expect(targets.length).toBeGreaterThan(0);
+    expect(targets.every((target) => target === "24")).toBe(true);
+  });
+
+  it("limits CI to static checks and unit tests without browser or database suites", () => {
+    const ci = readProjectFile(".github/workflows/ci.yml");
+    const jobs = ci.split("\njobs:\n")[1];
+    expect(jobs).toBeDefined();
+    expect(
+      Array.from(jobs.matchAll(/^ {2}([\w-]+):/gm), (match) => match[1]),
+    ).toEqual(["verify"]);
+    expect(
+      Array.from(ci.matchAll(/^ {8}run: (.+)$/gm), (match) => match[1]),
+    ).toEqual(["npm ci", "npm run check", "npm run test:unit"]);
+
+    for (const file of readdirSync(join(process.cwd(), ".github/workflows"))) {
+      if (!/\.ya?ml$/.test(file)) continue;
+      expect(readProjectFile(`.github/workflows/${file}`), file).not.toMatch(
+        /npm run test:(?:e2e|int|all)\b|playwright install/,
       );
-      expect(targets.length, workflow).toBeGreaterThan(0);
-      expect(
-        targets.every((target) => target === "24"),
-        workflow,
-      ).toBe(true);
     }
   });
 });
